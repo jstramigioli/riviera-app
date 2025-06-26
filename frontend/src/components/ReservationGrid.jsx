@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { fetchRooms, fetchReservations } from '../services/api';
-import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
+import { useEffect, useState, useRef } from 'react';
+import { addDays, format, differenceInDays, subDays } from 'date-fns';
+import ReservationBar from './ReservationBar';
+import '../styles/ReservationGrid.css';
+import { API_URL } from '../services/api';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -12,70 +14,448 @@ function getDaysArray(start, end) {
   return arr;
 }
 
-export default function ReservationGrid() {
-  const [rooms, setRooms] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Función para agrupar días por mes
+function groupDaysByMonth(days) {
+  const months = [];
+  let currentMonth = null;
+  let currentMonthDays = [];
 
-  // Define el rango de días a mostrar (por ejemplo, los próximos 7 días)
-  const today = new Date();
-  const daysToShow = 30;
-  const days = getDaysArray(today, addDays(today, daysToShow - 1));
+  days.forEach(day => {
+    const monthKey = format(day, 'yyyy-MM');
+    
+    if (currentMonth !== monthKey) {
+      if (currentMonthDays.length > 0) {
+        months.push({
+          month: currentMonthDays[0],
+          days: currentMonthDays,
+          colSpan: currentMonthDays.length
+        });
+      }
+      currentMonth = monthKey;
+      currentMonthDays = [day];
+    } else {
+      currentMonthDays.push(day);
+    }
+  });
 
-  useEffect(() => {
-    Promise.all([fetchRooms(), fetchReservations()])
-      .then(([roomsData, reservationsData]) => {
-        setRooms(roomsData);
-        setReservations(reservationsData);
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <p>Cargando grilla de reservas...</p>;
-  if (error) return <p style={{color: 'red'}}>Error: {error}</p>;
-
-  // Helper para saber si una habitación está reservada en un día
-  function getReservationFor(roomId, day) {
-    return reservations.find(res =>
-      res.roomId === roomId &&
-      isWithinInterval(day, {
-        start: parseISO(res.checkIn),
-        end: parseISO(res.checkOut)
-      })
-    );
+  // Agregar el último mes
+  if (currentMonthDays.length > 0) {
+    months.push({
+      month: currentMonthDays[0],
+      days: currentMonthDays,
+      colSpan: currentMonthDays.length
+    });
   }
 
+  return months;
+}
+
+export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation }) {
+  const today = new Date();
+  const [startDate, setStartDate] = useState(addDays(today, -30));
+  const [endDate, setEndDate] = useState(addDays(today, 30));
+  const [days, setDays] = useState(getDaysArray(addDays(today, -30), addDays(today, 30)));
+  const [months, setMonths] = useState(groupDaysByMonth(getDaysArray(addDays(today, -30), addDays(today, 30))));
+  const [cellWidth, setCellWidth] = useState(40); // Ancho inicial, se ajustará dinámicamente
+  const [cellHeight, setCellHeight] = useState(32); // Alto inicial, se ajustará dinámicamente
+  const [dragPreview, setDragPreview] = useState(null);
+  const [draggedReservation, setDraggedReservation] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [resizingReservation, setResizingReservation] = useState(null);
+  const [resizeData, setResizeData] = useState(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState(null);
+  const [resizeReservationId, setResizeReservationId] = useState(null);
+  
+  const tableRef = useRef();
+  const containerRef = useRef();
+  const resizingReservationRef = useRef(null);
+  const resizeDataRef = useRef(null);
+
+  // Constantes para el cálculo de posiciones
+  const roomColumnWidth = 120;
+  const headerHeight = 70;
+
+  function handleScroll() {
+    if (!containerRef.current) return;
+  
+    const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
+  
+    // Si estás cerca del borde derecho (últimos 200px)
+    if (scrollLeft + clientWidth >= scrollWidth - 200) {
+      setEndDate(prev => {
+        const newEndDate = addDays(prev, 30);
+        const newDays = getDaysArray(startDate, newEndDate);
+        setDays(newDays);
+        setMonths(groupDaysByMonth(newDays));
+        return newEndDate;
+      });
+    }
+  
+    // Si estás cerca del borde izquierdo (primeros 200px)
+    if (scrollLeft <= 200) {
+      setStartDate(prev => {
+        const newStartDate = addDays(prev, -30);
+        const newDays = getDaysArray(newStartDate, endDate);
+        setDays(newDays);
+        setMonths(groupDaysByMonth(newDays));
+        return newStartDate;
+      });
+    }
+  }
+
+  function handleMonthClick(month) {
+    // TODO: Implementar navegación a estadísticas del mes
+    console.log('Click en mes:', format(month, 'MMMM yyyy'));
+    // Aquí irá la lógica para redirigir a estadísticas
+  }
+
+  function handleReservationClick(reservation) {
+    console.log('Datos de la reserva:', reservation);
+  }
+
+  function handleResize(reservationId, updateData) {
+    console.log('handleResize llamado:', reservationId, updateData);
+    setResizingReservation(reservationId);
+    setResizeData(updateData);
+    setReservations(prev => prev.map(reservation =>
+      reservation.id === reservationId
+        ? { ...reservation, ...updateData }
+        : reservation
+    ));
+  }
+
+  function handleResizeEnd(reservationId, updateData) {
+    if (reservationId && updateData) {
+      console.log('Fin resize. Nueva fecha de finalización:', updateData.checkOut);
+      updateReservation(reservationId, updateData);
+      setResizingReservation(null);
+      setResizeData(null);
+    }
+  }
+
+  function handleDragStart(e, reservation, offset) {
+    console.log('Iniciando drag de reserva:', reservation.id, 'con offset:', offset);
+    setDraggedReservation(reservation);
+    setDragOffset(offset);
+  }
+
+  function handleDragEnd(reservation) {
+    console.log('Finalizando drag de reserva:', reservation.id);
+    setDragPreview(null);
+    setDraggedReservation(null);
+    setDragOffset(0);
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    
+    if (!draggedReservation) {
+      console.log('No hay reserva arrastrada');
+      return;
+    }
+    
+    console.log('Drag over con reserva:', draggedReservation.id, 'offset:', dragOffset);
+    
+    // Obtener la posición del mouse
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollLeft = containerRef.current.scrollLeft;
+    const x = e.clientX - rect.left + scrollLeft;
+    const y = e.clientY - rect.top;
+    
+    // Calcular la nueva posición con snap
+    const relativeX = x - roomColumnWidth;
+    const dayIndex = Math.max(0, Math.floor(relativeX / cellWidth));
+    const roomIndex = Math.max(0, Math.floor((y - headerHeight) / cellHeight));
+    
+    const newStartDate = addDays(startDate, dayIndex);
+    const newRoom = rooms[roomIndex];
+    
+    console.log(`Posición: x=${x}, y=${y}, dayIndex=${dayIndex}, roomIndex=${roomIndex}`);
+    console.log(`Cálculo detallado: relativeX=${relativeX}, cellWidth=${cellWidth}, startDate=${startDate.toISOString()}`);
+    
+    if (newRoom) {
+      // Calcular la duración de la reserva original
+      const checkIn = new Date(draggedReservation.checkIn);
+      const checkOut = new Date(draggedReservation.checkOut);
+      const duration = differenceInDays(checkOut, checkIn);
+      
+      // Calcular las nuevas fechas considerando el offset del drag
+      // El día donde hiciste click debe posicionarse donde está el cursor
+      const newCheckIn = addDays(newStartDate, -dragOffset);
+      const newCheckOut = addDays(newCheckIn, duration);
+      
+      console.log(`Cálculo fechas: newStartDate=${newStartDate.toISOString()}, dragOffset=${dragOffset}, newCheckIn=${newCheckIn.toISOString()}`);
+      console.log(`Nueva posición: habitación=${newRoom.name}, fecha=${newCheckIn.toISOString()}, offset aplicado=${dragOffset}`);
+      console.log(`Lógica: click en día ${dragOffset} de la barra → se posiciona en ${newStartDate.toISOString()}`);
+      console.log(`Resultado: el día ${dragOffset} de la barra original se posiciona en ${newCheckIn.toISOString()}`);
+      
+      // Actualizar la preview
+      setDragPreview({
+        reservation: draggedReservation,
+        roomIndex,
+        checkIn: newCheckIn.toISOString(),
+        checkOut: newCheckOut.toISOString(),
+        roomId: newRoom.id,
+        roomName: newRoom.name
+      });
+    }
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    
+    if (dragPreview) {
+      console.log(`Moviendo reserva ${dragPreview.reservation.id} a habitación ${dragPreview.roomName} en fecha ${dragPreview.checkIn}`);
+      
+      // Actualizar la reserva usando la información de la preview
+      updateReservation(dragPreview.reservation.id, {
+        roomId: dragPreview.roomId,
+        checkIn: dragPreview.checkIn,
+        checkOut: dragPreview.checkOut
+      });
+      
+      setDragPreview(null); // Limpiar preview
+    }
+  }
+
+  // Función para centrar la grilla en el día de hoy
+  function centerOnToday() {
+    if (containerRef.current) {
+      const todayIndex = days.findIndex(day => 
+        format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+      );
+      if (todayIndex !== -1) {
+        const scrollPosition = (todayIndex * cellWidth) - (containerRef.current.clientWidth / 2) + (cellWidth / 2);
+        containerRef.current.scrollLeft = Math.max(0, scrollPosition);
+      }
+    }
+  }
+
+  // Centrar la grilla después de que se carguen los datos
+  useEffect(() => {
+    if (rooms.length > 0 && containerRef.current) {
+      setTimeout(centerOnToday, 100);
+    }
+  }, [rooms, days]);
+
+  // Función para medir el ancho y alto real de las celdas después de que se renderice la tabla
+  function measureCellDimensions() {
+    if (tableRef.current) {
+      const firstRow = tableRef.current.querySelector('tbody tr');
+      if (firstRow) {
+        const firstCell = firstRow.querySelector('td:not(.room-name-cell)');
+        if (firstCell) {
+          const actualWidth = firstCell.offsetWidth;
+          const actualHeight = firstCell.offsetHeight;
+          setCellWidth(actualWidth);
+          setCellHeight(actualHeight);
+        }
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (tableRef.current && rooms.length > 0) {
+      setTimeout(measureCellDimensions, 100);
+    }
+  }, [rooms, days]);
+
+  useEffect(() => {
+    // Escuchar mouseup global para detectar fin de resize
+    function onMouseUp() {
+      handleResizeEnd(resizingReservation, resizeData);
+    }
+    window.addEventListener('mouseup', onMouseUp);
+    return () => window.removeEventListener('mouseup', onMouseUp);
+  }, [resizingReservation, resizeData]);
+
+  // Handler para iniciar resize desde ReservationBar
+  function handleResizeStart(reservationId, direction) {
+    setIsResizing(true);
+    setResizeDirection(direction);
+    setResizeReservationId(reservationId);
+  }
+
+  // Handler global para mousemove
+  function handleGlobalMouseMove(e) {
+    console.log('handleGlobalMouseMove llamado');
+    if (!isResizing || !resizeReservationId || !resizeDirection) return;
+    const bar = document.getElementById(`reservation-bar-${resizeReservationId}`);
+    if (!bar) return;
+    // Usar el contenedor de la grilla para calcular la posición absoluta
+    const gridRect = containerRef.current.getBoundingClientRect();
+    const scrollLeft = containerRef.current.scrollLeft;
+    const x = e.clientX - gridRect.left + scrollLeft;
+    const roomColumnWidth = 120;
+    // Calcular dayIndex relativo al inicio de la grilla
+    const dayIndex = Math.round((x - roomColumnWidth - cellWidth) / cellWidth);
+    const startDateObj = new Date(bar.dataset.startdate);
+    const newDate = addDays(startDateObj, dayIndex);
+    const currentCheckIn = new Date(bar.dataset.checkin);
+    const currentCheckOut = new Date(bar.dataset.checkout);
+    const minDuration = 1;
+    if (resizeDirection === 'left') {
+      const maxCheckIn = subDays(currentCheckOut, minDuration);
+      console.log('[LEFT] newDate:', newDate, 'maxCheckIn:', maxCheckIn, 'startDateObj:', startDateObj);
+      if (newDate < maxCheckIn && newDate >= startDateObj) {
+        console.log('[LEFT] Condición cumplida, llamando a handleResize');
+        handleResize(resizeReservationId, {
+          roomId: reservations.find(r => r.id === resizeReservationId)?.roomId,
+          checkIn: newDate.toISOString(),
+          checkOut: currentCheckOut.toISOString()
+        });
+      } else {
+        console.log('[LEFT] Condición NO cumplida');
+      }
+    } else if (resizeDirection === 'right') {
+      const minCheckOut = addDays(currentCheckIn, minDuration);
+      console.log('[RIGHT] newDate:', newDate, 'minCheckOut:', minCheckOut, 'currentCheckIn:', currentCheckIn);
+      if (newDate >= minCheckOut) {
+        console.log('[RIGHT] Condición cumplida, llamando a handleResize');
+        handleResize(resizeReservationId, {
+          roomId: reservations.find(r => r.id === resizeReservationId)?.roomId,
+          checkIn: currentCheckIn.toISOString(),
+          checkOut: newDate.toISOString()
+        });
+      } else {
+        console.log('[RIGHT] Condición NO cumplida');
+      }
+    }
+  }
+
+  // Handler global para mouseup
+  function handleGlobalMouseUp() {
+    console.log('handleGlobalMouseUp llamado');
+    console.log('resizingReservation:', resizingReservationRef.current, 'resizeData:', resizeDataRef.current);
+    if (isResizing) {
+      setIsResizing(false);
+      setResizeDirection(null);
+      setResizeReservationId(null);
+      handleResizeEnd(resizingReservationRef.current, resizeDataRef.current);
+    }
+  }
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [isResizing, resizeDirection, resizeReservationId]);
+
+  useEffect(() => {
+    resizingReservationRef.current = resizingReservation;
+  }, [resizingReservation]);
+
+  useEffect(() => {
+    resizeDataRef.current = resizeData;
+  }, [resizeData]);
+
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table border={1} cellPadding={4} style={{ borderCollapse: 'collapse', minWidth: 600 }}>
+    <div 
+      className="reservation-grid-container" 
+      ref={containerRef} 
+      onScroll={handleScroll}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+    >
+      <div className="reservation-bars-container" style={{ position: 'relative' }}>
+        {/* Barras de reservas */}
+        {rooms.map((room, roomIndex) => {
+          const roomReservations = reservations.filter(res => res.roomId === room.id);
+          return roomReservations.map((reservation) => {
+            let displayReservation = reservation;
+            if (resizingReservation === reservation.id && resizeData) {
+              displayReservation = { ...reservation, ...resizeData };
+            }
+            return (
+              <ReservationBar
+                key={`${room.id}-${reservation.id}`}
+                id={`reservation-bar-${reservation.id}`}
+                reservation={displayReservation}
+                roomIndex={roomIndex}
+                cellWidth={cellWidth}
+                cellHeight={cellHeight}
+                startDate={startDate}
+                roomName={room.name}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onClick={handleReservationClick}
+                onResizeStart={handleResizeStart}
+                isResizing={isResizing && resizeReservationId === reservation.id}
+                resizeDirection={resizeDirection}
+              />
+            );
+          });
+        })}
+        
+        {/* Preview de drag and drop */}
+        {dragPreview && (
+          <div
+            className="drag-preview"
+            style={{
+              position: 'absolute',
+              left: `${roomColumnWidth + (differenceInDays(new Date(dragPreview.checkIn), startDate) * cellWidth) + cellWidth}px`,
+              top: `${headerHeight + (dragPreview.roomIndex * cellHeight) + 1}px`,
+              width: `${differenceInDays(new Date(dragPreview.checkOut), new Date(dragPreview.checkIn)) * cellWidth}px`,
+              height: `${cellHeight - 2}px`,
+              backgroundColor: 'rgba(52, 152, 219, 0.3)',
+              border: '2px dashed #3498db',
+              borderRadius: '3px',
+              zIndex: 15,
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              fontSize: '0.7rem',
+              fontWeight: 'bold',
+              color: '#2980b9'
+            }}
+          >
+            <div>{dragPreview.reservation.mainClient?.firstName} {dragPreview.reservation.mainClient?.lastName}</div>
+            <div>{dragPreview.roomName}</div>
+          </div>
+        )}
+      </div>
+      
+      <table className="reservation-grid-table" ref={tableRef}>
         <thead>
           <tr>
-            <th>Habitación</th>
+            <th className="room-header"></th>
+            {months.map((monthData, index) => (
+              <th 
+                key={index}
+                className="month-header" 
+                colSpan={monthData.colSpan}
+                onClick={() => handleMonthClick(monthData.month)}
+              >
+                {format(monthData.month, 'MMMM yyyy')}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <th></th>
             {days.map(day => (
-              <th key={day.toISOString()}>{format(day, 'dd/MM')}</th>
+              <th key={day.toISOString()}>{format(day, 'd')}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rooms.map(room => (
             <tr key={room.id}>
-              <td><strong>{room.name}</strong></td>
-              {days.map(day => {
-                const res = getReservationFor(room.id, day);
-                return (
-                  <td key={day.toISOString()} style={{ background: res ? '#ffe0e0' : '#e0ffe0' }}>
-                    {res ? (
-                      <span>
-                        {res.mainClient?.firstName} {res.mainClient?.lastName}
-                        <br />
-                        <small>({format(parseISO(res.checkIn), 'dd/MM')} - {format(parseISO(res.checkOut), 'dd/MM')})</small>
-                      </span>
-                    ) : ''}
-                  </td>
-                );
-              })}
+              <td className="room-name-cell"><strong>{room.name}</strong></td>
+              {days.map(day => (
+                <td
+                  key={day.toISOString()}
+                  className="reservation-cell-free"
+                >
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
