@@ -47,3 +47,33 @@ exports.createReservation = async (req, res) => {
     res.status(500).json({ error: 'Error creating reservation', details: error.message });
   }
 };
+
+// Actualizar una reserva
+exports.updateReservation = async (req, res) => {
+  const { id } = req.params;
+  const { roomId, checkIn, checkOut, fixed } = req.body;
+  
+  if (!roomId || !checkIn || !checkOut) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  try {
+    const updatedReservation = await prisma.reservation.update({
+      where: { id: parseInt(id) },
+      data: {
+        roomId: parseInt(roomId),
+        checkIn: new Date(checkIn),
+        checkOut: new Date(checkOut),
+        ...(typeof fixed !== 'undefined' ? { fixed } : {})
+      },
+      include: {
+        room: true,
+        mainClient: true,
+        guests: true
+      }
+    });
+    res.json(updatedReservation);
+  } catch (error) {
+    res.status(500).json({ error: 'Error updating reservation', details: error.message });
+  }
+};

@@ -8,4 +8,7 @@ router.get('/', reservationController.getAllReservations);
 // Crear una reserva
 router.post('/', reservationController.createReservation);
 
+// Actualizar una reserva
+router.put('/:id', reservationController.updateReservation);
+
 module.exports = router; 

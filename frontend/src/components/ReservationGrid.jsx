@@ -50,7 +50,7 @@ function groupDaysByMonth(days) {
   return months;
 }
 
-export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation }) {
+export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation, onReservationClick }) {
   const today = new Date();
   const [startDate, setStartDate] = useState(addDays(today, -30));
   const [endDate, setEndDate] = useState(addDays(today, 30));
@@ -111,7 +111,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   }
 
   function handleReservationClick(reservation) {
-    console.log('Datos de la reserva:', reservation);
+    if (onReservationClick) onReservationClick(reservation);
   }
 
   function handleResize(reservationId, updateData) {

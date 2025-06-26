@@ -1,0 +1,142 @@
+.reservation-grid-container {
+  width: 100vw;
+  overflow: auto;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.reservation-bars-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.reservation-bars-container > * {
+  pointer-events: auto;
+}
+
+.reservation-grid-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  min-width: 120px; /* Ancho de la columna de habitaciones */
+  background: #fff;
+  font-size: 1rem;
+  table-layout: fixed;
+}
+
+.reservation-grid-table th,
+.reservation-grid-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  text-align: center;
+  width: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  height: 30px;
+  font-size: 1rem;
+  vertical-align: middle;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.reservation-grid-table th {
+  background: #f0f4f8;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  font-weight: 600;
+  padding: 0.1rem 0.2rem;
+}
+
+.reservation-grid-table .month-header {
+  background: #2c3e50;
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.reservation-grid-table .month-header:hover {
+  background: #34495e;
+}
+
+.reservation-grid-table .room-header {
+  background: #f0f4f8;
+  font-weight: 600;
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  position: sticky;
+  left: 0;
+  z-index: 40;
+}
+
+/* Headers de días sticky */
+.reservation-grid-table tr:nth-child(2) th {
+  position: sticky;
+  top: 30px; /* Altura del header de meses (30px) */
+  z-index: 20;
+  background: #f0f4f8;
+}
+
+/* El primer header de días (columna de habitaciones) debe estar por encima */
+.reservation-grid-table tr:nth-child(2) th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 50;
+  background: #f0f4f8;
+}
+
+.reservation-grid-table tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.reservation-cell-free {
+  background: #f8f9fa;
+  transition: background 0.2s;
+}
+
+.reservation-cell-reserved {
+  background: #ffeaea;
+  color: #b00;
+  font-weight: bold;
+  transition: background 0.2s;
+  font-size: 0.7rem;
+}
+
+.reservation-grid-table td:hover {
+  background: #d0e6ff;
+  cursor: pointer;
+}
+
+.room-name-cell {
+  background: #f0f4f8;
+  font-weight: 600;
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  padding: 0.1rem 0.2rem;
+}
+
+.drag-preview {
+  animation: preview-pulse 1s infinite;
+}
+
+@keyframes preview-pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+} 
