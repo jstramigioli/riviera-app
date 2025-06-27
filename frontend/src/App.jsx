@@ -55,7 +55,7 @@ function App() {
           return;
         }
         
-        const updated = await updateClientOnServer(editData.id, editData, setClients);
+        const updated = await updateClientOnServer(editData.id, editData, setClients, setReservations);
         setIsEditing(false);
         setSelectedClient(updated);
         setEditData(updated);
