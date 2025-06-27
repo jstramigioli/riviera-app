@@ -1,18 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import ReservationBar from './components/ReservationBar';
 import ReservationGrid from './components/ReservationGrid';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
+import RateViewer from './components/RateViewer';
+import RateEditor from './components/RateEditor';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
 import { getDocumentAbbreviation } from './utils/documentUtils.js';
+import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
 import styles from './styles/App.module.css';
 import './index.css';
 
-function App() {
+function Navigation() {
+  const location = useLocation();
+  
+  return (
+    <nav className={styles.navigation}>
+      <Link 
+        to="/libro-de-reservas" 
+        className={`${styles.navLink} ${location.pathname === '/libro-de-reservas' ? styles.active : ''}`}
+      >
+        Libro de Reservas
+      </Link>
+      <Link 
+        to="/tarifas" 
+        className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
+      >
+        Tarifas
+      </Link>
+    </nav>
+  );
+}
+
+function ReservationsView() {
   const {
     rooms,
     clients,
@@ -45,6 +70,27 @@ function App() {
   async function handleEditSave() {
     try {
       if (panelMode === 'reservation') {
+        // Validar fechas primero
+        const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
+        if (!dateValidation.isValid) {
+          alert(`Error de validación: ${dateValidation.message}`);
+          return;
+        }
+        
+        // Validar conflictos de reserva
+        const conflict = validateReservationConflict(
+          reservations,
+          editData.roomId,
+          editData.checkIn,
+          editData.checkOut,
+          editData.id
+        );
+        
+        if (conflict.hasConflict) {
+          showConflictNotification(conflict.message);
+          return;
+        }
+        
         const updated = await updateReservationOnServer(editData.id, editData, setReservations);
         setIsEditing(false);
         setSelectedReservation(updated);
@@ -80,14 +126,15 @@ function App() {
           <span className={styles.statItem}>Clientes: {clients.length}</span>
         </div>
       </div>
-      
-      <ReservationGrid 
-        rooms={rooms} 
-        reservations={reservations}
-        setReservations={setReservations}
-        updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
-        onReservationClick={handleReservationClick}
-      />
+      <div className={styles.gridWrapper}>
+        <ReservationGrid 
+          rooms={rooms} 
+          reservations={reservations}
+          setReservations={setReservations}
+          updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
+          onReservationClick={handleReservationClick}
+        />
+      </div>
       <SidePanel
         open={sidePanelOpen}
         onClose={closePanel}
@@ -464,6 +511,42 @@ function App() {
         )}
       </SidePanel>
     </div>
+  );
+}
+
+function RatesView() {
+  const [isEditing, setIsEditing] = useState(false);
+
+  return (
+    <div className={styles.appContainer}>
+      <div className={styles.ratesContainer}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Hotel Riviera - Gestión de Tarifas</h1>
+          <p className={styles.subtitle}>Gestiona las tarifas diarias por tipo de habitación</p>
+        </div>
+        
+        {isEditing ? (
+          <RateEditor onViewMode={() => setIsEditing(false)} />
+        ) : (
+          <RateViewer onEditMode={() => setIsEditing(true)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <div className={styles.app}>
+        <Navigation />
+        <Routes>
+          <Route path="/" element={<ReservationsView />} />
+          <Route path="/libro-de-reservas" element={<ReservationsView />} />
+          <Route path="/tarifas" element={<RatesView />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

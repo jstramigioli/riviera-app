@@ -1,14 +1,15 @@
 /* ReservationGrid.module.css */
 .reservationGridContainer {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: auto;
+  height: 100%;
+  overflow: auto;
   position: relative;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin: 1rem;
-  min-width: 800px;
+  /* Forzar scrollbars visibles */
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 .reservationBarsContainer {
@@ -30,7 +31,6 @@
   border-collapse: collapse;
   background: white;
   font-size: 0.9rem;
-  min-width: 800px;
 }
 
 .reservationGridTable tr {
@@ -88,7 +88,7 @@
 
 .dayHeader.sunday.highlight {
   background: #5a6fd8 !important;
-  transition: background 0.15s;
+  transition: background-color 0.1s ease-out;
 }
 
 .roomHeader {
@@ -172,29 +172,58 @@
   backdrop-filter: blur(2px);
 }
 
-/* Scrollbar personalizado */
+/* Scrollbar personalizado - Forzado */
 .reservationGridContainer::-webkit-scrollbar {
-  height: 8px;
+  height: 12px;
+  width: 12px;
+  background-color: #f1f1f1;
+  display: block;
+  visibility: visible;
 }
 
 .reservationGridContainer::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 6px;
+  margin: 2px;
+  display: block;
+  visibility: visible;
 }
 
 .reservationGridContainer::-webkit-scrollbar-thumb {
   background: #c1c1c1;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 2px solid #f1f1f1;
+  min-height: 20px;
+  min-width: 20px;
+  display: block;
+  visibility: visible;
 }
 
 .reservationGridContainer::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 
+.reservationGridContainer::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+  visibility: visible;
+}
+
+/* Firefox */
+.reservationGridContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Forzar scrollbars siempre visibles */
+.reservationGridContainer {
+  overflow: auto !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .reservationGridContainer {
-    margin: 0.5rem;
     border-radius: 8px;
     min-width: 600px;
   }
@@ -234,7 +263,8 @@
 
 @media (max-width: 480px) {
   .reservationGridContainer {
-    margin: 0.25rem;
+    border-radius: 6px;
+    min-width: 500px;
   }
   
   .monthHeader {
@@ -269,15 +299,15 @@
 
 .cellHighlight {
   background: #f8f9fa !important;
-  transition: background 0.15s;
+  transition: background-color 0.1s ease-out;
 }
 
 .dayHeader.highlight {
   background: #e9ecef !important;
-  transition: background 0.15s;
+  transition: background-color 0.1s ease-out;
 }
 
 .roomNameCell.highlight {
   background: #e9ecef !important;
-  transition: background 0.15s;
+  transition: background-color 0.1s ease-out;
 } 

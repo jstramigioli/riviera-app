@@ -89,7 +89,8 @@ export default function ReservationBar({
       const checkIn = parseISO(reservation.checkIn);
       const checkOut = parseISO(reservation.checkOut);
       const startColIndex = differenceInDays(checkIn, startDate);
-      const endColIndex = differenceInDays(checkOut, startDate) - 1; // -1 porque checkOut es exclusivo
+      const duration = differenceInDays(checkOut, checkIn);
+      const endColIndex = startColIndex + duration - 1; // Consistente con el cálculo del ancho
       
       onReservationHover({
         rowIndex: roomIndex,

@@ -99,3 +99,53 @@ export async function getClientBalance(clientId) {
   if (!res.ok) throw new Error('Error fetching client balance');
   return res.json();
 }
+
+// Funciones para tarifas diarias
+export const getRates = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.append('startDate', filters.startDate);
+  if (filters.endDate) params.append('endDate', filters.endDate);
+  if (filters.roomTypeId) params.append('roomTypeId', filters.roomTypeId);
+
+  const response = await fetch(`${API_URL}/rates/rates?${params}`);
+  if (!response.ok) throw new Error('Error al obtener tarifas');
+  return response.json();
+};
+
+export const createRates = async (rateData) => {
+  const response = await fetch(`${API_URL}/rates/rates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rateData)
+  });
+  if (!response.ok) throw new Error('Error al crear tarifas');
+  return response.json();
+};
+
+export const updateRate = async (rateId, updates) => {
+  const response = await fetch(`${API_URL}/rates/rates/${rateId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  if (!response.ok) throw new Error('Error al actualizar tarifa');
+  return response.json();
+};
+
+export const deleteRate = async (rateId) => {
+  const response = await fetch(`${API_URL}/rates/rates/${rateId}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) throw new Error('Error al eliminar tarifa');
+  return response.ok;
+};
+
+export const suggestDynamicPrice = async (suggestionData) => {
+  const response = await fetch(`${API_URL}/rates/rates/suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(suggestionData)
+  });
+  if (!response.ok) throw new Error('Error al sugerir precio');
+  return response.json();
+};
