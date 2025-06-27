@@ -1,140 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { format } from 'date-fns';
 import ReservationBar from './components/ReservationBar';
 import ReservationGrid from './components/ReservationGrid';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
-import { fetchRooms, fetchReservations, fetchClients, updateReservation, updateClient, getClientBalance } from './services/api.js';
+import { useAppData } from './hooks/useAppData.js';
+import { useSidePanel } from './hooks/useSidePanel.js';
+import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
+import { getDocumentAbbreviation } from './utils/documentUtils.js';
 import './index.css';
 
-// Mapeo de tipos de documento a abreviaciones
-const documentTypeAbbreviations = {
-  'DNI': 'DNI',
-  'CÉDULA DE IDENTIDAD': 'CI',
-  'CUIT': 'CUIT',
-  'LIBRETA CÍVICA': 'LC',
-  'LIBRETA DE ENROLAMENTO': 'LE',
-  'LIBRETA DE EMBARQUE': 'LEM',
-  'PASAPORTE': 'PAS',
-  'OTRO': 'OTRO'
-};
-
-// Función para obtener la abreviación del tipo de documento
-function getDocumentAbbreviation(documentType) {
-  return documentTypeAbbreviations[documentType] || documentType;
-}
-
-async function updateReservationOnServer(reservationId, updateData, setReservations) {
-  // Actualización optimista
-  setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, ...updateData } : r));
-  try {
-    const updated = await updateReservation(reservationId, updateData);
-    setReservations(prev => prev.map(r => r.id === reservationId ? updated : r));
-    return updated;
-  } catch (error) {
-    alert('Error de conexión. Los cambios se han revertido.');
-    // Revertir
-    const reservations = await fetchReservations();
-    setReservations(reservations);
-    throw error;
-  }
-}
-
-async function updateClientOnServer(clientId, updateData, setClients) {
-  // Actualización optimista
-  setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...updateData } : c));
-  try {
-    const updated = await updateClient(clientId, updateData);
-    setClients(prev => prev.map(c => c.id === clientId ? updated : c));
-    return updated;
-  } catch (error) {
-    alert('Error de conexión. Los cambios se han revertido.');
-    // Revertir
-    const clients = await fetchClients();
-    setClients(clients);
-    throw error;
-  }
-}
-
 function App() {
-  const [rooms, setRooms] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [sidePanelOpen, setSidePanelOpen] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState(null);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [clientBalance, setClientBalance] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [panelMode, setPanelMode] = useState('reservation'); // 'reservation' o 'client'
+  const {
+    rooms,
+    clients,
+    setClients,
+    reservations,
+    setReservations,
+    loading,
+    error
+  } = useAppData();
 
-  useEffect(() => {
-    Promise.all([fetchRooms(), fetchReservations(), fetchClients()])
-      .then(([roomsData, reservationsData, clientsData]) => {
-        console.log('Rooms loaded:', roomsData.length);
-        console.log('Reservations loaded:', reservationsData.length);
-        console.log('Clients loaded:', clientsData.length);
-        console.log('Sample reservation:', reservationsData[0]);
-        
-        // Ordenar habitaciones: primero las numéricas en orden, luego departamentos
-        const habitaciones = roomsData.filter(room => /^\d+$/.test(room.name))
-          .sort((a, b) => parseInt(a.name) - parseInt(b.name));
-        const departamentos = roomsData.filter(room => !/^\d+$/.test(room.name));
-        const roomsOrdenadas = [...habitaciones, ...departamentos];
-        
-        setRooms(roomsOrdenadas);
-        setReservations(reservationsData);
-        setClients(clientsData);
-      })
-      .catch(err => {
-        console.error('Error loading data:', err);
-        setError(err.message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  function handleReservationClick(reservation) {
-    setSelectedReservation(reservation);
-    setSelectedClient(null);
-    setEditData(reservation);
-    setIsEditing(false);
-    setPanelMode('reservation');
-    setSidePanelOpen(true);
-  }
-
-  async function handleClientClick(client) {
-    setSelectedClient(client);
-    setSelectedReservation(null);
-    setEditData(client);
-    setIsEditing(false);
-    setPanelMode('client');
-    setSidePanelOpen(true);
-    
-    // Cargar el balance del cliente
-    try {
-      const balance = await getClientBalance(client.id);
-      setClientBalance(balance);
-    } catch (error) {
-      console.error('Error loading client balance:', error);
-      setClientBalance(null);
-    }
-  }
-
-  function handleEditChange(field, value) {
-    setEditData(prev => ({ ...prev, [field]: value }));
-  }
-
-  function handleEditToggle() {
-    setIsEditing(edit => !edit);
-    if (panelMode === 'reservation') {
-      setEditData(selectedReservation);
-    } else {
-      setEditData(selectedClient);
-    }
-  }
+  const {
+    sidePanelOpen,
+    selectedReservation,
+    selectedClient,
+    clientBalance,
+    isEditing,
+    editData,
+    panelMode,
+    handleReservationClick,
+    handleClientClick,
+    handleEditChange,
+    handleEditToggle,
+    closePanel,
+    setSelectedReservation,
+    setSelectedClient,
+    setIsEditing,
+    setEditData
+  } = useSidePanel();
 
   async function handleEditSave() {
     try {
@@ -186,7 +91,7 @@ function App() {
       />
       <SidePanel
         open={sidePanelOpen}
-        onClose={() => setSidePanelOpen(false)}
+        onClose={closePanel}
         title={panelMode === 'reservation' ? "DATOS DE LA RESERVA" : "DATOS DEL CLIENTE"}
         width={520}
       >
@@ -563,4 +468,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

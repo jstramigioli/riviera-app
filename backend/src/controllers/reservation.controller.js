@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
@@ -14,6 +13,27 @@ exports.getAllReservations = async (req, res) => {
     res.json(reservations);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching reservations' });
+  }
+};
+
+// Obtener una reserva específica
+exports.getReservationById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        room: true,
+        mainClient: true,
+        guests: true
+      }
+    });
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json(reservation);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching reservation' });
   }
 };
 
@@ -83,5 +103,18 @@ exports.updateReservation = async (req, res) => {
     res.json(updatedReservation);
   } catch (error) {
     res.status(500).json({ error: 'Error updating reservation', details: error.message });
+  }
+};
+
+// Eliminar una reserva
+exports.deleteReservation = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.reservation.delete({
+      where: { id: parseInt(id) }
+    });
+    res.status(204).send();
+  } catch (error) {
+    res.status(404).json({ error: 'Reservation not found' });
   }
 };

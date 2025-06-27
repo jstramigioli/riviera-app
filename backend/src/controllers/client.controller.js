@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Listar todos los clientes
 exports.getAllClients = async (req, res) => {
@@ -8,6 +7,22 @@ exports.getAllClients = async (req, res) => {
     res.json(clients);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching clients' });
+  }
+};
+
+// Obtener un cliente específico
+exports.getClientById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: parseInt(id) }
+    });
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    res.json(client);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching client' });
   }
 };
 
@@ -71,6 +86,19 @@ exports.updateClient = async (req, res) => {
     res.json(updatedClient);
   } catch (error) {
     res.status(500).json({ error: 'Error updating client', details: error.message });
+  }
+};
+
+// Eliminar un cliente
+exports.deleteClient = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.client.delete({
+      where: { id: parseInt(id) }
+    });
+    res.status(204).send();
+  } catch (error) {
+    res.status(404).json({ error: 'Client not found' });
   }
 };
 
