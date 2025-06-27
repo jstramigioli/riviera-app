@@ -1,6 +1,7 @@
 /* ReservationGrid.module.css */
 .reservationGridContainer {
-  width: 100%;
+  width: calc(100% - 2rem); /* Restar el margen */
+  height: calc(100vh - 200px); /* Altura específica para generar scroll vertical */
   overflow-x: auto;
   overflow-y: auto;
   position: relative;
@@ -8,7 +9,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   margin: 1rem;
-  min-width: 800px;
+  box-sizing: border-box; /* Asegurar que el padding/margin se incluya en el ancho */
+  padding-right: 12px; /* Espacio para la barra vertical */
 }
 
 .reservationBarsContainer {
@@ -30,7 +32,6 @@
   border-collapse: collapse;
   background: white;
   font-size: 0.9rem;
-  min-width: 800px;
 }
 
 .reservationGridTable tr {
@@ -174,21 +175,44 @@
 
 /* Scrollbar personalizado */
 .reservationGridContainer::-webkit-scrollbar {
-  height: 8px;
+  height: 12px;
+  width: 12px;
+  background-color: #f1f1f1;
 }
 
 .reservationGridContainer::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 6px;
+  margin: 2px;
 }
 
 .reservationGridContainer::-webkit-scrollbar-thumb {
   background: #c1c1c1;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 2px solid #f1f1f1;
+  min-height: 20px;
+  min-width: 20px;
 }
 
 .reservationGridContainer::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+.reservationGridContainer::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
+
+/* Firefox */
+.reservationGridContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Forzar scrollbars siempre visibles */
+.reservationGridContainer {
+  overflow: auto !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
 }
 
 /* Responsive Design */

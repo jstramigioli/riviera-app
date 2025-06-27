@@ -77,6 +77,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Constantes para el cálculo de posiciones
   const roomColumnWidth = 120;
+  const dayColumnWidth = 50;
 
   function handleScroll() {
     if (!containerRef.current) return;
@@ -403,6 +404,26 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     resizeDataRef.current = resizeData;
   }, [resizeData]);
 
+  // Debug: verificar dimensiones del contenedor
+  useEffect(() => {
+    if (containerRef.current) {
+      const { scrollWidth, clientWidth, scrollHeight, clientHeight } = containerRef.current;
+      console.log('Container dimensions:', {
+        scrollWidth,
+        clientWidth,
+        scrollHeight,
+        clientHeight,
+        hasHorizontalScroll: scrollWidth > clientWidth,
+        hasVerticalScroll: scrollHeight > clientHeight,
+        daysCount: days.length,
+        roomsCount: rooms.length,
+        roomColumnWidth,
+        dayColumnWidth,
+        windowWidth: window.innerWidth
+      });
+    }
+  }, [days, rooms]);
+
   return (
     <div 
       className={styles.reservationGridContainer} 
@@ -410,6 +431,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       onScroll={handleScroll}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
+      style={{
+        overflow: 'auto',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#c1c1c1 #f1f1f1'
+      }}
     >
       <table className={styles.reservationGridTable} ref={tableRef}>
         <thead>

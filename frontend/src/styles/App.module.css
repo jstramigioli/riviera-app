@@ -34,9 +34,10 @@
 
 .appContainer {
   width: 100%;
-  min-height: calc(100vh - 80px);
+  height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
 
 /* Contenedor específico para tarifas con max-width y padding */
@@ -115,10 +116,12 @@
 .gridWrapper {
   flex: 1 1 auto;
   min-height: 0;
-  height: calc(100vh - 180px); /* Ajusta según el alto del header */
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
