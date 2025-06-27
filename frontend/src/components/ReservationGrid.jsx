@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
-import { addDays, format, differenceInDays, subDays } from 'date-fns';
+import React, { useEffect, useState, useRef } from 'react';
+import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
 import ReservationBar from './ReservationBar';
-import '../styles/ReservationGrid.css';
+import styles from '../styles/ReservationGrid.module.css';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -56,7 +56,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [days, setDays] = useState(getDaysArray(addDays(today, -30), addDays(today, 30)));
   const [months, setMonths] = useState(groupDaysByMonth(getDaysArray(addDays(today, -30), addDays(today, 30))));
   const [cellWidth, setCellWidth] = useState(40); // Ancho inicial, se ajustará dinámicamente
-  const [cellHeight, setCellHeight] = useState(32); // Alto inicial, se ajustará dinámicamente
+  const [cellHeight, setCellHeight] = useState(25); // Alto inicial, se ajustará dinámicamente
   const [dragPreview, setDragPreview] = useState(null);
   const [draggedReservation, setDraggedReservation] = useState(null);
   const [dragOffset, setDragOffset] = useState(0);
@@ -65,6 +65,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState(null);
   const [resizeReservationId, setResizeReservationId] = useState(null);
+  const [headerHeight, setHeaderHeight] = useState(0); // Nueva variable para altura dinámica de headers
+  const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
   
   const tableRef = useRef();
   const containerRef = useRef();
@@ -73,7 +75,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Constantes para el cálculo de posiciones
   const roomColumnWidth = 120;
-  const headerHeight = 70;
 
   function handleScroll() {
     if (!containerRef.current) return;
@@ -110,6 +111,12 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   }
 
   function handleReservationClick(reservation) {
+    // Prevenir que se abra el panel si acabamos de hacer resize
+    if (justFinishedResize) {
+      console.log('Click ignorado porque acabamos de hacer resize');
+      return;
+    }
+    
     if (onReservationClick) onReservationClick(reservation);
   }
 
@@ -165,7 +172,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     
     // Calcular la nueva posición con snap
     const relativeX = x - roomColumnWidth;
-    const dayIndex = Math.max(0, Math.floor(relativeX / cellWidth));
+    const dayIndex = Math.max(0, Math.round(relativeX / cellWidth));
     const roomIndex = Math.max(0, Math.floor((y - headerHeight) / cellHeight));
     
     const newStartDate = addDays(startDate, dayIndex);
@@ -241,25 +248,50 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Función para medir el ancho y alto real de las celdas después de que se renderice la tabla
   function measureCellDimensions() {
-    if (tableRef.current) {
-      const firstRow = tableRef.current.querySelector('tbody tr');
-      if (firstRow) {
-        const firstCell = firstRow.querySelector('td:not(.room-name-cell)');
-        if (firstCell) {
-          const actualWidth = firstCell.offsetWidth;
-          const actualHeight = firstCell.offsetHeight;
-          setCellWidth(actualWidth);
-          setCellHeight(actualHeight);
-        }
+    // Usar valores fijos que coincidan con el CSS
+    const fixedWidth = 50;
+    const fixedHeight = 30;
+    setCellWidth(fixedWidth);
+    setCellHeight(fixedHeight);
+    console.log('Dimensiones fijas:', { width: fixedWidth, height: fixedHeight });
+  }
+
+  // Función para medir la altura real de los headers
+  function measureHeaderHeight() {
+    if (tableRef.current && containerRef.current) {
+      const thead = tableRef.current.querySelector('thead');
+      const tbody = tableRef.current.querySelector('tbody');
+      
+      if (thead && tbody) {
+        // Medir la altura del thead
+        const theadHeight = thead.offsetHeight;
+        
+        // Ahora las barras se posicionan relativas al contenedor directamente
+        // No necesitamos agregar el margen del contenedor
+        setHeaderHeight(theadHeight);
+        console.log('Altura real de headers:', {
+          theadHeight
+        });
       }
     }
   }
 
   useEffect(() => {
     if (tableRef.current && rooms.length > 0) {
-      setTimeout(measureCellDimensions, 100);
+      setTimeout(() => {
+        measureCellDimensions();
+        measureHeaderHeight();
+      }, 200);
     }
   }, [rooms, days]);
+
+  useEffect(() => {
+    // Medir dimensiones cuando el componente se monte
+    setTimeout(() => {
+      measureCellDimensions();
+      measureHeaderHeight();
+    }, 100);
+  }, []);
 
   useEffect(() => {
     // Escuchar mouseup global para detectar fin de resize
@@ -289,7 +321,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     const x = e.clientX - gridRect.left + scrollLeft;
     const roomColumnWidth = 120;
     // Calcular dayIndex relativo al inicio de la grilla
-    const dayIndex = Math.round((x - roomColumnWidth - cellWidth) / cellWidth);
+    const dayIndex = Math.round((x - roomColumnWidth) / cellWidth);
     const startDateObj = new Date(bar.dataset.startdate);
     const newDate = addDays(startDateObj, dayIndex);
     const currentCheckIn = new Date(bar.dataset.checkin);
@@ -332,7 +364,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       setIsResizing(false);
       setResizeDirection(null);
       setResizeReservationId(null);
+      setJustFinishedResize(true); // Marcar que acabamos de hacer resize
       handleResizeEnd(resizingReservationRef.current, resizeDataRef.current);
+      
+      // Limpiar la bandera después de un delay
+      setTimeout(() => {
+        setJustFinishedResize(false);
+      }, 200);
     }
   }
 
@@ -357,13 +395,67 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   return (
     <div 
-      className="reservation-grid-container" 
+      className={styles.reservationGridContainer} 
       ref={containerRef} 
       onScroll={handleScroll}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
-      <div className="reservation-bars-container" style={{ position: 'relative' }}>
+      <table className={styles.reservationGridTable} ref={tableRef}>
+        <thead>
+          <tr>
+            <th className={styles.roomHeader}></th>
+            {months.map((monthData, index) => (
+              <th 
+                key={index}
+                className={styles.monthHeader} 
+                colSpan={monthData.colSpan}
+                onClick={() => handleMonthClick(monthData.month)}
+              >
+                {format(monthData.month, 'MMMM yyyy')}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <th></th>
+            {days.map(day => {
+              const isSunday = getDay(day) === 0; // 0 = domingo
+              return (
+                <th 
+                  key={day.toISOString()} 
+                  className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''}`}
+                  style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
+                >
+                  {format(day, 'd')}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {rooms.map(room => (
+            <tr key={room.id}>
+              <td className={styles.roomNameCell}><strong>{room.name}</strong></td>
+              {days.map(day => (
+                <td
+                  key={day.toISOString()}
+                  className={styles.reservationCellFree}
+                  style={{ 
+                    width: '50px', 
+                    minWidth: '50px', 
+                    height: '30px', 
+                    padding: '0', 
+                    boxSizing: 'border-box' 
+                  }}
+                >
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      
+      <div className={styles.reservationBarsContainer} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
         {/* Barras de reservas */}
         {rooms.map((room, roomIndex) => {
           const roomReservations = reservations.filter(res => res.roomId === room.id);
@@ -381,12 +473,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                 cellWidth={cellWidth}
                 cellHeight={cellHeight}
                 startDate={startDate}
-                roomName={room.name}
+                headerHeight={headerHeight}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onClick={handleReservationClick}
                 onResizeStart={handleResizeStart}
                 isResizing={isResizing && resizeReservationId === reservation.id}
+                justFinishedResize={justFinishedResize}
                 resizeDirection={resizeDirection}
               />
             );
@@ -396,13 +489,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         {/* Preview de drag and drop */}
         {dragPreview && (
           <div
-            className="drag-preview"
+            className={styles.dragPreview}
             style={{
               position: 'absolute',
-              left: `${roomColumnWidth + (differenceInDays(new Date(dragPreview.checkIn), startDate) * cellWidth) + cellWidth}px`,
-              top: `${headerHeight + (dragPreview.roomIndex * cellHeight) + 1}px`,
+              left: `${roomColumnWidth + (differenceInDays(new Date(dragPreview.checkIn), startDate) * cellWidth)}px`,
+              top: `${headerHeight + (dragPreview.roomIndex * cellHeight)}px`,
               width: `${differenceInDays(new Date(dragPreview.checkOut), new Date(dragPreview.checkIn)) * cellWidth}px`,
-              height: `${cellHeight - 2}px`,
+              height: `${cellHeight}px`,
               backgroundColor: 'rgba(52, 152, 219, 0.3)',
               border: '2px dashed #3498db',
               borderRadius: '3px',
@@ -418,48 +511,9 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
             }}
           >
             <div>{dragPreview.reservation.mainClient?.firstName} {dragPreview.reservation.mainClient?.lastName}</div>
-            <div>{dragPreview.roomName}</div>
           </div>
         )}
       </div>
-      
-      <table className="reservation-grid-table" ref={tableRef}>
-        <thead>
-          <tr>
-            <th className="room-header"></th>
-            {months.map((monthData, index) => (
-              <th 
-                key={index}
-                className="month-header" 
-                colSpan={monthData.colSpan}
-                onClick={() => handleMonthClick(monthData.month)}
-              >
-                {format(monthData.month, 'MMMM yyyy')}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            <th></th>
-            {days.map(day => (
-              <th key={day.toISOString()}>{format(day, 'd')}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rooms.map(room => (
-            <tr key={room.id}>
-              <td className="room-name-cell"><strong>{room.name}</strong></td>
-              {days.map(day => (
-                <td
-                  key={day.toISOString()}
-                  className="reservation-cell-free"
-                >
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaTimes, FaPen } from 'react-icons/fa';
+import styles from '../styles/EditPanel.module.css';
 
 const EditPanel = ({ 
   title, 
@@ -12,21 +13,14 @@ const EditPanel = ({
   saveDisabled = false 
 }) => {
   return (
-    <div style={{ fontSize: '1.15rem', lineHeight: 1.7 }}>
+    <div className={styles.editPanel}>
       {/* Header con título, subtítulo y botón de editar/cancelar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div className={styles.header}>
         <div>
-          {subtitle && <span style={{ fontSize: '0.95rem', color: '#888' }}>{subtitle}</span>}
+          {subtitle && <span className={styles.subtitle}>{subtitle}</span>}
         </div>
         <button 
-          style={{ 
-            background: 'none', 
-            border: 'none', 
-            cursor: 'pointer', 
-            fontSize: 22, 
-            color: '#666', 
-            marginLeft: 8 
-          }} 
+          className={styles.editButton}
           title={isEditing ? "Cancelar edición" : "Editar"} 
           onClick={onEditToggle}
         >
@@ -36,34 +30,23 @@ const EditPanel = ({
 
       {/* Título principal */}
       {title && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, fontSize: '1.35rem' }}>
+        <div className={styles.titleContainer}>
+          <div className={styles.title}>
             {title}
           </div>
         </div>
       )}
 
       {/* Contenido del panel */}
-      <div>
+      <div className={styles.content}>
         {children}
       </div>
 
       {/* Botón Guardar - solo en edición, abajo del todo */}
       {isEditing && (
-        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+        <div className={styles.buttonContainer}>
           <button 
-            style={{ 
-              background: saveDisabled ? '#6c757d' : '#28a745', 
-              color: '#fff', 
-              border: 'none', 
-              borderRadius: '8px', 
-              padding: '12px 32px', 
-              cursor: saveDisabled ? 'not-allowed' : 'pointer', 
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-              width: '100%',
-              opacity: saveDisabled ? 0.6 : 1
-            }} 
+            className={`${styles.saveButton} ${saveDisabled ? styles.disabled : ''}`}
             onClick={onSave}
             disabled={saveDisabled}
           >

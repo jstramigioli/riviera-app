@@ -9,6 +9,7 @@ import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
 import { getDocumentAbbreviation } from './utils/documentUtils.js';
+import styles from './styles/App.module.css';
 import './index.css';
 
 function App() {
@@ -65,21 +66,19 @@ function App() {
     }
   }
 
-  if (loading) return <p>Cargando datos...</p>;
-  if (error) return <p style={{color: 'red'}}>Error: {error}</p>;
+  if (loading) return <div className={styles.loading}>Cargando datos...</div>;
+  if (error) return <div className={styles.error}>Error: {error}</div>;
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      boxSizing: 'border-box',
-      alignItems: 'center'
-    }}>
-      <div style={{ flexShrink: 0, marginBottom: '1rem' }}>
-        <h1>Hotel Riviera - Gestión de Reservas</h1>
-        <p>¡Bienvenido! Aquí podrás gestionar habitaciones, clientes y reservas.</p>
-        <p>Habitaciones: {rooms.length} | Reservas: {reservations.length} | Clientes: {clients.length}</p>
+    <div className={styles.appContainer}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Hotel Riviera - Gestión de Reservas</h1>
+        <p className={styles.subtitle}>¡Bienvenido! Aquí podrás gestionar habitaciones, clientes y reservas.</p>
+        <div className={styles.stats}>
+          <span className={styles.statItem}>Habitaciones: {rooms.length}</span>
+          <span className={styles.statItem}>Reservas: {reservations.length}</span>
+          <span className={styles.statItem}>Clientes: {clients.length}</span>
+        </div>
       </div>
       
       <ReservationGrid 

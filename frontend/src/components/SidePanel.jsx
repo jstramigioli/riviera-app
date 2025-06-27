@@ -1,26 +1,27 @@
 import React from 'react';
-import './SidePanel.css';
+import styles from '../styles/SidePanel.module.css';
 
 export default function SidePanel({ open, onClose, title, children, width = 400 }) {
   return (
     <>
       {/* Overlay */}
       <div 
-        className={`sidepanel-overlay${open ? ' open' : ''}`} 
+        className={`${styles.overlay} ${open ? styles.open : ''}`} 
         onClick={onClose}
-        style={{ display: open ? 'block' : 'none' }}
       />
       {/* Panel */}
       <aside 
-        className={`sidepanel${open ? ' open' : ''}`}
-        style={{ width, right: open ? 0 : -width }}
+        className={`${styles.sidePanel} ${open ? styles.open : ''}`}
+        style={{ width }}
         aria-hidden={!open}
       >
-        <div className="sidepanel-header">
-          <h2>{title}</h2>
-          <button className="sidepanel-close" onClick={onClose}>&times;</button>
+        <div className={styles.header}>
+          <h2 className={styles.title}>{title}</h2>
+          <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar panel">
+            &times;
+          </button>
         </div>
-        <div className="sidepanel-content">
+        <div className={styles.content}>
           {children}
         </div>
       </aside>

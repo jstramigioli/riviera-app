@@ -5,6 +5,13 @@
   user-select: none;
   transition: all 0.2s ease;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  min-width: 20px;
 }
 
 .reservation-bar:hover {
@@ -32,9 +39,35 @@
 
 .reservation-client {
   font-weight: bold;
-  margin-bottom: 2px;
+  font-size: 0.85rem;
+  line-height: 1.2;
   text-align: center;
-  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: #8b7355;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Para barras muy pequeñas, usar fuente más pequeña */
+.reservation-bar[style*="width: 30px"] .reservation-client,
+.reservation-bar[style*="width: 40px"] .reservation-client,
+.reservation-bar[style*="width: 50px"] .reservation-client {
+  font-size: 0.75rem;
+}
+
+/* Para barras extremadamente pequeñas, usar solo iniciales */
+.reservation-bar[style*="width: 20px"] .reservation-client,
+.reservation-bar[style*="width: 25px"] .reservation-client {
+  font-size: 0.65rem;
+  font-weight: 900;
 }
 
 .reservation-dates {
