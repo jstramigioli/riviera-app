@@ -6,6 +6,7 @@ const clientRoutes = require('./routes/client.routes');
 const reservationRoutes = require('./routes/reservation.routes');
 const guestRoutes = require('./routes/guest.routes');
 const paymentRoutes = require('./routes/payment.routes');
+const rateRoutes = require('./routes/rate.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/guests', guestRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/rates', rateRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {
