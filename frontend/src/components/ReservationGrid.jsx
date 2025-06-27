@@ -67,6 +67,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [resizeReservationId, setResizeReservationId] = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0); // Nueva variable para altura dinámica de headers
   const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
+  const [hoveredCell, setHoveredCell] = useState(null); // { rowIndex, colIndex }
+  const [hoveredReservation, setHoveredReservation] = useState(null); // { rowIndex, startColIndex, endColIndex }
   
   const tableRef = useRef();
   const containerRef = useRef();
@@ -118,6 +120,14 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
     
     if (onReservationClick) onReservationClick(reservation);
+  }
+
+  function handleReservationHover(reservationData) {
+    setHoveredReservation(reservationData);
+  }
+
+  function handleReservationLeave() {
+    setHoveredReservation(null);
   }
 
   function handleResize(reservationId, updateData) {
@@ -418,12 +428,14 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           </tr>
           <tr>
             <th></th>
-            {days.map(day => {
+            {days.map((day, colIndex) => {
               const isSunday = getDay(day) === 0; // 0 = domingo
+              const highlightDay = (hoveredCell && colIndex === hoveredCell.colIndex) || 
+                                 (hoveredReservation && colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex);
               return (
                 <th 
                   key={day.toISOString()} 
-                  className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''}`}
+                  className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''} ${highlightDay ? styles.highlight : ''}`}
                   style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
                 >
                   {format(day, 'd')}
@@ -433,23 +445,44 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           </tr>
         </thead>
         <tbody>
-          {rooms.map(room => (
+          {rooms.map((room, roomIndex) => (
             <tr key={room.id}>
-              <td className={styles.roomNameCell}><strong>{room.name}</strong></td>
-              {days.map(day => (
-                <td
-                  key={day.toISOString()}
-                  className={styles.reservationCellFree}
-                  style={{ 
-                    width: '50px', 
-                    minWidth: '50px', 
-                    height: '30px', 
-                    padding: '0', 
-                    boxSizing: 'border-box' 
-                  }}
-                >
-                </td>
-              ))}
+              <td className={`${styles.roomNameCell} ${(hoveredCell && roomIndex === hoveredCell.rowIndex) || (hoveredReservation && roomIndex === hoveredReservation.rowIndex) ? styles.highlight : ''}`}>
+                <strong>{room.name}</strong>
+              </td>
+              {days.map((day, colIndex) => {
+                let highlight = false;
+                if (hoveredCell) {
+                  // Resaltar columna hacia arriba
+                  if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
+                  // Resaltar fila hacia la izquierda
+                  if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
+                }
+                if (hoveredReservation) {
+                  // Resaltar rango de columnas de la reserva hacia arriba
+                  if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
+                  // Resaltar fila hacia la izquierda
+                  if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
+                }
+                return (
+                  <td
+                    key={day.toISOString()}
+                    className={
+                      styles.reservationCellFree + (highlight ? ' ' + styles.cellHighlight : '')
+                    }
+                    style={{ 
+                      width: '50px', 
+                      minWidth: '50px', 
+                      height: '30px', 
+                      padding: '0', 
+                      boxSizing: 'border-box' 
+                    }}
+                    onMouseEnter={() => setHoveredCell({ rowIndex: roomIndex, colIndex })}
+                    onMouseLeave={() => setHoveredCell(null)}
+                  >
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -480,6 +513,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                 onResizeStart={handleResizeStart}
                 isResizing={isResizing && resizeReservationId === reservation.id}
                 justFinishedResize={justFinishedResize}
+                onReservationHover={handleReservationHover}
+                onReservationLeave={handleReservationLeave}
                 resizeDirection={resizeDirection}
               />
             );

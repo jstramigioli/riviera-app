@@ -14,7 +14,9 @@ export default function ReservationBar({
   onClick,
   onResizeStart,
   isResizing,
-  justFinishedResize
+  justFinishedResize,
+  onReservationHover,
+  onReservationLeave
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef();
@@ -80,6 +82,27 @@ export default function ReservationBar({
     setTimeout(() => {
       setIsDragging(false);
     }, 100);
+  };
+
+  const handleMouseEnter = () => {
+    if (onReservationHover) {
+      const checkIn = parseISO(reservation.checkIn);
+      const checkOut = parseISO(reservation.checkOut);
+      const startColIndex = differenceInDays(checkIn, startDate);
+      const endColIndex = differenceInDays(checkOut, startDate) - 1; // -1 porque checkOut es exclusivo
+      
+      onReservationHover({
+        rowIndex: roomIndex,
+        startColIndex,
+        endColIndex
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (onReservationLeave) {
+      onReservationLeave();
+    }
   };
 
   // Función para calcular el ancho aproximado del texto
@@ -162,6 +185,8 @@ export default function ReservationBar({
       onDragEnd={handleDragEnd}
       onClick={handleClick}
       onMouseUp={handleMouseUp}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       draggable={!isResizing}
       ref={containerRef}
     >

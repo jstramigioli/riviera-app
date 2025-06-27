@@ -79,11 +79,16 @@
 }
 
 .dayHeader.sunday {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   color: white;
   border-color: rgba(255, 255, 255, 0.1);
   font-weight: 700;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dayHeader.sunday.highlight {
+  background: #5a6fd8 !important;
+  transition: background 0.15s;
 }
 
 .roomHeader {
@@ -259,4 +264,20 @@
     padding: 0 !important;
     box-sizing: border-box !important;
   }
+  
+}
+
+.cellHighlight {
+  background: #f8f9fa !important;
+  transition: background 0.15s;
+}
+
+.dayHeader.highlight {
+  background: #e9ecef !important;
+  transition: background 0.15s;
+}
+
+.roomNameCell.highlight {
+  background: #e9ecef !important;
+  transition: background 0.15s;
 } 
