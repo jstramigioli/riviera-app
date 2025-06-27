@@ -1,9 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
 import ReservationBar from './ReservationBar';
-import FloatingNotification from './FloatingNotification';
 import styles from '../styles/ReservationGrid.module.css';
-import { validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -71,8 +69,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
   const [hoveredCell, setHoveredCell] = useState(null); // { rowIndex, colIndex }
   const [hoveredReservation, setHoveredReservation] = useState(null); // { rowIndex, startColIndex, endColIndex }
-  const hoverTimeoutRef = useRef(null);
-  const [floatingNotification, setFloatingNotification] = useState(null);
   
   const tableRef = useRef();
   const containerRef = useRef();
@@ -81,27 +77,12 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Constantes para el cálculo de posiciones
   const roomColumnWidth = 120;
-  const dayColumnWidth = 50;
-  const minTableWidth = roomColumnWidth + (days.length * dayColumnWidth);
 
   function handleScroll() {
     if (!containerRef.current) return;
   
-    const { scrollLeft, scrollWidth, clientWidth, scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    
-    // Debug: verificar dimensiones
-    console.log('Scroll debug:', {
-      scrollLeft,
-      scrollWidth,
-      clientWidth,
-      scrollTop,
-      scrollHeight,
-      clientHeight,
-      hasHorizontalScroll: scrollWidth > clientWidth,
-      hasVerticalScroll: scrollHeight > clientHeight
-    });
+    const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
   
-    // Solo procesar scroll horizontal (cambios en scrollLeft)
     // Si estás cerca del borde derecho (últimos 200px)
     if (scrollLeft + clientWidth >= scrollWidth - 200) {
       setEndDate(prev => {
@@ -141,89 +122,16 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     if (onReservationClick) onReservationClick(reservation);
   }
 
-  // Funciones optimizadas con debounce
-  const debouncedSetHoveredCell = useCallback((cellData) => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredCell(cellData);
-    }, 16); // ~60fps
-  }, []);
-
-  const handleCellMouseEnter = useCallback((rowIndex, colIndex) => {
-    debouncedSetHoveredCell({ rowIndex, colIndex });
-  }, [debouncedSetHoveredCell]);
-
-  const handleCellMouseLeave = useCallback(() => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    setHoveredCell(null);
-  }, []);
-
-  const optimizedHandleReservationHover = useCallback((reservationData) => {
+  function handleReservationHover(reservationData) {
     setHoveredReservation(reservationData);
-  }, []);
+  }
 
-  const optimizedHandleReservationLeave = useCallback(() => {
+  function handleReservationLeave() {
     setHoveredReservation(null);
-  }, []);
-
-  // Memoizar los cálculos de resaltado para evitar recálculos innecesarios
-  const highlightMap = useMemo(() => {
-    const map = new Map();
-    
-    if (hoveredCell || hoveredReservation) {
-      rooms.forEach((room, roomIndex) => {
-        days.forEach((day, colIndex) => {
-          let highlight = false;
-          
-          if (hoveredCell) {
-            // Resaltar columna hacia arriba
-            if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
-            // Resaltar fila hacia la izquierda
-            if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
-          }
-          
-          if (hoveredReservation) {
-            // Resaltar rango de columnas de la reserva hacia arriba
-            if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
-            // Resaltar fila hacia la izquierda
-            if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
-          }
-          
-          if (highlight) {
-            map.set(`${roomIndex}-${colIndex}`, true);
-          }
-        });
-      });
-    }
-    
-    return map;
-  }, [hoveredCell, hoveredReservation, rooms, days]);
+  }
 
   function handleResize(reservationId, updateData) {
     console.log('handleResize llamado:', reservationId, updateData);
-    
-    // Validar conflictos antes de actualizar
-    const conflict = validateReservationConflict(
-      reservations,
-      updateData.roomId,
-      updateData.checkIn,
-      updateData.checkOut,
-      reservationId
-    );
-    
-    if (conflict.hasConflict) {
-      // Obtener la posición actual del mouse para la notificación
-      const notification = showConflictNotification(conflict.message, { x: window.mouseX || 0, y: window.mouseY || 0 });
-      if (notification) {
-        setFloatingNotification(notification);
-      }
-      return; // No actualizar si hay conflicto
-    }
-    
     setResizingReservation(reservationId);
     setResizeData(updateData);
     setReservations(prev => prev.map(reservation =>
@@ -281,7 +189,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     const newRoom = rooms[roomIndex];
     
     console.log(`Posición: x=${x}, y=${y}, dayIndex=${dayIndex}, roomIndex=${roomIndex}`);
-    console.log(`Cálculo detallado: relativeX=${relativeX}, cellWidth=${cellWidth}, startDate=${startDate.toISOString()}`)
+    console.log(`Cálculo detallado: relativeX=${relativeX}, cellWidth=${cellWidth}, startDate=${startDate.toISOString()}`);
     
     if (newRoom) {
       // Calcular la duración de la reserva original
@@ -316,25 +224,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     
     if (dragPreview) {
       console.log(`Moviendo reserva ${dragPreview.reservation.id} a habitación ${dragPreview.roomName} en fecha ${dragPreview.checkIn}`);
-      
-      // Validar conflictos antes de actualizar
-      const conflict = validateReservationConflict(
-        reservations,
-        dragPreview.roomId,
-        dragPreview.checkIn,
-        dragPreview.checkOut,
-        dragPreview.reservation.id
-      );
-      
-      if (conflict.hasConflict) {
-        // Usar la posición del evento para la notificación
-        const notification = showConflictNotification(conflict.message, { x: e.clientX, y: e.clientY });
-        if (notification) {
-          setFloatingNotification(notification);
-        }
-        setDragPreview(null);
-        return;
-      }
       
       // Actualizar la reserva usando la información de la preview
       updateReservation(dragPreview.reservation.id, {
@@ -514,52 +403,15 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     resizeDataRef.current = resizeData;
   }, [resizeData]);
 
-  // Debug: verificar dimensiones del contenedor
-  useEffect(() => {
-    if (containerRef.current) {
-      const { scrollWidth, clientWidth, scrollHeight, clientHeight } = containerRef.current;
-      console.log('Container dimensions:', {
-        scrollWidth,
-        clientWidth,
-        scrollHeight,
-        clientHeight,
-        hasHorizontalScroll: scrollWidth > clientWidth,
-        hasVerticalScroll: scrollHeight > clientHeight,
-        daysCount: days.length,
-        roomsCount: rooms.length,
-        minTableWidth,
-        roomColumnWidth,
-        dayColumnWidth
-      });
-    }
-  }, [days, rooms, minTableWidth]);
-
-  // Trackear la posición del mouse para las notificaciones
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      window.mouseX = e.clientX;
-      window.mouseY = e.clientY;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
   return (
     <div 
-      className={styles.reservationGridContainer}
+      className={styles.reservationGridContainer} 
       ref={containerRef} 
       onScroll={handleScroll}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      style={{
-        minWidth: `${minTableWidth}px`,
-        overflow: 'auto',
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#c1c1c1 #f1f1f1'
-      }}
     >
-      <table className={styles.reservationGridTable} ref={tableRef} style={{ minWidth: `${minTableWidth}px` }}>
+      <table className={styles.reservationGridTable} ref={tableRef}>
         <thead>
           <tr>
             <th className={styles.roomHeader}></th>
@@ -599,7 +451,19 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                 <strong>{room.name}</strong>
               </td>
               {days.map((day, colIndex) => {
-                const highlight = highlightMap.has(`${roomIndex}-${colIndex}`);
+                let highlight = false;
+                if (hoveredCell) {
+                  // Resaltar columna hacia arriba
+                  if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
+                  // Resaltar fila hacia la izquierda
+                  if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
+                }
+                if (hoveredReservation) {
+                  // Resaltar rango de columnas de la reserva hacia arriba
+                  if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
+                  // Resaltar fila hacia la izquierda
+                  if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
+                }
                 return (
                   <td
                     key={day.toISOString()}
@@ -613,8 +477,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                       padding: '0', 
                       boxSizing: 'border-box' 
                     }}
-                    onMouseEnter={() => handleCellMouseEnter(roomIndex, colIndex)}
-                    onMouseLeave={handleCellMouseLeave}
+                    onMouseEnter={() => setHoveredCell({ rowIndex: roomIndex, colIndex })}
+                    onMouseLeave={() => setHoveredCell(null)}
                   >
                   </td>
                 );
@@ -649,8 +513,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                 onResizeStart={handleResizeStart}
                 isResizing={isResizing && resizeReservationId === reservation.id}
                 justFinishedResize={justFinishedResize}
-                onReservationHover={optimizedHandleReservationHover}
-                onReservationLeave={optimizedHandleReservationLeave}
+                onReservationHover={handleReservationHover}
+                onReservationLeave={handleReservationLeave}
                 resizeDirection={resizeDirection}
               />
             );
@@ -685,16 +549,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           </div>
         )}
       </div>
-      
-      {/* Notificación flotante */}
-      {floatingNotification && (
-        <FloatingNotification
-          message={floatingNotification.message}
-          type={floatingNotification.type}
-          position={floatingNotification.position}
-          onClose={() => setFloatingNotification(null)}
-        />
-      )}
     </div>
   );
 }
