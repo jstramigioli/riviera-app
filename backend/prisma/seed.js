@@ -2,363 +2,292 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const rooms = [
-    
-    {
-      name: "1",
-      description: "",
-      tags: ['planta baja', 'habitacion', 'triple', 'vista a patio interno', 'vista a jardin', 'departamento hotelero'],
-      maxPeople: 3,
-      status: "available"
-    },
-    {
-        name: "2",
-        description: "",
-        tags: ['planta baja', 'habitacion', 'doble', 'vista a pasillo lateral'],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "3",
-        description: "",
-        tags: ['planta baja', 'habitacion', 'triple', 'vista a pasillo lateral'],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "5",
-        description: "",
-        tags: ['planta baja', 'cuadruple', 'vista a patio interno', 'acceso por patio interno', 'escalera', 'departamento hotelero'],
-        maxPeople: 4,
-        status: "available"
-      },
-      {
-        name: "6",
-        description: "",
-        tags: ['planta baja', 'cuadruple', 'departamento hotelero'],
-        maxPeople: 4,
-        status: "available"
-      },
-      {
-        name: "7",
-        description: "",
-        tags: ['planta baja', 'habitacion', 'doble', 'vista a pasillo lateral'],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "8",
-        description: "",
-        tags: ['planta alta', 'habitacion', 'doble', 'vista a la calle', 'pequeña'],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "9",
-        description: "",
-        tags: ['planta alta', 'habitacion', 'doble', 'vista a la calle', 'pequeña'],
-        maxPeople: 2,
-        status: "available"
-      },   
-      {
-        name: "10",
-        description: "",
-        tags: ['planta alta', 'habitacion', 'doble'],
-        maxPeople: 2,
-        status: "available"
-      },  
-      {
-        name: "11",
-        description: "",
-        tags: ['planta alta', 'habitacion', 'triple'],
-        maxPeople: 3,
-        status: "available"
-      },  
-      {
-        name: "12",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "13",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "14",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "15",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "16",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "17",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "18",
-        description: "",
-        tags: ["planta alta", "habitacion", "cuadruple"],
-        maxPeople: 4,
-        status: "available"
-      },
-      {
-        name: "19",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "21",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "22",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "23",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "24",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "25",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "26",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "27",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "28",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "29",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "30",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "31",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "32",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "33",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "34",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      },
-      {
-        name: "35",
-        description: "",
-        tags: ["planta alta", "habitacion", "triple"],
-        maxPeople: 3,
-        status: "available"
-      },
-      {
-        name: "36",
-        description: "",
-        tags: ["planta alta", "habitacion", "doble"],
-        maxPeople: 2,
-        status: "available"
-      }
-  ];
+  console.log('Iniciando seed...');
 
-  for (const room of rooms) {
-    await prisma.room.create({ data: room });
-  }
-  console.log("Rooms seeded successfully.");
-
-  const clients = [
-    {
-      firstName: "Juan",
-      lastName: "Pérez",
-      email: "juan.perez@email.com",
-      phone: "123456789",
-      document: "DNI 12345678"
-    },
-    {
-      firstName: "María",
-      lastName: "García",
-      email: "maria.garcia@email.com",
-      phone: "987654321",
-      document: "DNI 87654321"
-    },
-    {
-      firstName: "Carlos",
-      lastName: "López",
-      email: "carlos.lopez@email.com",
-      phone: "555666777",
-      document: "DNI 55566677"
-    },
-    {
-      firstName: "Ana",
-      lastName: "Martínez",
-      email: "ana.martinez@email.com",
-      phone: "111222333",
-      document: "DNI 11122233"
+  // Crear habitaciones del 1 al 36 (excluyendo 4 y 20) en orden
+  const roomPromises = [];
+  
+  // Habitaciones del 1 al 36 (excluyendo 4 y 20) en orden numérico
+  const habitacionesNumericas = [];
+  for (let i = 1; i <= 36; i++) {
+    if (i !== 4 && i !== 20) { // Excluir habitaciones 4 y 20
+      habitacionesNumericas.push(i);
     }
-  ];
-
-  const createdClients = [];
-  for (const client of clients) {
-    const createdClient = await prisma.client.create({ data: client });
-    createdClients.push(createdClient);
   }
-  console.log("Clients seeded successfully.");
-
-  const today = new Date();
-  const reservations = [
-    {
-      roomId: 1,
-      mainClientId: createdClients[0].id,
-      checkIn: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2),
-      checkOut: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-      totalAmount: 45000,
-      status: "active",
-      guests: [
-        { firstName: "Laura", lastName: "Pérez" }
-      ]
-    },
-    {
-      roomId: 3,
-      mainClientId: createdClients[1].id,
-      checkIn: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1),
-      checkOut: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3),
-      totalAmount: 60000,
-      status: "active",
-      guests: [
-        { firstName: "Pedro", lastName: "García" },
-        { firstName: "Sofía", lastName: "García" }
-      ]
-    },
-    {
-      roomId: 5,
-      mainClientId: createdClients[2].id,
-      checkIn: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7),
-      checkOut: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 12),
-      totalAmount: 75000,
-      status: "active",
-      guests: [
-        { firstName: "Roberto", lastName: "López" }
-      ]
-    },
-    {
-      roomId: 8,
-      mainClientId: createdClients[3].id,
-      checkIn: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 3),
-      checkOut: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
-      totalAmount: 90000,
-      status: "active",
-      guests: [
-        { firstName: "Elena", lastName: "Martínez" },
-        { firstName: "Miguel", lastName: "Martínez" },
-        { firstName: "Carmen", lastName: "Martínez" }
-      ]
-    }
-  ];
-
-  for (const reservation of reservations) {
-    await prisma.reservation.create({
-      data: {
-        roomId: reservation.roomId,
-        mainClientId: reservation.mainClientId,
-        checkIn: reservation.checkIn,
-        checkOut: reservation.checkOut,
-        totalAmount: reservation.totalAmount,
-        status: reservation.status,
-        guests: {
-          create: reservation.guests
+  
+  // Crear habitaciones en orden
+  habitacionesNumericas.forEach((numero, index) => {
+    roomPromises.push(
+      prisma.room.create({
+        data: {
+          name: numero.toString(),
+          description: `Habitación ${numero}`,
+          tags: ['estándar'],
+          maxPeople: 2,
+          status: 'available',
+          orderIndex: index
         }
+      })
+    );
+  });
+
+  // Departamentos al final
+  const departamentos = [
+    {
+      name: 'El Romerito',
+      description: 'Departamento para 2 personas',
+      tags: ['departamento', '2-personas'],
+      maxPeople: 2,
+      status: 'available',
+      orderIndex: 34
+    },
+    {
+      name: 'El Tilo',
+      description: 'Departamento para 5 personas',
+      tags: ['departamento', '5-personas'],
+      maxPeople: 5,
+      status: 'available',
+      orderIndex: 35
+    },
+    {
+      name: 'Via 1',
+      description: 'Departamento para 4 personas',
+      tags: ['departamento', '4-personas'],
+      maxPeople: 4,
+      status: 'available',
+      orderIndex: 36
+    },
+    {
+      name: 'La Esquinita',
+      description: 'Departamento para 4 personas',
+      tags: ['departamento', '4-personas'],
+      maxPeople: 4,
+      status: 'available',
+      orderIndex: 37
+    }
+  ];
+
+  departamentos.forEach(depto => {
+    roomPromises.push(
+      prisma.room.create({
+        data: depto
+      })
+    );
+  });
+
+  const rooms = await Promise.all(roomPromises);
+  console.log('Habitaciones creadas:', rooms.length);
+
+  // Crear clientes con notas
+  const clients = await Promise.all([
+    prisma.client.create({
+      data: {
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        email: 'juan.perez@email.com',
+        phone: '+54 11 1234-5678',
+        documentType: 'DNI',
+        documentNumber: '12345678',
+        notes: 'Cliente frecuente, prefiere habitaciones con vista al mar'
       }
-    });
-  }
-  console.log("Reservations seeded successfully.");
+    }),
+    prisma.client.create({
+      data: {
+        firstName: 'María',
+        lastName: 'González',
+        email: 'maria.gonzalez@email.com',
+        phone: '+54 11 8765-4321',
+        documentType: 'DNI',
+        documentNumber: '87654321',
+        notes: 'Cliente VIP, solicita servicio de limpieza diario'
+      }
+    }),
+    prisma.client.create({
+      data: {
+        firstName: 'Carlos',
+        lastName: 'Rodríguez',
+        email: 'carlos.rodriguez@email.com',
+        phone: '+54 11 5555-1234',
+        documentType: 'CUIT',
+        documentNumber: '20-55551234-5',
+        notes: 'Viaja por trabajo, necesita facturación empresarial'
+      }
+    })
+  ]);
+
+  console.log('Clientes creados:', clients.length);
+
+  // Crear reservas con notas
+  const today = new Date();
+  const addDays = (date, days) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  };
+  const reservations = await Promise.all([
+    prisma.reservation.create({
+      data: {
+        roomId: rooms[0].id, // Habitación 1
+        mainClientId: clients[0].id,
+        checkIn: today,
+        checkOut: addDays(today, 2),
+        totalAmount: 45000,
+        status: 'active',
+        reservationType: 'con_desayuno',
+        notes: 'Cliente solicita cama king size si es posible',
+        fixed: false
+      }
+    }),
+    prisma.reservation.create({
+      data: {
+        roomId: rooms[34].id, // El Romerito
+        mainClientId: clients[1].id,
+        checkIn: addDays(today, 1),
+        checkOut: addDays(today, 3),
+        totalAmount: 75000,
+        status: 'active',
+        reservationType: 'media_pension',
+        notes: 'Departamento para luna de miel, decoración especial',
+        fixed: false
+      }
+    }),
+    prisma.reservation.create({
+      data: {
+        roomId: rooms[35].id, // El Tilo
+        mainClientId: clients[2].id,
+        checkIn: addDays(today, 2),
+        checkOut: addDays(today, 4),
+        totalAmount: 120000,
+        status: 'finished',
+        reservationType: 'con_desayuno',
+        notes: 'Familia con niños, solicita cuna adicional',
+        fixed: true
+      }
+    })
+  ]);
+
+  console.log('Reservas creadas:', reservations.length);
+
+  // Crear huéspedes con los nuevos campos
+  const guests = await Promise.all([
+    prisma.guest.create({
+      data: {
+        firstName: 'Ana',
+        lastName: 'López',
+        documentType: 'DNI',
+        documentNumber: 'DNI 11111111',
+        phone: '+54 11 1111-1111',
+        email: 'ana.lopez@email.com',
+        address: 'Av. Corrientes 1234',
+        city: 'Buenos Aires',
+        reservationId: reservations[0].id
+      }
+    }),
+    prisma.guest.create({
+      data: {
+        firstName: 'Pedro',
+        lastName: 'Martínez',
+        documentType: 'DNI',
+        documentNumber: 'DNI 22222222',
+        phone: '+54 11 2222-2222',
+        email: 'pedro.martinez@email.com',
+        address: 'Calle Florida 567',
+        city: 'Buenos Aires',
+        reservationId: reservations[0].id
+      }
+    }),
+    prisma.guest.create({
+      data: {
+        firstName: 'Laura',
+        lastName: 'Fernández',
+        documentType: 'DNI',
+        documentNumber: 'DNI 33333333',
+        phone: '+54 11 3333-3333',
+        email: 'laura.fernandez@email.com',
+        address: 'Av. Santa Fe 890',
+        city: 'Buenos Aires',
+        reservationId: reservations[1].id
+      }
+    }),
+    prisma.guest.create({
+      data: {
+        firstName: 'Roberto',
+        lastName: 'Silva',
+        documentType: 'DNI',
+        documentNumber: 'DNI 44444444',
+        phone: '+54 11 4444-4444',
+        email: 'roberto.silva@email.com',
+        address: 'Calle San Martín 456',
+        city: 'Córdoba',
+        reservationId: reservations[2].id
+      }
+    })
+  ]);
+
+  console.log('Huéspedes creados:', guests.length);
+
+  // Crear algunos pagos y cargos de ejemplo
+  const payments = await Promise.all([
+    // Cargo por reserva
+    prisma.payment.create({
+      data: {
+        guestId: guests[0].id,
+        amount: 45000,
+        type: 'charge',
+        description: 'Cargo por reserva #1',
+        date: new Date('2024-01-15')
+      }
+    }),
+    // Pago parcial
+    prisma.payment.create({
+      data: {
+        guestId: guests[0].id,
+        amount: 30000,
+        type: 'payment',
+        description: 'Pago parcial en efectivo',
+        date: new Date('2024-01-15')
+      }
+    }),
+    // Cargo por consumo
+    prisma.payment.create({
+      data: {
+        guestId: guests[0].id,
+        amount: 5000,
+        type: 'charge',
+        description: 'Cargo por minibar y servicios',
+        date: new Date('2024-01-16')
+      }
+    }),
+    // Cargo por reserva
+    prisma.payment.create({
+      data: {
+        guestId: guests[2].id,
+        amount: 75000,
+        type: 'charge',
+        description: 'Cargo por reserva #2',
+        date: new Date('2024-01-20')
+      }
+    }),
+    // Pago completo
+    prisma.payment.create({
+      data: {
+        guestId: guests[2].id,
+        amount: 75000,
+        type: 'payment',
+        description: 'Pago completo con tarjeta',
+        date: new Date('2024-01-20')
+      }
+    })
+  ]);
+
+  console.log('Pagos creados:', payments.length);
+
+  console.log('Seed completado exitosamente!');
 }
 
 main()
-  .catch(e => {
-    console.error(e);
+  .catch((e) => {
+    console.error('Error durante el seed:', e);
     process.exit(1);
   })
   .finally(async () => {

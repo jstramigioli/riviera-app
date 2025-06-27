@@ -19,7 +19,7 @@ exports.getAllReservations = async (req, res) => {
 
 // Crear una reserva
 exports.createReservation = async (req, res) => {
-  const { roomId, mainClientId, guests, checkIn, checkOut, totalAmount, status } = req.body;
+  const { roomId, mainClientId, guests, checkIn, checkOut, totalAmount, status, notes } = req.body;
   if (!roomId || !mainClientId || !checkIn || !checkOut || !totalAmount) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -32,6 +32,7 @@ exports.createReservation = async (req, res) => {
         checkOut: new Date(checkOut),
         totalAmount,
         status: status || 'active',
+        notes,
         guests: {
           create: guests && Array.isArray(guests) ? guests.map(g => ({ firstName: g.firstName, lastName: g.lastName })) : []
         }
@@ -51,21 +52,28 @@ exports.createReservation = async (req, res) => {
 // Actualizar una reserva
 exports.updateReservation = async (req, res) => {
   const { id } = req.params;
-  const { roomId, checkIn, checkOut, fixed } = req.body;
+  const { roomId, mainClientId, checkIn, checkOut, totalAmount, status, reservationType, fixed, notes } = req.body;
   
   if (!roomId || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   
   try {
+    const updateData = {
+      roomId: parseInt(roomId),
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      ...(typeof fixed !== 'undefined' ? { fixed } : {}),
+      ...(mainClientId && { mainClientId: parseInt(mainClientId) }),
+      ...(totalAmount && { totalAmount: parseFloat(totalAmount) }),
+      ...(status && { status }),
+      ...(reservationType && { reservationType }),
+      ...(notes !== undefined && { notes })
+    };
+
     const updatedReservation = await prisma.reservation.update({
       where: { id: parseInt(id) },
-      data: {
-        roomId: parseInt(roomId),
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        ...(typeof fixed !== 'undefined' ? { fixed } : {})
-      },
+      data: updateData,
       include: {
         room: true,
         mainClient: true,

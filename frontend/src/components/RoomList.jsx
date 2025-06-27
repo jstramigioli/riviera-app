@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchRooms } from '../services/api';
+import { fetchRooms } from '../services/api.js';
 import '../styles/RoomList.css';
 
 export default function RoomList() {

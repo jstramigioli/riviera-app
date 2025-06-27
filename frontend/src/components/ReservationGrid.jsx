@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { addDays, format, differenceInDays, subDays } from 'date-fns';
 import ReservationBar from './ReservationBar';
 import '../styles/ReservationGrid.css';
-import { API_URL } from '../services/api';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -157,11 +156,12 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     
     console.log('Drag over con reserva:', draggedReservation.id, 'offset:', dragOffset);
     
-    // Obtener la posición del mouse
+    // Obtener la posición del mouse considerando ambos scrolls
     const rect = containerRef.current.getBoundingClientRect();
     const scrollLeft = containerRef.current.scrollLeft;
+    const scrollTop = containerRef.current.scrollTop;
     const x = e.clientX - rect.left + scrollLeft;
-    const y = e.clientY - rect.top;
+    const y = e.clientY - rect.top + scrollTop;
     
     // Calcular la nueva posición con snap
     const relativeX = x - roomColumnWidth;

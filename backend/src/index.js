@@ -4,6 +4,8 @@ const { PrismaClient } = require('@prisma/client');
 const roomRoutes = require('./routes/room.routes');
 const clientRoutes = require('./routes/client.routes');
 const reservationRoutes = require('./routes/reservation.routes');
+const guestRoutes = require('./routes/guest.routes');
+const paymentRoutes = require('./routes/payment.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +36,8 @@ app.get('/', (req, res) => {
 app.use('/api/rooms', roomRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/guests', guestRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);

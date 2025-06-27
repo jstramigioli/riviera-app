@@ -8,4 +8,10 @@ router.get('/', clientController.getAllClients);
 // Crear un cliente
 router.post('/', clientController.createClient);
 
+// Actualizar un cliente
+router.put('/:id', clientController.updateClient);
+
+// Calcular balance de un cliente
+router.get('/:id/balance', clientController.getClientBalance);
+
 module.exports = router; 
