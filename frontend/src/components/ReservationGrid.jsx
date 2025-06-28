@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingAddButton from './FloatingAddButton';
@@ -129,7 +130,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   function handleMonthClick(month) {
     // TODO: Implementar navegación a estadísticas del mes
-    console.log('Click en mes:', format(month, 'MMMM yyyy'));
+    console.log('Click en mes:', format(month, 'MMMM yyyy', { locale: es }));
     // Aquí irá la lógica para redirigir a estadísticas
   }
 
@@ -666,7 +667,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                   colSpan={monthData.colSpan}
                   onClick={() => handleMonthClick(monthData.month)}
                 >
-                  {format(monthData.month, 'MMMM yyyy')}
+                  {format(monthData.month, 'MMMM yyyy', { locale: es })}
                 </th>
               ))}
             </tr>

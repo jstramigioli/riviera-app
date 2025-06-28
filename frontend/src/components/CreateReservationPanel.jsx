@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import SidePanel from './SidePanel';
 import { fetchClients } from '../services/api';
 import styles from '../styles/CreateReservationPanel.module.css';
@@ -24,7 +23,7 @@ export default function CreateReservationPanel({
       documentNumber: ''
     },
     notes: ''
-  });
+  })
 
   const [errors, setErrors] = useState({});
   const [clients, setClients] = useState([]);
@@ -250,6 +249,7 @@ export default function CreateReservationPanel({
                   value={formData.checkIn}
                   onChange={(e) => handleInputChange('checkIn', e.target.value)}
                   className={errors.checkIn ? styles.error : ''}
+                  pattern="\d{2}/\d{2}/\d{4}"
                 />
                 {errors.checkIn && <span className={styles.errorText}>{errors.checkIn}</span>}
               </div>
@@ -262,6 +262,7 @@ export default function CreateReservationPanel({
                   value={formData.checkOut}
                   onChange={(e) => handleInputChange('checkOut', e.target.value)}
                   className={errors.checkOut ? styles.error : ''}
+                  pattern="\d{2}/\d{2}/\d{4}"
                 />
                 {errors.checkOut && <span className={styles.errorText}>{errors.checkOut}</span>}
               </div>
