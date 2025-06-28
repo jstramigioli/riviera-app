@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import SidePanel from './SidePanel';
-import { fetchClients } from '../services/api';
+import ReservationRequirements from './ReservationRequirements';
+import RoomSelectionModal from './RoomSelectionModal';
+import api from '../services/api';
 import styles from '../styles/CreateReservationPanel.module.css';
 
 export default function CreateReservationPanel({ 
   isOpen, 
   onClose, 
-  rooms, 
   onCreateReservation 
 }) {
   const [formData, setFormData] = useState({
-    roomId: '',
     checkIn: format(new Date(), 'yyyy-MM-dd'),
     checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     mainClient: {
@@ -23,7 +23,14 @@ export default function CreateReservationPanel({
       documentNumber: ''
     },
     notes: ''
-  })
+  });
+
+  const [requirements, setRequirements] = useState({
+    requiredGuests: 1,
+    requiredRoomId: null,
+    requiredTags: [],
+    requirementsNotes: ''
+  });
 
   const [errors, setErrors] = useState({});
   const [clients, setClients] = useState([]);
@@ -32,6 +39,9 @@ export default function CreateReservationPanel({
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isRoomSelectionModalOpen, setIsRoomSelectionModalOpen] = useState(false);
+  const searchInputRef = useRef(null);
 
   // Cargar clientes al abrir el panel
   useEffect(() => {
@@ -43,7 +53,7 @@ export default function CreateReservationPanel({
   // Filtrar clientes cuando cambia el término de búsqueda
   useEffect(() => {
     if (searchTerm.trim() === '') {
-      setFilteredClients(clients.slice(0, 10)); // Mostrar solo los primeros 10
+      setFilteredClients([]);
     } else {
       const filtered = clients.filter(client => 
         client.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,16 +61,43 @@ export default function CreateReservationPanel({
         client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.documentNumber?.includes(searchTerm)
       );
-      setFilteredClients(filtered);
+      
+      // Ordenar por relevancia y tomar solo los primeros 5
+      const sortedClients = filtered.sort((a, b) => {
+        // Priorizar coincidencias exactas en nombre
+        const aNameMatch = `${a.firstName} ${a.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
+        const bNameMatch = `${b.firstName} ${b.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        
+        // Si ambos coinciden en nombre, priorizar por orden alfabético
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      });
+      
+      setFilteredClients(sortedClients.slice(0, 5));
     }
   }, [searchTerm, clients]);
+
+  // Manejar clics fuera del buscador para cerrar el desplegable
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const loadClients = async () => {
     try {
       setIsLoadingClients(true);
-      const clientsData = await fetchClients();
+      const clientsData = await api.fetchClients();
       setClients(clientsData);
-      setFilteredClients(clientsData.slice(0, 10));
     } catch (error) {
       console.error('Error cargando clientes:', error);
     } finally {
@@ -69,6 +106,10 @@ export default function CreateReservationPanel({
   };
 
   const handleClientSelect = (client) => {
+    console.log('=== handleClientSelect llamado ===');
+    console.log('Cliente recibido:', client);
+    console.log('Estado actual antes de actualizar:', { selectedClient, showNewClientForm });
+    
     setSelectedClient(client);
     setFormData(prev => ({
       ...prev,
@@ -79,6 +120,9 @@ export default function CreateReservationPanel({
     }));
     setShowNewClientForm(false);
     setSearchTerm('');
+    setIsSearchFocused(false);
+    
+    console.log('Estados actualizados, selectedClient debería ser:', client);
   };
 
   const handleAddNewClient = () => {
@@ -95,6 +139,34 @@ export default function CreateReservationPanel({
         documentNumber: ''
       }
     }));
+    setIsSearchFocused(false);
+  };
+
+  const handleNewSearch = () => {
+    setSelectedClient(null);
+    setSearchTerm('');
+    setIsSearchFocused(false);
+    setShowNewClientForm(false);
+    setFormData(prev => ({
+      ...prev,
+      mainClient: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        documentType: 'DNI',
+        documentNumber: ''
+      }
+    }));
+  };
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setIsSearchFocused(true);
   };
 
   const handleInputChange = (field, value) => {
@@ -125,11 +197,6 @@ export default function CreateReservationPanel({
 
   const validateForm = () => {
     const newErrors = {};
-
-    // Validar habitación
-    if (!formData.roomId) {
-      newErrors.roomId = 'Debe seleccionar una habitación';
-    }
 
     // Validar fechas
     if (!formData.checkIn) {
@@ -167,25 +234,59 @@ export default function CreateReservationPanel({
     e.preventDefault();
     
     if (validateForm()) {
-      const newReservation = {
-        ...formData,
-        id: Date.now().toString(), // ID temporal
-        status: 'confirmed',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      // Abrir modal de selección de habitaciones
+      setIsRoomSelectionModalOpen(true);
+    }
+  };
 
-      onCreateReservation(newReservation);
-      onClose();
-      
-      // Resetear formulario
-      resetForm();
+  const handleRoomSelected = (roomId) => {
+    // Actualizar los requerimientos con la habitación seleccionada
+    setRequirements(prev => ({
+      ...prev,
+      requiredRoomId: roomId
+    }));
+
+    // Crear la reserva con la habitación seleccionada
+    const newReservation = {
+      ...formData,
+      roomId: roomId,
+      // Incluir requerimientos en la reserva
+      requiredGuests: requirements.requiredGuests,
+      requiredRoomId: roomId,
+      requiredTags: requirements.requiredTags,
+      requirementsNotes: requirements.requirementsNotes,
+      id: Date.now().toString(), // ID temporal
+      status: 'confirmed',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    onCreateReservation(newReservation);
+    onClose();
+    
+    // Resetear formulario
+    resetForm();
+  };
+
+  const handleCancel = () => {
+    onClose();
+    resetForm();
+  };
+
+  const handleRequirementsChange = (newRequirements) => {
+    setRequirements(newRequirements);
+    
+    // Si se asignó una habitación automáticamente, actualizar el formulario
+    if (newRequirements.requiredRoomId && newRequirements.requiredRoomId !== formData.roomId) {
+      setFormData(prev => ({
+        ...prev,
+        roomId: newRequirements.requiredRoomId
+      }));
     }
   };
 
   const resetForm = () => {
     setFormData({
-      roomId: '',
       checkIn: format(new Date(), 'yyyy-MM-dd'),
       checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       mainClient: {
@@ -198,15 +299,17 @@ export default function CreateReservationPanel({
       },
       notes: ''
     });
+    setRequirements({
+      requiredGuests: 1,
+      requiredRoomId: null,
+      requiredTags: [],
+      requirementsNotes: ''
+    });
     setSelectedClient(null);
     setShowNewClientForm(false);
     setSearchTerm('');
     setErrors({});
-  };
-
-  const handleCancel = () => {
-    onClose();
-    resetForm();
+    setIsRoomSelectionModalOpen(false);
   };
 
   return (
@@ -217,29 +320,12 @@ export default function CreateReservationPanel({
       width={500}
     >
       <div className={styles.content}>
+        
         <form onSubmit={handleSubmit} className={styles.form}>
           {/* Información de la Reserva */}
           <div className={styles.section}>
             <h3>Información de la Reserva</h3>
             
-            <div className={styles.formGroup}>
-              <label htmlFor="roomId">Habitación *</label>
-              <select
-                id="roomId"
-                value={formData.roomId}
-                onChange={(e) => handleInputChange('roomId', e.target.value)}
-                className={errors.roomId ? styles.error : ''}
-              >
-                <option value="">Seleccionar habitación</option>
-                {rooms.map(room => (
-                  <option key={room.id} value={room.id}>
-                    {room.name}
-                  </option>
-                ))}
-              </select>
-              {errors.roomId && <span className={styles.errorText}>{errors.roomId}</span>}
-            </div>
-
             <div className={styles.dateGroup}>
               <div className={styles.formGroup}>
                 <label htmlFor="checkIn">Fecha de Entrada *</label>
@@ -269,85 +355,19 @@ export default function CreateReservationPanel({
             </div>
           </div>
 
+          {/* Requerimientos de la Reserva */}
+          <ReservationRequirements
+            requirements={requirements}
+            onRequirementsChange={handleRequirementsChange}
+          />
+
           {/* Información del Cliente */}
           <div className={styles.section}>
             <h3>Información del Cliente</h3>
             
-            {!showNewClientForm ? (
-              <>
-                {/* Buscador de clientes */}
-                <div className={styles.formGroup}>
-                  <label htmlFor="clientSearch">Buscar Cliente</label>
-                  <input
-                    type="text"
-                    id="clientSearch"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nombre, apellido, email o documento..."
-                    className={errors.client ? styles.error : ''}
-                  />
-                  {errors.client && <span className={styles.errorText}>{errors.client}</span>}
-                </div>
-
-                {/* Lista de clientes filtrados */}
-                <div className={styles.clientList}>
-                  {isLoadingClients ? (
-                    <div className={styles.loading}>Cargando clientes...</div>
-                  ) : (
-                    <>
-                      {filteredClients.map(client => (
-                        <div
-                          key={client.id}
-                          className={`${styles.clientItem} ${selectedClient?.id === client.id ? styles.selected : ''}`}
-                          onClick={() => handleClientSelect(client)}
-                        >
-                          <div className={styles.clientInfo}>
-                            <div className={styles.clientName}>
-                              {client.firstName} {client.lastName}
-                            </div>
-                            <div className={styles.clientDetails}>
-                              {client.email && <span>{client.email}</span>}
-                              {client.phone && <span>{client.phone}</span>}
-                              {client.documentNumber && (
-                                <span>{client.documentType}: {client.documentNumber}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Botón para agregar nuevo cliente */}
-                      <div
-                        className={styles.addNewClientButton}
-                        onClick={handleAddNewClient}
-                      >
-                        <span className={styles.addIcon}>+</span>
-                        <span>Agregar Nuevo Cliente</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Mostrar cliente seleccionado */}
-                {selectedClient && (
-                  <div className={styles.selectedClientInfo}>
-                    <h4>Cliente Seleccionado:</h4>
-                    <div className={styles.clientCard}>
-                      <div className={styles.clientName}>
-                        {selectedClient.firstName} {selectedClient.lastName}
-                      </div>
-                      <div className={styles.clientDetails}>
-                        {selectedClient.email && <div>Email: {selectedClient.email}</div>}
-                        {selectedClient.phone && <div>Teléfono: {selectedClient.phone}</div>}
-                        {selectedClient.documentNumber && (
-                          <div>{selectedClient.documentType}: {selectedClient.documentNumber}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
+            
+            
+            {showNewClientForm ? (
               <>
                 {/* Formulario para nuevo cliente */}
                 <div className={styles.newClientHeader}>
@@ -355,11 +375,7 @@ export default function CreateReservationPanel({
                   <button
                     type="button"
                     className={styles.backButton}
-                    onClick={() => {
-                      setShowNewClientForm(false);
-                      setSelectedClient(null);
-                      setSearchTerm('');
-                    }}
+                    onClick={handleNewSearch}
                   >
                     ← Volver a buscar
                   </button>
@@ -446,6 +462,121 @@ export default function CreateReservationPanel({
                   </div>
                 </div>
               </>
+            ) : selectedClient ? (
+              <div className={styles.selectedClientSection}>
+                <div className={styles.selectedClientHeader}>
+                  <h4>Cliente Seleccionado</h4>
+                  <button
+                    type="button"
+                    className={styles.newSearchButton}
+                    onClick={handleNewSearch}
+                  >
+                    Cambiar Cliente
+                  </button>
+                </div>
+                <div className={styles.selectedClientCard}>
+                  <div className={styles.clientName}>
+                    {selectedClient.firstName} {selectedClient.lastName}
+                  </div>
+                  <div className={styles.clientDetails}>
+                    {selectedClient.email && <div>Email: {selectedClient.email}</div>}
+                    {selectedClient.phone && <div>Teléfono: {selectedClient.phone}</div>}
+                    {selectedClient.documentNumber && (
+                      <div>{selectedClient.documentType}: {selectedClient.documentNumber}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.formGroup}>
+                <label htmlFor="clientSearch">Buscar Cliente</label>
+                <div className={styles.searchContainer}>
+                  <input
+                    type="text"
+                    id="clientSearch"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    onFocus={handleSearchFocus}
+                    placeholder="Buscar por nombre, apellido, email o documento..."
+                    className={errors.client ? styles.error : ''}
+                    ref={searchInputRef}
+                  />
+                  
+                  {/* Desplegable de resultados */}
+                  {isSearchFocused && (
+                    <div className={styles.dropdown}>
+                      {isLoadingClients ? (
+                        <div className={styles.loading}>Cargando clientes...</div>
+                      ) : searchTerm.trim() !== '' && filteredClients.length > 0 ? (
+                        <>
+                          {filteredClients.map(client => (
+                            <div
+                              key={client.id}
+                              className={`${styles.dropdownItem} ${selectedClient?.id === client.id ? styles.selected : ''}`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                console.log('MouseDown en cliente:', client);
+                                handleClientSelect(client);
+                              }}
+                            >
+                              <div className={styles.clientInfo}>
+                                <div className={styles.clientName}>
+                                  {client.firstName} {client.lastName}
+                                </div>
+                                <div className={styles.clientDetails}>
+                                  {client.email && <span>{client.email}</span>}
+                                  {client.phone && <span>{client.phone}</span>}
+                                  {client.documentNumber && (
+                                    <span>{client.documentType}: {client.documentNumber}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {/* Botón para agregar nuevo cliente */}
+                          <div 
+                            className={styles.addNewClientButton}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleAddNewClient();
+                            }}
+                          >
+                            <span className={styles.addIcon}>+</span>
+                            <span>Agregar Nuevo Cliente</span>
+                          </div>
+                        </>
+                      ) : searchTerm.trim() !== '' ? (
+                        <div className={styles.noResults}>
+                          <div>No se encontraron clientes</div>
+                          <div 
+                            className={styles.addNewClientButton}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleAddNewClient();
+                            }}
+                          >
+                            <span className={styles.addIcon}>+</span>
+                            <span>Agregar Nuevo Cliente</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          className={styles.addNewClientButton}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleAddNewClient();
+                          }}
+                        >
+                          <span className={styles.addIcon}>+</span>
+                          <span>Agregar Nuevo Cliente</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.client && <span className={styles.errorText}>{errors.client}</span>}
+              </div>
             )}
           </div>
 
@@ -475,6 +606,16 @@ export default function CreateReservationPanel({
           </div>
         </form>
       </div>
+
+      {/* Modal de selección de habitaciones */}
+      <RoomSelectionModal
+        isOpen={isRoomSelectionModalOpen}
+        onClose={() => setIsRoomSelectionModalOpen(false)}
+        onRoomSelected={handleRoomSelected}
+        requirements={requirements}
+        checkIn={formData.checkIn}
+        checkOut={formData.checkOut}
+      />
     </SidePanel>
   );
 } 

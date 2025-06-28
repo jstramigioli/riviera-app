@@ -8,6 +8,19 @@
   background-color: var(--color-primary);
   padding: 0 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
 }
 
 .navLink {
@@ -32,12 +45,34 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.configButton {
+  font-size: 1.2rem;
+  padding: 12px 16px;
+  border-radius: 50%;
+  min-width: 48px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.configButton:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.configButton.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
 .appContainer {
   width: 100%;
-  height: calc(100vh - 80px);
+  min-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Contenedor específico para tarifas con max-width y padding */

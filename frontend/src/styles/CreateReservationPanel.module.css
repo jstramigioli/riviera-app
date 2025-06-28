@@ -223,13 +223,43 @@
 }
 
 /* Estilos para el buscador de clientes */
-.clientList {
+.searchContainer {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  margin-top: 0.5rem;
-  background: #ffffff;
+}
+
+.dropdownItem {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+.dropdownItem:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdownItem.selected {
+  background-color: #e3f2fd;
+  border-left: 3px solid #667eea;
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
 }
 
 .loading {
@@ -239,24 +269,15 @@
   font-style: italic;
 }
 
-.clientItem {
-  padding: 0.75rem;
-  border-bottom: 1px solid #f1f3f4;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.noResults {
+  padding: 1rem;
+  text-align: center;
+  color: #6c757d;
 }
 
-.clientItem:hover {
-  background: #f8f9fa;
-}
-
-.clientItem.selected {
-  background: #e3f2fd;
-  border-left: 3px solid #667eea;
-}
-
-.clientItem:last-child {
-  border-bottom: none;
+.noResults > div:first-child {
+  margin-bottom: 0.5rem;
+  font-style: italic;
 }
 
 .clientInfo {
@@ -291,20 +312,15 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #f8f9fa;
-  border: 2px dashed #dee2e6;
-  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
   color: #667eea;
   font-weight: 500;
-  margin-top: 0.5rem;
+  border-top: 1px solid #f8f9fa;
+  transition: background-color 0.2s ease;
 }
 
 .addNewClientButton:hover {
-  background: #e3f2fd;
-  border-color: #667eea;
-  color: #5a6fd8;
+  background-color: #f8f9fa;
 }
 
 .addIcon {
@@ -414,4 +430,77 @@
     align-items: flex-start;
     gap: 0.5rem;
   }
+}
+
+/* Estilos para el cliente seleccionado */
+.selectedClientSection {
+  margin-bottom: 1rem;
+}
+
+.selectedClientHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.selectedClientHeader h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.newSearchButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid #667eea;
+  background: transparent;
+  color: #667eea;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.newSearchButton:hover {
+  background: #667eea;
+  color: white;
+}
+
+.selectedClientCard {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid #667eea;
+}
+
+.selectedClientCard .clientName {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.selectedClientCard .clientDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.selectedClientCard .clientDetails div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selectedClientCard .clientDetails div::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: #667eea;
+  border-radius: 50%;
 } 

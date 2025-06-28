@@ -92,6 +92,13 @@ model Reservation {
   reservationType String @default("con_desayuno")
   notes         String?
   fixed         Boolean  @default(false)
+  
+  // Requerimientos de la reserva
+  requiredGuests        Int      // Cantidad de huéspedes requerida
+  requiredRoomId        Int?     // Habitación específica requerida (opcional)
+  requiredTags          String[] // Array de IDs de etiquetas requeridas
+  requirementsNotes     String?  // Notas adicionales sobre requerimientos
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

@@ -8,6 +8,12 @@ export async function fetchRooms() {
   return res.json();
 }
 
+export async function fetchRoomTypes() {
+  const res = await fetch(`${API_URL}/room-types`);
+  if (!res.ok) throw new Error('Error fetching room types');
+  return res.json();
+}
+
 export async function fetchReservations() {
   const res = await fetch(`${API_URL}/reservations`);
   if (!res.ok) throw new Error('Error fetching reservations');
@@ -169,3 +175,100 @@ export async function createClient(data) {
   if (!res.ok) throw new Error('Error creating client');
   return res.json();
 }
+
+export async function updateRoomOnServer(id, data) {
+  const res = await fetch(`${API_URL}/rooms/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error updating room');
+  return res.json();
+}
+
+export async function fetchTags() {
+  const res = await fetch(`${API_URL}/tags`);
+  if (!res.ok) throw new Error('Error fetching tags');
+  return res.json();
+}
+
+export async function createTag(data) {
+  const res = await fetch(`${API_URL}/tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating tag');
+  return res.json();
+}
+
+export async function updateTag(id, data) {
+  const res = await fetch(`${API_URL}/tags/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error updating tag');
+  return res.json();
+}
+
+export async function deleteTag(id) {
+  const res = await fetch(`${API_URL}/tags/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting tag');
+  return res.json();
+}
+
+// Buscar habitaciones disponibles según requerimientos
+export async function findAvailableRooms(params) {
+  const queryParams = new URLSearchParams();
+  
+  if (params.checkIn) queryParams.append('checkIn', params.checkIn);
+  if (params.checkOut) queryParams.append('checkOut', params.checkOut);
+  if (params.requiredGuests) queryParams.append('requiredGuests', params.requiredGuests);
+  if (params.requiredRoomId) queryParams.append('requiredRoomId', params.requiredRoomId);
+  if (params.excludeReservationId) queryParams.append('excludeReservationId', params.excludeReservationId);
+  
+  // Agregar etiquetas requeridas como array
+  if (params.requiredTags && Array.isArray(params.requiredTags)) {
+    params.requiredTags.forEach(tagId => {
+      queryParams.append('requiredTags', tagId);
+    });
+  }
+
+  const res = await fetch(`${API_URL}/reservations/available-rooms?${queryParams}`);
+  if (!res.ok) throw new Error('Error finding available rooms');
+  return res.json();
+}
+
+// Exportación por defecto con todas las funciones
+export default {
+  fetchRooms,
+  fetchRoomTypes,
+  fetchReservations,
+  fetchClients,
+  fetchGuests,
+  fetchPayments,
+  fetchPaymentsByGuest,
+  updateReservation,
+  createReservation,
+  updateClient,
+  updateGuest,
+  getGuestBalance,
+  createPayment,
+  createConsumptionCharge,
+  getClientBalance,
+  getRates,
+  createRates,
+  updateRate,
+  deleteRate,
+  suggestDynamicPrice,
+  createClient,
+  updateRoomOnServer,
+  fetchTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  findAvailableRooms
+};

@@ -467,7 +467,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         checkOut: newReservation.checkOut,
         notes: newReservation.notes,
         status: 'active',
-        totalAmount: 0 // Por ahora 0, se puede calcular después
+        totalAmount: 0, // Por ahora 0, se puede calcular después
+        requiredGuests: newReservation.requiredGuests,
+        requiredRoomId: newReservation.requiredRoomId,
+        requiredTags: newReservation.requiredTags,
+        requirementsNotes: newReservation.requirementsNotes
       };
 
       // Crear la reserva en el backend
@@ -808,7 +812,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       <CreateReservationPanel
         isOpen={isCreateReservationPanelOpen}
         onClose={handleCreateReservationPanelClose}
-        rooms={rooms}
         onCreateReservation={handleCreateReservation}
       />
     </>
