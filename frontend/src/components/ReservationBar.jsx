@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { parseISO, differenceInDays, format } from 'date-fns';
 import '../styles/ReservationBar.css';
 
@@ -31,7 +31,6 @@ export default function ReservationBar({
   // Corregir el cálculo de días desde el inicio usando formato YYYY-MM-DD
   // Esto evita problemas de zona horaria y horas
   const checkInStr = format(checkIn, 'yyyy-MM-dd');
-  const startDateStr = format(startDate, 'yyyy-MM-dd');
   
   // Encontrar el índice del día en el array de días
   const days = [];
@@ -44,11 +43,21 @@ export default function ReservationBar({
   const daysFromStart = days.indexOf(checkInStr);
   const duration = differenceInDays(checkOut, checkIn);
   
- 
-  
   const left = roomColumnWidth + (daysFromStart * cellWidth);
   const width = duration * cellWidth;
   const top = headerHeight + (roomIndex * cellHeight) - 1;
+
+  // Memoizar los cálculos de hover para evitar recálculos innecesarios
+  const hoverData = useCallback(() => {
+    const startColIndex = daysFromStart;
+    const endColIndex = startColIndex + duration - 1;
+    
+    return {
+      rowIndex: roomIndex,
+      startColIndex,
+      endColIndex
+    };
+  }, [daysFromStart, duration, roomIndex]);
 
   const handleClick = (e) => {
     // Prevenir que se abra el panel si estamos resizing, si el click viene de un resize handle, o si acabamos de hacer resize
@@ -99,38 +108,17 @@ export default function ReservationBar({
     }, 100);
   };
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     if (onReservationHover) {
-      const checkIn = parseISO(reservation.checkIn);
-      const checkOut = parseISO(reservation.checkOut);
-      // Usar el mismo cálculo basado en strings de fecha
-      const checkInStr = format(checkIn, 'yyyy-MM-dd');
-      
-      // Encontrar el índice del día en el array de días
-      const days = [];
-      let currentDate = new Date(startDate);
-      for (let i = 0; i < 100; i++) {
-        days.push(format(currentDate, 'yyyy-MM-dd'));
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-      
-      const startColIndex = days.indexOf(checkInStr);
-      const duration = differenceInDays(checkOut, checkIn);
-      const endColIndex = startColIndex + duration - 1;
-      
-      onReservationHover({
-        rowIndex: roomIndex,
-        startColIndex,
-        endColIndex
-      });
+      onReservationHover(hoverData());
     }
-  };
+  }, [onReservationHover, hoverData]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     if (onReservationLeave) {
       onReservationLeave();
     }
-  };
+  }, [onReservationLeave]);
 
   // Función para calcular el ancho aproximado del texto
   const getTextWidth = (text, barWidth) => {

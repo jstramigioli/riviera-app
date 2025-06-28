@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
 import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
+import FloatingAddButton from './FloatingAddButton';
+import CreateReservationPanel from './CreateReservationPanel';
 import styles from '../styles/ReservationGrid.module.css';
 
 function getDaysArray(start, end) {
@@ -68,12 +70,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [resizeReservationId, setResizeReservationId] = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0); // Nueva variable para altura dinámica de headers
   const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
-  const [hoveredCell, setHoveredCell] = useState(null); // { rowIndex, colIndex }
-  const [hoveredReservation, setHoveredReservation] = useState(null); // { rowIndex, startColIndex, endColIndex }
   
   // Nuevas variables para el panel de información del día
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayInfoPanelOpen, setIsDayInfoPanelOpen] = useState(false);
+  
+  // Nuevas variables para el panel de creación de reservas
+  const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
   
   const tableRef = useRef();
   const containerRef = useRef();
@@ -82,7 +85,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Constantes para el cálculo de posiciones
   const roomColumnWidth = 120;
-  const dayColumnWidth = 50;
 
   function handleScroll() {
     if (!containerRef.current) return;
@@ -126,14 +128,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
     
     if (onReservationClick) onReservationClick(reservation);
-  }
-
-  function handleReservationHover(reservationData) {
-    setHoveredReservation(reservationData);
-  }
-
-  function handleReservationLeave() {
-    setHoveredReservation(null);
   }
 
   function handleResize(reservationId, updateData) {
@@ -409,26 +403,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     resizeDataRef.current = resizeData;
   }, [resizeData]);
 
-  // Debug: verificar dimensiones del contenedor
-  useEffect(() => {
-    if (containerRef.current) {
-      const { scrollWidth, clientWidth, scrollHeight, clientHeight } = containerRef.current;
-      console.log('Container dimensions:', {
-        scrollWidth,
-        clientWidth,
-        scrollHeight,
-        clientHeight,
-        hasHorizontalScroll: scrollWidth > clientWidth,
-        hasVerticalScroll: scrollHeight > clientHeight,
-        daysCount: days.length,
-        roomsCount: rooms.length,
-        roomColumnWidth,
-        dayColumnWidth,
-        windowWidth: window.innerWidth
-      });
-    }
-  }, [days, rooms]);
-
   function handleDayClick(day) {
     setSelectedDate(day);
     setIsDayInfoPanelOpen(true);
@@ -438,6 +412,176 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setIsDayInfoPanelOpen(false);
     setSelectedDate(null);
   }
+
+  function handleCreateReservationClick() {
+    setIsCreateReservationPanelOpen(true);
+  }
+
+  function handleCreateReservationPanelClose() {
+    setIsCreateReservationPanelOpen(false);
+  }
+
+  function handleCreateReservation(newReservation) {
+    // Agregar la nueva reserva al estado
+    setReservations(prev => [...prev, newReservation]);
+    
+    // Aquí podrías hacer una llamada al backend para guardar la reserva
+    console.log('Nueva reserva creada:', newReservation);
+  }
+
+  // Función optimizada para manejar hover sin re-renders
+  const handleCellHover = (roomIndex, colIndex) => {
+    if (!tableRef.current) return;
+    
+    // Limpiar estilos anteriores de manera más eficiente
+    const allCells = tableRef.current.querySelectorAll('td, th');
+    const cellsToReset = [];
+    allCells.forEach(cell => {
+      if (cell.classList.contains(styles['data-highlight']) || 
+          cell.classList.contains(styles['room-highlight']) || 
+          cell.classList.contains(styles['header-highlight'])) {
+        cellsToReset.push(cell);
+      }
+    });
+    
+    // Aplicar reset en batch
+    cellsToReset.forEach(cell => {
+      cell.classList.remove(styles['data-highlight'], styles['room-highlight'], styles['header-highlight']);
+    });
+    
+    // Recolectar todas las celdas a marcar de una vez usando selectores más eficientes
+    const cellsToHighlight = [];
+    
+    // Marcar columna hacia arriba usando un selector más eficiente
+    const columnCells = tableRef.current.querySelectorAll(`td[data-room-index][data-col-index="${colIndex}"]`);
+    columnCells.forEach(cell => {
+      const cellRoomIndex = parseInt(cell.getAttribute('data-room-index'));
+      if (cellRoomIndex <= roomIndex) {
+        cellsToHighlight.push({ cell, type: 'data' });
+      }
+    });
+    
+    // Marcar fila hacia la izquierda usando un selector más eficiente
+    const rowCells = tableRef.current.querySelectorAll(`td[data-room-index="${roomIndex}"][data-col-index]`);
+    rowCells.forEach(cell => {
+      const cellColIndex = parseInt(cell.getAttribute('data-col-index'));
+      if (cellColIndex <= colIndex) {
+        cellsToHighlight.push({ cell, type: 'data' });
+      }
+    });
+    
+    // Marcar nombre de habitación
+    const roomNameCell = tableRef.current.querySelector(`td[data-room-index="${roomIndex}"]:not([data-col-index])`);
+    if (roomNameCell) {
+      cellsToHighlight.push({ cell: roomNameCell, type: 'room' });
+    }
+    
+    // Marcar header de la columna
+    const headerCell = tableRef.current.querySelector(`th[data-col-index="${colIndex}"]`);
+    if (headerCell) {
+      cellsToHighlight.push({ cell: headerCell, type: 'header' });
+    }
+    
+    // Aplicar estilos en batch usando un Map para evitar duplicados
+    const uniqueCells = new Map();
+    cellsToHighlight.forEach(({ cell, type }) => {
+      if (!uniqueCells.has(cell)) {
+        uniqueCells.set(cell, type);
+      }
+    });
+    
+    uniqueCells.forEach((type, cell) => {
+      switch (type) {
+        case 'data':
+          cell.classList.add(styles['data-highlight']);
+          break;
+        case 'room':
+          cell.classList.add(styles['room-highlight']);
+          break;
+        case 'header':
+          cell.classList.add(styles['header-highlight']);
+          break;
+      }
+    });
+  };
+
+  const handleCellLeave = () => {
+    if (!tableRef.current) return;
+    
+    // Limpiar solo las celdas que tienen clases de hover
+    const cellsWithHighlight = tableRef.current.querySelectorAll(
+      `td.${styles['data-highlight']}, td.${styles['room-highlight']}, th.${styles['header-highlight']}`
+    );
+    
+    cellsWithHighlight.forEach(cell => {
+      cell.classList.remove(styles['data-highlight'], styles['room-highlight'], styles['header-highlight']);
+    });
+  };
+
+  // Función para manejar hover de reservas
+  const handleReservationHover = (hoverData) => {
+    if (!tableRef.current) return;
+    
+    // Limpiar estilos anteriores
+    handleCellLeave();
+    
+    const { rowIndex, startColIndex, endColIndex } = hoverData;
+    
+    // Recolectar todas las celdas a marcar
+    const cellsToHighlight = [];
+    
+    // Marcar todas las columnas de la reserva hacia arriba
+    for (let col = startColIndex; col <= endColIndex; col++) {
+      for (let row = 0; row <= rowIndex; row++) {
+        const cell = tableRef.current.querySelector(`td[data-room-index="${row}"][data-col-index="${col}"]`);
+        if (cell) {
+          cellsToHighlight.push({ cell, type: 'data' });
+        }
+      }
+    }
+    
+    // Marcar la fila hacia la izquierda (desde el inicio hasta el final de la reserva)
+    for (let col = 0; col <= endColIndex; col++) {
+      const cell = tableRef.current.querySelector(`td[data-room-index="${rowIndex}"][data-col-index="${col}"]`);
+      if (cell) {
+        cellsToHighlight.push({ cell, type: 'data' });
+      }
+    }
+    
+    // Marcar nombre de habitación
+    const roomNameCell = tableRef.current.querySelector(`td[data-room-index="${rowIndex}"]:not([data-col-index])`);
+    if (roomNameCell) {
+      cellsToHighlight.push({ cell: roomNameCell, type: 'room' });
+    }
+    
+    // Marcar headers de las columnas de la reserva
+    for (let col = startColIndex; col <= endColIndex; col++) {
+      const headerCell = tableRef.current.querySelector(`th[data-col-index="${col}"]`);
+      if (headerCell) {
+        cellsToHighlight.push({ cell: headerCell, type: 'header' });
+      }
+    }
+    
+    // Aplicar estilos en batch
+    cellsToHighlight.forEach(({ cell, type }) => {
+      switch (type) {
+        case 'data':
+          cell.classList.add(styles['data-highlight']);
+          break;
+        case 'room':
+          cell.classList.add(styles['room-highlight']);
+          break;
+        case 'header':
+          cell.classList.add(styles['header-highlight']);
+          break;
+      }
+    });
+    
+  };
+
+  const handleReservationLeave = () => {
+    handleCellLeave();
+  };
 
   return (
     <>
@@ -472,12 +616,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
               <th></th>
               {days.map((day, colIndex) => {
                 const isSunday = getDay(day) === 0; // 0 = domingo
-                const highlightDay = (hoveredCell && colIndex === hoveredCell.colIndex) || 
-                                   (hoveredReservation && colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex);
                 return (
                   <th 
                     key={day.toISOString()} 
-                    className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''} ${highlightDay ? styles.highlight : ''}`}
+                    className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''}`}
+                    data-col-index={colIndex}
                     style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
                     onClick={() => handleDayClick(day)}
                   >
@@ -490,29 +633,16 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           <tbody>
             {rooms.map((room, roomIndex) => (
               <tr key={room.id}>
-                <td className={`${styles.roomNameCell} ${(hoveredCell && roomIndex === hoveredCell.rowIndex) || (hoveredReservation && roomIndex === hoveredReservation.rowIndex) ? styles.highlight : ''}`}>
+                <td className={styles.roomNameCell} data-room-index={roomIndex}>
                   <strong>{room.name}</strong>
                 </td>
                 {days.map((day, colIndex) => {
-                  let highlight = false;
-                  if (hoveredCell) {
-                    // Resaltar columna hacia arriba
-                    if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
-                    // Resaltar fila hacia la izquierda
-                    if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
-                  }
-                  if (hoveredReservation) {
-                    // Resaltar rango de columnas de la reserva hacia arriba
-                    if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
-                    // Resaltar fila hacia la izquierda
-                    if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
-                  }
                   return (
                     <td
                       key={day.toISOString()}
-                      className={
-                        styles.reservationCellFree + (highlight ? ' ' + styles.cellHighlight : '')
-                      }
+                      className={styles.reservationCellFree}
+                      data-room-index={roomIndex}
+                      data-col-index={colIndex}
                       style={{ 
                         width: '50px', 
                         minWidth: '50px', 
@@ -520,8 +650,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                         padding: '0', 
                         boxSizing: 'border-box' 
                       }}
-                      onMouseEnter={() => setHoveredCell({ rowIndex: roomIndex, colIndex })}
-                      onMouseLeave={() => setHoveredCell(null)}
+                      onMouseEnter={() => handleCellHover(roomIndex, colIndex)}
+                      onMouseLeave={handleCellLeave}
                     >
                     </td>
                   );
@@ -558,7 +688,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                   justFinishedResize={justFinishedResize}
                   onReservationHover={handleReservationHover}
                   onReservationLeave={handleReservationLeave}
-                  resizeDirection={resizeDirection}
                 />
               );
             });
@@ -611,6 +740,17 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         reservations={reservations}
         isOpen={isDayInfoPanelOpen}
         onClose={handleDayInfoPanelClose}
+      />
+
+      {/* Botón flotante para crear nueva reserva */}
+      <FloatingAddButton onClick={handleCreateReservationClick} />
+
+      {/* Panel de creación de reservas */}
+      <CreateReservationPanel
+        isOpen={isCreateReservationPanelOpen}
+        onClose={handleCreateReservationPanelClose}
+        rooms={rooms}
+        onCreateReservation={handleCreateReservation}
       />
     </>
   );

@@ -18,6 +18,9 @@
   transform: scale(1.02);
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   z-index: 6;
+  background-color: #f0e6c8 !important;
+  border-color: #c4b494 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
 }
 
 .reservation-bar.dragging {
@@ -25,6 +28,8 @@
   transform: scale(1.05);
   box-shadow: 0 6px 12px rgba(0,0,0,0.4);
   z-index: 10;
+  background-color: #e8d8b0 !important;
+  border-color: #b8a884 !important;
 }
 
 .reservation-bar.updating {
