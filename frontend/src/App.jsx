@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
+import Header from './components/Header';
 import ReservationBar from './components/ReservationBar';
 import ReservationGrid from './components/ReservationGrid';
 import RoomList from './components/RoomList';
@@ -8,6 +9,8 @@ import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
 import RateViewer from './components/RateViewer';
 import RateEditor from './components/RateEditor';
+import ConfiguracionView from './pages/Configuracion';
+import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
@@ -15,27 +18,6 @@ import { getDocumentAbbreviation } from './utils/documentUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
 import styles from './styles/App.module.css';
 import './index.css';
-
-function Navigation() {
-  const location = useLocation();
-  
-  return (
-    <nav className={styles.navigation}>
-      <Link 
-        to="/libro-de-reservas" 
-        className={`${styles.navLink} ${location.pathname === '/libro-de-reservas' ? styles.active : ''}`}
-      >
-        Libro de Reservas
-      </Link>
-      <Link 
-        to="/tarifas" 
-        className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
-      >
-        Tarifas
-      </Link>
-    </nav>
-  );
-}
 
 function ReservationsView() {
   const {
@@ -537,16 +519,19 @@ function RatesView() {
 
 function App() {
   return (
-    <Router>
-      <div className={styles.app}>
-        <Navigation />
-        <Routes>
-          <Route path="/" element={<ReservationsView />} />
-          <Route path="/libro-de-reservas" element={<ReservationsView />} />
-          <Route path="/tarifas" element={<RatesView />} />
-        </Routes>
-      </div>
-    </Router>
+    <TagsProvider>
+      <Router>
+        <div className={styles.app}>
+          <Header />
+          <Routes>
+            <Route path="/" element={<ReservationsView />} />
+            <Route path="/libro-de-reservas" element={<ReservationsView />} />
+            <Route path="/tarifas" element={<RatesView />} />
+            <Route path="/configuracion" element={<ConfiguracionView />} />
+          </Routes>
+        </div>
+      </Router>
+    </TagsProvider>
   );
 }
 

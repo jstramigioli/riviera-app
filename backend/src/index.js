@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const roomRoutes = require('./routes/room.routes');
+const roomTypeRoutes = require('./routes/roomType.routes');
+const tagRoutes = require('./routes/tag.routes');
 const clientRoutes = require('./routes/client.routes');
 const reservationRoutes = require('./routes/reservation.routes');
 const guestRoutes = require('./routes/guest.routes');
@@ -39,6 +41,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Rutas
 app.use('/api/rooms', roomRoutes);
+app.use('/api/room-types', roomTypeRoutes);
+app.use('/api/tags', tagRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/guests', guestRoutes);

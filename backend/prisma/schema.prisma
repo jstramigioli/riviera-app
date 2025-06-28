@@ -9,6 +9,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  color String @default("#3B82F6") // Color por defecto para las etiquetas
+  rooms Room[]
+}
+
 model RoomType {
   id          Int        @id @default(autoincrement())
   name        String     @unique
@@ -21,7 +28,7 @@ model Room {
   id            Int      @id @default(autoincrement())
   name          String
   description   String?
-  tags          String[]
+  tags          Tag[]    // Relación many-to-many con tags
   maxPeople     Int
   status        String   // available, occupied, maintenance, etc.
   orderIndex    Int      @default(0) // Para ordenar habitaciones correctamente
