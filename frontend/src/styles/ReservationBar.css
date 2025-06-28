@@ -18,8 +18,8 @@
   transform: scale(1.02);
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   z-index: 6;
-  background-color: #f0e6c8 !important;
-  border-color: #c4b494 !important;
+  background-color: var(--color-accent-hover) !important;
+  border-color: var(--color-border-hover) !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
 }
 
@@ -28,8 +28,8 @@
   transform: scale(1.05);
   box-shadow: 0 6px 12px rgba(0,0,0,0.4);
   z-index: 10;
-  background-color: #e8d8b0 !important;
-  border-color: #b8a884 !important;
+  background-color: var(--color-accent-drag) !important;
+  border-color: var(--color-border-drag) !important;
 }
 
 .reservation-bar.updating {
@@ -51,7 +51,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: #8b7355;
+  color: var(--color-text-accent);
   margin: 0;
   padding: 0;
   display: flex;
