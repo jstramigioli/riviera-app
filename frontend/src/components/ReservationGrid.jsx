@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
 import ReservationBar from './ReservationBar';
+import DayInfoSidePanel from './DayInfoSidePanel';
 import styles from '../styles/ReservationGrid.module.css';
 
 function getDaysArray(start, end) {
@@ -69,6 +70,10 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
   const [hoveredCell, setHoveredCell] = useState(null); // { rowIndex, colIndex }
   const [hoveredReservation, setHoveredReservation] = useState(null); // { rowIndex, startColIndex, endColIndex }
+  
+  // Nuevas variables para el panel de información del día
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [isDayInfoPanelOpen, setIsDayInfoPanelOpen] = useState(false);
   
   const tableRef = useRef();
   const containerRef = useRef();
@@ -282,7 +287,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         setHeaderHeight(theadHeight);
         console.log('Altura real de headers:', {
           theadHeight
-        });
+        })
       }
     }
   }
@@ -424,157 +429,189 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
   }, [days, rooms]);
 
+  function handleDayClick(day) {
+    setSelectedDate(day);
+    setIsDayInfoPanelOpen(true);
+  }
+
+  function handleDayInfoPanelClose() {
+    setIsDayInfoPanelOpen(false);
+    setSelectedDate(null);
+  }
+
   return (
-    <div 
-      className={styles.reservationGridContainer} 
-      ref={containerRef} 
-      onScroll={handleScroll}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      style={{
-        overflow: 'auto',
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#c1c1c1 #f1f1f1'
-      }}
-    >
-      <table className={styles.reservationGridTable} ref={tableRef}>
-        <thead>
-          <tr>
-            <th className={styles.roomHeader}></th>
-            {months.map((monthData, index) => (
-              <th 
-                key={index}
-                className={styles.monthHeader} 
-                colSpan={monthData.colSpan}
-                onClick={() => handleMonthClick(monthData.month)}
-              >
-                {format(monthData.month, 'MMMM yyyy')}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            <th></th>
-            {days.map((day, colIndex) => {
-              const isSunday = getDay(day) === 0; // 0 = domingo
-              const highlightDay = (hoveredCell && colIndex === hoveredCell.colIndex) || 
-                                 (hoveredReservation && colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex);
-              return (
+    <>
+      <div 
+        className={styles.reservationGridContainer} 
+        ref={containerRef} 
+        onScroll={handleScroll}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        style={{
+          overflow: 'auto',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#c1c1c1 #f1f1f1'
+        }}
+      >
+        <table className={styles.reservationGridTable} ref={tableRef}>
+          <thead>
+            <tr>
+              <th className={styles.roomHeader}></th>
+              {months.map((monthData, index) => (
                 <th 
-                  key={day.toISOString()} 
-                  className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''} ${highlightDay ? styles.highlight : ''}`}
-                  style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
+                  key={index}
+                  className={styles.monthHeader} 
+                  colSpan={monthData.colSpan}
+                  onClick={() => handleMonthClick(monthData.month)}
                 >
-                  {format(day, 'd')}
+                  {format(monthData.month, 'MMMM yyyy')}
                 </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {rooms.map((room, roomIndex) => (
-            <tr key={room.id}>
-              <td className={`${styles.roomNameCell} ${(hoveredCell && roomIndex === hoveredCell.rowIndex) || (hoveredReservation && roomIndex === hoveredReservation.rowIndex) ? styles.highlight : ''}`}>
-                <strong>{room.name}</strong>
-              </td>
+              ))}
+            </tr>
+            <tr>
+              <th></th>
               {days.map((day, colIndex) => {
-                let highlight = false;
-                if (hoveredCell) {
-                  // Resaltar columna hacia arriba
-                  if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
-                  // Resaltar fila hacia la izquierda
-                  if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
-                }
-                if (hoveredReservation) {
-                  // Resaltar rango de columnas de la reserva hacia arriba
-                  if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
-                  // Resaltar fila hacia la izquierda
-                  if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
-                }
+                const isSunday = getDay(day) === 0; // 0 = domingo
+                const highlightDay = (hoveredCell && colIndex === hoveredCell.colIndex) || 
+                                   (hoveredReservation && colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex);
                 return (
-                  <td
-                    key={day.toISOString()}
-                    className={
-                      styles.reservationCellFree + (highlight ? ' ' + styles.cellHighlight : '')
-                    }
-                    style={{ 
-                      width: '50px', 
-                      minWidth: '50px', 
-                      height: '30px', 
-                      padding: '0', 
-                      boxSizing: 'border-box' 
-                    }}
-                    onMouseEnter={() => setHoveredCell({ rowIndex: roomIndex, colIndex })}
-                    onMouseLeave={() => setHoveredCell(null)}
+                  <th 
+                    key={day.toISOString()} 
+                    className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''} ${highlightDay ? styles.highlight : ''}`}
+                    style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
+                    onClick={() => handleDayClick(day)}
                   >
-                  </td>
+                    {format(day, 'd')}
+                  </th>
                 );
               })}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      
-      <div className={styles.reservationBarsContainer} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
-        {/* Barras de reservas */}
-        {rooms.map((room, roomIndex) => {
-          const roomReservations = reservations.filter(res => res.roomId === room.id);
-          return roomReservations.map((reservation) => {
-            let displayReservation = reservation;
-            if (resizingReservation === reservation.id && resizeData) {
-              displayReservation = { ...reservation, ...resizeData };
-            }
-            return (
-              <ReservationBar
-                key={`${room.id}-${reservation.id}`}
-                id={`reservation-bar-${reservation.id}`}
-                reservation={displayReservation}
-                roomIndex={roomIndex}
-                cellWidth={cellWidth}
-                cellHeight={cellHeight}
-                startDate={startDate}
-                headerHeight={headerHeight}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onClick={handleReservationClick}
-                onResizeStart={handleResizeStart}
-                isResizing={isResizing && resizeReservationId === reservation.id}
-                justFinishedResize={justFinishedResize}
-                onReservationHover={handleReservationHover}
-                onReservationLeave={handleReservationLeave}
-                resizeDirection={resizeDirection}
-              />
-            );
-          });
-        })}
+          </thead>
+          <tbody>
+            {rooms.map((room, roomIndex) => (
+              <tr key={room.id}>
+                <td className={`${styles.roomNameCell} ${(hoveredCell && roomIndex === hoveredCell.rowIndex) || (hoveredReservation && roomIndex === hoveredReservation.rowIndex) ? styles.highlight : ''}`}>
+                  <strong>{room.name}</strong>
+                </td>
+                {days.map((day, colIndex) => {
+                  let highlight = false;
+                  if (hoveredCell) {
+                    // Resaltar columna hacia arriba
+                    if (colIndex === hoveredCell.colIndex && roomIndex <= hoveredCell.rowIndex) highlight = true;
+                    // Resaltar fila hacia la izquierda
+                    if (roomIndex === hoveredCell.rowIndex && colIndex <= hoveredCell.colIndex) highlight = true;
+                  }
+                  if (hoveredReservation) {
+                    // Resaltar rango de columnas de la reserva hacia arriba
+                    if (colIndex >= hoveredReservation.startColIndex && colIndex <= hoveredReservation.endColIndex && roomIndex <= hoveredReservation.rowIndex) highlight = true;
+                    // Resaltar fila hacia la izquierda
+                    if (roomIndex === hoveredReservation.rowIndex && colIndex <= hoveredReservation.endColIndex) highlight = true;
+                  }
+                  return (
+                    <td
+                      key={day.toISOString()}
+                      className={
+                        styles.reservationCellFree + (highlight ? ' ' + styles.cellHighlight : '')
+                      }
+                      style={{ 
+                        width: '50px', 
+                        minWidth: '50px', 
+                        height: '30px', 
+                        padding: '0', 
+                        boxSizing: 'border-box' 
+                      }}
+                      onMouseEnter={() => setHoveredCell({ rowIndex: roomIndex, colIndex })}
+                      onMouseLeave={() => setHoveredCell(null)}
+                    >
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
         
-        {/* Preview de drag and drop */}
-        {dragPreview && (
-          <div
-            className={styles.dragPreview}
-            style={{
-              position: 'absolute',
-              left: `${roomColumnWidth + (differenceInDays(new Date(dragPreview.checkIn), startDate) * cellWidth)}px`,
-              top: `${headerHeight + (dragPreview.roomIndex * cellHeight)}px`,
-              width: `${differenceInDays(new Date(dragPreview.checkOut), new Date(dragPreview.checkIn)) * cellWidth}px`,
-              height: `${cellHeight}px`,
-              backgroundColor: 'rgba(52, 152, 219, 0.3)',
-              border: '2px dashed #3498db',
-              borderRadius: '3px',
-              zIndex: 15,
-              pointerEvents: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              fontSize: '0.7rem',
-              fontWeight: 'bold',
-              color: '#2980b9'
-            }}
-          >
-            <div>{dragPreview.reservation.mainClient?.firstName} {dragPreview.reservation.mainClient?.lastName}</div>
-          </div>
-        )}
+        <div className={styles.reservationBarsContainer} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+          {/* Barras de reservas */}
+          {rooms.map((room, roomIndex) => {
+            const roomReservations = reservations.filter(res => res.roomId === room.id);
+            return roomReservations.map((reservation) => {
+              let displayReservation = reservation;
+              if (resizingReservation === reservation.id && resizeData) {
+                displayReservation = { ...reservation, ...resizeData };
+              }
+              return (
+                <ReservationBar
+                  key={`${room.id}-${reservation.id}`}
+                  id={`reservation-bar-${reservation.id}`}
+                  reservation={displayReservation}
+                  roomIndex={roomIndex}
+                  cellWidth={cellWidth}
+                  cellHeight={cellHeight}
+                  startDate={startDate}
+                  headerHeight={headerHeight}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onClick={handleReservationClick}
+                  onResizeStart={handleResizeStart}
+                  isResizing={isResizing && resizeReservationId === reservation.id}
+                  justFinishedResize={justFinishedResize}
+                  onReservationHover={handleReservationHover}
+                  onReservationLeave={handleReservationLeave}
+                  resizeDirection={resizeDirection}
+                />
+              );
+            });
+          })}
+          
+          {/* Preview de drag and drop */}
+          {dragPreview && (
+            <div
+              className={styles.dragPreview}
+              style={{
+                position: 'absolute',
+                left: `${roomColumnWidth + ((() => {
+                  const checkIn = new Date(dragPreview.checkIn);
+                  const checkInStr = format(checkIn, 'yyyy-MM-dd');
+                  const days = [];
+                  let currentDate = new Date(startDate);
+                  for (let i = 0; i < 100; i++) {
+                    days.push(format(currentDate, 'yyyy-MM-dd'));
+                    currentDate.setDate(currentDate.getDate() + 1);
+                  }
+                  return days.indexOf(checkInStr);
+                })() * cellWidth)}px`,
+                top: `${headerHeight + (dragPreview.roomIndex * cellHeight)}px`,
+                width: `${differenceInDays(new Date(dragPreview.checkOut), new Date(dragPreview.checkIn)) * cellWidth}px`,
+                height: `${cellHeight}px`,
+                backgroundColor: 'rgba(52, 152, 219, 0.3)',
+                border: '2px dashed #3498db',
+                borderRadius: '3px',
+                zIndex: 15,
+                pointerEvents: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                color: '#2980b9'
+              }}
+            >
+              <div>{dragPreview.reservation.mainClient?.firstName} {dragPreview.reservation.mainClient?.lastName}</div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Panel de información del día */}
+      <DayInfoSidePanel
+        selectedDate={selectedDate}
+        rooms={rooms}
+        reservations={reservations}
+        isOpen={isDayInfoPanelOpen}
+        onClose={handleDayInfoPanelClose}
+      />
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays, format } from 'date-fns';
 import '../styles/ReservationBar.css';
 
 export default function ReservationBar({ 
@@ -25,11 +25,26 @@ export default function ReservationBar({
   const checkIn = parseISO(reservation.checkIn);
   const checkOut = parseISO(reservation.checkOut);
   
-  const daysFromStart = differenceInDays(checkIn, startDate);
-  const duration = differenceInDays(checkOut, checkIn); // Quitado el +1 para corregir el ancho
-  
   // Ajustar posiciones considerando headers y columna de habitaciones
   const roomColumnWidth = 120;
+  
+  // Corregir el cálculo de días desde el inicio usando formato YYYY-MM-DD
+  // Esto evita problemas de zona horaria y horas
+  const checkInStr = format(checkIn, 'yyyy-MM-dd');
+  const startDateStr = format(startDate, 'yyyy-MM-dd');
+  
+  // Encontrar el índice del día en el array de días
+  const days = [];
+  let currentDate = new Date(startDate);
+  for (let i = 0; i < 100; i++) { // Generar suficientes días
+    days.push(format(currentDate, 'yyyy-MM-dd'));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  const daysFromStart = days.indexOf(checkInStr);
+  const duration = differenceInDays(checkOut, checkIn);
+  
+ 
   
   const left = roomColumnWidth + (daysFromStart * cellWidth);
   const width = duration * cellWidth;
@@ -88,9 +103,20 @@ export default function ReservationBar({
     if (onReservationHover) {
       const checkIn = parseISO(reservation.checkIn);
       const checkOut = parseISO(reservation.checkOut);
-      const startColIndex = differenceInDays(checkIn, startDate);
+      // Usar el mismo cálculo basado en strings de fecha
+      const checkInStr = format(checkIn, 'yyyy-MM-dd');
+      
+      // Encontrar el índice del día en el array de días
+      const days = [];
+      let currentDate = new Date(startDate);
+      for (let i = 0; i < 100; i++) {
+        days.push(format(currentDate, 'yyyy-MM-dd'));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      const startColIndex = days.indexOf(checkInStr);
       const duration = differenceInDays(checkOut, checkIn);
-      const endColIndex = startColIndex + duration - 1; // Consistente con el cálculo del ancho
+      const endColIndex = startColIndex + duration - 1;
       
       onReservationHover({
         rowIndex: roomIndex,
