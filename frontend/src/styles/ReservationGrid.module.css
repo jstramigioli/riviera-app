@@ -55,7 +55,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 
 .monthHeader:hover {
@@ -80,7 +82,9 @@
   vertical-align: middle;
   cursor: pointer;
   transition: all 0.2s ease;
-  position: relative;
+  position: sticky;
+  top: 30px; /* Altura del header de mes */
+  z-index: 40;
 }
 
 .dayHeader:hover {
@@ -132,7 +136,7 @@
   height: 30px;
   position: sticky;
   left: 0;
-  z-index: 25;
+  z-index: 35;
   box-sizing: border-box;
   vertical-align: middle;
   overflow: hidden;
@@ -209,7 +213,7 @@
   height: 30px;
   position: sticky;
   left: 0;
-  z-index: 25;
+  z-index: 35;
   box-sizing: border-box;
   vertical-align: middle;
   overflow: hidden;
@@ -306,6 +310,7 @@
     font-size: 0.7rem;
     min-width: 40px !important;
     width: 40px !important;
+    top: 25px; /* Ajustar para la altura del header de mes en esta resolución */
   }
   
   .roomHeader,
@@ -314,6 +319,7 @@
     width: 100px;
     padding: 0.5rem 0.25rem;
     font-size: var(--font-size-small);
+    z-index: 35;
   }
   
   .reservationCellFree {
@@ -340,6 +346,7 @@
     font-size: 0.6rem;
     min-width: 25px;
     width: 25px;
+    top: 20px; /* Ajustar para la altura del header de mes en esta resolución */
   }
   
   .roomHeader,
@@ -348,6 +355,7 @@
     width: 80px;
     padding: 0.25rem 0.125rem;
     font-size: 0.7rem;
+    z-index: 35;
   }
   
   .reservationCellFree {
