@@ -28,10 +28,13 @@ export default function DayInfoSidePanel({
     const activeReservations = reservations.filter(reservation => {
       const checkIn = new Date(reservation.checkIn);
       const checkOut = new Date(reservation.checkOut);
-      return checkIn <= dayEnd && checkOut > dayStart;
+      // Una habitación está ocupada si:
+      // - El check-in es antes o igual al final del día Y
+      // - El check-out es DESPUÉS del final del día (no en el mismo día)
+      return checkIn <= dayEnd && checkOut > dayEnd;
     });
 
-    console.log('Reservas activas:', activeReservations.length);
+    console.log('Reservas activas (excluyendo checkouts del día):', activeReservations.length);
 
     // Habitaciones ocupadas
     const occupiedRooms = activeReservations.length;
