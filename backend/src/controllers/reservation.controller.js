@@ -40,7 +40,7 @@ exports.getReservationById = async (req, res) => {
 // Crear una reserva
 exports.createReservation = async (req, res) => {
   const { roomId, mainClientId, guests, checkIn, checkOut, totalAmount, status, notes } = req.body;
-  if (!roomId || !mainClientId || !checkIn || !checkOut || !totalAmount) {
+  if (!roomId || !mainClientId || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   try {
@@ -50,7 +50,7 @@ exports.createReservation = async (req, res) => {
         mainClientId,
         checkIn: new Date(checkIn),
         checkOut: new Date(checkOut),
-        totalAmount,
+        totalAmount: totalAmount || 0,
         status: status || 'active',
         notes,
         guests: {

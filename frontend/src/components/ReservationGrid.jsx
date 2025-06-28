@@ -4,6 +4,7 @@ import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingAddButton from './FloatingAddButton';
 import CreateReservationPanel from './CreateReservationPanel';
+import { createReservation, createClient } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 
 function getDaysArray(start, end) {
@@ -436,12 +437,54 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setIsCreateReservationPanelOpen(false);
   }
 
-  function handleCreateReservation(newReservation) {
-    // Agregar la nueva reserva al estado
-    setReservations(prev => [...prev, newReservation]);
-    
-    // Aquí podrías hacer una llamada al backend para guardar la reserva
-    console.log('Nueva reserva creada:', newReservation);
+  async function handleCreateReservation(newReservation) {
+    try {
+      let mainClientId = newReservation.mainClient.id;
+      
+      // Si el cliente no tiene ID, significa que es un cliente nuevo
+      if (!mainClientId) {
+        // Crear el cliente primero
+        const clientData = {
+          firstName: newReservation.mainClient.firstName,
+          lastName: newReservation.mainClient.lastName,
+          email: newReservation.mainClient.email,
+          phone: newReservation.mainClient.phone,
+          documentType: newReservation.mainClient.documentType,
+          documentNumber: newReservation.mainClient.documentNumber
+        };
+        
+        const createdClient = await createClient(clientData);
+        mainClientId = createdClient.id;
+        console.log('Nuevo cliente creado:', createdClient);
+      }
+
+      // Preparar los datos para la reserva
+      const reservationData = {
+        roomId: parseInt(newReservation.roomId),
+        mainClientId: parseInt(mainClientId),
+        checkIn: newReservation.checkIn,
+        checkOut: newReservation.checkOut,
+        notes: newReservation.notes,
+        status: 'active',
+        totalAmount: 0 // Por ahora 0, se puede calcular después
+      };
+
+      // Crear la reserva en el backend
+      const createdReservation = await createReservation(reservationData);
+      
+      // Agregar la nueva reserva al estado local
+      setReservations(prev => [...prev, createdReservation]);
+      
+      console.log('Nueva reserva creada exitosamente:', createdReservation);
+      
+      // Cerrar el panel
+      setIsCreateReservationPanelOpen(false);
+      
+    } catch (error) {
+      console.error('Error al crear la reserva:', error);
+      // Aquí podrías mostrar un mensaje de error al usuario
+      alert('Error al crear la reserva. Por favor, inténtalo de nuevo.');
+    }
   }
 
   // Función optimizada para manejar hover sin re-renders

@@ -48,6 +48,16 @@ export async function updateReservation(id, data) {
   return res.json();
 }
 
+export async function createReservation(data) {
+  const res = await fetch(`${API_URL}/reservations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating reservation');
+  return res.json();
+}
+
 export async function updateClient(id, data) {
   const res = await fetch(`${API_URL}/clients/${id}`, {
     method: 'PUT',
@@ -149,3 +159,13 @@ export const suggestDynamicPrice = async (suggestionData) => {
   if (!response.ok) throw new Error('Error al sugerir precio');
   return response.json();
 };
+
+export async function createClient(data) {
+  const res = await fetch(`${API_URL}/clients`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating client');
+  return res.json();
+}
