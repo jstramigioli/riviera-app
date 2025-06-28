@@ -70,6 +70,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [resizeReservationId, setResizeReservationId] = useState(null);
   const [headerHeight, setHeaderHeight] = useState(0); // Nueva variable para altura dinámica de headers
   const [justFinishedResize, setJustFinishedResize] = useState(false); // Nueva variable para prevenir click después del resize
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // Nueva variable para controlar la carga inicial
   
   // Nuevas variables para el panel de información del día
   const [selectedDate, setSelectedDate] = useState(null);
@@ -109,6 +110,17 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         const newDays = getDaysArray(newStartDate, endDate);
         setDays(newDays);
         setMonths(groupDaysByMonth(newDays));
+        
+        // Ajustar el scroll position para compensar los días agregados al inicio
+        // Esto mantiene la posición visual relativa
+        setTimeout(() => {
+          if (containerRef.current) {
+            const daysAdded = 30;
+            const newScrollLeft = scrollLeft + (daysAdded * cellWidth);
+            containerRef.current.scrollLeft = newScrollLeft;
+          }
+        }, 0);
+        
         return newStartDate;
       });
     }
@@ -251,10 +263,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Centrar la grilla después de que se carguen los datos
   useEffect(() => {
-    if (rooms.length > 0 && containerRef.current) {
-      setTimeout(centerOnToday, 100);
+    if (rooms.length > 0 && containerRef.current && isInitialLoad) {
+      setTimeout(() => {
+        centerOnToday();
+        setIsInitialLoad(false); // Marcar que ya no es la carga inicial
+      }, 100);
     }
-  }, [rooms, days]);
+  }, [rooms, isInitialLoad]);
 
   // Función para medir el ancho y alto real de las celdas después de que se renderice la tabla
   function measureCellDimensions() {
