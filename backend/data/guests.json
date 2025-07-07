@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "firstName": "Ana",
+    "lastName": "López",
+    "documentType": "DNI",
+    "documentNumber": "DNI 11111111",
+    "phone": "+54 11 1111-1111",
+    "email": "ana.lopez@email.com",
+    "address": "Av. Corrientes 1234",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": 1,
+    "createdAt": "2025-06-27T01:02:46.279Z",
+    "updatedAt": "2025-06-29T20:35:25.272Z"
+  },
+  {
+    "id": 2,
+    "firstName": "Pedro",
+    "lastName": "Martínez",
+    "documentType": "DNI",
+    "documentNumber": "DNI 22222222",
+    "phone": "+54 11 2222-2222",
+    "email": "pedro.martinez@email.com",
+    "address": "Calle Florida 567",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": 1,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.618Z"
+  },
+  {
+    "id": 3,
+    "firstName": "Roberto",
+    "lastName": "Silva",
+    "documentType": "DNI",
+    "documentNumber": "DNI 44444444",
+    "phone": "+54 11 4444-4444",
+    "email": "roberto.silva@email.com",
+    "address": "Calle San Martín 456",
+    "city": "CORDOBA",
+    "reservationId": 2,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.622Z"
+  },
+  {
+    "id": 4,
+    "firstName": "Laura",
+    "lastName": "Fernández",
+    "documentType": "DNI",
+    "documentNumber": "DNI 33333333",
+    "phone": "+54 11 3333-3333",
+    "email": "laura.fernandez@email.com",
+    "address": "Av. Santa Fe 890",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": 3,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.626Z"
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "id": 10,
+    "name": "Planta baja",
+    "color": "#6366F1"
+  },
+  {
+    "id": 3,
+    "name": "Planta alta",
+    "color": "#F59E0B"
+  },
+  {
+    "id": 2,
+    "name": "Balcón chico",
+    "color": "#10B981"
+  },
+  {
+    "id": 8,
+    "name": "Balcón grande",
+    "color": "#84CC16"
+  },
+  {
+    "id": 11,
+    "name": "Vista al Deck",
+    "color": "#3B82F6"
+  },
+  {
+    "id": 12,
+    "name": "Vista a la calle",
+    "color": "#3B82F6"
+  },
+  {
+    "id": 7,
+    "name": "Vista al Jardin",
+    "color": "#EC4899"
+  },
+  {
+    "id": 1,
+    "name": "Vista al patio de invierno",
+    "color": "#3B82F6"
+  },
+  {
+    "id": 13,
+    "name": "Escalera",
+    "color": "#3B82F6"
+  },
+  {
+    "id": 14,
+    "name": "Vista al pasillo lateral",
+    "color": "#3B82F6"
+  }
+]

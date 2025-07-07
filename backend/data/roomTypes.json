@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "single",
+    "description": null
+  },
+  {
+    "id": 2,
+    "name": "doble",
+    "description": null
+  },
+  {
+    "id": 3,
+    "name": "triple",
+    "description": null
+  },
+  {
+    "id": 4,
+    "name": "cuadruple",
+    "description": null
+  },
+  {
+    "id": 5,
+    "name": "departamento El Romerito",
+    "description": null
+  },
+  {
+    "id": 6,
+    "name": "departamento El Tilo",
+    "description": null
+  },
+  {
+    "id": 7,
+    "name": "departamento Via 1",
+    "description": null
+  },
+  {
+    "id": 8,
+    "name": "departamento La Esquinita",
+    "description": null
+  }
+]
