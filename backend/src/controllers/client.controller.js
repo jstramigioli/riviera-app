@@ -28,7 +28,7 @@ exports.getClientById = async (req, res) => {
 
 // Crear un cliente
 exports.createClient = async (req, res) => {
-  const { firstName, lastName, email, phone, documentType, documentNumber, notes } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
@@ -47,7 +47,11 @@ exports.createClient = async (req, res) => {
         phone, 
         documentType: documentType || 'DNI',
         documentNumber,
-        notes
+        country,
+        province,
+        city,
+        notes,
+        wantsPromotions: wantsPromotions || false
       }
     });
     res.status(201).json(newClient);
@@ -59,7 +63,7 @@ exports.createClient = async (req, res) => {
 // Actualizar un cliente
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, documentType, documentNumber, notes } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
   
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
@@ -76,11 +80,15 @@ exports.updateClient = async (req, res) => {
       data: {
         firstName,
         lastName,
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(documentType && { documentType }),
-        ...(documentNumber && { documentNumber }),
-        ...(notes !== undefined && { notes })
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(documentType !== undefined && { documentType }),
+        ...(documentNumber !== undefined && { documentNumber }),
+        ...(country !== undefined && { country }),
+        ...(province !== undefined && { province }),
+        ...(city !== undefined && { city }),
+        ...(notes !== undefined && { notes }),
+        ...(wantsPromotions !== undefined && { wantsPromotions })
       }
     });
     res.json(updatedClient);

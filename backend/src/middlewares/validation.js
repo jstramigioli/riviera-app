@@ -91,7 +91,7 @@ const validateRoom = (req, res, next) => {
     errors.push('La capacidad debe ser un número positivo');
   }
 
-  if (price && (isNaN(price) || price <= 0)) {
+  if (price !== undefined && (isNaN(price) || price <= 0)) {
     errors.push('El precio debe ser un número positivo');
   }
 

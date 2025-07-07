@@ -74,6 +74,14 @@ export async function updateClient(id, data) {
   return res.json();
 }
 
+export async function deleteClient(id) {
+  const res = await fetch(`${API_URL}/clients/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting client');
+  return res.ok;
+}
+
 export async function updateGuest(id, data) {
   const res = await fetch(`${API_URL}/guests/${id}`, {
     method: 'PUT',
@@ -254,6 +262,7 @@ export default {
   updateReservation,
   createReservation,
   updateClient,
+  deleteClient,
   updateGuest,
   getGuestBalance,
   createPayment,

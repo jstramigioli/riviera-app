@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import SidePanel from './SidePanel';
 import ReservationRequirements from './ReservationRequirements';
 import RoomSelectionModal from './RoomSelectionModal';
+import LocationSelector from './LocationSelector';
 import api from '../services/api';
 import styles from '../styles/CreateReservationPanel.module.css';
 
@@ -20,7 +21,10 @@ export default function CreateReservationPanel({
       email: '',
       phone: '',
       documentType: 'DNI',
-      documentNumber: ''
+      documentNumber: '',
+      country: 'AR',
+      province: '',
+      city: ''
     },
     notes: ''
   });
@@ -136,7 +140,10 @@ export default function CreateReservationPanel({
         email: '',
         phone: '',
         documentType: 'DNI',
-        documentNumber: ''
+        documentNumber: '',
+        country: 'AR',
+        province: '',
+        city: ''
       }
     }));
     setIsSearchFocused(false);
@@ -155,7 +162,10 @@ export default function CreateReservationPanel({
         email: '',
         phone: '',
         documentType: 'DNI',
-        documentNumber: ''
+        documentNumber: '',
+        country: 'AR',
+        province: '',
+        city: ''
       }
     }));
   };
@@ -295,7 +305,10 @@ export default function CreateReservationPanel({
         email: '',
         phone: '',
         documentType: 'DNI',
-        documentNumber: ''
+        documentNumber: '',
+        country: 'AR',
+        province: '',
+        city: ''
       },
       notes: ''
     });
@@ -381,6 +394,8 @@ export default function CreateReservationPanel({
                   </button>
                 </div>
                 
+                {console.log('Renderizando formulario de nuevo cliente')}
+                
                 <div className={styles.nameGroup}>
                   <div className={styles.formGroup}>
                     <label htmlFor="firstName">Nombre *</label>
@@ -460,6 +475,19 @@ export default function CreateReservationPanel({
                     />
                     {errors['mainClient.documentNumber'] && <span className={styles.errorText}>{errors['mainClient.documentNumber']}</span>}
                   </div>
+                </div>
+
+                {/* Selector de ubicación */}
+                <div className={styles.locationGroup}>
+                  <h4>Ubicación</h4>
+                  <LocationSelector
+                    country={formData.mainClient.country}
+                    province={formData.mainClient.province}
+                    city={formData.mainClient.city}
+                    onCountryChange={(value) => handleInputChange('mainClient.country', value)}
+                    onProvinceChange={(value) => handleInputChange('mainClient.province', value)}
+                    onCityChange={(value) => handleInputChange('mainClient.city', value)}
+                  />
                 </div>
               </>
             ) : selectedClient ? (

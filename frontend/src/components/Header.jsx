@@ -20,6 +20,12 @@ function Header() {
         >
           Tarifas
         </Link>
+        <Link 
+          to="/estadisticas" 
+          className={`${styles.navLink} ${location.pathname === '/estadisticas' ? styles.active : ''}`}
+        >
+          Estadísticas
+        </Link>
       </div>
       <div className={styles.navRight}>
         <Link 

@@ -9,7 +9,9 @@ import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
 import RateViewer from './components/RateViewer';
 import RateEditor from './components/RateEditor';
+import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
+import EstadisticasView from './pages/Estadisticas';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
@@ -408,6 +410,37 @@ function ReservationsView() {
               )}
             </div>
 
+            {/* Ubicación */}
+            <div style={{ marginBottom: 8 }}>
+              <b>Ubicación:</b> {isEditing ? (
+                <div style={{ marginTop: '8px' }}>
+                  <LocationSelector
+                    country={editData.country || ''}
+                    province={editData.province || ''}
+                    city={editData.city || ''}
+                    onCountryChange={(value) => handleEditChange('country', value)}
+                    onProvinceChange={(value) => handleEditChange('province', value)}
+                    onCityChange={(value) => handleEditChange('city', value)}
+                  />
+                </div>
+              ) : (
+                <div>
+                  {selectedClient.country && (
+                    <div>País: {selectedClient.country}</div>
+                  )}
+                  {selectedClient.province && (
+                    <div>Provincia: {selectedClient.province}</div>
+                  )}
+                  {selectedClient.city && (
+                    <div>Ciudad: {selectedClient.city}</div>
+                  )}
+                  {!selectedClient.country && !selectedClient.province && !selectedClient.city && (
+                    <span>No especificada</span>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Notas */}
             <div style={{ marginBottom: 8 }}>
               <b>Notas:</b> {isEditing ? (
@@ -527,6 +560,7 @@ function App() {
             <Route path="/" element={<ReservationsView />} />
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
             <Route path="/tarifas" element={<RatesView />} />
+            <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />
           </Routes>
         </div>

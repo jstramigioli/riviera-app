@@ -131,7 +131,7 @@ exports.updateReservation = async (req, res) => {
     requirementsNotes
   } = req.body;
   
-  if (!roomId || !checkIn || !checkOut || !requiredGuests) {
+  if (!roomId || !checkIn || !checkOut) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   
@@ -140,7 +140,7 @@ exports.updateReservation = async (req, res) => {
       roomId: parseInt(roomId),
       checkIn: new Date(checkIn),
       checkOut: new Date(checkOut),
-      requiredGuests: parseInt(requiredGuests),
+      ...(requiredGuests !== undefined && { requiredGuests: parseInt(requiredGuests) }),
       ...(typeof fixed !== 'undefined' ? { fixed } : {}),
       ...(mainClientId && { mainClientId: parseInt(mainClientId) }),
       ...(totalAmount && { totalAmount: parseFloat(totalAmount) }),

@@ -45,7 +45,11 @@ model Client {
   phone          String?
   documentType   String   @default("DNI")
   documentNumber String?
+  country        String?
+  province       String?
+  city           String?
   notes          String?
+  wantsPromotions Boolean @default(false) // Si desea recibir promociones por email
   reservations   Reservation[]
 }
 
@@ -59,8 +63,8 @@ model Guest {
   email         String?
   address       String?
   city          String?
-  reservation   Reservation @relation(fields: [reservationId], references: [id])
-  reservationId Int
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  reservationId Int?
   payments      Payment[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
