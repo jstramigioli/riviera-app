@@ -56,6 +56,7 @@ const mockPrismaClient = {
   tag: {
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue(null),
+    findFirst: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
     update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
     delete: jest.fn().mockResolvedValue({ id: 1 }),
@@ -88,6 +89,8 @@ const mockPrismaClient = {
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
     update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
     delete: jest.fn().mockResolvedValue({ id: 1 }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    createMany: jest.fn().mockResolvedValue({ count: 1 }),
   },
 };
 

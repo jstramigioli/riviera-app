@@ -84,34 +84,17 @@ exports.createPayment = async (req, res) => {
 // Actualizar un pago
 exports.updatePayment = async (req, res) => {
   const { id } = req.params;
-  const { amount, type, description, date } = req.body;
-  
+  const data = req.body;
   try {
-    const updateData = {
-      ...(amount && { amount: parseFloat(amount) }),
-      ...(type && { type }),
-      ...(description && { description }),
-      ...(date && { date: new Date(date) })
-    };
-
     const updatedPayment = await prisma.payment.update({
       where: { id: parseInt(id) },
-      data: updateData,
-      include: {
-        guest: {
-          include: {
-            reservation: {
-              include: {
-                room: true,
-                mainClient: true
-              }
-            }
-          }
-        }
-      }
+      data
     });
     res.json(updatedPayment);
   } catch (error) {
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
     res.status(500).json({ error: 'Error updating payment', details: error.message });
   }
 };
@@ -123,8 +106,11 @@ exports.deletePayment = async (req, res) => {
     await prisma.payment.delete({
       where: { id: parseInt(id) }
     });
-    res.json({ message: 'Payment deleted successfully' });
+    res.json({ message: 'Payment deleted' });
   } catch (error) {
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
     res.status(500).json({ error: 'Error deleting payment', details: error.message });
   }
 };

@@ -10,8 +10,8 @@ export async function fetchRooms() {
 
 export async function fetchRoomTypes() {
   const res = await fetch(`${API_URL}/room-types`);
-  if (!res.ok) throw new Error('Error fetching room types');
-  return res.json();
+  if (!res.ok) throw new Error('Error fetching room types')
+  return res.json()
 }
 
 export async function fetchReservations() {
@@ -62,6 +62,14 @@ export async function createReservation(data) {
   });
   if (!res.ok) throw new Error('Error creating reservation');
   return res.json();
+}
+
+export async function deleteReservation(id) {
+  const res = await fetch(`${API_URL}/reservations/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting reservation');
+  return res.ok;
 }
 
 export async function updateClient(id, data) {
@@ -251,6 +259,79 @@ export async function findAvailableRooms(params) {
 }
 
 // Exportación por defecto con todas las funciones
+// Funciones para el Calendario de Gestión
+export async function fetchOpenDays(startDate, endDate) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+
+  const res = await fetch(`${API_URL}/open-days?${params}`);
+  if (!res.ok) throw new Error('Error fetching open days');
+  return res.json();
+}
+
+export async function createOpenDay(data) {
+  const res = await fetch(`${API_URL}/open-days`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating open day');
+  return res.json();
+}
+
+export async function updateOpenDay(date, data) {
+  const res = await fetch(`${API_URL}/open-days/date/${date}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    const error = new Error('Error updating open day');
+    error.status = res.status;
+    error.body = errorText;
+    throw error;
+  }
+  return res.json();
+}
+
+export async function deleteOpenDay(date) {
+  // Primero necesitamos obtener el ID del día por fecha
+  const openDay = await fetch(`${API_URL}/open-days/date/${date}`);
+  if (!openDay.ok) {
+    if (openDay.status === 404) {
+      // Si no existe, considerarlo como éxito
+      return true;
+    }
+    throw new Error('Error finding open day to delete');
+  }
+  
+  const dayData = await openDay.json();
+  
+  const res = await fetch(`${API_URL}/open-days/${dayData.id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting open day');
+  return res.ok;
+}
+
+export async function getPricesForAllRoomTypes(date) {
+  const res = await fetch(`${API_URL}/rates/prices/${date}/all-room-types`);
+  if (!res.ok) throw new Error('Error fetching prices for all room types');
+  return res.json();
+}
+
+export async function getPricesForDateRange(startDate, endDate) {
+  const params = new URLSearchParams();
+  params.append('startDate', startDate);
+  params.append('endDate', endDate);
+
+  const res = await fetch(`${API_URL}/rates/prices/range?${params}`);
+  if (!res.ok) throw new Error('Error fetching prices for date range');
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -279,5 +360,11 @@ export default {
   createTag,
   updateTag,
   deleteTag,
-  findAvailableRooms
+  findAvailableRooms,
+  fetchOpenDays,
+  createOpenDay,
+  updateOpenDay,
+  deleteOpenDay,
+  getPricesForAllRoomTypes,
+  getPricesForDateRange
 };

@@ -147,6 +147,7 @@ describe('Controlador de Clientes', () => {
     it('debería actualizar un cliente', async () => {
       const updateData = {
         firstName: 'Robert',
+        lastName: 'Wilson',
         phone: '999888777',
         wantsPromotions: true
       };
@@ -169,20 +170,33 @@ describe('Controlador de Clientes', () => {
       expect(response.body.firstName).toBe('Robert');
       expect(response.body.phone).toBe('999888777');
       expect(response.body.wantsPromotions).toBe(true);
-      expect(response.body.lastName).toBe('Wilson'); // No debería cambiar
+      expect(response.body.lastName).toBe('Wilson');
     });
 
     it('debería devolver 404 para cliente inexistente', async () => {
       global.mockPrisma.client.update.mockRejectedValue(new Error('Record not found'));
 
       const updateData = {
-        firstName: 'Updated'
+        firstName: 'Updated',
+        lastName: 'User'
       };
 
       await request(app)
         .put('/api/clients/99999')
         .send(updateData)
         .expect(404);
+    });
+
+    it('debería validar campos requeridos en actualización', async () => {
+      const invalidData = {
+        firstName: 'Test'
+        // Falta lastName
+      };
+
+      await request(app)
+        .put('/api/clients/1')
+        .send(invalidData)
+        .expect(400);
     });
   });
 

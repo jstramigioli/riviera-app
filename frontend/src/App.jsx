@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
@@ -7,8 +7,7 @@ import ReservationGrid from './components/ReservationGrid';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
-import RateViewer from './components/RateViewer';
-import RateEditor from './components/RateEditor';
+import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
@@ -18,6 +17,7 @@ import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
 import { getDocumentAbbreviation } from './utils/documentUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
+import { deleteReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
 
@@ -96,6 +96,19 @@ function ReservationsView() {
     }
   }
 
+  async function handleDeleteReservation() {
+    if (!selectedReservation) return;
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) return;
+    try {
+      await deleteReservation(selectedReservation.id);
+      setReservations(reservations.filter(r => r.id !== selectedReservation.id));
+      closePanel();
+    } catch (error) {
+      alert('Error al eliminar la reserva');
+      console.error(error);
+    }
+  }
+
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <div className={styles.error}>Error: {error}</div>;
 
@@ -131,6 +144,8 @@ function ReservationsView() {
             isEditing={isEditing}
             onEditToggle={handleEditToggle}
             onSave={handleEditSave}
+            onDelete={handleDeleteReservation}
+            showDeleteButton={true}
           >
             {/* Habitación */}
             <div style={{ marginBottom: 8 }}>
@@ -529,25 +544,8 @@ function ReservationsView() {
   );
 }
 
-function RatesView() {
-  const [isEditing, setIsEditing] = useState(false);
-
-  return (
-    <div className={styles.appContainer}>
-      <div className={styles.ratesContainer}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Hotel Riviera - Gestión de Tarifas</h1>
-          <p className={styles.subtitle}>Gestiona las tarifas diarias por tipo de habitación</p>
-        </div>
-        
-        {isEditing ? (
-          <RateEditor onViewMode={() => setIsEditing(false)} />
-        ) : (
-          <RateViewer onEditMode={() => setIsEditing(true)} />
-        )}
-      </div>
-    </div>
-  );
+function CalendarioGestionView() {
+  return <CalendarioGestion />;
 }
 
 function App() {
@@ -559,7 +557,7 @@ function App() {
           <Routes>
             <Route path="/" element={<ReservationsView />} />
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
-            <Route path="/tarifas" element={<RatesView />} />
+            <Route path="/tarifas" element={<CalendarioGestionView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />
           </Routes>

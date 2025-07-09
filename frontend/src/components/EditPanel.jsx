@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaPen } from 'react-icons/fa';
+import { FaTimes, FaPen, FaTrash } from 'react-icons/fa';
 import styles from '../styles/EditPanel.module.css';
 
 const EditPanel = ({ 
@@ -8,24 +8,37 @@ const EditPanel = ({
   isEditing, 
   onEditToggle, 
   onSave, 
+  onDelete,
   children, 
   saveButtonText = "Guardar Cambios",
-  saveDisabled = false 
+  saveDisabled = false,
+  showDeleteButton = false
 }) => {
   return (
     <div className={styles.editPanel}>
-      {/* Header con título, subtítulo y botón de editar/cancelar */}
+      {/* Header con título, subtítulo y botones de editar/cancelar y eliminar */}
       <div className={styles.header}>
         <div>
           {subtitle && <span className={styles.subtitle}>{subtitle}</span>}
         </div>
-        <button 
-          className={styles.editButton}
-          title={isEditing ? "Cancelar edición" : "Editar"} 
-          onClick={onEditToggle}
-        >
-          {isEditing ? <FaTimes /> : <FaPen />}
-        </button>
+        <div className={styles.headerButtons}>
+          {showDeleteButton && !isEditing && (
+            <button 
+              className={styles.deleteButton}
+              title="Eliminar"
+              onClick={onDelete}
+            >
+              <FaTrash />
+            </button>
+          )}
+          <button 
+            className={styles.editButton}
+            title={isEditing ? "Cancelar edición" : "Editar"} 
+            onClick={onEditToggle}
+          >
+            {isEditing ? <FaTimes /> : <FaPen />}
+          </button>
+        </div>
       </div>
 
       {/* Título principal */}

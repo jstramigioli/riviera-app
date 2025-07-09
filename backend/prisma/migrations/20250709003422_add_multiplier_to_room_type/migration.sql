@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "RoomType" ADD COLUMN     "multiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.0;

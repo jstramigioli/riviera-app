@@ -57,8 +57,8 @@ const updateTag = async (req, res) => {
     res.json(tag);
   } catch (error) {
     console.error('Error al actualizar etiqueta:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Etiqueta no encontrada' });
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Tag not found' });
     }
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Ya existe una etiqueta con ese nombre' });
@@ -79,8 +79,8 @@ const deleteTag = async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Error al eliminar etiqueta:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Etiqueta no encontrada' });
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Tag not found' });
     }
     res.status(500).json({ error: 'Error interno del servidor' });
   }

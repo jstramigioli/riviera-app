@@ -50,35 +50,17 @@ exports.getGuestById = async (req, res) => {
 // Actualizar un huésped
 exports.updateGuest = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, documentType, documentNumber, phone, email, address, city } = req.body;
-  
+  const data = req.body;
   try {
     const updatedGuest = await prisma.guest.update({
       where: { id: parseInt(id) },
-      data: {
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
-        ...(documentType && { documentType }),
-        ...(documentNumber && { documentNumber }),
-        ...(phone && { phone }),
-        ...(email && { email }),
-        ...(address && { address }),
-        ...(city && { city })
-      },
-      include: {
-        reservation: {
-          include: {
-            room: true,
-            mainClient: true
-          }
-        },
-        payments: {
-          orderBy: { date: 'desc' }
-        }
-      }
+      data
     });
     res.json(updatedGuest);
   } catch (error) {
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Guest not found' });
+    }
     res.status(500).json({ error: 'Error updating guest', details: error.message });
   }
 };

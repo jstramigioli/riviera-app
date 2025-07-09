@@ -30,12 +30,13 @@ exports.getRoomTypeById = async (req, res) => {
 
 // Crear un nuevo tipo de habitación
 exports.createRoomType = async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, multiplier } = req.body;
   try {
     const roomType = await prisma.roomType.create({
       data: {
         name,
-        description
+        description,
+        multiplier: multiplier || 1.0
       }
     });
     res.status(201).json(roomType);
@@ -47,7 +48,7 @@ exports.createRoomType = async (req, res) => {
 // Actualizar un tipo de habitación
 exports.updateRoomType = async (req, res) => {
   const { id } = req.params;
-  const { name, description } = req.body;
+  const { name, description, multiplier } = req.body;
   
   if (!id) return res.status(400).json({ error: 'Room type id is required' });
   
@@ -56,7 +57,8 @@ exports.updateRoomType = async (req, res) => {
       where: { id: Number(id) },
       data: {
         ...(name && { name }),
-        ...(description && { description })
+        ...(description && { description }),
+        ...(multiplier !== undefined && { multiplier })
       }
     });
     res.json(updatedRoomType);

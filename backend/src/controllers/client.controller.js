@@ -93,6 +93,9 @@ exports.updateClient = async (req, res) => {
     });
     res.json(updatedClient);
   } catch (error) {
+    if (error.message && error.message.includes('Record not found')) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
     res.status(500).json({ error: 'Error updating client', details: error.message });
   }
 };
