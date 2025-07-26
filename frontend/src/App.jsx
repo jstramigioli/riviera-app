@@ -11,6 +11,7 @@ import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
+import RatesCalendar from './components/RatesCalendar';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
@@ -548,6 +549,10 @@ function CalendarioGestionView() {
   return <CalendarioGestion />;
 }
 
+function TarifasView() {
+  return <RatesCalendar />;
+}
+
 function App() {
   return (
     <TagsProvider>
@@ -557,7 +562,7 @@ function App() {
           <Routes>
             <Route path="/" element={<ReservationsView />} />
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
-            <Route path="/tarifas" element={<CalendarioGestionView />} />
+            <Route path="/tarifas" element={<TarifasView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />
           </Routes>

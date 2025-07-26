@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../styles/App.module.css';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import EtiquetasTab from '../components/configuracion/EtiquetasTab';
+import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
+import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
+import MealPricingEditor from '../components/configuracion/MealPricingEditor';
 
 function ConfiguracionView() {
-  const [activeTab, setActiveTab] = useState('habitaciones');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Recuperar la pestaña activa del localStorage o usar 'habitaciones' por defecto
+    return localStorage.getItem('configActiveTab') || 'habitaciones';
+  });
+
+  // Guardar la pestaña activa en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('configActiveTab', activeTab);
+  }, [activeTab]);
 
   const tabs = [
     { id: 'habitaciones', label: 'Habitaciones', icon: '🏨' },
@@ -73,9 +84,40 @@ function ConfiguracionView() {
         );
       case 'tarifas':
         return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Configuración de Tarifas</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '24px',
+            padding: '24px',
+            minHeight: 'calc(100vh - 200px)',
+            overflowY: 'auto'
+          }}>
+            {/* Configuración de tarifas dinámicas */}
+            <div style={{ 
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}>
+              <DynamicPricingConfigPanel />
+            </div>
+
+            {/* Editor de curva estacional */}
+            <div style={{ 
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}>
+              <SeasonalCurveWrapper />
+            </div>
+
+            {/* Configuración de comidas */}
+            <div style={{ 
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}>
+              <MealPricingEditor />
+            </div>
           </div>
         );
       case 'usuarios':
@@ -147,7 +189,8 @@ function ConfiguracionView() {
           backgroundColor: 'white',
           borderRadius: '0 0 12px 12px',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden'
+          overflow: 'auto',
+          maxHeight: 'calc(100vh - 200px)'
         }}>
           {renderTabContent()}
         </div>

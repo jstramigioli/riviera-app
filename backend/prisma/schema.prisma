@@ -9,6 +9,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enums para el nuevo sistema de tarifas
+enum MealPricingMode {
+  FIXED
+  PERCENTAGE
+}
+
 model Tag {
   id    Int    @id @default(autoincrement())
   name  String @unique
@@ -23,6 +29,8 @@ model RoomType {
   multiplier  Float      @default(1.0) // Multiplicador del precio base
   rooms       Room[]
   dailyRates  DailyRate[]
+  // Nuevas relaciones para el sistema dinámico
+  dailyRoomRates DailyRoomRate[]
 }
 
 model Room {
@@ -36,6 +44,8 @@ model Room {
   reservations  Reservation[]
   roomType      RoomType @relation(fields: [roomTypeId], references: [id])
   roomTypeId    Int
+  // Nueva relación para promociones de huecos
+  gapPromotions RoomGapPromotion[]
 }
 
 model Client {
@@ -108,6 +118,7 @@ model Reservation {
   updatedAt     DateTime @updatedAt
 }
 
+// Modelo legacy para mantener compatibilidad con datos existentes
 model DailyRate {
   id          Int      @id @default(autoincrement())
   date        DateTime
@@ -130,4 +141,73 @@ model OpenDay {
   notes      String?  // Notas adicionales sobre el día
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+// ===== NUEVOS MODELOS PARA SISTEMA DE TARIFAS DINÁMICAS =====
+
+// Configuración global de precios dinámicos
+model DynamicPricingConfig {
+  id                      String   @id @default(cuid())
+  hotelId                 String   @unique
+  anticipationThresholds  Int[]    // e.g. [21, 14, 7, 3]
+  anticipationWeight      Float
+  globalOccupancyWeight   Float
+  isWeekendWeight         Float
+  isHolidayWeight         Float
+  demandIndexWeight       Float
+  weatherScoreWeight      Float
+  eventImpactWeight       Float
+  maxAdjustmentPercentage Float    // e.g. 0.4 (40%)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// Puntos clave para la curva de estacionalidad
+model SeasonalKeyframe {
+  id         String   @id @default(cuid())
+  hotelId    String
+  date       DateTime
+  basePrice  Float    // precio base por tipo estándar
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Tarifa diaria por tipo de habitación (nuevo sistema)
+model DailyRoomRate {
+  id                 String   @id @default(cuid())
+  hotelId            String
+  roomType           RoomType @relation(fields: [roomTypeId], references: [id])
+  roomTypeId         Int
+  date               DateTime
+  baseRate           Float     // calculado desde la curva estacional
+  dynamicRate        Float     // resultado tras aplicar el occupancy score
+  withBreakfast      Float     // base + desayuno
+  withHalfBoard      Float     // base + desayuno + cena
+  isManualOverride   Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([hotelId, roomTypeId, date])
+}
+
+// Descuentos por huecos entre reservas
+model RoomGapPromotion {
+  id            String   @id @default(cuid())
+  room          Room     @relation(fields: [roomId], references: [id])
+  roomId        Int
+  date          DateTime
+  discountRate  Float    // e.g. 0.15 para 15%
+  createdAt     DateTime @default(now())
+}
+
+// Configuración para precios de comidas
+model MealPricingRule {
+  id              String   @id @default(cuid())
+  hotelId         String   @unique
+  breakfastMode   MealPricingMode  // FIXED or PERCENTAGE
+  breakfastValue  Float
+  dinnerMode      MealPricingMode
+  dinnerValue     Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 } 

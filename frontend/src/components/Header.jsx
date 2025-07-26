@@ -18,7 +18,7 @@ function Header() {
           to="/tarifas" 
           className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
         >
-          Calendario de Gestión
+          Tarifas
         </Link>
         <Link 
           to="/estadisticas" 
