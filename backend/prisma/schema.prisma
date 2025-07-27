@@ -15,6 +15,28 @@ enum MealPricingMode {
   PERCENTAGE
 }
 
+// Modelo principal del hotel
+model Hotel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  address     String?
+  phone       String?
+  email       String?
+  website     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  openDays           OpenDay[]
+  operationalPeriods OperationalPeriod[]
+  dynamicPricingConfig DynamicPricingConfig?
+  seasonalKeyframes   SeasonalKeyframe[]
+  dailyRoomRates     DailyRoomRate[]
+  mealPricingRules   MealPricingRule?
+}
+
 model Tag {
   id    Int    @id @default(autoincrement())
   name  String @unique
@@ -134,13 +156,31 @@ model DailyRate {
 
 model OpenDay {
   id         Int      @id @default(autoincrement())
-  date       DateTime @unique
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
+  hotelId    String
+  date       DateTime
   isClosed   Boolean  @default(true)  // Si el hotel está cerrado este día
   isHoliday  Boolean  @default(false) // Si es un feriado
   fixedPrice Int?     // Precio fijo en centavos (opcional)
   notes      String?  // Notas adicionales sobre el día
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([hotelId, date])
+}
+
+// Períodos de apertura y cierre del hotel
+model OperationalPeriod {
+  id        String   @id @default(cuid())
+  hotelId   String
+  startDate DateTime
+  endDate   DateTime
+  label     String?  // Título opcional para el período
+
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ===== NUEVOS MODELOS PARA SISTEMA DE TARIFAS DINÁMICAS =====
@@ -148,6 +188,7 @@ model OpenDay {
 // Configuración global de precios dinámicos
 model DynamicPricingConfig {
   id                      String   @id @default(cuid())
+  hotel                   Hotel    @relation(fields: [hotelId], references: [id])
   hotelId                 String   @unique
   anticipationThresholds  Int[]    // e.g. [21, 14, 7, 3]
   anticipationWeight      Float
@@ -165,6 +206,7 @@ model DynamicPricingConfig {
 // Puntos clave para la curva de estacionalidad
 model SeasonalKeyframe {
   id         String   @id @default(cuid())
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   hotelId    String
   date       DateTime
   basePrice  Float    // precio base por tipo estándar
@@ -175,6 +217,7 @@ model SeasonalKeyframe {
 // Tarifa diaria por tipo de habitación (nuevo sistema)
 model DailyRoomRate {
   id                 String   @id @default(cuid())
+  hotel              Hotel    @relation(fields: [hotelId], references: [id])
   hotelId            String
   roomType           RoomType @relation(fields: [roomTypeId], references: [id])
   roomTypeId         Int
@@ -203,6 +246,7 @@ model RoomGapPromotion {
 // Configuración para precios de comidas
 model MealPricingRule {
   id              String   @id @default(cuid())
+  hotel           Hotel    @relation(fields: [hotelId], references: [id])
   hotelId         String   @unique
   breakfastMode   MealPricingMode  // FIXED or PERCENTAGE
   breakfastValue  Float

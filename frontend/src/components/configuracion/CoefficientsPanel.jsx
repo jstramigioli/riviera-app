@@ -5,15 +5,36 @@ const roomTypeNames = {
   'doble': 'Doble',
   'triple': 'Triple',
   'cuadruple': 'Cuádruple',
-  'quintuple': 'Quíntuple'
+  'quintuple': 'Quíntuple',
+  'departamento El Romerito': 'Departamento El Romerito',
+  'departamento El Tilo': 'Departamento El Tilo',
+  'departamento Via 1': 'Departamento Via 1',
+  'departamento La Esquinita': 'Departamento La Esquinita'
 };
+
+// Orden de tipos de habitación para mostrar en la tabla
+const roomTypeOrder = [
+  'single',
+  'doble', 
+  'triple',
+  'cuadruple',
+  'quintuple',
+  'departamento El Romerito',
+  'departamento El Tilo',
+  'departamento Via 1',
+  'departamento La Esquinita'
+];
 
 const defaultCoefficients = {
   'single': 0.62,
   'doble': 1.00,
   'triple': 1.25,
   'cuadruple': 1.50,
-  'quintuple': 1.75
+  'quintuple': 1.75,
+  'departamento El Romerito': 1.50,
+  'departamento El Tilo': 1.50,
+  'departamento Via 1': 1.50,
+  'departamento La Esquinita': 1.50
 };
 
 export default function CoefficientsPanel({ hotelId = "default-hotel" }) {
@@ -115,7 +136,7 @@ export default function CoefficientsPanel({ hotelId = "default-hotel" }) {
         gap: '20px',
         marginBottom: '24px'
       }}>
-        {Object.entries(roomTypeNames).map(([key, name]) => (
+        {roomTypeOrder.map((key) => (
           <div key={key} style={{
             border: '1px solid #e9ecef',
             borderRadius: '8px',
@@ -129,7 +150,7 @@ export default function CoefficientsPanel({ hotelId = "default-hotel" }) {
               color: '#495057',
               fontSize: '14px'
             }}>
-              {name}
+              {roomTypeNames[key]}
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input

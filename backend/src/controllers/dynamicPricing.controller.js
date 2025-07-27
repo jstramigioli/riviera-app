@@ -76,6 +76,21 @@ class DynamicPricingController {
       const { hotelId } = req.params;
       const { date, basePrice } = req.body;
 
+      // Verificar si ya existe un keyframe para esta fecha y hotel
+      const existingKeyframe = await prisma.seasonalKeyframe.findFirst({
+        where: {
+          hotelId,
+          date: new Date(date)
+        }
+      });
+
+      if (existingKeyframe) {
+        return res.status(409).json({ 
+          message: 'Ya existe un precio establecido para esta fecha',
+          existingKeyframe 
+        });
+      }
+
       const keyframe = await prisma.seasonalKeyframe.create({
         data: {
           hotelId,

@@ -9,6 +9,7 @@ const guestRoutes = require('./routes/guest.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const rateRoutes = require('./routes/rate.routes');
 const openDayRoutes = require('./routes/openDay.routes');
+const operationalPeriodRoutes = require('./routes/operationalPeriod.routes');
 const dynamicPricingRoutes = require('./routes/dynamicPricing.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -35,6 +36,7 @@ app.use('/api/guests', guestRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/rates', rateRoutes);
 app.use('/api/open-days', openDayRoutes);
+app.use('/api/operational-periods', operationalPeriodRoutes);
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
 
 // Ruta de salud

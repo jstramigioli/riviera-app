@@ -11,7 +11,11 @@ async function initializeCoefficients() {
       'doble': 1.00,
       'triple': 1.25,
       'cuadruple': 1.50,
-      'quintuple': 1.75
+      'quintuple': 1.75,
+      'departamento El Romerito': 1.50,
+      'departamento El Tilo': 1.50,
+      'departamento Via 1': 1.50,
+      'departamento La Esquinita': 1.50
     };
 
     // Actualizar cada tipo de habitación con su coeficiente

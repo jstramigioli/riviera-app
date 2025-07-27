@@ -6,6 +6,8 @@ import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricin
 import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
 import MealPricingEditor from '../components/configuracion/MealPricingEditor';
 import CoefficientsPanel from '../components/configuracion/CoefficientsPanel';
+import OperationalPeriodsPanel from '../components/configuracion/OperationalPeriodsPanel';
+import TarifasPreviewPanel from '../components/configuracion/TarifasPreviewPanel';
 
 function ConfiguracionView() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -90,8 +92,7 @@ function ConfiguracionView() {
             flexDirection: 'column',
             gap: '24px',
             padding: '24px',
-            minHeight: 'calc(100vh - 200px)',
-            overflowY: 'auto'
+            paddingBottom: '50px'
           }}>
             {/* Configuración de tarifas dinámicas */}
             <div style={{ 
@@ -111,16 +112,40 @@ function ConfiguracionView() {
               <SeasonalCurveWrapper />
             </div>
 
-            {/* Configuración de coeficientes */}
-            <CoefficientsPanel />
-
-            {/* Configuración de comidas */}
-            <div style={{ 
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            {/* Fila con previsualización de tarifas y configuración de coeficientes */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', // Reducir minmax
+              gap: '24px',
+              width: '100%',
+              boxSizing: 'border-box'
             }}>
-              <MealPricingEditor />
+              {/* Previsualización de tarifas */}
+              <TarifasPreviewPanel />
+
+              {/* Configuración de coeficientes */}
+              <CoefficientsPanel />
+            </div>
+
+            {/* Fila con configuración de comidas y períodos de apertura */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', // Reducir minmax
+              gap: '24px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {/* Configuración de comidas */}
+              <div style={{ 
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}>
+                <MealPricingEditor />
+              </div>
+
+              {/* Períodos de apertura */}
+              <OperationalPeriodsPanel />
             </div>
           </div>
         );
@@ -152,7 +177,14 @@ function ConfiguracionView() {
       
       <div style={{ 
         width: '100%', 
-        padding: '20px'
+        padding: '20px',
+        height: 'calc(100vh - 200px)', // Altura fija
+        display: 'flex',
+        flexDirection: 'column',
+        marginRight: '20px', // Margin derecho para ver la scrollbar
+        boxSizing: 'border-box', // Incluir padding en el ancho
+        maxWidth: '100vw', // Máximo ancho de la ventana
+        overflow: 'hidden' // Evitar overflow horizontal
       }}>
         {/* Pestañas principales */}
         <div style={{ 
@@ -161,7 +193,8 @@ function ConfiguracionView() {
           marginBottom: '24px',
           backgroundColor: 'white',
           borderRadius: '12px 12px 0 0',
-          padding: '0 24px'
+          padding: '0 24px',
+          flexShrink: 0 // No se encoja
         }}>
           {tabs.map(tab => (
             <button
@@ -189,12 +222,17 @@ function ConfiguracionView() {
         </div>
 
         {/* Contenido de la pestaña activa */}
-        <div style={{ 
+        <div className={styles.configTabContainer} style={{ 
           backgroundColor: 'white',
           borderRadius: '0 0 12px 12px',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           overflow: 'auto',
-          maxHeight: 'calc(100vh - 200px)'
+          flex: 1, // Toma el espacio restante
+          minHeight: 0, // Permite que se encoja
+          marginRight: '10px', // Margin derecho para ver la scrollbar
+          width: '100%', // Ancho completo
+          boxSizing: 'border-box', // Incluir padding en el ancho
+          maxWidth: 'calc(100% - 10px)' // Ajustar por el margin
         }}>
           {renderTabContent()}
         </div>

@@ -103,10 +103,58 @@
 }
 
 .subtitle {
-  margin: 0 0 16px 0;
+  margin: 0;
   color: var(--color-text-muted);
-  font-size: var(--font-size-large);
-  line-height: 1.5;
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+/* Estilos para la barra de scroll */
+.scrollableContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.scrollableContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollableContainer::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.scrollableContainer::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.scrollableContainer::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Contenedor específico para configuración */
+.configTabContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
+}
+
+.configTabContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.configTabContainer::-webkit-scrollbar-track {
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+.configTabContainer::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+.configTabContainer::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .stats {

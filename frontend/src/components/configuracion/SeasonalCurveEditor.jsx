@@ -6,7 +6,11 @@ const defaultRoomTypeCoefficients = {
   'doble': 1.00,
   'triple': 1.25,
   'cuadruple': 1.50,
-  'quintuple': 1.75
+  'quintuple': 1.75,
+  'departamento El Romerito': 1.50,
+  'departamento El Tilo': 1.50,
+  'departamento Via 1': 1.50,
+  'departamento La Esquinita': 1.50
 };
 
 const roomTypeNames = {
@@ -14,7 +18,11 @@ const roomTypeNames = {
   'doble': 'Doble',
   'triple': 'Triple',
   'cuadruple': 'Cuádruple',
-  'quintuple': 'Quíntuple'
+  'quintuple': 'Quíntuple',
+  'departamento El Romerito': 'Departamento El Romerito',
+  'departamento El Tilo': 'Departamento El Tilo',
+  'departamento Via 1': 'Departamento Via 1',
+  'departamento La Esquinita': 'Departamento La Esquinita'
 };
 
 const priceTypeOptions = [
@@ -24,7 +32,6 @@ const priceTypeOptions = [
 ];
 
 const zoomLevels = [
-  { value: 'week', label: 'Semana' },
   { value: 'month', label: 'Mes' },
   { value: 'quarter', label: '3 Meses' }
 ];
@@ -45,13 +52,18 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const [dragIdx, setDragIdx] = useState(null);
   const [editingPoint, setEditingPoint] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [previewDate, setPreviewDate] = useState(new Date().toISOString().slice(0, 10));
   const [selectedRoomType, setSelectedRoomType] = useState('doble');
   const [selectedPriceType, setSelectedPriceType] = useState('base');
   const [roomTypeCoefficients, setRoomTypeCoefficients] = useState(defaultRoomTypeCoefficients);
   const [zoomLevel, setZoomLevel] = useState('month');
   const [lastSavedKeyframes, setLastSavedKeyframes] = useState([]);
   const [currentPeriod, setCurrentPeriod] = useState(new Date());
+  const [mealRules, setMealRules] = useState({
+    breakfastMode: "PERCENTAGE",
+    breakfastValue: 0.15,
+    dinnerMode: "PERCENTAGE",
+    dinnerValue: 0.2,
+  });
   const [tooltip, setTooltip] = useState({ 
     show: false, 
     x: 0, 
@@ -64,6 +76,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   });
   const svgRef = useRef();
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+  const [hoveredKeyframe, setHoveredKeyframe] = useState(null);
 
   // Ordenar keyframes por fecha
   const sorted = [...keyframes].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -73,13 +86,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     const period = currentPeriod;
     
     switch (zoomLevel) {
-      case 'week': {
-        const weekStart = new Date(period);
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-        return { minDate: weekStart, maxDate: weekEnd };
-      }
       case 'month': {
         const monthStart = new Date(period.getFullYear(), period.getMonth(), 1);
         const monthEnd = new Date(period.getFullYear(), period.getMonth() + 1, 0);
@@ -100,39 +106,33 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
 
   // Obtener el rango de fechas actual
   const { minDate, maxDate } = getDateRange();
-  const minValue = Math.min(...sorted.map((k) => k.value));
-  const maxValue = Math.max(...sorted.map((k) => k.value));
   
-  // DEBUG: Información del rango de fechas
-  console.log('=== DEBUG RANGO FECHAS ===');
-  console.log('minDate:', minDate.toISOString());
-  console.log('maxDate:', maxDate.toISOString());
-  console.log('Diferencia en días:', Math.floor((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-  // Función para agregar punto desde el tooltip
-  const addPointFromTooltip = () => {
-    console.log('addPointFromTooltip called', { tooltip, sorted });
-    if (tooltip.show && tooltip.snapDate) {
-      const newPoint = {
-        date: tooltip.snapDate.toISOString().slice(0, 10),
-        value: tooltip.price
-      };
-      console.log('Adding new point:', newPoint);
-      const newKeyframes = [...sorted, newPoint].sort((a, b) => new Date(a.date) - new Date(b.date));
-      console.log('New keyframes:', newKeyframes);
-      onChange(newKeyframes);
-      console.log('onChange called');
-    } else {
-      console.log('Cannot add point:', { tooltipShow: tooltip.show, snapDate: tooltip.snapDate });
+  // Calcular valores mínimos y máximos considerando el tipo de habitación y precio seleccionado
+  const calculateAdjustedValue = (baseValue) => {
+    const basePriceForType = Math.round(baseValue * roomTypeCoefficients[selectedRoomType]);
+    
+    switch (selectedPriceType) {
+      case 'breakfast':
+        return Math.round(basePriceForType * 1.15);
+      case 'halfBoard':
+        return Math.round(basePriceForType * 1.35);
+      default:
+        return basePriceForType;
     }
   };
+  
+  const adjustedValues = sorted.map(k => calculateAdjustedValue(k.value));
+  const minValue = Math.min(...adjustedValues);
+  const maxValue = Math.max(...adjustedValues);
+  
 
-  // Función para abrir modal con valores del snap
-  const openAddModalFromSnap = () => {
-    if (tooltip.show && tooltip.snapDate) {
-      setShowAddModal(true);
-      // Los valores se pasarán al modal a través de props
+
+  // Función helper para normalizar fechas a formato YYYY-MM-DD
+  const normalizeDate = (date) => {
+    if (typeof date === 'string') {
+      return date.slice(0, 10); // Ya está en formato YYYY-MM-DD
     }
+    return date.toISOString().slice(0, 10);
   };
 
   // Función para mostrar notificación
@@ -142,18 +142,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       setNotification({ show: false, message: '', type: 'success' });
     }, 3000);
   };
-
-  // Event listener para tecla Enter
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.key === 'Enter' && tooltip.show) {
-        addPointFromTooltip();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [tooltip.show, tooltip.snapDate, tooltip.price, sorted, onChange]);
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
@@ -167,6 +155,21 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       })
       .catch((error) => {
         console.log('Error al cargar coeficientes, usando valores por defecto:', error);
+      });
+  }, [hotelId]);
+
+  // Cargar reglas de comidas desde el backend
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/meals/${hotelId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setMealRules(data);
+        }
+      })
+      .catch((error) => {
+        console.log('Error al cargar reglas de comidas, usando valores por defecto:', error);
       });
   }, [hotelId]);
 
@@ -191,7 +194,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [sorted, lastSavedKeyframes, onSave, showAddModal, editingPoint]);
+  }, [sorted, lastSavedKeyframes, onSave, showAddModal, editingPoint, showNotification]);
   
   if (sorted.length === 0) {
     return (
@@ -220,18 +223,47 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const height = 500;
   const margin = 120;
   
-  // Función original para la curva (suave)
   // Función unificada para posicionamiento (keyframes, snap y curva)
   const dateToX = (date) => {
-    // Usar la fecha tal como viene, sin normalización
+    // Normalizar todas las fechas al inicio del día para consistencia
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    
+    const normalizedMinDate = new Date(minDate);
+    normalizedMinDate.setHours(0, 0, 0, 0);
+    
+    const normalizedMaxDate = new Date(maxDate);
+    normalizedMaxDate.setHours(0, 0, 0, 0);
+    
     return margin +
-      ((new Date(date) - minDate) / (maxDate - minDate || 1)) * (width - 2 * margin);
+      ((normalizedDate - normalizedMinDate) / (normalizedMaxDate - normalizedMinDate || 1)) * (width - 2 * margin);
   };
   
-  // Función inversa para calcular fecha desde posición X
-  const xToDate = (x) => {
+  // Función para la curva suave (interpolación)
+  const curveDateToX = (date) => {
+    // No normalizar para mantener interpolación suave
+    const normalizedMinDate = new Date(minDate);
+    normalizedMinDate.setHours(0, 0, 0, 0);
+    
+    const normalizedMaxDate = new Date(maxDate);
+    normalizedMaxDate.setHours(0, 0, 0, 0);
+    
+    return margin +
+      ((new Date(date) - normalizedMinDate) / (normalizedMaxDate - normalizedMinDate || 1)) * (width - 2 * margin);
+  };
+  
+  // Función para calcular fecha desde posición X (consistente con curveDateToX)
+  const xToCurveDate = (x) => {
     const ratio = (x - margin) / (width - 2 * margin);
-    return new Date(minDate.getTime() + ratio * (maxDate.getTime() - minDate.getTime()));
+    
+    // No normalizar para mantener consistencia con curveDateToX
+    const normalizedMinDate = new Date(minDate);
+    normalizedMinDate.setHours(0, 0, 0, 0);
+    
+    const normalizedMaxDate = new Date(maxDate);
+    normalizedMaxDate.setHours(0, 0, 0, 0);
+    
+    return new Date(normalizedMinDate.getTime() + ratio * (normalizedMaxDate.getTime() - normalizedMinDate.getTime()));
   };
   
 
@@ -263,7 +295,36 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     
     // Interpolar
     const t = (targetDate - new Date(before.date)) / (new Date(after.date) - new Date(before.date));
-    return lerp(before.value, after.value, t);
+    const basePrice = lerp(before.value, after.value, t);
+    
+    // Aplicar coeficiente del tipo de habitación seleccionado
+    const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
+    
+    // Aplicar multiplicador según el tipo de precio seleccionado
+    switch (selectedPriceType) {
+      case 'breakfast':
+        if (mealRules.breakfastMode === "FIXED") {
+          return Math.round(basePriceForType + mealRules.breakfastValue);
+        } else {
+          return Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+        }
+      case 'halfBoard': {
+        let breakfastPrice = basePriceForType;
+        if (mealRules.breakfastMode === "FIXED") {
+          breakfastPrice = basePriceForType + mealRules.breakfastValue;
+        } else {
+          breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+        }
+        
+        if (mealRules.dinnerMode === "FIXED") {
+          return Math.round(breakfastPrice + mealRules.dinnerValue);
+        } else {
+          return Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+        }
+      }
+      default:
+        return basePriceForType;
+    }
   };
 
   // Interpolación para la curva
@@ -274,8 +335,41 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     for (let s = 0; s <= steps; s++) {
       const t = s / steps;
       const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
-      const value = lerp(a.value, b.value, t);
-      points.push({ x: dateToX(date), y: valueToY(value) });
+      const basePrice = lerp(a.value, b.value, t);
+      
+      // Aplicar coeficiente del tipo de habitación seleccionado
+      const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
+      
+      // Aplicar multiplicador según el tipo de precio seleccionado
+      let adjustedPrice;
+      switch (selectedPriceType) {
+        case 'breakfast':
+          if (mealRules.breakfastMode === "FIXED") {
+            adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
+          } else {
+            adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+          }
+          break;
+        case 'halfBoard': {
+          let breakfastPrice = basePriceForType;
+          if (mealRules.breakfastMode === "FIXED") {
+            breakfastPrice = basePriceForType + mealRules.breakfastValue;
+          } else {
+            breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+          }
+          
+          if (mealRules.dinnerMode === "FIXED") {
+            adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
+          } else {
+            adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+          }
+          break;
+        }
+        default:
+          adjustedPrice = basePriceForType;
+      }
+      
+      points.push({ x: curveDateToX(date), y: valueToY(adjustedPrice) });
     }
   }
 
@@ -284,7 +378,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const currentDate = new Date(minDate);
   
   while (currentDate <= maxDate) {
-    const x = dateToX(currentDate);
+    const x = curveDateToX(currentDate);
     if (x >= margin && x <= width - margin) {
       const price = getInterpolatedPrice(currentDate);
       const y = valueToY(price);
@@ -309,18 +403,18 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     
     if (tooltip.show && tooltip.snapDate) {
       // Verificar si ya existe un punto en esta fecha
+      const snapDateString = normalizeDate(tooltip.snapDate);
       const existingPointIndex = sorted.findIndex(point => {
-        const pointDate = new Date(point.date);
-        const snapDate = new Date(tooltip.snapDate);
-        return pointDate.toDateString() === snapDate.toDateString();
+        const pointDateString = normalizeDate(point.date);
+        return pointDateString === snapDateString;
       });
       
       if (existingPointIndex !== -1) {
         // Si existe un punto, editar en lugar de agregar
         setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
       } else {
-        // Si no existe, agregar nuevo punto
-        openAddModalFromSnap();
+        // Si no existe, abrir modal para agregar nuevo punto
+        setShowAddModal(true);
       }
     }
   };
@@ -329,9 +423,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     const newPeriod = new Date(currentPeriod);
     
     switch (zoomLevel) {
-      case 'week':
-        newPeriod.setDate(newPeriod.getDate() + direction);
-        break;
       case 'month':
         newPeriod.setMonth(newPeriod.getMonth() + direction);
         break;
@@ -353,7 +444,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     // Tooltip para la curva - simplificar condiciones
     if (x >= margin && x <= width - margin) {
       // Calcular la fecha aproximada desde la posición del mouse
-      const approximateDate = xToDate(x);
+      const approximateDate = xToCurveDate(x);
       
       // Encontrar el día correspondiente basado en la posición X
       // Calcular cuántos días han pasado desde minDate usando round para centrar en el día
@@ -362,8 +453,15 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       targetDate.setDate(minDate.getDate() + daysSinceMinDate);
       targetDate.setHours(0, 0, 0, 0); // Establecer a inicio del día para el snap
       
+      // Verificar si ya existe un keyframe en esta fecha
+      const targetDateString = normalizeDate(targetDate);
+      const existingKeyframeIndex = sorted.findIndex(point => {
+        const pointDateString = normalizeDate(point.date);
+        return pointDateString === targetDateString;
+      });
+      
       // Calcular la posición X exacta del día calculado
-      const snapX = dateToX(targetDate);
+      const snapX = curveDateToX(targetDate);
       
       const price = getInterpolatedPrice(targetDate);
       const snapY = valueToY(price);
@@ -374,6 +472,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       // Verificar que el snapX esté dentro del rango visible
       if (snapX < margin || snapX > width - margin) {
         setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+        setHoveredKeyframe(null);
         return;
       }
       
@@ -382,39 +481,71 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       
       // Solo mostrar tooltip si estamos cerca de la curva (dentro de 100px para ser muy permisivo)
       if (distanceFromCurve <= 100) {
-        setTooltip({
-          show: true,
-          x: e.clientX + 10,
-          y: e.clientY - 80,
-          price: price,
-          date: exactDate.toLocaleDateString('es-ES', { 
-            day: 'numeric', 
-            month: 'short', 
-            year: 'numeric' 
-          }),
-          snapX: snapX,
-          snapY: snapY,
-          snapDate: exactDate
-        });
+        // Si no existe un keyframe en esta fecha, mostrar signo +
+        if (existingKeyframeIndex === -1) {
+          setTooltip({
+            show: true,
+            x: e.clientX + 10,
+            y: e.clientY - 80,
+            price: price,
+            date: exactDate.toLocaleDateString('es-ES', { 
+              day: 'numeric', 
+              month: 'short', 
+              year: 'numeric' 
+            }),
+            snapX: snapX,
+            snapY: snapY,
+            snapDate: exactDate
+          });
+          setHoveredKeyframe(null);
+        } else {
+          // Si existe un keyframe, no mostrar tooltip pero marcar como hovered
+          setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+          setHoveredKeyframe(existingKeyframeIndex);
+        }
       } else {
         setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+        setHoveredKeyframe(null);
       }
     } else {
       setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+      setHoveredKeyframe(null);
     }
     
     // Drag & drop
     if (dragIdx === null) return;
-    // Invertir escalas usando la misma función que los puntos
+    
+    // Calcular la fecha desde la posición X
     const date = new Date(
       minDate.getTime() +
         ((x - margin) / (width - 2 * margin)) * (maxDate - minDate || 1)
     );
-    const value =
+    
+    // Calcular el valor desde la posición Y (precio ajustado)
+    const adjustedValue =
       minValue +
       ((height - margin - y) / (height - 2 * margin)) * (maxValue - minValue || 1);
+    
+    // Convertir el precio ajustado de vuelta al precio base
+    let baseValue;
+    const basePriceForType = adjustedValue;
+    
+    switch (selectedPriceType) {
+      case 'breakfast':
+        baseValue = Math.round(basePriceForType / 1.15);
+        break;
+      case 'halfBoard':
+        baseValue = Math.round(basePriceForType / 1.35);
+        break;
+      default:
+        baseValue = basePriceForType;
+    }
+    
+    // Convertir de vuelta al precio base (dividir por el coeficiente del tipo de habitación)
+    const finalBaseValue = Math.round(baseValue / roomTypeCoefficients[selectedRoomType]);
+    
     const newKeyframes = sorted.map((k, i) =>
-      i === dragIdx ? { ...k, date: date.toISOString().slice(0, 10), value: Math.round(value) } : k
+      i === dragIdx ? { ...k, date: date.toISOString().slice(0, 10), value: finalBaseValue } : k
     );
     onChange(newKeyframes);
   };
@@ -428,44 +559,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     months.push(new Date(d));
     d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   }
-
-  const basePrice = getInterpolatedPrice(previewDate);
-
-  // Calcular precios según tipo seleccionado
-  const calculatePrices = () => {
-    const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
-    
-    switch (selectedPriceType) {
-      case 'breakfast':
-        return Math.round(basePriceForType * 1.15);
-      case 'halfBoard':
-        return Math.round(basePriceForType * 1.35);
-      default:
-        return basePriceForType;
-    }
-  };
-
-  const currentPrice = calculatePrices();
-
-  // Función para ajustar automáticamente otros precios
-  const adjustOtherPrices = (newPrice, roomType, priceType) => {
-    const newCoefficients = { ...roomTypeCoefficients };
-    
-    if (priceType === 'base') {
-      // Ajustar coeficiente del tipo de habitación
-      newCoefficients[roomType] = newPrice / basePrice;
-    } else if (priceType === 'breakfast') {
-      // Calcular nuevo coeficiente basado en precio con desayuno
-      const basePriceForType = newPrice / 1.15;
-      newCoefficients[roomType] = basePriceForType / basePrice;
-    } else if (priceType === 'halfBoard') {
-      // Calcular nuevo coeficiente basado en precio con media pensión
-      const basePriceForType = newPrice / 1.35;
-      newCoefficients[roomType] = basePriceForType / basePrice;
-    }
-    
-    setRoomTypeCoefficients(newCoefficients);
-  };
 
   return (
     <div style={{ padding: '20px' }}>
@@ -650,9 +743,10 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
             }}
             onClick={(e) => {
-              if (tooltip.show) {
+              // No agregar punto si se hizo clic en un keyframe
+              if (tooltip.show && !e.target.closest('circle[stroke="#667eea"]')) {
                 e.stopPropagation();
-                addPointFromTooltip();
+                // addPointFromTooltip(); // Eliminado
               }
             }}
           >
@@ -688,7 +782,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                                        day === new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
                   
                   // Mostrar todos los días en semana y mes, solo días importantes en quarter
-                  const shouldShow = zoomLevel === 'week' || zoomLevel === 'month' || isImportantDay;
+                  const shouldShow = zoomLevel === 'month' || isImportantDay;
                   
                   if (shouldShow) {
                     dayLabels.push(
@@ -778,33 +872,65 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             )}
             
             {/* Puntos clave */}
-            {sorted.map((k, i) => (
-              <g key={i}>
-                <circle
-                  cx={dateToX(k.date)}
-                  cy={valueToY(k.value)}
-                  r={10}
-                  fill="#fff"
-                  stroke="#667eea"
-                  strokeWidth={3}
-                  onMouseDown={() => handleMouseDown(i)}
-                  onClick={() => setEditingPoint({ index: i, point: k })}
-                  style={{ cursor: "pointer" }}
-                />
-                <text
-                  x={dateToX(k.date)}
-                  y={valueToY(k.value) - 15}
-                  fontSize={18}
-                  fill="#495057"
-                  textAnchor="middle"
-                  fontWeight="bold"
-                >
-                  ${k.value.toLocaleString()}
-                </text>
-              </g>
-            ))}
+            {sorted.map((k, i) => {
+              // Calcular el precio ajustado para este keyframe
+              const basePriceForType = Math.round(k.value * roomTypeCoefficients[selectedRoomType]);
+              let adjustedPrice;
+              switch (selectedPriceType) {
+                case 'breakfast':
+                  if (mealRules.breakfastMode === "FIXED") {
+                    adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
+                  } else {
+                    adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+                  }
+                  break;
+                case 'halfBoard': {
+                  let breakfastPrice = basePriceForType;
+                  if (mealRules.breakfastMode === "FIXED") {
+                    breakfastPrice = basePriceForType + mealRules.breakfastValue;
+                  } else {
+                    breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+                  }
+                  
+                  if (mealRules.dinnerMode === "FIXED") {
+                    adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
+                  } else {
+                    adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+                  }
+                  break;
+                }
+                default:
+                  adjustedPrice = basePriceForType;
+              }
+              
+              return (
+                <g key={i}>
+                  <circle
+                    cx={curveDateToX(k.date)}
+                    cy={valueToY(adjustedPrice)}
+                    r={10}
+                    fill={hoveredKeyframe === i ? "#667eea" : "#fff"}
+                    stroke="#667eea"
+                    strokeWidth={3}
+                    onMouseDown={() => handleMouseDown(i)}
+                    onClick={() => setEditingPoint({ index: i, point: k })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <text
+                    x={curveDateToX(k.date)}
+                    y={valueToY(adjustedPrice) - 15}
+                    fontSize={18}
+                    fill="#495057"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    ${Math.round(adjustedPrice).toLocaleString()}
+                  </text>
+                </g>
+              );
+            })}
             
-            {/* Punto de snap */}
+            {/* Signo + para días sin precio */}
             {tooltip.show && (
               <g>
                 {/* Área de clic invisible más grande */}
@@ -817,23 +943,30 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                   style={{ cursor: "pointer" }}
                   onClick={handleSnapPointClick}
                 />
+                {/* Círculo de fondo */}
                 <circle
                   cx={tooltip.snapX}
                   cy={tooltip.snapY}
-                  r={8}
-                  fill="#e74c3c"
-                  stroke="#c0392b"
-                  strokeWidth={3}
+                  r={12}
+                  fill="#667eea"
+                  stroke="#5a67d8"
+                  strokeWidth={2}
                   style={{ cursor: "pointer" }}
                   onClick={handleSnapPointClick}
                 />
-                <circle
-                  cx={tooltip.snapX}
-                  cy={tooltip.snapY}
-                  r={4}
+                {/* Signo + */}
+                <text
+                  x={tooltip.snapX}
+                  y={tooltip.snapY + 4}
+                  fontSize={16}
                   fill="white"
+                  textAnchor="middle"
+                  fontWeight="bold"
+                  style={{ cursor: "pointer" }}
                   onClick={handleSnapPointClick}
-                />
+                >
+                  +
+                </text>
               </g>
             )}
             
@@ -869,10 +1002,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               ${tooltip.price.toLocaleString()}
             </div>
             <div style={{ fontSize: '14px', color: '#95a5a6' }}>
-              Clic para agregar punto
-            </div>
-            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
-              (o presiona Enter)
+              Clic para agregar precio
             </div>
           </div>
         )}
@@ -902,138 +1032,34 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
-              marginRight: '10px',
               fontSize: '14px'
             }}
           >
-            Guardar Curva
+            Guardar Cambios
           </button>
-          {/* Botón de prueba temporal */}
-          {tooltip.show && (
-            <button
-              onClick={() => {
-                console.log('Botón de prueba: Agregando punto');
-                addPointFromTooltip();
-              }}
-              style={{
-                padding: '10px 20px',
-                background: '#e74c3c',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              🧪 Probar Agregar Punto
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Panel de previsualización mejorado */}
-      <div style={{ 
-        marginTop: '30px',
-        border: '1px solid #e9ecef', 
-        borderRadius: '8px', 
-        padding: '20px',
-        background: '#f8f9fa'
-      }}>
-        <h4 style={{ marginBottom: '15px', color: '#34495e' }}>Previsualización de Tarifas</h4>
-        
-        <div style={{ 
-          display: 'flex', 
-          gap: '20px', 
-          alignItems: 'center',
-          marginBottom: '20px',
-          flexWrap: 'wrap'
-        }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Fecha de previsualización:</label>
-            <input
-              type="date"
-              value={previewDate}
-              onChange={(e) => setPreviewDate(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-          
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Precio actual:</label>
-            <input
-              type="number"
-              value={currentPrice}
-              onChange={(e) => {
-                const newPrice = parseFloat(e.target.value);
-                adjustOtherPrices(newPrice, selectedRoomType, selectedPriceType);
-              }}
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '14px',
-                width: '120px'
-              }}
-            />
-          </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '4px' }}>
-          <thead>
-            <tr style={{ background: '#f8f9fa' }}>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Tipo de Habitación
-              </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Base
-              </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Con Desayuno
-              </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Media Pensión
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(roomTypeCoefficients).map(([type, coefficient]) => {
-              const basePriceForType = Math.round(basePrice * coefficient);
-              const breakfastPrice = Math.round(basePriceForType * 1.15);
-              const halfBoardPrice = Math.round(breakfastPrice * 1.20);
-              
-              return (
-                <tr key={type} style={{ borderBottom: '1px solid #f1f3f4' }}>
-                  <td style={{ padding: '15px', fontWeight: '500', fontSize: '14px' }}>
-                    {roomTypeNames[type]}
-                  </td>
-                  <td style={{ padding: '15px', textAlign: 'right', fontSize: '14px' }}>
-                    ${basePriceForType.toLocaleString()}
-                  </td>
-                  <td style={{ padding: '15px', textAlign: 'right', color: '#28a745', fontSize: '14px' }}>
-                    ${breakfastPrice.toLocaleString()}
-                  </td>
-                  <td style={{ padding: '15px', textAlign: 'right', color: '#dc3545', fontSize: '14px' }}>
-                    ${halfBoardPrice.toLocaleString()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       </div>
 
       {/* Modal para agregar punto */}
       {showAddModal && (
         <AddPointModal
-          initialDate={tooltip.snapDate ? tooltip.snapDate.toISOString().slice(0, 10) : ''}
-          initialValue={tooltip.price || ''}
+          initialDate={tooltip.show && tooltip.snapDate ? tooltip.snapDate.toISOString().slice(0, 10) : ''}
+          initialValue={tooltip.show && tooltip.price ? tooltip.price.toString() : ''}
           onClose={() => setShowAddModal(false)}
           onAdd={(newPoint) => {
+            // Verificar si ya existe un keyframe en esta fecha
+            const newPointDateString = normalizeDate(newPoint.date);
+            const existingKeyframeIndex = sorted.findIndex(point => {
+              const pointDateString = normalizeDate(point.date);
+              return pointDateString === newPointDateString;
+            });
+            
+            if (existingKeyframeIndex !== -1) {
+              showNotification('Ya existe un precio establecido para este día', 'error');
+              return;
+            }
+            
             const newKeyframes = [...sorted, newPoint].sort((a, b) => new Date(a.date) - new Date(b.date));
             onChange(newKeyframes);
             setShowAddModal(false);
