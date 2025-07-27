@@ -111,10 +111,10 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
       }
 
       console.log('Guardado completado');
-      alert('Curva estacional guardada exitosamente');
+      // La notificación se manejará desde el SeasonalCurveEditor
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar la curva estacional');
+      // La notificación se manejará desde el SeasonalCurveEditor
     }
   };
 
@@ -132,6 +132,7 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
       keyframes={keyframes}
       onChange={handleKeyframesChange}
       onSave={handleSave}
+      hotelId={hotelId}
     />
   );
 } 

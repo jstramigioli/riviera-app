@@ -5,6 +5,7 @@ import EtiquetasTab from '../components/configuracion/EtiquetasTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
 import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
 import MealPricingEditor from '../components/configuracion/MealPricingEditor';
+import CoefficientsPanel from '../components/configuracion/CoefficientsPanel';
 
 function ConfiguracionView() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -109,6 +110,9 @@ function ConfiguracionView() {
             }}>
               <SeasonalCurveWrapper />
             </div>
+
+            {/* Configuración de coeficientes */}
+            <CoefficientsPanel />
 
             {/* Configuración de comidas */}
             <div style={{ 

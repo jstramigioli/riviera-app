@@ -16,7 +16,11 @@ router.delete('/keyframes/:hotelId/all', dynamicPricingController.deleteAllSeaso
 // Tarifas dinámicas
 router.get('/rates/:hotelId/:roomTypeId', dynamicPricingController.getDynamicRates);
 router.post('/rates/:hotelId/:roomTypeId/generate', dynamicPricingController.generateDynamicRates);
-router.put('/rates/:hotelId/:roomTypeId/:date', dynamicPricingController.updateRateManually);
+router.put('/rates/:hotelId/:roomTypeId/:date', dynamicPricingController.updateDynamicRate);
+
+// Coeficientes de tipos de habitación
+router.get('/coefficients/:hotelId', dynamicPricingController.getRoomTypeCoefficients);
+router.put('/coefficients/:hotelId', dynamicPricingController.updateRoomTypeCoefficients);
 
 // Reglas de precios de comidas
 router.get('/meals/:hotelId', dynamicPricingController.getMealPricingRules);

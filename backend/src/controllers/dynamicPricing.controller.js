@@ -44,7 +44,7 @@ class DynamicPricingController {
 
       res.json(config);
     } catch (error) {
-      console.error('Error al crear/actualizar configuración:', error);
+      console.error('Error al crear/actualizar configuración de precios dinámicos:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -55,7 +55,7 @@ class DynamicPricingController {
   async getSeasonalKeyframes(req, res) {
     try {
       const { hotelId } = req.params;
-      
+
       const keyframes = await prisma.seasonalKeyframe.findMany({
         where: { hotelId },
         orderBy: { date: 'asc' }
@@ -63,7 +63,7 @@ class DynamicPricingController {
 
       res.json(keyframes);
     } catch (error) {
-      console.error('Error al obtener keyframes:', error);
+      console.error('Error al obtener keyframes estacionales:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -74,18 +74,19 @@ class DynamicPricingController {
   async createSeasonalKeyframe(req, res) {
     try {
       const { hotelId } = req.params;
-      const keyframeData = req.body;
+      const { date, basePrice } = req.body;
 
       const keyframe = await prisma.seasonalKeyframe.create({
         data: {
           hotelId,
-          ...keyframeData
+          date: new Date(date),
+          basePrice: parseFloat(basePrice)
         }
       });
 
       res.status(201).json(keyframe);
     } catch (error) {
-      console.error('Error al crear keyframe:', error);
+      console.error('Error al crear keyframe estacional:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -96,16 +97,19 @@ class DynamicPricingController {
   async updateSeasonalKeyframe(req, res) {
     try {
       const { id } = req.params;
-      const updateData = req.body;
+      const { date, basePrice } = req.body;
 
       const keyframe = await prisma.seasonalKeyframe.update({
         where: { id },
-        data: updateData
+        data: {
+          date: new Date(date),
+          basePrice: parseFloat(basePrice)
+        }
       });
 
       res.json(keyframe);
     } catch (error) {
-      console.error('Error al actualizar keyframe:', error);
+      console.error('Error al actualizar keyframe estacional:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -123,7 +127,7 @@ class DynamicPricingController {
 
       res.status(204).send();
     } catch (error) {
-      console.error('Error al eliminar keyframe:', error);
+      console.error('Error al eliminar keyframe estacional:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -141,7 +145,7 @@ class DynamicPricingController {
 
       res.status(204).send();
     } catch (error) {
-      console.error('Error al eliminar keyframes:', error);
+      console.error('Error al eliminar todos los keyframes:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -191,14 +195,14 @@ class DynamicPricingController {
   }
 
   /**
-   * Actualizar tarifa manualmente (override)
+   * Actualizar tarifa manualmente
    */
-  async updateRateManually(req, res) {
+  async updateDynamicRate(req, res) {
     try {
       const { hotelId, roomTypeId, date } = req.params;
-      const updateData = req.body;
+      const { baseRate, dynamicRate, withBreakfast, withHalfBoard } = req.body;
 
-      const rate = await prisma.dailyRoomRate.update({
+      const rate = await prisma.dailyRoomRate.upsert({
         where: {
           hotelId_roomTypeId_date: {
             hotelId,
@@ -206,15 +210,78 @@ class DynamicPricingController {
             date: new Date(date)
           }
         },
-        data: {
-          ...updateData,
+        update: {
+          baseRate: parseFloat(baseRate),
+          dynamicRate: parseFloat(dynamicRate),
+          withBreakfast: parseFloat(withBreakfast),
+          withHalfBoard: parseFloat(withHalfBoard),
+          isManualOverride: true
+        },
+        create: {
+          hotelId,
+          roomTypeId: parseInt(roomTypeId),
+          date: new Date(date),
+          baseRate: parseFloat(baseRate),
+          dynamicRate: parseFloat(dynamicRate),
+          withBreakfast: parseFloat(withBreakfast),
+          withHalfBoard: parseFloat(withHalfBoard),
           isManualOverride: true
         }
       });
 
       res.json(rate);
     } catch (error) {
-      console.error('Error al actualizar tarifa manualmente:', error);
+      console.error('Error al actualizar tarifa dinámica:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Obtener coeficientes de tipos de habitación
+   */
+  async getRoomTypeCoefficients(req, res) {
+    try {
+      const { hotelId } = req.params;
+
+      // Obtener todos los tipos de habitación con sus multiplicadores
+      const roomTypes = await prisma.roomType.findMany({
+        orderBy: { name: 'asc' }
+      });
+
+      // Convertir a formato de coeficientes
+      const coefficients = {};
+      roomTypes.forEach(roomType => {
+        coefficients[roomType.name] = roomType.multiplier;
+      });
+
+      res.json(coefficients);
+    } catch (error) {
+      console.error('Error al obtener coeficientes de tipos de habitación:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Actualizar coeficientes de tipos de habitación
+   */
+  async updateRoomTypeCoefficients(req, res) {
+    try {
+      const { hotelId } = req.params;
+      const coefficients = req.body;
+
+      // Actualizar multiplicadores de cada tipo de habitación
+      const updatePromises = Object.entries(coefficients).map(([roomTypeName, multiplier]) =>
+        prisma.roomType.updateMany({
+          where: { name: roomTypeName },
+          data: { multiplier: parseFloat(multiplier) }
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      res.json({ message: 'Coeficientes actualizados exitosamente' });
+    } catch (error) {
+      console.error('Error al actualizar coeficientes de tipos de habitación:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
