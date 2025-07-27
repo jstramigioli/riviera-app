@@ -13,7 +13,8 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
   const [preview, setPreview] = useState({ breakfast: 0, halfBoard: 0 });
 
   useEffect(() => {
-    fetch(`/api/dynamic-pricing/meals/${hotelId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/meals/${hotelId}`)
       .then((res) => res.json())
       .then((data) => setRules({ ...defaultRules, ...data }))
       .catch(() => {
@@ -44,7 +45,8 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch(`/api/dynamic-pricing/meals/${hotelId}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      await fetch(`${API_URL}/dynamic-pricing/meals/${hotelId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rules),

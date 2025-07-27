@@ -102,6 +102,12 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const { minDate, maxDate } = getDateRange();
   const minValue = Math.min(...sorted.map((k) => k.value));
   const maxValue = Math.max(...sorted.map((k) => k.value));
+  
+  // DEBUG: Información del rango de fechas
+  console.log('=== DEBUG RANGO FECHAS ===');
+  console.log('minDate:', minDate.toISOString());
+  console.log('maxDate:', maxDate.toISOString());
+  console.log('Diferencia en días:', Math.floor((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)));
 
   // Función para agregar punto desde el tooltip
   const addPointFromTooltip = () => {
@@ -151,7 +157,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
-    fetch(`/api/dynamic-pricing/coefficients/${hotelId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
@@ -211,178 +218,26 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const containerWidth = window.innerWidth - 200; // Margen para controles
   const width = Math.max(800, containerWidth);
   const height = 500;
-  const margin = 80;
+  const margin = 120;
   
   // Función original para la curva (suave)
-  const dateToX = (date) =>
-    margin +
-    ((new Date(date) - minDate) / (maxDate - minDate || 1)) * (width - 2 * margin);
-  
-  // Función específica para puntos (alineada con etiquetas)
-  const pointDateToX = (date) => {
-    const targetDate = new Date(date);
-    targetDate.setHours(12, 0, 0, 0); // Establecer a mediodía para evitar problemas de zona horaria
-    const minDateMid = new Date(minDate);
-    minDateMid.setHours(12, 0, 0, 0);
-    const maxDateMid = new Date(maxDate);
-    maxDateMid.setHours(12, 0, 0, 0);
-    
+  // Función unificada para posicionamiento (keyframes, snap y curva)
+  const dateToX = (date) => {
+    // Usar la fecha tal como viene, sin normalización
     return margin +
-      ((targetDate - minDateMid) / (maxDateMid - minDateMid || 1)) * (width - 2 * margin);
+      ((new Date(date) - minDate) / (maxDate - minDate || 1)) * (width - 2 * margin);
   };
+  
+  // Función inversa para calcular fecha desde posición X
+  const xToDate = (x) => {
+    const ratio = (x - margin) / (width - 2 * margin);
+    return new Date(minDate.getTime() + ratio * (maxDate.getTime() - minDate.getTime()));
+  };
+  
+
   
   const valueToY = (value) =>
     height - margin - ((value - minValue) / (maxValue - minValue || 1)) * (height - 2 * margin);
-
-  // Interpolación para la curva
-  const points = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i], b = sorted[i + 1];
-    const steps = 50; // Más puntos para curva más suave
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
-      const value = lerp(a.value, b.value, t);
-      points.push({ x: dateToX(date), y: valueToY(value) });
-    }
-  }
-
-  // Drag & drop handlers
-  const handleMouseDown = (idx) => setDragIdx(idx);
-  const handleMouseUp = () => {
-    setDragIdx(null);
-    // No ocultar el tooltip si estamos haciendo clic en el punto de snap
-    if (!tooltip.show) {
-      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
-    }
-  };
-
-  // Función específica para clic en punto de snap
-  const handleSnapPointClick = (e) => {
-    e.stopPropagation(); // Evitar que el clic se propague
-    console.log('Clic en punto de snap detectado');
-    
-    if (tooltip.show && tooltip.snapDate) {
-      // Verificar si ya existe un punto en esta fecha
-      const existingPointIndex = sorted.findIndex(point => {
-        const pointDate = new Date(point.date);
-        const snapDate = new Date(tooltip.snapDate);
-        return pointDate.toDateString() === snapDate.toDateString();
-      });
-      
-      if (existingPointIndex !== -1) {
-        // Si existe un punto, editar en lugar de agregar
-        console.log('Punto existente encontrado, editando...');
-        setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
-      } else {
-        // Si no existe, agregar nuevo punto
-        console.log('Agregando nuevo punto...');
-        openAddModalFromSnap();
-      }
-    }
-  };
-
-  const navigatePeriod = (direction) => {
-    const newPeriod = new Date(currentPeriod);
-    console.log('Navegando:', { direction, zoomLevel, currentPeriod: currentPeriod.toDateString(), newPeriod: newPeriod.toDateString() });
-    
-    switch (zoomLevel) {
-      case 'week':
-        newPeriod.setDate(newPeriod.getDate() + direction);
-        break;
-      case 'month':
-        newPeriod.setMonth(newPeriod.getMonth() + direction);
-        break;
-      case 'quarter':
-        newPeriod.setMonth(newPeriod.getMonth() + direction);
-        break;
-    }
-    
-    console.log('Nuevo período:', newPeriod.toDateString());
-    setCurrentPeriod(newPeriod);
-  };
-
-  const handleMouseMove = (e) => {
-    const svgRect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - svgRect.left;
-    const y = e.clientY - svgRect.top;
-    
-        // Tooltip para la curva
-    if (x >= margin && x <= width - margin && y >= margin && y <= height - margin) {
-      // Calcular la fecha aproximada basada en la posición X del mouse
-      const approximateDate = new Date(minDate.getTime() + (x - margin) / (width - 2 * margin) * (maxDate - minDate));
-      
-      // Encontrar el día exacto más cercano al mouse
-      const targetDate = new Date(approximateDate);
-      targetDate.setHours(12, 0, 0, 0); // Establecer a mediodía para evitar problemas de zona horaria
-      
-      // Redondear al día más cercano
-      const dayDiff = Math.round((targetDate.getTime() - minDate.getTime()) / (24 * 60 * 60 * 1000));
-      const exactDate = new Date(minDate.getTime() + dayDiff * 24 * 60 * 60 * 1000);
-      exactDate.setHours(12, 0, 0, 0);
-      
-      // Calcular la posición X del día exacto
-      const snapX = dateToX(exactDate);
-      const price = getInterpolatedPrice(exactDate);
-      const snapY = valueToY(price);
-      
-      // Verificar que el snapX esté dentro del rango visible y cerca del mouse
-      if (snapX < margin || snapX > width - margin || Math.abs(snapX - x) > 100) {
-        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
-        return;
-      }
-      
-      // Calcular la distancia desde la curva
-      const distanceFromCurve = Math.abs(y - snapY);
-      
-      // Solo mostrar tooltip si estamos cerca de la curva (dentro de 30px)
-      if (distanceFromCurve <= 30) {
-        setTooltip({
-          show: true,
-          x: e.clientX + 10,
-          y: e.clientY - 80,
-          price: price,
-          date: exactDate.toLocaleDateString('es-ES', { 
-            day: 'numeric', 
-            month: 'short', 
-            year: 'numeric' 
-          }),
-          snapX: snapX,
-          snapY: snapY,
-          snapDate: exactDate
-        });
-      } else {
-        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
-      }
-    } else {
-      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
-    }
-    
-    // Drag & drop
-    if (dragIdx === null) return;
-    // Invertir escalas
-    const date = new Date(
-      minDate.getTime() +
-        ((x - margin) / (width - 2 * margin)) * (maxDate - minDate || 1)
-    );
-    const value =
-      minValue +
-      ((height - margin - y) / (height - 2 * margin)) * (maxValue - minValue || 1);
-    const newKeyframes = sorted.map((k, i) =>
-      i === dragIdx ? { ...k, date: date.toISOString().slice(0, 10), value: Math.round(value) } : k
-    );
-    onChange(newKeyframes);
-  };
-
-
-
-  // Meses de fondo
-  const months = [];
-  let d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-  while (d <= maxDate) {
-    months.push(new Date(d));
-    d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-  }
 
   // Calcular precio interpolado para una fecha
   const getInterpolatedPrice = (date) => {
@@ -410,6 +265,169 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     const t = (targetDate - new Date(before.date)) / (new Date(after.date) - new Date(before.date));
     return lerp(before.value, after.value, t);
   };
+
+  // Interpolación para la curva
+  const points = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i], b = sorted[i + 1];
+    const steps = 50; // Más puntos para curva más suave
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
+      const value = lerp(a.value, b.value, t);
+      points.push({ x: dateToX(date), y: valueToY(value) });
+    }
+  }
+
+  // Generar puntos de la curva para los rectángulos de debug
+  const curvePoints = [];
+  const currentDate = new Date(minDate);
+  
+  while (currentDate <= maxDate) {
+    const x = dateToX(currentDate);
+    if (x >= margin && x <= width - margin) {
+      const price = getInterpolatedPrice(currentDate);
+      const y = valueToY(price);
+      curvePoints.push({ x, y, date: new Date(currentDate) });
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  // Drag & drop handlers
+  const handleMouseDown = (idx) => setDragIdx(idx);
+  const handleMouseUp = () => {
+    setDragIdx(null);
+    // No ocultar el tooltip si estamos haciendo clic en el punto de snap
+    if (!tooltip.show) {
+      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+    }
+  };
+
+  // Función específica para clic en punto de snap
+  const handleSnapPointClick = (e) => {
+    e.stopPropagation(); // Evitar que el clic se propague
+    
+    if (tooltip.show && tooltip.snapDate) {
+      // Verificar si ya existe un punto en esta fecha
+      const existingPointIndex = sorted.findIndex(point => {
+        const pointDate = new Date(point.date);
+        const snapDate = new Date(tooltip.snapDate);
+        return pointDate.toDateString() === snapDate.toDateString();
+      });
+      
+      if (existingPointIndex !== -1) {
+        // Si existe un punto, editar en lugar de agregar
+        setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
+      } else {
+        // Si no existe, agregar nuevo punto
+        openAddModalFromSnap();
+      }
+    }
+  };
+
+  const navigatePeriod = (direction) => {
+    const newPeriod = new Date(currentPeriod);
+    
+    switch (zoomLevel) {
+      case 'week':
+        newPeriod.setDate(newPeriod.getDate() + direction);
+        break;
+      case 'month':
+        newPeriod.setMonth(newPeriod.getMonth() + direction);
+        break;
+      case 'quarter':
+        newPeriod.setMonth(newPeriod.getMonth() + direction);
+        break;
+    }
+    
+    setCurrentPeriod(newPeriod);
+  };
+
+  const handleMouseMove = (e) => {
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - svgRect.left;
+    const y = e.clientY - svgRect.top;
+    
+
+    
+    // Tooltip para la curva - simplificar condiciones
+    if (x >= margin && x <= width - margin) {
+      // Calcular la fecha aproximada desde la posición del mouse
+      const approximateDate = xToDate(x);
+      
+      // Encontrar el día correspondiente basado en la posición X
+      // Calcular cuántos días han pasado desde minDate usando round para centrar en el día
+      const daysSinceMinDate = Math.round((approximateDate - minDate) / (1000 * 60 * 60 * 24));
+      const targetDate = new Date(minDate);
+      targetDate.setDate(minDate.getDate() + daysSinceMinDate);
+      targetDate.setHours(0, 0, 0, 0); // Establecer a inicio del día para el snap
+      
+      // Calcular la posición X exacta del día calculado
+      const snapX = dateToX(targetDate);
+      
+      const price = getInterpolatedPrice(targetDate);
+      const snapY = valueToY(price);
+      
+      // Usar la fecha calculada para el tooltip
+      const exactDate = targetDate;
+      
+      // Verificar que el snapX esté dentro del rango visible
+      if (snapX < margin || snapX > width - margin) {
+        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+        return;
+      }
+      
+      // Calcular la distancia desde la curva
+      const distanceFromCurve = Math.abs(y - snapY);
+      
+      // Solo mostrar tooltip si estamos cerca de la curva (dentro de 100px para ser muy permisivo)
+      if (distanceFromCurve <= 100) {
+        setTooltip({
+          show: true,
+          x: e.clientX + 10,
+          y: e.clientY - 80,
+          price: price,
+          date: exactDate.toLocaleDateString('es-ES', { 
+            day: 'numeric', 
+            month: 'short', 
+            year: 'numeric' 
+          }),
+          snapX: snapX,
+          snapY: snapY,
+          snapDate: exactDate
+        });
+      } else {
+        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+      }
+    } else {
+      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+    }
+    
+    // Drag & drop
+    if (dragIdx === null) return;
+    // Invertir escalas usando la misma función que los puntos
+    const date = new Date(
+      minDate.getTime() +
+        ((x - margin) / (width - 2 * margin)) * (maxDate - minDate || 1)
+    );
+    const value =
+      minValue +
+      ((height - margin - y) / (height - 2 * margin)) * (maxValue - minValue || 1);
+    const newKeyframes = sorted.map((k, i) =>
+      i === dragIdx ? { ...k, date: date.toISOString().slice(0, 10), value: Math.round(value) } : k
+    );
+    onChange(newKeyframes);
+  };
+
+
+
+  // Meses de fondo
+  const months = [];
+  let d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  while (d <= maxDate) {
+    months.push(new Date(d));
+    d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  }
 
   const basePrice = getInterpolatedPrice(previewDate);
 
@@ -632,9 +650,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
             }}
             onClick={(e) => {
-              console.log('SVG clicked at:', e.clientX, e.clientY);
               if (tooltip.show) {
-                console.log('Tooltip is active, attempting to add point');
                 e.stopPropagation();
                 addPointFromTooltip();
               }
@@ -652,6 +668,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                 opacity={0.3}
               />
             ))}
+            
+
             
             {/* Ejes */}
             <line x1={margin} y1={height - margin} x2={width - margin} y2={height - margin} stroke="#6c757d" strokeWidth={2} />
@@ -677,8 +695,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                       <text
                         key={currentDate.getTime()}
                         x={x}
-                        y={height - margin + 15}
-                        fontSize={zoomLevel === 'quarter' ? 10 : 9}
+                        y={height - margin + 20}
+                        fontSize={zoomLevel === 'quarter' ? 20 : 18}
                         fill="#495057"
                         textAnchor="middle"
                         fontWeight={isImportantDay ? "600" : "400"}
@@ -706,10 +724,10 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                     <text
                       key={`month-${currentMonth.getTime()}`}
                       x={x + 5}
-                      y={height - margin + 35}
-                      fontSize={12}
-                      fill="#495057"
-                      fontWeight="bold"
+                                              y={height - margin + 55}
+                        fontSize={24}
+                        fill="#495057"
+                        fontWeight="bold"
                     >
                       {getMonthName(currentMonth)}
                     </text>
@@ -728,7 +746,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               return (
                 <g key={percent}>
                   <line x1={margin - 5} y1={y} x2={margin} y2={y} stroke="#6c757d" strokeWidth={1} />
-                  <text x={margin - 10} y={y + 5} fontSize={12} fill="#495057" textAnchor="end" fontWeight="bold">
+                  <text x={margin - 25} y={y + 5} fontSize={18} fill="#495057" textAnchor="end" fontWeight="bold">
                     ${Math.round(value).toLocaleString()}
                   </text>
                 </g>
@@ -763,7 +781,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             {sorted.map((k, i) => (
               <g key={i}>
                 <circle
-                  cx={pointDateToX(k.date)}
+                  cx={dateToX(k.date)}
                   cy={valueToY(k.value)}
                   r={10}
                   fill="#fff"
@@ -774,9 +792,9 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                   style={{ cursor: "pointer" }}
                 />
                 <text
-                  x={pointDateToX(k.date)}
+                  x={dateToX(k.date)}
                   y={valueToY(k.value) - 15}
-                  fontSize={12}
+                  fontSize={18}
                   fill="#495057"
                   textAnchor="middle"
                   fontWeight="bold"
@@ -818,6 +836,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                 />
               </g>
             )}
+            
+
 
 
           </svg>
@@ -828,30 +848,30 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
           <div
             style={{
               position: 'absolute',
-              left: tooltip.x,
-              top: tooltip.y,
+              left: tooltip.x + 50,
+              top: tooltip.y - 50,
               backgroundColor: '#2c3e50',
               color: 'white',
-              padding: '8px 12px',
+              padding: '12px 16px',
               borderRadius: '8px',
-              fontSize: '12px',
+              fontSize: '16px',
               zIndex: 1000,
               pointerEvents: 'none',
               boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-              minWidth: '140px',
+              minWidth: '250px',
               textAlign: 'center'
             }}
           >
-            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '18px' }}>
               {tooltip.date}
             </div>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '6px' }}>
               ${tooltip.price.toLocaleString()}
             </div>
-            <div style={{ fontSize: '10px', color: '#95a5a6' }}>
+            <div style={{ fontSize: '14px', color: '#95a5a6' }}>
               Clic para agregar punto
             </div>
-            <div style={{ fontSize: '8px', color: '#7f8c8d' }}>
+            <div style={{ fontSize: '12px', color: '#7f8c8d' }}>
               (o presiona Enter)
             </div>
           </div>

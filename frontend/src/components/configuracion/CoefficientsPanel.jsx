@@ -19,11 +19,12 @@ const defaultCoefficients = {
 export default function CoefficientsPanel({ hotelId = "default-hotel" }) {
   const [coefficients, setCoefficients] = useState(defaultCoefficients);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     // Cargar coeficientes desde el backend
-    fetch(`/api/dynamic-pricing/coefficients/${hotelId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
@@ -48,7 +49,8 @@ export default function CoefficientsPanel({ hotelId = "default-hotel" }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/dynamic-pricing/coefficients/${hotelId}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(coefficients)

@@ -21,7 +21,8 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
   useEffect(() => {
     console.log('Cargando keyframes para hotel:', hotelId);
     // Cargar keyframes desde el backend
-    fetch(`/api/dynamic-pricing/keyframes/${hotelId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`)
       .then((res) => {
         console.log('Respuesta del fetch:', res.status)
         return res.json();
@@ -90,7 +91,8 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
 
       // Eliminar keyframes existentes y crear los nuevos
       console.log('Eliminando keyframes existentes...');
-      const deleteResponse = await fetch(`/api/dynamic-pricing/keyframes/${hotelId}/all`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const deleteResponse = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}/all`, {
         method: 'DELETE'
       });
       console.log('Respuesta DELETE:', deleteResponse.status);
@@ -99,7 +101,7 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
       console.log('Creando nuevos keyframes...');
       for (const keyframe of backendKeyframes) {
         console.log('Creando keyframe:', keyframe);
-        const response = await fetch(`/api/dynamic-pricing/keyframes/${hotelId}`, {
+        const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(keyframe)

@@ -11,6 +11,7 @@ function getMonthDays(year, month) {
 }
 
 export default function RatesCalendar() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [rates, setRates] = useState({});
@@ -34,7 +35,7 @@ export default function RatesCalendar() {
     const startDate = new Date(year, month, 1).toISOString().slice(0, 10);
     const endDate = new Date(year, month + 1, 0).toISOString().slice(0, 10);
     
-    fetch(`/api/dynamic-pricing/rates/default-hotel/1?startDate=${startDate}&endDate=${endDate}`)
+    fetch(`${API_URL}/dynamic-pricing/rates/default-hotel/1?startDate=${startDate}&endDate=${endDate}`)
       .then((res) => res.json())
       .then((data) => {
         // Organizar los datos por fecha
@@ -78,14 +79,14 @@ export default function RatesCalendar() {
 
   const handleOverride = async (roomTypeId, newPrice) => {
     try {
-      await fetch(`/api/dynamic-pricing/rates/default-hotel/${roomTypeId}/${selectedDate.toISOString().slice(0, 10)}`, {
+      await fetch(`${API_URL}/dynamic-pricing/rates/default-hotel/${roomTypeId}/${selectedDate.toISOString().slice(0, 10)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dynamicRate: newPrice }),
       });
       // Refrescar tarifas
       const key = selectedDate.toISOString().slice(0, 10);
-      fetch(`/api/dynamic-pricing/rates/default-hotel/1?startDate=${key}&endDate=${key}`)
+      fetch(`${API_URL}/dynamic-pricing/rates/default-hotel/1?startDate=${key}&endDate=${key}`)
         .then((res) => res.json())
         .then((data) => setRates((r) => ({ ...r, [key]: data })));
     } catch {

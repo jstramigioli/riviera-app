@@ -22,7 +22,8 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
   const [weightSum, setWeightSum] = useState(1);
 
   useEffect(() => {
-    fetch(`/api/dynamic-pricing/config/${hotelId}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
         setConfig({ ...defaultConfig, ...data });
@@ -74,7 +75,8 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
 
     setSaving(true);
     try {
-      await fetch(`/api/dynamic-pricing/config/${hotelId}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      await fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
