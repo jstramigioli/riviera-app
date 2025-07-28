@@ -122,8 +122,13 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   };
   
   const adjustedValues = sorted.map(k => calculateAdjustedValue(k.value));
-  const minValue = Math.min(...adjustedValues);
+  const minValue = 0; // Comenzar siempre en 0 pesos
   const maxValue = Math.max(...adjustedValues);
+  
+  console.log(`🔍 Valores para eje Y:`);
+  console.log(`   minValue: ${minValue}`);
+  console.log(`   maxValue: ${maxValue}`);
+  console.log(`   adjustedValues: [${adjustedValues.join(', ')}]`);
   
 
 
@@ -464,52 +469,157 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     }
   };
 
-  // Interpolación para la curva
-  const points = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i], b = sorted[i + 1];
-    const steps = 50; // Más puntos para curva más suave
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
-      const basePrice = lerp(a.value, b.value, t);
-      
-      // Aplicar coeficiente del tipo de habitación seleccionado
-      const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
-      
-      // Aplicar multiplicador según el tipo de precio seleccionado
-      let adjustedPrice;
-      switch (selectedPriceType) {
-        case 'breakfast':
-          if (mealRules.breakfastMode === "FIXED") {
-            adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
-          } else {
-            adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+  // Interpolación para la curva - separada por períodos operacionales
+  const curveSegments = [];
+  const operationalPeriods = getOperationalPeriods();
+  
+  // Si no hay períodos operacionales, usar la lógica original
+  if (operationalPeriods.length === 0) {
+    const points = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i], b = sorted[i + 1];
+      const steps = 50;
+      for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
+        const basePrice = lerp(a.value, b.value, t);
+        
+        const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
+        let adjustedPrice;
+        switch (selectedPriceType) {
+          case 'breakfast':
+            if (mealRules.breakfastMode === "FIXED") {
+              adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
+            } else {
+              adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+            }
+            break;
+          case 'halfBoard': {
+            let breakfastPrice = basePriceForType;
+            if (mealRules.breakfastMode === "FIXED") {
+              breakfastPrice = basePriceForType + mealRules.breakfastValue;
+            } else {
+              breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+            }
+            
+            if (mealRules.dinnerMode === "FIXED") {
+              adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
+            } else {
+              adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+            }
+            break;
           }
-          break;
-        case 'halfBoard': {
-          let breakfastPrice = basePriceForType;
-          if (mealRules.breakfastMode === "FIXED") {
-            breakfastPrice = basePriceForType + mealRules.breakfastValue;
-          } else {
-            breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
-          }
-          
-          if (mealRules.dinnerMode === "FIXED") {
-            adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
-          } else {
-            adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
-          }
-          break;
+          default:
+            adjustedPrice = basePriceForType;
         }
-        default:
-          adjustedPrice = basePriceForType;
+        
+        points.push({ x: curveDateToX(date), y: valueToY(adjustedPrice) });
+      }
+    }
+    curveSegments.push(points);
+  } else {
+    // Generar curvas separadas para cada período operacional
+    operationalPeriods.forEach((period) => {
+      const periodStart = new Date(period.startDate);
+      const periodEnd = new Date(period.endDate);
+      
+      // Filtrar keyframes que están dentro de este período (incluyendo operacionales)
+      const periodKeyframes = sorted.filter(k => {
+        const keyframeDate = new Date(k.date);
+        // Normalizar fechas usando toISOString().split('T')[0] para evitar problemas de zona horaria
+        const keyframeDateStr = keyframeDate.toISOString().split('T')[0];
+        const periodStartStr = periodStart.toISOString().split('T')[0];
+        const periodEndStr = periodEnd.toISOString().split('T')[0];
+        
+        const isInPeriod = keyframeDateStr >= periodStartStr && keyframeDateStr <= periodEndStr;
+        
+        // Logs detallados para el keyframe de apertura
+        if (k.isOperational && k.operationalType === 'opening') {
+          console.log(`🔍 DEBUG APERTURA:`);
+          console.log(`   Keyframe date: ${keyframeDate.toISOString()}`);
+          console.log(`   Keyframe date string: ${keyframeDateStr}`);
+          console.log(`   Period start: ${periodStart.toISOString()}`);
+          console.log(`   Period start string: ${periodStartStr}`);
+          console.log(`   Period end: ${periodEnd.toISOString()}`);
+          console.log(`   Period end string: ${periodEndStr}`);
+          console.log(`   keyframeDateStr >= periodStartStr: ${keyframeDateStr >= periodStartStr}`);
+          console.log(`   keyframeDateStr <= periodEndStr: ${keyframeDateStr <= periodEndStr}`);
+          console.log(`   isInPeriod: ${isInPeriod}`);
+        }
+        
+        console.log(`🔍 FILTRO: Keyframe ${new Date(k.date).toISOString().split('T')[0]} - ${k.isOperational ? k.operationalType : 'NORMAL'} - $${k.value} - En período: ${isInPeriod} (${periodStart.toISOString().split('T')[0]} a ${periodEnd.toISOString().split('T')[0]})`);
+        return isInPeriod;
+      });
+      
+      // Ordenar keyframes del período por fecha
+      const sortedPeriodKeyframes = periodKeyframes.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Generar curva para este período
+      const points = [];
+      
+      // Si hay keyframes en este período, generar la curva
+      if (sortedPeriodKeyframes.length > 1) {
+        console.log(`🔍 DEBUG: Generando curva con ${sortedPeriodKeyframes.length} keyframes`);
+        console.log(`🔍 DEBUG: Keyframes ordenados:`);
+        sortedPeriodKeyframes.forEach((k, i) => {
+          const dateStr = new Date(k.date).toISOString().split('T')[0];
+          const typeStr = k.isOperational ? (k.operationalType === 'opening' ? 'APERTURA' : 'CIERRE') : 'NORMAL';
+          console.log(`   ${i + 1}. ${dateStr} - ${typeStr} - $${k.value}`);
+        });
+        
+        for (let i = 0; i < sortedPeriodKeyframes.length - 1; i++) {
+          const a = sortedPeriodKeyframes[i], b = sortedPeriodKeyframes[i + 1];
+          console.log(`🔍 DEBUG: Segmento ${i + 1}: Interpolando entre ${new Date(a.date).toISOString().split('T')[0]} (${a.isOperational ? a.operationalType : 'NORMAL'}) y ${new Date(b.date).toISOString().split('T')[0]} (${b.isOperational ? b.operationalType : 'NORMAL'})`);
+          
+          const steps = 50;
+          for (let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            const date = new Date(lerp(new Date(a.date).getTime(), new Date(b.date).getTime(), t));
+            const basePrice = lerp(a.value, b.value, t);
+            
+            const basePriceForType = Math.round(basePrice * roomTypeCoefficients[selectedRoomType]);
+            let adjustedPrice;
+            switch (selectedPriceType) {
+              case 'breakfast':
+                if (mealRules.breakfastMode === "FIXED") {
+                  adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
+                } else {
+                  adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+                }
+                break;
+              case 'halfBoard': {
+                let breakfastPrice = basePriceForType;
+                if (mealRules.breakfastMode === "FIXED") {
+                  breakfastPrice = basePriceForType + mealRules.breakfastValue;
+                } else {
+                  breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+                }
+                
+                if (mealRules.dinnerMode === "FIXED") {
+                  adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
+                } else {
+                  adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+                }
+                break;
+              }
+              default:
+                adjustedPrice = basePriceForType;
+            }
+            
+            points.push({ x: curveDateToX(date), y: valueToY(adjustedPrice) });
+          }
+        }
       }
       
-      points.push({ x: curveDateToX(date), y: valueToY(adjustedPrice) });
-    }
+      if (points.length > 0) {
+        console.log(`🔍 DEBUG: Puntos generados para período: ${points.length}`);
+        console.log(`🔍 DEBUG: Primer punto: x=${points[0].x}, y=${points[0].y}`);
+        console.log(`🔍 DEBUG: Último punto: x=${points[points.length-1].x}, y=${points[points.length-1].y}`);
+        curveSegments.push(points);
+      }
+    });
   }
-
+  
   // Generar puntos de la curva para los rectángulos de debug
   const curvePoints = [];
   const currentDate = new Date(minDate);
@@ -538,12 +648,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const handleSnapPointClick = (e) => {
     e.stopPropagation(); // Evitar que el clic se propague
     
-    console.log('🔍 handleSnapPointClick llamado');
-    console.log('🔍 tooltip:', tooltip);
-    
     if (tooltip.show && tooltip.snapDate) {
-      console.log('🔍 snapDate encontrado:', tooltip.snapDate);
-      
       // Verificar si ya existe un punto en esta fecha
       const snapDateString = normalizeDate(tooltip.snapDate);
       const existingPointIndex = sorted.findIndex(point => {
@@ -551,22 +656,13 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         return pointDateString === snapDateString;
       });
       
-      console.log('🔍 snapDateString:', snapDateString);
-      console.log('🔍 existingPointIndex:', existingPointIndex);
-      
       if (existingPointIndex !== -1) {
-        // Si existe un punto, editar en lugar de agregar
-        console.log('🔍 Editando punto existente');
+        // Editar punto existente
         setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
       } else {
-        // Si no existe, abrir modal para agregar nuevo punto
-        console.log('🔍 Abriendo modal para agregar punto');
+        // Agregar nuevo punto
         setShowAddModal(true);
       }
-    } else {
-      console.log('❌ tooltip.show o tooltip.snapDate no están disponibles');
-      console.log('🔍 tooltip.show:', tooltip.show);
-      console.log('🔍 tooltip.snapDate:', tooltip.snapDate);
     }
   };
 
@@ -589,8 +685,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     const svgRect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - svgRect.left;
     const y = e.clientY - svgRect.top;
-    
-
     
     // Tooltip para la curva - simplificar condiciones
     if (x >= margin && x <= width - margin) {
@@ -632,6 +726,30 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       
       // Solo mostrar tooltip si estamos cerca de la curva (dentro de 100px para ser muy permisivo)
       if (distanceFromCurve <= 100) {
+        // Verificar en qué período operacional estamos haciendo hover
+        const operationalPeriods = getOperationalPeriods();
+        const currentPeriod = operationalPeriods.find(period => {
+          const periodStart = new Date(period.startDate);
+          const periodEnd = new Date(period.endDate);
+          return exactDate >= periodStart && exactDate <= periodEnd;
+        });
+        
+        if (currentPeriod) {
+          // Contar cuántos segmentos de línea azul hay en este período
+          const periodStart = new Date(currentPeriod.startDate);
+          const periodEnd = new Date(currentPeriod.endDate);
+          
+          const periodKeyframes = sorted.filter(k => {
+            const keyframeDate = new Date(k.date);
+            return keyframeDate >= periodStart && keyframeDate <= periodEnd;
+          });
+          
+          const sortedPeriodKeyframes = periodKeyframes.sort((a, b) => new Date(a.date) - new Date(b.date));
+          const segmentCount = sortedPeriodKeyframes.length > 1 ? sortedPeriodKeyframes.length - 1 : 0;
+          
+          console.log(`🔍 Hover en período operacional: ${currentPeriod.label || 'Sin etiqueta'} - Segmentos de línea azul: ${segmentCount}`);
+        }
+        
         // Si no existe un keyframe en esta fecha, mostrar signo +
         if (existingKeyframeIndex === -1) {
           setTooltip({
@@ -1025,13 +1143,16 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               );
             })}
             
-            {/* Curva interpolada */}
-            <polyline
-              fill="none"
-              stroke="#667eea"
-              strokeWidth={4}
-              points={points.map((p) => `${p.x},${p.y}`).join(" ")}
-            />
+            {/* Curvas interpoladas separadas por períodos operacionales */}
+            {curveSegments.map((segment, segmentIndex) => (
+              <polyline
+                key={`curve-segment-${segmentIndex}`}
+                fill="none"
+                stroke="#667eea"
+                strokeWidth={4}
+                points={segment.map((p) => `${p.x},${p.y}`).join(" ")}
+              />
+            ))}
             
 
             
