@@ -47,6 +47,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     dinnerMode: "PERCENTAGE",
     dinnerValue: 0.2,
   });
+  const [saving, setSaving] = useState(false);
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
@@ -78,6 +79,22 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       });
   }, [hotelId]);
 
+  // Escuchar eventos de actualización de reglas de comidas
+  useEffect(() => {
+    const handleMealRulesUpdate = (event) => {
+      if (event.detail && event.detail.hotelId === hotelId) {
+        // Actualizar las reglas con los nuevos datos
+        setMealRules(event.detail.rules);
+      }
+    };
+
+    window.addEventListener('mealRulesUpdated', handleMealRulesUpdate);
+
+    return () => {
+      window.removeEventListener('mealRulesUpdated', handleMealRulesUpdate);
+    };
+  }, [hotelId]);
+
   // Calcular precios de comidas
   const calculateMealPrices = (basePriceForType) => {
     let breakfastPrice = basePriceForType;
@@ -103,6 +120,56 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     };
   };
 
+  // Manejar cambios en coeficientes
+  const handleCoefficientChange = (roomType, value) => {
+    const newCoefficients = {
+      ...roomTypeCoefficients,
+      [roomType]: parseFloat(value) || 0
+    };
+    setRoomTypeCoefficients(newCoefficients);
+    
+    // Guardar automáticamente
+    saveCoefficients(newCoefficients);
+  };
+
+  // Manejar cambios en precios base
+  const handleBasePriceChange = (roomType, value) => {
+    const newPrice = parseFloat(value) || 0;
+    const newCoefficient = newPrice / basePrice;
+    
+    const newCoefficients = {
+      ...roomTypeCoefficients,
+      [roomType]: newCoefficient
+    };
+    setRoomTypeCoefficients(newCoefficients);
+    
+    // Guardar automáticamente
+    saveCoefficients(newCoefficients);
+  };
+
+  // Guardar coeficientes
+  const saveCoefficients = async (coefficients) => {
+    setSaving(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      await fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(coefficients)
+      });
+      
+      // Disparar evento para actualizar otros componentes
+      window.dispatchEvent(new CustomEvent('coefficientsUpdated', {
+        detail: { hotelId, coefficients }
+      }));
+      
+    } catch (error) {
+      console.error('Error al guardar coeficientes:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div style={{ 
       backgroundColor: 'white',
@@ -115,21 +182,17 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     }}>
       <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}>Previsualización de Tarifas</h3>
       
-      <div style={{ 
-        display: 'flex', 
-        gap: '20px', 
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexWrap: 'wrap'
-      }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Fecha de previsualización:</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+            Fecha de previsualización:
+          </label>
           <input
             type="date"
             value={previewDate}
             onChange={(e) => setPreviewDate(e.target.value)}
             style={{
-              padding: '8px 12px',
+              padding: '8px',
               border: '1px solid #ced4da',
               borderRadius: '4px',
               fontSize: '14px'
@@ -138,13 +201,15 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
         </div>
         
         <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Precio base:</label>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+            Precio base:
+          </label>
           <input
             type="number"
             value={basePrice}
-            onChange={(e) => setBasePrice(parseFloat(e.target.value) || 10000)}
+            onChange={(e) => setBasePrice(parseFloat(e.target.value) || 0)}
             style={{
-              padding: '8px 12px',
+              padding: '8px',
               border: '1px solid #ced4da',
               borderRadius: '4px',
               fontSize: '14px',
@@ -155,20 +220,30 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '4px' }}>
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          fontSize: '14px'
+        }}>
           <thead>
-            <tr style={{ background: '#f8f9fa' }}>
-              <th style={{ padding: '15px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
+            <tr style={{ 
+              backgroundColor: '#f8f9fa',
+              borderBottom: '2px solid #dee2e6'
+            }}>
+              <th style={{ padding: '15px', textAlign: 'left', fontWeight: '600', color: '#495057' }}>
                 Tipo de Habitación
               </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Base
+              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+                Coeficiente
               </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
+              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+                Precio Base
+              </th>
+              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
                 Con Desayuno
               </th>
-              <th style={{ padding: '15px', textAlign: 'right', borderBottom: '1px solid #dee2e6', fontSize: '14px' }}>
-                Media Pensión
+              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+                Con Media Pensión
               </th>
             </tr>
           </thead>
@@ -181,12 +256,42 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                 const { breakfast, halfBoard } = calculateMealPrices(basePriceForType);
                 
                 return (
-                  <tr key={type} style={{ borderBottom: '1px solid #f1f3f4' }}>
-                    <td style={{ padding: '15px', fontWeight: '500', fontSize: '14px' }}>
+                  <tr key={type} style={{ borderBottom: '1px solid #e9ecef' }}>
+                    <td style={{ padding: '15px', fontWeight: '500', color: '#495057' }}>
                       {roomTypeNames[type] || type}
                     </td>
-                    <td style={{ padding: '15px', textAlign: 'right', fontSize: '14px' }}>
-                      ${basePriceForType.toLocaleString()}
+                    <td style={{ padding: '15px', textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        value={coefficient}
+                        onChange={(e) => handleCoefficientChange(type, e.target.value)}
+                        step="0.01"
+                        min="0"
+                        style={{
+                          width: '80px',
+                          padding: '4px 8px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          textAlign: 'center'
+                        }}
+                      />
+                    </td>
+                    <td style={{ padding: '15px', textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        value={basePriceForType}
+                        onChange={(e) => handleBasePriceChange(type, e.target.value)}
+                        min="0"
+                        style={{
+                          width: '100px',
+                          padding: '4px 8px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          textAlign: 'center'
+                        }}
+                      />
                     </td>
                     <td style={{ padding: '15px', textAlign: 'right', color: '#28a745', fontSize: '14px' }}>
                       ${breakfast.toLocaleString()}
@@ -200,6 +305,17 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
           </tbody>
         </table>
       </div>
+      
+      {saving && (
+        <div style={{ 
+          marginTop: '10px', 
+          textAlign: 'center', 
+          color: '#6c757d', 
+          fontSize: '12px' 
+        }}>
+          Guardando cambios...
+        </div>
+      )}
     </div>
   );
 } 

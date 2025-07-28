@@ -64,19 +64,19 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     dinnerMode: "PERCENTAGE",
     dinnerValue: 0.2,
   });
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'error' });
   const [tooltip, setTooltip] = useState({ 
     show: false, 
     x: 0, 
     y: 0, 
-    price: 0, 
     date: '', 
-    snapX: 0, 
-    snapY: 0, 
-    snapDate: null 
+    price: 0,
+    snapX: 0,
+    snapY: 0
   });
   const svgRef = useRef();
-  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [hoveredKeyframe, setHoveredKeyframe] = useState(null);
+  const [periodsData, setPeriodsData] = useState([]);
 
   // Ordenar keyframes por fecha
   const sorted = [...keyframes].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -140,7 +140,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     setNotification({ show: true, message, type });
     setTimeout(() => {
       setNotification({ show: false, message: '', type: 'success' });
-    }, 3000);
+    }, 5000);
   };
 
   // Cargar coeficientes desde el backend
@@ -173,6 +173,135 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       });
   }, [hotelId]);
 
+  // Cargar períodos operacionales desde el backend
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/operational-periods/${hotelId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Los keyframes operacionales se crean automáticamente en el backend
+          // No necesitamos crearlos aquí
+          console.log('Períodos operacionales cargados:', data.length);
+        }
+      })
+      .catch((error) => {
+        console.log('Error al cargar períodos operacionales:', error);
+      });
+  }, [hotelId]);
+
+  // Cargar información de períodos operacionales
+  useEffect(() => {
+    const loadPeriodsData = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${API_URL}/operational-periods/${hotelId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setPeriodsData(data);
+        }
+      } catch (error) {
+        console.error('Error al cargar información de períodos:', error);
+      }
+    };
+    
+    loadPeriodsData();
+  }, [hotelId]);
+
+  const getOperationalPeriods = () => {
+    const operationalKeyframes = sorted.filter(k => k.isOperational);
+    const periods = [];
+    
+    // Agrupar keyframes por periodId
+    const grouped = {};
+    operationalKeyframes.forEach(k => {
+      if (!grouped[k.periodId]) {
+        grouped[k.periodId] = {};
+      }
+      grouped[k.periodId][k.operationalType] = k;
+    });
+    
+    // Crear períodos con información completa
+    Object.values(grouped).forEach(group => {
+      if (group.opening && group.closing) {
+        // Convertir las fechas string a objetos Date y establecerlas a mediodía
+        const startDate = new Date(group.opening.date + 'T12:00:00.000Z');
+        const endDate = new Date(group.closing.date + 'T12:00:00.000Z');
+        
+        // Buscar el período correspondiente
+        const periodData = periodsData.find(p => p.id === group.opening.periodId);
+        
+        periods.push({
+          startDate: startDate,
+          endDate: endDate,
+          periodId: group.opening.periodId,
+          label: periodData?.label || null
+        });
+      }
+    });
+    
+    return periods;
+  };
+
+
+  // Escuchar eventos de actualización de reglas de comidas
+  useEffect(() => {
+    const handleMealRulesUpdate = (event) => {
+      if (event.detail && event.detail.hotelId === hotelId) {
+        // Actualizar las reglas con los nuevos datos
+        setMealRules(event.detail.rules);
+      }
+    };
+
+    window.addEventListener('mealRulesUpdated', handleMealRulesUpdate);
+
+    return () => {
+      window.removeEventListener('mealRulesUpdated', handleMealRulesUpdate);
+    };
+  }, [hotelId]);
+
+  // Escuchar eventos de actualización de coeficientes
+  useEffect(() => {
+    const handleCoefficientsUpdate = (event) => {
+      if (event.detail && event.detail.hotelId === hotelId) {
+        // Actualizar los coeficientes con los nuevos datos
+        setRoomTypeCoefficients(event.detail.coefficients);
+      }
+    };
+
+    window.addEventListener('coefficientsUpdated', handleCoefficientsUpdate);
+
+    return () => {
+      window.removeEventListener('coefficientsUpdated', handleCoefficientsUpdate);
+    };
+  }, [hotelId]);
+
+  // Escuchar eventos de actualización de períodos operacionales
+  useEffect(() => {
+    const handleOperationalPeriodsUpdate = (event) => {
+      if (event.detail && event.detail.hotelId === hotelId) {
+        // Recargar keyframes desde el backend para obtener los actualizados
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`)
+          .then((res) => res.json())
+          .then((keyframes) => {
+            if (Array.isArray(keyframes)) {
+              onChange(keyframes);
+            }
+          })
+          .catch((error) => {
+            console.error('Error al recargar keyframes:', error);
+          });
+      }
+    };
+
+    window.addEventListener('operationalPeriodsUpdated', handleOperationalPeriodsUpdate);
+
+    return () => {
+      window.removeEventListener('operationalPeriodsUpdated', handleOperationalPeriodsUpdate);
+    };
+  }, [hotelId, onChange]);
+
   // Guardar automáticamente cuando cambian los keyframes (solo si no estamos editando)
   useEffect(() => {
     if (sorted.length > 0 && lastSavedKeyframes.length === 0) {
@@ -187,7 +316,15 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         // Usar setTimeout para evitar múltiples guardados durante el drag
         const timeoutId = setTimeout(() => {
           setLastSavedKeyframes(sorted);
-          onSave();
+          onSave().catch(error => {
+            console.error('Error en guardado automático:', error);
+            // Si hay un error relacionado con keyframes operacionales, mostrar mensaje específico
+            if (error.message.includes('operacional')) {
+              showNotification('Las fechas clave de apertura y cierre se preservan automáticamente', 'info');
+            } else {
+              showNotification('Error al guardar la curva', 'error');
+            }
+          });
           showNotification('Curva guardada automáticamente');
         }, 1000); // Esperar 1 segundo después del último cambio
         
@@ -199,7 +336,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   if (sorted.length === 0) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <p>No hay puntos de referencia configurados</p>
+        <p>No hay fechas clave configuradas</p>
         <button 
           onClick={() => setShowAddModal(true)}
           style={{
@@ -211,7 +348,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             cursor: 'pointer'
           }}
         >
-          Agregar primer punto
+          Agregar primera fecha clave
         </button>
       </div>
     );
@@ -393,7 +530,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
     setDragIdx(null);
     // No ocultar el tooltip si estamos haciendo clic en el punto de snap
     if (!tooltip.show) {
-      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+      setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
     }
   };
 
@@ -401,7 +538,12 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const handleSnapPointClick = (e) => {
     e.stopPropagation(); // Evitar que el clic se propague
     
+    console.log('🔍 handleSnapPointClick llamado');
+    console.log('🔍 tooltip:', tooltip);
+    
     if (tooltip.show && tooltip.snapDate) {
+      console.log('🔍 snapDate encontrado:', tooltip.snapDate);
+      
       // Verificar si ya existe un punto en esta fecha
       const snapDateString = normalizeDate(tooltip.snapDate);
       const existingPointIndex = sorted.findIndex(point => {
@@ -409,13 +551,22 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         return pointDateString === snapDateString;
       });
       
+      console.log('🔍 snapDateString:', snapDateString);
+      console.log('🔍 existingPointIndex:', existingPointIndex);
+      
       if (existingPointIndex !== -1) {
         // Si existe un punto, editar en lugar de agregar
+        console.log('🔍 Editando punto existente');
         setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
       } else {
         // Si no existe, abrir modal para agregar nuevo punto
+        console.log('🔍 Abriendo modal para agregar punto');
         setShowAddModal(true);
       }
+    } else {
+      console.log('❌ tooltip.show o tooltip.snapDate no están disponibles');
+      console.log('🔍 tooltip.show:', tooltip.show);
+      console.log('🔍 tooltip.snapDate:', tooltip.snapDate);
     }
   };
 
@@ -471,7 +622,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       
       // Verificar que el snapX esté dentro del rango visible
       if (snapX < margin || snapX > width - margin) {
-        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+        setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
         setHoveredKeyframe(null);
         return;
       }
@@ -487,28 +638,28 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             show: true,
             x: e.clientX + 10,
             y: e.clientY - 80,
-            price: price,
             date: exactDate.toLocaleDateString('es-ES', { 
               day: 'numeric', 
               month: 'short', 
               year: 'numeric' 
             }),
+            price: price,
             snapX: snapX,
             snapY: snapY,
-            snapDate: exactDate
+            snapDate: exactDate // Agregar la fecha del snap
           });
           setHoveredKeyframe(null);
         } else {
           // Si existe un keyframe, no mostrar tooltip pero marcar como hovered
-          setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+          setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
           setHoveredKeyframe(existingKeyframeIndex);
         }
       } else {
-        setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+        setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
         setHoveredKeyframe(null);
       }
     } else {
-      setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+      setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
       setHoveredKeyframe(null);
     }
     
@@ -561,15 +712,28 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        gap: '10px'
-      }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Notificación */}
+      {notification.show && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: notification.type === 'error' ? '#f8d7da' : '#d4edda',
+          color: notification.type === 'error' ? '#721c24' : '#155724',
+          padding: '12px 20px',
+          borderRadius: '4px',
+          border: `1px solid ${notification.type === 'error' ? '#f5c6cb' : '#c3e6cb'}`,
+          zIndex: 1001,
+          maxWidth: '400px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+        }}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Controles de navegación */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <h3 style={{ color: '#2c3e50', margin: 0 }}>Curva Estacional</h3>
           <div style={{ fontSize: '12px', color: '#6c757d' }}>
@@ -740,7 +904,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             onMouseUp={handleMouseUp}
             onMouseLeave={() => {
               setDragIdx(null);
-              setTooltip({ show: false, x: 0, y: 0, price: 0, date: '', snapX: 0, snapY: 0, snapDate: null });
+              setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
             }}
             onClick={(e) => {
               // No agregar punto si se hizo clic en un keyframe
@@ -750,21 +914,35 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               }
             }}
           >
-            {/* Fondo sombreado por mes */}
-            {months.map((m, i) => (
-              <rect
-                key={i}
-                x={dateToX(m)}
-                y={margin}
-                width={dateToX(new Date(m.getFullYear(), m.getMonth() + 1, 1)) - dateToX(m)}
-                height={height - 2 * margin}
-                fill={i % 2 === 0 ? "#e3f2fd" : "#fff"}
-                opacity={0.3}
-              />
-            ))}
-            
+            {/* Fondo grisado para períodos cerrados */}
+            {getOperationalPeriods().map((period, index) => {
+              const startX = dateToX(period.startDate);
+              const endX = dateToX(period.endDate);
+              
+              return (
+                <g key={`closed-period-${index}`}>
+                  {/* Área grisada a la izquierda del período (antes de apertura) */}
+                  <rect
+                    x={0}
+                    y={0}
+                    width={startX}
+                    height={height}
+                    fill="rgba(128, 128, 128, 0.3)"
+                    stroke="none"
+                  />
+                  {/* Área grisada a la derecha del período (después de cierre) */}
+                  <rect
+                    x={endX}
+                    y={0}
+                    width={width - endX}
+                    height={height}
+                    fill="rgba(128, 128, 128, 0.3)"
+                    stroke="none"
+                  />
+                </g>
+              );
+            })}
 
-            
             {/* Ejes */}
             <line x1={margin} y1={height - margin} x2={width - margin} y2={height - margin} stroke="#6c757d" strokeWidth={2} />
             <line x1={margin} y1={margin} x2={margin} y2={height - margin} stroke="#6c757d" strokeWidth={2} />
@@ -871,8 +1049,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               />
             )}
             
-            {/* Puntos clave */}
-            {sorted.map((k, i) => {
+            {/* Puntos clave - SOLO keyframes NO operacionales */}
+            {sorted.filter(k => !k.isOperational).map((k) => {
               // Calcular el precio ajustado para este keyframe
               const basePriceForType = Math.round(k.value * roomTypeCoefficients[selectedRoomType]);
               let adjustedPrice;
@@ -903,23 +1081,120 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                   adjustedPrice = basePriceForType;
               }
               
+              // Encontrar el índice real en el array sorted completo
+              const realIndex = sorted.findIndex(keyframe => keyframe === k);
+              
               return (
-                <g key={i}>
+                <g key={`normal-${realIndex}`}>
                   <circle
                     cx={curveDateToX(k.date)}
                     cy={valueToY(adjustedPrice)}
                     r={10}
-                    fill={hoveredKeyframe === i ? "#667eea" : "#fff"}
+                    fill={hoveredKeyframe === realIndex ? "#667eea" : "#fff"}
                     stroke="#667eea"
                     strokeWidth={3}
-                    onMouseDown={() => handleMouseDown(i)}
-                    onClick={() => setEditingPoint({ index: i, point: k })}
+                    onMouseDown={() => handleMouseDown(realIndex)}
+                    onClick={() => setEditingPoint({ index: realIndex, point: k })}
                     style={{ cursor: "pointer" }}
                   />
                   <text
                     x={curveDateToX(k.date)}
                     y={valueToY(adjustedPrice) - 15}
                     fontSize={18}
+                    fill="#495057"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    ${Math.round(adjustedPrice).toLocaleString()}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Keyframes operacionales */}
+            {sorted.filter(k => k.isOperational).map((k) => {
+              // Encontrar el índice real en el array sorted
+              const realIndex = sorted.findIndex(keyframe => keyframe === k);
+              
+              // Calcular el precio ajustado para este keyframe operacional
+              const basePriceForType = Math.round(k.value * roomTypeCoefficients[selectedRoomType]);
+              let adjustedPrice;
+              switch (selectedPriceType) {
+                case 'breakfast':
+                  if (mealRules.breakfastMode === "FIXED") {
+                    adjustedPrice = Math.round(basePriceForType + mealRules.breakfastValue);
+                  } else {
+                    adjustedPrice = Math.round(basePriceForType * (1 + mealRules.breakfastValue));
+                  }
+                  break;
+                case 'halfBoard': {
+                  let breakfastPrice = basePriceForType;
+                  if (mealRules.breakfastMode === "FIXED") {
+                    breakfastPrice = basePriceForType + mealRules.breakfastValue;
+                  } else {
+                    breakfastPrice = basePriceForType * (1 + mealRules.breakfastValue);
+                  }
+                  
+                  if (mealRules.dinnerMode === "FIXED") {
+                    adjustedPrice = Math.round(breakfastPrice + mealRules.dinnerValue);
+                  } else {
+                    adjustedPrice = Math.round(breakfastPrice * (1 + mealRules.dinnerValue));
+                  }
+                  break;
+                }
+                default:
+                  adjustedPrice = basePriceForType;
+              }
+              
+              // Obtener información del período desde el estado
+              const periodData = periodsData.find(p => p.id === k.periodId);
+              const periodLabel = periodData?.label || null;
+              
+              return (
+                <g key={`operational-${realIndex}`}>
+                  {/* Círculo principal - más grande y azul */}
+                  <circle
+                    cx={curveDateToX(k.date)}
+                    cy={valueToY(adjustedPrice)}
+                    r={15}
+                    fill="#667eea"
+                    stroke="#5a67d8"
+                    strokeWidth={3}
+                    onClick={() => setEditingPoint({ index: realIndex, point: k, isOperational: true })}
+                    style={{ cursor: "pointer" }}
+                  />
+                  
+                  {/* Indicador de tipo (Apertura/Cierre) - arriba del gráfico */}
+                  <text
+                    x={curveDateToX(k.date)}
+                    y={margin - 10}
+                    fontSize={16}
+                    fill="#667eea"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    {k.operationalType === 'opening' ? 'APERTURA' : 'CIERRE'}
+                  </text>
+                  
+                  {/* Nombre del período - debajo del tipo */}
+                  {periodLabel && (
+                    <text
+                      x={curveDateToX(k.date)}
+                      y={margin + 8}
+                      fontSize={14}
+                      fill="#667eea"
+                      textAnchor="middle"
+                      fontWeight="normal"
+                    >
+                      {periodLabel}
+                    </text>
+                  )}
+                  
+                  {/* Precio - en negro como los keyframes normales */}
+                  <text
+                    x={curveDateToX(k.date)}
+                    y={valueToY(adjustedPrice) - 15}
+                    fontSize={16}
                     fill="#495057"
                     textAnchor="middle"
                     fontWeight="bold"
@@ -1021,7 +1296,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               fontSize: '14px'
             }}
           >
-            + Agregar punto
+            + Agregar fecha clave
           </button>
           <button
             onClick={onSave}
@@ -1046,8 +1321,13 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         <AddPointModal
           initialDate={tooltip.show && tooltip.snapDate ? tooltip.snapDate.toISOString().slice(0, 10) : ''}
           initialValue={tooltip.show && tooltip.price ? tooltip.price.toString() : ''}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            console.log('🔍 Cerrando modal de agregar punto');
+            setShowAddModal(false);
+          }}
           onAdd={(newPoint) => {
+            console.log('🔍 onAdd llamado con:', newPoint);
+            
             // Verificar si ya existe un keyframe en esta fecha
             const newPointDateString = normalizeDate(newPoint.date);
             const existingKeyframeIndex = sorted.findIndex(point => {
@@ -1055,15 +1335,20 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
               return pointDateString === newPointDateString;
             });
             
+            console.log('🔍 newPointDateString:', newPointDateString);
+            console.log('🔍 existingKeyframeIndex:', existingKeyframeIndex);
+            
             if (existingKeyframeIndex !== -1) {
-              showNotification('Ya existe un precio establecido para este día', 'error');
+              showNotification('Ya existe un precio establecido para esta fecha clave', 'error');
               return;
             }
             
             const newKeyframes = [...sorted, newPoint].sort((a, b) => new Date(a.date) - new Date(b.date));
+            console.log('🔍 newKeyframes:', newKeyframes);
+            
             onChange(newKeyframes);
             setShowAddModal(false);
-            showNotification('Punto agregado exitosamente');
+            showNotification('Fecha clave agregada exitosamente');
           }}
         />
       )}
@@ -1091,18 +1376,38 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
           point={editingPoint.point}
           onClose={() => setEditingPoint(null)}
           onSave={(updatedPoint) => {
-            const newKeyframes = sorted.map((k, i) => 
-              i === editingPoint.index ? updatedPoint : k
-            );
-            onChange(newKeyframes);
+            console.log('🔍 EditPointModal onSave - isOperational:', editingPoint.isOperational);
+            console.log('🔍 EditPointModal onSave - point:', editingPoint.point);
+            
+            if (editingPoint.isOperational) {
+              // Para keyframes operacionales, solo actualizar el precio en el estado local
+              const newKeyframes = sorted.map((k, i) => 
+                i === editingPoint.index ? { ...k, value: updatedPoint.value } : k
+              );
+              onChange(newKeyframes);
+              showNotification('Precio de la fecha clave actualizado', 'success');
+            } else {
+              // Para keyframes normales, usar la lógica existente
+              const newKeyframes = sorted.map((k, i) => 
+                i === editingPoint.index ? updatedPoint : k
+              );
+              onChange(newKeyframes);
+            }
             setEditingPoint(null);
           }}
           onDelete={() => {
+            console.log('🔍 EditPointModal onDelete - isOperational:', editingPoint.isOperational);
+            
+            if (editingPoint.isOperational) {
+              showNotification('No se pueden eliminar fechas clave operacionales desde aquí', 'error');
+              return;
+            }
             const newKeyframes = sorted.filter((_, i) => i !== editingPoint.index);
             onChange(newKeyframes);
             setEditingPoint(null);
-            showNotification('Punto eliminado exitosamente');
+            showNotification('Fecha clave eliminada exitosamente');
           }}
+          isOperational={editingPoint.isOperational}
         />
       )}
     </div>
@@ -1131,7 +1436,7 @@ function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '' }) 
         borderRadius: '8px', 
         minWidth: '400px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Agregar Punto de Referencia</h3>
+        <h3 style={{ marginBottom: '20px' }}>Agregar Fecha Clave</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Fecha:</label>
@@ -1172,7 +1477,7 @@ function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '' }) 
   );
 }
 
-function EditPointModal({ point, onClose, onSave, onDelete }) {
+function EditPointModal({ point, onClose, onSave, onDelete, isOperational = false }) {
   const validDate = (() => {
     try {
       const dateObj = new Date(point.date);
@@ -1187,11 +1492,34 @@ function EditPointModal({ point, onClose, onSave, onDelete }) {
   
   const [date, setDate] = useState(validDate);
   const [value, setValue] = useState(point.value.toFixed(2));
+  const [showError, setShowError] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!date || !value) return;
+    
+    console.log('🔍 EditPointModal handleSubmit - isOperational:', isOperational);
+    console.log('🔍 EditPointModal handleSubmit - date:', date, 'validDate:', validDate);
+    
+    // Si es un keyframe operacional, verificar que no se cambie la fecha
+    if (isOperational && date !== validDate) {
+      console.log('❌ EditPointModal - Intento de cambiar fecha en keyframe operacional');
+      setShowError(true);
+      return;
+    }
+    
     onSave({ date, value: parseFloat(parseFloat(value).toFixed(2)) });
+  };
+
+  const handleDelete = () => {
+    console.log('🔍 EditPointModal handleDelete - isOperational:', isOperational);
+    
+    if (isOperational) {
+      console.log('❌ EditPointModal - Intento de eliminar keyframe operacional');
+      setShowError(true);
+      return;
+    }
+    onDelete();
   };
 
   return (
@@ -1201,7 +1529,41 @@ function EditPointModal({ point, onClose, onSave, onDelete }) {
       zIndex: 1000
     }}>
       <div style={{ background: '#fff', padding: '24px', borderRadius: '8px', minWidth: '400px' }}>
-        <h3 style={{ marginBottom: '20px' }}>Editar Punto de Referencia</h3>
+        <h3 style={{ marginBottom: '20px' }}>
+          {isOperational ? 'Editar Fecha Clave Operacional' : 'Editar Fecha Clave'}
+        </h3>
+        
+        {isOperational && (
+          <div style={{
+            background: '#fff3cd',
+            color: '#856404',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '15px',
+            border: '1px solid #ffeaa7'
+          }}>
+            <strong>⚠️ Fecha Clave de Apertura/Cierre</strong><br/>
+            Esta fecha clave representa una fecha de apertura o cierre del hotel. 
+            Solo puedes modificar el precio base, no la fecha.
+          </div>
+        )}
+        
+        {showError && (
+          <div style={{
+            background: '#f8d7da',
+            color: '#721c24',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '15px',
+            border: '1px solid #f5c6cb'
+          }}>
+            {isOperational 
+              ? 'No puedes modificar la fecha o eliminar esta fecha clave operacional. Para hacer cambios en las fechas de apertura y cierre, usa el panel de "Períodos de Apertura y Cierre".'
+              : 'Error al procesar la solicitud.'
+            }
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Fecha:</label>
@@ -1209,9 +1571,22 @@ function EditPointModal({ point, onClose, onSave, onDelete }) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+              style={{ 
+                width: '100%', 
+                padding: '8px', 
+                border: '1px solid #ced4da', 
+                borderRadius: '4px',
+                backgroundColor: isOperational ? '#f8f9fa' : 'white',
+                cursor: isOperational ? 'not-allowed' : 'text'
+              }}
+              disabled={isOperational}
               required
             />
+            {isOperational && (
+              <small style={{ color: '#6c757d', fontSize: '12px' }}>
+                La fecha no se puede modificar para fechas clave operacionales
+              </small>
+            )}
           </div>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Precio Base (Habitación Doble):</label>
@@ -1224,11 +1599,13 @@ function EditPointModal({ point, onClose, onSave, onDelete }) {
             />
           </div>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onDelete} style={{
-              padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
-            }}>
-              Eliminar
-            </button>
+            {!isOperational && (
+              <button type="button" onClick={handleDelete} style={{
+                padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
+              }}>
+                Eliminar
+              </button>
+            )}
             <button type="button" onClick={onClose} style={{
               padding: '8px 16px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
             }}>

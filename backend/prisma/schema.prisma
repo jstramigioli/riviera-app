@@ -210,6 +210,9 @@ model SeasonalKeyframe {
   hotelId    String
   date       DateTime
   basePrice  Float    // precio base por tipo estándar
+  isOperational Boolean @default(false) // Si es un keyframe de apertura/cierre
+  operationalType String? // "opening" o "closing" para keyframes operacionales
+  periodId   String?  // ID del período operacional asociado
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

@@ -74,9 +74,9 @@ class DynamicPricingController {
   async createSeasonalKeyframe(req, res) {
     try {
       const { hotelId } = req.params;
-      const { date, basePrice } = req.body;
+      const { date, basePrice, isOperational, operationalType, periodId } = req.body;
 
-      // Verificar si ya existe un keyframe para esta fecha y hotel
+      // Verificar si ya existe un keyframe para esta fecha
       const existingKeyframe = await prisma.seasonalKeyframe.findFirst({
         where: {
           hotelId,
@@ -85,9 +85,15 @@ class DynamicPricingController {
       });
 
       if (existingKeyframe) {
+        // Si es un keyframe operacional, no permitir sobrescribirlo
+        if (existingKeyframe.isOperational) {
+          return res.status(409).json({ 
+            message: 'No se puede crear un keyframe en esta fecha porque ya existe un keyframe operacional (apertura/cierre)' 
+          });
+        }
+        
         return res.status(409).json({ 
-          message: 'Ya existe un precio establecido para esta fecha',
-          existingKeyframe 
+          message: 'Ya existe un keyframe para esta fecha' 
         });
       }
 
@@ -95,13 +101,120 @@ class DynamicPricingController {
         data: {
           hotelId,
           date: new Date(date),
-          basePrice: parseFloat(basePrice)
+          basePrice: parseFloat(basePrice),
+          isOperational: isOperational || false,
+          operationalType: operationalType || null,
+          periodId: periodId || null
         }
       });
 
       res.status(201).json(keyframe);
     } catch (error) {
-      console.error('Error al crear keyframe estacional:', error);
+      console.error('Error al crear keyframe:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  // Crear keyframes operacionales para un período
+  async createOperationalKeyframes(req, res) {
+    try {
+      const { hotelId } = req.params;
+      const { periodId, startDate, endDate, basePrice = 0 } = req.body;
+
+      // Crear keyframe de apertura
+      const openingKeyframe = await prisma.seasonalKeyframe.create({
+        data: {
+          hotelId,
+          date: new Date(startDate),
+          basePrice: parseFloat(basePrice),
+          isOperational: true,
+          operationalType: 'opening',
+          periodId
+        }
+      });
+
+      // Crear keyframe de cierre
+      const closingKeyframe = await prisma.seasonalKeyframe.create({
+        data: {
+          hotelId,
+          date: new Date(endDate),
+          basePrice: parseFloat(basePrice),
+          isOperational: true,
+          operationalType: 'closing',
+          periodId
+        }
+      });
+
+      res.status(201).json({
+        opening: openingKeyframe,
+        closing: closingKeyframe
+      });
+    } catch (error) {
+      console.error('Error al crear keyframes operacionales:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  // Actualizar keyframes operacionales cuando cambia un período
+  async updateOperationalKeyframes(req, res) {
+    try {
+      const { periodId } = req.params;
+      const { startDate, endDate, basePrice } = req.body;
+
+      // Buscar keyframes existentes para este período
+      const existingKeyframes = await prisma.seasonalKeyframe.findMany({
+        where: {
+          periodId,
+          isOperational: true
+        }
+      });
+
+      // Actualizar keyframe de apertura
+      const openingKeyframe = existingKeyframes.find(k => k.operationalType === 'opening');
+      if (openingKeyframe) {
+        await prisma.seasonalKeyframe.update({
+          where: { id: openingKeyframe.id },
+          data: {
+            date: new Date(startDate),
+            basePrice: parseFloat(basePrice || openingKeyframe.basePrice)
+          }
+        });
+      }
+
+      // Actualizar keyframe de cierre
+      const closingKeyframe = existingKeyframes.find(k => k.operationalType === 'closing');
+      if (closingKeyframe) {
+        await prisma.seasonalKeyframe.update({
+          where: { id: closingKeyframe.id },
+          data: {
+            date: new Date(endDate),
+            basePrice: parseFloat(basePrice || closingKeyframe.basePrice)
+          }
+        });
+      }
+
+      res.json({ message: 'Keyframes operacionales actualizados' });
+    } catch (error) {
+      console.error('Error al actualizar keyframes operacionales:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  // Eliminar keyframes operacionales cuando se elimina un período
+  async deleteOperationalKeyframes(req, res) {
+    try {
+      const { periodId } = req.params;
+
+      await prisma.seasonalKeyframe.deleteMany({
+        where: {
+          periodId,
+          isOperational: true
+        }
+      });
+
+      res.json({ message: 'Keyframes operacionales eliminados' });
+    } catch (error) {
+      console.error('Error al eliminar keyframes operacionales:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
@@ -113,6 +226,21 @@ class DynamicPricingController {
     try {
       const { id } = req.params;
       const { date, basePrice } = req.body;
+
+      // Verificar si el keyframe existe y no es operacional
+      const existingKeyframe = await prisma.seasonalKeyframe.findUnique({
+        where: { id }
+      });
+
+      if (!existingKeyframe) {
+        return res.status(404).json({ message: 'Keyframe no encontrado' });
+      }
+
+      if (existingKeyframe.isOperational) {
+        return res.status(403).json({ 
+          message: 'No se puede modificar un keyframe operacional desde esta interfaz. Use el panel de períodos operacionales.' 
+        });
+      }
 
       const keyframe = await prisma.seasonalKeyframe.update({
         where: { id },
@@ -136,6 +264,21 @@ class DynamicPricingController {
     try {
       const { id } = req.params;
 
+      // Verificar si el keyframe existe y no es operacional
+      const existingKeyframe = await prisma.seasonalKeyframe.findUnique({
+        where: { id }
+      });
+
+      if (!existingKeyframe) {
+        return res.status(404).json({ message: 'Keyframe no encontrado' });
+      }
+
+      if (existingKeyframe.isOperational) {
+        return res.status(403).json({ 
+          message: 'No se puede eliminar un keyframe operacional desde esta interfaz. Use el panel de períodos operacionales.' 
+        });
+      }
+
       await prisma.seasonalKeyframe.delete({
         where: { id }
       });
@@ -154,8 +297,12 @@ class DynamicPricingController {
     try {
       const { hotelId } = req.params;
 
+      // Solo eliminar keyframes NO operacionales
       await prisma.seasonalKeyframe.deleteMany({
-        where: { hotelId }
+        where: { 
+          hotelId,
+          isOperational: false // Proteger keyframes operacionales
+        }
       });
 
       res.status(204).send();

@@ -29,9 +29,9 @@ class OperationalPeriodController {
       const { hotelId } = req.params;
       const { startDate, endDate, label } = req.body;
 
-      // Validar que las fechas sean válidas
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Validar que las fechas sean válidas y establecerlas a mediodía para evitar problemas de zona horaria
+      const start = new Date(startDate + 'T12:00:00.000Z');
+      const end = new Date(endDate + 'T12:00:00.000Z');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ message: 'Fechas inválidas' });
@@ -84,6 +84,65 @@ class OperationalPeriodController {
         }
       });
 
+      // Crear keyframes operacionales automáticamente
+      try {
+        console.log('🔧 Creando keyframes operacionales para período:', period.id);
+        
+        // Obtener el precio base promedio de keyframes existentes para usar como referencia
+        const existingKeyframes = await prisma.seasonalKeyframe.findMany({
+          where: {
+            hotelId,
+            isOperational: false
+          },
+          orderBy: { date: 'desc' },
+          take: 5
+        });
+
+        console.log(`📊 Keyframes existentes encontrados: ${existingKeyframes.length}`);
+
+        let basePrice = 8000; // Precio por defecto
+        if (existingKeyframes.length > 0) {
+          const totalPrice = existingKeyframes.reduce((sum, k) => sum + k.basePrice, 0);
+          basePrice = Math.round(totalPrice / existingKeyframes.length);
+          console.log(`💰 Precio base calculado: $${basePrice.toLocaleString()}`);
+        } else {
+          console.log(`💰 Usando precio base por defecto: $${basePrice.toLocaleString()}`);
+        }
+
+        console.log(`📅 Creando keyframe de apertura para: ${start.toISOString()}`);
+        // Keyframe de apertura
+        const openingKeyframe = await prisma.seasonalKeyframe.create({
+          data: {
+            hotelId,
+            date: start,
+            basePrice: basePrice,
+            isOperational: true,
+            operationalType: 'opening',
+            periodId: period.id
+          }
+        });
+        console.log(`✅ Keyframe de apertura creado: ${openingKeyframe.id}`);
+
+        console.log(`📅 Creando keyframe de cierre para: ${end.toISOString()}`);
+        // Keyframe de cierre
+        const closingKeyframe = await prisma.seasonalKeyframe.create({
+          data: {
+            hotelId,
+            date: end,
+            basePrice: basePrice,
+            isOperational: true,
+            operationalType: 'closing',
+            periodId: period.id
+          }
+        });
+        console.log(`✅ Keyframe de cierre creado: ${closingKeyframe.id}`);
+        
+        console.log('🎉 Keyframes operacionales creados exitosamente');
+      } catch (keyframeError) {
+        console.error('❌ Error al crear keyframes operacionales:', keyframeError);
+        // No fallar la creación del período si fallan los keyframes
+      }
+
       res.status(201).json(period);
     } catch (error) {
       console.error('Error al crear período operacional:', error);
@@ -99,9 +158,9 @@ class OperationalPeriodController {
       const { id } = req.params;
       const { startDate, endDate, label } = req.body;
 
-      // Validar que las fechas sean válidas
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Validar que las fechas sean válidas y establecerlas a mediodía para evitar problemas de zona horaria
+      const start = new Date(startDate + 'T12:00:00.000Z');
+      const end = new Date(endDate + 'T12:00:00.000Z');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ message: 'Fechas inválidas' });
@@ -109,6 +168,41 @@ class OperationalPeriodController {
 
       if (start >= end) {
         return res.status(400).json({ message: 'La fecha de inicio debe ser anterior a la fecha de fin' });
+      }
+
+      // Verificar si hay solapamiento con otros períodos (excluyendo el actual)
+      const overlappingPeriod = await prisma.operationalPeriod.findFirst({
+        where: {
+          hotelId: (await prisma.operationalPeriod.findUnique({ where: { id } })).hotelId,
+          id: { not: id },
+          OR: [
+            {
+              AND: [
+                { startDate: { lte: start } },
+                { endDate: { gt: start } }
+              ]
+            },
+            {
+              AND: [
+                { startDate: { lt: end } },
+                { endDate: { gte: end } }
+              ]
+            },
+            {
+              AND: [
+                { startDate: { gte: start } },
+                { endDate: { lte: end } }
+              ]
+            }
+          ]
+        }
+      });
+
+      if (overlappingPeriod) {
+        return res.status(409).json({ 
+          message: 'Existe otro período que se solapa con las fechas especificadas',
+          overlappingPeriod 
+        });
       }
 
       const period = await prisma.operationalPeriod.update({
@@ -119,6 +213,38 @@ class OperationalPeriodController {
           label
         }
       });
+
+      // Actualizar keyframes operacionales
+      try {
+        // Buscar keyframes existentes para este período
+        const existingKeyframes = await prisma.seasonalKeyframe.findMany({
+          where: {
+            periodId: id,
+            isOperational: true
+          }
+        });
+
+        // Actualizar keyframe de apertura
+        const openingKeyframe = existingKeyframes.find(k => k.operationalType === 'opening');
+        if (openingKeyframe) {
+          await prisma.seasonalKeyframe.update({
+            where: { id: openingKeyframe.id },
+            data: { date: start }
+          });
+        }
+
+        // Actualizar keyframe de cierre
+        const closingKeyframe = existingKeyframes.find(k => k.operationalType === 'closing');
+        if (closingKeyframe) {
+          await prisma.seasonalKeyframe.update({
+            where: { id: closingKeyframe.id },
+            data: { date: end }
+          });
+        }
+      } catch (keyframeError) {
+        console.error('Error al actualizar keyframes operacionales:', keyframeError);
+        // No fallar la actualización del período si fallan los keyframes
+      }
 
       res.json(period);
     } catch (error) {
@@ -134,6 +260,51 @@ class OperationalPeriodController {
     try {
       const { id } = req.params;
 
+      // Obtener el período antes de eliminarlo para conocer las fechas
+      const period = await prisma.operationalPeriod.findUnique({
+        where: { id }
+      });
+
+      if (!period) {
+        return res.status(404).json({ message: 'Período operacional no encontrado' });
+      }
+
+      // Buscar keyframes operacionales asociados
+      const operationalKeyframes = await prisma.seasonalKeyframe.findMany({
+        where: {
+          periodId: id,
+          isOperational: true
+        }
+      });
+
+      // Encontrar las fechas de apertura y cierre
+      const openingKeyframe = operationalKeyframes.find(k => k.operationalType === 'opening');
+      const closingKeyframe = operationalKeyframes.find(k => k.operationalType === 'closing');
+
+      if (openingKeyframe && closingKeyframe) {
+        // Eliminar TODOS los keyframes entre la fecha de apertura y cierre (inclusive)
+        await prisma.seasonalKeyframe.deleteMany({
+          where: {
+            hotelId: period.hotelId,
+            date: {
+              gte: openingKeyframe.date,
+              lte: closingKeyframe.date
+            }
+          }
+        });
+
+        console.log(`🗑️  Eliminados todos los keyframes entre ${openingKeyframe.date.toISOString()} y ${closingKeyframe.date.toISOString()}`);
+      } else {
+        // Si no se encuentran los keyframes operacionales, eliminar solo los asociados al período
+        await prisma.seasonalKeyframe.deleteMany({
+          where: {
+            periodId: id,
+            isOperational: true
+          }
+        });
+      }
+
+      // Eliminar el período
       await prisma.operationalPeriod.delete({
         where: { id }
       });

@@ -62,10 +62,18 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSend),
       });
-      alert("Reglas guardadas exitosamente");
+      
+      // No mostrar alerta, solo actualizar estado
       setHasUnsavedChanges(false);
-    } catch {
-      alert("Error al guardar las reglas");
+      
+      // Disparar evento personalizado para notificar a otros componentes
+      window.dispatchEvent(new CustomEvent('mealRulesUpdated', {
+        detail: { hotelId, rules: dataToSend }
+      }));
+      
+    } catch (error) {
+      console.error('Error al guardar las reglas:', error);
+      // Solo mostrar error en consola, no alerta
     }
     setSaving(false);
   };

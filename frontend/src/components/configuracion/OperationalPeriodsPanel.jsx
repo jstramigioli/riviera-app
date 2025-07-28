@@ -69,6 +69,11 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
         showNotification('Período agregado exitosamente');
         loadPeriods();
         setShowAddModal(false);
+        
+        // Disparar evento para actualizar otros componentes
+        window.dispatchEvent(new CustomEvent('operationalPeriodsUpdated', {
+          detail: { hotelId, periods: await loadPeriodsData() }
+        }));
       } else {
         const error = await response.json();
         showNotification(error.message || 'Error al crear período', 'error');
@@ -92,37 +97,60 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
         showNotification('Período actualizado correctamente');
         loadPeriods();
         setEditingPeriod(null);
+        
+        // Disparar evento para actualizar otros componentes
+        window.dispatchEvent(new CustomEvent('operationalPeriodsUpdated', {
+          detail: { hotelId, periods: await loadPeriodsData() }
+        }));
       } else {
         const error = await response.json();
         showNotification(error.message || 'Error al actualizar', 'error');
       }
     } catch (error) {
       console.error('Error al actualizar período:', error);
-      showNotification('Error al actualizar', 'error');
+      showNotification('Error al actualizar período', 'error');
     }
   };
 
   const handleDeletePeriod = async (id) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este período?')) {
-      return;
-    }
+    if (window.confirm('¿Estás seguro de que quieres eliminar este período?')) {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${API_URL}/operational-periods/${id}`, {
+          method: 'DELETE'
+        });
 
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${API_URL}/operational-periods/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        showNotification('Período eliminado correctamente');
-        loadPeriods();
-      } else {
+        if (response.ok) {
+          showNotification('Período eliminado correctamente');
+          loadPeriods();
+          
+          // Disparar evento para actualizar otros componentes
+          window.dispatchEvent(new CustomEvent('operationalPeriodsUpdated', {
+            detail: { hotelId, periods: await loadPeriodsData() }
+          }));
+        } else {
+          const error = await response.json();
+          showNotification(error.message || 'Error al eliminar', 'error');
+        }
+      } catch (error) {
+        console.error('Error al eliminar período:', error);
         showNotification('Error al eliminar período', 'error');
       }
-    } catch (error) {
-      console.error('Error al eliminar período:', error);
-      showNotification('Error al eliminar', 'error');
     }
+  };
+
+  // Función auxiliar para cargar datos de períodos
+  const loadPeriodsData = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/operational-periods/${hotelId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Error al cargar datos de períodos:', error);
+    }
+    return [];
   };
 
   const formatDate = (dateString) => {

@@ -31,7 +31,12 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
           // Convertir el formato del backend al formato del editor
           const formattedKeyframes = data.map(k => ({
             date: new Date(k.date).toISOString().slice(0, 10),
-            value: k.basePrice
+            value: k.basePrice,
+            // Preservar propiedades operacionales
+            isOperational: k.isOperational || false,
+            operationalType: k.operationalType || null,
+            periodId: k.periodId || null,
+            id: k.id // Preservar el ID original
           }));
           setKeyframes(formattedKeyframes);
         }
@@ -79,26 +84,54 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
         
         return {
           date: isoDate,
-          basePrice: k.value
+          basePrice: k.value,
+          // Preservar propiedades operacionales si existen
+          isOperational: k.isOperational || false,
+          operationalType: k.operationalType || null,
+          periodId: k.periodId || null
         };
       });
 
-      // Eliminar keyframes existentes y crear los nuevos
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Obtener keyframes operacionales existentes para preservarlos
+      const existingKeyframesResponse = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`);
+      const existingKeyframes = await existingKeyframesResponse.json();
+      const operationalKeyframes = existingKeyframes.filter(k => k.isOperational);
+
+      // Eliminar solo keyframes NO operacionales
       await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}/all`, {
         method: 'DELETE'
       });
 
-      // Crear los nuevos keyframes uno por uno
+      // Crear los nuevos keyframes normales uno por uno
       for (const keyframe of backendKeyframes) {
-        const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
+        // Solo crear keyframes que no sean operacionales
+        if (!keyframe.isOperational) {
+          const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(keyframe)
+          });
+          if (!response.ok) {
+            throw new Error(`Error al crear keyframe: ${response.status}`);
+          }
+        }
+      }
+
+      // Recrear los keyframes operacionales si es necesario
+      for (const operationalKeyframe of operationalKeyframes) {
+        await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(keyframe)
+          body: JSON.stringify({
+            date: operationalKeyframe.date,
+            basePrice: operationalKeyframe.basePrice,
+            isOperational: true,
+            operationalType: operationalKeyframe.operationalType,
+            periodId: operationalKeyframe.periodId
+          })
         });
-        if (!response.ok) {
-          throw new Error(`Error al crear keyframe: ${response.status}`);
-        }
       }
 
     } catch (error) {

@@ -6,12 +6,17 @@ const dynamicPricingController = require('../controllers/dynamicPricing.controll
 router.get('/config/:hotelId', dynamicPricingController.getDynamicPricingConfig);
 router.put('/config/:hotelId', dynamicPricingController.upsertDynamicPricingConfig);
 
-// Keyframes estacionales
+// Rutas para keyframes estacionales
 router.get('/keyframes/:hotelId', dynamicPricingController.getSeasonalKeyframes);
 router.post('/keyframes/:hotelId', dynamicPricingController.createSeasonalKeyframe);
 router.put('/keyframes/:id', dynamicPricingController.updateSeasonalKeyframe);
 router.delete('/keyframes/:id', dynamicPricingController.deleteSeasonalKeyframe);
 router.delete('/keyframes/:hotelId/all', dynamicPricingController.deleteAllSeasonalKeyframes);
+
+// Rutas para keyframes operacionales
+router.post('/operational-keyframes/:hotelId', dynamicPricingController.createOperationalKeyframes);
+router.put('/operational-keyframes/:periodId', dynamicPricingController.updateOperationalKeyframes);
+router.delete('/operational-keyframes/:periodId', dynamicPricingController.deleteOperationalKeyframes);
 
 // Tarifas dinámicas
 router.get('/rates/:hotelId/:roomTypeId', dynamicPricingController.getDynamicRates);

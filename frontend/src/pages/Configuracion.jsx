@@ -5,7 +5,6 @@ import EtiquetasTab from '../components/configuracion/EtiquetasTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
 import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
 import MealPricingEditor from '../components/configuracion/MealPricingEditor';
-import CoefficientsPanel from '../components/configuracion/CoefficientsPanel';
 import OperationalPeriodsPanel from '../components/configuracion/OperationalPeriodsPanel';
 import TarifasPreviewPanel from '../components/configuracion/TarifasPreviewPanel';
 
@@ -115,16 +114,13 @@ function ConfiguracionView() {
             {/* Fila con previsualización de tarifas y configuración de coeficientes */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', // Reducir minmax
+              gridTemplateColumns: '1fr', // Solo una columna ahora
               gap: '24px',
               width: '100%',
               boxSizing: 'border-box'
             }}>
-              {/* Previsualización de tarifas */}
+              {/* Previsualización de tarifas con coeficientes integrados */}
               <TarifasPreviewPanel />
-
-              {/* Configuración de coeficientes */}
-              <CoefficientsPanel />
             </div>
 
             {/* Fila con configuración de comidas y períodos de apertura */}
