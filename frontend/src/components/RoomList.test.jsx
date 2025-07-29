@@ -1,43 +1,80 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import RoomList from './RoomList'
+
+// Mock de la función fetchRooms
+vi.mock('../services/api.js', () => ({
+  fetchRooms: vi.fn()
+}))
 
 describe('RoomList', () => {
   const mockRooms = [
-    { id: 1, name: 'Habitación 101', type: 'Individual', status: 'available' },
-    { id: 2, name: 'Habitación 102', type: 'Doble', status: 'occupied' }
+    {
+      id: 1,
+      name: 'Habitación 101',
+      capacity: 2,
+      status: 'available',
+      tags: ['vista al mar', 'balcón']
+    },
+    {
+      id: 2,
+      name: 'Habitación 102',
+      capacity: 4,
+      status: 'occupied',
+      tags: ['suite', 'jacuzzi']
+    },
+    {
+      id: 3,
+      name: 'Habitación 103',
+      capacity: 2,
+      status: 'maintenance',
+      tags: []
+    }
   ]
 
-  const mockProps = {
-    rooms: mockRooms,
-    onRoomClick: vi.fn(),
-    selectedRoomId: null
-  }
-
-  it('renders room list with rooms', () => {
-    render(<RoomList {...mockProps} />)
-    expect(screen.getByText('Habitación 101')).toBeInTheDocument()
-    expect(screen.getByText('Habitación 102')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it('calls onRoomClick when room is clicked', () => {
-    const mockOnRoomClick = vi.fn()
-    render(<RoomList {...mockProps} onRoomClick={mockOnRoomClick} />)
+  it('shows loading state initially', async () => {
+    const { fetchRooms } = await import('../services/api.js')
+    fetchRooms.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
     
-    const firstRoom = screen.getByText('Habitación 101')
-    fireEvent.click(firstRoom)
+    render(<RoomList />)
     
-    expect(mockOnRoomClick).toHaveBeenCalledWith(1)
+    expect(screen.getByText('Cargando habitaciones...')).toBeInTheDocument()
   })
 
-  it('renders empty state when no rooms', () => {
-    render(<RoomList {...mockProps} rooms={[]} />)
-    expect(screen.getByText(/no hay habitaciones/i)).toBeInTheDocument()
+  it('displays rooms when data loads successfully', async () => {
+    const { fetchRooms } = await import('../services/api.js')
+    fetchRooms.mockResolvedValue(mockRooms)
+    
+    render(<RoomList />)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Habitación 101')).toBeInTheDocument()
+      expect(screen.getByText('Habitación 102')).toBeInTheDocument()
+      expect(screen.getByText('Habitación 103')).toBeInTheDocument()
+    })
   })
 
-  it('highlights selected room', () => {
-    render(<RoomList {...mockProps} selectedRoomId={1} />)
-    const selectedRoom = screen.getByText('Habitación 101').closest('div')
-    expect(selectedRoom).toHaveClass('selected')
+  it('handles empty room list', async () => {
+    const { fetchRooms } = await import('../services/api.js')
+    fetchRooms.mockResolvedValue([])
+    
+    render(<RoomList />)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Habitaciones')).toBeInTheDocument()
+    })
+  })
+
+  it('calls fetchRooms on mount', async () => {
+    const { fetchRooms } = await import('../services/api.js')
+    fetchRooms.mockResolvedValue(mockRooms)
+    
+    render(<RoomList />)
+    
+    expect(fetchRooms).toHaveBeenCalled()
   })
 }) 

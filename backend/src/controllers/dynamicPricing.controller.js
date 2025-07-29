@@ -97,6 +97,26 @@ class DynamicPricingController {
         });
       }
 
+      // Si no es un keyframe operacional, validar que esté dentro de un período de apertura
+      if (!isOperational) {
+        const targetDate = new Date(date);
+        
+        // Buscar períodos operacionales que contengan esta fecha
+        const operationalPeriods = await prisma.operationalPeriod.findMany({
+          where: {
+            hotelId,
+            startDate: { lte: targetDate },
+            endDate: { gte: targetDate }
+          }
+        });
+
+        if (operationalPeriods.length === 0) {
+          return res.status(400).json({
+            message: 'No se puede crear un keyframe fuera de un período de apertura. La fecha debe estar dentro de un período operacional.'
+          });
+        }
+      }
+
       const keyframe = await prisma.seasonalKeyframe.create({
         data: {
           hotelId,
@@ -239,6 +259,24 @@ class DynamicPricingController {
       if (existingKeyframe.isOperational) {
         return res.status(403).json({ 
           message: 'No se puede modificar un keyframe operacional desde esta interfaz. Use el panel de períodos operacionales.' 
+        });
+      }
+
+      // Validar que la nueva fecha esté dentro de un período de apertura
+      const targetDate = new Date(date);
+      
+      // Buscar períodos operacionales que contengan esta fecha
+      const operationalPeriods = await prisma.operationalPeriod.findMany({
+        where: {
+          hotelId: existingKeyframe.hotelId,
+          startDate: { lte: targetDate },
+          endDate: { gte: targetDate }
+        }
+      });
+
+      if (operationalPeriods.length === 0) {
+        return res.status(400).json({
+          message: 'No se puede mover un keyframe fuera de un período de apertura. La fecha debe estar dentro de un período operacional.'
         });
       }
 

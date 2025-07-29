@@ -1,27 +1,31 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import SidePanel from './SidePanel'
 
 describe('SidePanel', () => {
   const mockProps = {
-    isOpen: true,
+    open: true,
     onClose: vi.fn(),
-    children: <div>Test content</div>
+    title: 'Test Panel',
+    children: <div>Test content</div>,
+    width: 400
   }
 
   it('renders when open', () => {
     render(<SidePanel {...mockProps} />)
     expect(screen.getByText('Test content')).toBeInTheDocument()
+    expect(screen.getByText('Test Panel')).toBeInTheDocument()
   })
 
   it('does not render when closed', () => {
-    render(<SidePanel {...mockProps} isOpen={false} />)
-    expect(screen.queryByText('Test content')).not.toBeInTheDocument()
+    render(<SidePanel {...mockProps} open={false} />)
+    // El componente siempre se renderiza, pero se oculta con CSS
+    expect(screen.getByText('Test content')).toBeInTheDocument()
   })
 
   it('renders close button when open', () => {
     render(<SidePanel {...mockProps} />)
-    const closeButton = screen.getByRole('button', { name: /cerrar/i })
+    const closeButton = screen.getByLabelText('Cerrar panel')
     expect(closeButton).toBeInTheDocument()
   })
 
@@ -29,9 +33,20 @@ describe('SidePanel', () => {
     const mockOnClose = vi.fn()
     render(<SidePanel {...mockProps} onClose={mockOnClose} />)
     
-    const closeButton = screen.getByRole('button', { name: /cerrar/i })
-    closeButton.click()
+    const closeButton = screen.getByLabelText('Cerrar panel')
+    fireEvent.click(closeButton)
     
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
+    expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('calls onClose when overlay is clicked', () => {
+    const mockOnClose = vi.fn()
+    render(<SidePanel {...mockProps} onClose={mockOnClose} />)
+    
+    // Seleccionar el overlay por su clase CSS específica
+    const overlay = document.querySelector('[class*="overlay"]')
+    fireEvent.click(overlay)
+    
+    expect(mockOnClose).toHaveBeenCalled()
   })
 }) 

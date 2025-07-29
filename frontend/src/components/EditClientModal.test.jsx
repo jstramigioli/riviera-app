@@ -15,14 +15,14 @@ const mockClient = {
 
 describe('EditClientModal', () => {
   it('renders the modal with client data', () => {
-    render(<EditClientModal open={true} client={mockClient} onClose={() => {}} onSave={() => {}} />);
+    render(<EditClientModal isOpen={true} client={mockClient} onClose={() => {}} onClientUpdated={() => {}} />);
     expect(screen.getByDisplayValue('Juan')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Pérez')).toBeInTheDocument();
   });
 
   it('allows editing the first name', () => {
-    render(<EditClientModal open={true} client={mockClient} onClose={() => {}} onSave={() => {}} />);
-    const input = screen.getByLabelText(/first name/i);
+    render(<EditClientModal isOpen={true} client={mockClient} onClose={() => {}} onClientUpdated={() => {}} />);
+    const input = screen.getByLabelText('Nombre *');
     fireEvent.change(input, { target: { value: 'Carlos' } });
     expect(input.value).toBe('Carlos');
   });

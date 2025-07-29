@@ -125,11 +125,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const minValue = 0; // Comenzar siempre en 0 pesos
   const maxValue = Math.max(...adjustedValues);
   
-  console.log(`🔍 Valores para eje Y:`);
-  console.log(`   minValue: ${minValue}`);
-  console.log(`   maxValue: ${maxValue}`);
-  console.log(`   adjustedValues: [${adjustedValues.join(', ')}]`);
-  
 
 
   // Función helper para normalizar fechas a formato YYYY-MM-DD
@@ -533,21 +528,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         
         const isInPeriod = keyframeDateStr >= periodStartStr && keyframeDateStr <= periodEndStr;
         
-        // Logs detallados para el keyframe de apertura
-        if (k.isOperational && k.operationalType === 'opening') {
-          console.log(`🔍 DEBUG APERTURA:`);
-          console.log(`   Keyframe date: ${keyframeDate.toISOString()}`);
-          console.log(`   Keyframe date string: ${keyframeDateStr}`);
-          console.log(`   Period start: ${periodStart.toISOString()}`);
-          console.log(`   Period start string: ${periodStartStr}`);
-          console.log(`   Period end: ${periodEnd.toISOString()}`);
-          console.log(`   Period end string: ${periodEndStr}`);
-          console.log(`   keyframeDateStr >= periodStartStr: ${keyframeDateStr >= periodStartStr}`);
-          console.log(`   keyframeDateStr <= periodEndStr: ${keyframeDateStr <= periodEndStr}`);
-          console.log(`   isInPeriod: ${isInPeriod}`);
-        }
-        
-        console.log(`🔍 FILTRO: Keyframe ${new Date(k.date).toISOString().split('T')[0]} - ${k.isOperational ? k.operationalType : 'NORMAL'} - $${k.value} - En período: ${isInPeriod} (${periodStart.toISOString().split('T')[0]} a ${periodEnd.toISOString().split('T')[0]})`);
         return isInPeriod;
       });
       
@@ -559,17 +539,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       
       // Si hay keyframes en este período, generar la curva
       if (sortedPeriodKeyframes.length > 1) {
-        console.log(`🔍 DEBUG: Generando curva con ${sortedPeriodKeyframes.length} keyframes`);
-        console.log(`🔍 DEBUG: Keyframes ordenados:`);
-        sortedPeriodKeyframes.forEach((k, i) => {
-          const dateStr = new Date(k.date).toISOString().split('T')[0];
-          const typeStr = k.isOperational ? (k.operationalType === 'opening' ? 'APERTURA' : 'CIERRE') : 'NORMAL';
-          console.log(`   ${i + 1}. ${dateStr} - ${typeStr} - $${k.value}`);
-        });
-        
         for (let i = 0; i < sortedPeriodKeyframes.length - 1; i++) {
           const a = sortedPeriodKeyframes[i], b = sortedPeriodKeyframes[i + 1];
-          console.log(`🔍 DEBUG: Segmento ${i + 1}: Interpolando entre ${new Date(a.date).toISOString().split('T')[0]} (${a.isOperational ? a.operationalType : 'NORMAL'}) y ${new Date(b.date).toISOString().split('T')[0]} (${b.isOperational ? b.operationalType : 'NORMAL'})`);
           
           const steps = 50;
           for (let s = 0; s <= steps; s++) {
@@ -612,9 +583,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       }
       
       if (points.length > 0) {
-        console.log(`🔍 DEBUG: Puntos generados para período: ${points.length}`);
-        console.log(`🔍 DEBUG: Primer punto: x=${points[0].x}, y=${points[0].y}`);
-        console.log(`🔍 DEBUG: Último punto: x=${points[points.length-1].x}, y=${points[points.length-1].y}`);
         curveSegments.push(points);
       }
     });
@@ -734,43 +702,34 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
           return exactDate >= periodStart && exactDate <= periodEnd;
         });
         
+        // Solo mostrar signo + si estamos dentro de un período operacional
         if (currentPeriod) {
-          // Contar cuántos segmentos de línea azul hay en este período
-          const periodStart = new Date(currentPeriod.startDate);
-          const periodEnd = new Date(currentPeriod.endDate);
-          
-          const periodKeyframes = sorted.filter(k => {
-            const keyframeDate = new Date(k.date);
-            return keyframeDate >= periodStart && keyframeDate <= periodEnd;
-          });
-          
-          const sortedPeriodKeyframes = periodKeyframes.sort((a, b) => new Date(a.date) - new Date(b.date));
-          const segmentCount = sortedPeriodKeyframes.length > 1 ? sortedPeriodKeyframes.length - 1 : 0;
-          
-          console.log(`🔍 Hover en período operacional: ${currentPeriod.label || 'Sin etiqueta'} - Segmentos de línea azul: ${segmentCount}`);
-        }
-        
-        // Si no existe un keyframe en esta fecha, mostrar signo +
-        if (existingKeyframeIndex === -1) {
-          setTooltip({
-            show: true,
-            x: e.clientX + 10,
-            y: e.clientY - 80,
-            date: exactDate.toLocaleDateString('es-ES', { 
-              day: 'numeric', 
-              month: 'short', 
-              year: 'numeric' 
-            }),
-            price: price,
-            snapX: snapX,
-            snapY: snapY,
-            snapDate: exactDate // Agregar la fecha del snap
-          });
-          setHoveredKeyframe(null);
+          // Si no existe un keyframe en esta fecha, mostrar signo +
+          if (existingKeyframeIndex === -1) {
+            setTooltip({
+              show: true,
+              x: e.clientX + 10,
+              y: e.clientY - 80,
+              date: exactDate.toLocaleDateString('es-ES', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric' 
+              }),
+              price: price,
+              snapX: snapX,
+              snapY: snapY,
+              snapDate: exactDate // Agregar la fecha del snap
+            });
+            setHoveredKeyframe(null);
+          } else {
+            // Si existe un keyframe, no mostrar tooltip pero marcar como hovered
+            setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
+            setHoveredKeyframe(existingKeyframeIndex);
+          }
         } else {
-          // Si existe un keyframe, no mostrar tooltip pero marcar como hovered
+          // Si no estamos en un período operacional, no mostrar tooltip ni signo +
           setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
-          setHoveredKeyframe(existingKeyframeIndex);
+          setHoveredKeyframe(null);
         }
       } else {
         setTooltip({ show: false, x: 0, y: 0, date: '', price: 0, snapX: 0, snapY: 0 });
@@ -1461,6 +1420,20 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             
             if (existingKeyframeIndex !== -1) {
               showNotification('Ya existe un precio establecido para esta fecha clave', 'error');
+              return;
+            }
+            
+            // Verificar que la fecha esté dentro de un período operacional
+            const operationalPeriods = getOperationalPeriods();
+            const targetDate = new Date(newPoint.date);
+            const isInOperationalPeriod = operationalPeriods.some(period => {
+              const periodStart = new Date(period.startDate);
+              const periodEnd = new Date(period.endDate);
+              return targetDate >= periodStart && targetDate <= periodEnd;
+            });
+            
+            if (!isInOperationalPeriod) {
+              showNotification('No se puede agregar una fecha clave fuera de un período de apertura. La fecha debe estar dentro de un período operacional.', 'error');
               return;
             }
             

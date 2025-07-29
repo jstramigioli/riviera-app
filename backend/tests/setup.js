@@ -31,6 +31,7 @@ const mockPrismaClient = {
     update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
     delete: jest.fn().mockResolvedValue({ id: 1 }),
     deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    count: jest.fn().mockResolvedValue(10),
   },
   
   // Modelo Reservation
@@ -41,6 +42,7 @@ const mockPrismaClient = {
     update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
     delete: jest.fn().mockResolvedValue({ id: 1 }),
     deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    count: jest.fn().mockResolvedValue(5),
   },
   
   // Modelo RoomType
@@ -91,6 +93,77 @@ const mockPrismaClient = {
     delete: jest.fn().mockResolvedValue({ id: 1 }),
     deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     createMany: jest.fn().mockResolvedValue({ count: 1 }),
+    upsert: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.create })),
+  },
+
+  // Modelo DynamicPricingConfig
+  dynamicPricingConfig: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    upsert: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.create })),
+  },
+
+  // Modelo SeasonalKeyframe
+  seasonalKeyframe: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+  },
+
+  // Modelo OperationalPeriod
+  operationalPeriod: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+  },
+
+  // Modelo RoomTypeCoefficient
+  roomTypeCoefficient: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+  },
+
+  // Modelo MealPricingRule
+  mealPricingRule: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    upsert: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.create })),
+  },
+
+  // Modelo RoomGapPromotion
+  roomGapPromotion: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+  },
+
+  // Modelo DailyRoomRate
+  dailyRoomRate: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    upsert: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.create })),
   },
 };
 

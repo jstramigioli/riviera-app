@@ -2,13 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Configuracion from './Configuracion'
 
-// Mock de react-router-dom
-vi.mock('react-router-dom', () => ({
-  Link: ({ children, to }) => <a href={to}>{children}</a>,
-  useLocation: () => ({ pathname: '/configuracion' }),
-}))
-
-// Mock de los componentes
+// Mock de los componentes de configuración
 vi.mock('../components/configuracion/HabitacionesTab', () => ({
   default: () => <div data-testid="habitaciones-tab">Habitaciones Tab</div>
 }))
@@ -17,64 +11,90 @@ vi.mock('../components/configuracion/EtiquetasTab', () => ({
   default: () => <div data-testid="etiquetas-tab">Etiquetas Tab</div>
 }))
 
+vi.mock('../components/configuracion/DynamicPricingConfigPanel', () => ({
+  default: () => <div data-testid="dynamic-pricing-tab">Dynamic Pricing Tab</div>
+}))
+
+vi.mock('../components/configuracion/SeasonalCurveWrapper', () => ({
+  default: () => <div data-testid="seasonal-curve-tab">Seasonal Curve Tab</div>
+}))
+
+vi.mock('../components/configuracion/MealPricingEditor', () => ({
+  default: () => <div data-testid="meal-pricing-tab">Meal Pricing Tab</div>
+}))
+
+vi.mock('../components/configuracion/OperationalPeriodsPanel', () => ({
+  default: () => <div data-testid="operational-periods-tab">Operational Periods Tab</div>
+}))
+
+vi.mock('../components/configuracion/TarifasPreviewPanel', () => ({
+  default: () => <div data-testid="tarifas-preview-tab">Tarifas Preview Tab</div>
+}))
+
+// Mock de localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  clear: vi.fn()
+}
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock
+})
+
 describe('Configuracion', () => {
+  beforeEach(() => {
+    localStorageMock.getItem.mockReturnValue('habitaciones')
+    localStorageMock.setItem.mockClear()
+  })
+
   it('renders the configuration page title', () => {
     render(<Configuracion />)
-    expect(screen.getByText('Configuración')).toBeInTheDocument()
+    expect(screen.getByText('Hotel Riviera - Configuración')).toBeInTheDocument()
   })
 
-  it('renders navigation breadcrumb', () => {
-    render(<Configuracion />)
-    expect(screen.getByText('Inicio')).toBeInTheDocument()
-    expect(screen.getByText('Configuración')).toBeInTheDocument()
-  })
-
-  it('renders tab navigation', () => {
+  it('renders navigation tabs', () => {
     render(<Configuracion />)
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
+    expect(screen.getByText('Tarifas')).toBeInTheDocument()
+    expect(screen.getByText('Usuarios')).toBeInTheDocument()
     expect(screen.getByText('Sistema')).toBeInTheDocument()
   })
 
   it('shows habitaciones tab by default', () => {
     render(<Configuracion />)
     expect(screen.getByTestId('habitaciones-tab')).toBeInTheDocument()
-    expect(screen.queryByTestId('etiquetas-tab')).not.toBeInTheDocument()
+    expect(screen.getByTestId('etiquetas-tab')).toBeInTheDocument()
   })
 
-  it('switches to etiquetas tab when clicked', () => {
+  it('switches to tarifas tab when clicked', () => {
     render(<Configuracion />)
     
-    const etiquetasTab = screen.getByText('Sistema')
-    fireEvent.click(etiquetasTab)
+    const tarifasTab = screen.getByText('Tarifas')
+    fireEvent.click(tarifasTab)
     
-    expect(screen.getByTestId('etiquetas-tab')).toBeInTheDocument()
-    expect(screen.queryByTestId('habitaciones-tab')).not.toBeInTheDocument()
+    expect(screen.getByTestId('dynamic-pricing-tab')).toBeInTheDocument()
   })
 
   it('switches back to habitaciones tab', () => {
     render(<Configuracion />)
     
-    // Switch to sistema first
-    const sistemaTab = screen.getByText('Sistema')
-    fireEvent.click(sistemaTab)
+    // Cambiar a tarifas
+    const tarifasTab = screen.getByText('Tarifas')
+    fireEvent.click(tarifasTab)
     
-    // Switch back to habitaciones
+    // Cambiar de vuelta a habitaciones
     const habitacionesTab = screen.getByText('Habitaciones')
     fireEvent.click(habitacionesTab)
     
     expect(screen.getByTestId('habitaciones-tab')).toBeInTheDocument()
-    expect(screen.queryByTestId('etiquetas-tab')).not.toBeInTheDocument()
   })
 
-  it('has correct page structure', () => {
+  it('saves active tab to localStorage', () => {
     render(<Configuracion />)
-    const title = screen.getByText('Hotel Riviera - Configuración')
-    expect(title).toBeInTheDocument()
-  })
-
-  it('renders page header with icon', () => {
-    render(<Configuracion />)
-    const header = screen.getByText('Hotel Riviera - Configuración')
-    expect(header).toBeInTheDocument()
+    
+    const tarifasTab = screen.getByText('Tarifas')
+    fireEvent.click(tarifasTab)
+    
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('configActiveTab', 'tarifas')
   })
 }) 

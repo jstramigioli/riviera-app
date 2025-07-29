@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 0.5rem;
@@ -29,7 +29,7 @@
 }
 
 .subtitle {
-  font-size: 1.1rem;
+  font-size: var(--font-size-large);
   color: #6c757d;
   margin: 0;
 }
@@ -72,7 +72,7 @@
 }
 
 .monthTitle {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   font-weight: 600;
   margin: 0;
   text-transform: capitalize;
@@ -161,7 +161,7 @@
 }
 
 .dayNumber {
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 700;
   color: #2c3e50;
   text-align: center;
@@ -177,11 +177,11 @@
 
 .dayStatus {
   color: #28a745;
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
 }
 
 .hotelIcon {
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
 }
 
 .dayPrice {
@@ -191,14 +191,14 @@
   background: rgba(40, 167, 69, 0.1);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   font-weight: 600;
   color: #28a745;
 }
 
 .dayNotes {
   color: #ffc107;
-  font-size: 0.7rem;
+  font-size: var(--font-size-small);
   background: rgba(255, 193, 7, 0.1);
   padding: 0.25rem;
   border-radius: 50%;
@@ -211,7 +211,7 @@
 
 .closedIndicator {
   color: #dc3545;
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
   text-align: center;
   margin-top: auto;
 }
@@ -229,7 +229,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-medium);
   color: #6c757d;
 }
 

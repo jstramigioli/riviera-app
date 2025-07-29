@@ -7,9 +7,11 @@ vi.mock('../services/api', () => ({
   fetchClients: vi.fn(),
   fetchRooms: vi.fn(),
   fetchReservations: vi.fn(),
-  fetchRoomTypes: vi.fn(),
-  fetchTags: vi.fn(),
-  fetchDailyRates: vi.fn(),
+}))
+
+// Mock de roomUtils
+vi.mock('../utils/roomUtils', () => ({
+  sortRooms: vi.fn((rooms) => rooms)
 }))
 
 describe('useAppData', () => {
@@ -28,20 +30,14 @@ describe('useAppData', () => {
     const mockData = {
       clients: [{ id: 1, name: 'Test Client' }],
       rooms: [{ id: 1, name: 'Room 101' }],
-      reservations: [],
-      roomTypes: [],
-      tags: [],
-      dailyRates: []
+      reservations: []
     }
 
-    const { fetchClients, fetchRooms, fetchReservations, fetchRoomTypes, fetchTags, fetchDailyRates } = await import('../services/api')
+    const { fetchClients, fetchRooms, fetchReservations } = await import('../services/api')
     
     fetchClients.mockResolvedValue(mockData.clients)
     fetchRooms.mockResolvedValue(mockData.rooms)
     fetchReservations.mockResolvedValue(mockData.reservations)
-    fetchRoomTypes.mockResolvedValue(mockData.roomTypes)
-    fetchTags.mockResolvedValue(mockData.tags)
-    fetchDailyRates.mockResolvedValue(mockData.dailyRates)
 
     const { result } = renderHook(() => useAppData())
 
@@ -69,9 +65,11 @@ describe('useAppData', () => {
     expect(result.current.error).toBeTruthy()
   })
 
-  it('provides refresh function', () => {
+  it('provides setter functions', () => {
     const { result } = renderHook(() => useAppData())
     
-    expect(typeof result.current.refresh).toBe('function')
+    expect(typeof result.current.setRooms).toBe('function')
+    expect(typeof result.current.setClients).toBe('function')
+    expect(typeof result.current.setReservations).toBe('function')
   })
 }) 

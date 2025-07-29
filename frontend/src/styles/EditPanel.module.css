@@ -6,7 +6,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   max-height: 80vh;
   overflow-y: auto;
-  font-size: 1.15rem;
+  font-size: var(--font-size-large);
   line-height: 1.7;
 }
 
@@ -29,7 +29,7 @@
 
 .title {
   font-weight: 600;
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   color: #2c3e50;
 }
 
@@ -38,7 +38,7 @@
 }
 
 .subtitle {
-  font-size: 0.95rem;
+  font-size: var(--font-size-medium);
   color: #888;
   font-weight: 500;
 }
@@ -53,18 +53,18 @@
   font-weight: 600;
   color: #34495e;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-medium);
 }
 
 .fieldValue {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   color: #2c3e50;
   padding: 0.5rem 0;
   border-bottom: 1px solid #ecf0f1;
 }
 
 .fieldInput {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   width: 100%;
   padding: 0.75rem;
   border: 2px solid #ecf0f1;
@@ -85,7 +85,7 @@
 }
 
 .fieldSelect {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   width: 100%;
   padding: 0.75rem;
   border: 2px solid #ecf0f1;
@@ -102,7 +102,7 @@
 }
 
 .fieldTextarea {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   width: 100%;
   padding: 0.75rem;
   border: 2px solid #ecf0f1;
@@ -120,7 +120,7 @@
 }
 
 .errorMessage {
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
   color: #e74c3c;
   margin-top: 0.25rem;
   font-weight: 500;
@@ -149,7 +149,7 @@
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 0.75rem;
-  font-size: 0.95rem;
+  font-size: var(--font-size-medium);
 }
 
 .itemCard {
@@ -174,13 +174,13 @@
 }
 
 .itemSubtitle {
-  font-size: 0.85rem;
+  font-size: var(--font-size-small);
   color: #6c757d;
   margin-bottom: 0.25rem;
 }
 
 .itemDetails {
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
   color: #6c757d;
 }
 
@@ -208,13 +208,13 @@
 
 .balanceLabel {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: var(--font-size-large);
   color: #2c3e50;
 }
 
 .balanceAmount {
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
 }
 
 .balanceAmount.positive {
@@ -243,7 +243,7 @@
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -264,7 +264,7 @@
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -291,7 +291,7 @@
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -319,7 +319,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  font-size: 0.9rem;
+  font-size: var(--font-size-medium);
 }
 
 .deleteButton:hover {

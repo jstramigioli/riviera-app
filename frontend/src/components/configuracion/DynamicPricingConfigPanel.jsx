@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import StackedWeightSlider from "./StackedWeightSlider";
+import DynamicPricingWeightsEditor from "./DynamicPricingWeightsEditor";
 
 const defaultConfig = {
   occupancy: 30,
@@ -26,7 +26,22 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
-        setConfig({ ...defaultConfig, ...data });
+        // Mapear los campos del backend al frontend
+        const mappedData = {
+          ...defaultConfig,
+          // Convertir de decimal a porcentaje y mapear campos
+          occupancy: data.globalOccupancyWeight ? Math.round(data.globalOccupancyWeight * 100) : defaultConfig.occupancy,
+          anticipation: data.anticipationWeight ? Math.round(data.anticipationWeight * 100) : defaultConfig.anticipation,
+          season: data.isWeekendWeight ? Math.round(data.isWeekendWeight * 100) : defaultConfig.season,
+          events: data.isHolidayWeight ? Math.round(data.isHolidayWeight * 100) : defaultConfig.events,
+          // Mantener otros campos del backend
+          maxAdjustmentPercentage: data.maxAdjustmentPercentage || defaultConfig.maxAdjustmentPercentage,
+          anticipationThresholds: data.anticipationThresholds || defaultConfig.anticipationThresholds,
+          enableGapPromos: data.enableGapPromos !== undefined ? data.enableGapPromos : defaultConfig.enableGapPromos,
+          enableWeatherApi: data.enableWeatherApi !== undefined ? data.enableWeatherApi : defaultConfig.enableWeatherApi,
+          enableRecentDemand: data.enableRecentDemand !== undefined ? data.enableRecentDemand : defaultConfig.enableRecentDemand,
+        };
+        setConfig(mappedData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -76,10 +91,28 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     setSaving(true);
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Mapear los datos del frontend al formato del backend
+      const backendData = {
+        // Convertir de porcentaje a decimal y mapear campos
+        globalOccupancyWeight: config.occupancy / 100,
+        anticipationWeight: config.anticipation / 100,
+        isWeekendWeight: config.season / 100,
+        isHolidayWeight: config.events / 100,
+        demandIndexWeight: 0.1, // Valores por defecto
+        weatherScoreWeight: 0.05,
+        eventImpactWeight: 0.05,
+        anticipationThresholds: config.anticipationThresholds,
+        maxAdjustmentPercentage: config.maxAdjustmentPercentage,
+        enableGapPromos: config.enableGapPromos,
+        enableWeatherApi: config.enableWeatherApi,
+        enableRecentDemand: config.enableRecentDemand,
+      };
+      
       await fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(backendData),
       });
       alert("Configuración guardada exitosamente");
     } catch {
@@ -99,7 +132,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         <div>
           <h4 style={{ marginBottom: '15px', color: '#34495e' }}>Pesos de Factores</h4>
-          <StackedWeightSlider
+          <DynamicPricingWeightsEditor
             weights={{
               occupancy: config.occupancy,
               anticipation: config.anticipation,
