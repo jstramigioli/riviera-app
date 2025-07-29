@@ -467,6 +467,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         checkOut: newReservation.checkOut,
         notes: newReservation.notes,
         status: 'active',
+        reservationType: newReservation.reservationType || 'con_desayuno',
         totalAmount: 0, // Por ahora 0, se puede calcular después
         requiredGuests: newReservation.requiredGuests,
         requiredRoomId: newReservation.requiredRoomId,

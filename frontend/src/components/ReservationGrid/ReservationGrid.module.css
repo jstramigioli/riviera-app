@@ -1,0 +1,255 @@
+/* Contenedor principal */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fff;
+}
+
+/* Controles */
+.controls {
+  display: flex;
+  gap: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.controlGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: #fff;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.controlButton:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.primaryButton {
+  background: #007bff;
+  color: #fff;
+  border-color: #007bff;
+}
+
+.primaryButton:hover {
+  background: #0056b3;
+  border-color: #0056b3;
+}
+
+/* Grid Container */
+.gridContainer {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Grid Canvas */
+.gridCanvas {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+.gridTable {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.gridTable th,
+.gridTable td {
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.gridTable th {
+  background: #f8f9fa;
+  font-weight: bold;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.gridTable td {
+  background: #fff;
+  position: relative;
+}
+
+.gridTable tr:nth-child(even) td {
+  background: #f8f9fa;
+}
+
+/* Reservations Layer */
+.reservationsLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.reservationBar {
+  pointer-events: auto;
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.reservationBar:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Grid Header */
+.gridHeader {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.headerTable {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.headerTable th {
+  border: 1px solid #e0e0e0;
+  padding: 8px;
+  background: #f8f9fa;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .controlGroup {
+    justify-content: center;
+  }
+  
+  .gridCanvas {
+    font-size: 12px;
+  }
+  
+  .gridTable th,
+  .gridTable td {
+    padding: 2px;
+  }
+}
+
+/* Scrollbar styling */
+.gridCanvas::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.gridCanvas::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.gridCanvas::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.gridCanvas::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Drag and drop styles */
+.dragging {
+  opacity: 0.7;
+  transform: rotate(2deg);
+}
+
+.dragPreview {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1001;
+  background: rgba(0, 123, 255, 0.3);
+  border: 2px dashed #007bff;
+  border-radius: 3px;
+}
+
+/* Resize handles */
+.resizeHandle {
+  position: absolute;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: rgba(0, 123, 255, 0.5);
+  border-radius: 2px;
+}
+
+.resizeHandleLeft {
+  left: 0;
+}
+
+.resizeHandleRight {
+  right: 0;
+}
+
+.resizeHandle:hover {
+  background: rgba(0, 123, 255, 0.8);
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+} 

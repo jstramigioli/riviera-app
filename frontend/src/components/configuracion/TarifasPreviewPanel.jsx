@@ -12,18 +12,18 @@ const roomTypeNames = {
   'departamento La Esquinita': 'Departamento La Esquinita'
 };
 
-// Orden de tipos de habitación para mostrar en la tabla
-const roomTypeOrder = [
-  'single',
-  'doble', 
-  'triple',
-  'cuadruple',
-  'quintuple',
-  'departamento El Romerito',
-  'departamento El Tilo',
-  'departamento Via 1',
-  'departamento La Esquinita'
-];
+// Orden de tipos de habitación para mostrar en la tabla (se cargará dinámicamente)
+// const defaultRoomTypeOrder = [
+//   'single',
+//   'doble', 
+//   'triple',
+//   'cuadruple',
+//   'quintuple',
+//   'departamento El Romerito',
+//   'departamento El Tilo',
+//   'departamento Via 1',
+//   'departamento La Esquinita'
+// ];
 
 const defaultRoomTypeCoefficients = {
   'single': 0.62,
@@ -48,6 +48,45 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     dinnerValue: 0.2,
   });
   const [saving, setSaving] = useState(false);
+  const [roomTypes, setRoomTypes] = useState([]); // Nuevo estado para tipos de habitación dinámicos
+
+  // Cargar tipos de habitación desde el backend
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/room-types`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRoomTypes(data);
+        }
+      })
+      .catch((error) => {
+        console.log('Error al cargar tipos de habitación:', error);
+      });
+  }, []);
+
+  // Escuchar eventos de actualización de tipos de habitación
+  useEffect(() => {
+    const handleRoomTypesUpdate = (event) => {
+      console.log('🔄 Actualizando tipos de habitación en previsualización:', event.detail);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      fetch(`${API_URL}/room-types`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setRoomTypes(data);
+          }
+        })
+        .catch((error) => {
+          console.log('Error al recargar tipos de habitación:', error);
+        });
+    };
+
+    window.addEventListener('roomTypesUpdated', handleRoomTypesUpdate);
+    return () => {
+      window.removeEventListener('roomTypesUpdated', handleRoomTypesUpdate);
+    };
+  }, []);
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
@@ -248,60 +287,74 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
             </tr>
           </thead>
           <tbody>
-            {roomTypeOrder
-              .filter(type => roomTypeCoefficients[type] !== undefined)
-              .map((type) => {
-                const coefficient = roomTypeCoefficients[type];
-                const basePriceForType = Math.round(basePrice * coefficient);
-                const { breakfast, halfBoard } = calculateMealPrices(basePriceForType);
-                
-                return (
-                  <tr key={type} style={{ borderBottom: '1px solid #e9ecef' }}>
-                    <td style={{ padding: '15px', fontWeight: '500', color: '#495057' }}>
-                      {roomTypeNames[type] || type}
-                    </td>
-                    <td style={{ padding: '15px', textAlign: 'center' }}>
-                      <input
-                        type="number"
-                        value={coefficient}
-                        onChange={(e) => handleCoefficientChange(type, e.target.value)}
-                        step="0.01"
-                        min="0"
-                        style={{
-                          width: '80px',
-                          padding: '4px 8px',
-                          border: '1px solid #ced4da',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          textAlign: 'center'
-                        }}
-                      />
-                    </td>
-                    <td style={{ padding: '15px', textAlign: 'center' }}>
-                      <input
-                        type="number"
-                        value={basePriceForType}
-                        onChange={(e) => handleBasePriceChange(type, e.target.value)}
-                        min="0"
-                        style={{
-                          width: '100px',
-                          padding: '4px 8px',
-                          border: '1px solid #ced4da',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          textAlign: 'center'
-                        }}
-                      />
-                    </td>
-                    <td style={{ padding: '15px', textAlign: 'right', color: '#28a745', fontSize: '14px' }}>
-                      ${breakfast.toLocaleString()}
-                    </td>
-                    <td style={{ padding: '15px', textAlign: 'right', color: '#dc3545', fontSize: '14px' }}>
-                      ${halfBoard.toLocaleString()}
+            {roomTypes.length > 0 
+              ? roomTypes
+                  .filter(roomType => roomTypeCoefficients[roomType.name] !== undefined)
+                  .map((roomType) => {
+                    const coefficient = roomTypeCoefficients[roomType.name];
+                    const basePriceForType = Math.round(basePrice * coefficient);
+                    const { breakfast, halfBoard } = calculateMealPrices(basePriceForType);
+                    
+                    return (
+                      <tr key={roomType.id} style={{ borderBottom: '1px solid #e9ecef' }}>
+                        <td style={{ padding: '15px', fontWeight: '500', color: '#495057' }}>
+                          {roomTypeNames[roomType.name] || roomType.name}
+                        </td>
+                        <td style={{ padding: '15px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={coefficient}
+                            onChange={(e) => handleCoefficientChange(roomType.name, e.target.value)}
+                            step="0.01"
+                            min="0"
+                            style={{
+                              width: '80px',
+                              padding: '4px 8px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              textAlign: 'center'
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '15px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={basePriceForType}
+                            onChange={(e) => handleBasePriceChange(roomType.name, e.target.value)}
+                            min="0"
+                            style={{
+                              width: '100px',
+                              padding: '4px 8px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              textAlign: 'center'
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '15px', textAlign: 'right', color: '#28a745', fontSize: '14px' }}>
+                          ${breakfast.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '15px', textAlign: 'right', color: '#dc3545', fontSize: '14px' }}>
+                          ${halfBoard.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })
+              : (
+                  <tr>
+                    <td colSpan="5" style={{ 
+                      padding: '20px', 
+                      textAlign: 'center', 
+                      color: '#6c757d',
+                      fontStyle: 'italic'
+                    }}>
+                      Cargando tipos de habitación...
                     </td>
                   </tr>
-                );
-              })}
+                )
+            }
           </tbody>
         </table>
       </div>

@@ -65,6 +65,8 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
 
   const handleSave = async () => {
     try {
+      console.log('🔍 Iniciando guardado de keyframes...');
+      
       // Convertir al formato del backend y guardar
       const backendKeyframes = keyframes.map(k => {
         const dateStr = k.date;
@@ -88,40 +90,61 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
           // Preservar propiedades operacionales si existen
           isOperational: k.isOperational || false,
           operationalType: k.operationalType || null,
-          periodId: k.periodId || null
+          periodId: k.periodId || null,
+          id: k.id // Preservar el ID original si existe
         };
       });
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       
+      console.log('🔍 Keyframes a guardar:', backendKeyframes.length);
+      
       // Obtener keyframes operacionales existentes para preservarlos
       const existingKeyframesResponse = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`);
+      if (!existingKeyframesResponse.ok) {
+        throw new Error(`Error al obtener keyframes existentes: ${existingKeyframesResponse.status}`);
+      }
+      
       const existingKeyframes = await existingKeyframesResponse.json();
       const operationalKeyframes = existingKeyframes.filter(k => k.isOperational);
+      const normalKeyframes = existingKeyframes.filter(k => !k.isOperational);
+      
+      console.log('🔍 Keyframes operacionales existentes:', operationalKeyframes.length);
+      console.log('🔍 Keyframes normales existentes:', normalKeyframes.length);
 
       // Eliminar solo keyframes NO operacionales
-      await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}/all`, {
+      const deleteResponse = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}/all`, {
         method: 'DELETE'
       });
+      
+      if (!deleteResponse.ok) {
+        throw new Error(`Error al eliminar keyframes: ${deleteResponse.status}`);
+      }
+      
+      console.log('🔍 Keyframes normales eliminados');
 
       // Crear los nuevos keyframes normales uno por uno
-      for (const keyframe of backendKeyframes) {
-        // Solo crear keyframes que no sean operacionales
-        if (!keyframe.isOperational) {
-          const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(keyframe)
-          });
-          if (!response.ok) {
-            throw new Error(`Error al crear keyframe: ${response.status}`);
-          }
+      const newNormalKeyframes = backendKeyframes.filter(k => !k.isOperational);
+      console.log('🔍 Creando', newNormalKeyframes.length, 'keyframes normales');
+      
+      for (const keyframe of newNormalKeyframes) {
+        const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(keyframe)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`Error al crear keyframe: ${response.status} - ${errorData.message || 'Error desconocido'}`);
         }
       }
 
       // Recrear los keyframes operacionales si es necesario
+      console.log('🔍 Recreando', operationalKeyframes.length, 'keyframes operacionales');
+      
       for (const operationalKeyframe of operationalKeyframes) {
-        await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
+        const response = await fetch(`${API_URL}/dynamic-pricing/keyframes/${hotelId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -132,11 +155,18 @@ export default function SeasonalCurveWrapper({ hotelId = "default-hotel" }) {
             periodId: operationalKeyframe.periodId
           })
         });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`Error al recrear keyframe operacional: ${response.status} - ${errorData.message || 'Error desconocido'}`);
+        }
       }
 
+      console.log('🔍 Guardado completado exitosamente');
+      
     } catch (error) {
-      console.error('Error al guardar:', error);
-      // La notificación se manejará desde el SeasonalCurveEditor
+      console.error('❌ Error al guardar:', error);
+      throw error; // Re-lanzar el error para que el SeasonalCurveEditor lo maneje
     }
   };
 

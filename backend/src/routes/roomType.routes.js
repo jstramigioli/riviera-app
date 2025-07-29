@@ -12,6 +12,9 @@ router.get('/:id', roomTypeController.getRoomTypeById);
 // POST /api/room-types - Crear un nuevo tipo de habitación
 router.post('/', roomTypeController.createRoomType);
 
+// PUT /api/room-types/order - Actualizar el orden de los tipos de habitación
+router.put('/order', roomTypeController.updateRoomTypesOrder);
+
 // PUT /api/room-types/:id - Actualizar un tipo de habitación
 router.put('/:id', roomTypeController.updateRoomType);
 

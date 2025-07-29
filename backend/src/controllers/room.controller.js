@@ -38,16 +38,47 @@ exports.getRoomById = async (req, res) => {
 
 // Crear una nueva habitación
 exports.createRoom = async (req, res) => {
-  const { name, description, capacity, price, orderIndex, tagIds } = req.body;
+  const { name, description, roomTypeId, tagIds } = req.body;
+  
+  if (!name || !roomTypeId) {
+    return res.status(400).json({ error: 'Name and roomTypeId are required' });
+  }
+  
   try {
+    // Obtener la capacidad basada en el tipo de habitación
+    const roomType = await prisma.roomType.findUnique({
+      where: { id: Number(roomTypeId) }
+    });
+    
+    if (!roomType) {
+      return res.status(400).json({ error: 'Invalid roomTypeId' });
+    }
+    
+    // Mapeo de tipos de habitación a capacidades
+    const capacityMap = {
+      'single': 1,
+      'doble': 2,
+      'triple': 3,
+      'cuadruple': 4,
+      'quintuple': 5,
+      'sextuple': 6,
+      'departamento El Romerito': 4,
+      'departamento El Tilo': 4,
+      'departamento Via 1': 4,
+      'departamento La Esquinita': 4
+    };
+    
+    const maxPeople = capacityMap[roomType.name] || 1;
+    
     const room = await prisma.room.create({
       data: {
         name,
         description,
-        capacity: capacity ? Number(capacity) : null,
-        price: price ? Number(price) : null,
-        orderIndex: orderIndex ? Number(orderIndex) : null,
-        tags: tagIds ? {
+        roomTypeId: Number(roomTypeId),
+        maxPeople,
+        status: 'available',
+        orderIndex: 0,
+        tags: tagIds && tagIds.length > 0 ? {
           connect: tagIds.map(id => ({ id: Number(id) }))
         } : undefined
       },
@@ -58,6 +89,7 @@ exports.createRoom = async (req, res) => {
     });
     res.status(201).json(room);
   } catch (error) {
+    console.error('Error creating room:', error);
     res.status(500).json({ error: 'Error creating room' });
   }
 };

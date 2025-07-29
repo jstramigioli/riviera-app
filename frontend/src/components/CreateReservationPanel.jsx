@@ -15,6 +15,7 @@ export default function CreateReservationPanel({
   const [formData, setFormData] = useState({
     checkIn: format(new Date(), 'yyyy-MM-dd'),
     checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    reservationType: 'con_desayuno', // Tipo de servicio por defecto
     mainClient: {
       firstName: '',
       lastName: '',
@@ -45,6 +46,8 @@ export default function CreateReservationPanel({
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isRoomSelectionModalOpen, setIsRoomSelectionModalOpen] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [hotelAvailability, setHotelAvailability] = useState(null);
   const searchInputRef = useRef(null);
 
   // Cargar clientes al abrir el panel
@@ -53,6 +56,13 @@ export default function CreateReservationPanel({
       loadClients();
     }
   }, [isOpen]);
+
+  // Verificar disponibilidad del hotel cuando cambian las fechas
+  useEffect(() => {
+    if (isOpen && formData.checkIn && formData.checkOut) {
+      checkHotelAvailability();
+    }
+  }, [isOpen, formData.checkIn, formData.checkOut]);
 
   // Filtrar clientes cuando cambia el término de búsqueda
   useEffect(() => {
@@ -205,6 +215,25 @@ export default function CreateReservationPanel({
     }
   };
 
+  const checkHotelAvailability = async () => {
+    if (!formData.checkIn || !formData.checkOut) return;
+    
+    setIsCheckingAvailability(true);
+    try {
+      const response = await api.checkHotelAvailability(
+        'default-hotel', // Por ahora hardcodeado
+        formData.checkIn,
+        formData.checkOut
+      );
+      setHotelAvailability(response);
+    } catch (error) {
+      console.error('Error al verificar disponibilidad del hotel:', error);
+      setHotelAvailability({ isAvailable: false, error: 'Error al verificar disponibilidad' });
+    } finally {
+      setIsCheckingAvailability(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -217,6 +246,11 @@ export default function CreateReservationPanel({
     }
     if (formData.checkIn && formData.checkOut && formData.checkIn >= formData.checkOut) {
       newErrors.checkOut = 'La fecha de salida debe ser posterior a la de entrada';
+    }
+
+    // Validar disponibilidad del hotel
+    if (hotelAvailability && !hotelAvailability.isAvailable) {
+      newErrors.hotelAvailability = 'El hotel no está abierto en las fechas seleccionadas';
     }
 
     // Validar cliente
@@ -299,6 +333,7 @@ export default function CreateReservationPanel({
     setFormData({
       checkIn: format(new Date(), 'yyyy-MM-dd'),
       checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      reservationType: 'con_desayuno',
       mainClient: {
         firstName: '',
         lastName: '',
@@ -323,6 +358,7 @@ export default function CreateReservationPanel({
     setSearchTerm('');
     setErrors({});
     setIsRoomSelectionModalOpen(false);
+    setHotelAvailability(null);
   };
 
   return (
@@ -366,6 +402,54 @@ export default function CreateReservationPanel({
                 {errors.checkOut && <span className={styles.errorText}>{errors.checkOut}</span>}
               </div>
             </div>
+
+            {/* Selector de tipo de servicio */}
+            <div className={styles.formGroup}>
+              <label htmlFor="reservationType">Tipo de Servicio *</label>
+              <select
+                id="reservationType"
+                value={formData.reservationType}
+                onChange={(e) => handleInputChange('reservationType', e.target.value)}
+                className={styles.select}
+              >
+                <option value="base">Solo alojamiento</option>
+                <option value="con_desayuno">Con desayuno</option>
+                <option value="media_pension">Media pensión</option>
+              </select>
+            </div>
+
+            {/* Estado de disponibilidad del hotel */}
+            {isCheckingAvailability && (
+              <div className={styles.availabilityStatus}>
+                <span>Verificando disponibilidad del hotel...</span>
+              </div>
+            )}
+            
+            {hotelAvailability && !isCheckingAvailability && (
+              <div className={`${styles.availabilityStatus} ${hotelAvailability.isAvailable ? styles.available : styles.unavailable}`}>
+                {hotelAvailability.isAvailable ? (
+                  <span>✅ Hotel abierto en las fechas seleccionadas</span>
+                ) : (
+                  <div>
+                    <span>❌ Hotel cerrado en las fechas seleccionadas</span>
+                    {hotelAvailability.uncoveredRanges && hotelAvailability.uncoveredRanges.length > 0 && (
+                      <div className={styles.uncoveredRanges}>
+                        <small>Períodos no cubiertos:</small>
+                        {hotelAvailability.uncoveredRanges.map((range, index) => (
+                          <div key={index} className={styles.range}>
+                            {format(new Date(range.start), 'dd/MM/yyyy')} - {format(new Date(range.end), 'dd/MM/yyyy')}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {errors.hotelAvailability && (
+              <span className={styles.errorText}>{errors.hotelAvailability}</span>
+            )}
           </div>
 
           {/* Requerimientos de la Reserva */}
@@ -643,6 +727,7 @@ export default function CreateReservationPanel({
         requirements={requirements}
         checkIn={formData.checkIn}
         checkOut={formData.checkOut}
+        reservationType={formData.reservationType}
       />
     </SidePanel>
   );

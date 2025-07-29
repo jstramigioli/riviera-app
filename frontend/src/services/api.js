@@ -202,6 +202,63 @@ export async function updateRoomOnServer(id, data) {
   return res.json();
 }
 
+export async function createRoom(data) {
+  const res = await fetch(`${API_URL}/rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creando habitación');
+  return res.json();
+}
+
+export async function deleteRoom(id) {
+  const res = await fetch(`${API_URL}/rooms/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error eliminando habitación');
+  return res.ok;
+}
+
+// Funciones para tipos de habitaciones
+export async function createRoomType(data) {
+  const res = await fetch(`${API_URL}/room-types`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creando tipo de habitación');
+  return res.json();
+}
+
+export async function updateRoomType(id, data) {
+  const res = await fetch(`${API_URL}/room-types/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error actualizando tipo de habitación');
+  return res.json();
+}
+
+export async function deleteRoomType(id) {
+  const res = await fetch(`${API_URL}/room-types/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting room type');
+  return res.json();
+}
+
+export async function updateRoomTypesOrder(roomTypeIds) {
+  const res = await fetch(`${API_URL}/room-types/order`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomTypeIds })
+  });
+  if (!res.ok) throw new Error('Error updating room types order');
+  return res.json();
+}
+
 export async function fetchTags() {
   const res = await fetch(`${API_URL}/tags`);
   if (!res.ok) throw new Error('Error fetching tags');
@@ -332,6 +389,46 @@ export async function getPricesForDateRange(startDate, endDate) {
   return res.json();
 }
 
+// Funciones para el hotel
+export async function getHotel() {
+  const res = await fetch(`${API_URL}/hotel`);
+  if (!res.ok) throw new Error('Error fetching hotel data');
+  return res.json();
+}
+
+export async function updateHotel(data) {
+  const res = await fetch(`${API_URL}/hotel`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error updating hotel');
+  return res.json();
+}
+
+export async function checkHotelAvailability(hotelId, startDate, endDate) {
+  const params = new URLSearchParams({
+    startDate,
+    endDate
+  });
+  
+  const res = await fetch(`${API_URL}/operational-periods/${hotelId}/availability?${params}`);
+  if (!res.ok) throw new Error('Error checking hotel availability');
+  return res.json();
+}
+
+export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate, serviceType = 'base') {
+  const params = new URLSearchParams({
+    startDate,
+    endDate,
+    serviceType
+  });
+  
+  const res = await fetch(`${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/${roomTypeId}?${params}`);
+  if (!res.ok) throw new Error('Error getting calculated rates');
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -356,6 +453,12 @@ export default {
   suggestDynamicPrice,
   createClient,
   updateRoomOnServer,
+  createRoom,
+  deleteRoom,
+  createRoomType,
+  updateRoomType,
+  deleteRoomType,
+  updateRoomTypesOrder,
   fetchTags,
   createTag,
   updateTag,
@@ -366,5 +469,9 @@ export default {
   updateOpenDay,
   deleteOpenDay,
   getPricesForAllRoomTypes,
-  getPricesForDateRange
+  getPricesForDateRange,
+  getHotel,
+  updateHotel,
+  checkHotelAvailability,
+  getCalculatedRates
 };

@@ -3,7 +3,7 @@ import { createTag, updateTag, deleteTag } from '../../services/api';
 import { useTags } from '../../hooks/useTags';
 import '../../styles/variables.css';
 
-function EtiquetasTab() {
+function EtiquetasTab({ onDataChange }) {
   const { tags, loading, addTag, updateTag: updateTagInContext, removeTag } = useTags();
   const [editingTag, setEditingTag] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -29,6 +29,7 @@ function EtiquetasTab() {
       updateTagInContext(updatedTag);
       setEditingTag(null);
       setEditForm({});
+      if (onDataChange) onDataChange(); // Notify parent component about data change
     } catch (error) {
       console.error('Error actualizando etiqueta:', error);
       alert('Error al actualizar la etiqueta');
@@ -40,6 +41,7 @@ function EtiquetasTab() {
       try {
         await deleteTag(tagId);
         removeTag(tagId);
+        if (onDataChange) onDataChange(); // Notify parent component about data change
       } catch (error) {
         console.error('Error eliminando etiqueta:', error);
         alert('Error al eliminar la etiqueta');
@@ -53,6 +55,7 @@ function EtiquetasTab() {
       addTag(newTag);
       setCreateForm({ name: '', color: '#3B82F6' });
       setShowCreateForm(false);
+      if (onDataChange) onDataChange(); // Notify parent component about data change
     } catch (error) {
       console.error('Error creando etiqueta:', error);
       alert('Error al crear la etiqueta');
@@ -83,113 +86,16 @@ function EtiquetasTab() {
 
   return (
     <div>
-      {/* Formulario de creación */}
-      {showCreateForm && (
-        <div style={{
-          backgroundColor: 'var(--color-bg)',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px solid var(--color-border)'
-        }}>
-          <h4 style={{ margin: '0 0 16px 0', color: 'var(--color-text-main)', fontSize: 'var(--font-size-large)' }}>
-            Crear Nueva Etiqueta
-          </h4>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="Nombre de la etiqueta"
-              value={createForm.name}
-              onChange={(e) => handleCreateInputChange('name', e.target.value)}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                border: '1px solid var(--color-border)',
-                borderRadius: '6px',
-                fontSize: 'var(--font-size-medium)'
-              }}
-            />
-            <input
-              type="color"
-              value={createForm.color}
-              onChange={(e) => handleCreateInputChange('color', e.target.value)}
-              style={{
-                width: '60px',
-                height: '48px',
-                border: '1px solid var(--color-border)',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            />
-            <button
-              onClick={handleCreate}
-              disabled={!createForm.name.trim()}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: 'var(--color-success)',
-                color: 'var(--color-text-light)',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-medium)',
-                opacity: createForm.name.trim() ? 1 : 0.6
-              }}
-            >
-              Crear
-            </button>
-            <button
-              onClick={() => setShowCreateForm(false)}
-              style={{
-                padding: '12px 20px',
-                backgroundColor: 'var(--color-text-muted)',
-                color: 'var(--color-text-light)',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: 'var(--font-size-medium)'
-              }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Botón para mostrar formulario de creación */}
-      {!showCreateForm && (
-        <div style={{ marginBottom: '20px' }}>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-text-light)',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: 'var(--font-size-medium)',
-              fontWeight: '500',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <span style={{ fontSize: 'var(--font-size-large)' }}>+</span>
-            Nueva Etiqueta
-          </button>
-        </div>
-      )}
-
       {/* Lista de etiquetas en tabla */}
       <div style={{
         border: '1px solid var(--color-border)',
         borderRadius: '8px',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        backgroundColor: 'var(--color-bg-white)'
       }}>
-        <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          backgroundColor: 'var(--color-bg-white)'
+        <table style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse'
         }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -331,24 +237,111 @@ function EtiquetasTab() {
                 </td>
               </tr>
             ))}
+            
+            {/* Fila para agregar nueva etiqueta */}
+            {showCreateForm ? (
+              <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                <td style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="Nombre de la etiqueta"
+                      value={createForm.name}
+                      onChange={(e) => handleCreateInputChange('name', e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '6px',
+                        fontSize: 'var(--font-size-medium)'
+                      }}
+                    />
+                    <input
+                      type="color"
+                      value={createForm.color}
+                      onChange={(e) => handleCreateInputChange('color', e.target.value)}
+                      style={{
+                        width: '50px',
+                        height: '40px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </div>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    <button
+                      onClick={handleCreate}
+                      disabled={!createForm.name.trim()}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'var(--color-success)',
+                        color: 'var(--color-text-light)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-medium)',
+                        opacity: createForm.name.trim() ? 1 : 0.6
+                      }}
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setShowCreateForm(false)}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'var(--color-text-muted)',
+                        color: 'var(--color-text-light)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-medium)'
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                <td style={{ padding: '16px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center',
+                    marginTop: '16px'
+                  }}>
+                    <button
+                      onClick={() => setShowCreateForm(true)}
+                      style={{
+                        padding: '16px 32px',
+                        backgroundColor: 'var(--color-primary)',
+                        color: 'var(--color-text-light)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-large)',
+                        fontWeight: '500',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: 'var(--font-size-large)' }}>+</span>
+                      Agregar Etiqueta
+                    </button>
+                  </div>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  {/* Celda vacía para mantener la estructura */}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-
-      {tags.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px',
-          color: 'var(--color-text-muted)',
-          backgroundColor: 'var(--color-bg)',
-          borderRadius: '8px',
-          border: '1px solid var(--color-border)',
-          fontSize: 'var(--font-size-medium)'
-        }}>
-          <p>No hay etiquetas creadas aún.</p>
-          <p>Crea tu primera etiqueta para empezar a organizar las habitaciones.</p>
-        </div>
-      )}
     </div>
   );
 }

@@ -17,9 +17,11 @@ router.delete('/keyframes/:hotelId/all', dynamicPricingController.deleteAllSeaso
 router.post('/operational-keyframes/:hotelId', dynamicPricingController.createOperationalKeyframes);
 router.put('/operational-keyframes/:periodId', dynamicPricingController.updateOperationalKeyframes);
 router.delete('/operational-keyframes/:periodId', dynamicPricingController.deleteOperationalKeyframes);
+router.put('/operational-keyframes/:id/price', dynamicPricingController.updateOperationalKeyframePrice);
 
 // Tarifas dinámicas
 router.get('/rates/:hotelId/:roomTypeId', dynamicPricingController.getDynamicRates);
+router.get('/calculated-rates/:hotelId/:roomTypeId', dynamicPricingController.getCalculatedRates);
 router.post('/rates/:hotelId/:roomTypeId/generate', dynamicPricingController.generateDynamicRates);
 router.put('/rates/:hotelId/:roomTypeId/:date', dynamicPricingController.updateDynamicRate);
 

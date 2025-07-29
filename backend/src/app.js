@@ -11,6 +11,7 @@ const rateRoutes = require('./routes/rate.routes');
 const openDayRoutes = require('./routes/openDay.routes');
 const operationalPeriodRoutes = require('./routes/operationalPeriod.routes');
 const dynamicPricingRoutes = require('./routes/dynamicPricing.routes');
+const hotelRoutes = require('./routes/hotel.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/rates', rateRoutes);
 app.use('/api/open-days', openDayRoutes);
 app.use('/api/operational-periods', operationalPeriodRoutes);
 app.use('/api/dynamic-pricing', dynamicPricingRoutes);
+app.use('/api/hotel', hotelRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

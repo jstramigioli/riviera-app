@@ -1,0 +1,351 @@
+/* Contenedor principal */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Controles */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.controlGroup label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.select, .input {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #fff;
+  min-width: 120px;
+}
+
+.select:focus, .input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Navegación de períodos */
+.periodNavigation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.navButton {
+  background: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.navButton:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.periodDisplay {
+  font-weight: 600;
+  color: #495057;
+  min-width: 120px;
+  text-align: center;
+}
+
+/* Botones de acción */
+.actionButtons {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addButton {
+  background: #28a745;
+  color: #fff;
+}
+
+.addButton:hover {
+  background: #218838;
+}
+
+.saveButton {
+  background: #007bff;
+  color: #fff;
+}
+
+.saveButton:hover {
+  background: #0056b3;
+}
+
+/* Canvas */
+.canvasContainer {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.canvasWrapper {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.curveCanvas {
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* Modales */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 400px;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  color: #495057;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.closeButton:hover {
+  color: #495057;
+}
+
+.modalForm {
+  padding: 20px;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.cancelButton {
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  background: #5a6268;
+}
+
+.submitButton {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submitButton:hover {
+  background: #0056b3;
+}
+
+.deleteButton {
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.deleteButton:hover {
+  background: #c82333;
+}
+
+.pointInfo {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.pointInfo p {
+  margin: 5px 0;
+  color: #495057;
+}
+
+/* Notificaciones */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.notification.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.notificationIcon {
+  font-size: 16px;
+}
+
+.notificationMessage {
+  font-weight: 500;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Tooltip */
+.tooltip {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tooltipContent {
+  white-space: nowrap;
+}
+
+.tooltipDate, .tooltipPrice {
+  margin: 2px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .actionButtons {
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .modal {
+    min-width: 90vw;
+    margin: 20px;
+  }
+  
+  .canvasWrapper {
+    padding: 10px;
+  }
+} 

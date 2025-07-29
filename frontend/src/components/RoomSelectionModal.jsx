@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findAvailableRooms } from '../services/api';
+import { findAvailableRooms, getCalculatedRates } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import '../styles/variables.css';
 
@@ -9,7 +9,8 @@ function RoomSelectionModal({
   onRoomSelected, 
   requirements, 
   checkIn, 
-  checkOut 
+  checkOut,
+  reservationType = 'con_desayuno'
 }) {
   const { tags } = useTags();
   const [loading, setLoading] = useState(false);
@@ -17,12 +18,67 @@ function RoomSelectionModal({
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedCombination, setSelectedCombination] = useState(null);
   const [error, setError] = useState(null);
+  const [roomRates, setRoomRates] = useState({});
+  const [loadingRates, setLoadingRates] = useState({});
 
   useEffect(() => {
     if (isOpen && requirements.requiredGuests) {
       searchAvailableRooms();
     }
   }, [isOpen, requirements, checkIn, checkOut]);
+
+  // Cargar tarifas cuando se selecciona una habitación
+  useEffect(() => {
+    if (selectedRoomId && checkIn && checkOut) {
+      loadRoomRates(selectedRoomId);
+    }
+  }, [selectedRoomId, checkIn, checkOut, reservationType]);
+
+  const loadRoomRates = async (roomId) => {
+    if (!roomId || !checkIn || !checkOut) return;
+
+    setLoadingRates(prev => ({ ...prev, [roomId]: true }));
+    
+    try {
+      // Obtener el tipo de habitación de la habitación seleccionada
+      const selectedRoom = searchResults?.availableRooms.find(room => room.id === roomId);
+      if (!selectedRoom) return;
+
+      // Mapear el tipo de servicio a los parámetros de la API
+      let serviceType = 'base';
+      switch (reservationType) {
+        case 'con_desayuno':
+          serviceType = 'breakfast';
+          break;
+        case 'media_pension':
+          serviceType = 'halfBoard';
+          break;
+        default:
+          serviceType = 'base';
+      }
+
+      const rates = await getCalculatedRates(
+        'default-hotel', // Por ahora hardcodeado
+        selectedRoom.roomType.id,
+        checkIn,
+        checkOut,
+        serviceType
+      );
+
+      setRoomRates(prev => ({
+        ...prev,
+        [roomId]: rates
+      }));
+    } catch (error) {
+      console.error('Error cargando tarifas:', error);
+      setRoomRates(prev => ({
+        ...prev,
+        [roomId]: { error: 'Error al cargar tarifas' }
+      }));
+    } finally {
+      setLoadingRates(prev => ({ ...prev, [roomId]: false }));
+    }
+  };
 
   const searchAvailableRooms = async () => {
     if (!checkIn || !checkOut || !requirements.requiredGuests) return;
@@ -82,10 +138,30 @@ function RoomSelectionModal({
     return { text: `${Math.abs(capacityDiff)} persona(s) menos`, color: 'var(--color-danger)', priority: 3 };
   };
 
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS'
+    }).format(price);
+  };
+
+  const getServiceTypeLabel = () => {
+    switch (reservationType) {
+      case 'con_desayuno':
+        return 'Con desayuno';
+      case 'media_pension':
+        return 'Media pensión';
+      default:
+        return 'Solo alojamiento';
+    }
+  };
+
   const renderRoomCard = (room, isSelected) => {
     const matchingTags = getMatchingTags(room);
     const capacityMatch = getCapacityMatch(room);
     const tagScore = getTagScore(room);
+    const roomRate = roomRates[room.id];
+    const isLoadingRates = loadingRates[room.id];
     
     return (
       <div
@@ -98,67 +174,100 @@ function RoomSelectionModal({
           padding: '16px',
           border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
           borderRadius: '8px',
-          backgroundColor: isSelected ? 'var(--color-primary-light)' : 'var(--color-bg-white)',
+          backgroundColor: isSelected ? 'var(--color-primary-light)' : 'white',
           cursor: 'pointer',
-          transition: 'all 0.2s'
+          transition: 'all 0.2s ease',
+          marginBottom: '12px'
         }}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '8px'
-        }}>
-          <div>
-            <h4 style={{
-              margin: '0 0 4px 0',
-              fontSize: 'var(--font-size-medium)',
-              fontWeight: '600'
-            }}>
-              {room.name} - {room.roomType.name}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-text)' }}>
+              {room.name}
             </h4>
-            <div style={{
-              fontSize: 'var(--font-size-small)',
-              color: capacityMatch.color,
-              fontWeight: '500'
-            }}>
-              Capacidad: {room.maxPeople} personas ({capacityMatch.text})
+            
+            <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
+              <div>Tipo: {room.roomType.name}</div>
+              <div>Capacidad: {room.maxPeople} personas</div>
+              <div style={{ color: capacityMatch.color }}>
+                {capacityMatch.text}
+              </div>
             </div>
+
+            {/* Información de tarifas */}
+            <div style={{ marginTop: '12px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                {getServiceTypeLabel()}
+              </div>
+              
+              {isLoadingRates && (
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                  Calculando tarifas...
+                </div>
+              )}
+              
+              {roomRate && !isLoadingRates && !roomRate.error && (
+                <div style={{ fontSize: '14px', marginTop: '4px' }}>
+                  <div style={{ fontWeight: 'bold', color: 'var(--color-success)' }}>
+                    Total: {formatPrice(roomRate.totalAmount)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                    {roomRate.numberOfNights} noches • Promedio: {formatPrice(roomRate.averageRatePerNight)}/noche
+                  </div>
+                </div>
+              )}
+              
+              {roomRate?.error && (
+                <div style={{ fontSize: '12px', color: 'var(--color-danger)' }}>
+                  Error al cargar tarifas
+                </div>
+              )}
+            </div>
+
+            {/* Tags */}
+            {matchingTags.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                  Etiquetas coincidentes ({matchingTags.length}/{requirements.requiredTags.length}):
+                </div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {matchingTags.map(tagId => {
+                    const tag = tags.find(t => t.id.toString() === tagId);
+                    return tag ? (
+                      <span
+                        key={tag.id}
+                        style={{
+                          backgroundColor: tag.color,
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px'
+                        }}
+                      >
+                        {tag.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{
-            backgroundColor: capacityMatch.priority === 1 ? 'var(--color-success)' : 
-                           capacityMatch.priority === 2 ? 'var(--color-warning)' : 'var(--color-danger)',
-            color: 'var(--color-text-light)',
-            padding: '4px 8px',
-            borderRadius: '12px',
-            fontSize: 'var(--font-size-small)',
-            fontWeight: '500'
-          }}>
-            {tagScore} pts
+
+          <div style={{ textAlign: 'right', marginLeft: '12px' }}>
+            {tagScore > 0 && (
+              <div style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}>
+                {tagScore}/10
+              </div>
+            )}
           </div>
         </div>
-        
-        {matchingTags.length > 0 && (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
-            {matchingTags.map(tagId => {
-              const tag = tags.find(t => t.id.toString() === tagId);
-              return tag ? (
-                <span
-                  key={tagId}
-                  style={{
-                    padding: '2px 6px',
-                    backgroundColor: tag.color,
-                    color: 'var(--color-text-light)',
-                    borderRadius: '8px',
-                    fontSize: 'var(--font-size-small)'
-                  }}
-                >
-                  {tag.name}
-                </span>
-              ) : null;
-            })}
-          </div>
-        )}
       </div>
     );
   };

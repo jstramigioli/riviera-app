@@ -4,7 +4,7 @@ const prisma = require('../utils/prisma');
 exports.getAllRoomTypes = async (req, res) => {
   try {
     const roomTypes = await prisma.roomType.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { orderIndex: 'asc' }
     });
     res.json(roomTypes);
   } catch (error) {
@@ -74,8 +74,39 @@ exports.deleteRoomType = async (req, res) => {
     await prisma.roomType.delete({
       where: { id: Number(id) }
     });
-    res.status(204).send();
+    res.json({ message: 'Room type deleted successfully' });
   } catch (error) {
-    res.status(404).json({ error: 'Room type not found' });
+    res.status(500).json({ error: 'Error deleting room type' });
+  }
+};
+
+// Actualizar el orden de los tipos de habitación
+exports.updateRoomTypesOrder = async (req, res) => {
+  const { roomTypeIds } = req.body; // Array de IDs en el nuevo orden
+  
+  if (!Array.isArray(roomTypeIds)) {
+    return res.status(400).json({ error: 'roomTypeIds must be an array' });
+  }
+  
+  try {
+    // Actualizar el orderIndex de cada tipo de habitación
+    const updatePromises = roomTypeIds.map((id, index) => 
+      prisma.roomType.update({
+        where: { id: Number(id) },
+        data: { orderIndex: index }
+      })
+    );
+    
+    await Promise.all(updatePromises);
+    
+    // Retornar los tipos de habitación actualizados
+    const updatedRoomTypes = await prisma.roomType.findMany({
+      orderBy: { orderIndex: 'asc' }
+    });
+    
+    res.json(updatedRoomTypes);
+  } catch (error) {
+    console.error('Error updating room types order:', error);
+    res.status(500).json({ error: 'Error updating room types order' });
   }
 }; 

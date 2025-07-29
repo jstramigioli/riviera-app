@@ -80,19 +80,15 @@ const validateReservation = (req, res, next) => {
 };
 
 const validateRoom = (req, res, next) => {
-  const { name, capacity, price } = req.body;
+  const { name, roomTypeId } = req.body;
   const errors = [];
 
   if (!name || name.trim().length === 0) {
     errors.push('El nombre de la habitación es requerido');
   }
 
-  if (capacity && (isNaN(capacity) || capacity <= 0)) {
-    errors.push('La capacidad debe ser un número positivo');
-  }
-
-  if (price !== undefined && (isNaN(price) || price <= 0)) {
-    errors.push('El precio debe ser un número positivo');
+  if (!roomTypeId) {
+    errors.push('El tipo de habitación es requerido');
   }
 
   if (errors.length > 0) {

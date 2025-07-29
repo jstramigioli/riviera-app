@@ -49,6 +49,7 @@ model RoomType {
   name        String     @unique
   description String?
   multiplier  Float      @default(1.0) // Multiplicador del precio base
+  orderIndex  Int        @default(0) // Para ordenar tipos de habitación personalizadamente
   rooms       Room[]
   dailyRates  DailyRate[]
   // Nuevas relaciones para el sistema dinámico

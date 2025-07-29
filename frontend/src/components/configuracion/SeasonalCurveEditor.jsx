@@ -1,30 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
 
-// Coeficientes por defecto para tipos de habitación
-const defaultRoomTypeCoefficients = {
-  'single': 0.62,
-  'doble': 1.00,
-  'triple': 1.25,
-  'cuadruple': 1.50,
-  'quintuple': 1.75,
-  'departamento El Romerito': 1.50,
-  'departamento El Tilo': 1.50,
-  'departamento Via 1': 1.50,
-  'departamento La Esquinita': 1.50
-};
-
-const roomTypeNames = {
-  'single': 'Individual',
-  'doble': 'Doble',
-  'triple': 'Triple',
-  'cuadruple': 'Cuádruple',
-  'quintuple': 'Quíntuple',
-  'departamento El Romerito': 'Departamento El Romerito',
-  'departamento El Tilo': 'Departamento El Tilo',
-  'departamento Via 1': 'Departamento Via 1',
-  'departamento La Esquinita': 'Departamento La Esquinita'
-};
-
 const priceTypeOptions = [
   { value: 'base', label: 'Precio Base' },
   { value: 'breakfast', label: 'Con Desayuno' },
@@ -54,7 +29,8 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedRoomType, setSelectedRoomType] = useState('doble');
   const [selectedPriceType, setSelectedPriceType] = useState('base');
-  const [roomTypeCoefficients, setRoomTypeCoefficients] = useState(defaultRoomTypeCoefficients);
+  const [roomTypeCoefficients, setRoomTypeCoefficients] = useState({});
+  const [roomTypes, setRoomTypes] = useState([]); // Nuevo estado para tipos de habitación
   const [zoomLevel, setZoomLevel] = useState('month');
   const [lastSavedKeyframes, setLastSavedKeyframes] = useState([]);
   const [currentPeriod, setCurrentPeriod] = useState(new Date());
@@ -123,7 +99,10 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   
   const adjustedValues = sorted.map(k => calculateAdjustedValue(k.value));
   const minValue = 0; // Comenzar siempre en 0 pesos
-  const maxValue = Math.max(...adjustedValues);
+  const maxValue = adjustedValues.length > 0 ? Math.max(...adjustedValues) : 100000; // Valor por defecto si no hay keyframes
+  
+  // Asegurar que maxValue sea al menos 1000 para evitar divisiones por cero
+  const safeMaxValue = Math.max(maxValue, 1000);
   
 
 
@@ -157,6 +136,54 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         console.log('Error al cargar coeficientes, usando valores por defecto:', error);
       });
   }, [hotelId]);
+
+  // Cargar tipos de habitación desde el backend
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/room-types`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRoomTypes(data);
+          // Si no hay tipo seleccionado o el tipo seleccionado no existe, seleccionar el primero
+          if (!selectedRoomType || !data.find(rt => rt.name === selectedRoomType)) {
+            setSelectedRoomType(data[0].name);
+          }
+        }
+      })
+      .catch((error) => {
+        console.log('Error al cargar tipos de habitación:', error);
+      });
+  }, [hotelId, selectedRoomType]);
+
+  // Escuchar cambios en tipos de habitación
+  useEffect(() => {
+    const handleRoomTypesUpdate = (event) => {
+      console.log('🔄 Actualizando tipos de habitación desde evento:', event.detail);
+      // Recargar tipos de habitación
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      fetch(`${API_URL}/room-types`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setRoomTypes(data);
+            // Si el tipo seleccionado ya no existe, seleccionar el primero
+            if (!data.find(rt => rt.name === selectedRoomType)) {
+              setSelectedRoomType(data[0].name);
+            }
+          }
+        })
+        .catch((error) => {
+          console.log('Error al recargar tipos de habitación:', error);
+        });
+    };
+
+    window.addEventListener('roomTypesUpdated', handleRoomTypesUpdate);
+
+    return () => {
+      window.removeEventListener('roomTypesUpdated', handleRoomTypesUpdate);
+    };
+  }, [selectedRoomType]);
 
   // Cargar reglas de comidas desde el backend
   useEffect(() => {
@@ -318,11 +345,13 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
           setLastSavedKeyframes(sorted);
           onSave().catch(error => {
             console.error('Error en guardado automático:', error);
-            // Si hay un error relacionado con keyframes operacionales, mostrar mensaje específico
-            if (error.message.includes('operacional')) {
+            // Mostrar mensaje específico según el tipo de error
+            if (error.message && error.message.includes('operacional')) {
               showNotification('Las fechas clave de apertura y cierre se preservan automáticamente', 'info');
+            } else if (error.message && error.message.includes('período')) {
+              showNotification('No se puede crear un keyframe fuera de un período de apertura', 'error');
             } else {
-              showNotification('Error al guardar la curva', 'error');
+              showNotification('Error al guardar la curva: ' + (error.message || 'Error desconocido'), 'error');
             }
           });
           showNotification('Curva guardada automáticamente');
@@ -405,8 +434,28 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
   
 
   
-  const valueToY = (value) =>
-    height - margin - ((value - minValue) / (maxValue - minValue || 1)) * (height - 2 * margin);
+  const valueToY = (value) => {
+    // Validar que value sea un número válido
+    if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+      return height - margin; // Posición por defecto en la parte inferior
+    }
+    
+    // Validar que safeMaxValue sea válido
+    if (typeof safeMaxValue !== 'number' || isNaN(safeMaxValue) || !isFinite(safeMaxValue)) {
+      return height - margin; // Posición por defecto en la parte inferior
+    }
+    
+    // Calcular la posición Y con validación adicional
+    const normalizedValue = Math.max(0, Math.min(value, safeMaxValue));
+    const y = height - margin - ((normalizedValue - minValue) / (safeMaxValue - minValue)) * (height - 2 * margin);
+    
+    // Validar que el resultado sea un número válido
+    if (typeof y !== 'number' || isNaN(y) || !isFinite(y)) {
+      return height - margin; // Posición por defecto en la parte inferior
+    }
+    
+    return y;
+  };
 
   // Calcular precio interpolado para una fecha
   const getInterpolatedPrice = (date) => {
@@ -625,7 +674,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       });
       
       if (existingPointIndex !== -1) {
-        // Editar punto existente
+        // Editar punto existente (incluyendo operacionales)
         setEditingPoint({ index: existingPointIndex, point: sorted[existingPointIndex] });
       } else {
         // Agregar nuevo punto
@@ -839,11 +888,12 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                 padding: '8px 12px',
                 border: '1px solid #ced4da',
                 borderRadius: '4px',
-                fontSize: '14px'
+                fontSize: '14px',
+                backgroundColor: 'white'
               }}
             >
-              {Object.entries(roomTypeNames).map(([key, name]) => (
-                <option key={key} value={key}>{name}</option>
+              {roomTypes.map((roomType) => (
+                <option key={roomType.name} value={roomType.name}>{roomType.name}</option>
               ))}
             </select>
           </div>
@@ -1226,10 +1276,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                   adjustedPrice = basePriceForType;
               }
               
-              // Obtener información del período desde el estado
-              const periodData = periodsData.find(p => p.id === k.periodId);
-              const periodLabel = periodData?.label || null;
-              
               return (
                 <g key={`operational-${realIndex}`}>
                   {/* Círculo principal - más grande y azul */}
@@ -1244,10 +1290,33 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                     style={{ cursor: "pointer" }}
                   />
                   
-                  {/* Indicador de tipo (Apertura/Cierre) - arriba del gráfico */}
+                  {/* Precio - en negro como los keyframes normales */}
                   <text
                     x={curveDateToX(k.date)}
-                    y={margin - 10}
+                    y={valueToY(adjustedPrice) - 15}
+                    fontSize={16}
+                    fill="#495057"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    ${Math.round(adjustedPrice).toLocaleString()}
+                  </text>
+                </g>
+              );
+            })}
+            
+            {/* Etiquetas de apertura/cierre y nombres de período - DEBAJO del gráfico */}
+            {sorted.filter(k => k.isOperational).map((k) => {
+              // Obtener información del período desde el estado
+              const periodData = periodsData.find(p => p.id === k.periodId);
+              const periodLabel = periodData?.label || null;
+              
+              return (
+                <g key={`operational-labels-${k.id}`}>
+                  {/* Indicador de tipo (Apertura/Cierre) - debajo del eje X */}
+                  <text
+                    x={curveDateToX(k.date)}
+                    y={height - margin + 80}
                     fontSize={16}
                     fill="#667eea"
                     textAnchor="middle"
@@ -1260,7 +1329,7 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                   {periodLabel && (
                     <text
                       x={curveDateToX(k.date)}
-                      y={margin + 8}
+                      y={height - margin + 100}
                       fontSize={14}
                       fill="#667eea"
                       textAnchor="middle"
@@ -1269,18 +1338,6 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
                       {periodLabel}
                     </text>
                   )}
-                  
-                  {/* Precio - en negro como los keyframes normales */}
-                  <text
-                    x={curveDateToX(k.date)}
-                    y={valueToY(adjustedPrice) - 15}
-                    fontSize={16}
-                    fill="#495057"
-                    textAnchor="middle"
-                    fontWeight="bold"
-                  >
-                    ${Math.round(adjustedPrice).toLocaleString()}
-                  </text>
                 </g>
               );
             })}
@@ -1399,44 +1456,9 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
       {/* Modal para agregar punto */}
       {showAddModal && (
         <AddPointModal
-          initialDate={tooltip.show && tooltip.snapDate ? tooltip.snapDate.toISOString().slice(0, 10) : ''}
-          initialValue={tooltip.show && tooltip.price ? tooltip.price.toString() : ''}
-          onClose={() => {
-            console.log('🔍 Cerrando modal de agregar punto');
-            setShowAddModal(false);
-          }}
+          onClose={() => setShowAddModal(false)}
           onAdd={(newPoint) => {
-            console.log('🔍 onAdd llamado con:', newPoint);
-            
-            // Verificar si ya existe un keyframe en esta fecha
-            const newPointDateString = normalizeDate(newPoint.date);
-            const existingKeyframeIndex = sorted.findIndex(point => {
-              const pointDateString = normalizeDate(point.date);
-              return pointDateString === newPointDateString;
-            });
-            
-            console.log('🔍 newPointDateString:', newPointDateString);
-            console.log('🔍 existingKeyframeIndex:', existingKeyframeIndex);
-            
-            if (existingKeyframeIndex !== -1) {
-              showNotification('Ya existe un precio establecido para esta fecha clave', 'error');
-              return;
-            }
-            
-            // Verificar que la fecha esté dentro de un período operacional
-            const operationalPeriods = getOperationalPeriods();
-            const targetDate = new Date(newPoint.date);
-            const isInOperationalPeriod = operationalPeriods.some(period => {
-              const periodStart = new Date(period.startDate);
-              const periodEnd = new Date(period.endDate);
-              return targetDate >= periodStart && targetDate <= periodEnd;
-            });
-            
-            if (!isInOperationalPeriod) {
-              showNotification('No se puede agregar una fecha clave fuera de un período de apertura. La fecha debe estar dentro de un período operacional.', 'error');
-              return;
-            }
-            
+            console.log('🔍 AddPointModal onAdd - newPoint:', newPoint);
             const newKeyframes = [...sorted, newPoint].sort((a, b) => new Date(a.date) - new Date(b.date));
             console.log('🔍 newKeyframes:', newKeyframes);
             
@@ -1444,6 +1466,9 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             setShowAddModal(false);
             showNotification('Fecha clave agregada exitosamente');
           }}
+          selectedRoomType={selectedRoomType}
+          selectedPriceType={selectedPriceType}
+          roomTypes={roomTypes}
         />
       )}
 
@@ -1469,25 +1494,45 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
         <EditPointModal
           point={editingPoint.point}
           onClose={() => setEditingPoint(null)}
-          onSave={(updatedPoint) => {
+          onSave={async (updatedPoint) => {
             console.log('🔍 EditPointModal onSave - isOperational:', editingPoint.isOperational);
             console.log('🔍 EditPointModal onSave - point:', editingPoint.point);
             
-            if (editingPoint.isOperational) {
-              // Para keyframes operacionales, solo actualizar el precio en el estado local
-              const newKeyframes = sorted.map((k, i) => 
-                i === editingPoint.index ? { ...k, value: updatedPoint.value } : k
-              );
-              onChange(newKeyframes);
-              showNotification('Precio de la fecha clave actualizado', 'success');
-            } else {
-              // Para keyframes normales, usar la lógica existente
-              const newKeyframes = sorted.map((k, i) => 
-                i === editingPoint.index ? updatedPoint : k
-              );
-              onChange(newKeyframes);
+            try {
+              if (editingPoint.isOperational) {
+                // Para keyframes operacionales, usar la ruta específica
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                const response = await fetch(`${API_URL}/dynamic-pricing/operational-keyframes/${editingPoint.point.id}/price`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    basePrice: updatedPoint.value
+                  })
+                });
+                
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.message || 'Error al actualizar precio operacional');
+                }
+                
+                // Actualizar el estado local
+                const newKeyframes = sorted.map((k, i) => 
+                  i === editingPoint.index ? { ...k, value: updatedPoint.value } : k
+                );
+                onChange(newKeyframes);
+                showNotification('Precio de la fecha clave actualizado', 'success');
+              } else {
+                // Para keyframes normales, usar la lógica existente
+                const newKeyframes = sorted.map((k, i) => 
+                  i === editingPoint.index ? updatedPoint : k
+                );
+                onChange(newKeyframes);
+              }
+              setEditingPoint(null);
+            } catch (error) {
+              console.error('Error al actualizar keyframe:', error);
+              showNotification('Error al actualizar: ' + error.message, 'error');
             }
-            setEditingPoint(null);
           }}
           onDelete={() => {
             console.log('🔍 EditPointModal onDelete - isOperational:', editingPoint.isOperational);
@@ -1502,15 +1547,25 @@ export default function SeasonalCurveEditor({ keyframes = [], onChange, onSave, 
             showNotification('Fecha clave eliminada exitosamente');
           }}
           isOperational={editingPoint.isOperational}
+          selectedRoomType={selectedRoomType}
+          selectedPriceType={selectedPriceType}
+          roomTypes={roomTypes}
         />
       )}
     </div>
   );
 }
 
-function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '' }) {
+function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '', selectedRoomType = 'doble', roomTypes = [] }) {
   const [date, setDate] = useState(initialDate || new Date().toISOString().slice(0, 10));
   const [value, setValue] = useState(initialValue ? parseFloat(initialValue).toFixed(2) : '');
+
+  // Obtener el nombre del tipo de habitación
+  const getRoomTypeName = (type) => {
+    // Buscar en roomTypes si está disponible, sino usar el tipo directamente
+    const roomType = roomTypes.find(rt => rt.name === type);
+    return roomType ? roomType.name : type;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1543,7 +1598,9 @@ function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '' }) 
             />
           </div>
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Precio Base (Habitación Doble):</label>
+            <label style={{ display: 'block', marginBottom: '5px' }}>
+              Precio Base ({getRoomTypeName(selectedRoomType)}):
+            </label>
             <input
               type="number"
               value={value}
@@ -1571,7 +1628,7 @@ function AddPointModal({ onClose, onAdd, initialDate = '', initialValue = '' }) 
   );
 }
 
-function EditPointModal({ point, onClose, onSave, onDelete, isOperational = false }) {
+function EditPointModal({ point, onClose, onSave, onDelete, isOperational = false, selectedRoomType = 'doble', selectedPriceType = 'base', roomTypes = [] }) {
   const validDate = (() => {
     try {
       const dateObj = new Date(point.date);
@@ -1587,6 +1644,19 @@ function EditPointModal({ point, onClose, onSave, onDelete, isOperational = fals
   const [date, setDate] = useState(validDate);
   const [value, setValue] = useState(point.value.toFixed(2));
   const [showError, setShowError] = useState(false);
+
+  // Obtener el nombre del tipo de habitación
+  const getRoomTypeName = (type) => {
+    // Buscar en roomTypes si está disponible, sino usar el tipo directamente
+    const roomType = roomTypes.find(rt => rt.name === type);
+    return roomType ? roomType.name : type;
+  };
+
+  // Obtener el nombre del tipo de precio
+  const getPriceTypeName = (type) => {
+    const option = priceTypeOptions.find(opt => opt.value === type);
+    return option ? option.label : type;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1682,8 +1752,10 @@ function EditPointModal({ point, onClose, onSave, onDelete, isOperational = fals
               </small>
             )}
           </div>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px' }}>Precio Base (Habitación Doble):</label>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px' }}>
+              Precio {getRoomTypeName(selectedRoomType)} con {getPriceTypeName(selectedPriceType).toLowerCase()}:
+            </label>
             <input
               type="number"
               value={value}

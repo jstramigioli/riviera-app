@@ -240,14 +240,14 @@ class DynamicPricingController {
   }
 
   /**
-   * Actualizar keyframe estacional
+   * Actualizar precio de keyframe operacional
    */
-  async updateSeasonalKeyframe(req, res) {
+  async updateOperationalKeyframePrice(req, res) {
     try {
       const { id } = req.params;
-      const { date, basePrice } = req.body;
+      const { basePrice } = req.body;
 
-      // Verificar si el keyframe existe y no es operacional
+      // Verificar si el keyframe existe y es operacional
       const existingKeyframe = await prisma.seasonalKeyframe.findUnique({
         where: { id }
       });
@@ -256,13 +256,65 @@ class DynamicPricingController {
         return res.status(404).json({ message: 'Keyframe no encontrado' });
       }
 
-      if (existingKeyframe.isOperational) {
-        return res.status(403).json({ 
-          message: 'No se puede modificar un keyframe operacional desde esta interfaz. Use el panel de períodos operacionales.' 
+      if (!existingKeyframe.isOperational) {
+        return res.status(400).json({ 
+          message: 'Este keyframe no es operacional' 
         });
       }
 
-      // Validar que la nueva fecha esté dentro de un período de apertura
+      // Solo actualizar el precio
+      const keyframe = await prisma.seasonalKeyframe.update({
+        where: { id },
+        data: {
+          basePrice: parseFloat(basePrice)
+        }
+      });
+
+      res.json(keyframe);
+    } catch (error) {
+      console.error('Error al actualizar precio de keyframe operacional:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Actualizar keyframe estacional
+   */
+  async updateSeasonalKeyframe(req, res) {
+    try {
+      const { id } = req.params;
+      const { date, basePrice } = req.body;
+
+      // Verificar si el keyframe existe
+      const existingKeyframe = await prisma.seasonalKeyframe.findUnique({
+        where: { id }
+      });
+
+      if (!existingKeyframe) {
+        return res.status(404).json({ message: 'Keyframe no encontrado' });
+      }
+
+      // Si es un keyframe operacional, solo permitir actualizar el precio
+      if (existingKeyframe.isOperational) {
+        // Verificar que no se esté intentando cambiar la fecha
+        if (date && new Date(date).toISOString().split('T')[0] !== existingKeyframe.date.toISOString().split('T')[0]) {
+          return res.status(403).json({ 
+            message: 'No se puede modificar la fecha de un keyframe operacional. Solo se puede actualizar el precio.' 
+          });
+        }
+        
+        // Solo actualizar el precio
+        const keyframe = await prisma.seasonalKeyframe.update({
+          where: { id },
+          data: {
+            basePrice: parseFloat(basePrice)
+          }
+        });
+
+        return res.json(keyframe);
+      }
+
+      // Para keyframes normales, validar que la nueva fecha esté dentro de un período de apertura
       const targetDate = new Date(date);
       
       // Buscar períodos operacionales que contengan esta fecha
@@ -585,6 +637,99 @@ class DynamicPricingController {
       res.json({ score });
     } catch (error) {
       console.error('Error al calcular score de ocupación:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Obtener tarifas calculadas para un rango de fechas y tipo de habitación
+   */
+  async getCalculatedRates(req, res) {
+    try {
+      const { hotelId, roomTypeId } = req.params;
+      const { startDate, endDate, serviceType = 'base' } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          message: 'Se requieren las fechas de inicio y fin' 
+        });
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: 'Fechas inválidas' });
+      }
+
+      if (start >= end) {
+        return res.status(400).json({ 
+          message: 'La fecha de inicio debe ser anterior a la fecha de fin' 
+        });
+      }
+
+      // Obtener las tarifas para el rango de fechas
+      const rates = await dynamicPricingService.getRatesForDateRange(
+        hotelId, 
+        parseInt(roomTypeId), 
+        start, 
+        end
+      );
+
+      // Si no hay tarifas calculadas, generarlas
+      if (rates.length === 0) {
+        await dynamicPricingService.generateDynamicRates(
+          hotelId, 
+          parseInt(roomTypeId), 
+          start, 
+          end
+        );
+        
+        // Obtener las tarifas generadas
+        const generatedRates = await dynamicPricingService.getRatesForDateRange(
+          hotelId, 
+          parseInt(roomTypeId), 
+          start, 
+          end
+        );
+        
+        rates.push(...generatedRates);
+      }
+
+      // Calcular el total según el tipo de servicio
+      let totalAmount = 0;
+      const ratesWithService = rates.map(rate => {
+        let serviceRate = rate.baseRate;
+        
+        switch (serviceType) {
+          case 'breakfast':
+            serviceRate = rate.withBreakfast;
+            break;
+          case 'halfBoard':
+            serviceRate = rate.withHalfBoard;
+            break;
+          default:
+            serviceRate = rate.baseRate;
+        }
+        
+        totalAmount += serviceRate;
+        
+        return {
+          ...rate,
+          serviceRate,
+          serviceType
+        };
+      });
+
+      res.json({
+        rates: ratesWithService,
+        totalAmount,
+        serviceType,
+        numberOfNights: rates.length,
+        averageRatePerNight: rates.length > 0 ? totalAmount / rates.length : 0
+      });
+    } catch (error) {
+      console.error('Error al obtener tarifas calculadas:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }

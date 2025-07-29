@@ -315,6 +315,105 @@ class OperationalPeriodController {
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }
+
+  /**
+   * Verificar si el hotel está abierto en un rango de fechas
+   */
+  async checkHotelAvailability(req, res) {
+    try {
+      const { hotelId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          message: 'Se requieren las fechas de inicio y fin' 
+        });
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: 'Fechas inválidas' });
+      }
+
+      if (start >= end) {
+        return res.status(400).json({ 
+          message: 'La fecha de inicio debe ser anterior a la fecha de fin' 
+        });
+      }
+
+      // Buscar períodos operacionales que cubran el rango de fechas
+      const operationalPeriods = await prisma.operationalPeriod.findMany({
+        where: {
+          hotelId,
+          AND: [
+            { startDate: { lte: end } },
+            { endDate: { gte: start } }
+          ]
+        },
+        orderBy: { startDate: 'asc' }
+      });
+
+      // Verificar si hay cobertura completa del rango
+      let isAvailable = false;
+      let uncoveredRanges = [];
+
+      if (operationalPeriods.length === 0) {
+        // No hay períodos operacionales, el hotel está cerrado
+        isAvailable = false;
+        uncoveredRanges = [{ start: start, end: end }];
+      } else {
+        // Verificar cobertura del rango
+        let currentDate = new Date(start);
+        let coveredRanges = [];
+
+        for (const period of operationalPeriods) {
+          const periodStart = new Date(period.startDate);
+          const periodEnd = new Date(period.endDate);
+
+          // Si hay un gap antes de este período
+          if (currentDate < periodStart) {
+            uncoveredRanges.push({
+              start: new Date(currentDate),
+              end: new Date(periodStart)
+            });
+          }
+
+          // Actualizar la fecha actual al final del período
+          currentDate = new Date(Math.max(currentDate.getTime(), periodEnd.getTime()));
+          coveredRanges.push({
+            start: new Date(Math.max(start.getTime(), periodStart.getTime())),
+            end: new Date(Math.min(end.getTime(), periodEnd.getTime()))
+          });
+        }
+
+        // Si hay un gap después del último período
+        if (currentDate < end) {
+          uncoveredRanges.push({
+            start: new Date(currentDate),
+            end: new Date(end)
+          });
+        }
+
+        isAvailable = uncoveredRanges.length === 0;
+      }
+
+      res.json({
+        isAvailable,
+        uncoveredRanges,
+        operationalPeriods: operationalPeriods.map(p => ({
+          id: p.id,
+          startDate: p.startDate,
+          endDate: p.endDate,
+          label: p.label
+        }))
+      });
+    } catch (error) {
+      console.error('Error al verificar disponibilidad del hotel:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
 }
 
 module.exports = new OperationalPeriodController(); 
