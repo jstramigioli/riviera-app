@@ -2,7 +2,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 280px); /* Ajustar altura para considerar header y otros elementos */
   background: #fff;
 }
 

@@ -1,7 +1,7 @@
 /* ReservationGrid.module.css */
 .reservationGridContainer {
   width: calc(100% - 2rem); /* Restar el margen */
-  height: calc(100vh - 200px); /* Altura específica para generar scroll vertical */
+  height: calc(100vh - 280px); /* Ajustar altura para considerar header y otros elementos */
   overflow-x: auto;
   overflow-y: auto;
   position: relative;
