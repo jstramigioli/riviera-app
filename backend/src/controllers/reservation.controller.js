@@ -70,6 +70,49 @@ exports.createReservation = async (req, res) => {
   }
   
   try {
+    // Verificar si hay días cerrados en el rango de fechas
+    const operationalPeriods = await prisma.operationalPeriod.findMany({
+      where: { hotelId: 'default-hotel' }
+    });
+    
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    // Verificar si hay días cerrados en el rango
+    const closedDays = [];
+    for (let day = new Date(checkInDate); day < checkOutDate; day.setDate(day.getDate() + 1)) {
+      const dayDate = new Date(day);
+      dayDate.setHours(0, 0, 0, 0);
+      
+      let isDayOpen = false;
+      for (const period of operationalPeriods) {
+        const periodStart = new Date(period.startDate);
+        const periodEnd = new Date(period.endDate);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd.setHours(0, 0, 0, 0);
+        
+        if (dayDate >= periodStart && dayDate <= periodEnd) {
+          isDayOpen = true;
+          break;
+        }
+      }
+      
+      if (!isDayOpen) {
+        closedDays.push(new Date(day));
+      }
+    }
+    
+    if (closedDays.length > 0) {
+      const closedDates = closedDays.map(day => 
+        day.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      ).join(', ');
+      
+      return res.status(400).json({ 
+        error: 'No se pueden crear reservas en días cerrados',
+        closedDays: closedDates,
+        message: `No se pueden crear reservas en días cerrados: ${closedDates}`
+      });
+    }
     const newReservation = await prisma.reservation.create({
       data: {
         roomId,
@@ -138,6 +181,64 @@ exports.updateReservation = async (req, res) => {
   }
   
   try {
+    // Verificar si hay días cerrados en el rango de fechas (solo si las fechas cambiaron)
+    const existingReservation = await prisma.reservation.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!existingReservation) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    
+    // Solo validar si las fechas cambiaron
+    const checkInChanged = new Date(checkIn).getTime() !== existingReservation.checkIn.getTime();
+    const checkOutChanged = new Date(checkOut).getTime() !== existingReservation.checkOut.getTime();
+    
+    if (checkInChanged || checkOutChanged) {
+      const operationalPeriods = await prisma.operationalPeriod.findMany({
+        where: { hotelId: 'default-hotel' }
+      });
+      
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+      
+      // Verificar si hay días cerrados en el rango
+      const closedDays = [];
+      for (let day = new Date(checkInDate); day < checkOutDate; day.setDate(day.getDate() + 1)) {
+        const dayDate = new Date(day);
+        dayDate.setHours(0, 0, 0, 0);
+        
+        let isDayOpen = false;
+        for (const period of operationalPeriods) {
+          const periodStart = new Date(period.startDate);
+          const periodEnd = new Date(period.endDate);
+          periodStart.setHours(0, 0, 0, 0);
+          periodEnd.setHours(0, 0, 0, 0);
+          
+          if (dayDate >= periodStart && dayDate <= periodEnd) {
+            isDayOpen = true;
+            break;
+          }
+        }
+        
+        if (!isDayOpen) {
+          closedDays.push(new Date(day));
+        }
+      }
+      
+      if (closedDays.length > 0) {
+        const closedDates = closedDays.map(day => 
+          day.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        ).join(', ');
+        
+        return res.status(400).json({ 
+          error: 'No se pueden actualizar reservas a días cerrados',
+          closedDays: closedDates,
+          message: `No se pueden actualizar reservas a días cerrados: ${closedDates}`
+        });
+      }
+    }
+    
     const updateData = {
       roomId: parseInt(roomId),
       checkIn: new Date(checkIn),

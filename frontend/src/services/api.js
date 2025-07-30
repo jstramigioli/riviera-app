@@ -417,6 +417,12 @@ export async function checkHotelAvailability(hotelId, startDate, endDate) {
   return res.json();
 }
 
+export async function fetchOperationalPeriods(hotelId = 'default-hotel') {
+  const res = await fetch(`${API_URL}/operational-periods/${hotelId}`);
+  if (!res.ok) throw new Error('Error fetching operational periods');
+  return res.json();
+}
+
 export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate, serviceType = 'base') {
   const params = new URLSearchParams({
     startDate,
@@ -473,5 +479,6 @@ export default {
   getHotel,
   updateHotel,
   checkHotelAvailability,
-  getCalculatedRates
+  getCalculatedRates,
+  fetchOperationalPeriods
 };

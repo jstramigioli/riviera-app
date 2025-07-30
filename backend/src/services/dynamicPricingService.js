@@ -147,7 +147,12 @@ class DynamicPricingService {
     for (let date = new Date(startDate); date <= new Date(endDate); date.setDate(date.getDate() + 1)) {
       const daysUntilDate = Math.ceil((date - currentDate) / (1000 * 60 * 60 * 24));
       const openDay = await this.prisma.openDay.findUnique({
-        where: { date: date }
+        where: { 
+          hotelId_date: {
+            hotelId,
+            date: date
+          }
+        }
       });
       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
       const isHoliday = openDay?.isHoliday || false;
@@ -163,7 +168,7 @@ class DynamicPricingService {
       const config = await this.prisma.dynamicPricingConfig.findUnique({
         where: { hotelId }
       });
-      const dynamicRate = config 
+      const dynamicRate = config && config.enabled
         ? this.applyDynamicAdjustment(baseRate, occupancyScore, config)
         : baseRate;
       const mealPrices = await this.calculateMealPrices(dynamicRate, hotelId);

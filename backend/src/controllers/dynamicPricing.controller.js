@@ -696,9 +696,9 @@ class DynamicPricingController {
         rates.push(...generatedRates);
       }
 
-      // Calcular el total según el tipo de servicio
+      // Calcular el total según el tipo de servicio (excluyendo el día de salida)
       let totalAmount = 0;
-      const ratesWithService = rates.map(rate => {
+      const ratesWithService = rates.map((rate, index) => {
         let serviceRate = rate.baseRate;
         
         switch (serviceType) {
@@ -712,7 +712,10 @@ class DynamicPricingController {
             serviceRate = rate.baseRate;
         }
         
-        totalAmount += serviceRate;
+        // Solo sumar al total si no es el último día (día de salida)
+        if (index < rates.length - 1) {
+          totalAmount += serviceRate;
+        }
         
         return {
           ...rate,
@@ -721,12 +724,15 @@ class DynamicPricingController {
         };
       });
 
+      // Calcular el número correcto de noches (excluyendo el día de salida)
+      const numberOfNights = rates.length - 1;
+      
       res.json({
         rates: ratesWithService,
         totalAmount,
         serviceType,
-        numberOfNights: rates.length,
-        averageRatePerNight: rates.length > 0 ? totalAmount / rates.length : 0
+        numberOfNights: numberOfNights,
+        averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0
       });
     } catch (error) {
       console.error('Error al obtener tarifas calculadas:', error);

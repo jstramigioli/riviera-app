@@ -12,6 +12,7 @@ import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import RatesCalendar from './components/RatesCalendar';
+import ConsultasReservasView from './components/ConsultasReservasView';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
@@ -29,6 +30,7 @@ function ReservationsView() {
     setClients,
     reservations,
     setReservations,
+    operationalPeriods,
     loading,
     error
   } = useAppData();
@@ -131,6 +133,7 @@ function ReservationsView() {
           setReservations={setReservations}
           updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
           onReservationClick={handleReservationClick}
+          operationalPeriods={operationalPeriods}
         />
       </div>
       <SidePanel
@@ -266,37 +269,98 @@ function ReservationsView() {
               )}
             </div>
 
-            {/* Huéspedes - solo en visualización */}
-            {!isEditing && (
-              <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+            {/* Huéspedes */}
+            <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <b>Huéspedes:</b>
-                <div style={{ marginTop: '8px' }}>
-                  {selectedReservation.guests && selectedReservation.guests.length > 0 ? (
-                    selectedReservation.guests.map(guest => (
-                      <div key={guest.id} style={{ 
-                        marginBottom: '8px', 
-                        padding: '8px', 
-                        backgroundColor: '#fff', 
+                {isEditing ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.9rem', color: '#666' }}>Cantidad:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editData.requiredGuests || selectedReservation.requiredGuests || 1}
+                      onChange={e => handleEditChange('requiredGuests', parseInt(e.target.value))}
+                      style={{ 
+                        fontSize: '1rem', 
+                        width: '60px', 
+                        padding: '4px 8px', 
+                        border: '1px solid #ddd', 
                         borderRadius: '4px',
-                        border: '1px solid #ddd'
-                      }}>
-                        <div style={{ fontWeight: 'bold' }}>
-                          {guest.firstName} {guest.lastName}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                          {guest.documentType} {guest.documentNumber}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                          {guest.email} • {guest.phone}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>No hay huéspedes registrados</div>
-                  )}
-                </div>
+                        textAlign: 'center'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.9rem', color: '#666', fontWeight: 'bold' }}>
+                    {(selectedReservation.guests?.length || 0) + 1} persona{(selectedReservation.guests?.length || 0) + 1 > 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
-            )}
+              
+              <div style={{ marginTop: '8px' }}>
+                {/* Cliente principal */}
+                <div style={{ 
+                  marginBottom: '8px', 
+                  padding: '8px', 
+                  backgroundColor: '#fff', 
+                  borderRadius: '4px',
+                  border: '1px solid #ddd',
+                  borderLeft: '4px solid #007bff'
+                }}>
+                  <div style={{ fontWeight: 'bold', color: '#007bff' }}>
+                    {selectedReservation.mainClient?.firstName} {selectedReservation.mainClient?.lastName} (Cliente principal)
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                    {selectedReservation.mainClient?.documentType} {selectedReservation.mainClient?.documentNumber}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                    {selectedReservation.mainClient?.email} • {selectedReservation.mainClient?.phone}
+                  </div>
+                </div>
+                
+                {/* Huéspedes adicionales */}
+                {selectedReservation.guests && selectedReservation.guests.length > 0 ? (
+                  selectedReservation.guests.map(guest => (
+                    <div key={guest.id} style={{ 
+                      marginBottom: '8px', 
+                      padding: '8px', 
+                      backgroundColor: '#fff', 
+                      borderRadius: '4px',
+                      border: '1px solid #ddd'
+                    }}>
+                      <div style={{ fontWeight: 'bold' }}>
+                        {guest.firstName} {guest.lastName}
+                      </div>
+                      <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                        {guest.documentType} {guest.documentNumber}
+                      </div>
+                      <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                        {guest.email} • {guest.phone}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ 
+                    marginBottom: '8px', 
+                    padding: '8px', 
+                    backgroundColor: '#fff', 
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    borderStyle: 'dashed',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    color: '#666',
+                    fontStyle: 'italic'
+                  }}
+                  onClick={() => alert('Funcionalidad para completar datos de huéspedes será implementada próximamente')}
+                  title="Completar datos de huéspedes"
+                  >
+                    + Completar datos de huéspedes
+                  </div>
+                )}
+              </div>
+            </div>
           </EditPanel>
         )}
 
@@ -549,6 +613,10 @@ function CalendarioGestionView() {
   return <CalendarioGestion />;
 }
 
+function ConsultasReservasViewWrapper() {
+  return <ConsultasReservasView />;
+}
+
 function TarifasView() {
   return <RatesCalendar />;
 }
@@ -562,6 +630,7 @@ function App() {
           <Routes>
             <Route path="/" element={<ReservationsView />} />
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
+            <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
             <Route path="/tarifas" element={<TarifasView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />

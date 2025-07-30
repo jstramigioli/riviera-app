@@ -381,4 +381,32 @@
 .roomNameCell.highlight {
   background: var(--color-bg-room) !important;
   transition: background 0.15s;
-} 
+}
+
+/* Estilos para días cerrados */
+.closedDay {
+  background: rgba(128, 128, 128, 0.3) !important;
+  color: var(--color-text-muted) !important;
+  opacity: 0.7;
+}
+
+.closedDay:hover {
+  background: rgba(128, 128, 128, 0.4) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.closedDay.sunday {
+  background: rgba(128, 128, 128, 0.4) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* Estilos para celdas cerradas */
+.closedCell {
+  background: rgba(128, 128, 128, 0.2) !important;
+  opacity: 0.7;
+}
+
+.closedCell:hover {
+  background: rgba(128, 128, 128, 0.3) !important;
+}

@@ -269,6 +269,30 @@ class OperationalPeriodController {
         return res.status(404).json({ message: 'Período operacional no encontrado' });
       }
 
+      // Verificar si hay reservas en el período antes de eliminar
+      const overlappingReservations = await prisma.reservation.findMany({
+        where: {
+          AND: [
+            { checkIn: { lte: period.endDate } },
+            { checkOut: { gt: period.startDate } }
+          ]
+        }
+      });
+
+      if (overlappingReservations.length > 0) {
+        const reservationCount = overlappingReservations.length;
+        return res.status(409).json({ 
+          message: `No se puede eliminar el período porque existen ${reservationCount} reserva${reservationCount > 1 ? 's' : ''} en las fechas comprendidas. Por favor, cancela o modifica las reservas antes de eliminar el período.`,
+          reservationCount,
+          overlappingReservations: overlappingReservations.map(r => ({
+            id: r.id,
+            checkIn: r.checkIn,
+            checkOut: r.checkOut,
+            status: r.status
+          }))
+        });
+      }
+
       // Buscar keyframes operacionales asociados
       const operationalKeyframes = await prisma.seasonalKeyframe.findMany({
         where: {

@@ -191,6 +191,7 @@ model DynamicPricingConfig {
   id                      String   @id @default(cuid())
   hotel                   Hotel    @relation(fields: [hotelId], references: [id])
   hotelId                 String   @unique
+  enabled                 Boolean  @default(false) // Si los precios dinámicos están habilitados
   anticipationThresholds  Int[]    // e.g. [21, 14, 7, 3]
   anticipationWeight      Float
   globalOccupancyWeight   Float

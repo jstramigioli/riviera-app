@@ -15,6 +15,12 @@ function Header() {
           Libro de Reservas
         </Link>
         <Link 
+          to="/consultas-reservas" 
+          className={`${styles.navLink} ${location.pathname === '/consultas-reservas' ? styles.active : ''}`}
+        >
+          Consultas y Reservas
+        </Link>
+        <Link 
           to="/tarifas" 
           className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
         >

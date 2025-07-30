@@ -111,7 +111,12 @@ function RoomSelectionModal({
 
   const handleConfirm = () => {
     if (selectedRoomId) {
-      onRoomSelected(selectedRoomId);
+      // Obtener las tarifas de la habitación seleccionada
+      const roomRate = roomRates[selectedRoomId];
+      const totalAmount = roomRate?.totalAmount || 0;
+      
+      // Pasar tanto el roomId como el totalAmount
+      onRoomSelected(selectedRoomId, totalAmount);
       onClose();
     } else if (selectedCombination) {
       // Aquí podrías implementar la lógica para crear múltiples reservas

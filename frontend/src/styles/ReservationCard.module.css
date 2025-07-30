@@ -1,0 +1,261 @@
+/* Contenedor principal */
+.card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.card.selected {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Estados de reserva */
+.card.active {
+  border-left: 4px solid #28a745;
+}
+
+.card.upcoming {
+  border-left: 4px solid #007bff;
+}
+
+.card.past {
+  border-left: 4px solid #6c757d;
+  opacity: 0.7;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.guestName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.status {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.status.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status.upcoming {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status.past {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Detalles */
+.details {
+  margin-bottom: 12px;
+}
+
+.dateRange {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.room, .duration {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.notes {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.notes .label {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.notes .value {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.4;
+}
+
+/* Acciones */
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionButton.edit {
+  color: #007bff;
+}
+
+.actionButton.edit:hover {
+  background: #e3f2fd;
+  color: #0056b3;
+}
+
+.actionButton.delete {
+  color: #dc3545;
+}
+
+.actionButton.delete:hover {
+  background: #f8d7da;
+  color: #c82333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card {
+    padding: 12px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .dateRange {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .info {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .actions {
+    justify-content: space-between;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estados de hover mejorados */
+.card:hover .guestName {
+  color: #007bff;
+}
+
+.card:hover .actionButton {
+  opacity: 1;
+}
+
+.actionButton {
+  opacity: 0.7;
+}
+
+/* Estados de carga */
+.card.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.card.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+} 

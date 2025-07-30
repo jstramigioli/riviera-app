@@ -113,9 +113,49 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
   };
 
   const handleDeletePeriod = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este período?')) {
-      try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    try {
+      // Primero verificar si el período tiene reservas
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Obtener el período para conocer sus fechas
+      const periodResponse = await fetch(`${API_URL}/operational-periods/${id}`);
+      if (!periodResponse.ok) {
+        showNotification('Error al obtener información del período', 'error');
+        return;
+      }
+      
+      const period = await periodResponse.json();
+      
+      // Verificar si hay reservas en el período
+      const reservationsResponse = await fetch(`${API_URL}/reservations`);
+      if (!reservationsResponse.ok) {
+        showNotification('Error al verificar reservas', 'error');
+        return;
+      }
+      
+      const reservations = await reservationsResponse.json();
+      
+      // Verificar si hay reservas que se superpongan con el período
+      const periodStart = new Date(period.startDate);
+      const periodEnd = new Date(period.endDate);
+      
+      const overlappingReservations = reservations.filter(reservation => {
+        const reservationStart = new Date(reservation.checkIn);
+        const reservationEnd = new Date(reservation.checkOut);
+        
+        // Verificar si hay superposición
+        return (reservationStart <= periodEnd && reservationEnd >= periodStart);
+      });
+      
+      if (overlappingReservations.length > 0) {
+        const reservationCount = overlappingReservations.length;
+        const message = `No se puede eliminar el período porque existen ${reservationCount} reserva${reservationCount > 1 ? 's' : ''} en las fechas comprendidas. Por favor, cancela o modifica las reservas antes de eliminar el período.`;
+        showNotification(message, 'error');
+        return;
+      }
+      
+      // Si no hay reservas, proceder con la eliminación
+      if (window.confirm('¿Estás seguro de que quieres eliminar este período?')) {
         const response = await fetch(`${API_URL}/operational-periods/${id}`, {
           method: 'DELETE'
         });
@@ -132,10 +172,10 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
           const error = await response.json();
           showNotification(error.message || 'Error al eliminar', 'error');
         }
-      } catch (error) {
-        console.error('Error al eliminar período:', error);
-        showNotification('Error al eliminar período', 'error');
       }
+    } catch (error) {
+      console.error('Error al eliminar período:', error);
+      showNotification('Error al eliminar período', 'error');
     }
   };
 
@@ -437,7 +477,7 @@ function AddPeriodModal({ onClose, onAdd }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -447,7 +487,7 @@ function AddPeriodModal({ onClose, onAdd }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de fin:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}
@@ -533,7 +573,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -543,7 +583,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de fin:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}

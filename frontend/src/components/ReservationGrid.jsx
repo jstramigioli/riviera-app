@@ -54,7 +54,7 @@ function groupDaysByMonth(days) {
   return months;
 }
 
-export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation, onReservationClick }) {
+export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation, onReservationClick, operationalPeriods = [] }) {
   const today = new Date();
   const [startDate, setStartDate] = useState(addDays(today, -30));
   const [endDate, setEndDate] = useState(addDays(today, 30));
@@ -88,6 +88,30 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Constantes para el cálculo de posiciones
   const roomColumnWidth = 120;
+
+  // Función para determinar si un día está en un período cerrado
+  const isDayClosed = (day) => {
+    if (!operationalPeriods || operationalPeriods.length === 0) {
+      return false; // Si no hay períodos configurados, el hotel está siempre abierto
+    }
+
+    const dayDate = new Date(day);
+    dayDate.setHours(0, 0, 0, 0);
+
+    // Verificar si el día está dentro de algún período operacional
+    for (const period of operationalPeriods) {
+      const periodStart = new Date(period.startDate);
+      const periodEnd = new Date(period.endDate);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setHours(0, 0, 0, 0);
+
+      if (dayDate >= periodStart && dayDate <= periodEnd) {
+        return false; // El día está dentro de un período abierto
+      }
+    }
+
+    return true; // El día no está dentro de ningún período abierto, está cerrado
+  };
 
   function handleScroll() {
     if (!containerRef.current) return;
@@ -468,7 +492,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         notes: newReservation.notes,
         status: 'active',
         reservationType: newReservation.reservationType || 'con_desayuno',
-        totalAmount: 0, // Por ahora 0, se puede calcular después
+        totalAmount: newReservation.totalAmount || 0, // Usar el monto calculado al crear la reserva
         requiredGuests: newReservation.requiredGuests,
         requiredRoomId: newReservation.requiredRoomId,
         requiredTags: newReservation.requiredTags,
@@ -680,10 +704,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
               <th></th>
               {days.map((day, colIndex) => {
                 const isSunday = getDay(day) === 0; // 0 = domingo
+                const isClosed = isDayClosed(day);
                 return (
                   <th 
                     key={day.toISOString()} 
-                    className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''}`}
+                    className={`${styles.dayHeader} ${isSunday ? styles.sunday : ''} ${isClosed ? styles.closedDay : ''}`}
                     data-col-index={colIndex}
                     style={{ width: '50px', minWidth: '50px', boxSizing: 'border-box' }}
                     onClick={() => handleDayClick(day)}
@@ -701,10 +726,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                   <strong>{room.name}</strong>
                 </td>
                 {days.map((day, colIndex) => {
+                  const isClosed = isDayClosed(day);
                   return (
                     <td
                       key={day.toISOString()}
-                      className={styles.reservationCellFree}
+                      className={`${styles.reservationCellFree} ${isClosed ? styles.closedCell : ''}`}
                       data-room-index={roomIndex}
                       data-col-index={colIndex}
                       style={{ 
@@ -814,6 +840,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         isOpen={isCreateReservationPanelOpen}
         onClose={handleCreateReservationPanelClose}
         onCreateReservation={handleCreateReservation}
+        operationalPeriods={operationalPeriods}
       />
     </>
   );

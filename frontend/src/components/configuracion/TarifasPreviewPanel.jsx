@@ -40,7 +40,7 @@ const defaultRoomTypeCoefficients = {
 export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   const [previewDate, setPreviewDate] = useState(new Date().toISOString().slice(0, 10));
   const [roomTypeCoefficients, setRoomTypeCoefficients] = useState(defaultRoomTypeCoefficients);
-  const [basePrice, setBasePrice] = useState(10000); // Precio base por defecto
+  const [basePrice, setBasePrice] = useState(0); // Se calculará automáticamente
   const [mealRules, setMealRules] = useState({
     breakfastMode: "PERCENTAGE",
     breakfastValue: 0.15,
@@ -87,6 +87,45 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       window.removeEventListener('roomTypesUpdated', handleRoomTypesUpdate);
     };
   }, []);
+
+  // Función para obtener el precio base de la curva estacional
+  const loadBasePriceFromSeasonalCurve = async (date) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      // Usar un rango de fechas válido (mismo día + 1 día siguiente)
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = nextDay.toISOString().slice(0, 10);
+      
+      const url = `${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/3?startDate=${date}&endDate=${nextDayStr}&serviceType=base`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.rates && data.rates.length > 0) {
+        // Usar el precio base del primer día
+        const baseRate = data.rates[0].baseRate;
+        setBasePrice(baseRate);
+      } else {
+        setBasePrice(0);
+      }
+    } catch (error) {
+      console.error('Error al cargar precio base de la curva estacional:', error);
+      setBasePrice(0);
+    }
+  };
+
+  // Cargar precio base cuando cambie la fecha
+  useEffect(() => {
+    if (previewDate) {
+      loadBasePriceFromSeasonalCurve(previewDate);
+    }
+  }, [previewDate, hotelId]);
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
@@ -171,20 +210,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     saveCoefficients(newCoefficients);
   };
 
-  // Manejar cambios en precios base
-  const handleBasePriceChange = (roomType, value) => {
-    const newPrice = parseFloat(value) || 0;
-    const newCoefficient = newPrice / basePrice;
-    
-    const newCoefficients = {
-      ...roomTypeCoefficients,
-      [roomType]: newCoefficient
-    };
-    setRoomTypeCoefficients(newCoefficients);
-    
-    // Guardar automáticamente
-    saveCoefficients(newCoefficients);
-  };
+
 
   // Guardar coeficientes
   const saveCoefficients = async (coefficients) => {
@@ -221,7 +247,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     }}>
       <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}>Previsualización de Tarifas</h3>
       
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+      <div style={{ marginBottom: '20px' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
             Fecha de previsualización:
@@ -235,24 +261,6 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
               border: '1px solid #ced4da',
               borderRadius: '4px',
               fontSize: '14px'
-            }}
-          />
-        </div>
-        
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
-            Precio base:
-          </label>
-          <input
-            type="number"
-            value={basePrice}
-            onChange={(e) => setBasePrice(parseFloat(e.target.value) || 0)}
-            style={{
-              padding: '8px',
-              border: '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '14px',
-              width: '120px'
             }}
           />
         </div>
@@ -297,7 +305,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                     
                     return (
                       <tr key={roomType.id} style={{ borderBottom: '1px solid #e9ecef' }}>
-                        <td style={{ padding: '15px', fontWeight: '500', color: '#495057' }}>
+                        <td style={{ padding: '15px', textAlign: 'center', fontWeight: '500', color: '#495057' }}>
                           {roomTypeNames[roomType.name] || roomType.name}
                         </td>
                         <td style={{ padding: '15px', textAlign: 'center' }}>
@@ -318,25 +326,23 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                           />
                         </td>
                         <td style={{ padding: '15px', textAlign: 'center' }}>
-                          <input
-                            type="number"
-                            value={basePriceForType}
-                            onChange={(e) => handleBasePriceChange(roomType.name, e.target.value)}
-                            min="0"
-                            style={{
-                              width: '100px',
-                              padding: '4px 8px',
-                              border: '1px solid #ced4da',
-                              borderRadius: '4px',
-                              fontSize: '12px',
-                              textAlign: 'center'
-                            }}
-                          />
+                          <div style={{
+                            width: '100px',
+                            padding: '4px 8px',
+                            backgroundColor: '#f8f9fa',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            textAlign: 'center',
+                            color: '#495057'
+                          }}>
+                            ${basePriceForType?.toLocaleString('es-AR') || '0'}
+                          </div>
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'right', color: '#28a745', fontSize: '14px' }}>
+                        <td style={{ padding: '15px', textAlign: 'center', color: '#28a745', fontSize: '14px' }}>
                           ${breakfast.toLocaleString()}
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'right', color: '#dc3545', fontSize: '14px' }}>
+                        <td style={{ padding: '15px', textAlign: 'center', color: '#dc3545', fontSize: '14px' }}>
                           ${halfBoard.toLocaleString()}
                         </td>
                       </tr>

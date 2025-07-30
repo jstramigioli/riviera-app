@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import DynamicPricingWeightsEditor from "./DynamicPricingWeightsEditor";
 
 const defaultConfig = {
+  enabled: false,
   occupancy: 30,
   anticipation: 25,
   season: 30,
@@ -29,6 +30,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
         // Mapear los campos del backend al frontend
         const mappedData = {
           ...defaultConfig,
+          enabled: data.enabled !== undefined ? data.enabled : defaultConfig.enabled,
           // Convertir de decimal a porcentaje y mapear campos
           occupancy: data.globalOccupancyWeight ? Math.round(data.globalOccupancyWeight * 100) : defaultConfig.occupancy,
           anticipation: data.anticipationWeight ? Math.round(data.anticipationWeight * 100) : defaultConfig.anticipation,
@@ -94,6 +96,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
       
       // Mapear los datos del frontend al formato del backend
       const backendData = {
+        enabled: config.enabled,
         // Convertir de porcentaje a decimal y mapear campos
         globalOccupancyWeight: config.occupancy / 100,
         anticipationWeight: config.anticipation / 100,
@@ -127,7 +130,70 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     <div style={{ 
       padding: '20px'
     }}>
-      <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}>Configuración de Tarifas Dinámicas</h3>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px' 
+      }}>
+        <h3 style={{ color: '#2c3e50', margin: 0 }}>Configuración de Tarifas Dinámicas</h3>
+        
+        {/* Toggle switch para activar/desactivar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ 
+            fontSize: '14px', 
+            color: config.enabled ? '#27ae60' : '#e74c3c',
+            fontWeight: '500'
+          }}>
+            {config.enabled ? 'Activado' : 'Desactivado'}
+          </span>
+          
+          {/* Toggle Switch */}
+          <div
+            onClick={() => handleChange('enabled', !config.enabled)}
+            style={{
+              width: '50px',
+              height: '24px',
+              backgroundColor: config.enabled ? '#27ae60' : '#bdc3c7',
+              borderRadius: '12px',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '2px'
+            }}
+          >
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: 'white',
+                borderRadius: '50%',
+                transform: config.enabled ? 'translateX(26px)' : 'translateX(0px)',
+                transition: 'transform 0.3s ease',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Mensaje cuando está desactivado */}
+      {!config.enabled && (
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '20px',
+          color: '#856404'
+        }}>
+          <strong>⚠️ Precios dinámicos desactivados</strong>
+          <br />
+          Los precios se calcularán usando solo la curva estacional sin ajustes dinámicos por ocupación, anticipación, etc.
+        </div>
+      )}
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         <div>

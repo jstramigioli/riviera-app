@@ -135,7 +135,7 @@ export default function ReservationBar({
   };
 
   // Función para truncar nombres largos basada en el ancho real del texto
-  const truncateName = (firstName, lastName, barWidth) => {
+  const truncateName = (firstName, lastName, barWidth, guestCount = '') => {
     const fullName = `${firstName || ''} ${lastName || ''}`.trim();
     
     if (!fullName) return 'Sin cliente';
@@ -148,8 +148,9 @@ export default function ReservationBar({
     const initials = `${firstInitial}${lastInitial}`.toUpperCase();
     const initialsWidth = getTextWidth(initials, barWidth);
     
-    // Dejar un margen de 8px (4px a cada lado)
-    const availableWidth = barWidth - 8;
+    // Dejar un margen de 8px (4px a cada lado) y espacio para el contador si es necesario
+    const guestCountWidth = guestCount ? getTextWidth(guestCount, barWidth) + 8 : 0;
+    const availableWidth = barWidth - 8 - guestCountWidth;
     
     // Prioridad 1: Nombre completo si cabe
     if (fullNameWidth <= availableWidth) {
@@ -170,7 +171,14 @@ export default function ReservationBar({
     return initials;
   };
 
-  const clientName = truncateName(reservation.mainClient?.firstName, reservation.mainClient?.lastName, width);
+  // Obtener la cantidad de personas (huéspedes + cliente principal)
+  const totalGuests = (reservation.guests?.length || 0) + 1; // +1 por el cliente principal
+  const guestCount = `x${totalGuests}`;
+  
+  // Determinar si hay espacio para mostrar el contador de personas
+  const hasSpaceForGuestCount = width > 80; // Mínimo 80px para mostrar el contador
+  
+  const clientName = truncateName(reservation.mainClient?.firstName, reservation.mainClient?.lastName, width, hasSpaceForGuestCount ? guestCount : '');
 
   return (
     <div
@@ -249,6 +257,16 @@ export default function ReservationBar({
       />
       <div className="reservation-client">
         {clientName}
+        {hasSpaceForGuestCount && guestCount && (
+          <span style={{ 
+            marginLeft: '4px', 
+            fontSize: 'inherit',
+            fontWeight: 'inherit',
+            color: 'inherit'
+          }}>
+            {guestCount}
+          </span>
+        )}
       </div>
     </div>
   );

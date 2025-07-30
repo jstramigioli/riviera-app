@@ -10,7 +10,8 @@ import styles from '../styles/CreateReservationPanel.module.css';
 export default function CreateReservationPanel({ 
   isOpen, 
   onClose, 
-  onCreateReservation 
+  onCreateReservation,
+  operationalPeriods = []
 }) {
   const [formData, setFormData] = useState({
     checkIn: format(new Date(), 'yyyy-MM-dd'),
@@ -49,6 +50,45 @@ export default function CreateReservationPanel({
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [hotelAvailability, setHotelAvailability] = useState(null);
   const searchInputRef = useRef(null);
+
+  // Función para determinar si un día está en un período cerrado
+  const isDayClosed = (day) => {
+    if (!operationalPeriods || operationalPeriods.length === 0) {
+      return false; // Si no hay períodos configurados, el hotel está siempre abierto
+    }
+
+    const dayDate = new Date(day);
+    dayDate.setHours(0, 0, 0, 0);
+
+    // Verificar si el día está dentro de algún período operacional
+    for (const period of operationalPeriods) {
+      const periodStart = new Date(period.startDate);
+      const periodEnd = new Date(period.endDate);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setHours(0, 0, 0, 0);
+
+      if (dayDate >= periodStart && dayDate <= periodEnd) {
+        return false; // El día está dentro de un período abierto
+      }
+    }
+
+    return true; // El día no está dentro de ningún período abierto, está cerrado
+  };
+
+  // Función para verificar si hay días cerrados en el rango de fechas
+  const checkClosedDaysInRange = (startDate, endDate) => {
+    const closedDays = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    for (let day = new Date(start); day < end; day.setDate(day.getDate() + 1)) {
+      if (isDayClosed(day)) {
+        closedDays.push(new Date(day));
+      }
+    }
+    
+    return closedDays;
+  };
 
   // Cargar clientes al abrir el panel
   useEffect(() => {
@@ -248,6 +288,15 @@ export default function CreateReservationPanel({
       newErrors.checkOut = 'La fecha de salida debe ser posterior a la de entrada';
     }
 
+    // Validar que no haya días cerrados en el rango de fechas
+    if (formData.checkIn && formData.checkOut) {
+      const closedDays = checkClosedDaysInRange(formData.checkIn, formData.checkOut);
+      if (closedDays.length > 0) {
+        const closedDates = closedDays.map(day => format(day, 'dd/MM/yyyy')).join(', ');
+        newErrors.closedDays = `No se pueden crear reservas en días cerrados: ${closedDates}`;
+      }
+    }
+
     // Validar disponibilidad del hotel
     if (hotelAvailability && !hotelAvailability.isAvailable) {
       newErrors.hotelAvailability = 'El hotel no está abierto en las fechas seleccionadas';
@@ -283,7 +332,7 @@ export default function CreateReservationPanel({
     }
   };
 
-  const handleRoomSelected = (roomId) => {
+  const handleRoomSelected = (roomId, totalAmount) => {
     // Actualizar los requerimientos con la habitación seleccionada
     setRequirements(prev => ({
       ...prev,
@@ -294,6 +343,7 @@ export default function CreateReservationPanel({
     const newReservation = {
       ...formData,
       roomId: roomId,
+      totalAmount: totalAmount, // Guardar el monto calculado al momento de crear la reserva
       // Incluir requerimientos en la reserva
       requiredGuests: requirements.requiredGuests,
       requiredRoomId: roomId,
@@ -449,6 +499,10 @@ export default function CreateReservationPanel({
 
             {errors.hotelAvailability && (
               <span className={styles.errorText}>{errors.hotelAvailability}</span>
+            )}
+
+            {errors.closedDays && (
+              <span className={styles.errorText}>{errors.closedDays}</span>
             )}
           </div>
 
