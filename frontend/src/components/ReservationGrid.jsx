@@ -5,8 +5,9 @@ import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingAddButton from './FloatingAddButton';
 import CreateReservationPanel from './CreateReservationPanel';
-import { createReservation, createClient } from '../services/api';
+import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
+import OccupancyScoreModal from './OccupancyScoreModal';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -81,6 +82,15 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   // Nuevas variables para el panel de creación de reservas
   const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
   
+  // Estado para configuración de precios dinámicos
+  const [dynamicPricingConfig, setDynamicPricingConfig] = useState(null);
+  const [occupancyScores, setOccupancyScores] = useState({});
+  
+  // Estado para el modal de score de ocupación
+  const [isOccupancyModalOpen, setIsOccupancyModalOpen] = useState(false);
+  const [selectedOccupancyData, setSelectedOccupancyData] = useState(null);
+  const [selectedOccupancyDate, setSelectedOccupancyDate] = useState(null);
+  
   const tableRef = useRef();
   const containerRef = useRef();
   const resizingReservationRef = useRef(null);
@@ -112,6 +122,98 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
     return true; // El día no está dentro de ningún período abierto, está cerrado
   };
+
+  // Cargar configuración de precios dinámicos
+  useEffect(() => {
+    const loadDynamicPricingConfig = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${API_URL}/dynamic-pricing/config/default-hotel`);
+        const config = await response.json();
+        setDynamicPricingConfig(config);
+      } catch (error) {
+        console.error('Error cargando configuración de precios dinámicos:', error);
+      }
+    };
+    
+    loadDynamicPricingConfig();
+  }, []);
+
+  // Función para obtener el occupancy score de un día
+  const getOccupancyScore = async (date) => {
+    if (!dynamicPricingConfig?.enabled) return null;
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Normalizar fechas a medianoche para evitar problemas de hora
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      
+      const daysUntilDate = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+      
+      console.log('=== DEBUG Frontend getOccupancyScore ===');
+      console.log('Fecha original:', date);
+      console.log('Fecha normalizada:', targetDate);
+      console.log('Hoy normalizado:', today);
+      console.log('Días calculados:', daysUntilDate);
+      
+      const isWeekend = getDay(date) === 0 || getDay(date) === 6;
+      const isHoliday = false; // Por ahora hardcodeado, se puede mejorar
+      
+      const requestBody = {
+        date: date.toISOString(),
+        hotelId: 'default-hotel',
+        daysUntilDate,
+        currentOccupancy: 50, // Por ahora hardcodeado
+        isWeekend,
+        isHoliday
+      };
+      
+      console.log('Request body:', requestBody);
+      
+      const response = await fetch(`${API_URL}/dynamic-pricing/occupancy-score`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Respuesta del servidor:', data);
+        console.log('Score recibido:', data.occupancyScore);
+        console.log('=== FIN DEBUG Frontend ===\n');
+        return data.occupancyScore;
+      }
+    } catch (error) {
+      console.error('Error obteniendo occupancy score:', error);
+    }
+    
+    return null;
+  };
+
+  // Cargar occupancy scores para todos los días
+  useEffect(() => {
+    if (dynamicPricingConfig?.enabled) {
+      const loadOccupancyScores = async () => {
+        const scores = {};
+        for (const day of days) {
+          const score = await getOccupancyScore(day);
+          if (score !== null) {
+            scores[day.toISOString()] = score;
+          }
+        }
+        setOccupancyScores(scores);
+      };
+      
+      loadOccupancyScores();
+    }
+  }, [dynamicPricingConfig, days]);
 
   function handleScroll() {
     if (!containerRef.current) return;
@@ -671,6 +773,66 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     handleCellLeave();
   };
 
+  // Función para manejar el click en el score de ocupación
+  const handleOccupancyScoreClick = async (date) => {
+    console.log('Click en score de ocupación para fecha:', date);
+    try {
+      const occupancyScore = occupancyScores[date.toISOString()];
+      console.log('Occupancy score encontrado:', occupancyScore);
+      if (occupancyScore !== undefined) {
+        console.log('Obteniendo información detallada...');
+        
+        // Normalizar fechas a medianoche para evitar problemas de hora
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const targetDate = new Date(date);
+        targetDate.setHours(0, 0, 0, 0);
+        
+        const daysUntilDate = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+        
+        console.log('=== DEBUG Frontend handleOccupancyScoreClick ===');
+        console.log('Fecha original:', date);
+        console.log('Fecha normalizada:', targetDate);
+        console.log('Hoy normalizado:', today);
+        console.log('Días calculados:', daysUntilDate);
+        
+        const requestBody = {
+          date: date.toISOString(),
+          hotelId: 'default-hotel',
+          daysUntilDate,
+          currentOccupancy: 0.5, // Valor por defecto
+          isWeekend: getDay(date) === 0 || getDay(date) === 6,
+          isHoliday: false // Por ahora hardcodeado, se puede mejorar
+        };
+        
+        console.log('Request body para detailed score:', requestBody);
+        
+        // Obtener información detallada del score
+        const detailedData = await getDetailedOccupancyScore(requestBody);
+        
+        console.log('Información detallada obtenida:', detailedData);
+        console.log('=== FIN DEBUG Frontend handleOccupancyScoreClick ===\n');
+        
+        setSelectedOccupancyData(detailedData);
+        setSelectedOccupancyDate(date);
+        setIsOccupancyModalOpen(true);
+        console.log('Modal abierto');
+      } else {
+        console.log('No hay occupancy score para esta fecha');
+      }
+    } catch (error) {
+      console.error('Error al obtener información detallada del score:', error);
+    }
+  };
+
+  // Función para cerrar el modal de ocupación
+  const handleCloseOccupancyModal = () => {
+    setIsOccupancyModalOpen(false);
+    setSelectedOccupancyData(null);
+    setSelectedOccupancyDate(null);
+  };
+
   return (
     <>
       <div 
@@ -718,6 +880,46 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                 );
               })}
             </tr>
+            {dynamicPricingConfig?.enabled && (
+              <tr>
+                <th className={styles.occupancyHeader}>Ocupación</th>
+                {days.map((day, colIndex) => {
+                  const occupancyScore = occupancyScores[day.toISOString()];
+                  const isClosed = isDayClosed(day);
+                  return (
+                    <th 
+                      key={`occupancy-${day.toISOString()}`}
+                      className={`${styles.occupancyCell} ${isClosed ? styles.closedDay : ''}`}
+                      data-col-index={colIndex}
+                      style={{ 
+                        width: '50px', 
+                        minWidth: '50px', 
+                        boxSizing: 'border-box',
+                        fontSize: '10px',
+                        padding: '2px'
+                      }}
+                    >
+                      {occupancyScore !== undefined ? (
+                        <span 
+                          style={{
+                            fontWeight: 'bold',
+                            fontSize: '12px',
+                            color: occupancyScore > 0.7 ? '#dc3545' : occupancyScore > 0.5 ? '#ffc107' : '#28a745',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handleOccupancyScoreClick(day)}
+                          title="Click para ver detalles del score"
+                        >
+                          {Math.round(occupancyScore * 100)}%
+                        </span>
+                      ) : (
+                        <span style={{ color: '#6c757d', fontSize: '10px' }}>...</span>
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            )}
           </thead>
           <tbody>
             {rooms.map((room, roomIndex) => (
@@ -841,6 +1043,14 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onClose={handleCreateReservationPanelClose}
         onCreateReservation={handleCreateReservation}
         operationalPeriods={operationalPeriods}
+      />
+
+      {/* Modal de detalles del score de ocupación */}
+      <OccupancyScoreModal
+        isOpen={isOccupancyModalOpen}
+        onClose={handleCloseOccupancyModal}
+        occupancyData={selectedOccupancyData}
+        date={selectedOccupancyDate}
       />
     </>
   );

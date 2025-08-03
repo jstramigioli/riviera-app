@@ -435,6 +435,33 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
   return res.json();
 }
 
+export async function getReservationPricingDetails(reservationId) {
+  const res = await fetch(`${API_URL}/reservations/${reservationId}/pricing`);
+  if (!res.ok) throw new Error('Error fetching reservation pricing details');
+  return res.json();
+}
+
+export async function getDetailedOccupancyScore(params) {
+  console.log('=== DEBUG API getDetailedOccupancyScore ===');
+  console.log('Parámetros enviados:', params);
+  
+  const res = await fetch(`${API_URL}/dynamic-pricing/detailed-occupancy-score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  
+  if (!res.ok) {
+    console.error('Error en la respuesta:', res.status, res.statusText);
+    throw new Error('Error fetching detailed occupancy score');
+  }
+  
+  const data = await res.json();
+  console.log('Respuesta del servidor:', data);
+  console.log('=== FIN DEBUG API ===\n');
+  return data;
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
