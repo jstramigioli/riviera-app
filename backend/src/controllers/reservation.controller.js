@@ -1,4 +1,6 @@
 const prisma = require('../utils/prisma');
+const ReservationPricingService = require('../services/reservationPricingService');
+const reservationPricingService = new ReservationPricingService(prisma);
 
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
@@ -151,9 +153,90 @@ exports.createReservation = async (req, res) => {
         guests: true
       }
     });
-    res.status(201).json(newReservation);
+
+    // Calcular y almacenar tarifas detalladas por noche
+    try {
+      const serviceType = reservationType === 'con_desayuno' ? 'breakfast' : 
+                         reservationType === 'media_pension' ? 'halfBoard' : 'base';
+      
+      const pricingResult = await reservationPricingService.calculateAndStoreNightRates(
+        newReservation.id,
+        roomId,
+        checkIn,
+        checkOut,
+        serviceType
+      );
+
+      // Actualizar la reserva con el total calculado
+      const updatedReservation = await prisma.reservation.update({
+        where: { id: newReservation.id },
+        data: { totalAmount: pricingResult.totalAmount },
+        include: {
+          room: {
+            include: {
+              roomType: true,
+              tags: true
+            }
+          },
+          mainClient: true,
+          guests: true,
+          nightRates: true
+        }
+      });
+
+      res.status(201).json({
+        ...updatedReservation,
+        pricingSummary: {
+          totalAmount: pricingResult.totalAmount,
+          numberOfNights: pricingResult.numberOfNights,
+          averageRatePerNight: pricingResult.totalAmount / pricingResult.numberOfNights
+        }
+      });
+    } catch (pricingError) {
+      console.error('Error calculando tarifas detalladas:', pricingError);
+      // Si falla el cálculo de tarifas, devolver la reserva sin tarifas detalladas
+      res.status(201).json(newReservation);
+    }
   } catch (error) {
     res.status(500).json({ error: 'Error creating reservation', details: error.message });
+  }
+};
+
+// Obtener tarifas detalladas de una reserva
+exports.getReservationPricingDetails = async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        room: {
+          include: {
+            roomType: true,
+            tags: true
+          }
+        },
+        mainClient: true,
+        guests: true,
+        nightRates: {
+          orderBy: { date: 'asc' }
+        }
+      }
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+
+    const pricingSummary = await reservationPricingService.getReservationPricingSummary(parseInt(id));
+    
+    res.json({
+      reservation,
+      pricingSummary
+    });
+  } catch (error) {
+    console.error('Error obteniendo detalles de tarifas:', error);
+    res.status(500).json({ error: 'Error fetching pricing details' });
   }
 };
 
@@ -281,12 +364,25 @@ exports.updateReservation = async (req, res) => {
 exports.deleteReservation = async (req, res) => {
   const { id } = req.params;
   try {
+    // Primero eliminar las tarifas por noche relacionadas
+    await prisma.reservationNightRate.deleteMany({
+      where: { reservationId: parseInt(id) }
+    });
+
+    // Luego eliminar los huéspedes relacionados
+    await prisma.guest.deleteMany({
+      where: { reservationId: parseInt(id) }
+    });
+
+    // Finalmente eliminar la reserva
     await prisma.reservation.delete({
       where: { id: parseInt(id) }
     });
+    
     res.status(204).send();
   } catch (error) {
-    res.status(404).json({ error: 'Reservation not found' });
+    console.error('Error deleting reservation:', error);
+    res.status(500).json({ error: 'Error deleting reservation', details: error.message });
   }
 };
 

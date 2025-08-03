@@ -137,6 +137,9 @@ model Reservation {
   requiredTags          String[] // Array de IDs de etiquetas requeridas
   requirementsNotes     String?  // Notas adicionales sobre requerimientos
   
+  // Relación con las tarifas por noche
+  nightRates    ReservationNightRate[]
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -192,7 +195,7 @@ model DynamicPricingConfig {
   hotel                   Hotel    @relation(fields: [hotelId], references: [id])
   hotelId                 String   @unique
   enabled                 Boolean  @default(false) // Si los precios dinámicos están habilitados
-  anticipationThresholds  Int[]    // e.g. [21, 14, 7, 3]
+  anticipationThresholds  Int[]    // e.g. [21, 14, 7, 3] - DEPRECATED
   anticipationWeight      Float
   globalOccupancyWeight   Float
   isWeekendWeight         Float
@@ -201,6 +204,15 @@ model DynamicPricingConfig {
   weatherScoreWeight      Float
   eventImpactWeight       Float
   maxAdjustmentPercentage Float    // e.g. 0.4 (40%)
+  enableGapPromos         Boolean  @default(true) // Habilitar descuentos por huecos
+  enableWeatherApi        Boolean  @default(false) // Habilitar API de clima
+  enableRecentDemand      Boolean  @default(false) // Habilitar demanda reciente
+  
+  // Nueva configuración de anticipación
+  anticipationMode        String   @default("ESCALONADO") // "ESCALONADO" o "CONTINUO"
+  anticipationMaxDays     Int      @default(30) // Para modo continuo
+  anticipationSteps       Json?    // Para modo escalonado: [{"days": 21, "weight": 1.0}, {"days": 14, "weight": 0.5}]
+  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
@@ -259,4 +271,38 @@ model MealPricingRule {
   dinnerValue     Float
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+} 
+
+// Tarifas detalladas por noche de cada reserva
+model ReservationNightRate {
+  id                    String   @id @default(cuid())
+  reservation           Reservation @relation(fields: [reservationId], references: [id])
+  reservationId         Int
+  date                  DateTime
+  baseRate              Float     // Tarifa base desde curva estacional
+  dynamicRate           Float     // Tarifa después de occupancy score
+  finalRate             Float     // Tarifa final aplicada (con descuentos/promociones)
+  serviceType           String    // 'base', 'breakfast', 'halfBoard'
+  serviceRate           Float     // Tarifa del servicio seleccionado
+  
+  // Factores que incidieron en el precio
+  occupancyScore        Float?    // Score de ocupación aplicado
+  isWeekend             Boolean   @default(false)
+  isHoliday             Boolean   @default(false)
+  gapPromotionApplied   Boolean   @default(false)
+  gapPromotionRate      Float?    // Porcentaje de descuento por hueco
+  manualOverride        Boolean   @default(false)
+  
+  // Desglose de modificaciones
+  basePrice             Float     // Precio base sin modificaciones
+  occupancyAdjustment   Float?    // Ajuste por ocupación
+  weekendAdjustment     Float?    // Ajuste por fin de semana
+  holidayAdjustment     Float?    // Ajuste por feriado
+  gapPromotionAmount    Float?    // Monto del descuento por hueco
+  serviceAdjustment     Float?    // Ajuste por tipo de servicio
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([reservationId, date])
 } 

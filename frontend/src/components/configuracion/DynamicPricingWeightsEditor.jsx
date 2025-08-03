@@ -1,22 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import FactorConfigPanel from './FactorConfigPanel';
+import AnticipationFactorConfig from './AnticipationFactorConfig';
 
 const factorNames = {
   'occupancy': 'Ocupación',
   'anticipation': 'Anticipación',
-  'season': 'Estacionalidad',
+  'weekend': 'Fin de semana',
+  'holiday': 'Feriados',
+  'demand': 'Índice de demanda',
+  'weather': 'Clima',
   'events': 'Eventos'
 };
 
 const factorColors = {
   'occupancy': '#667eea',
   'anticipation': '#f0932b',
-  'season': '#eb4d4b',
-  'events': '#6ab04c'
+  'weekend': '#eb4d4b',
+  'holiday': '#6ab04c',
+  'demand': '#9b59b6',
+  'weather': '#3498db',
+  'events': '#e74c3c'
 };
 
-export default function DynamicPricingWeightsEditor({ weights, onChange }) {
+export default function DynamicPricingWeightsEditor({ weights, onChange, config, onConfigChange }) {
   const [localWeights, setLocalWeights] = useState(weights);
   const [originalWeights, setOriginalWeights] = useState(weights);
+  const [activeFactors, setActiveFactors] = useState({
+    occupancy: true,
+    anticipation: true,
+    weekend: true,
+    holiday: true,
+    demand: true,
+    weather: true,
+    events: true
+  });
   const [dragging, setDragging] = useState(null);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartWeights, setDragStartWeights] = useState({});
@@ -31,16 +48,28 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
     setHasChanges(false);
   }, [weights]);
 
-  const totalWidth = 600;
-  const barHeight = 20;
+  const totalWidth = window.innerWidth > 1200 ? 1000 : Math.max(600, window.innerWidth - 100);
+  const barHeight = 30;
 
-  // Calcular el total actual de pesos
-  const currentTotal = Object.values(localWeights).reduce((sum, weight) => sum + weight, 0);
+  // Obtener solo los factores activos
+  const getActiveWeights = () => {
+    const active = {};
+    Object.keys(localWeights).forEach(key => {
+      if (activeFactors[key]) {
+        active[key] = localWeights[key];
+      }
+    });
+    return active;
+  };
+
+  // Calcular el total actual de pesos solo de factores activos
+  const activeWeights = getActiveWeights();
+  const currentTotal = Object.values(activeWeights).reduce((sum, weight) => sum + weight, 0);
   const isComplete = Math.abs(currentTotal - 100) < 0.1; // Tolerancia de 0.1%
 
   // Función para calcular el máximo valor posible para un factor
   const getMaxValueForFactor = (factor, currentWeights) => {
-    const otherFactors = Object.keys(currentWeights).filter(key => key !== factor);
+    const otherFactors = Object.keys(currentWeights).filter(key => key !== factor && activeFactors[key]);
     const otherFactorsTotal = otherFactors.reduce((sum, key) => sum + currentWeights[key], 0);
     return Math.max(0, 100 - otherFactorsTotal);
   };
@@ -53,17 +82,26 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
     setHasChanges(hasChanges);
   };
 
+  const handleFactorToggle = (factor) => {
+    const newActiveFactors = { ...activeFactors };
+    newActiveFactors[factor] = !newActiveFactors[factor];
+    setActiveFactors(newActiveFactors);
+    setHasChanges(true);
+  };
+
   const getBarPositions = (weights) => {
     let currentX = 0;
     const positions = {};
     
     Object.keys(weights).forEach(key => {
-      const width = (weights[key] / 100) * totalWidth;
-      positions[key] = {
-        x: currentX,
-        width: width
-      };
-      currentX += width;
+      if (activeFactors[key]) {
+        const width = (weights[key] / 100) * totalWidth;
+        positions[key] = {
+          x: currentX,
+          width: width
+        };
+        currentX += width;
+      }
     });
     
     return positions;
@@ -150,6 +188,13 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
     setSaving(true);
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Crear objeto con solo los factores activos, 0 para los inactivos
+      const weightsToSend = {};
+      Object.keys(localWeights).forEach(key => {
+        weightsToSend[key] = activeFactors[key] ? localWeights[key] : 0;
+      });
+      
       const response = await fetch(`${API_URL}/dynamic-pricing/config/default-hotel`, {
         method: 'PUT',
         headers: {
@@ -157,23 +202,21 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
         },
         body: JSON.stringify({
           // Mapear los campos del frontend a los del backend
-          globalOccupancyWeight: localWeights.occupancy / 100, // Convertir de porcentaje a decimal
-          anticipationWeight: localWeights.anticipation / 100,
-          isWeekendWeight: localWeights.season / 100, // Usar season como weekend weight
-          isHolidayWeight: localWeights.events / 100, // Usar events como holiday weight
-          demandIndexWeight: 0.1, // Valores por defecto para los otros campos
-          weatherScoreWeight: 0.05,
-          eventImpactWeight: 0.05,
-          anticipationThresholds: [21, 14, 7, 3], // Valores por defecto
-          maxAdjustmentPercentage: 0.4 // Valor por defecto
+          globalOccupancyWeight: weightsToSend.occupancy / 100,
+          anticipationWeight: weightsToSend.anticipation / 100,
+          isWeekendWeight: weightsToSend.weekend / 100,
+          isHolidayWeight: weightsToSend.holiday / 100,
+          demandIndexWeight: weightsToSend.demand / 100,
+          weatherScoreWeight: weightsToSend.weather / 100,
+          eventImpactWeight: weightsToSend.events / 100,
+          anticipationThresholds: [21, 14, 7, 3],
+          maxAdjustmentPercentage: 0.4
         })
       });
 
       if (response.ok) {
-        // Actualizar los pesos originales y resetear cambios
         setOriginalWeights(localWeights);
         setHasChanges(false);
-        // Ahora sí llamar a onChange para actualizar el componente padre
         onChange(localWeights);
       } else {
         console.error('Error al guardar la configuración');
@@ -187,14 +230,16 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
 
   const handleRestoreDefaults = () => {
     const defaultWeights = {
-      occupancy: 30,
-      anticipation: 25,
-      season: 30,
-      events: 15
+      occupancy: 25,
+      anticipation: 20,
+      weekend: 15,
+      holiday: 10,
+      demand: 15,
+      weather: 5,
+      events: 10
     };
     setLocalWeights(defaultWeights);
     checkForChanges(defaultWeights);
-    // No llamar a onChange aquí, solo cuando se guarde
   };
 
   const positions = getBarPositions(localWeights);
@@ -210,7 +255,7 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
       <h3 style={{ 
         marginBottom: '20px', 
         color: '#2c3e50',
-        fontSize: '18px',
+        fontSize: '24px',
         fontWeight: '600'
       }}>
         Editor de Factores de Precios Dinámicos
@@ -219,7 +264,7 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
       <p style={{ 
         marginBottom: '20px', 
         color: '#6c757d',
-        fontSize: '14px',
+        fontSize: '18px',
         lineHeight: '1.5'
       }}>
         Ajusta los pesos de cada factor que influye en el cálculo de tarifas dinámicas. 
@@ -233,7 +278,8 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
       }}>
         {/* Barra gris de fondo (100%) */}
         <div style={{
-          width: totalWidth,
+          width: '100%',
+          maxWidth: totalWidth,
           height: barHeight,
           backgroundColor: '#e9ecef',
           borderRadius: '10px',
@@ -256,7 +302,7 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '12px',
+                fontSize: '16px',
                 fontWeight: 'bold',
                 userSelect: 'none',
                 zIndex: 2
@@ -268,21 +314,25 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
           ))}
         </div>
 
-        {/* Etiquetas de porcentaje */}
+                {/* Etiquetas de porcentaje */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
+          position: 'relative',
           marginTop: '10px',
-          width: totalWidth
+          width: '100%',
+          maxWidth: totalWidth,
+          height: '30px'
         }}>
           {Object.keys(positions).map(factor => (
             <div
               key={factor}
               style={{
+                position: 'absolute',
+                left: positions[factor].x + (positions[factor].width / 2) - 20,
+                fontSize: '16px',
+                color: factorColors[factor],
+                fontWeight: '600',
                 textAlign: 'center',
-                fontSize: '12px',
-                color: '#495057',
-                fontWeight: '500'
+                width: '40px'
               }}
             >
               {editingFactor === factor ? (
@@ -295,11 +345,11 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
                   min="0"
                   max={getMaxValueForFactor(factor, localWeights)}
                   style={{
-                    width: '50px',
+                    width: '40px',
                     textAlign: 'center',
                     border: '1px solid #007bff',
                     borderRadius: '4px',
-                    fontSize: '12px',
+                    fontSize: '16px',
                     fontWeight: 'bold',
                     color: factorColors[factor]
                   }}
@@ -326,9 +376,6 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
                   {Math.round(localWeights[factor])}%
                 </div>
               )}
-              <div style={{ fontSize: '10px', color: '#6c757d' }}>
-                {factorNames[factor]}
-              </div>
             </div>
           ))}
         </div>
@@ -350,48 +397,55 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
         )}
       </div>
 
-      {/* Descripción de factores */}
+      {/* Paneles de configuración de factores */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '15px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
         marginTop: '20px'
       }}>
         {Object.entries(factorNames).map(([key, name]) => (
-          <div key={key} style={{
-            border: `2px solid ${factorColors[key]}`,
-            borderRadius: '8px',
-            padding: '12px',
-            background: `${factorColors[key]}10`
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '8px'
-            }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                backgroundColor: factorColors[key],
-                borderRadius: '50%',
-                marginRight: '8px'
-              }} />
-              <span style={{
-                fontWeight: '600',
-                color: '#2c3e50',
-                fontSize: '14px'
-              }}>
-                {name}
-              </span>
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: '#6c757d',
-              lineHeight: '1.4'
-            }}>
-              {getFactorDescription(key)}
-            </div>
-          </div>
+          <FactorConfigPanel
+            key={key}
+            factor={key}
+            name={name}
+            color={factorColors[key]}
+            description={getFactorDescription(key)}
+            isActive={activeFactors[key]}
+            weight={localWeights[key]}
+            onToggle={() => handleFactorToggle(key)}
+            onWeightChange={(newWeight) => {
+              const newWeights = { ...localWeights, [key]: newWeight };
+              setLocalWeights(newWeights);
+              checkForChanges(newWeights);
+            }}
+          >
+            {key === 'anticipation' && (
+              <AnticipationFactorConfig
+                config={{
+                  anticipationMode: config?.anticipationMode || 'ESCALONADO',
+                  anticipationMaxDays: config?.anticipationMaxDays || 30,
+                  anticipationSteps: config?.anticipationSteps || [
+                    { days: 21, weight: 1.0 },
+                    { days: 14, weight: 0.7 },
+                    { days: 7, weight: 0.4 },
+                    { days: 3, weight: 0.2 }
+                  ]
+                }}
+                onConfigChange={(anticipationConfig) => {
+                  if (onConfigChange) {
+                    const newConfig = {
+                      ...config,
+                      anticipationMode: anticipationConfig.anticipationMode,
+                      anticipationMaxDays: anticipationConfig.anticipationMaxDays,
+                      anticipationSteps: anticipationConfig.anticipationSteps
+                    };
+                    onConfigChange('anticipationConfig', newConfig);
+                  }
+                }}
+              />
+            )}
+          </FactorConfigPanel>
         ))}
       </div>
 
@@ -405,13 +459,13 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
         <button
           onClick={handleRestoreDefaults}
           style={{
-            padding: '10px 20px',
+            padding: '12px 24px',
             background: '#6c757d',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: '16px',
             fontWeight: '500'
           }}
         >
@@ -422,13 +476,13 @@ export default function DynamicPricingWeightsEditor({ weights, onChange }) {
             onClick={handleSave}
             disabled={!isComplete || saving}
             style={{
-              padding: '10px 20px',
+              padding: '12px 24px',
               background: isComplete && !saving ? '#28a745' : '#6c757d',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
               cursor: isComplete && !saving ? 'pointer' : 'not-allowed',
-              fontSize: '14px',
+              fontSize: '16px',
               fontWeight: '500',
               opacity: isComplete && !saving ? 1 : 0.6
             }}
@@ -460,7 +514,10 @@ function getFactorDescription(factor) {
   const descriptions = {
     'occupancy': 'Influencia del nivel de ocupación del hotel en el precio. Mayor ocupación = precios más altos.',
     'anticipation': 'Impacto de la anticipación de reservas. Reservas anticipadas pueden tener precios diferentes.',
-    'season': 'Efecto de la estacionalidad turística en los precios.',
+    'weekend': 'Efecto de los fines de semana en la demanda y precios. Mayor demanda = precios más altos.',
+    'holiday': 'Influencia de los feriados nacionales o locales en la demanda y precios.',
+    'demand': 'Impacto del índice de demanda general en la tarifa. Basado en reservas históricas.',
+    'weather': 'Efecto del clima en la demanda y precios de los hoteles.',
     'events': 'Influencia de eventos especiales, feriados o actividades locales en la demanda.'
   };
   return descriptions[factor] || '';

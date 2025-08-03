@@ -39,5 +39,7 @@ router.post('/gap-promotions/:roomId/:date', dynamicPricingController.applyGapPr
 
 // Cálculo de scores
 router.post('/calculate-score/:hotelId/:date', dynamicPricingController.calculateOccupancyScore);
+router.post('/occupancy-score', dynamicPricingController.getOccupancyScore);
+router.post('/detailed-occupancy-score', dynamicPricingController.getDetailedOccupancyScore);
 
 module.exports = router; 

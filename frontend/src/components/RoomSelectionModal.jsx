@@ -22,10 +22,10 @@ function RoomSelectionModal({
   const [loadingRates, setLoadingRates] = useState({});
 
   useEffect(() => {
-    if (isOpen && requirements.requiredGuests) {
+    if (isOpen && requirements.requiredGuests && checkIn && checkOut) {
       searchAvailableRooms();
     }
-  }, [isOpen, requirements, checkIn, checkOut]);
+  }, [isOpen, requirements.requiredGuests, checkIn, checkOut]);
 
   // Cargar tarifas cuando se selecciona una habitación
   useEffect(() => {

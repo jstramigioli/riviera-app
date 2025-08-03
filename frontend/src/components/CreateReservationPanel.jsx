@@ -369,14 +369,7 @@ export default function CreateReservationPanel({
 
   const handleRequirementsChange = (newRequirements) => {
     setRequirements(newRequirements);
-    
-    // Si se asignó una habitación automáticamente, actualizar el formulario
-    if (newRequirements.requiredRoomId && newRequirements.requiredRoomId !== formData.roomId) {
-      setFormData(prev => ({
-        ...prev,
-        roomId: newRequirements.requiredRoomId
-      }));
-    }
+    // NO asignar habitación ni abrir el modal aquí
   };
 
   const resetForm = () => {
@@ -475,25 +468,21 @@ export default function CreateReservationPanel({
               </div>
             )}
             
-            {hotelAvailability && !isCheckingAvailability && (
-              <div className={`${styles.availabilityStatus} ${hotelAvailability.isAvailable ? styles.available : styles.unavailable}`}>
-                {hotelAvailability.isAvailable ? (
-                  <span>✅ Hotel abierto en las fechas seleccionadas</span>
-                ) : (
-                  <div>
-                    <span>❌ Hotel cerrado en las fechas seleccionadas</span>
-                    {hotelAvailability.uncoveredRanges && hotelAvailability.uncoveredRanges.length > 0 && (
-                      <div className={styles.uncoveredRanges}>
-                        <small>Períodos no cubiertos:</small>
-                        {hotelAvailability.uncoveredRanges.map((range, index) => (
-                          <div key={index} className={styles.range}>
-                            {format(new Date(range.start), 'dd/MM/yyyy')} - {format(new Date(range.end), 'dd/MM/yyyy')}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+            {hotelAvailability && !isCheckingAvailability && !hotelAvailability.isAvailable && (
+              <div className={`${styles.availabilityStatus} ${styles.unavailable}`}>
+                <div>
+                  <span>❌ Hotel cerrado en las fechas seleccionadas</span>
+                  {hotelAvailability.uncoveredRanges && hotelAvailability.uncoveredRanges.length > 0 && (
+                    <div className={styles.uncoveredRanges}>
+                      <small>Períodos no cubiertos:</small>
+                      {hotelAvailability.uncoveredRanges.map((range, index) => (
+                        <div key={index} className={styles.range}>
+                          {format(new Date(range.start), 'dd/MM/yyyy')} - {format(new Date(range.end), 'dd/MM/yyyy')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -507,10 +496,10 @@ export default function CreateReservationPanel({
           </div>
 
           {/* Requerimientos de la Reserva */}
-          <ReservationRequirements
-            requirements={requirements}
-            onRequirementsChange={handleRequirementsChange}
-          />
+                      <ReservationRequirements
+              requirements={requirements}
+              onRequirementsChange={handleRequirementsChange}
+            />
 
           {/* Información del Cliente */}
           <div className={styles.section}>

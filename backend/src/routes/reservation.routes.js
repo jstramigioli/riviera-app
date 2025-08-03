@@ -13,6 +13,9 @@ router.get('/available-rooms', reservationController.findAvailableRooms);
 // GET /api/reservations/:id - Obtener una reserva específica
 router.get('/:id', reservationController.getReservationById);
 
+// GET /api/reservations/:id/pricing - Obtener tarifas detalladas de una reserva
+router.get('/:id/pricing', reservationController.getReservationPricingDetails);
+
 // POST /api/reservations - Crear una nueva reserva
 router.post('/', validateReservation, reservationController.createReservation);
 
