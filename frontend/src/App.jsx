@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
@@ -7,12 +7,14 @@ import ReservationGrid from './components/ReservationGrid';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
+import ConfirmationModal from './components/ConfirmationModal';
 import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import RatesCalendar from './components/RatesCalendar';
 import ConsultasReservasView from './components/ConsultasReservasView';
+import CobrosPagos from './pages/CobrosPagos';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
@@ -24,6 +26,8 @@ import styles from './styles/App.module.css';
 import './index.css';
 
 function ReservationsView() {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
   const {
     rooms,
     clients,
@@ -99,18 +103,21 @@ function ReservationsView() {
     }
   }
 
-  async function handleDeleteReservation() {
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     if (!selectedReservation) return;
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) return;
     try {
       await deleteReservation(selectedReservation.id);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
       closePanel();
     } catch (error) {
-      alert('Error al eliminar la reserva');
-      console.error(error);
+      console.error('Error deleting reservation:', error);
+      alert(`Error al eliminar la reserva: ${error.message}`);
     }
-  }
+  };
 
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <div className={styles.error}>Error: {error}</div>;
@@ -148,7 +155,7 @@ function ReservationsView() {
             isEditing={isEditing}
             onEditToggle={handleEditToggle}
             onSave={handleEditSave}
-            onDelete={handleDeleteReservation}
+            onDelete={handleDeleteClick}
             showDeleteButton={true}
           >
             {/* Habitación */}
@@ -251,7 +258,18 @@ function ReservationsView() {
                   step="0.01"
                 />
               ) : (
-                `$${selectedReservation.totalAmount?.toLocaleString('es-AR')}`
+                <span 
+                  style={{ 
+                    cursor: 'pointer', 
+                    color: '#3b82f6', 
+                    textDecoration: 'underline',
+                    fontWeight: 'bold'
+                  }}
+                  onClick={() => window.location.href = `/cobros-pagos?clientId=${selectedReservation.mainClientId}`}
+                  title="Ver detalles de cobros y pagos"
+                >
+                  ${selectedReservation.totalAmount?.toLocaleString('es-AR')}
+                </span>
               )}
             </div>
 
@@ -605,6 +623,17 @@ function ReservationsView() {
           </EditPanel>
         )}
       </SidePanel>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar Reserva"
+        message="¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        type="danger"
+      />
     </div>
   );
 }
@@ -621,6 +650,10 @@ function TarifasView() {
   return <RatesCalendar />;
 }
 
+function CobrosPagosView() {
+  return <CobrosPagos />;
+}
+
 function App() {
   return (
     <TagsProvider>
@@ -632,6 +665,7 @@ function App() {
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
             <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
             <Route path="/tarifas" element={<TarifasView />} />
+            <Route path="/cobros-pagos" element={<CobrosPagosView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />
           </Routes>

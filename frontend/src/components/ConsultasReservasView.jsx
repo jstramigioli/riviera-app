@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
 import { format } from 'date-fns';
@@ -8,9 +8,12 @@ import { validateReservationDates, validateReservationConflict, showConflictNoti
 import ReservationsTable from './ReservationsTable';
 import SidePanel from './SidePanel';
 import EditPanel from './EditPanel';
+import ConfirmationModal from './ConfirmationModal';
 import styles from '../styles/App.module.css';
 
 function ConsultasReservasView() {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
   const {
     rooms,
     clients,
@@ -86,18 +89,21 @@ function ConsultasReservasView() {
     }
   }
 
-  async function handleDeleteReservation() {
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     if (!selectedReservation) return;
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) return;
     try {
       await deleteReservation(selectedReservation.id);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
       closePanel();
     } catch (error) {
-      alert('Error al eliminar la reserva');
-      console.error(error);
+      console.error('Error deleting reservation:', error);
+      alert(`Error al eliminar la reserva: ${error.message}`);
     }
-  }
+  };
 
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <div className={styles.error}>Error: {error}</div>;
@@ -134,7 +140,7 @@ function ConsultasReservasView() {
             isEditing={isEditing}
             onEditToggle={handleEditToggle}
             onSave={handleEditSave}
-            onDelete={handleDeleteReservation}
+            onDelete={handleDeleteClick}
             showDeleteButton={true}
           >
             {/* Habitación */}
@@ -217,7 +223,18 @@ function ConsultasReservasView() {
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 />
               ) : (
-                `$${selectedReservation.totalAmount?.toLocaleString('es-AR')}`
+                <span 
+                  style={{ 
+                    cursor: 'pointer', 
+                    color: '#3b82f6', 
+                    textDecoration: 'underline',
+                    fontWeight: 'bold'
+                  }}
+                  onClick={() => window.location.href = `/cobros-pagos?clientId=${selectedReservation.mainClientId}`}
+                  title="Ver detalles de cobros y pagos"
+                >
+                  ${selectedReservation.totalAmount?.toLocaleString('es-AR')}
+                </span>
               )}
             </div>
 
@@ -504,6 +521,17 @@ function ConsultasReservasView() {
           </EditPanel>
         )}
       </SidePanel>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar Reserva"
+        message="¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        type="danger"
+      />
     </div>
   );
 }

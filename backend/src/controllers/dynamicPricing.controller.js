@@ -621,7 +621,111 @@ class DynamicPricingController {
   }
 
   /**
-   * Calcular score de ocupación esperada
+   * Obtener occupancy score para un día específico
+   */
+  async getOccupancyScore(req, res) {
+    try {
+      const { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday } = req.body;
+
+      if (!date || !hotelId) {
+        return res.status(400).json({ 
+          message: 'Se requieren la fecha y el hotelId' 
+        });
+      }
+
+      const score = await dynamicPricingService.calculateExpectedOccupancyScore({
+        date: new Date(date),
+        hotelId,
+        daysUntilDate: daysUntilDate || 0,
+        currentOccupancy: currentOccupancy || 0.5,
+        isWeekend: isWeekend || false,
+        isHoliday: isHoliday || false
+      });
+
+      res.json({ occupancyScore: score });
+    } catch (error) {
+      console.error('Error al obtener occupancy score:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Obtener información detallada del score de ocupación
+   */
+  async getDetailedOccupancyScore(req, res) {
+    try {
+      const { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday } = req.body;
+
+      if (!date || !hotelId) {
+        return res.status(400).json({ 
+          message: 'Se requieren la fecha y el hotelId' 
+        });
+      }
+
+      // Obtener configuración de precios dinámicos
+      const config = await prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
+      });
+
+      if (!config) {
+        return res.status(404).json({ 
+          message: 'No se encontró configuración de precios dinámicos para este hotel' 
+        });
+      }
+
+      // Calcular el score
+      const occupancyScore = await dynamicPricingService.calculateExpectedOccupancyScore({
+        date: new Date(date),
+        hotelId,
+        daysUntilDate: daysUntilDate || 0,
+        currentOccupancy: currentOccupancy || 0.5,
+        isWeekend: isWeekend || false,
+        isHoliday: isHoliday || false
+      });
+
+      // Calcular ocupación real
+      const realOccupancy = await dynamicPricingService.calculateRealOccupancy(hotelId, new Date(date));
+      
+      // Calcular factor de anticipación
+      const anticipationFactor = dynamicPricingService.calculateAnticipationFactor(
+        daysUntilDate || 0, 
+        config
+      );
+      
+      // Preparar respuesta detallada
+      const detailedScore = {
+        occupancyScore,
+        date: new Date(date),
+        hotelId,
+        daysUntilDate: daysUntilDate || 0,
+        currentOccupancy: realOccupancy, // Usar ocupación real en lugar del valor hardcodeado
+        isWeekend: isWeekend || false,
+        isHoliday: isHoliday || false,
+        // Factores calculados
+        anticipationFactor,
+        // Pesos de configuración
+        globalOccupancyWeight: config.globalOccupancyWeight,
+        anticipationWeight: config.anticipationWeight,
+        isWeekendWeight: config.isWeekendWeight,
+        isHolidayWeight: config.isHolidayWeight,
+        demandIndexWeight: config.demandIndexWeight,
+        weatherScoreWeight: config.weatherScoreWeight,
+        eventImpactWeight: config.eventImpactWeight,
+        // Valores por defecto para factores no proporcionados
+        demandIndex: 0.5,
+        weatherScore: 0.5,
+        eventImpact: 0.5
+      };
+
+      res.json(detailedScore);
+    } catch (error) {
+      console.error('Error al obtener score detallado de ocupación:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Calcular score de ocupación (método existente)
    */
   async calculateOccupancyScore(req, res) {
     try {
