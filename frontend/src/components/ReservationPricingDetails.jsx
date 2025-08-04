@@ -67,7 +67,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
       const sign = nightRate.holidayAdjustment > 0 ? '+' : '';
       const color = nightRate.holidayAdjustment > 0 ? 'green' : 'red';
       modifications.push({
-        text: `Feriado ${sign}${formatPrice(nightRate.holidayAdjustment)}`,
+        text: `Feriado/Fin de semana largo ${sign}${formatPrice(nightRate.holidayAdjustment)}`,
         color
       });
     }

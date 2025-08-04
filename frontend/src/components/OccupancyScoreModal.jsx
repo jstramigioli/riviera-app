@@ -86,17 +86,10 @@ export default function OccupancyScoreModal({ isOpen, onClose, occupancyData, da
               </div>
               
               <div className={styles.tableRow}>
-                <div className={styles.factorColumn}>Feriado</div>
+                <div className={styles.factorColumn}>Feriado/Fin de semana largo</div>
                 <div className={styles.weightColumn}>{Math.round(occupancyData.isHolidayWeight * 100)}%</div>
                 <div className={styles.valueColumn}>{occupancyData.isHoliday ? 'Sí' : 'No'}</div>
                 <div className={styles.resultColumn}>{((occupancyData.isHoliday ? 1 : 0) * occupancyData.isHolidayWeight * 100).toFixed(2)}%</div>
-              </div>
-              
-              <div className={styles.tableRow}>
-                <div className={styles.factorColumn}>Índice de Demanda</div>
-                <div className={styles.weightColumn}>{Math.round(occupancyData.demandIndexWeight * 100)}%</div>
-                <div className={styles.valueColumn}>{occupancyData.demandIndex || 0.5}</div>
-                <div className={styles.resultColumn}>{((occupancyData.demandIndex || 0.5) * occupancyData.demandIndexWeight * 100).toFixed(2)}%</div>
               </div>
               
               <div className={styles.tableRow}>

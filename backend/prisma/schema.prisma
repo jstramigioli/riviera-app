@@ -201,7 +201,6 @@ model DynamicPricingConfig {
   isWeekendWeight         Float
   weekendDays             Int[]    @default([0, 6]) // Días de fin de semana: 0=Domingo, 6=Sábado, 5=Viernes
   isHolidayWeight         Float
-  demandIndexWeight       Float
   weatherScoreWeight      Float
   eventImpactWeight       Float
   maxAdjustmentPercentage Float    // e.g. 0.4 (40%)

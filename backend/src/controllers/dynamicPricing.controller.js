@@ -56,7 +56,6 @@ class DynamicPricingController {
           isWeekendWeight: 0.15,
           weekendDays: [0, 6],
           isHolidayWeight: 0.1,
-          demandIndexWeight: 0.15,
           weatherScoreWeight: 0.05,
           eventImpactWeight: 0.1,
           maxAdjustmentPercentage: 0.4,
@@ -750,11 +749,9 @@ class DynamicPricingController {
         anticipationWeight: config.anticipationWeight,
         isWeekendWeight: config.isWeekendWeight,
         isHolidayWeight: config.isHolidayWeight,
-        demandIndexWeight: config.demandIndexWeight,
         weatherScoreWeight: config.weatherScoreWeight,
         eventImpactWeight: config.eventImpactWeight,
         // Valores por defecto para factores no proporcionados
-        demandIndex: 0.5,
         weatherScore: 0.5,
         eventImpact: 0.5
       };
@@ -882,6 +879,38 @@ class DynamicPricingController {
       });
     } catch (error) {
       console.error('Error al obtener tarifas calculadas:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Verificar si una fecha es parte de un feriado/fin de semana largo
+   */
+  async checkLongWeekendOrHoliday(req, res) {
+    try {
+      const { date, hotelId } = req.body;
+
+      if (!date || !hotelId) {
+        return res.status(400).json({ 
+          message: 'Se requieren la fecha y el hotelId' 
+        });
+      }
+
+      const targetDate = new Date(date);
+      
+      if (isNaN(targetDate.getTime())) {
+        return res.status(400).json({ message: 'Fecha inválida' });
+      }
+
+      const isLongWeekendOrHoliday = await dynamicPricingService.isLongWeekendOrHoliday(targetDate, hotelId);
+
+      res.json({
+        date: targetDate.toISOString(),
+        hotelId,
+        isLongWeekendOrHoliday
+      });
+    } catch (error) {
+      console.error('Error al verificar feriado/fin de semana largo:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }

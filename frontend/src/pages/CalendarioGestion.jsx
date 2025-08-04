@@ -268,7 +268,7 @@ export default function CalendarioGestion() {
           </div>
           <div className={styles.legendItem}>
             <div className={`${styles.legendColor} ${styles.holidayDay}`}></div>
-            <span>Feriado</span>
+            <span>Feriado/Fin de semana largo</span>
           </div>
           <div className={styles.legendItem}>
             <FaDollarSign className={styles.legendIcon} />

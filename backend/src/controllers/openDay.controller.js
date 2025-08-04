@@ -30,11 +30,14 @@ class OpenDayController {
       const { hotelId } = req.params;
       const { date, isClosed, isHoliday, fixedPrice, notes } = req.body;
 
+      // Corregir el problema de zona horaria: crear fecha con formato específico
+      const localDate = new Date(date + 'T00:00:00');
+
       // Verificar si ya existe un registro para esta fecha
       const existingOpenDay = await prisma.openDay.findFirst({
         where: {
           hotelId,
-          date: new Date(date)
+          date: localDate
         }
       });
 
@@ -48,7 +51,7 @@ class OpenDayController {
       const openDay = await prisma.openDay.create({
         data: {
           hotelId,
-          date: new Date(date),
+          date: localDate,
           isClosed: isClosed ?? true,
           isHoliday: isHoliday ?? false,
           fixedPrice: fixedPrice ? parseInt(fixedPrice) : null,
@@ -71,10 +74,13 @@ class OpenDayController {
       const { id } = req.params;
       const { date, isClosed, isHoliday, fixedPrice, notes } = req.body;
 
+      // Corregir el problema de zona horaria: crear fecha con formato específico
+      const localDate = new Date(date + 'T00:00:00');
+
       const openDay = await prisma.openDay.update({
         where: { id: parseInt(id) },
         data: {
-          date: new Date(date),
+          date: localDate,
           isClosed: isClosed ?? true,
           isHoliday: isHoliday ?? false,
           fixedPrice: fixedPrice ? parseInt(fixedPrice) : null,
@@ -115,13 +121,15 @@ class OpenDayController {
       const { hotelId } = req.params;
       const { startDate, endDate, isClosed, isHoliday, fixedPrice, notes } = req.body;
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Corregir el problema de zona horaria: crear fechas con formato específico
+      const start = new Date(startDate + 'T00:00:00');
+      const end = new Date(endDate + 'T00:00:00');
       const openDays = [];
 
       // Crear registros para cada día del período
       for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-        const currentDate = new Date(date);
+        // Crear la fecha con formato específico para que se guarde correctamente
+        const currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
         
         // Verificar si ya existe un registro para esta fecha
         const existingOpenDay = await prisma.openDay.findFirst({

@@ -139,6 +139,33 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     loadDynamicPricingConfig();
   }, []);
 
+  // Función para verificar si una fecha es parte de un feriado/fin de semana largo
+  const checkIfLongWeekendOrHoliday = async (date) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
+      // Llamar al endpoint del backend que maneja la nueva lógica
+      const response = await fetch(`${API_URL}/dynamic-pricing/long-weekend-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: date.toISOString(),
+          hotelId: 'default-hotel'
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.isLongWeekendOrHoliday;
+      }
+    } catch (error) {
+      console.error('Error verificando feriado/fin de semana largo:', error);
+    }
+    return false;
+  };
+
   // Función para obtener el occupancy score de un día
   const getOccupancyScore = async (date) => {
     if (!dynamicPricingConfig?.enabled) return null;
@@ -164,7 +191,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       // Usar configuración de días de fin de semana desde el backend
       const weekendDays = dynamicPricingConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
       const isWeekend = weekendDays.includes(getDay(date));
-      const isHoliday = false; // Por ahora hardcodeado, se puede mejorar
+      const isLongWeekendOrHoliday = await checkIfLongWeekendOrHoliday(date); // Consultar si es feriado/fin de semana largo
       
       const requestBody = {
         date: date.toISOString(),
@@ -172,7 +199,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         daysUntilDate,
         currentOccupancy: 50, // Por ahora hardcodeado
         isWeekend,
-        isHoliday
+        isHoliday: isLongWeekendOrHoliday // Usar la nueva lógica
       };
       
       console.log('Request body:', requestBody);
@@ -802,6 +829,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         // Usar configuración de días de fin de semana desde el backend
         const weekendDays = dynamicPricingConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
         const isWeekend = weekendDays.includes(getDay(date));
+        const isLongWeekendOrHoliday = await checkIfLongWeekendOrHoliday(date); // Consultar si es feriado/fin de semana largo
         
         const requestBody = {
           date: date.toISOString(),
@@ -809,7 +837,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           daysUntilDate,
           currentOccupancy: 0.5, // Valor por defecto
           isWeekend,
-          isHoliday: false // Por ahora hardcodeado, se puede mejorar
+          isHoliday: isLongWeekendOrHoliday // Usar la nueva lógica
         };
         
         console.log('Request body para detailed score:', requestBody);

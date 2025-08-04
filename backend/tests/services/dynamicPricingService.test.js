@@ -56,7 +56,6 @@ describe('DynamicPricingService', () => {
         globalOccupancyWeight: 0.25,
         isWeekendWeight: 0.15,
         isHolidayWeight: 0.1,
-        demandIndexWeight: 0.1,
         weatherScoreWeight: 0.05,
         eventImpactWeight: 0.05,
         maxAdjustmentPercentage: 0.4
@@ -71,7 +70,6 @@ describe('DynamicPricingService', () => {
         currentOccupancy: 80,
         isWeekend: true,
         isHoliday: false,
-        demandIndex: 0.8,
         weatherScore: 0.9,
         eventImpact: 0.7
       });
@@ -82,22 +80,40 @@ describe('DynamicPricingService', () => {
   });
 
   describe('calculateAnticipationFactor', () => {
-    it('should return 0.5 when no thresholds provided', () => {
-      const factor = dynamicPricingService.calculateAnticipationFactor(10, []);
+    it('should return 0.5 when no config provided', () => {
+      const factor = dynamicPricingService.calculateAnticipationFactor(10, null);
       expect(factor).toBe(0.5);
     });
 
-    it('should calculate factor based on days until date', () => {
-      const thresholds = [21, 14, 7, 3];
+    it('should calculate factor based on days until date with CONTINUO mode', () => {
+      const config = {
+        anticipationMode: 'CONTINUO',
+        anticipationMaxDays: 30
+      };
       
-      // Test with 5 days (should use threshold 7)
-      const factor1 = dynamicPricingService.calculateAnticipationFactor(5, thresholds);
-      expect(factor1).toBeGreaterThan(0);
-      expect(factor1).toBeLessThan(1);
+      // Test with 15 days (should be 0.5 since it's half of maxDays)
+      const factor1 = dynamicPricingService.calculateAnticipationFactor(15, config);
+      expect(factor1).toBe(0.5);
 
-      // Test with 1 day (should use threshold 3)
-      const factor2 = dynamicPricingService.calculateAnticipationFactor(1, thresholds);
-      expect(factor2).toBeGreaterThan(factor1);
+      // Test with 30 days (should be 1.0 since it's maxDays)
+      const factor2 = dynamicPricingService.calculateAnticipationFactor(30, config);
+      expect(factor2).toBe(1.0);
+    });
+
+    it('should calculate factor with ESCALONADO mode', () => {
+      const config = {
+        anticipationMode: 'ESCALONADO',
+        anticipationSteps: [
+          { days: 21, weight: 1.0 },
+          { days: 14, weight: 0.7 },
+          { days: 7, weight: 0.4 },
+          { days: 3, weight: 0.2 }
+        ]
+      };
+      
+      // Test with 10 days (should use step 7 days with weight 0.4)
+      const factor = dynamicPricingService.calculateAnticipationFactor(10, config);
+      expect(factor).toBe(0.4);
     });
   });
 

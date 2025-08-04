@@ -51,9 +51,9 @@ describe('DynamicPricingConfigPanel', () => {
   it('renders configuration form when data loads', async () => {
     render(<DynamicPricingConfigPanel />)
     
-    // Esperar a que aparezca el formulario
+    // Esperar a que aparezca el formulario o la advertencia de precios desactivados
     await waitFor(() => {
-      expect(screen.getByText(/Editor de Factores de Precios Dinámicos/)).toBeInTheDocument()
+      expect(screen.getByText(/Precios dinámicos desactivados/)).toBeInTheDocument()
     })
   })
 

@@ -172,7 +172,7 @@ export default function DayEditPanel({
                 className={styles.checkbox}
               />
               <span className={styles.checkboxText}>
-                🏖️ Feriado
+                🏖️ Feriado/Fin de semana largo
               </span>
             </label>
           </div>

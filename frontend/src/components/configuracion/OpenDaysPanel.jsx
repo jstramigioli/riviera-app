@@ -211,7 +211,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
         lineHeight: '1.5'
       }}>
         Configura los períodos en los que el hotel estará abierto o cerrado. 
-        Puedes marcar días como feriados y establecer precios fijos.
+        Puedes marcar días como feriados/fines de semana largos y establecer precios fijos.
       </div>
 
       {/* Lista de días de apertura */}
@@ -253,7 +253,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
                 </span>
                 {openDay.isHoliday && (
                   <span style={{ color: '#ffc107', fontWeight: '500' }}>
-                    Feriado
+                    Feriado/Fin de semana largo
                   </span>
                 )}
                 {openDay.fixedPrice && (
@@ -424,7 +424,7 @@ function AddPeriodModal({ onClose, onAdd }) {
                 checked={formData.isHoliday}
                 onChange={(e) => setFormData({ ...formData, isHoliday: e.target.checked })}
               />
-              <span>Feriado</span>
+              <span>Feriado/Fin de semana largo</span>
             </label>
           </div>
 
@@ -493,8 +493,12 @@ function AddPeriodModal({ onClose, onAdd }) {
 
 // Modal para editar día
 function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
+  // Corregir el problema de zona horaria: convertir la fecha UTC a fecha local
+  const localDate = new Date(openDay.date);
+  const localDateString = localDate.toISOString().split('T')[0];
+  
   const [formData, setFormData] = useState({
-    date: openDay.date.slice(0, 10),
+    date: localDateString,
     isClosed: openDay.isClosed,
     isHoliday: openDay.isHoliday,
     fixedPrice: openDay.fixedPrice ? openDay.fixedPrice.toString() : '',
@@ -546,7 +550,7 @@ function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
                 checked={formData.isHoliday}
                 onChange={(e) => setFormData({ ...formData, isHoliday: e.target.checked })}
               />
-              <span>Feriado</span>
+              <span>Feriado/Fin de semana largo</span>
             </label>
           </div>
 

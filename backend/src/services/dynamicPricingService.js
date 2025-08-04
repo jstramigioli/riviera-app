@@ -49,6 +49,75 @@ class DynamicPricingService {
   /**
    * Calcula el expectedOccupancyScore basado en múltiples factores
    */
+  // Función para detectar si una fecha es parte de un feriado/fin de semana largo
+  async isLongWeekendOrHoliday(date, hotelId) {
+    try {
+      // Obtener todos los feriados del hotel
+      const holidays = await this.prisma.openDay.findMany({
+        where: {
+          hotelId,
+          isHoliday: true
+        },
+        orderBy: { date: 'asc' }
+      });
+
+      // Convertir fechas de feriados a objetos Date para comparación
+      const holidayDates = holidays.map(h => new Date(h.date));
+      
+      // Verificar si la fecha actual es feriado
+      const currentDate = new Date(date);
+      const isCurrentDateHoliday = holidayDates.some(h => 
+        h.getFullYear() === currentDate.getFullYear() &&
+        h.getMonth() === currentDate.getMonth() &&
+        h.getDate() === currentDate.getDate()
+      );
+
+      // Si la fecha actual es feriado, es parte de un fin de semana largo
+      if (isCurrentDateHoliday) {
+        return true;
+      }
+
+      // Verificar si es sábado o domingo (fin de semana estándar)
+      const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6; // 0 = domingo, 6 = sábado
+      
+      if (!isWeekend) {
+        return false; // No es fin de semana ni feriado
+      }
+
+      // Si es fin de semana, verificar si hay feriados adyacentes
+      // Buscar feriados en los días anteriores y posteriores
+      const adjacentDays = [];
+      
+      // Agregar días anteriores (hasta 3 días antes)
+      for (let i = 1; i <= 3; i++) {
+        const prevDate = new Date(currentDate);
+        prevDate.setDate(prevDate.getDate() - i);
+        adjacentDays.push(prevDate);
+      }
+      
+      // Agregar días posteriores (hasta 3 días después)
+      for (let i = 1; i <= 3; i++) {
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + i);
+        adjacentDays.push(nextDate);
+      }
+
+      // Verificar si alguno de los días adyacentes es feriado
+      const hasAdjacentHoliday = adjacentDays.some(adjDate => 
+        holidayDates.some(h => 
+          h.getFullYear() === adjDate.getFullYear() &&
+          h.getMonth() === adjDate.getMonth() &&
+          h.getDate() === adjDate.getDate()
+        )
+      );
+
+      return hasAdjacentHoliday;
+    } catch (error) {
+      console.error('Error verificando feriado/fin de semana largo:', error);
+      return false;
+    }
+  }
+
   async calculateExpectedOccupancyScore(params) {
     const {
       date,
@@ -57,14 +126,13 @@ class DynamicPricingService {
       currentOccupancy,
       isWeekend,
       isHoliday,
-      demandIndex = 0.5,
       weatherScore = 0.5,
       eventImpact = 0.5
     } = params;
 
     console.log('=== DEBUG calculateExpectedOccupancyScore ===');
     console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
-    console.log('Valores por defecto:', { demandIndex, weatherScore, eventImpact });
+    console.log('Valores por defecto:', { weatherScore, eventImpact });
 
     // Obtener configuración de precios dinámicos
     const config = await this.prisma.dynamicPricingConfig.findUnique({
@@ -102,17 +170,15 @@ class DynamicPricingService {
     const isWeekendCalculated = weekendDays.includes(date.getDay());
     const weekendFactor = isWeekendCalculated ? 1 : 0;
     
-
-    
-    // Factor de feriado
-    const holidayFactor = isHoliday ? 1 : 0;
+    // Factor de feriado/fin de semana largo - nueva lógica
+    const isLongWeekendOrHoliday = await this.isLongWeekendOrHoliday(date, hotelId);
+    const holidayFactor = isLongWeekendOrHoliday ? 1 : 0;
 
     console.log('Factores calculados:', {
       anticipationFactor,
       occupancyFactor,
       weekendFactor,
       holidayFactor,
-      demandIndex,
       weatherScore,
       eventImpact
     });
@@ -122,7 +188,6 @@ class DynamicPricingService {
       globalOccupancyWeight: config.globalOccupancyWeight,
       isWeekendWeight: config.isWeekendWeight,
       isHolidayWeight: config.isHolidayWeight,
-      demandIndexWeight: config.demandIndexWeight,
       weatherScoreWeight: config.weatherScoreWeight,
       eventImpactWeight: config.eventImpactWeight
     });
@@ -133,7 +198,6 @@ class DynamicPricingService {
       occupancyFactor * config.globalOccupancyWeight +
       weekendFactor * config.isWeekendWeight +
       holidayFactor * config.isHolidayWeight +
-      demandIndex * config.demandIndexWeight +
       weatherScore * config.weatherScoreWeight +
       eventImpact * config.eventImpactWeight
     );
@@ -305,14 +369,34 @@ class DynamicPricingService {
       
       const daysUntilDate = Math.ceil((targetDate - currentDate) / (1000 * 60 * 60 * 24));
       
-      const openDay = await this.prisma.openDay.findUnique({
+      // Buscar el día de apertura usando el mismo formato que se usa para guardar
+      const dateString = date.toISOString().split('T')[0]; // Obtener YYYY-MM-DD
+      const searchDate = new Date(dateString + 'T00:00:00');
+      
+      let openDay = await this.prisma.openDay.findUnique({
         where: { 
           hotelId_date: {
             hotelId,
-            date: date
+            date: searchDate
           }
         }
       });
+      
+      // Si no se encuentra, buscar por rango de fechas para manejar problemas de zona horaria
+      if (!openDay) {
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+        
+        openDay = await this.prisma.openDay.findFirst({
+          where: {
+            hotelId,
+            date: {
+              gte: startOfDay,
+              lt: endOfDay
+            }
+          }
+        });
+      }
       // Obtener configuración de días de fin de semana
       const config = await this.prisma.dynamicPricingConfig.findUnique({
         where: { hotelId }
@@ -321,7 +405,6 @@ class DynamicPricingService {
       // Determinar si es fin de semana según la configuración
       const weekendDays = config?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
       const isWeekend = weekendDays.includes(date.getDay());
-      const isHoliday = openDay?.isHoliday || false;
       const baseRate = await this.interpolateBasePrice(date, hotelId);
       const occupancyScore = await this.calculateExpectedOccupancyScore({
         date,
@@ -329,7 +412,7 @@ class DynamicPricingService {
         daysUntilDate,
         currentOccupancy: 50,
         isWeekend,
-        isHoliday
+        isHoliday: false // Ya no se usa, la nueva lógica maneja esto internamente
       });
       const dynamicRate = config && config.enabled
         ? this.applyDynamicAdjustment(baseRate, occupancyScore, config)

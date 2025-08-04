@@ -45,7 +45,6 @@ describe('Controlador de Precios Dinámicos', () => {
         globalOccupancyWeight: 0.25,
         isWeekendWeight: 0.15,
         isHolidayWeight: 0.1,
-        demandIndexWeight: 0.1,
         weatherScoreWeight: 0.05,
         eventImpactWeight: 0.05,
         maxAdjustmentPercentage: 0.4
@@ -93,9 +92,8 @@ describe('Controlador de Precios Dinámicos', () => {
         globalOccupancyWeight: 0.25,
         isWeekendWeight: 0.15,
         isHolidayWeight: 0.1,
-        demandIndexWeight: 0.1,
         weatherScoreWeight: 0.05,
-        eventImpactWeight: 0.05,
+        eventImpactWeight: 0.1,
         maxAdjustmentPercentage: 0.4
       };
 
@@ -141,7 +139,9 @@ describe('Controlador de Precios Dinámicos', () => {
     });
 
     it('debería manejar errores de base de datos', async () => {
-      global.mockPrisma.dynamicPricingConfig.upsert.mockRejectedValue(new Error('Error de BD'));
+      // Configurar el mock para que falle específicamente en este test
+      global.mockPrisma.dynamicPricingConfig.findUnique.mockResolvedValue(null);
+      global.mockPrisma.dynamicPricingConfig.create.mockRejectedValue(new Error('Error de BD'));
 
       await request(app)
         .put('/api/dynamic-pricing/config/test-hotel')
@@ -493,7 +493,6 @@ describe('Controlador de Precios Dinámicos', () => {
         currentOccupancy: 0.6,
         isWeekend: false,
         isHoliday: false,
-        demandIndex: 0.8,
         weatherScore: 0.9,
         eventImpact: 0.7
       };

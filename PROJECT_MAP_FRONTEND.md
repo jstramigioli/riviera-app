@@ -17,7 +17,7 @@ El frontend es una aplicación React que gestiona un sistema de reservas hoteler
 ### CalendarioGestion.jsx
 - **Página principal**: Vista de calendario mensual para gestión de días abiertos/cerrados
 - **Funcionalidades**:
-  - Visualización de días del mes con estados (abierto/cerrado/feriado)
+  - Visualización de días del mes con estados (abierto/cerrado/feriado/fin de semana largo)
   - Edición de precios fijos y dinámicos por día
   - Integración con sistema de pricing dinámico
   - Navegación entre meses

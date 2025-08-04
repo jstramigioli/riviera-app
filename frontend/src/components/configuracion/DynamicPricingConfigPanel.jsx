@@ -52,7 +52,6 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           anticipation: data.anticipationWeight !== undefined && data.anticipationWeight !== null ? Math.round(data.anticipationWeight * 100) : defaultConfig.anticipation,
           weekend: data.isWeekendWeight !== undefined && data.isWeekendWeight !== null ? Math.round(data.isWeekendWeight * 100) : defaultConfig.weekend,
           holiday: data.isHolidayWeight !== undefined && data.isHolidayWeight !== null ? Math.round(data.isHolidayWeight * 100) : defaultConfig.holiday,
-          demand: data.demandIndexWeight !== undefined && data.demandIndexWeight !== null ? Math.round(data.demandIndexWeight * 100) : defaultConfig.demand,
           weather: data.weatherScoreWeight !== undefined && data.weatherScoreWeight !== null ? Math.round(data.weatherScoreWeight * 100) : defaultConfig.weather,
           events: data.eventImpactWeight !== undefined && data.eventImpactWeight !== null ? Math.round(data.eventImpactWeight * 100) : defaultConfig.events,
           // Mantener otros campos del backend

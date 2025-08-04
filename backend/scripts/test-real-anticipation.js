@@ -44,16 +44,24 @@ async function testRealAnticipation() {
   console.log('=== Prueba del Score Completo ===\n');
   
   const config = {
-    anticipationMode: 'CONTINUO',
-    anticipationMaxDays: 30,
-    anticipationWeight: 0.25,
+    anticipationWeight: 0.3,
     globalOccupancyWeight: 0.25,
     isWeekendWeight: 0.15,
-    isHolidayWeight: 0.10,
-    demandIndexWeight: 0.15,
+    isHolidayWeight: 0.1,
     weatherScoreWeight: 0.05,
-    eventImpactWeight: 0.05
+    eventImpactWeight: 0.05,
+    maxAdjustmentPercentage: 0.4
   };
+
+  // Simular cálculo manual
+  const manualScore = (
+    0.8 * config.anticipationWeight +
+    0.6 * config.globalOccupancyWeight +
+    1.0 * config.isWeekendWeight +
+    0.0 * config.isHolidayWeight +
+    0.5 * config.weatherScoreWeight +
+    0.5 * config.eventImpactWeight
+  );
 
   for (const testCase of testDates) {
     const targetDate = new Date(testCase.date);
@@ -70,7 +78,6 @@ async function testRealAnticipation() {
         0.5 * config.globalOccupancyWeight +
         0 * config.isWeekendWeight +
         0 * config.isHolidayWeight +
-        0.5 * config.demandIndexWeight +
         0.5 * config.weatherScoreWeight +
         0.5 * config.eventImpactWeight
       );

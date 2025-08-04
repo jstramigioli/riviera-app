@@ -14,8 +14,7 @@ Configuración global que define los pesos y parámetros del sistema:
 - `anticipationWeight`: Peso del factor de anticipación (0-1)
 - `globalOccupancyWeight`: Peso de la ocupación global (0-1)
 - `isWeekendWeight`: Peso de fin de semana (0-1)
-- `isHolidayWeight`: Peso de feriados (0-1)
-- `demandIndexWeight`: Peso del índice de demanda (0-1)
+- `isHolidayWeight`: Peso de feriados/fines de semana largos (0-1)
 - `weatherScoreWeight`: Peso del clima (0-1)
 - `eventImpactWeight`: Peso de eventos (0-1)
 - `maxAdjustmentPercentage`: Máximo ajuste permitido (ej: 0.4 = 40%)
@@ -57,7 +56,6 @@ score = (
   occupancyFactor * globalOccupancyWeight +
   weekendFactor * isWeekendWeight +
   holidayFactor * isHolidayWeight +
-  demandIndex * demandIndexWeight +
   weatherScore * weatherScoreWeight +
   eventImpact * eventImpactWeight
 )
@@ -148,7 +146,6 @@ const config = {
   globalOccupancyWeight: 0.25,
   isWeekendWeight: 0.15,
   isHolidayWeight: 0.1,
-  demandIndexWeight: 0.1,
   weatherScoreWeight: 0.05,
   eventImpactWeight: 0.05,
   maxAdjustmentPercentage: 0.4

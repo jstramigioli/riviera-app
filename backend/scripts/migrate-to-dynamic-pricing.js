@@ -16,15 +16,26 @@ async function migrateToDynamicPricing() {
       update: {},
       create: {
         hotelId,
-        anticipationThresholds: [21, 14, 7, 3],
-        anticipationWeight: 0.3,
+        enabled: false,
+        anticipationWeight: 0.2,
         globalOccupancyWeight: 0.25,
         isWeekendWeight: 0.15,
+        weekendDays: [0, 6],
         isHolidayWeight: 0.1,
-        demandIndexWeight: 0.1,
         weatherScoreWeight: 0.05,
-        eventImpactWeight: 0.05,
-        maxAdjustmentPercentage: 0.4
+        eventImpactWeight: 0.1,
+        maxAdjustmentPercentage: 0.4,
+        enableGapPromos: true,
+        enableWeatherApi: false,
+        enableRecentDemand: false,
+        anticipationMode: 'ESCALONADO',
+        anticipationMaxDays: 30,
+        anticipationSteps: [
+          { days: 21, weight: 1.0 },
+          { days: 14, weight: 0.7 },
+          { days: 7, weight: 0.4 },
+          { days: 3, weight: 0.2 }
+        ]
       }
     });
     console.log('✅ Configuración creada:', defaultConfig.id);

@@ -4,9 +4,9 @@ import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
 import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
 import MealPricingEditor from '../components/configuracion/MealPricingEditor';
-import OperationalPeriodsPanel from '../components/configuracion/OperationalPeriodsPanel';
 import TarifasPreviewPanel from '../components/configuracion/TarifasPreviewPanel';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
+import CalendarioTab from '../components/configuracion/CalendarioTab';
 
 function ConfiguracionView() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -23,6 +23,7 @@ function ConfiguracionView() {
     { id: 'hotel', label: 'Hotel', icon: '🏨' },
     { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
     { id: 'tarifas', label: 'Tarifas', icon: '💰' },
+    { id: 'calendario', label: 'Calendario', icon: '📅' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'sistema', label: 'Sistema', icon: '⚙️' }
   ];
@@ -89,10 +90,10 @@ function ConfiguracionView() {
               <TarifasPreviewPanel />
             </div>
 
-            {/* Fila con configuración de comidas y períodos de apertura */}
+            {/* Fila con configuración de comidas */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', // Reducir minmax
+              gridTemplateColumns: '1fr',
               gap: '24px',
               width: '100%',
               boxSizing: 'border-box'
@@ -105,12 +106,11 @@ function ConfiguracionView() {
               }}>
                 <MealPricingEditor />
               </div>
-
-              {/* Períodos de apertura */}
-              <OperationalPeriodsPanel />
             </div>
           </div>
         );
+      case 'calendario':
+        return <CalendarioTab />;
       case 'usuarios':
         return (
           <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>

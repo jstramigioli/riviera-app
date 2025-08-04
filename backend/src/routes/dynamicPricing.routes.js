@@ -42,4 +42,7 @@ router.post('/calculate-score/:hotelId/:date', dynamicPricingController.calculat
 router.post('/occupancy-score', dynamicPricingController.getOccupancyScore);
 router.post('/detailed-occupancy-score', dynamicPricingController.getDetailedOccupancyScore);
 
+// Verificación de feriados/fines de semana largos
+router.post('/long-weekend-check', dynamicPricingController.checkLongWeekendOrHoliday);
+
 module.exports = router; 

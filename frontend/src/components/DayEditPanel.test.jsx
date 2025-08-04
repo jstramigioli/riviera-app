@@ -68,7 +68,7 @@ describe('DayEditPanel', () => {
     
     expect(screen.getByText('Estado del Día')).toBeInTheDocument()
     expect(screen.getByText('Cerrado este día')).toBeInTheDocument()
-    expect(screen.getByText('🏖️ Feriado')).toBeInTheDocument()
+    expect(screen.getByText('🏖️ Feriado/Fin de semana largo')).toBeInTheDocument()
   })
 
   it('displays room type prices when day is open', () => {
@@ -90,7 +90,7 @@ describe('DayEditPanel', () => {
     render(<DayEditPanel {...mockProps} />)
     
     const closedCheckbox = screen.getByText('Cerrado este día').closest('label').querySelector('input')
-    const holidayCheckbox = screen.getByText('🏖️ Feriado').closest('label').querySelector('input')
+    const holidayCheckbox = screen.getByText('🏖️ Feriado/Fin de semana largo').closest('label').querySelector('input')
     
     expect(closedCheckbox).not.toBeChecked()
     expect(holidayCheckbox).toBeChecked()
