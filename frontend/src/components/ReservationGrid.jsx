@@ -161,7 +161,9 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       console.log('Hoy normalizado:', today);
       console.log('Días calculados:', daysUntilDate);
       
-      const isWeekend = getDay(date) === 0 || getDay(date) === 6;
+      // Usar configuración de días de fin de semana desde el backend
+      const weekendDays = dynamicPricingConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
+      const isWeekend = weekendDays.includes(getDay(date));
       const isHoliday = false; // Por ahora hardcodeado, se puede mejorar
       
       const requestBody = {
@@ -797,12 +799,16 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         console.log('Hoy normalizado:', today);
         console.log('Días calculados:', daysUntilDate);
         
+        // Usar configuración de días de fin de semana desde el backend
+        const weekendDays = dynamicPricingConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
+        const isWeekend = weekendDays.includes(getDay(date));
+        
         const requestBody = {
           date: date.toISOString(),
           hotelId: 'default-hotel',
           daysUntilDate,
           currentOccupancy: 0.5, // Valor por defecto
-          isWeekend: getDay(date) === 0 || getDay(date) === 6,
+          isWeekend,
           isHoliday: false // Por ahora hardcodeado, se puede mejorar
         };
         

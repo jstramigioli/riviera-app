@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FactorConfigPanel from './FactorConfigPanel';
 import AnticipationFactorConfig from './AnticipationFactorConfig';
+import WeekendFactorConfig from './WeekendFactorConfig';
 
 const factorNames = {
   'occupancy': 'Ocupación',
@@ -441,6 +442,23 @@ export default function DynamicPricingWeightsEditor({ weights, onChange, config,
                       anticipationSteps: anticipationConfig.anticipationSteps
                     };
                     onConfigChange('anticipationConfig', newConfig);
+                  }
+                }}
+              />
+            )}
+            {key === 'weekend' && (
+              <WeekendFactorConfig
+                key={`weekend-config-${JSON.stringify(config?.weekendDays)}`}
+                config={{
+                  weekendDays: config?.weekendDays || [0, 6]
+                }}
+                onConfigChange={(weekendConfig) => {
+                  if (onConfigChange) {
+                    const newConfig = {
+                      ...config,
+                      weekendDays: weekendConfig.weekendDays
+                    };
+                    onConfigChange('weekendConfig', newConfig);
                   }
                 }}
               />

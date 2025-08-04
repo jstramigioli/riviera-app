@@ -41,7 +41,14 @@ class ReservationPricingService {
           }
         });
 
-        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        // Obtener configuración de días de fin de semana
+        const weekendConfig = await this.prisma.dynamicPricingConfig.findUnique({
+          where: { hotelId: 'default-hotel' }
+        });
+        
+        // Determinar si es fin de semana según la configuración
+        const weekendDays = weekendConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
+        const isWeekend = weekendDays.includes(date.getDay());
         const isHoliday = openDay?.isHoliday || false;
 
         // Calcular tarifa base desde curva estacional

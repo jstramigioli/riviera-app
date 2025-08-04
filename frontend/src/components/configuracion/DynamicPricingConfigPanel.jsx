@@ -24,6 +24,8 @@ const defaultConfig = {
     { days: 7, weight: 0.4 },
     { days: 3, weight: 0.2 }
   ],
+  // Configuración de días de fin de semana (0=Domingo, 6=Sábado)
+  weekendDays: [0, 6],
 };
 
 const maxAdjustmentOptions = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50];
@@ -34,9 +36,13 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    console.log('DynamicPricingConfigPanel - Loading config from API...');
     fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
+        console.log('DynamicPricingConfigPanel - Raw data from API:', data);
+
+        
         // Mapear los campos del backend al frontend
         const mappedData = {
           ...defaultConfig,
@@ -59,44 +65,72 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           anticipationMode: data.anticipationMode || defaultConfig.anticipationMode,
           anticipationMaxDays: data.anticipationMaxDays || defaultConfig.anticipationMaxDays,
           anticipationSteps: data.anticipationSteps || defaultConfig.anticipationSteps,
+          // Configuración de días de fin de semana
+          weekendDays: data.weekendDays !== undefined ? data.weekendDays : defaultConfig.weekendDays,
         };
+        
+        console.log('DynamicPricingConfigPanel - Mapped data:', mappedData);
+        console.log('DynamicPricingConfigPanel - weekendDays from API:', data.weekendDays);
+        console.log('DynamicPricingConfigPanel - weekendDays in mapped data:', mappedData.weekendDays);
+
         setConfig(mappedData);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        console.error('DynamicPricingConfigPanel - Error loading config:', error);
+        setLoading(false);
+      });
   }, [hotelId]);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Función helper para guardar automáticamente
-  const saveConfig = async (newConfig) => {
+  const saveConfig = async (newConfig, skipReload = false) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const backendData = {
-        enabled: newConfig.enabled,
-        globalOccupancyWeight: newConfig.occupancy / 100,
-        anticipationWeight: newConfig.anticipation / 100,
-        isWeekendWeight: newConfig.weekend / 100,
-        isHolidayWeight: newConfig.holiday / 100,
-        demandIndexWeight: newConfig.demand / 100,
-        weatherScoreWeight: newConfig.weather / 100,
-        eventImpactWeight: newConfig.events / 100,
-        anticipationThresholds: newConfig.anticipationThresholds,
-        maxAdjustmentPercentage: newConfig.maxAdjustmentPercentage,
-        enableGapPromos: newConfig.enableGapPromos,
-        enableWeatherApi: newConfig.enableWeatherApi,
-        enableRecentDemand: newConfig.enableRecentDemand,
-        // Nueva configuración de anticipación
-        anticipationMode: newConfig.anticipationMode,
-        anticipationMaxDays: newConfig.anticipationMaxDays,
-        anticipationSteps: newConfig.anticipationSteps,
-      };
-      
-      await fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(backendData),
+      const response = await fetch(`/api/dynamic-pricing/config/${hotelId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newConfig),
       });
+
+      if (response.ok) {
+        if (!skipReload) {
+          // Recargar la configuración desde el backend
+          const reloadResponse = await fetch(`/api/dynamic-pricing/config/${hotelId}`);
+          if (reloadResponse.ok) {
+            const reloadedData = await reloadResponse.json();
+            setConfig(reloadedData);
+          }
+        }
+      } else {
+        console.error('Error al guardar la configuración:', response.statusText);
+      }
     } catch (error) {
-      console.error('Error al guardar configuración:', error);
+      console.error('Error al guardar la configuración:', error);
     }
   };
 
@@ -106,13 +140,27 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     if (field === 'anticipationConfig') {
       // Caso especial para configuración de anticipación
       newConfig = { ...config, ...value };
+    } else if (field === 'weekendConfig') {
+      // Caso especial para configuración de fin de semana
+      newConfig = { ...config, ...value };
     } else {
       // Caso normal para otros campos
       newConfig = { ...config, [field]: value };
     }
     
-    setConfig(newConfig);
-    await saveConfig(newConfig);
+    // Para la configuración de fin de semana, guardar inmediatamente sin recargar
+    if (field === 'weekendConfig') {
+      await saveConfig(newConfig, true); // skipReload = true
+      
+      // Forzar una actualización del estado después de guardar
+      setConfig(prevConfig => ({
+        ...prevConfig,
+        weekendDays: newConfig.weekendDays
+      }));
+    } else {
+      // Para otros campos, guardar de forma asíncrona
+      saveConfig(newConfig);
+    }
   };
 
 
@@ -197,6 +245,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           <div>
             <h4 style={{ marginBottom: '15px', color: '#34495e' }}>Pesos de Factores</h4>
             <DynamicPricingWeightsEditor
+              key={JSON.stringify(config.weekendDays)}
               weights={{
                 occupancy: config.occupancy,
                 anticipation: config.anticipation,

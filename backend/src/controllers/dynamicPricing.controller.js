@@ -33,18 +33,60 @@ class DynamicPricingController {
       const { hotelId } = req.params;
       const configData = req.body;
 
-      const config = await prisma.dynamicPricingConfig.upsert({
-        where: { hotelId },
-        update: configData,
-        create: {
-          hotelId,
-          ...configData
-        }
+
+
+      // Primero verificar si existe la configuración
+      const existingConfig = await prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
       });
+
+      let config;
+      if (existingConfig) {
+        // Si existe, actualizar
+        config = await prisma.dynamicPricingConfig.update({
+          where: { hotelId },
+          data: configData
+        });
+      } else {
+        // Si no existe, crear con valores por defecto
+        const defaultConfig = {
+          enabled: false,
+          anticipationWeight: 0.2,
+          globalOccupancyWeight: 0.25,
+          isWeekendWeight: 0.15,
+          weekendDays: [0, 6],
+          isHolidayWeight: 0.1,
+          demandIndexWeight: 0.15,
+          weatherScoreWeight: 0.05,
+          eventImpactWeight: 0.1,
+          maxAdjustmentPercentage: 0.4,
+          enableGapPromos: true,
+          enableWeatherApi: false,
+          enableRecentDemand: false,
+          anticipationMode: 'ESCALONADO',
+          anticipationMaxDays: 30,
+          anticipationSteps: [
+            { days: 21, weight: 1.0 },
+            { days: 14, weight: 0.7 },
+            { days: 7, weight: 0.4 },
+            { days: 3, weight: 0.2 }
+          ],
+          ...configData
+        };
+        
+        config = await prisma.dynamicPricingConfig.create({
+          data: {
+            hotelId,
+            ...defaultConfig
+          }
+        });
+      }
+
 
       res.json(config);
     } catch (error) {
       console.error('Error al crear/actualizar configuración de precios dinámicos:', error);
+
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }

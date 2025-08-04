@@ -97,8 +97,12 @@ class DynamicPricingService {
     const realOccupancy = await this.calculateRealOccupancy(hotelId, date);
     const occupancyFactor = realOccupancy;
     
-    // Factor de fin de semana
-    const weekendFactor = isWeekend ? 1 : 0;
+    // Factor de fin de semana - calcular basándose en la configuración del backend
+    const weekendDays = config?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
+    const isWeekendCalculated = weekendDays.includes(date.getDay());
+    const weekendFactor = isWeekendCalculated ? 1 : 0;
+    
+
     
     // Factor de feriado
     const holidayFactor = isHoliday ? 1 : 0;
@@ -309,7 +313,14 @@ class DynamicPricingService {
           }
         }
       });
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      // Obtener configuración de días de fin de semana
+      const config = await this.prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
+      });
+      
+      // Determinar si es fin de semana según la configuración
+      const weekendDays = config?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
+      const isWeekend = weekendDays.includes(date.getDay());
       const isHoliday = openDay?.isHoliday || false;
       const baseRate = await this.interpolateBasePrice(date, hotelId);
       const occupancyScore = await this.calculateExpectedOccupancyScore({
@@ -319,9 +330,6 @@ class DynamicPricingService {
         currentOccupancy: 50,
         isWeekend,
         isHoliday
-      });
-      const config = await this.prisma.dynamicPricingConfig.findUnique({
-        where: { hotelId }
       });
       const dynamicRate = config && config.enabled
         ? this.applyDynamicAdjustment(baseRate, occupancyScore, config)
