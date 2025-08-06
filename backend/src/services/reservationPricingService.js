@@ -57,12 +57,15 @@ class ReservationPricingService {
         // Aplicar multiplicador del tipo de habitación
         const adjustedBaseRate = baseRate * room.roomType.multiplier;
 
-        // Calcular occupancy score
-        const occupancyScore = await this.dynamicPricingService.calculateExpectedOccupancyScore({
+        // Calcular ocupación real
+        const realOccupancy = await this.dynamicPricingService.calculateRealOccupancy('default-hotel', date);
+
+        // Calcular porcentajes de ajuste individuales
+        const adjustmentPercentages = await this.dynamicPricingService.calculateIndividualAdjustmentPercentages({
           date,
           hotelId: 'default-hotel',
           daysUntilDate,
-          currentOccupancy: 50,
+          currentOccupancy: realOccupancy * 100, // Convertir a porcentaje
           isWeekend,
           isHoliday
         });
@@ -72,9 +75,9 @@ class ReservationPricingService {
           where: { hotelId: 'default-hotel' }
         });
 
-        // Calcular tarifa dinámica
+        // Calcular tarifa dinámica usando el nuevo sistema
         const dynamicRate = config && config.enabled
-          ? this.dynamicPricingService.applyDynamicAdjustment(adjustedBaseRate, occupancyScore, config)
+          ? this.dynamicPricingService.applyDynamicAdjustment(adjustedBaseRate, adjustmentPercentages, config)
           : adjustedBaseRate;
 
         // Calcular precios con comidas
@@ -111,13 +114,23 @@ class ReservationPricingService {
           gapPromotionRate = gapPromotion.discountRate;
         }
 
-        // Calcular ajustes
+        // Calcular ajustes usando los porcentajes individuales
         const occupancyAdjustment = config && config.enabled 
-          ? this.dynamicPricingService.applyDynamicAdjustment(adjustedBaseRate, occupancyScore, config) - adjustedBaseRate
+          ? adjustedBaseRate * adjustmentPercentages.occupancyAdjustment
           : 0;
 
-        const weekendAdjustment = isWeekend ? adjustedBaseRate * 0.1 : 0; // 10% adicional fin de semana
-        const holidayAdjustment = isHoliday ? adjustedBaseRate * 0.3 : 0; // 30% adicional feriados
+        const weekendAdjustment = config && config.enabled
+          ? adjustedBaseRate * adjustmentPercentages.weekendAdjustment
+          : (isWeekend ? adjustedBaseRate * 0.1 : 0); // Fallback al 10% si no está habilitado
+
+        const holidayAdjustment = config && config.enabled
+          ? adjustedBaseRate * adjustmentPercentages.holidayAdjustment
+          : (isHoliday ? adjustedBaseRate * 0.3 : 0); // Fallback al 30% si no está habilitado
+
+        const anticipationAdjustment = config && config.enabled
+          ? adjustedBaseRate * adjustmentPercentages.anticipationAdjustment
+          : 0;
+
         const serviceAdjustment = serviceRate - dynamicRate;
 
         // Crear registro de tarifa por noche
@@ -130,7 +143,7 @@ class ReservationPricingService {
             finalRate,
             serviceType,
             serviceRate,
-            occupancyScore,
+            occupancyScore: realOccupancy * 100, // Usar la ocupación real como score
             isWeekend,
             isHoliday,
             gapPromotionApplied: !!gapPromotion,
@@ -139,6 +152,7 @@ class ReservationPricingService {
             occupancyAdjustment,
             weekendAdjustment,
             holidayAdjustment,
+            anticipationAdjustment,
             gapPromotionAmount,
             serviceAdjustment
           }
@@ -195,6 +209,7 @@ class ReservationPricingService {
         occupancyAdjustments: nightRates.reduce((sum, rate) => sum + (rate.occupancyAdjustment || 0), 0),
         weekendAdjustments: nightRates.reduce((sum, rate) => sum + (rate.weekendAdjustment || 0), 0),
         holidayAdjustments: nightRates.reduce((sum, rate) => sum + (rate.holidayAdjustment || 0), 0),
+        anticipationAdjustments: nightRates.reduce((sum, rate) => sum + (rate.anticipationAdjustment || 0), 0),
         gapPromotions: nightRates.reduce((sum, rate) => sum + (rate.gapPromotionAmount || 0), 0),
         serviceAdjustments: nightRates.reduce((sum, rate) => sum + (rate.serviceAdjustment || 0), 0)
       },

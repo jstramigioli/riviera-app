@@ -44,8 +44,10 @@
   
   /* Tipografía */
   --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  --font-size-base: 18px;
-  --font-size-small: 0.85rem;
-  --font-size-medium: 0.95rem;
-  --font-size-large: 1.2rem;
+  --font-size-base: 22px;
+  --font-size-small: 1rem;
+  --font-size-medium: 1.3rem;
+  --font-size-large: 1.6rem;
+  --font-size-xlarge: 2.2rem;
+  --font-size-xxlarge: 2.8rem;
 } 

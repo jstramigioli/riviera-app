@@ -47,9 +47,8 @@ class DynamicPricingService {
   }
 
   /**
-   * Calcula el expectedOccupancyScore basado en múltiples factores
+   * Función para detectar si una fecha es parte de un feriado/fin de semana largo
    */
-  // Función para detectar si una fecha es parte de un feriado/fin de semana largo
   async isLongWeekendOrHoliday(date, hotelId) {
     try {
       // Obtener todos los feriados del hotel
@@ -118,6 +117,10 @@ class DynamicPricingService {
     }
   }
 
+  /**
+   * Calcula el expectedOccupancyScore basado en múltiples factores
+   * @deprecated Este método se mantiene por compatibilidad pero se recomienda usar calculateIndividualAdjustmentPercentages
+   */
   async calculateExpectedOccupancyScore(params) {
     const {
       date,
@@ -130,7 +133,7 @@ class DynamicPricingService {
       eventImpact = 0.5
     } = params;
 
-    console.log('=== DEBUG calculateExpectedOccupancyScore ===');
+    console.log('=== DEBUG calculateExpectedOccupancyScore (DEPRECATED) ===');
     console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
     console.log('Valores por defecto:', { weatherScore, eventImpact });
 
@@ -210,7 +213,200 @@ class DynamicPricingService {
     return Math.max(0, Math.min(1, score));
   }
 
-  calculateAnticipationFactor(daysUntilDate, config) {
+  /**
+   * Calcula los porcentajes de ajuste individuales para cada factor
+   * @param {Object} params - Parámetros de cálculo
+   * @returns {Object} - Porcentajes de ajuste por factor
+   */
+  async calculateIndividualAdjustmentPercentages(params) {
+    const {
+      date,
+      hotelId,
+      daysUntilDate,
+      currentOccupancy,
+      isWeekend,
+      isHoliday,
+      weatherScore = 0.5,
+      eventImpact = 0.5
+    } = params;
+
+    console.log('=== DEBUG calculateIndividualAdjustmentPercentages ===');
+    console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
+
+    // Obtener configuración de precios dinámicos
+    const config = await this.prisma.dynamicPricingConfig.findUnique({
+      where: { hotelId }
+    });
+
+    if (!config) {
+      console.warn('No se encontró configuración de precios dinámicos para el hotel:', hotelId);
+      return {
+        occupancyAdjustment: 0,
+        anticipationAdjustment: 0,
+        weekendAdjustment: 0,
+        holidayAdjustment: 0,
+        totalAdjustment: 0
+      };
+    }
+
+    console.log('Configuración encontrada:', {
+      standardRate: config.standardRate,
+      idealOccupancy: config.idealOccupancy,
+      occupancyAdjustmentPercentage: config.occupancyAdjustmentPercentage,
+      anticipationAdjustmentPercentage: config.anticipationAdjustmentPercentage,
+      weekendAdjustmentPercentage: config.weekendAdjustmentPercentage,
+      holidayAdjustmentPercentage: config.holidayAdjustmentPercentage
+    });
+
+    // 1. Cálculo del ajuste por ocupación
+    const occupancyAdjustment = this.calculateOccupancyAdjustment(
+      currentOccupancy, 
+      config.idealOccupancy, 
+      config.occupancyAdjustmentPercentage
+    );
+
+    // 2. Cálculo del ajuste por anticipación
+    const anticipationFactor = await this.calculateAnticipationFactor(daysUntilDate, config);
+    const anticipationAdjustment = this.calculateAnticipationAdjustment(
+      anticipationFactor,
+      config.anticipationAdjustmentPercentage
+    );
+
+    // 3. Cálculo del ajuste por fin de semana
+    const weekendDays = config?.weekendDays || [0, 6];
+    const isWeekendCalculated = weekendDays.includes(date.getDay());
+    const weekendAdjustment = this.calculateWeekendAdjustment(
+      isWeekendCalculated,
+      config.weekendAdjustmentPercentage
+    );
+
+    // 4. Cálculo del ajuste por feriados
+    const isLongWeekendOrHoliday = await this.isLongWeekendOrHoliday(date, hotelId);
+    const holidayAdjustment = this.calculateHolidayAdjustment(
+      isLongWeekendOrHoliday,
+      config.holidayAdjustmentPercentage
+    );
+
+    // 5. Cálculo del ajuste total
+    const totalAdjustment = occupancyAdjustment + anticipationAdjustment + weekendAdjustment + holidayAdjustment;
+
+    console.log('Ajustes calculados:', {
+      occupancyAdjustment,
+      anticipationAdjustment,
+      weekendAdjustment,
+      holidayAdjustment,
+      totalAdjustment
+    });
+
+    console.log('=== FIN DEBUG calculateIndividualAdjustmentPercentages ===\n');
+
+    return {
+      occupancyAdjustment,
+      anticipationAdjustment,
+      weekendAdjustment,
+      holidayAdjustment,
+      totalAdjustment
+    };
+  }
+
+  /**
+   * Calcula el ajuste por ocupación basado en la diferencia con la ocupación ideal
+   */
+  calculateOccupancyAdjustment(currentOccupancy, idealOccupancy, maxAdjustmentPercentage) {
+    // Convertir ocupación actual a porcentaje si viene como decimal
+    const occupancyPercent = currentOccupancy <= 1 ? currentOccupancy * 100 : currentOccupancy;
+    
+    // Calcular delta según la fórmula especificada
+    const delta = (occupancyPercent - idealOccupancy) / (100 - idealOccupancy);
+    
+    // Aplicar el porcentaje máximo de ajuste
+    const adjustment = delta * (maxAdjustmentPercentage / 100);
+    
+    console.log('Cálculo ocupación:', {
+      occupancyPercent,
+      idealOccupancy,
+      delta,
+      maxAdjustmentPercentage,
+      adjustment
+    });
+    
+    return adjustment;
+  }
+
+  /**
+   * Calcula el ajuste por anticipación
+   */
+  calculateAnticipationAdjustment(anticipationFactor, maxAdjustmentPercentage) {
+    // Asegurar que anticipationFactor sea un número
+    const factor = typeof anticipationFactor === 'object' && anticipationFactor.then 
+      ? 0.5 // Valor por defecto si es una Promise
+      : anticipationFactor;
+    
+    // El factor de anticipación ya está entre 0 y 1
+    // Convertirlo a un ajuste que puede ser positivo o negativo
+    const adjustment = (factor - 0.5) * 2 * (maxAdjustmentPercentage / 100);
+    
+    console.log('Cálculo anticipación:', {
+      anticipationFactor: factor,
+      maxAdjustmentPercentage,
+      adjustment
+    });
+    
+    return adjustment;
+  }
+
+  /**
+   * Calcula el ajuste por fin de semana
+   */
+  calculateWeekendAdjustment(isWeekend, maxAdjustmentPercentage) {
+    // Si es fin de semana, aplicar el ajuste máximo positivo
+    const adjustment = isWeekend ? (maxAdjustmentPercentage / 100) : 0;
+    
+    console.log('Cálculo fin de semana:', {
+      isWeekend,
+      maxAdjustmentPercentage,
+      adjustment
+    });
+    
+    return adjustment;
+  }
+
+  /**
+   * Calcula el ajuste por feriados
+   */
+  calculateHolidayAdjustment(isHoliday, maxAdjustmentPercentage) {
+    // Si es feriado, aplicar el ajuste máximo positivo
+    const adjustment = isHoliday ? (maxAdjustmentPercentage / 100) : 0;
+    
+    console.log('Cálculo feriado:', {
+      isHoliday,
+      maxAdjustmentPercentage,
+      adjustment
+    });
+    
+    return adjustment;
+  }
+
+  /**
+   * Aplica el ajuste dinámico usando el nuevo sistema de porcentajes individuales
+   */
+  applyDynamicAdjustment(basePrice, adjustmentPercentages, config) {
+    const { totalAdjustment } = adjustmentPercentages;
+    
+    // Aplicar el ajuste total directamente sin límites globales
+    // Los límites se pueden aplicar en el frontend si es necesario
+    const finalPrice = basePrice * (1 + totalAdjustment);
+    
+    console.log('Aplicando ajuste dinámico:', {
+      basePrice,
+      totalAdjustment,
+      finalPrice
+    });
+    
+    return finalPrice;
+  }
+
+  async calculateAnticipationFactor(daysUntilDate, config) {
     console.log('=== DEBUG calculateAnticipationFactor ===');
     console.log('daysUntilDate:', daysUntilDate);
     console.log('config:', config);
@@ -321,13 +517,6 @@ class DynamicPricingService {
     return beforeKeyframe.basePrice + (afterKeyframe.basePrice - beforeKeyframe.basePrice) * ratio;
   }
 
-  applyDynamicAdjustment(basePrice, occupancyScore, config) {
-    const adjustmentPercentage = (occupancyScore - 0.5) * 2;
-    const maxAdjustment = config.maxAdjustmentPercentage;
-    const finalAdjustment = Math.max(-maxAdjustment, Math.min(maxAdjustment, adjustmentPercentage));
-    return basePrice * (1 + finalAdjustment);
-  }
-
   async calculateMealPrices(baseRate, hotelId) {
     const mealRules = await this.prisma.mealPricingRule.findUnique({
       where: { hotelId }
@@ -406,16 +595,17 @@ class DynamicPricingService {
       const weekendDays = config?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
       const isWeekend = weekendDays.includes(date.getDay());
       const baseRate = await this.interpolateBasePrice(date, hotelId);
-      const occupancyScore = await this.calculateExpectedOccupancyScore({
+      const occupancyScore = await this.calculateRealOccupancy(hotelId, date); // Usar calculateRealOccupancy
+      const adjustmentPercentages = await this.calculateIndividualAdjustmentPercentages({
         date,
         hotelId,
         daysUntilDate,
-        currentOccupancy: 50,
+        currentOccupancy: occupancyScore,
         isWeekend,
         isHoliday: false // Ya no se usa, la nueva lógica maneja esto internamente
       });
       const dynamicRate = config && config.enabled
-        ? this.applyDynamicAdjustment(baseRate, occupancyScore, config)
+        ? this.applyDynamicAdjustment(baseRate, adjustmentPercentages, config)
         : baseRate;
       const mealPrices = await this.calculateMealPrices(dynamicRate, hotelId);
       const rate = await this.prisma.dailyRoomRate.upsert({

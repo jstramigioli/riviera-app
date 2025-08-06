@@ -1,22 +1,27 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 export default function WeekendFactorConfig({ config, onConfigChange }) {
-  const weekendDays = config?.weekendDays || [0, 6];
+  const [weekendDays, setWeekendDays] = useState(config?.weekendDays || [0, 6]);
 
   useEffect(() => {
     // Sync local state with prop changes
-  }, [config]);
+    if (config?.weekendDays) {
+      setWeekendDays(config.weekendDays);
+    }
+  }, [config?.weekendDays]);
 
-  const handlePresetChange = useCallback((preset) => {
+  const handleDayToggle = useCallback((day) => {
     let newWeekendDays;
     
-    if (preset === 'saturday-sunday') {
-      newWeekendDays = [0, 6]; // Domingo y Sábado
-    } else if (preset === 'friday-saturday-sunday') {
-      newWeekendDays = [0, 5, 6]; // Viernes, Sábado y Domingo
+    if (weekendDays.includes(day)) {
+      // Remover el día si ya está seleccionado
+      newWeekendDays = weekendDays.filter(d => d !== day);
     } else {
-      newWeekendDays = [0, 6]; // Por defecto
+      // Agregar el día si no está seleccionado
+      newWeekendDays = [...weekendDays, day].sort();
     }
+
+    setWeekendDays(newWeekendDays);
 
     // Llamar inmediatamente al callback para persistir el cambio
     if (onConfigChange) {
@@ -28,103 +33,81 @@ export default function WeekendFactorConfig({ config, onConfigChange }) {
     }
   }, [config, onConfigChange, weekendDays]);
 
-  const getCurrentPreset = useCallback(() => {
-    // Ordenar los arrays para comparación consistente
-    const sortedWeekendDays = [...weekendDays].sort();
-    
-    // Comparar arrays ordenados
-    if (sortedWeekendDays.length === 2 && 
-        sortedWeekendDays[0] === 0 && 
-        sortedWeekendDays[1] === 6) {
-      return 'saturday-sunday';
-    } else if (sortedWeekendDays.length === 3 && 
-               sortedWeekendDays[0] === 0 && 
-               sortedWeekendDays[1] === 5 && 
-               sortedWeekendDays[2] === 6) {
-      return 'friday-saturday-sunday';
-    }
-    
-    return 'saturday-sunday'; // Por defecto
-  }, [weekendDays]);
+  const dayNames = {
+    5: 'Viernes',
+    6: 'Sábado', 
+    0: 'Domingo'
+  };
 
-  const currentPreset = getCurrentPreset();
+  const dayColors = {
+    5: '#e74c3c', // Viernes - rojo
+    6: '#e74c3c', // Sábado - rojo
+    0: '#e74c3c'  // Domingo - rojo
+  };
+
+  // Ordenar los días en el orden correcto: Viernes, Sábado, Domingo
+  const orderedDays = [5, 6, 0];
 
   return (
-    <div style={{
-      padding: '16px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      marginTop: '12px'
-    }}>
-      <h4 style={{
-        margin: '0 0 12px 0',
-        fontSize: '16px',
-        fontWeight: '600',
-        color: '#2c3e50'
+    <div>
+      <div style={{ 
+        marginBottom: '12px', 
+        fontWeight: '500', 
+        color: '#495057', 
+        fontSize: 'var(--font-size-medium)'
       }}>
-        Configuración de días de fin de semana
-      </h4>
-      
-      <div style={{
-        marginBottom: '16px'
-      }}>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontSize: '14px',
-          fontWeight: '500',
-          color: '#495057'
-        }}>
-          Selecciona qué días se consideran fin de semana:
-        </label>
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          flexWrap: 'wrap'
-        }}>
-          <button
-            type="button"
-            onClick={() => handlePresetChange('saturday-sunday')}
-            style={{
-              padding: '8px 16px',
-              border: currentPreset === 'saturday-sunday' ? '2px solid #eb4d4b' : '1px solid #dee2e6',
-              borderRadius: '6px',
-              backgroundColor: currentPreset === 'saturday-sunday' ? '#eb4d4b15' : 'white',
-              color: currentPreset === 'saturday-sunday' ? '#eb4d4b' : '#495057',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Sábado y Domingo
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePresetChange('friday-saturday-sunday')}
-            style={{
-              padding: '8px 16px',
-              border: currentPreset === 'friday-saturday-sunday' ? '2px solid #eb4d4b' : '1px solid #dee2e6',
-              borderRadius: '6px',
-              backgroundColor: currentPreset === 'friday-saturday-sunday' ? '#eb4d4b15' : 'white',
-              color: currentPreset === 'friday-saturday-sunday' ? '#eb4d4b' : '#495057',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Viernes, Sábado y Domingo
-          </button>
-        </div>
+        Días de fin de semana:
       </div>
-      
-      <div style={{
-        fontSize: '12px',
-        color: '#6c757d',
-        fontStyle: 'italic'
+      <div style={{ 
+        display: 'flex', 
+        gap: '12px', 
+        flexWrap: 'wrap',
+        justifyContent: 'center'
       }}>
-        Esta configuración afecta cómo se calculan los precios dinámicos para los fines de semana.
+        {orderedDays.map((dayNum) => {
+          const dayName = dayNames[dayNum];
+          const isSelected = weekendDays.includes(dayNum);
+          
+          return (
+            <button
+              key={dayNum}
+              onClick={() => handleDayToggle(dayNum)}
+              style={{
+                padding: '14px 24px',
+                border: `2px solid ${dayColors[dayNum]}`,
+                borderRadius: '8px',
+                backgroundColor: isSelected ? dayColors[dayNum] : '#fdf2f2',
+                color: isSelected ? 'white' : '#e74c3c',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-medium)',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                minWidth: '90px'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  e.target.style.backgroundColor = '#fce4e4';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.target.style.backgroundColor = '#fdf2f2';
+                }
+              }}
+            >
+              {dayName}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ 
+        fontSize: 'var(--font-size-small)', 
+        color: '#666', 
+        marginTop: '12px',
+        fontStyle: 'italic',
+        textAlign: 'center'
+      }}>
+        Selecciona los días que se considerarán como fin de semana para aplicar el recargo adicional.
       </div>
     </div>
   );

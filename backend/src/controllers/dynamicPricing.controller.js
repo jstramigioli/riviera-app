@@ -70,6 +70,19 @@ class DynamicPricingController {
             { days: 7, weight: 0.4 },
             { days: 3, weight: 0.2 }
           ],
+          // Nuevos campos para porcentajes individuales
+          standardRate: configData.standardRate || null,
+          idealOccupancy: configData.idealOccupancy || 80.0,
+          occupancyAdjustmentPercentage: configData.occupancyAdjustmentPercentage || 20.0,
+          anticipationAdjustmentPercentage: configData.anticipationAdjustmentPercentage || 15.0,
+          weekendAdjustmentPercentage: configData.weekendAdjustmentPercentage || 10.0,
+          holidayAdjustmentPercentage: configData.holidayAdjustmentPercentage || 25.0,
+          
+          // Estado de activación de factores
+          occupancyEnabled: configData.occupancyEnabled !== undefined ? configData.occupancyEnabled : true,
+          anticipationEnabled: configData.anticipationEnabled !== undefined ? configData.anticipationEnabled : true,
+          weekendEnabled: configData.weekendEnabled !== undefined ? configData.weekendEnabled : true,
+          holidayEnabled: configData.holidayEnabled !== undefined ? configData.holidayEnabled : true,
           ...configData
         };
         
@@ -911,6 +924,61 @@ class DynamicPricingController {
       });
     } catch (error) {
       console.error('Error al verificar feriado/fin de semana largo:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Obtener los porcentajes máximos de descuento y recargo posibles según la configuración actual
+   */
+  async getMaxAdjustmentPercentages(req, res) {
+    try {
+      const { hotelId } = req.params;
+
+      const config = await prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
+      });
+
+      if (!config) {
+        return res.status(404).json({ message: 'Configuración no encontrada' });
+      }
+
+      // Calcular el máximo descuento posible sumando todos los factores negativos
+      const maxDiscountFactors = [
+        config.occupancyAdjustmentPercentage, // Ocupación baja puede generar descuento
+        config.anticipationAdjustmentPercentage, // Anticipación baja puede generar descuento
+        // Fin de semana y feriados no pueden ser negativos, solo positivos
+      ];
+
+      const maxDiscountPercentage = maxDiscountFactors.reduce((sum, factor) => sum + factor, 0);
+
+      // Calcular el máximo recargo posible sumando todos los factores positivos
+      const maxIncreaseFactors = [
+        config.occupancyAdjustmentPercentage, // Ocupación alta puede generar recargo
+        config.weekendAdjustmentPercentage, // Fin de semana siempre es positivo
+        config.holidayAdjustmentPercentage, // Feriados siempre son positivos
+      ];
+
+      const maxIncreasePercentage = maxIncreaseFactors.reduce((sum, factor) => sum + factor, 0);
+
+      const result = {
+        maxDiscountPercentage: maxDiscountPercentage,
+        maxIncreasePercentage: maxIncreasePercentage,
+        breakdown: {
+          occupancyAdjustment: config.occupancyAdjustmentPercentage,
+          anticipationAdjustment: config.anticipationAdjustmentPercentage,
+          weekendAdjustment: config.weekendAdjustmentPercentage,
+          holidayAdjustment: config.holidayAdjustmentPercentage
+        },
+        explanation: {
+          maxDiscount: `Máximo descuento posible: ${maxDiscountPercentage.toFixed(1)}% (suma de ocupación y anticipación)`,
+          maxIncrease: `Máximo recargo posible: ${maxIncreasePercentage.toFixed(1)}% (suma de todos los factores)`
+        }
+      };
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error al calcular porcentajes máximos:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }

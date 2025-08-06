@@ -213,6 +213,22 @@ model DynamicPricingConfig {
   anticipationMaxDays     Int      @default(30) // Para modo continuo
   anticipationSteps       Json?    // Para modo escalonado: [{"days": 21, "weight": 1.0}, {"days": 14, "weight": 0.5}]
   
+  // Nuevos campos para el sistema de porcentajes individuales
+  standardRate            Float?   // Tarifa estándar esperada (ej: 80000)
+  idealOccupancy          Float    @default(80.0) // Porcentaje de ocupación ideal (ej: 80%)
+  
+  // Porcentajes de ajuste por factor individual
+  occupancyAdjustmentPercentage Float @default(20.0) // Porcentaje máximo de ajuste por ocupación
+  anticipationAdjustmentPercentage Float @default(15.0) // Porcentaje máximo de ajuste por anticipación
+  weekendAdjustmentPercentage Float @default(10.0) // Porcentaje máximo de ajuste por fin de semana
+  holidayAdjustmentPercentage Float @default(25.0) // Porcentaje máximo de ajuste por feriados
+  
+  // Estado de activación de cada factor individual
+  occupancyEnabled        Boolean @default(true)
+  anticipationEnabled     Boolean @default(true)
+  weekendEnabled          Boolean @default(true)
+  holidayEnabled          Boolean @default(true)
+  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
@@ -296,6 +312,7 @@ model ReservationNightRate {
   // Desglose de modificaciones
   basePrice             Float     // Precio base sin modificaciones
   occupancyAdjustment   Float?    // Ajuste por ocupación
+  anticipationAdjustment Float?   // Ajuste por anticipación
   weekendAdjustment     Float?    // Ajuste por fin de semana
   holidayAdjustment     Float?    // Ajuste por feriado
   gapPromotionAmount    Float?    // Monto del descuento por hueco

@@ -49,6 +49,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   });
   const [saving, setSaving] = useState(false);
   const [roomTypes, setRoomTypes] = useState([]); // Nuevo estado para tipos de habitación dinámicos
+  const [editablePrices, setEditablePrices] = useState({}); // Estado para precios editables
 
   // Cargar tipos de habitación desde el backend
   useEffect(() => {
@@ -210,7 +211,78 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     saveCoefficients(newCoefficients);
   };
 
+  // Manejar cambios en precios base
+  const handleBasePriceChange = (roomType, value) => {
+    const newPrice = parseFloat(value) || 0;
+    const newEditablePrices = { ...editablePrices };
+    
+    // Actualizar el precio base para el tipo de habitación editado
+    newEditablePrices[roomType] = newPrice;
+    
+    // Actualizar todos los demás tipos de habitación basándose en sus coeficientes
+    roomTypes.forEach(type => {
+      if (type.name !== roomType) {
+        const coefficient = roomTypeCoefficients[type.name];
+        newEditablePrices[type.name] = Math.round(newPrice * coefficient);
+      }
+    });
+    
+    setEditablePrices(newEditablePrices);
+  };
 
+  // Manejar cambios en precios de desayuno
+  const handleBreakfastPriceChange = (roomType, value) => {
+    const newBreakfastPrice = parseFloat(value) || 0;
+    
+    // Calcular el nuevo precio base que resulte en el precio de desayuno deseado
+    let newBasePrice;
+    if (mealRules.breakfastMode === "FIXED") {
+      newBasePrice = newBreakfastPrice - mealRules.breakfastValue;
+    } else {
+      newBasePrice = newBreakfastPrice / (1 + mealRules.breakfastValue);
+    }
+    
+    // Actualizar todos los precios base basándose en el nuevo precio base calculado
+    const newEditablePrices = { ...editablePrices };
+    roomTypes.forEach(type => {
+      const typeCoefficient = roomTypeCoefficients[type.name];
+      newEditablePrices[type.name] = Math.round(newBasePrice * typeCoefficient);
+    });
+    
+    setEditablePrices(newEditablePrices);
+  };
+
+  // Manejar cambios en precios de media pensión
+  const handleHalfBoardPriceChange = (roomType, value) => {
+    const newHalfBoardPrice = parseFloat(value) || 0;
+    const coefficient = roomTypeCoefficients[roomType];
+    const currentBasePrice = editablePrices[roomType] || (basePrice * coefficient);
+    
+    // Calcular el precio de desayuno actual
+    let currentBreakfastPrice;
+    if (mealRules.breakfastMode === "FIXED") {
+      currentBreakfastPrice = currentBasePrice + mealRules.breakfastValue;
+    } else {
+      currentBreakfastPrice = currentBasePrice * (1 + mealRules.breakfastValue);
+    }
+    
+    // Calcular el nuevo precio base que resulte en el precio de media pensión deseado
+    let newBasePrice;
+    if (mealRules.dinnerMode === "FIXED") {
+      newBasePrice = newHalfBoardPrice - mealRules.dinnerValue - (currentBreakfastPrice - currentBasePrice);
+    } else {
+      newBasePrice = newHalfBoardPrice / ((1 + mealRules.dinnerValue) * (currentBreakfastPrice / currentBasePrice));
+    }
+    
+    // Actualizar todos los precios base basándose en el nuevo precio base calculado
+    const newEditablePrices = { ...editablePrices };
+    roomTypes.forEach(type => {
+      const typeCoefficient = roomTypeCoefficients[type.name];
+      newEditablePrices[type.name] = Math.round(newBasePrice * typeCoefficient);
+    });
+    
+    setEditablePrices(newEditablePrices);
+  };
 
   // Guardar coeficientes
   const saveCoefficients = async (coefficients) => {
@@ -235,6 +307,9 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     }
   };
 
+
+
+
   return (
     <div style={{ 
       backgroundColor: 'white',
@@ -245,11 +320,22 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}>Previsualización de Tarifas</h3>
+      <h3 style={{ 
+        marginBottom: '20px', 
+        color: '#2c3e50',
+        fontSize: 'var(--font-size-xxlarge)',
+        fontWeight: '600'
+      }}>Previsualización de Tarifas</h3>
       
       <div style={{ marginBottom: '20px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '8px', 
+            fontWeight: '500',
+            fontSize: 'var(--font-size-medium)',
+            color: '#495057'
+          }}>
             Fecha de previsualización:
           </label>
           <input
@@ -257,10 +343,11 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
             value={previewDate}
             onChange={(e) => setPreviewDate(e.target.value)}
             style={{
-              padding: '8px',
+              padding: '12px',
               border: '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '14px'
+              borderRadius: '6px',
+              fontSize: 'var(--font-size-medium)',
+              width: '200px'
             }}
           />
         </div>
@@ -270,26 +357,56 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
         <table style={{ 
           width: '100%', 
           borderCollapse: 'collapse',
-          fontSize: '14px'
+          fontSize: 'var(--font-size-medium)'
         }}>
           <thead>
             <tr style={{ 
               backgroundColor: '#f8f9fa',
               borderBottom: '2px solid #dee2e6'
             }}>
-              <th style={{ padding: '15px', textAlign: 'left', fontWeight: '600', color: '#495057' }}>
+              <th style={{ 
+                padding: '16px', 
+                textAlign: 'left', 
+                fontWeight: '600', 
+                color: '#495057',
+                fontSize: 'var(--font-size-medium)'
+              }}>
                 Tipo de Habitación
               </th>
-              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+              <th style={{ 
+                padding: '16px', 
+                textAlign: 'center', 
+                fontWeight: '600', 
+                color: '#495057',
+                fontSize: 'var(--font-size-medium)'
+              }}>
                 Coeficiente
               </th>
-              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+              <th style={{ 
+                padding: '16px', 
+                textAlign: 'center', 
+                fontWeight: '600', 
+                color: '#495057',
+                fontSize: 'var(--font-size-medium)'
+              }}>
                 Precio Base
               </th>
-              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+              <th style={{ 
+                padding: '16px', 
+                textAlign: 'center', 
+                fontWeight: '600', 
+                color: '#495057',
+                fontSize: 'var(--font-size-medium)'
+              }}>
                 Con Desayuno
               </th>
-              <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600', color: '#495057' }}>
+              <th style={{ 
+                padding: '16px', 
+                textAlign: 'center', 
+                fontWeight: '600', 
+                color: '#495057',
+                fontSize: 'var(--font-size-medium)'
+              }}>
                 Con Media Pensión
               </th>
             </tr>
@@ -300,15 +417,21 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                   .filter(roomType => roomTypeCoefficients[roomType.name] !== undefined)
                   .map((roomType) => {
                     const coefficient = roomTypeCoefficients[roomType.name];
-                    const basePriceForType = Math.round(basePrice * coefficient);
+                    const basePriceForType = editablePrices[roomType.name] || Math.round(basePrice * coefficient);
                     const { breakfast, halfBoard } = calculateMealPrices(basePriceForType);
                     
                     return (
                       <tr key={roomType.id} style={{ borderBottom: '1px solid #e9ecef' }}>
-                        <td style={{ padding: '15px', textAlign: 'center', fontWeight: '500', color: '#495057' }}>
+                        <td style={{ 
+                          padding: '16px', 
+                          textAlign: 'center', 
+                          fontWeight: '500', 
+                          color: '#495057',
+                          fontSize: 'var(--font-size-medium)'
+                        }}>
                           {roomTypeNames[roomType.name] || roomType.name}
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'center' }}>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
                           <input
                             type="number"
                             value={coefficient}
@@ -316,34 +439,96 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                             step="0.01"
                             min="0"
                             style={{
-                              width: '80px',
-                              padding: '4px 8px',
+                              width: '90px',
+                              padding: '8px 12px',
                               border: '1px solid #ced4da',
-                              borderRadius: '4px',
-                              fontSize: '12px',
+                              borderRadius: '6px',
+                              fontSize: 'var(--font-size-medium)',
                               textAlign: 'center'
                             }}
                           />
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'center' }}>
-                          <div style={{
-                            width: '100px',
-                            padding: '4px 8px',
-                            backgroundColor: '#f8f9fa',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            textAlign: 'center',
-                            color: '#495057'
-                          }}>
-                            ${basePriceForType?.toLocaleString('es-AR') || '0'}
-                          </div>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={editablePrices[roomType.name] || Math.round(basePrice * roomTypeCoefficients[roomType.name])}
+                            onChange={(e) => {
+                              const newEditablePrices = { ...editablePrices };
+                              newEditablePrices[roomType.name] = parseFloat(e.target.value) || 0;
+                              setEditablePrices(newEditablePrices);
+                            }}
+                            onBlur={(e) => handleBasePriceChange(roomType.name, e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleBasePriceChange(roomType.name, e.target.value);
+                                e.target.blur();
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: 'var(--font-size-medium)',
+                              textAlign: 'center'
+                            }}
+                          />
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'center', color: '#28a745', fontSize: '14px' }}>
-                          ${breakfast.toLocaleString()}
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={breakfast}
+                            onChange={() => {
+                              // Solo actualizar el valor local, no hacer cálculos
+                              // Aquí podrías mantener un estado local temporal si fuera necesario
+                            }}
+                            onBlur={(e) => handleBreakfastPriceChange(roomType.name, e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleBreakfastPriceChange(roomType.name, e.target.value);
+                                e.target.blur();
+                              }
+                            }}
+                            min="0"
+                            style={{
+                              width: '120px',
+                              padding: '8px 12px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '6px',
+                              fontSize: 'var(--font-size-medium)',
+                              textAlign: 'center',
+                              color: '#28a745',
+                              fontWeight: '500'
+                            }}
+                          />
                         </td>
-                        <td style={{ padding: '15px', textAlign: 'center', color: '#dc3545', fontSize: '14px' }}>
-                          ${halfBoard.toLocaleString()}
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            value={halfBoard}
+                            onChange={() => {
+                              // Solo actualizar el valor local, no hacer cálculos
+                              // Aquí podrías mantener un estado local temporal si fuera necesario
+                            }}
+                            onBlur={(e) => handleHalfBoardPriceChange(roomType.name, e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleHalfBoardPriceChange(roomType.name, e.target.value);
+                                e.target.blur();
+                              }
+                            }}
+                            min="0"
+                            style={{
+                              width: '120px',
+                              padding: '8px 12px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '6px',
+                              fontSize: 'var(--font-size-medium)',
+                              textAlign: 'center',
+                              color: '#dc3545',
+                              fontWeight: '500'
+                            }}
+                          />
                         </td>
                       </tr>
                     );
@@ -351,10 +536,11 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
               : (
                   <tr>
                     <td colSpan="5" style={{ 
-                      padding: '20px', 
+                      padding: '24px', 
                       textAlign: 'center', 
                       color: '#6c757d',
-                      fontStyle: 'italic'
+                      fontStyle: 'italic',
+                      fontSize: 'var(--font-size-medium)'
                     }}>
                       Cargando tipos de habitación...
                     </td>
@@ -367,10 +553,11 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       
       {saving && (
         <div style={{ 
-          marginTop: '10px', 
+          marginTop: '16px', 
           textAlign: 'center', 
           color: '#6c757d', 
-          fontSize: '12px' 
+          fontSize: 'var(--font-size-medium)',
+          fontWeight: '500'
         }}>
           Guardando cambios...
         </div>

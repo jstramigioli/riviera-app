@@ -67,7 +67,12 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
   return (
     <div>
       <div style={{ marginBottom: '16px' }}>
-        <div style={{ marginBottom: '12px', fontWeight: '500', color: '#495057', fontSize: '16px' }}>
+        <div style={{ 
+          marginBottom: '12px', 
+          fontWeight: '500', 
+          color: '#495057', 
+          fontSize: 'var(--font-size-medium)'
+        }}>
           Modo de cálculo:
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -79,7 +84,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'ESCALONADO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: '16px' }}>Escalonado</span>
+            <span style={{ fontSize: 'var(--font-size-medium)' }}>Escalonado</span>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
@@ -89,7 +94,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'CONTINUO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: '16px' }}>Continuo</span>
+            <span style={{ fontSize: 'var(--font-size-medium)' }}>Continuo</span>
           </label>
         </div>
       </div>
@@ -97,7 +102,11 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
       {mode === 'CONTINUO' && (
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <span style={{ fontWeight: '500', color: '#495057', fontSize: '16px' }}>Días máximos:</span>
+            <span style={{ 
+              fontWeight: '500', 
+              color: '#495057', 
+              fontSize: 'var(--font-size-medium)'
+            }}>Días máximos:</span>
             <input
               type="number"
               min="1"
@@ -106,14 +115,18 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               onChange={(e) => handleMaxDaysChange(parseInt(e.target.value))}
               style={{
                 width: '80px',
-                padding: '6px 8px',
+                padding: '8px 10px',
                 border: '1px solid #ced4da',
                 borderRadius: '4px',
-                fontSize: '16px'
+                fontSize: 'var(--font-size-medium)'
               }}
             />
           </label>
-          <div style={{ fontSize: '16px', color: '#6c757d', fontStyle: 'italic' }}>
+          <div style={{ 
+            fontSize: 'var(--font-size-small)', 
+            color: '#6c757d', 
+            fontStyle: 'italic' 
+          }}>
             El factor será máximo cuando falten {maxDays} días o más, y 0 cuando sea el día de la fecha.
           </div>
         </div>
@@ -121,7 +134,12 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
 
       {mode === 'ESCALONADO' && (
         <div>
-          <div style={{ marginBottom: '12px', fontWeight: '500', color: '#495057', fontSize: '16px' }}>
+          <div style={{ 
+            marginBottom: '12px', 
+            fontWeight: '500', 
+            color: '#495057', 
+            fontSize: 'var(--font-size-medium)'
+          }}>
             Pasos de anticipación:
           </div>
           <div style={{ marginBottom: '12px' }}>
@@ -131,7 +149,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                 alignItems: 'center', 
                 gap: '8px', 
                 marginBottom: '8px',
-                padding: '8px',
+                padding: '10px',
                 backgroundColor: 'white',
                 borderRadius: '4px',
                 border: '1px solid #e9ecef'
@@ -144,13 +162,16 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                   onChange={(e) => handleStepChange(index, 'days', e.target.value)}
                   style={{
                     width: '60px',
-                    padding: '4px 6px',
+                    padding: '6px 8px',
                     border: '1px solid #ced4da',
                     borderRadius: '3px',
-                    fontSize: '16px'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 />
-                <span style={{ fontSize: '16px', color: '#666' }}>días =</span>
+                <span style={{ 
+                  fontSize: 'var(--font-size-small)', 
+                  color: '#666' 
+                }}>días =</span>
                 <input
                   type="number"
                   min="0"
@@ -160,13 +181,16 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                   onChange={(e) => handleStepChange(index, 'weight', e.target.value)}
                   style={{
                     width: '60px',
-                    padding: '4px 6px',
+                    padding: '6px 8px',
                     border: '1px solid #ced4da',
                     borderRadius: '3px',
-                    fontSize: '16px'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 />
-                <span style={{ fontSize: '16px', color: '#666' }}>
+                <span style={{ 
+                  fontSize: 'var(--font-size-small)', 
+                  color: '#666' 
+                }}>
                   × 100% = {Math.round(step.weight * 100)}%
                 </span>
                 {steps.length > 2 && (
@@ -178,13 +202,13 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                       color: 'white',
                       border: 'none',
                       borderRadius: '50%',
-                      width: '24px',
-                      height: '24px',
+                      width: '28px',
+                      height: '28px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      fontSize: '16px',
+                      fontSize: 'var(--font-size-medium)',
                       fontWeight: 'bold',
                       marginLeft: 'auto'
                     }}
@@ -203,15 +227,20 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              padding: '8px 16px',
+              padding: '10px 18px',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: 'var(--font-size-small)',
               fontWeight: '500'
             }}
           >
             + Agregar paso
           </button>
-          <div style={{ fontSize: '16px', color: '#6c757d', fontStyle: 'italic', marginTop: '8px' }}>
+          <div style={{ 
+            fontSize: 'var(--font-size-small)', 
+            color: '#6c757d', 
+            fontStyle: 'italic', 
+            marginTop: '8px' 
+          }}>
             El factor será el peso del primer paso que se cumpla.
           </div>
         </div>

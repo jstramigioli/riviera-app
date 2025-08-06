@@ -5,6 +5,7 @@ const dynamicPricingController = require('../controllers/dynamicPricing.controll
 // Configuración de precios dinámicos
 router.get('/config/:hotelId', dynamicPricingController.getDynamicPricingConfig);
 router.put('/config/:hotelId', dynamicPricingController.upsertDynamicPricingConfig);
+router.get('/max-adjustments/:hotelId', dynamicPricingController.getMaxAdjustmentPercentages);
 
 // Rutas para keyframes estacionales
 router.get('/keyframes/:hotelId', dynamicPricingController.getSeasonalKeyframes);
