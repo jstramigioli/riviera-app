@@ -249,6 +249,13 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   
     const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
   
+    // Solo procesar scroll horizontal, ignorar scroll vertical
+    // Verificar si hay scroll horizontal significativo
+    const horizontalScrollThreshold = 50; // Umbral mínimo para considerar scroll horizontal
+    const isHorizontalScroll = Math.abs(scrollLeft) > horizontalScrollThreshold;
+    
+    if (!isHorizontalScroll) return;
+  
     // Si estás cerca del borde derecho (últimos 200px)
     if (scrollLeft + clientWidth >= scrollWidth - 200) {
       setEndDate(prev => {

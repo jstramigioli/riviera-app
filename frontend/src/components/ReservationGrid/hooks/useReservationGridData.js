@@ -63,6 +63,13 @@ export function useReservationGridData() {
   
     const { scrollLeft, scrollWidth, clientWidth } = containerRef.current;
   
+    // Solo procesar scroll horizontal, ignorar scroll vertical
+    // Verificar si hay scroll horizontal significativo
+    const horizontalScrollThreshold = 50; // Umbral mínimo para considerar scroll horizontal
+    const isHorizontalScroll = Math.abs(scrollLeft) > horizontalScrollThreshold;
+    
+    if (!isHorizontalScroll) return;
+  
     if (scrollLeft + clientWidth >= scrollWidth - 200) {
       setEndDate(prev => {
         const newEndDate = addDays(prev, 30);
