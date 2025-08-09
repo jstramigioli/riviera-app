@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import styles from '../styles/App.module.css';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
-import SeasonalCurveWrapper from '../components/configuracion/SeasonalCurveWrapper';
 
 import TarifasPreviewPanelV2 from '../components/configuracion/TarifasPreviewPanelV2';
 import TarifasPreviewPanelV3 from '../components/configuracion/TarifasPreviewPanelV3';

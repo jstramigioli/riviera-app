@@ -16,6 +16,32 @@
 .navLeft {
   display: flex;
   align-items: center;
+  gap: 32px;
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 8px;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.hotelName {
+  color: var(--color-text-light);
+  font-weight: 700;
+  font-size: 1.2rem;
+  white-space: nowrap;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
 }
 
 .navRight {

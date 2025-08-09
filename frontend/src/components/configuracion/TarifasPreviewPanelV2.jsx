@@ -34,7 +34,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
   useEffect(() => {
     console.log('TarifasPreviewPanelV2 - useEffect loadBasePrice ejecutándose con fecha:', selectedDate);
     if (selectedDate) {
-      loadBasePriceFromSeasonalCurve(selectedDate);
+      loadBasePriceFromSeasonBlocks(selectedDate);
     }
   }, [selectedDate]);
 
@@ -112,7 +112,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     }
   };
 
-  const loadBasePriceFromSeasonalCurve = async (date) => {
+  const loadBasePriceFromSeasonBlocks = async (date) => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       const response = await fetch(`${API_URL}/dynamic-pricing/seasonal-curve/${hotelId}?date=${date}`);

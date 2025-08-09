@@ -479,42 +479,31 @@ class DynamicPricingService {
   }
 
   async interpolateBasePrice(date, hotelId) {
-    const keyframes = await this.prisma.seasonalKeyframe.findMany({
-      where: { hotelId },
-      orderBy: { date: 'asc' }
-    });
-    if (!keyframes || keyframes.length === 0) {
-      throw new Error('No se encontraron keyframes estacionales para el hotel');
-    }
-    if (keyframes.length === 1) {
-      return keyframes[0].basePrice;
-    }
+    // Buscar bloque de temporada activo para la fecha
     const targetDate = new Date(date);
-    let beforeKeyframe = null;
-    let afterKeyframe = null;
-    for (let i = 0; i < keyframes.length - 1; i++) {
-      const current = new Date(keyframes[i].date);
-      const next = new Date(keyframes[i + 1].date);
-      if (targetDate >= current && targetDate <= next) {
-        beforeKeyframe = keyframes[i];
-        afterKeyframe = keyframes[i + 1];
-        break;
+    
+    const seasonBlock = await this.prisma.seasonBlock.findFirst({
+      where: {
+        hotelId,
+        startDate: { lte: targetDate },
+        endDate: { gte: targetDate }
+      },
+      include: {
+        roomTypePrices: true
       }
+    });
+    
+    if (!seasonBlock) {
+      throw new Error('No se encontró un bloque de temporada para la fecha especificada');
     }
-    if (!beforeKeyframe || !afterKeyframe) {
-      const closest = keyframes.reduce((prev, curr) => {
-        const prevDiff = Math.abs(new Date(prev.date) - targetDate);
-        const currDiff = Math.abs(new Date(curr.date) - targetDate);
-        return prevDiff < currDiff ? prev : curr;
-      });
-      return closest.basePrice;
+    
+    // Retornar el precio base del bloque (usar el primer roomTypePrice como referencia)
+    if (seasonBlock.roomTypePrices && seasonBlock.roomTypePrices.length > 0) {
+      return seasonBlock.roomTypePrices[0].basePrice;
     }
-    const beforeDate = new Date(beforeKeyframe.date);
-    const afterDate = new Date(afterKeyframe.date);
-    const totalDiff = afterDate - beforeDate;
-    const targetDiff = targetDate - beforeDate;
-    const ratio = targetDiff / totalDiff;
-    return beforeKeyframe.basePrice + (afterKeyframe.basePrice - beforeKeyframe.basePrice) * ratio;
+    
+    // Si no hay precios específicos por tipo de habitación, usar precio base por defecto
+    return 100; // Precio base por defecto
   }
 
   async calculateMealPrices(baseRate, hotelId) {

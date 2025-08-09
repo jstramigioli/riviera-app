@@ -15,9 +15,7 @@ vi.mock('../components/configuracion/DynamicPricingConfigPanel', () => ({
   default: () => <div data-testid="dynamic-pricing-tab">Dynamic Pricing Tab</div>
 }))
 
-vi.mock('../components/configuracion/SeasonalCurveWrapper', () => ({
-  default: () => <div data-testid="seasonal-curve-tab">Seasonal Curve Tab</div>
-}))
+
 
 vi.mock('../components/configuracion/MealPricingEditor', () => ({
   default: () => <div data-testid="meal-pricing-tab">Meal Pricing Tab</div>

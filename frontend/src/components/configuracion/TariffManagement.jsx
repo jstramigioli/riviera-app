@@ -3,7 +3,6 @@ import SeasonBlockCard from './SeasonBlockCard';
 import SeasonBlockModal from './SeasonBlockModal';
 import ServiceTypesModal from './ServiceTypesModal';
 import DynamicPricingConfigPanel from './DynamicPricingConfigPanel';
-import SeasonalCurveWrapper from './SeasonalCurveWrapper';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
 import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid } from 'react-icons/fi';
@@ -13,7 +12,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [seasonBlocks, setSeasonBlocks] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
-  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'seasonal', 'prices'
+  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices'
   
   // Estados para modales
   const [showSeasonBlockModal, setShowSeasonBlockModal] = useState(false);
@@ -238,13 +237,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           <FiTrendingUp />
           Precios Inteligentes
         </button>
-        <button
-          className={`${styles.navTab} ${activeSection === 'seasonal' ? styles.active : ''}`}
-          onClick={() => setActiveSection('seasonal')}
-        >
-          <span>📊</span>
-          Curva Estacional
-        </button>
+
         <button
           className={`${styles.navTab} ${activeSection === 'prices' ? styles.active : ''}`}
           onClick={() => setActiveSection('prices')}
@@ -328,15 +321,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           </div>
         )}
 
-        {activeSection === 'seasonal' && (
-          <div className={styles.seasonalSection}>
-            <div className={styles.sectionHeader}>
-              <h3>Curva Estacional</h3>
-              <p>Configura la curva de precios base a lo largo del año</p>
-            </div>
-            <SeasonalCurveWrapper hotelId={hotelId} />
-          </div>
-        )}
+
 
         {activeSection === 'prices' && (
           <div className={styles.pricesSection}>
@@ -441,11 +426,15 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             setShowSeasonBlockModal(false);
             setEditingBlock(null);
           }}
-          onSave={handleBlockSaved}
-          block={editingBlock}
-          serviceTypes={serviceTypes}
-          roomTypes={roomTypes}
+          blockId={editingBlock?.id || null}
           hotelId={hotelId}
+          onSaved={handleBlockSaved}
+          onDeleted={() => {
+            setShowSeasonBlockModal(false);
+            setEditingBlock(null);
+            loadSeasonBlocks();
+            showNotification('Bloque eliminado correctamente', 'success');
+          }}
         />
       )}
 

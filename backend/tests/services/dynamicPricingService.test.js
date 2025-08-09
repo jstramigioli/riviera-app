@@ -118,41 +118,55 @@ describe('DynamicPricingService', () => {
   });
 
   describe('interpolateBasePrice', () => {
-    it('should return single keyframe price when only one exists', async () => {
-      const mockKeyframes = [
-        { date: new Date('2024-01-15'), basePrice: 10000 }
-      ];
+    it('should return price from active season block', async () => {
+      const mockSeasonBlock = {
+        id: 1,
+        hotelId: 'test-hotel',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-31'),
+        roomTypePrices: [
+          { basePrice: 10000 }
+        ]
+      };
 
-      mockPrisma.seasonalKeyframe.findMany.mockResolvedValue(mockKeyframes);
-
-      const price = await dynamicPricingService.interpolateBasePrice(
-        new Date('2024-01-20'),
-        'test-hotel'
-      );
-
-      expect(price).toBe(10000);
-    });
-
-    it('should interpolate between two keyframes', async () => {
-      const mockKeyframes = [
-        { date: new Date('2024-01-01'), basePrice: 8000 },
-        { date: new Date('2024-02-01'), basePrice: 12000 }
-      ];
-
-      mockPrisma.seasonalKeyframe.findMany.mockResolvedValue(mockKeyframes);
+      mockPrisma.seasonBlock.findFirst.mockResolvedValue(mockSeasonBlock);
 
       const price = await dynamicPricingService.interpolateBasePrice(
         new Date('2024-01-15'),
         'test-hotel'
       );
 
-      // Calcular el valor esperado manualmente
-      const before = new Date('2024-01-01');
-      const after = new Date('2024-02-01');
-      const target = new Date('2024-01-15');
-      const ratio = (target - before) / (after - before);
-      const expected = 8000 + (12000 - 8000) * ratio;
-      expect(price).toBeCloseTo(expected, 2);
+      expect(price).toBe(10000);
+    });
+
+    it('should throw error when no season block found', async () => {
+      mockPrisma.seasonBlock.findFirst.mockResolvedValue(null);
+
+      await expect(
+        dynamicPricingService.interpolateBasePrice(
+          new Date('2024-01-15'),
+          'test-hotel'
+        )
+      ).rejects.toThrow('No se encontró un bloque de temporada para la fecha especificada');
+    });
+
+    it('should return default price when no room type prices', async () => {
+      const mockSeasonBlock = {
+        id: 1,
+        hotelId: 'test-hotel',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2024-01-31'),
+        roomTypePrices: []
+      };
+
+      mockPrisma.seasonBlock.findFirst.mockResolvedValue(mockSeasonBlock);
+
+      const price = await dynamicPricingService.interpolateBasePrice(
+        new Date('2024-01-15'),
+        'test-hotel'
+      );
+
+      expect(price).toBe(100);
     });
   });
 

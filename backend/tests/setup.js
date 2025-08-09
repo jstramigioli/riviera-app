@@ -106,8 +106,8 @@ const mockPrismaClient = {
     upsert: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.create })),
   },
 
-  // Modelo SeasonalKeyframe
-  seasonalKeyframe: {
+  // Modelo SeasonBlock
+  seasonBlock: {
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue(null),
     findFirst: jest.fn().mockResolvedValue(null),

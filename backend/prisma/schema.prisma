@@ -31,7 +31,6 @@ model Hotel {
   // Relaciones mantenidas
   openDays              OpenDay[]
   dynamicPricingConfig  DynamicPricingConfig?
-  seasonalKeyframes     SeasonalKeyframe[]
   dailyRoomRates        DailyRoomRate[]
   
   // Nuevo sistema de tarifas
@@ -204,15 +203,7 @@ model DynamicPricingConfig {
   updatedAt               DateTime @updatedAt
 }
 
-model SeasonalKeyframe {
-  id         String   @id @default(cuid())
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
-  hotelId    String
-  date       DateTime
-  basePrice  Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
+
 
 model DailyRoomRate {
   id                 String   @id @default(cuid())

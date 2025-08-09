@@ -89,8 +89,8 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
     };
   }, []);
 
-  // Función para obtener el precio base de la curva estacional
-  const loadBasePriceFromSeasonalCurve = async (date) => {
+  // Cargar precio base desde bloques de temporada
+  const loadBasePriceFromSeasonBlocks = async (date) => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       // Usar un rango de fechas válido (mismo día + 1 día siguiente)
@@ -116,7 +116,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
         setBasePrice(0);
       }
     } catch (error) {
-      console.error('Error al cargar precio base de la curva estacional:', error);
+      console.error('Error al cargar precio base desde bloques de temporada:', error);
       setBasePrice(0);
     }
   };
@@ -124,7 +124,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   // Cargar precio base cuando cambie la fecha
   useEffect(() => {
     if (previewDate) {
-      loadBasePriceFromSeasonalCurve(previewDate);
+      loadBasePriceFromSeasonBlocks(previewDate);
     }
   }, [previewDate, hotelId]);
 
