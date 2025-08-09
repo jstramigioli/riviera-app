@@ -1,0 +1,316 @@
+/* ReservationsTable.module.css */
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-white);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Controles de filtro y búsqueda */
+.controls {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: var(--color-bg-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.searchContainer {
+  flex: 1;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: var(--font-size-medium);
+  background: var(--color-bg-white);
+  transition: border-color 0.2s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filterContainer {
+  min-width: 200px;
+}
+
+.filterSelect {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: var(--font-size-medium);
+  background: var(--color-bg-white);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Contenedor de la tabla */
+.tableContainer {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-width: 100%;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg-white);
+  font-size: var(--font-size-medium);
+  table-layout: fixed;
+  min-width: 800px;
+  display: table;
+}
+
+.table thead {
+  display: table-header-group;
+}
+
+.table tbody {
+  display: table-row-group;
+}
+
+.table tr {
+  display: table-row;
+}
+
+.table th,
+.table td {
+  display: table-cell;
+}
+
+/* Headers de la tabla */
+.table th {
+  background: var(--color-bg-light);
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  border-bottom: 2px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Anchos específicos para cada columna */
+.table th:nth-child(1) { width: 80px; }  /* ID */
+.table th:nth-child(2) { width: 120px; } /* Habitación */
+.table th:nth-child(3) { width: 200px; } /* Cliente */
+.table th:nth-child(4) { width: 120px; } /* Check-in */
+.table th:nth-child(5) { width: 120px; } /* Check-out */
+.table th:nth-child(6) { width: 120px; } /* Monto */
+.table th:nth-child(7) { width: 120px; } /* Tipo */
+.table th:nth-child(8) { width: 120px; } /* Estado */
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sortableHeader:hover {
+  background: var(--color-bg);
+}
+
+.sortIndicator {
+  font-size: 12px;
+  color: var(--color-primary);
+}
+
+/* Filas de la tabla */
+.tableRow {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tableRow:hover {
+  background: var(--color-bg);
+}
+
+.tableRow:nth-child(even) {
+  background: var(--color-bg-light);
+}
+
+.tableRow:nth-child(even):hover {
+  background: var(--color-bg);
+}
+
+/* Celdas de la tabla */
+.cell {
+  padding: 16px 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Anchos específicos para las celdas del cuerpo */
+.table td:nth-child(1) { width: 80px; }  /* ID */
+.table td:nth-child(2) { width: 120px; } /* Habitación */
+.table td:nth-child(3) { width: 200px; white-space: normal; } /* Cliente */
+.table td:nth-child(4) { width: 120px; } /* Check-in */
+.table td:nth-child(5) { width: 120px; } /* Check-out */
+.table td:nth-child(6) { width: 120px; } /* Monto */
+.table td:nth-child(7) { width: 120px; } /* Tipo */
+.table td:nth-child(8) { width: 120px; } /* Estado */
+
+/* Información del cliente */
+.clientInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.clientName {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.clientDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.clientEmail {
+  color: var(--color-primary);
+}
+
+.clientPhone {
+  color: var(--color-text-muted);
+}
+
+/* Nombre de habitación */
+.roomName {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+/* Monto */
+.amount {
+  font-weight: 600;
+  color: var(--color-text-dark);
+  font-family: 'Courier New', monospace;
+}
+
+/* Tipo de reserva */
+.reservationType {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Estados */
+.status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  text-align: center;
+  display: inline-block;
+  min-width: 80px;
+}
+
+.statusActive {
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
+}
+
+.statusFinished {
+  background: var(--color-info-light);
+  color: var(--color-info-dark);
+}
+
+.statusCancelled {
+  background: var(--color-danger-light);
+  color: var(--color-danger-dark);
+}
+
+.statusDefault {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+/* Fechas cerradas */
+.closedDate {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Estado vacío */
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Información de resultados */
+.resultsInfo {
+  padding: 16px 20px;
+  background: var(--color-bg-light);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filterContainer {
+    min-width: auto;
+  }
+  
+  .table {
+    font-size: var(--font-size-small);
+  }
+  
+  .cell {
+    padding: 12px 8px;
+  }
+  
+  .clientDetails {
+    display: none;
+  }
+} 

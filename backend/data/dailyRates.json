@@ -1,0 +1,20 @@
+[
+  {
+    "id": 2,
+    "date": "2024-07-02T00:00:00.000Z",
+    "roomTypeId": 1,
+    "price": 10000,
+    "minStay": null,
+    "createdAt": "2025-06-27T19:04:34.141Z",
+    "updatedAt": "2025-06-27T19:04:34.141Z"
+  },
+  {
+    "id": 3,
+    "date": "2024-07-03T00:00:00.000Z",
+    "roomTypeId": 1,
+    "price": 10000,
+    "minStay": null,
+    "createdAt": "2025-06-27T19:04:34.141Z",
+    "updatedAt": "2025-06-27T19:04:34.141Z"
+  }
+]

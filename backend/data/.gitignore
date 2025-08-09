@@ -1,0 +1,19 @@
+# Archivos temporales
+*.tmp
+*.temp
+*.log
+
+# Archivos de backup
+*.backup
+*.bak
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Permitir archivos JSON de datos
+!*.json 

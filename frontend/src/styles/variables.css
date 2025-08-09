@@ -1,0 +1,53 @@
+:root {
+  /* Colores principales */
+  --color-primary: #667eea;
+  --color-primary-dark: #5a6fd8;
+  --color-primary-light: #e8f0ff;
+  --color-secondary: #764ba2;
+  --color-secondary-dark: #6a4190;
+  
+  /* Colores de fondo */
+  --color-bg: #f8f9fa;
+  --color-bg-white: #ffffff;
+  --color-bg-room: #e9ecef;
+  --color-bg-highlight: #e8f0ff;
+  --color-bg-light: #f5f5f5;
+  
+  /* Colores de texto */
+  --color-text-main: #495057;
+  --color-text-light: #ffffff;
+  --color-text-dark: #2c3e50;
+  --color-text-muted: #6c757d;
+  --color-text-accent: #8b7355;
+  
+  /* Colores de borde */
+  --color-border: #dee2e6;
+  --color-border-light: #e9ecef;
+  --color-border-dark: #adb5bd;
+  --color-border-hover: #c4b494;
+  --color-border-drag: #b8a884;
+  
+  /* Colores de estado */
+  --color-success: #28a745;
+  --color-success-light: #d4edda;
+  --color-warning: #ffc107;
+  --color-warning-light: #fff3cd;
+  --color-danger: #dc3545;
+  --color-danger-light: #f8d7da;
+  --color-info: #17a2b8;
+  --color-info-light: #d1ecf1;
+  
+  /* Colores de acento para reservas */
+  --color-accent: #f4e4c1;
+  --color-accent-hover: #f0e6c8;
+  --color-accent-drag: #e8d8b0;
+  
+  /* Tipografía */
+  --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-size-base: 22px;
+  --font-size-small: 1rem;
+  --font-size-medium: 1.3rem;
+  --font-size-large: 1.6rem;
+  --font-size-xlarge: 2.2rem;
+  --font-size-xxlarge: 2.8rem;
+} 

@@ -1,0 +1,103 @@
+.reservation-bar {
+  position: absolute;
+  border-radius: 3px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  min-width: 20px;
+}
+
+.reservation-bar:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 6;
+  background-color: var(--color-accent-hover) !important;
+  border-color: var(--color-border-hover) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+
+.reservation-bar.dragging {
+  cursor: grabbing;
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  z-index: 10;
+  background-color: var(--color-accent-drag) !important;
+  border-color: var(--color-border-drag) !important;
+}
+
+.reservation-bar.updating {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.reservation-client {
+  font-weight: bold;
+  font-size: var(--font-size-small);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: var(--color-text-accent);
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Para barras muy pequeñas, usar fuente más pequeña */
+.reservation-bar[style*="width: 30px"] .reservation-client,
+.reservation-bar[style*="width: 40px"] .reservation-client,
+.reservation-bar[style*="width: 50px"] .reservation-client {
+  font-size: 0.8rem;
+}
+
+/* Para barras extremadamente pequeñas, usar solo iniciales */
+.reservation-bar[style*="width: 20px"] .reservation-client,
+.reservation-bar[style*="width: 25px"] .reservation-client {
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.reservation-dates {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  text-align: center;
+  line-height: 1;
+}
+
+.reservation-guests {
+  font-size: 0.55rem;
+  opacity: 0.7;
+  text-align: center;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.reservation-bar:hover .resize-handle {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.resize-handle {
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+} 

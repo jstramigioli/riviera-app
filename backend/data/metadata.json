@@ -1,0 +1,38 @@
+{
+  "exportedAt": "2025-07-07T02:01:26.447Z",
+  "totalRecords": 1278,
+  "models": [
+    {
+      "name": "tags",
+      "count": 10
+    },
+    {
+      "name": "roomTypes",
+      "count": 8
+    },
+    {
+      "name": "rooms",
+      "count": 38
+    },
+    {
+      "name": "clients",
+      "count": 1203
+    },
+    {
+      "name": "guests",
+      "count": 4
+    },
+    {
+      "name": "payments",
+      "count": 5
+    },
+    {
+      "name": "reservations",
+      "count": 8
+    },
+    {
+      "name": "dailyRates",
+      "count": 2
+    }
+  ]
+}

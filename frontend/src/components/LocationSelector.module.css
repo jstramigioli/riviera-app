@@ -1,0 +1,183 @@
+.locationSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.required {
+  color: var(--error-color, #dc2626);
+  font-weight: bold;
+}
+
+.select,
+.input {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  background-color: white;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.select:hover,
+.input:hover {
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.select:disabled {
+  background-color: var(--background-disabled, #f3f4f6);
+  color: var(--text-disabled, #6b7280);
+  cursor: not-allowed;
+}
+
+.input:disabled {
+  background-color: var(--background-disabled, #f3f4f6);
+  color: var(--text-disabled, #6b7280);
+  cursor: not-allowed;
+}
+
+.disabled {
+  background-color: var(--background-disabled, #f3f4f6);
+  color: var(--text-disabled, #6b7280);
+  cursor: not-allowed;
+}
+
+.info {
+  background-color: var(--info-background, #eff6ff);
+  border: 1px solid var(--info-border, #bfdbfe);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.info small {
+  color: var(--info-text, #1e40af);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Estados de error */
+.select.error,
+.input.error {
+  border-color: var(--error-color, #dc2626);
+}
+
+.select.error:focus,
+.input.error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.invalid {
+  border-color: var(--error-color, #dc2626) !important;
+}
+
+.invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.errorMessage {
+  color: var(--error-color, #dc2626);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.selected {
+  background-color: var(--primary-color, #3b82f6) !important;
+  color: white !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .locationSelector {
+    gap: 0.75rem;
+  }
+  
+  .select,
+  .input {
+    padding: 0.625rem;
+    font-size: 1rem; /* Mejor para móviles */
+  }
+}
+
+/* Animaciones */
+.select,
+.input {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estilo para opciones del select */
+.select option {
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Hover en opciones */
+.select option:hover {
+  background-color: var(--primary-color, #3b82f6);
+  color: white;
+}
+
+.cityInputContainer {
+  position: relative;
+  width: 100%;
+}
+
+.cityDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-top: none;
+  border-radius: 0 0 0.5rem 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.cityOption {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color, #f3f4f6);
+  transition: background-color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.cityOption:hover {
+  background-color: var(--primary-color-light, #eff6ff);
+}
+
+.cityOption:last-child {
+  border-bottom: none;
+}
+
+.cityOption:active {
+  background-color: var(--primary-color, #3b82f6);
+  color: white;
+} 

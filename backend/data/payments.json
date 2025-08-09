@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "guestId": 4,
+    "amount": 75000,
+    "type": "charge",
+    "description": "Cargo por reserva #2",
+    "date": "2024-01-20T00:00:00.000Z",
+    "createdAt": "2025-06-27T01:02:46.291Z",
+    "updatedAt": "2025-06-27T01:02:46.291Z"
+  },
+  {
+    "id": 2,
+    "guestId": 1,
+    "amount": 30000,
+    "type": "payment",
+    "description": "Pago parcial en efectivo",
+    "date": "2024-01-15T00:00:00.000Z",
+    "createdAt": "2025-06-27T01:02:46.291Z",
+    "updatedAt": "2025-06-27T01:02:46.291Z"
+  },
+  {
+    "id": 3,
+    "guestId": 1,
+    "amount": 45000,
+    "type": "charge",
+    "description": "Cargo por reserva #1",
+    "date": "2024-01-15T00:00:00.000Z",
+    "createdAt": "2025-06-27T01:02:46.290Z",
+    "updatedAt": "2025-06-27T01:02:46.290Z"
+  },
+  {
+    "id": 4,
+    "guestId": 1,
+    "amount": 5000,
+    "type": "charge",
+    "description": "Cargo por minibar y servicios",
+    "date": "2024-01-16T00:00:00.000Z",
+    "createdAt": "2025-06-27T01:02:46.291Z",
+    "updatedAt": "2025-06-27T01:02:46.291Z"
+  },
+  {
+    "id": 5,
+    "guestId": 4,
+    "amount": 75000,
+    "type": "payment",
+    "description": "Pago completo con tarjeta",
+    "date": "2024-01-20T00:00:00.000Z",
+    "createdAt": "2025-06-27T01:02:46.291Z",
+    "updatedAt": "2025-06-27T01:02:46.291Z"
+  }
+]
