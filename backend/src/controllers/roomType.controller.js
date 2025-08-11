@@ -30,25 +30,25 @@ exports.getRoomTypeById = async (req, res) => {
 
 // Crear un nuevo tipo de habitación
 exports.createRoomType = async (req, res) => {
-  const { name, description, multiplier } = req.body;
+  const { name, description } = req.body;
   try {
     const roomType = await prisma.roomType.create({
       data: {
         name,
-        description,
-        multiplier: multiplier || 1.0
+        description
       }
     });
     res.status(201).json(roomType);
   } catch (error) {
-    res.status(500).json({ error: 'Error creating room type' });
+    console.error('Error creating room type:', error);
+    res.status(500).json({ error: `Error creating room type: ${error.message}` });
   }
 };
 
 // Actualizar un tipo de habitación
 exports.updateRoomType = async (req, res) => {
   const { id } = req.params;
-  const { name, description, multiplier } = req.body;
+  const { name, description } = req.body;
   
   if (!id) return res.status(400).json({ error: 'Room type id is required' });
   
@@ -57,8 +57,7 @@ exports.updateRoomType = async (req, res) => {
       where: { id: Number(id) },
       data: {
         ...(name && { name }),
-        ...(description && { description }),
-        ...(multiplier !== undefined && { multiplier })
+        ...(description && { description })
       }
     });
     res.json(updatedRoomType);
@@ -126,43 +125,4 @@ exports.getRoomTypesByHotel = async (req, res) => {
   }
 };
 
-// Obtener coeficientes por hotel (en realidad son globales)
-exports.getCoefficientsByHotel = async (req, res) => {
-  const { hotelId } = req.params;
-  try {
-    const roomTypes = await prisma.roomType.findMany({
-      select: { name: true, multiplier: true }
-    });
-    
-    const coefficients = {};
-    roomTypes.forEach(roomType => {
-      coefficients[roomType.name] = roomType.multiplier;
-    });
-    
-    res.json(coefficients);
-  } catch (error) {
-    console.error('Error fetching coefficients:', error);
-    res.status(500).json({ error: 'Error fetching coefficients' });
-  }
-};
-
-// Actualizar coeficientes por hotel (en realidad son globales)
-exports.updateCoefficientsByHotel = async (req, res) => {
-  const { hotelId } = req.params;
-  const coefficients = req.body;
-  
-  try {
-    const updatePromises = Object.entries(coefficients).map(([name, multiplier]) =>
-      prisma.roomType.updateMany({
-        where: { name: name },
-        data: { multiplier: parseFloat(multiplier) }
-      })
-    );
-    
-    await Promise.all(updatePromises);
-    res.json({ message: 'Coefficients updated successfully' });
-  } catch (error) {
-    console.error('Error updating coefficients:', error);
-    res.status(500).json({ error: 'Error updating coefficients' });
-  }
-}; 
+ 

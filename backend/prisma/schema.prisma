@@ -1,5 +1,3 @@
-// Esquema de Prisma para el hotel
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,109 +7,92 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
-enum ServiceAdjustmentMode {
-  FIXED
-  PERCENTAGE
-}
-
-// Modelo principal del hotel
 model Hotel {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  address     String?
-  phone       String?
-  email       String?
-  website     String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relaciones mantenidas
-  openDays              OpenDay[]
-  dynamicPricingConfig  DynamicPricingConfig?
-  dailyRoomRates        DailyRoomRate[]
-  
-  // Nuevo sistema de tarifas
-  seasonBlocks          SeasonBlock[]
-  serviceTypes          ServiceType[]
+  id                   String                @id @default(cuid())
+  name                 String
+  description          String?
+  address              String?
+  phone                String?
+  email                String?
+  website              String?
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  dailyRoomRates       DailyRoomRate[]
+  dynamicPricingConfig DynamicPricingConfig?
+  openDays             OpenDay[]
+  roundingConfig       RoundingConfig?
+  seasonBlocks         SeasonBlock[]
+  serviceTypes         ServiceType[]
 }
 
 model Tag {
   id    Int    @id @default(autoincrement())
   name  String @unique
   color String @default("#3B82F6")
-  rooms Room[]
+  rooms Room[] @relation("RoomToTag")
 }
 
-
-
-// MANTENIDO: Gestión de tipos de habitaciones
 model RoomType {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  description String?
-  multiplier  Float      @default(1.0)
-  orderIndex  Int        @default(0)
-  rooms       Room[]
-  // Relación con sistema de precios inteligentes (mantenido)
-  dailyRoomRates       DailyRoomRate[]
-  // Relaciones con nuevo sistema de tarifas
-  seasonPrices         SeasonPrice[]
-  seasonServiceAdjustments SeasonServiceAdjustment[]
+  id                     Int                     @id @default(autoincrement())
+  name                   String                  @unique
+  description            String?
+  orderIndex             Int                     @default(0)
+  dailyRoomRates         DailyRoomRate[]
+  proportionCoefficients ProportionCoefficient[]
+  rooms                  Room[]
+  seasonPrices           SeasonPrice[]
 }
 
 model Room {
-  id            Int      @id @default(autoincrement())
+  id            Int                @id @default(autoincrement())
   name          String
   description   String?
-  tags          Tag[]
   maxPeople     Int
   status        String
-  orderIndex    Int      @default(0)
-  reservations  Reservation[]
-  roomType      RoomType @relation(fields: [roomTypeId], references: [id])
+  orderIndex    Int                @default(0)
   roomTypeId    Int
+  reservations  Reservation[]
+  roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
   gapPromotions RoomGapPromotion[]
+  tags          Tag[]              @relation("RoomToTag")
 }
 
 model Client {
-  id             Int      @id @default(autoincrement())
-  firstName      String
-  lastName       String
-  email          String?
-  phone          String?
-  documentType   String   @default("DNI")
-  documentNumber String?
-  country        String?
-  province       String?
-  city           String?
-  notes          String?
-  wantsPromotions Boolean @default(false)
-  reservations   Reservation[]
+  id              Int           @id @default(autoincrement())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  documentType    String        @default("DNI")
+  documentNumber  String?
+  country         String?
+  province        String?
+  city            String?
+  notes           String?
+  wantsPromotions Boolean       @default(false)
+  reservations    Reservation[]
 }
 
 model Guest {
-  id            Int      @id @default(autoincrement())
-  firstName     String
-  lastName      String
-  documentType  String   @default("DNI")
+  id             Int          @id @default(autoincrement())
+  firstName      String
+  lastName       String
+  documentType   String       @default("DNI")
   documentNumber String?
-  phone         String?
-  email         String?
-  address       String?
-  city          String?
-  reservation   Reservation? @relation(fields: [reservationId], references: [id])
-  reservationId Int?
-  payments      Payment[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  phone          String?
+  email          String?
+  address        String?
+  city           String?
+  reservationId  Int?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  reservation    Reservation? @relation(fields: [reservationId], references: [id])
+  payments       Payment[]
 }
 
 model Payment {
   id          Int      @id @default(autoincrement())
-  guest       Guest    @relation(fields: [guestId], references: [id])
   guestId     Int
   amount      Float
   type        String
@@ -119,37 +100,34 @@ model Payment {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  guest       Guest    @relation(fields: [guestId], references: [id])
 }
 
 model Reservation {
-  id            Int      @id @default(autoincrement())
-  room          Room     @relation(fields: [roomId], references: [id])
-  roomId        Int
-  mainClient    Client   @relation(fields: [mainClientId], references: [id])
-  mainClientId  Int
-  guests        Guest[]
-  checkIn       DateTime
-  checkOut      DateTime
-  totalAmount   Float
-  status        String
-  reservationType String @default("con_desayuno")
-  notes         String?
-  fixed         Boolean  @default(false)
-  
-  requiredGuests        Int
-  requiredRoomId        Int?
-  requiredTags          String[]
-  requirementsNotes     String?
-  
-  nightRates    ReservationNightRate[]
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                Int                    @id @default(autoincrement())
+  roomId            Int
+  mainClientId      Int
+  checkIn           DateTime
+  checkOut          DateTime
+  totalAmount       Float
+  status            String
+  reservationType   String                 @default("con_desayuno")
+  notes             String?
+  fixed             Boolean                @default(false)
+  requiredGuests    Int
+  requiredRoomId    Int?
+  requiredTags      String[]
+  requirementsNotes String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  guests            Guest[]
+  mainClient        Client                 @relation(fields: [mainClientId], references: [id])
+  room              Room                   @relation(fields: [roomId], references: [id])
+  nightRates        ReservationNightRate[]
 }
 
 model OpenDay {
   id         Int      @id @default(autoincrement())
-  hotel      Hotel    @relation(fields: [hotelId], references: [id])
   hotelId    String
   date       DateTime
   isClosed   Boolean  @default(true)
@@ -158,178 +136,192 @@ model OpenDay {
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  hotel      Hotel    @relation(fields: [hotelId], references: [id])
 
   @@unique([hotelId, date])
 }
 
-// ===== SISTEMA DE PRECIOS INTELIGENTES (MANTENIDO) =====
-
 model DynamicPricingConfig {
-  id                      String   @id @default(cuid())
-  hotel                   Hotel    @relation(fields: [hotelId], references: [id])
-  hotelId                 String   @unique
-  enabled                 Boolean  @default(false)
-  anticipationThresholds  Int[]
-  anticipationWeight      Float
-  globalOccupancyWeight   Float
-  isWeekendWeight         Float
-  weekendDays             Int[]    @default([0, 6])
-  isHolidayWeight         Float
-  weatherScoreWeight      Float
-  eventImpactWeight       Float
-  maxAdjustmentPercentage Float
-  enableGapPromos         Boolean  @default(true)
-  enableWeatherApi        Boolean  @default(false)
-  enableRecentDemand      Boolean  @default(false)
-  
-  anticipationMode        String   @default("ESCALONADO")
-  anticipationMaxDays     Int      @default(30)
-  anticipationSteps       Json?
-  
-  standardRate            Float?
-  idealOccupancy          Float    @default(80.0)
-  
-  occupancyAdjustmentPercentage Float @default(20.0)
-  anticipationAdjustmentPercentage Float @default(15.0)
-  weekendAdjustmentPercentage Float @default(10.0)
-  holidayAdjustmentPercentage Float @default(25.0)
-  
-  occupancyEnabled        Boolean @default(true)
-  anticipationEnabled     Boolean @default(true)
-  weekendEnabled          Boolean @default(true)
-  holidayEnabled          Boolean @default(true)
-  
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                               String   @id @default(cuid())
+  hotelId                          String   @unique
+  enabled                          Boolean  @default(false)
+  anticipationThresholds           Int[]
+  anticipationWeight               Float
+  globalOccupancyWeight            Float
+  isWeekendWeight                  Float
+  weekendDays                      Int[]    @default([0, 6])
+  isHolidayWeight                  Float
+  weatherScoreWeight               Float
+  eventImpactWeight                Float
+  maxAdjustmentPercentage          Float
+  enableGapPromos                  Boolean  @default(true)
+  enableWeatherApi                 Boolean  @default(false)
+  enableRecentDemand               Boolean  @default(false)
+  anticipationMode                 String   @default("ESCALONADO")
+  anticipationMaxDays              Int      @default(30)
+  anticipationSteps                Json?
+  standardRate                     Float?
+  idealOccupancy                   Float    @default(80.0)
+  occupancyAdjustmentPercentage    Float    @default(20.0)
+  anticipationAdjustmentPercentage Float    @default(15.0)
+  weekendAdjustmentPercentage      Float    @default(10.0)
+  holidayAdjustmentPercentage      Float    @default(25.0)
+  occupancyEnabled                 Boolean  @default(true)
+  anticipationEnabled              Boolean  @default(true)
+  weekendEnabled                   Boolean  @default(true)
+  holidayEnabled                   Boolean  @default(true)
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
+  hotel                            Hotel    @relation(fields: [hotelId], references: [id])
 }
 
-
-
 model DailyRoomRate {
-  id                 String   @id @default(cuid())
-  hotel              Hotel    @relation(fields: [hotelId], references: [id])
-  hotelId            String
-  roomType           RoomType @relation(fields: [roomTypeId], references: [id])
-  roomTypeId         Int
-  date               DateTime
-  baseRate           Float
-  dynamicRate        Float
-  isManualOverride   Boolean   @default(false)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  hotelId          String
+  roomTypeId       Int
+  date             DateTime
+  baseRate         Float
+  dynamicRate      Float
+  isManualOverride Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  hotel            Hotel    @relation(fields: [hotelId], references: [id])
+  roomType         RoomType @relation(fields: [roomTypeId], references: [id])
 
   @@unique([hotelId, roomTypeId, date])
 }
 
 model RoomGapPromotion {
-  id            String   @id @default(cuid())
-  room          Room     @relation(fields: [roomId], references: [id])
-  roomId        Int
-  date          DateTime
-  discountRate  Float
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  roomId       Int
+  date         DateTime
+  discountRate Float
+  createdAt    DateTime @default(now())
+  room         Room     @relation(fields: [roomId], references: [id])
 }
 
 model ReservationNightRate {
-  id                    String   @id @default(cuid())
-  reservation           Reservation @relation(fields: [reservationId], references: [id])
-  reservationId         Int
-  date                  DateTime
-  baseRate              Float
-  dynamicRate           Float
-  finalRate             Float
-  serviceType           String
-  serviceRate           Float
-  
-  occupancyScore        Float?
-  isWeekend             Boolean   @default(false)
-  isHoliday             Boolean   @default(false)
-  gapPromotionApplied   Boolean   @default(false)
-  gapPromotionRate      Float?
-  manualOverride        Boolean   @default(false)
-  
-  basePrice             Float
-  occupancyAdjustment   Float?
+  id                     String      @id @default(cuid())
+  reservationId          Int
+  date                   DateTime
+  baseRate               Float
+  dynamicRate            Float
+  finalRate              Float
+  serviceType            String
+  serviceRate            Float
+  occupancyScore         Float?
+  isWeekend              Boolean     @default(false)
+  isHoliday              Boolean     @default(false)
+  gapPromotionApplied    Boolean     @default(false)
+  gapPromotionRate       Float?
+  manualOverride         Boolean     @default(false)
+  basePrice              Float
+  occupancyAdjustment    Float?
   anticipationAdjustment Float?
-  weekendAdjustment     Float?
-  holidayAdjustment     Float?
-  gapPromotionAmount    Float?
-  serviceAdjustment     Float?
-  
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  weekendAdjustment      Float?
+  holidayAdjustment      Float?
+  gapPromotionAmount     Float?
+  serviceAdjustment      Float?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  reservation            Reservation @relation(fields: [reservationId], references: [id])
 
   @@unique([reservationId, date])
 }
 
-// ===== NUEVO SISTEMA DE TARIFAS =====
+model RoundingConfig {
+  id        String   @id @default(cuid())
+  hotelId   String   @unique
+  multiple  Int      @default(1)
+  mode      String   @default("nearest")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+}
 
-// Bloques de temporada
 model SeasonBlock {
-  id          String   @id @default(cuid())
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  hotelId     String
-  name        String
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean  @default(true)
-  orderIndex  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relaciones
-  seasonPrices             SeasonPrice[]
-  seasonServiceAdjustments SeasonServiceAdjustment[]
-  
+  id                     String                  @id @default(cuid())
+  hotelId                String
+  name                   String
+  description            String?
+  startDate              DateTime
+  endDate                DateTime
+  isActive               Boolean                 @default(true)
+  orderIndex             Int                     @default(0)
+  useBlockServices       Boolean                 @default(false)
+  basePrice              Float?
+  useProportions         Boolean                 @default(false)
+  referenceRoomTypeId    Int?
+  serviceAdjustmentMode  String                  @default("PERCENTAGE")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  blockServiceSelections BlockServiceSelection[]
+  proportionCoefficients ProportionCoefficient[]
+  hotel                  Hotel                   @relation(fields: [hotelId], references: [id])
+  seasonPrices           SeasonPrice[]
+
   @@unique([hotelId, name])
 }
 
-// Precios base por tipo de habitación en cada bloque
 model SeasonPrice {
   id            String      @id @default(cuid())
-  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
   seasonBlockId String
-  roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
   roomTypeId    Int
+  serviceTypeId String
   basePrice     Float
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  
+  roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
+  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
+
+  @@unique([seasonBlockId, roomTypeId, serviceTypeId])
+}
+
+model ProportionCoefficient {
+  id            String      @id @default(cuid())
+  seasonBlockId String
+  roomTypeId    Int
+  coefficient   Float       @default(1.0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
+  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+
   @@unique([seasonBlockId, roomTypeId])
 }
 
-// Tipos de servicio (CRUD completo)
 model ServiceType {
-  id          String   @id @default(cuid())
-  hotel       Hotel    @relation(fields: [hotelId], references: [id])
-  hotelId     String
-  name        String
-  description String?
-  isActive    Boolean  @default(true)
-  orderIndex  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relaciones
-  seasonServiceAdjustments SeasonServiceAdjustment[]
-  
+  id                     String                  @id @default(cuid())
+  hotelId                String
+  name                   String
+  description            String?
+  isActive               Boolean                 @default(true)
+  orderIndex             Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  blockServiceSelections BlockServiceSelection[]
+  seasonPrices           SeasonPrice[]
+  hotel                  Hotel                   @relation(fields: [hotelId], references: [id])
+
   @@unique([hotelId, name])
 }
 
-// Ajustes por servicio configurados dentro del bloque de temporada
-model SeasonServiceAdjustment {
-  id            String               @id @default(cuid())
-  seasonBlock   SeasonBlock          @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+model BlockServiceSelection {
+  id            String      @id @default(cuid())
   seasonBlockId String
-  serviceType   ServiceType          @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
   serviceTypeId String
-  roomType      RoomType             @relation(fields: [roomTypeId], references: [id])
-  roomTypeId    Int
-  mode          ServiceAdjustmentMode // FIXED o PERCENTAGE
-  value         Float                // Valor fijo o porcentaje
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  
-  @@unique([seasonBlockId, serviceTypeId, roomTypeId])
-} 
+  isEnabled     Boolean     @default(true)
+  orderIndex    Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonBlockId, serviceTypeId])
+}
+
+enum ServiceAdjustmentMode {
+  FIXED
+  PERCENTAGE
+}

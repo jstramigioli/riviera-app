@@ -276,6 +276,14 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   color: white;
+  padding: 16px 24px;
+  font-size: 1rem;
+  max-width: 400px;
+  white-space: normal;
+  line-height: 1.4;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
 }
 
 .emptyState .primaryButton:hover {
@@ -283,11 +291,11 @@
   transform: translateY(-1px);
 }
 
-/* Blocks Grid */
-.blocksGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
+/* Blocks List */
+.blocksList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 /* Notifications */
@@ -549,8 +557,8 @@
     grid-template-columns: 1fr;
   }
   
-  .blocksGrid {
-    grid-template-columns: 1fr;
+  .blocksList {
+    gap: 0;
   }
   
   .notification {

@@ -194,55 +194,7 @@ class DynamicPricingController {
     }
   }
 
-  /**
-   * Obtener coeficientes de tipos de habitación
-   */
-  async getRoomTypeCoefficients(req, res) {
-    try {
-      const { hotelId } = req.params;
 
-      // Obtener todos los tipos de habitación con sus multiplicadores
-      const roomTypes = await prisma.roomType.findMany({
-        orderBy: { name: 'asc' }
-      });
-
-      // Convertir a formato de coeficientes
-      const coefficients = {};
-      roomTypes.forEach(roomType => {
-        coefficients[roomType.name] = roomType.multiplier;
-      });
-
-      res.json(coefficients);
-    } catch (error) {
-      console.error('Error al obtener coeficientes de tipos de habitación:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
-  }
-
-  /**
-   * Actualizar coeficientes de tipos de habitación
-   */
-  async updateRoomTypeCoefficients(req, res) {
-    try {
-      const { hotelId } = req.params;
-      const coefficients = req.body;
-
-      // Actualizar multiplicadores de cada tipo de habitación
-      const updatePromises = Object.entries(coefficients).map(([roomTypeName, multiplier]) =>
-        prisma.roomType.updateMany({
-          where: { name: roomTypeName },
-          data: { multiplier: parseFloat(multiplier) }
-        })
-      );
-
-      await Promise.all(updatePromises);
-
-      res.json({ message: 'Coeficientes actualizados exitosamente' });
-    } catch (error) {
-      console.error('Error al actualizar coeficientes de tipos de habitación:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
-  }
 
   /**
    * Obtener reglas de precios de comidas
@@ -576,6 +528,52 @@ class DynamicPricingController {
       });
     } catch (error) {
       console.error('Error al verificar feriado/fin de semana largo:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Obtener configuración de precios dinámicos para un hotel
+   */
+  async getConfig(req, res) {
+    try {
+      const { hotelId } = req.params;
+
+      const config = await prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
+      });
+
+      if (!config) {
+        return res.status(404).json({ message: 'Configuración no encontrada' });
+      }
+
+      res.json(config);
+    } catch (error) {
+      console.error('Error al obtener configuración:', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
+    }
+  }
+
+  /**
+   * Crear o actualizar configuración de precios dinámicos para un hotel
+   */
+  async updateConfig(req, res) {
+    try {
+      const { hotelId } = req.params;
+      const configData = req.body;
+
+      const config = await prisma.dynamicPricingConfig.upsert({
+        where: { hotelId },
+        update: configData,
+        create: {
+          hotelId,
+          ...configData
+        }
+      });
+
+      res.json(config);
+    } catch (error) {
+      console.error('Error al actualizar configuración:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
     }
   }

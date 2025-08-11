@@ -87,8 +87,8 @@ const getPriceForRoomType = async (date, roomTypeId) => {
       basePrice = calculateDynamicBasePrice(targetDate);
     }
     
-    // Calcular el precio final aplicando el multiplicador
-    const finalPrice = Math.round(basePrice * roomType.multiplier);
+    // Calcular el precio final (sin multiplicador)
+    const finalPrice = Math.round(basePrice);
     
     return finalPrice;
   } catch (error) {
@@ -324,7 +324,7 @@ const getPricesForAllRoomTypes = async (date) => {
       prices.push({
         roomTypeId: roomType.id,
         roomTypeName: roomType.name,
-        multiplier: roomType.multiplier,
+
         price: price,
         priceInDollars: price ? (price / 100).toFixed(2) : null,
         isOpen: price !== null

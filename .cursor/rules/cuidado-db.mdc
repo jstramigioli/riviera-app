@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+🚨 REGLA CRÍTICA - PROTECCIÓN DE DATOS ��
+
+ANTES de ejecutar cualquier comando que modifique la base de datos:
+
+1. SIEMPRE hacer backup completo de la base de datos
+2. NUNCA usar `npx prisma db push` en producción o con datos importantes
+3. SIEMPRE usar migraciones (`npx prisma migrate dev`) para cambios de esquema
+4. SIEMPRE verificar que hay un backup reciente antes de cualquier operación
+5. NUNCA ejecutar comandos destructivos sin confirmación explícita del usuario
+6. SIEMPRE probar cambios en un entorno de desarrollo primero
+
+COMANDOS PROHIBIDOS sin backup:
+- npx prisma db push
+- npx prisma migrate reset
+- npx prisma db pull (sin backup previo)
+- Cualquier comando que modifique la estructura de la BD
+
+SIEMPRE preguntar: "¿Hay un backup reciente de la base de datos antes de proceder?"

@@ -3,6 +3,8 @@ const router = express.Router();
 const dynamicPricingController = require('../controllers/dynamicPricing.controller');
 
 // Configuración de precios dinámicos
+router.get('/config/:hotelId', dynamicPricingController.getConfig);
+router.put('/config/:hotelId', dynamicPricingController.updateConfig);
 router.get('/max-adjustments/:hotelId', dynamicPricingController.getMaxAdjustmentPercentages);
 
 
@@ -19,9 +21,7 @@ router.get('/calculated-rates/:hotelId/:roomTypeId', dynamicPricingController.ge
 router.post('/rates/:hotelId/:roomTypeId/generate', dynamicPricingController.generateDynamicRates);
 router.put('/rates/:hotelId/:roomTypeId/:date', dynamicPricingController.updateDynamicRate);
 
-// Coeficientes de tipos de habitación
-router.get('/coefficients/:hotelId', dynamicPricingController.getRoomTypeCoefficients);
-router.put('/coefficients/:hotelId', dynamicPricingController.updateRoomTypeCoefficients);
+
 
 // Reglas de precios de comidas
 router.get('/meals/:hotelId', dynamicPricingController.getMealPricingRules);

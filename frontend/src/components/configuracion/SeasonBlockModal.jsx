@@ -14,6 +14,7 @@ const SeasonBlockModal = ({
 }) => {
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
+  const mouseDownOnOverlay = useRef(false);
   
   // Estados locales
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -111,6 +112,18 @@ const SeasonBlockModal = ({
     onClose();
   };
 
+  // Manejo correcto de eventos del overlay para evitar cierre accidental
+  const handleOverlayMouseDown = (e) => {
+    mouseDownOnOverlay.current = e.target === e.currentTarget;
+  };
+
+  const handleOverlayMouseUp = (e) => {
+    if (mouseDownOnOverlay.current && e.target === e.currentTarget) {
+      handleClose();
+    }
+    mouseDownOnOverlay.current = false;
+  };
+
   const handleSave = async (force = false) => {
     const result = await saveSeasonBlock(force);
     
@@ -198,7 +211,7 @@ const SeasonBlockModal = ({
 
   return (
     <>
-      <div className={styles.modalOverlay} onClick={(e) => e.target === e.currentTarget && handleClose()}>
+              <div className={styles.modalOverlay} onMouseDown={handleOverlayMouseDown} onMouseUp={handleOverlayMouseUp}>
         <div 
           className={styles.modalContent}
           ref={modalRef}

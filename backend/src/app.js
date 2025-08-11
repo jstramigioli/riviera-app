@@ -15,7 +15,10 @@ const hotelRoutes = require('./routes/hotel.routes');
 const rateTypeRoutes = require('./routes/rateType.routes');
 const serviceTypeRoutes = require('./routes/serviceType.routes');
 const seasonBlockRoutes = require('./routes/seasonBlock.routes');
+const blockServiceTypeRoutes = require('./routes/blockServiceType.routes');
+const blockServiceSelectionRoutes = require('./routes/blockServiceSelection.routes');
 const tariffCalculationRoutes = require('./routes/tariffCalculation.routes');
+const roundingConfigRoutes = require('./routes/roundingConfig.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -47,7 +50,10 @@ app.use('/api/hotel', hotelRoutes);
 app.use('/api/rate-types', rateTypeRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/season-blocks', seasonBlockRoutes);
+app.use('/api/block-service-types', blockServiceTypeRoutes);
+app.use('/api/block-service-selections', blockServiceSelectionRoutes);
 app.use('/api/tariff-calculations', tariffCalculationRoutes);
+app.use('/api/rounding-config', roundingConfigRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

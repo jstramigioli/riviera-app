@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getHotel, updateHotel } from '../../services/api';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX } from 'react-icons/fi';
+import ConfirmationModal from '../ConfirmationModal';
 
 const HotelConfigPanel = () => {
   const [hotelData, setHotelData] = useState({
@@ -13,9 +15,22 @@ const HotelConfigPanel = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  
+  // Estados para gestión de servicios
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [editingServiceId, setEditingServiceId] = useState(null);
+  const [editingServiceData, setEditingServiceData] = useState({ name: '', description: '' });
+  const [isCreatingService, setIsCreatingService] = useState(false);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [serviceError, setServiceError] = useState(null);
+  
+  // Estado para modal de confirmación
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
 
   useEffect(() => {
     loadHotelData();
+    loadServiceTypes();
   }, []);
 
   const loadHotelData = async () => {
@@ -51,6 +66,21 @@ const HotelConfigPanel = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadServiceTypes = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
+      if (response.ok) {
+        const result = await response.json();
+        setServiceTypes(result.data || []);
+      } else {
+        console.error('Error al cargar tipos de servicio');
+      }
+    } catch (error) {
+      console.error('Error loading service types:', error);
     }
   };
 
@@ -90,6 +120,151 @@ const HotelConfigPanel = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Funciones para gestión de servicios
+  const handleStartCreateService = () => {
+    setIsCreatingService(true);
+    setEditingServiceData({ name: '', description: '' });
+    setServiceError(null);
+  };
+
+  const handleStartEditService = (serviceType) => {
+    setEditingServiceId(serviceType.id);
+    setEditingServiceData({ 
+      name: serviceType.name, 
+      description: serviceType.description || '' 
+    });
+    setIsCreatingService(false);
+    setServiceError(null);
+  };
+
+  const handleCancelEditService = () => {
+    setEditingServiceId(null);
+    setIsCreatingService(false);
+    setEditingServiceData({ name: '', description: '' });
+    setServiceError(null);
+  };
+
+  const handleSaveCreateService = async () => {
+    if (!editingServiceData.name.trim()) {
+      setServiceError('El nombre es requerido');
+      return;
+    }
+
+    setLoadingServices(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/service-types`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editingServiceData.name.trim(),
+          description: editingServiceData.description.trim() || null,
+          hotelId: 'default-hotel'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setServiceTypes([...serviceTypes, result.data]);
+        setIsCreatingService(false);
+        setEditingServiceData({ name: '', description: '' });
+        setServiceError(null);
+        setMessage({
+          type: 'success',
+          text: 'Servicio creado correctamente'
+        });
+      } else {
+        const result = await response.json();
+        setServiceError(result.errors?.[0] || 'Error al crear el servicio');
+      }
+    } catch (error) {
+      console.error('Error creating service type:', error);
+      setServiceError('Error al crear el servicio');
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  const handleSaveEditService = async () => {
+    if (!editingServiceData.name.trim()) {
+      setServiceError('El nombre es requerido');
+      return;
+    }
+
+    setLoadingServices(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/service-types/${editingServiceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editingServiceData.name.trim(),
+          description: editingServiceData.description.trim() || null
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setServiceTypes(serviceTypes.map(st => 
+          st.id === editingServiceId ? result.data : st
+        ));
+        setEditingServiceId(null);
+        setEditingServiceData({ name: '', description: '' });
+        setServiceError(null);
+        setMessage({
+          type: 'success',
+          text: 'Servicio actualizado correctamente'
+        });
+      } else {
+        const result = await response.json();
+        setServiceError(result.errors?.[0] || 'Error al actualizar el servicio');
+      }
+    } catch (error) {
+      console.error('Error updating service type:', error);
+      setServiceError('Error al actualizar el servicio');
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  const handleDeleteService = (serviceType) => {
+    setServiceToDelete(serviceType);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteService = async () => {
+    if (!serviceToDelete) return;
+
+    setLoadingServices(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/service-types/${serviceToDelete.id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        setServiceTypes(serviceTypes.filter(st => st.id !== serviceToDelete.id));
+        setServiceError(null);
+        setMessage({
+          type: 'success',
+          text: 'Servicio eliminado correctamente'
+        });
+      } else {
+        setServiceError('Error al eliminar el servicio');
+      }
+    } catch (error) {
+      console.error('Error deleting service type:', error);
+      setServiceError('Error al eliminar el servicio');
+    } finally {
+      setLoadingServices(false);
+      setServiceToDelete(null);
     }
   };
 
@@ -337,8 +512,255 @@ const HotelConfigPanel = () => {
           </div>
         </div>
       </form>
-    </div>
-  );
-};
+
+      {/* Panel de Gestión de Servicios */}
+      <div style={{ 
+        marginTop: '40px',
+        borderTop: '2px solid #e9ecef',
+        paddingTop: '24px'
+      }}>
+        <div style={{ 
+          borderBottom: '2px solid #e9ecef',
+          marginBottom: '24px',
+          paddingBottom: '16px'
+        }}>
+          <h2 style={{ 
+            margin: '0', 
+            color: '#2c3e50', 
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>🛎️</span>
+            Gestión de Servicios
+          </h2>
+          <p style={{ 
+            margin: '8px 0 0 0', 
+            color: '#6c757d',
+            fontSize: '0.9rem'
+          }}>
+            Gestiona los tipos de servicio que se pueden utilizar en los bloques de temporada
+          </p>
+        </div>
+
+        {/* Error de servicios */}
+        {serviceError && (
+          <div style={{
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            border: '1px solid #f5c6cb'
+          }}>
+            {serviceError}
+          </div>
+        )}
+
+        {/* Lista de servicios */}
+        <div style={{ marginBottom: '20px' }}>
+          {serviceTypes.map(serviceType => (
+            <div key={serviceType.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              marginBottom: '8px',
+              backgroundColor: 'white'
+            }}>
+              <div>
+                <div style={{ fontWeight: '600', color: '#2c3e50' }}>
+                  {serviceType.name}
+                </div>
+                {serviceType.description && (
+                  <div style={{ fontSize: '0.9rem', color: '#6c757d', marginTop: '4px' }}>
+                    {serviceType.description}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => handleStartEditService(serviceType)}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #667eea',
+                    color: '#667eea',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <FiEdit2 />
+                </button>
+                <button
+                  onClick={() => handleDeleteService(serviceType)}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #dc3545',
+                    color: '#dc3545',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <FiTrash2 />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Formulario de creación/edición */}
+        {(isCreatingService || editingServiceId) && (
+          <div style={{
+            border: '1px solid #e9ecef',
+            borderRadius: '8px',
+            padding: '20px',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#2c3e50' }}>
+              {isCreatingService ? 'Crear Nuevo Servicio' : 'Editar Servicio'}
+            </h3>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  Nombre del Servicio *
+                </label>
+                <input
+                  type="text"
+                  value={editingServiceData.name}
+                  onChange={(e) => setEditingServiceData({
+                    ...editingServiceData,
+                    name: e.target.value
+                  })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Ej: Desayuno, Media Pensión, Pensión Completa"
+                />
+              </div>
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: '#2c3e50'
+                }}>
+                  Descripción
+                </label>
+                <textarea
+                  value={editingServiceData.description}
+                  onChange={(e) => setEditingServiceData({
+                    ...editingServiceData,
+                    description: e.target.value
+                  })}
+                  rows="3"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Descripción del servicio"
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={isCreatingService ? handleSaveCreateService : handleSaveEditService}
+                  disabled={loadingServices}
+                  style={{
+                    backgroundColor: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: loadingServices ? 'not-allowed' : 'pointer',
+                    opacity: loadingServices ? 0.7 : 1
+                  }}
+                >
+                  {loadingServices ? 'Guardando...' : (isCreatingService ? 'Crear Servicio' : 'Guardar Cambios')}
+                </button>
+                <button
+                  onClick={handleCancelEditService}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Botón para crear nuevo servicio */}
+        {!isCreatingService && !editingServiceId && (
+          <button
+            onClick={handleStartCreateService}
+            style={{
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              padding: '12px 20px',
+              borderRadius: '8px',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <FiPlus />
+            Agregar Nuevo Servicio
+          </button>
+                 )}
+       </div>
+
+       {/* Modal de confirmación de eliminación */}
+       <ConfirmationModal
+         isOpen={showDeleteConfirmation}
+         onClose={() => {
+           setShowDeleteConfirmation(false);
+           setServiceToDelete(null);
+         }}
+         onConfirm={confirmDeleteService}
+         title="Eliminar Servicio"
+         message={`¿Estás seguro de que deseas eliminar el servicio "${serviceToDelete?.name}"? Esta acción no se puede deshacer.`}
+         confirmText="Eliminar"
+         cancelText="Cancelar"
+         type="danger"
+       />
+     </div>
+   );
+ };
 
 export default HotelConfigPanel; 

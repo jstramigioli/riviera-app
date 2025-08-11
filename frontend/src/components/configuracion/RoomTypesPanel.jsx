@@ -9,8 +9,7 @@ const RoomTypesPanel = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTypeForm, setNewTypeForm] = useState({
     name: '',
-    description: '',
-    multiplier: 1.0
+    description: ''
   });
   const [saving, setSaving] = useState(false);
   
@@ -39,8 +38,7 @@ const RoomTypesPanel = () => {
     setEditingType(roomType.id);
     setEditForm({
       name: roomType.name,
-      description: roomType.description || '',
-      multiplier: roomType.multiplier || 1.0
+      description: roomType.description || ''
     });
   };
 
@@ -86,8 +84,7 @@ const RoomTypesPanel = () => {
     setShowAddModal(true);
     setNewTypeForm({
       name: '',
-      description: '',
-      multiplier: 1.0
+      description: ''
     });
   };
 
@@ -95,8 +92,7 @@ const RoomTypesPanel = () => {
     setShowAddModal(false);
     setNewTypeForm({
       name: '',
-      description: '',
-      multiplier: 1.0
+      description: ''
     });
   };
 
@@ -317,16 +313,7 @@ const RoomTypesPanel = () => {
               }}>
                 Capacidad
               </th>
-              <th style={{ 
-                padding: '16px', 
-                textAlign: 'left', 
-                borderBottom: '2px solid var(--color-border)',
-                fontWeight: '600',
-                color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
-              }}>
-                Multiplicador
-              </th>
+
               <th style={{ 
                 padding: '16px', 
                 textAlign: 'left', 
@@ -349,7 +336,7 @@ const RoomTypesPanel = () => {
               </th>
             </tr>
             <tr style={{ backgroundColor: 'var(--color-bg-light)' }}>
-              <td colSpan="5" style={{ 
+              <td colSpan="4" style={{ 
                 padding: '8px 16px', 
                 textAlign: 'center',
                 fontSize: 'var(--font-size-small)',
@@ -430,28 +417,7 @@ const RoomTypesPanel = () => {
                     {getRoomTypeCapacity(roomType.name)} personas
                   </span>
                 </td>
-                <td style={{ padding: '16px' }}>
-                  {editingType === roomType.id ? (
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editForm.multiplier}
-                      onChange={(e) => handleInputChange('multiplier', parseFloat(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '6px',
-                        fontSize: 'var(--font-size-medium)'
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 'var(--font-size-medium)' }}>
-                      {roomType.multiplier || 1.0}x
-                    </span>
-                  )}
-                </td>
+
                 <td style={{ padding: '16px' }}>
                   {editingType === roomType.id ? (
                     <textarea
@@ -648,33 +614,7 @@ const RoomTypesPanel = () => {
                 />
               </div>
 
-              {/* Multiplicador */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  color: 'var(--color-text-main)'
-                }}>
-                  Multiplicador de Precio
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newTypeForm.multiplier}
-                  onChange={(e) => handleNewTypeInputChange('multiplier', parseFloat(e.target.value))}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="1.0"
-                />
-              </div>
+
 
               {/* Descripción */}
               <div>

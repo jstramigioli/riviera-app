@@ -9,11 +9,7 @@ router.get('/', roomTypeController.getAllRoomTypes);
 // PUT /api/room-types/order - Actualizar el orden de los tipos de habitación
 router.put('/order', roomTypeController.updateRoomTypesOrder);
 
-// GET /api/room-types/:hotelId/coefficients - Obtener coeficientes por hotel
-router.get('/:hotelId/coefficients', roomTypeController.getCoefficientsByHotel);
 
-// PUT /api/room-types/:hotelId/coefficients - Actualizar coeficientes por hotel
-router.put('/:hotelId/coefficients', roomTypeController.updateCoefficientsByHotel);
 
 // GET /api/room-types/:hotelId - Obtener tipos de habitación por hotel
 router.get('/:hotelId', roomTypeController.getRoomTypesByHotel);

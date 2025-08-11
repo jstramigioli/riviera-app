@@ -54,8 +54,8 @@ class ReservationPricingService {
         // Calcular tarifa base desde curva estacional
         const baseRate = await this.dynamicPricingService.interpolateBasePrice(date, 'default-hotel');
         
-        // Aplicar multiplicador del tipo de habitación
-        const adjustedBaseRate = baseRate * room.roomType.multiplier;
+        // Usar la tarifa base directamente (sin multiplicador)
+        const adjustedBaseRate = baseRate;
 
         // Calcular ocupación real
         const realOccupancy = await this.dynamicPricingService.calculateRealOccupancy('default-hotel', date);

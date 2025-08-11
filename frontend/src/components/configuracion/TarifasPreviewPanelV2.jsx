@@ -5,7 +5,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
   
   // Estados principales
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   // Datos del sistema
@@ -64,26 +64,8 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
         setRoomTypes([]);
       }
 
-      // Cargar coeficientes
-      try {
-        const coefficientsResponse = await fetch(`${API_URL}/room-types/${hotelId}/coefficients`);
-        if (coefficientsResponse.ok) {
-          const coefficientsData = await coefficientsResponse.json();
-          if (coefficientsData && Object.keys(coefficientsData).length > 0) {
-            setCoefficients(coefficientsData);
-            console.log('Coeficientes cargados:', Object.keys(coefficientsData).length);
-          } else {
-            console.warn('Los datos de coeficientes están vacíos');
-            setCoefficients({});
-          }
-        } else {
-          console.warn('No se pudieron cargar los coeficientes');
-          setCoefficients({});
-        }
-      } catch (error) {
-        console.warn('Error cargando coeficientes:', error);
-        setCoefficients({});
-      }
+      // Los coeficientes ya no se usan en el nuevo sistema
+      setCoefficients({});
 
       // Cargar reglas de comidas
       try {
@@ -135,10 +117,9 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     }
   };
 
-  // Calcular precios base por tipo de habitación
-  const calculateBasePriceForType = (roomTypeName) => {
-    const coefficient = coefficients[roomTypeName] || 1.0;
-    return Math.round(basePrice * coefficient);
+  // Calcular precios base por tipo de habitación (sin coeficientes)
+  const calculateBasePriceForType = () => {
+    return basePrice;
   };
 
   // Calcular precio con desayuno
@@ -162,13 +143,11 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
   };
 
   // Manejadores de cambios
-  const handleBasePriceChange = (roomTypeName, value) => {
+  const handleBasePriceChange = (_, value) => {
     const newPrice = parseFloat(value) || 0;
-    const coefficient = coefficients[roomTypeName] || 1.0;
     
-    // Calcular nuevo precio base global
-    const newGlobalBasePrice = newPrice / coefficient;
-    setBasePrice(newGlobalBasePrice);
+    // Usar el precio directamente (sin coeficientes)
+    setBasePrice(newPrice);
     
     // Limpiar estados de edición
     setEditingBasePrices({});
@@ -176,21 +155,18 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     setEditingHalfBoardPrices({});
   };
 
-  const handleBreakfastPriceChange = (roomTypeName, value) => {
+  const handleBreakfastPriceChange = (_, value) => {
     const newBreakfastPrice = parseFloat(value) || 0;
-    const coefficient = coefficients[roomTypeName] || 1.0;
     
-    // Calcular nuevo precio base global basado en el precio de desayuno deseado
-    let newBasePriceForType;
+    // Calcular nuevo precio base basado en el precio de desayuno deseado
+    let newBasePrice;
     if (mealRules.breakfastMode === 'FIXED') {
-      newBasePriceForType = newBreakfastPrice - mealRules.breakfastValue;
+      newBasePrice = newBreakfastPrice - mealRules.breakfastValue;
     } else {
-      newBasePriceForType = newBreakfastPrice / (1 + mealRules.breakfastValue);
+      newBasePrice = newBreakfastPrice / (1 + mealRules.breakfastValue);
     }
     
-    // Convertir el precio base del tipo de habitación al precio base global
-    const newGlobalBasePrice = newBasePriceForType / coefficient;
-    setBasePrice(newGlobalBasePrice);
+    setBasePrice(newBasePrice);
     
     // Limpiar estados de edición
     setEditingBasePrices({});
@@ -198,37 +174,30 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     setEditingHalfBoardPrices({});
   };
 
-  const handleHalfBoardPriceChange = (roomTypeName, value) => {
+  const handleHalfBoardPriceChange = (_, value) => {
     const newHalfBoardPrice = parseFloat(value) || 0;
-    const coefficient = coefficients[roomTypeName] || 1.0;
     
-    // Calcular el precio base del tipo de habitación que resulte en el precio de media pensión deseado
-    let newBasePriceForType;
+    // Calcular el precio base que resulte en el precio de media pensión deseado
+    let newBasePrice;
     if (mealRules.dinnerMode === 'FIXED') {
       // Para modo FIXED, necesitamos calcular hacia atrás desde el precio de media pensión
-      // Primero calculamos el precio de desayuno que resultaría
       const breakfastPrice = newHalfBoardPrice - mealRules.dinnerValue;
-      // Luego calculamos el precio base que resultaría en ese precio de desayuno
       if (mealRules.breakfastMode === 'FIXED') {
-        newBasePriceForType = breakfastPrice - mealRules.breakfastValue;
+        newBasePrice = breakfastPrice - mealRules.breakfastValue;
       } else {
-        newBasePriceForType = breakfastPrice / (1 + mealRules.breakfastValue);
+        newBasePrice = breakfastPrice / (1 + mealRules.breakfastValue);
       }
     } else {
       // Para modo PERCENTAGE, calculamos hacia atrás desde el precio de media pensión
-      // El precio de media pensión = precio de desayuno * (1 + dinnerValue)
       const breakfastPrice = newHalfBoardPrice / (1 + mealRules.dinnerValue);
-      // Luego calculamos el precio base que resultaría en ese precio de desayuno
       if (mealRules.breakfastMode === 'FIXED') {
-        newBasePriceForType = breakfastPrice - mealRules.breakfastValue;
+        newBasePrice = breakfastPrice - mealRules.breakfastValue;
       } else {
-        newBasePriceForType = breakfastPrice / (1 + mealRules.breakfastValue);
+        newBasePrice = breakfastPrice / (1 + mealRules.breakfastValue);
       }
     }
     
-    // Convertir el precio base del tipo de habitación al precio base global
-    const newGlobalBasePrice = newBasePriceForType / coefficient;
-    setBasePrice(newGlobalBasePrice);
+    setBasePrice(newBasePrice);
     
     // Limpiar estados de edición
     setEditingBasePrices({});
@@ -236,34 +205,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     setEditingHalfBoardPrices({});
   };
 
-  const handleCoefficientChange = async (roomTypeName, value) => {
-    const newCoefficient = parseFloat(value) || 1.0;
-    
-    // Actualizar inmediatamente en el estado local
-    const newCoefficients = { ...coefficients, [roomTypeName]: newCoefficient };
-    setCoefficients(newCoefficients);
-    
-    try {
-      setSaving(true);
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      
-      const response = await fetch(`${API_URL}/room-types/${hotelId}/coefficients`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCoefficients)
-      });
-      
-      if (!response.ok) {
-        console.warn('No se pudo guardar el coeficiente en el backend, pero se actualizó localmente');
-      }
-      
-    } catch (error) {
-      console.error('Error guardando coeficiente:', error);
-      // El estado local ya se actualizó, así que no hay que revertir
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   if (loading) {
     return (
@@ -409,7 +351,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
           </thead>
           <tbody>
             {roomTypes && roomTypes.length > 0 ? roomTypes.map((roomType) => {
-              const basePriceForType = calculateBasePriceForType(roomType.name);
+              const basePriceForType = calculateBasePriceForType();
               const breakfastPrice = calculateBreakfastPrice(basePriceForType);
               const halfBoardPrice = calculateHalfBoardPrice(basePriceForType);
               
@@ -426,23 +368,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
                   }}>
                     {roomType.name}
                   </td>
-                  <td style={{ padding: '16px', textAlign: 'center' }}>
-                    <input
-                      type="number"
-                      value={coefficients[roomType.name] || 1.0}
-                      onChange={(e) => handleCoefficientChange(roomType.name, e.target.value)}
-                      step="0.01"
-                      min="0"
-                      style={{
-                        width: '90px',
-                        padding: '8px 12px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '6px',
-                        fontSize: 'var(--font-size-medium)',
-                        textAlign: 'center'
-                      }}
-                    />
-                  </td>
+
                   <td style={{ padding: '16px', textAlign: 'center' }}>
                     <input
                       type="number"
@@ -551,16 +477,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
         </table>
       </div>
 
-      {saving && (
-        <div style={{ 
-          marginTop: '15px', 
-          textAlign: 'center', 
-          color: '#6c757d',
-          fontSize: 'var(--font-size-medium)'
-        }}>
-          Guardando cambios...
-        </div>
-      )}
+
     </div>
   );
 } 

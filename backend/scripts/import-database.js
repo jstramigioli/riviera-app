@@ -29,9 +29,9 @@ async function importDatabase() {
       'roomTypes', 
       'rooms',
       'clients',
+      'reservations',
       'guests',
       'payments',
-      'reservations',
       'dailyRates'
     ];
 

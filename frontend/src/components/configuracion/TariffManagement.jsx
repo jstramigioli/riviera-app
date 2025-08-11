@@ -1,24 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import SeasonBlockCard from './SeasonBlockCard';
-import SeasonBlockModal from './SeasonBlockModal';
-import ServiceTypesModal from './ServiceTypesModal';
+import SeasonBlockBarV2 from './SeasonBlockBarV2';
 import DynamicPricingConfigPanel from './DynamicPricingConfigPanel';
+import RoundingConfigPanel from './RoundingConfigPanel';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
-import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiPercent } from 'react-icons/fi';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
   const [seasonBlocks, setSeasonBlocks] = useState([]);
-  const [serviceTypes, setServiceTypes] = useState([]);
-  const [roomTypes, setRoomTypes] = useState([]);
-  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices'
+  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices', 'rounding'
   
-  // Estados para modales
-  const [showSeasonBlockModal, setShowSeasonBlockModal] = useState(false);
-  const [showServiceTypesModal, setShowServiceTypesModal] = useState(false);
-  const [editingBlock, setEditingBlock] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null);
+
 
   // Estados para notificaciones
   const [notification, setNotification] = useState(null);
@@ -43,11 +36,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        loadSeasonBlocks(),
-        loadServiceTypes(),
-        loadRoomTypes()
-      ]);
+      await loadSeasonBlocks();
     } catch (error) {
       console.error('Error loading initial data:', error);
       showNotification('Error al cargar los datos iniciales', 'error');
@@ -71,35 +60,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     }
   };
 
-  const loadServiceTypes = async () => {
-    try {
-      const response = await fetch(`${API_URL}/service-types?hotelId=${hotelId}`);
-      if (response.ok) {
-        const result = await response.json();
-        setServiceTypes(result.data || []);
-      } else {
-        throw new Error('Error al cargar tipos de servicio');
-      }
-    } catch (error) {
-      console.error('Error loading service types:', error);
-      showNotification('Error al cargar los tipos de servicio', 'error');
-    }
-  };
 
-  const loadRoomTypes = async () => {
-    try {
-      const response = await fetch(`${API_URL}/room-types/${hotelId}`);
-      if (response.ok) {
-        const roomTypesData = await response.json();
-        setRoomTypes(roomTypesData || []);
-      } else {
-        throw new Error('Error al cargar tipos de habitación');
-      }
-    } catch (error) {
-      console.error('Error loading room types:', error);
-      showNotification('Error al cargar los tipos de habitación', 'error');
-    }
-  };
 
   const loadPricesByDate = async (date) => {
     setLoadingPrices(true);
@@ -124,60 +85,51 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const handleCreateBlock = () => {
-    setEditingBlock(null);
-    setShowSeasonBlockModal(true);
-  };
-
-  const handleEditBlock = (block) => {
-    setEditingBlock(block);
-    setShowSeasonBlockModal(true);
-  };
-
-  const handleDeleteBlock = (block) => {
-    setConfirmDelete({
-      type: 'danger',
-      title: 'Eliminar Bloque de Temporada',
-      message: `¿Estás seguro de que deseas eliminar el bloque "${block.name}"? Esta acción eliminará también todos los precios y ajustes asociados.`,
-      onConfirm: () => confirmDeleteBlock(block.id)
-    });
-  };
-
-  const confirmDeleteBlock = async (blockId) => {
+  const handleCreateBlock = async () => {
     try {
-      const response = await fetch(`${API_URL}/season-blocks/${blockId}`, {
-        method: 'DELETE'
+      // Crear un nuevo bloque con valores por defecto
+      const newBlock = {
+        name: 'Nuevo Bloque de Temporada',
+        description: '',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días después
+        hotelId: hotelId,
+        isActive: true,
+        orderIndex: seasonBlocks.length + 1
+      };
+
+      const response = await fetch(`${API_URL}/season-blocks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newBlock)
       });
 
       if (response.ok) {
         await loadSeasonBlocks();
-        showNotification('Bloque de temporada eliminado correctamente', 'success');
+        showNotification('Nuevo bloque creado. Haz clic para expandir y editar.', 'success');
       } else {
         const result = await response.json();
-        throw new Error(result.errors?.[0] || 'Error al eliminar el bloque');
+        throw new Error(result.errors?.[0] || 'Error al crear el bloque');
       }
     } catch (error) {
-      console.error('Error deleting season block:', error);
+      console.error('Error creating new block:', error);
       showNotification(error.message, 'error');
     }
-    setConfirmDelete(null);
   };
+
+
 
   const handleBlockSaved = () => {
-    setShowSeasonBlockModal(false);
-    setEditingBlock(null);
     loadSeasonBlocks();
-    showNotification(
-      editingBlock ? 'Bloque actualizado correctamente' : 'Bloque creado correctamente',
-      'success'
-    );
   };
 
-  const handleServiceTypesSaved = () => {
-    setShowServiceTypesModal(false);
-    loadServiceTypes();
-    showNotification('Tipos de servicio actualizados correctamente', 'success');
+  const handleBlockDeleted = () => {
+    loadSeasonBlocks();
   };
+
+
 
   if (loading) {
     return (
@@ -203,13 +155,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             </p>
           </div>
           <div className={styles.headerActions}>
-            <button
-              className={styles.secondaryButton}
-              onClick={() => setShowServiceTypesModal(true)}
-            >
-              <FiSettings />
-              Tipos de Servicio
-            </button>
             <button
               className={styles.primaryButton}
               onClick={handleCreateBlock}
@@ -245,65 +190,40 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           <FiGrid />
           Precios por Fecha
         </button>
+        <button
+          className={`${styles.navTab} ${activeSection === 'rounding' ? styles.active : ''}`}
+          onClick={() => setActiveSection('rounding')}
+        >
+          <FiPercent />
+          Redondeo
+        </button>
       </div>
 
       {/* Content Sections */}
       <div className={styles.content}>
         {activeSection === 'blocks' && (
           <div className={styles.blocksSection}>
-            {/* Stats */}
-            <div className={styles.stats}>
-              <div className={styles.statCard}>
-                <div className={styles.statIcon}>
-                  <FiCalendar />
-                </div>
-                <div className={styles.statContent}>
-                  <div className={styles.statValue}>{seasonBlocks.length}</div>
-                  <div className={styles.statLabel}>Bloques de Temporada</div>
-                </div>
-              </div>
-              <div className={styles.statCard}>
-                <div className={styles.statIcon}>
-                  <FiSettings />
-                </div>
-                <div className={styles.statContent}>
-                  <div className={styles.statValue}>{serviceTypes.length}</div>
-                  <div className={styles.statLabel}>Tipos de Servicio</div>
-                </div>
-              </div>
-              <div className={styles.statCard}>
-                <div className={styles.statIcon}>
-                  <FiDollarSign />
-                </div>
-                <div className={styles.statContent}>
-                  <div className={styles.statValue}>{roomTypes.length}</div>
-                  <div className={styles.statLabel}>Tipos de Habitación</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Season Blocks Grid */}
+            {/* Season Blocks List */}
             {seasonBlocks.length === 0 ? (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>📅</div>
                 <h3>No hay bloques de temporada</h3>
-                <p>Crea tu primer bloque de temporada para comenzar a gestionar las tarifas</p>
                 <button
                   className={styles.primaryButton}
                   onClick={handleCreateBlock}
                 >
-                  <FiPlus />
-                  Crear Primer Bloque
+                  Crea tu primer bloque de temporada
                 </button>
               </div>
             ) : (
-              <div className={styles.blocksGrid}>
+              <div className={styles.blocksList}>
                 {seasonBlocks.map(block => (
-                  <SeasonBlockCard
+                  <SeasonBlockBarV2
                     key={block.id}
                     block={block}
-                    onEdit={handleEditBlock}
-                    onDelete={handleDeleteBlock}
+                    onSaved={handleBlockSaved}
+                    onDeleted={handleBlockDeleted}
+                    hotelId={hotelId}
                   />
                 ))}
               </div>
@@ -416,50 +336,17 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             )}
           </div>
         )}
+
+        {activeSection === 'rounding' && (
+          <div className={styles.roundingSection}>
+            <div className={styles.sectionHeader}>
+              <h3>Configuración de Redondeo</h3>
+              <p>Define cómo se redondean los precios calculados en todo el sistema</p>
+            </div>
+            <RoundingConfigPanel hotelId={hotelId} />
+          </div>
+        )}
       </div>
-
-      {/* Modales */}
-      {showSeasonBlockModal && (
-        <SeasonBlockModal
-          isOpen={showSeasonBlockModal}
-          onClose={() => {
-            setShowSeasonBlockModal(false);
-            setEditingBlock(null);
-          }}
-          blockId={editingBlock?.id || null}
-          hotelId={hotelId}
-          onSaved={handleBlockSaved}
-          onDeleted={() => {
-            setShowSeasonBlockModal(false);
-            setEditingBlock(null);
-            loadSeasonBlocks();
-            showNotification('Bloque eliminado correctamente', 'success');
-          }}
-        />
-      )}
-
-      {showServiceTypesModal && (
-        <ServiceTypesModal
-          isOpen={showServiceTypesModal}
-          onClose={() => setShowServiceTypesModal(false)}
-          onSave={handleServiceTypesSaved}
-          serviceTypes={serviceTypes}
-          hotelId={hotelId}
-        />
-      )}
-
-      {confirmDelete && (
-        <ConfirmationModal
-          isOpen={true}
-          onClose={() => setConfirmDelete(null)}
-          onConfirm={confirmDelete.onConfirm}
-          title={confirmDelete.title}
-          message={confirmDelete.message}
-          type={confirmDelete.type}
-          confirmText="Eliminar"
-          cancelText="Cancelar"
-        />
-      )}
 
       {/* Notificación */}
       {notification && (

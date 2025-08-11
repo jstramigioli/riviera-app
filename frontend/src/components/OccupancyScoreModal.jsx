@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import styles from './OccupancyScoreModal.module.css';
 
 export default function OccupancyScoreModal({ isOpen, onClose, occupancyData, date }) {
+  const mouseDownOnOverlay = useRef(false);
+
   if (!isOpen || !occupancyData) return null;
 
   console.log('=== DEBUG OccupancyScoreModal ===');
@@ -25,10 +27,22 @@ export default function OccupancyScoreModal({ isOpen, onClose, occupancyData, da
     return { level: 'Baja', color: '#28a745' };
   };
 
+  // Manejo correcto de eventos del overlay para evitar cierre accidental
+  const handleOverlayMouseDown = (e) => {
+    mouseDownOnOverlay.current = e.target === e.currentTarget;
+  };
+
+  const handleOverlayMouseUp = (e) => {
+    if (mouseDownOnOverlay.current && e.target === e.currentTarget) {
+      onClose();
+    }
+    mouseDownOnOverlay.current = false;
+  };
+
   const scoreLevel = getScoreLevel(occupancyData.occupancyScore);
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
+    <div className={styles.modalOverlay} onMouseDown={handleOverlayMouseDown} onMouseUp={handleOverlayMouseUp}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h2>Desglose del Score de Ocupación</h2>
