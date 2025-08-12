@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiChevronRight, FiEdit3, FiTrash2, FiCopy, FiSave, FiX, FiSettings, FiPercent, FiDollarSign, FiInfo } from 'react-icons/fi';
 import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
@@ -11,6 +11,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [editingCell, setEditingCell] = useState({ roomTypeId: null, serviceTypeId: null, value: '' });
+  const [percentageAdjustments, setPercentageAdjustments] = useState({});
 
   const {
     loading,
@@ -26,10 +27,41 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
-    initializePricesForNewService,
-    removePricesForDeletedService,
-    loadBlockServiceSelections
+    toggleSelection
   } = useSeasonBlockV2(block?.id, hotelId);
+
+  // Cargar porcentajes de ajuste desde el backend
+  useEffect(() => {
+    const loadPercentageAdjustments = async () => {
+      if (!block?.id) return;
+      
+      try {
+        console.log('=== DEBUG LOADING PERCENTAGES ===');
+        console.log('block.id:', block.id);
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/block-service-selections/block/${block.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Selecciones cargadas:', data);
+          
+          const adjustments = {};
+          
+          data.forEach(selection => {
+            if (selection.percentageAdjustment !== null && selection.percentageAdjustment !== undefined) {
+              adjustments[selection.id] = selection.percentageAdjustment;
+            }
+          });
+          
+          console.log('Ajustes cargados:', adjustments);
+          setPercentageAdjustments(adjustments);
+        }
+      } catch (error) {
+        console.error('Error loading percentage adjustments:', error);
+      }
+    };
+
+    loadPercentageAdjustments();
+  }, [block?.id]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -81,17 +113,76 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
     updateFormData('useProportions', enabled);
   };
 
-  // Función wrapper para agregar servicio y recargar datos
-  const handleServiceAdded = async (serviceTypeId, serviceSelection) => {
-    await initializePricesForNewService(serviceTypeId, serviceSelection);
-    await loadBlockServiceSelections();
+  // Función para manejar el toggle de servicios
+  const handleServiceToggle = async (serviceTypeId, isEnabled) => {
+    try {
+      // Buscar la selección del servicio
+      const selection = getActiveServiceTypes().find(s => s.serviceTypeId === serviceTypeId || s.id === serviceTypeId);
+      if (selection) {
+        await toggleSelection(selection.id, !isEnabled);
+      }
+    } catch (error) {
+      console.error('Error toggling service:', error);
+    }
   };
 
-  // Función wrapper para eliminar servicio y recargar datos
-  const handleServiceDeleted = async (serviceTypeId) => {
-    removePricesForDeletedService(serviceTypeId);
-    await loadBlockServiceSelections();
+  // Función para manejar cambios en porcentajes de ajuste
+  const handlePercentageChange = (serviceTypeId, value) => {
+    setPercentageAdjustments(prev => ({
+      ...prev,
+      [serviceTypeId]: value
+    }));
   };
+
+  // Función para guardar porcentaje cuando se presiona Enter
+  const handlePercentageKeyPress = async (e, serviceTypeId) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const value = parseFloat(e.target.value) || 0;
+      
+      console.log('=== DEBUG PERCENTAGE SAVE ===');
+      console.log('serviceTypeId:', serviceTypeId);
+      console.log('value:', value);
+      console.log('getActiveServiceTypes():', getActiveServiceTypes());
+      
+      try {
+        // Guardar el porcentaje en el backend
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/block-service-selections/${serviceTypeId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            percentageAdjustment: value
+          })
+        });
+
+        if (response.ok) {
+          // Actualizar el estado local
+          setPercentageAdjustments(prev => ({
+            ...prev,
+            [serviceTypeId]: value
+          }));
+          
+          // Quitar el foco del input
+          e.target.blur();
+          
+          showNotification(`Porcentaje de ajuste guardado: ${value}%`, 'success');
+        } else {
+          const errorData = await response.json();
+          console.error('Response error:', errorData);
+          throw new Error(`Error al guardar el porcentaje: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Error saving percentage:', error);
+        showNotification('Error al guardar el porcentaje', 'error');
+      }
+    }
+  };
+
+
+
+
 
   // Manejar inicio de edición de precio
   const handlePriceInputFocus = (roomTypeId, serviceTypeId) => {
@@ -169,12 +260,26 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
     );
     
     const basePrice = currentPrice?.basePrice || 0;
-    const roundedPrice = basePrice; // Por ahora sin redondeo
+    
+    // Aplicar porcentaje de ajuste si existe
+    const percentageAdjustment = percentageAdjustments[serviceTypeId];
+    let adjustedPrice = basePrice;
+    
+    if (percentageAdjustment && percentageAdjustment !== 0) {
+      const adjustmentMultiplier = 1 + (percentageAdjustment / 100);
+      adjustedPrice = Math.round(basePrice * adjustmentMultiplier);
+    }
+    
+    const roundedPrice = adjustedPrice; // Por ahora sin redondeo adicional
     
     return {
-      adjustedPrice: basePrice,
+      adjustedPrice: adjustedPrice,
       roundedPrice: roundedPrice,
-      wasRounded: false
+      wasRounded: false,
+      adjustment: percentageAdjustment ? {
+        mode: 'PERCENTAGE',
+        value: percentageAdjustment
+      } : null
     };
   };
 
@@ -355,15 +460,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
 
 
 
-          {/* Gestor de selecciones de servicios del bloque */}
-          <div className={styles.blockServicesSection}>
-            <h4><FiSettings /> Servicios del Bloque</h4>
-            <BlockServiceSelectionManager 
-              seasonBlockId={block?.id}
-              onServiceAdded={handleServiceAdded}
-              onServiceDeleted={handleServiceDeleted}
-            />
-          </div>
+
 
           {/* Botón de prueba temporal para verificar proporciones */}
 
@@ -383,11 +480,85 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
               <table className={styles.pricesGrid}>
                 <thead>
                   <tr>
-                    <th>Habitación</th>
-                    {getActiveServiceTypes().map(serviceType => (
-                      <th key={serviceType.id}>{serviceType.serviceType?.name || serviceType.name}</th>
-                    ))}
+                    <th style={{ textAlign: 'center' }}>Habitación</th>
+                    {getActiveServiceTypes().map(serviceType => {
+                      const isServiceEnabled = serviceType.isEnabled;
+                      const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
+                      return (
+                        <th 
+                          key={serviceType.id} 
+                          style={{ 
+                            textAlign: 'center',
+                            opacity: isServiceEnabled ? 1 : 0.6,
+                            color: isServiceEnabled ? '#374151' : '#6c757d'
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            <span>{serviceType.serviceType?.name || serviceType.name}</span>
+                            {!isBaseService && (
+                              <button
+                                onClick={() => handleServiceToggle(serviceType.id, isServiceEnabled)}
+                                style={{
+                                  background: 'none',
+                                  border: `1px solid ${isServiceEnabled ? '#dc3545' : '#28a745'}`,
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  color: isServiceEnabled ? '#dc3545' : '#28a745'
+                                }}
+                                title={isServiceEnabled ? 'Deshabilitar servicio' : 'Habilitar servicio'}
+                              >
+                                {isServiceEnabled ? 'Deshabilitar' : 'Habilitar'}
+                              </button>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
+                  {formData.serviceAdjustmentMode === 'PERCENTAGE' && (
+                    <tr>
+                      <th style={{ textAlign: 'center', background: '#f8f9fa' }}>Porcentaje de Ajuste</th>
+                      {getActiveServiceTypes().map(serviceType => {
+                        const isServiceEnabled = serviceType.isEnabled;
+                        const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
+                        const currentPercentage = percentageAdjustments[serviceType.id] || '';
+                        
+                        return (
+                          <th 
+                            key={`percentage-${serviceType.id}`} 
+                            style={{ 
+                              textAlign: 'center',
+                              background: '#f8f9fa',
+                              opacity: isServiceEnabled ? 1 : 0.6
+                            }}
+                          >
+                            {!isBaseService ? (
+                              <input
+                                type="number"
+                                placeholder="0%"
+                                value={currentPercentage}
+                                onChange={(e) => handlePercentageChange(serviceType.id, e.target.value)}
+                                onKeyPress={(e) => handlePercentageKeyPress(e, serviceType.id)}
+                                style={{
+                                  width: '60px',
+                                  textAlign: 'center',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  padding: '4px',
+                                  fontSize: '12px'
+                                }}
+                                disabled={!isServiceEnabled}
+                              />
+                            ) : (
+                              <span style={{ color: '#6c757d', fontSize: '12px' }}>-</span>
+                            )}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {roomTypes.map(roomType => (
@@ -404,9 +575,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, hotelId = 'default-hotel' }) => {
                         const isCurrentlyEditing = editingCell.roomTypeId === roomType.id && 
                                                   editingCell.serviceTypeId === serviceTypeId;
                         const isEditable = isCellEditable(serviceType);
+                        const isServiceEnabled = serviceType.isEnabled;
                         
                         return (
-                          <td key={serviceTypeId} className={`${styles.priceCell} ${!isEditable ? styles.nonEditable : ''}`}>
+                          <td key={serviceTypeId} className={`${styles.priceCell} ${!isServiceEnabled ? styles.disabledService : ''}`}>
                             {isEditing && isEditable ? (
                               <input
                                 type="number"

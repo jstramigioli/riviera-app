@@ -52,7 +52,7 @@ const getBlockServiceSelection = async (req, res) => {
 // Crear una nueva selección de servicio
 const createBlockServiceSelection = async (req, res) => {
   try {
-    const { seasonBlockId, serviceTypeId, isEnabled, orderIndex } = req.body;
+    const { seasonBlockId, serviceTypeId, isEnabled, orderIndex, percentageAdjustment } = req.body;
 
     // Validar que el bloque y el servicio existan
     const [seasonBlock, serviceType] = await Promise.all([
@@ -87,7 +87,8 @@ const createBlockServiceSelection = async (req, res) => {
         seasonBlockId,
         serviceTypeId,
         isEnabled: isEnabled ?? true,
-        orderIndex: orderIndex ?? 0
+        orderIndex: orderIndex ?? 0,
+        percentageAdjustment: percentageAdjustment ?? 0
       },
       include: {
         serviceType: true
@@ -105,9 +106,9 @@ const createBlockServiceSelection = async (req, res) => {
 const updateBlockServiceSelection = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isEnabled, orderIndex } = req.body;
+    const { isEnabled, orderIndex, percentageAdjustment } = req.body;
 
-    console.log('Actualizando selección de servicio:', { id, isEnabled, orderIndex });
+    console.log('Actualizando selección de servicio:', { id, isEnabled, orderIndex, percentageAdjustment });
 
     // Validar que la selección existe
     const existingSelection = await prisma.blockServiceSelection.findUnique({
@@ -121,7 +122,8 @@ const updateBlockServiceSelection = async (req, res) => {
     // Preparar los datos de actualización
     const updateData = {
       isEnabled: isEnabled !== undefined ? isEnabled : existingSelection.isEnabled,
-      orderIndex: orderIndex !== undefined ? orderIndex : existingSelection.orderIndex
+      orderIndex: orderIndex !== undefined ? orderIndex : existingSelection.orderIndex,
+      percentageAdjustment: percentageAdjustment !== undefined ? percentageAdjustment : existingSelection.percentageAdjustment
     };
 
     console.log('Datos de actualización:', updateData);

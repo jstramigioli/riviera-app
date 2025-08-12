@@ -3,7 +3,7 @@ import { FiPlus, FiEdit, FiTrash2, FiMove, FiToggleLeft, FiToggleRight } from 'r
 import { useBlockServiceSelections } from '../../hooks/useBlockServiceSelections';
 import styles from './BlockServiceSelectionManager.module.css';
 
-const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded, onServiceDeleted }) => {
+const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
   const {
     selections,
     availableServices,
@@ -11,7 +11,6 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded, onService
     error,
     createSelection,
     updateSelection,
-    deleteSelection,
     toggleSelection,
     refreshSelections
   } = useBlockServiceSelections(seasonBlockId);
@@ -75,40 +74,7 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded, onService
     }
   };
 
-  const handleDeleteService = async (id) => {
-    // Verificar si es el servicio base (no se puede eliminar)
-    const selection = selections.find(s => s.id === id);
-    if (selection && (selection.serviceTypeId === 'base-service' || selection.serviceType.name === 'Tarifa Base')) {
-      alert('No se puede eliminar el servicio base. Este servicio es obligatorio para todos los bloques.');
-      return;
-    }
 
-    // Verificar si es el primer servicio (Solo Alojamiento) y hay más de uno
-    if (selections.length > 1 && selection && selection.serviceType.name === 'Solo Alojamiento') {
-      alert('No se puede eliminar el servicio "Solo Alojamiento". Este servicio debe permanecer siempre.');
-      return;
-    }
-
-    // Si hay solo un servicio, no permitir eliminarlo
-    if (selections.length === 1) {
-      alert('No se puede eliminar el único servicio disponible. Debe haber al menos un servicio en el bloque.');
-      return;
-    }
-
-    if (window.confirm('¿Estás seguro de que quieres eliminar este servicio?')) {
-      try {
-        const deletedSelection = selections.find(s => s.id === id);
-        await deleteSelection(id);
-        
-        // Notificar al componente padre que se eliminó un servicio
-        if (onServiceDeleted && deletedSelection) {
-          onServiceDeleted(deletedSelection.serviceTypeId);
-        }
-      } catch (error) {
-        console.error('Error deleting service:', error);
-      }
-    }
-  };
 
   const handleToggleService = async (id, isEnabled) => {
     // Verificar si es el servicio base (no se puede desactivar)
@@ -274,18 +240,6 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded, onService
                       {selection.isEnabled ? <FiToggleRight /> : <FiToggleLeft />}
                     </button>
                   )}
-                  {(selections.length > 1 && 
-                    selection.serviceTypeId !== 'base-service' && 
-                    selection.serviceType.name !== 'Tarifa Base' &&
-                    selection.serviceType.name !== 'Solo Alojamiento') && (
-                    <button
-                      className={styles.deleteButton}
-                      onClick={() => handleDeleteService(selection.id)}
-                      title="Eliminar"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
@@ -293,11 +247,7 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded, onService
         )}
       </div>
 
-      {availableServices.length === 0 && selections.length > 0 && (
-        <div className={styles.info}>
-          <p>Todos los servicios globales ya están configurados para este bloque.</p>
-        </div>
-      )}
+
     </div>
   );
 };

@@ -308,15 +308,16 @@ model ServiceType {
 }
 
 model BlockServiceSelection {
-  id            String      @id @default(cuid())
-  seasonBlockId String
-  serviceTypeId String
-  isEnabled     Boolean     @default(true)
-  orderIndex    Int         @default(0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
-  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  id                    String      @id @default(cuid())
+  seasonBlockId         String
+  serviceTypeId         String
+  isEnabled             Boolean     @default(true)
+  orderIndex            Int         @default(0)
+  percentageAdjustment  Float?      @default(0)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  seasonBlock           SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+  serviceType           ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
 
   @@unique([seasonBlockId, serviceTypeId])
 }

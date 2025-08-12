@@ -16,6 +16,7 @@ export const useBlockServiceSelections = (seasonBlockId) => {
     setError(null);
 
     try {
+      console.log('Cargando selecciones para bloque:', seasonBlockId);
       const response = await fetch(`${API_URL}/block-service-selections/block/${seasonBlockId}`);
       
       if (!response.ok) {
@@ -23,6 +24,7 @@ export const useBlockServiceSelections = (seasonBlockId) => {
       }
 
       const data = await response.json();
+      console.log('Selecciones cargadas:', data);
       setSelections(data);
     } catch (err) {
       console.error('Error loading block service selections:', err);
@@ -84,6 +86,10 @@ export const useBlockServiceSelections = (seasonBlockId) => {
   // Actualizar selección de servicio
   const updateSelection = useCallback(async (id, updateData) => {
     try {
+      console.log('=== DEBUG UPDATE SELECTION ===');
+      console.log('ID recibido:', id);
+      console.log('Tipo de ID:', typeof id);
+      console.log('Selecciones actuales:', selections.map(s => ({ id: s.id, name: s.serviceType.name })));
       console.log('Enviando petición PUT a:', `${API_URL}/block-service-selections/${id}`);
       console.log('Datos enviados:', updateData);
 
@@ -118,7 +124,7 @@ export const useBlockServiceSelections = (seasonBlockId) => {
       setError(err.message);
       throw err;
     }
-  }, []);
+  }, [selections]);
 
   // Eliminar selección de servicio
   const deleteSelection = useCallback(async (id) => {
@@ -169,6 +175,13 @@ export const useBlockServiceSelections = (seasonBlockId) => {
     return updateSelection(id, { isEnabled });
   }, [updateSelection]);
 
+  // Función de recarga forzada
+  const forceReload = useCallback(async () => {
+    console.log('Forzando recarga de datos...');
+    await loadSelections();
+    await loadAvailableServices();
+  }, [loadSelections, loadAvailableServices]);
+
   // Cargar datos iniciales
   useEffect(() => {
     if (seasonBlockId) {
@@ -182,12 +195,13 @@ export const useBlockServiceSelections = (seasonBlockId) => {
     availableServices,
     loading,
     error,
+    loadSelections,
+    loadAvailableServices,
     createSelection,
     updateSelection,
     deleteSelection,
     reorderSelections,
     toggleSelection,
-    refreshSelections: loadSelections,
-    refreshAvailableServices: loadAvailableServices
+    refreshSelections: forceReload
   };
 }; 

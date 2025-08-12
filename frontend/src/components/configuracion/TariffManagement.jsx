@@ -108,7 +108,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
       if (response.ok) {
         await loadSeasonBlocks();
-        showNotification('Nuevo bloque creado. Haz clic para expandir y editar.', 'success');
       } else {
         const result = await response.json();
         throw new Error(result.errors?.[0] || 'Error al crear el bloque');

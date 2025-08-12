@@ -516,20 +516,27 @@
   text-align: center;
 }
 
-.nonEditable {
+
+
+.disabledService {
   background-color: #f8f9fa;
   color: #6c757d;
-  cursor: not-allowed;
+  opacity: 0.6;
   position: relative;
 }
 
-.nonEditable::after {
-  content: "🔒";
+.disabledService::after {
+  content: "⏸️";
   position: absolute;
   top: 2px;
   right: 2px;
   font-size: 10px;
-  opacity: 0.6;
+  opacity: 0.8;
+}
+
+.disabledService .finalPrice {
+  color: #6c757d;
+  text-decoration: line-through;
 }
 
 .priceInput {

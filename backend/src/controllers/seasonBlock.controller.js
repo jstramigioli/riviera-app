@@ -358,7 +358,8 @@ exports.updateSeasonBlock = async (req, res) => {
               seasonBlockId: id,
               serviceTypeId: selection.serviceTypeId,
               isEnabled: selection.isEnabled ?? true,
-              orderIndex: selection.orderIndex || 0
+              orderIndex: selection.orderIndex || 0,
+              percentageAdjustment: selection.percentageAdjustment ?? 0
             }
           });
         }

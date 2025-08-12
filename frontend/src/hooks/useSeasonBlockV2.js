@@ -45,13 +45,10 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   }, [roundingConfig]);
 
-  // Función helper para obtener los tipos de servicio activos
+  // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
-    // Siempre asegurar que hay al menos un servicio base
-    const enabledSelections = blockServiceSelections.filter(selection => selection.isEnabled);
-    
-    // Si no hay servicios habilitados, crear un servicio base por defecto
-    if (enabledSelections.length === 0) {
+    // Si no hay selecciones, crear un servicio base por defecto
+    if (blockServiceSelections.length === 0) {
       const baseService = {
         id: 'base-service',
         serviceTypeId: 'base-service',
@@ -67,8 +64,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       return [baseService];
     }
     
-    // Retornar los servicios habilitados con su información completa
-    return enabledSelections.map(selection => ({
+    // Retornar todos los servicios con su información completa
+    return blockServiceSelections.map(selection => ({
       ...selection,
       serviceType: selection.serviceType || {
         id: selection.serviceTypeId,

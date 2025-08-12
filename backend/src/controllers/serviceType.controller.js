@@ -177,7 +177,8 @@ exports.deleteServiceType = async (req, res) => {
     const existingServiceType = await prisma.serviceType.findUnique({
       where: { id },
       include: {
-        seasonServiceAdjustments: true
+        seasonPrices: true,
+        blockServiceSelections: true
       }
     });
     
@@ -189,7 +190,7 @@ exports.deleteServiceType = async (req, res) => {
     }
     
     // Verificar que no esté en uso
-    if (existingServiceType.seasonServiceAdjustments.length > 0) {
+    if (existingServiceType.seasonPrices.length > 0 || existingServiceType.blockServiceSelections.length > 0) {
       return res.status(400).json({ 
         data: null, 
         errors: ['No se puede eliminar el tipo de servicio porque está siendo usado en bloques de temporada'] 
