@@ -76,6 +76,9 @@ exports.getSeasonBlockById = async (req, res) => {
   try {
     const { id } = req.params;
     
+    console.log('=== GET SEASON BLOCK ===');
+    console.log('Requested block ID:', id);
+    
     const block = await prisma.seasonBlock.findUnique({
       where: { id },
       include: {
@@ -104,6 +107,12 @@ exports.getSeasonBlockById = async (req, res) => {
         errors: ['Bloque de temporada no encontrado'] 
       });
     }
+    
+    console.log('Block loaded from database:', {
+      id: block.id,
+      name: block.name,
+      serviceAdjustmentMode: block.serviceAdjustmentMode
+    });
     
     res.json({ data: block, errors: null });
   } catch (error) {
@@ -284,6 +293,11 @@ exports.updateSeasonBlock = async (req, res) => {
       blockServiceSelections = []
     } = req.body;
     
+    console.log('=== UPDATE SEASON BLOCK ===');
+    console.log('Block ID:', id);
+    console.log('Received serviceAdjustmentMode:', serviceAdjustmentMode);
+    console.log('Full request body:', req.body);
+    
     // Verificar que el bloque existe
     const existingBlock = await prisma.seasonBlock.findUnique({
       where: { id }
@@ -319,13 +333,24 @@ exports.updateSeasonBlock = async (req, res) => {
       if (serviceAdjustmentMode !== undefined) updateData.serviceAdjustmentMode = serviceAdjustmentMode;
       if (useBlockServices !== undefined) updateData.useBlockServices = useBlockServices;
       
+      console.log('Update data to be applied:', updateData);
+      
       const block = await tx.seasonBlock.update({
         where: { id },
         data: updateData
       });
       
+      console.log('Block updated successfully:', {
+        id: block.id,
+        serviceAdjustmentMode: block.serviceAdjustmentMode
+      });
+      
       // Actualizar precios
       if (prices.length > 0) {
+        console.log('=== BACKEND: UPDATING PRICES ===');
+        console.log('Received prices:', prices);
+        console.log('Prices count:', prices.length);
+        
         // Eliminar precios existentes
         await tx.seasonPrice.deleteMany({
           where: { seasonBlockId: id }
@@ -333,6 +358,13 @@ exports.updateSeasonBlock = async (req, res) => {
         
         // Crear nuevos precios
         for (const price of prices) {
+          console.log('Creating price:', {
+            seasonBlockId: id,
+            roomTypeId: price.roomTypeId,
+            serviceTypeId: price.serviceTypeId,
+            basePrice: parseFloat(price.basePrice) || 0
+          });
+          
           await tx.seasonPrice.create({
             data: {
               seasonBlockId: id,
@@ -342,6 +374,8 @@ exports.updateSeasonBlock = async (req, res) => {
             }
           });
         }
+        
+        console.log('=== BACKEND: PRICES UPDATED SUCCESSFULLY ===');
       }
       
       // Actualizar selecciones de servicios
@@ -473,8 +507,17 @@ exports.getCalculatedPrices = async (req, res) => {
         sel => sel.serviceTypeId === price.serviceTypeId && sel.isEnabled
       );
       
-      // Los ajustes de precio ahora se manejan a nivel de bloque, no de servicio individual
-      // El precio base ya incluye los ajustes aplicados
+      // Aplicar ajuste de porcentaje si existe
+      if (serviceSelection && serviceSelection.percentageAdjustment && serviceSelection.percentageAdjustment !== 0) {
+        const adjustmentMultiplier = 1 + (serviceSelection.percentageAdjustment / 100);
+        finalPrice = Math.round(price.basePrice * adjustmentMultiplier);
+        
+        console.log('=== BACKEND PRICE CALCULATION DEBUG ===');
+        console.log('price.basePrice:', price.basePrice);
+        console.log('serviceSelection.percentageAdjustment:', serviceSelection.percentageAdjustment);
+        console.log('adjustmentMultiplier:', adjustmentMultiplier);
+        console.log('finalPrice:', finalPrice);
+      }
       
       // Aplicar redondeo
       const roundedPrice = applyRounding(finalPrice, roundingConfig);
@@ -484,7 +527,8 @@ exports.getCalculatedPrices = async (req, res) => {
         calculatedPrice: finalPrice,
         roundedPrice: roundedPrice,
         wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
-        serviceSelection
+        serviceSelection,
+        percentageAdjustment: serviceSelection?.percentageAdjustment || 0
       };
     });
     

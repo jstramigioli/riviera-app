@@ -224,6 +224,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       const response = await fetch(`${API_URL}/block-service-selections/block/${blockId}`);
       if (response.ok) {
         const selections = await response.json();
+        console.log('Block service selections loaded:', selections);
         setBlockServiceSelections(selections);
       }
     } catch (error) {
@@ -234,12 +235,14 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
 
   // Cargar datos iniciales
   useEffect(() => {
+    console.log('useSeasonBlockV2 - useEffect triggered with blockId:', blockId, 'hotelId:', hotelId);
     loadInitialData();
   }, [blockId, hotelId]);
 
 
 
   const loadInitialData = async () => {
+    console.log('loadInitialData called with blockId:', blockId);
     setLoading(true);
     setError(null);
     
@@ -270,7 +273,16 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         
         const blockData = await blockRes.json();
         const block = blockData.data;
+        console.log('Block data received from API:', block);
 
+        console.log('=== LOADING BLOCK DATA ===');
+        console.log('Block data from API:', {
+          id: block.id,
+          name: block.name,
+          serviceAdjustmentMode: block.serviceAdjustmentMode,
+          useProportions: block.useProportions
+        });
+        
         setFormData({
           name: block.name,
           description: block.description || '',
@@ -280,11 +292,58 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           serviceAdjustmentMode: block.serviceAdjustmentMode,
           useBlockServices: block.useBlockServices || false
         });
+        
+        console.log('FormData set to:', {
+          serviceAdjustmentMode: block.serviceAdjustmentMode
+        });
+        console.log('Current formData state after setFormData:', formData);
+        console.log('Block serviceAdjustmentMode from API:', block.serviceAdjustmentMode);
+        console.log('Block data type:', typeof block.serviceAdjustmentMode);
+        console.log('Block data value:', block.serviceAdjustmentMode);
+        console.log('Block data comparison:', block.serviceAdjustmentMode === 'PERCENTAGE');
+        console.log('Block data comparison with FIXED:', block.serviceAdjustmentMode === 'FIXED');
+        console.log('Block data length:', block.serviceAdjustmentMode?.length);
+        console.log('Block data JSON:', JSON.stringify(block.serviceAdjustmentMode));
+        console.log('Block data char codes:', block.serviceAdjustmentMode?.split('').map(c => c.charCodeAt(0)));
+        console.log('Block data trimmed:', block.serviceAdjustmentMode?.trim());
+        console.log('Block data toUpperCase:', block.serviceAdjustmentMode?.toUpperCase());
+        console.log('Block data toLowerCase:', block.serviceAdjustmentMode?.toLowerCase());
+        console.log('Block data includes PERCENTAGE:', block.serviceAdjustmentMode?.includes('PERCENTAGE'));
+        console.log('Block data includes FIXED:', block.serviceAdjustmentMode?.includes('FIXED'));
+        console.log('Block data startsWith PERCENTAGE:', block.serviceAdjustmentMode?.startsWith('PERCENTAGE'));
+        console.log('Block data startsWith FIXED:', block.serviceAdjustmentMode?.startsWith('FIXED'));
+        console.log('Block data endsWith PERCENTAGE:', block.serviceAdjustmentMode?.endsWith('PERCENTAGE'));
+        console.log('Block data endsWith FIXED:', block.serviceAdjustmentMode?.endsWith('FIXED'));
+        console.log('Block data indexOf PERCENTAGE:', block.serviceAdjustmentMode?.indexOf('PERCENTAGE'));
+        console.log('Block data indexOf FIXED:', block.serviceAdjustmentMode?.indexOf('FIXED'));
+        console.log('Block data lastIndexOf PERCENTAGE:', block.serviceAdjustmentMode?.lastIndexOf('PERCENTAGE'));
+        console.log('Block data lastIndexOf FIXED:', block.serviceAdjustmentMode?.lastIndexOf('FIXED'));
+        console.log('Block data replace PERCENTAGE with FIXED:', block.serviceAdjustmentMode?.replace('PERCENTAGE', 'FIXED'));
+        console.log('Block data replace FIXED with PERCENTAGE:', block.serviceAdjustmentMode?.replace('FIXED', 'PERCENTAGE'));
+        console.log('Block data split by space:', block.serviceAdjustmentMode?.split(' '));
+        console.log('Block data split by comma:', block.serviceAdjustmentMode?.split(','));
+        console.log('Block data split by dot:', block.serviceAdjustmentMode?.split('.'));
+        console.log('Block data split by underscore:', block.serviceAdjustmentMode?.split('_'));
+        console.log('Block data split by dash:', block.serviceAdjustmentMode?.split('-'));
+        console.log('Block data split by slash:', block.serviceAdjustmentMode?.split('/'));
+        console.log('Block data split by backslash:', block.serviceAdjustmentMode?.split('\\'));
+        console.log('Block data split by pipe:', block.serviceAdjustmentMode?.split('|'));
+        console.log('Block data split by semicolon:', block.serviceAdjustmentMode?.split(';'));
+        console.log('Block data split by colon:', block.serviceAdjustmentMode?.split(':'));
+        console.log('Block data split by equals:', block.serviceAdjustmentMode?.split('='));
+        console.log('Block data split by plus:', block.serviceAdjustmentMode?.split('+'));
+        console.log('Block data split by minus:', block.serviceAdjustmentMode?.split('-'));
+        console.log('Block data split by asterisk:', block.serviceAdjustmentMode?.split('*'));
+        console.log('Block data split by question mark:', block.serviceAdjustmentMode?.split('?'));
+        console.log('Block data split by exclamation mark:', block.serviceAdjustmentMode?.split('!'));
 
         // Si el bloque no tiene precios, inicializar con datos por defecto
         if (!block.seasonPrices || block.seasonPrices.length === 0) {
           initializeDefaultData(roomTypesData, serviceTypesData.data || []);
         } else {
+          console.log('=== LOADING PRICES FROM BACKEND ===');
+          console.log('Block seasonPrices:', block.seasonPrices);
+          console.log('Prices count:', block.seasonPrices.length);
           setPrices(block.seasonPrices || []);
         }
 
@@ -379,42 +438,61 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [saveTimeout, setSaveTimeout] = useState(null);
 
   // Validar formulario
-  const validateForm = () => {
+  const validateForm = (formDataToValidate) => {
     const errors = {};
 
-    if (!formData.name.trim()) {
+    if (!formDataToValidate.name.trim()) {
       errors.name = 'El nombre es requerido';
     }
 
-    if (!formData.startDate) {
+    if (!formDataToValidate.startDate) {
       errors.startDate = 'La fecha de inicio es requerida';
     }
 
-    if (!formData.endDate) {
+    if (!formDataToValidate.endDate) {
       errors.endDate = 'La fecha de fin es requerida';
     }
 
-    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
+    if (formDataToValidate.startDate && formDataToValidate.endDate && formDataToValidate.startDate >= formDataToValidate.endDate) {
       errors.endDate = 'La fecha de fin debe ser posterior a la fecha de inicio';
     }
 
     setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return { isValid: Object.keys(errors).length === 0, errors: Object.values(errors) };
   };
 
   // Guardar bloque de temporada
-  const saveSeasonBlock = useCallback(async () => {
-    if (!validateForm()) {
-      return { success: false, error: 'Por favor, corrige los errores del formulario' };
+  const saveSeasonBlock = useCallback(async (currentFormData = null, currentPrices = null) => {
+    const dataToSave = currentFormData || formData; // Prioritize passed formData
+    const pricesToSave = currentPrices || prices; // Prioritize passed prices
+
+    console.log('saveSeasonBlock called with formData:', dataToSave, 'and pricesToSave:', pricesToSave);
+    
+    // Validar formulario
+    const validationResult = validateForm(dataToSave);
+    if (!validationResult.isValid) {
+      console.error('Validation failed:', validationResult.errors);
+      setError(validationResult.errors.join(', '));
+      return { success: false, error: validationResult.errors.join(', ') };
     }
 
     setSaving(true);
     setError(null);
 
     try {
+      console.log('=== SAVE SEASON BLOCK DEBUG ===');
+      console.log('Current prices state:', pricesToSave);
+      console.log('Prices state length:', pricesToSave.length);
+      
+      // Buscar el precio específico que se modificó para debug
+      const modifiedPrice = pricesToSave.find(p => 
+        p.roomTypeId === 7 && p.serviceTypeId === 'cme7kpo5j0000nwnjj7vy418d'
+      );
+      console.log('Modified price in state:', modifiedPrice);
+
       const payload = {
-        ...formData,
-        prices: prices.map(p => ({
+        ...dataToSave,
+        prices: pricesToSave.map(p => ({ // Use pricesToSave
           roomTypeId: p.roomTypeId,
           serviceTypeId: p.serviceTypeId,
           basePrice: p.basePrice
@@ -425,9 +503,24 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           pricingMode: selection.pricingMode,
           fixedPrice: selection.fixedPrice,
           percentage: selection.percentage,
-          orderIndex: selection.orderIndex
+          orderIndex: selection.orderIndex,
+          percentageAdjustment: selection.percentageAdjustment
         }))
       };
+      
+      console.log('Saving payload:', payload);
+      console.log('=== DETAILED PAYLOAD DEBUG ===');
+      console.log('Prices being sent:', payload.prices);
+      console.log('Prices count:', payload.prices.length);
+      payload.prices.forEach((price, index) => {
+        console.log(`Price ${index + 1}:`, {
+          roomTypeId: price.roomTypeId,
+          serviceTypeId: price.serviceTypeId,
+          basePrice: price.basePrice
+        });
+      });
+      console.log('Block service selections:', payload.blockServiceSelections);
+      console.log('Block service selections count:', payload.blockServiceSelections.length);
 
       const url = blockId 
         ? `${API_URL}/season-blocks/${blockId}`
@@ -460,9 +553,12 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   }, [blockId, formData, prices, blockServiceSelections, validateForm]);
 
   // Función de guardado automático
-  const autoSave = useCallback(async () => {
+  const autoSave = useCallback(async (currentFormData = null, currentPrices = null) => {
+    console.log('autoSave called with currentFormData:', currentFormData);
     if (blockId) {
-      const result = await saveSeasonBlock();
+      console.log('Calling saveSeasonBlock with blockId:', blockId);
+      const result = await saveSeasonBlock(currentFormData, currentPrices);
+      console.log('saveSeasonBlock result:', result);
       if (!result.success) {
         console.error('Error en guardado automático:', result.error);
       }
@@ -471,7 +567,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
 
   // Actualizar datos del formulario con guardado automático
   const updateFormData = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    console.log('updateFormData called:', { field, value, blockId });
+    
+    // Crear el nuevo formData con el cambio
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
     
     // Limpiar errores de validación
     if (validationErrors[field]) {
@@ -484,16 +584,29 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
 
     // Guardado automático con debounce
     if (blockId) {
+      console.log('Scheduling auto-save for blockId:', blockId);
       if (saveTimeout) {
         clearTimeout(saveTimeout);
       }
-      const newTimeout = setTimeout(autoSave, 2000); // Guardar después de 2 segundos de inactividad
+      const newTimeout = setTimeout(() => {
+        console.log('Auto-save triggered for field:', field);
+        console.log('Using updated formData for auto-save:', newFormData);
+        console.log('About to call autoSave with formData:', newFormData);
+        autoSave(newFormData);
+      }, 1000); // Guardar después de 1 segundo de inactividad
       setSaveTimeout(newTimeout);
     }
   };
 
   // Actualizar precio de una habitación-servicio con proporciones inteligentes y guardado automático
   const updatePrice = (roomTypeId, serviceTypeId, newPrice, applyProportions = true) => {
+    console.log('=== UPDATE PRICE CALLED ===');
+    console.log('roomTypeId:', roomTypeId);
+    console.log('serviceTypeId:', serviceTypeId);
+    console.log('newPrice:', newPrice);
+    console.log('applyProportions:', applyProportions);
+    console.log('formData.useProportions:', formData.useProportions);
+    
     const numericPrice = parseFloat(newPrice) || 0;
     
     // Si las proporciones están desactivadas, solo actualizar el precio específico
@@ -514,20 +627,42 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           );
           
           if (baseService && serviceTypeId === baseService.id) {
-            // Actualizar todos los servicios con porcentaje para este tipo de habitación
-            blockServiceSelections.forEach(selection => {
-              if (selection.pricingMode === 'PERCENTAGE' && selection.percentage) {
-                const servicePriceIndex = updated.findIndex(p => 
-                  p.roomTypeId === roomTypeId && p.serviceTypeId === selection.serviceTypeId
-                );
-                
-                if (servicePriceIndex >= 0) {
-                  const newServicePrice = numericPrice * (1 + selection.percentage / 100);
-                  updated[servicePriceIndex] = { 
-                    ...updated[servicePriceIndex], 
-                    basePrice: newServicePrice 
-                  };
-                }
+            console.log('=== UPDATING BASE PRICE - RECALCULATING PERCENTAGE SERVICES ===');
+            console.log('Base service updated:', baseService.name);
+            console.log('New base price:', numericPrice);
+            console.log('Block service selections:', blockServiceSelections);
+            
+            // Actualizar los precios de servicios con porcentaje para este tipo de habitación
+            const servicesWithPercentage = blockServiceSelections.filter(selection => 
+              selection.isEnabled && selection.percentageAdjustment && selection.percentageAdjustment !== 0
+            );
+            
+            console.log('Services with percentage to update:', servicesWithPercentage);
+            
+            servicesWithPercentage.forEach(selection => {
+              const percentagePrice = Math.round(numericPrice * (1 + selection.percentageAdjustment / 100));
+              console.log(`Updating ${selection.serviceTypeId} with percentage ${selection.percentageAdjustment}%: ${percentagePrice}`);
+              
+              const servicePriceIndex = updated.findIndex(p => 
+                p.roomTypeId === roomTypeId && p.serviceTypeId === selection.serviceTypeId
+              );
+              
+              if (servicePriceIndex >= 0) {
+                updated[servicePriceIndex] = { 
+                  ...updated[servicePriceIndex], 
+                  basePrice: percentagePrice 
+                };
+              } else {
+                // Si no existe el precio, crearlo
+                const serviceType = serviceTypes.find(st => st.id === selection.serviceTypeId);
+                const roomType = roomTypes.find(rt => rt.id === roomTypeId);
+                updated.push({
+                  roomTypeId,
+                  serviceTypeId: selection.serviceTypeId,
+                  basePrice: percentagePrice,
+                  roomType,
+                  serviceType
+                });
               }
             });
           }
@@ -546,6 +681,41 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           }];
         }
       });
+      
+      // Activar auto-guardado después de actualizar precios
+      if (blockId) {
+        console.log('=== TRIGGERING AUTO-SAVE AFTER PRICE UPDATE ===');
+        console.log('blockId:', blockId);
+        console.log('saveTimeout:', saveTimeout);
+        
+        if (saveTimeout) {
+          clearTimeout(saveTimeout);
+          console.log('Cleared existing timeout');
+        }
+        
+        const newTimeout = setTimeout(() => {
+          console.log('=== AUTO-SAVE TIMEOUT TRIGGERED ===');
+          // Usar el estado más reciente de prices
+          setPrices(currentPrices => {
+            console.log('=== CAPTURING LATEST PRICES STATE ===');
+            console.log('Latest prices state:', currentPrices);
+            
+            // Buscar el precio específico que se modificó
+            const modifiedPrice = currentPrices.find(p => 
+              p.roomTypeId === 7 && p.serviceTypeId === 'cme7kpo5j0000nwnjj7vy418d'
+            );
+            console.log('Modified price in latest state:', modifiedPrice);
+            
+            // Llamar autoSave con el estado más reciente
+            autoSave(null, currentPrices);
+            return currentPrices; // No cambiar el estado, solo capturarlo
+          });
+        }, 2000); // Guardar después de 2 segundos de inactividad
+        
+        setSaveTimeout(newTimeout);
+        console.log('New timeout set:', newTimeout);
+      }
+      
       return;
     }
 
@@ -646,6 +816,19 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           });
         });
       });
+      
+      console.log('=== PRICES STATE UPDATED ===');
+      console.log('New prices state will be set with the updated prices');
+      console.log('Updated prices array:', updated);
+      
+      // Activar auto-guardado después de actualizar precios
+      if (blockId) {
+        if (saveTimeout) {
+          clearTimeout(saveTimeout);
+        }
+        const newTimeout = setTimeout(autoSave, 2000); // Guardar después de 2 segundos de inactividad
+        setSaveTimeout(newTimeout);
+      }
       
       return updated;
     });
@@ -838,6 +1021,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }));
   };
 
+  // Función para actualizar precios desde el componente
+  const updatePricesFromCalculated = (calculatedPrices) => {
+    setPrices(calculatedPrices);
+  };
+
   return {
     // Estados
     loading,
@@ -857,6 +1045,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     updateServiceAdjustment,
     getCalculatedPrice,
     saveSeasonBlock,
+    autoSave,
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
@@ -865,6 +1054,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     getActiveServiceAdjustments,
     initializePricesForNewService,
     removePricesForDeletedService,
-    loadBlockServiceSelections
+    loadBlockServiceSelections,
+    updatePricesFromCalculated
   };
 }; 
