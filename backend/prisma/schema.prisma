@@ -253,6 +253,8 @@ model SeasonBlock {
   useProportions         Boolean                 @default(false)
   referenceRoomTypeId    Int?
   serviceAdjustmentMode  String                  @default("PERCENTAGE")
+  isDraft                Boolean                 @default(false)
+  lastSavedAt            DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
@@ -269,6 +271,7 @@ model SeasonPrice {
   roomTypeId    Int
   serviceTypeId String
   basePrice     Float
+  isDraft       Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
@@ -308,16 +311,17 @@ model ServiceType {
 }
 
 model BlockServiceSelection {
-  id                    String      @id @default(cuid())
-  seasonBlockId         String
-  serviceTypeId         String
-  isEnabled             Boolean     @default(true)
-  orderIndex            Int         @default(0)
-  percentageAdjustment  Float?      @default(0)
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
-  seasonBlock           SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
-  serviceType           ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  id                   String      @id @default(cuid())
+  seasonBlockId        String
+  serviceTypeId        String
+  isEnabled            Boolean     @default(true)
+  orderIndex           Int         @default(0)
+  isDraft              Boolean     @default(false)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  percentageAdjustment Float?      @default(0)
+  seasonBlock          SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
+  serviceType          ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
 
   @@unique([seasonBlockId, serviceTypeId])
 }

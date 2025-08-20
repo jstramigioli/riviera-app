@@ -14,7 +14,8 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
     startDate: '',
     endDate: '',
     seasonPrices: [],
-    serviceAdjustments: []
+    serviceAdjustments: [],
+    serviceAdjustmentMode: 'FIXED' // Modo por defecto: monto fijo
   });
 
   // Datos de referencia
@@ -90,7 +91,10 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
         startDate: blockData.startDate ? blockData.startDate.split('T')[0] : '',
         endDate: blockData.endDate ? blockData.endDate.split('T')[0] : '',
         seasonPrices: blockData.seasonPrices || [],
-        serviceAdjustments: blockData.seasonServiceAdjustments || []
+        serviceAdjustments: blockData.seasonServiceAdjustments || [],
+        serviceAdjustmentMode: blockData.serviceAdjustmentMode || 'FIXED', // Modo por defecto: monto fijo
+        isDraft: blockData.isDraft || false,
+        lastSavedAt: blockData.lastSavedAt
       });
     } catch (err) {
       setError(err.message);
@@ -100,10 +104,10 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
   };
 
   const initializeEmptyStructures = (roomTypesData, serviceTypesData) => {
-    // Inicializar precios base con valores vacíos
+    // Inicializar precios base con valores por defecto
     const seasonPrices = roomTypesData.map(roomType => ({
       roomTypeId: roomType.id,
-      basePrice: ''
+      basePrice: 50000 // $500 por defecto
     }));
 
     // Inicializar ajustes por servicio con valores vacíos
@@ -122,7 +126,8 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
     setFormData(prev => ({
       ...prev,
       seasonPrices,
-      serviceAdjustments
+      serviceAdjustments,
+      serviceAdjustmentMode: 'FIXED' // Modo por defecto: monto fijo
     }));
   };
 
@@ -193,7 +198,94 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
     }));
   };
 
-  const validateForm = () => {
+  // Funciones para el nuevo diseño combinado
+  const updateServiceSelection = (serviceTypeId, isEnabled) => {
+    setFormData(prev => {
+      const currentSelections = prev.blockServiceSelections || [];
+      const existingIndex = currentSelections.findIndex(s => s.serviceTypeId === serviceTypeId);
+      
+      let newSelections;
+      if (existingIndex >= 0) {
+        newSelections = currentSelections.map((selection, index) =>
+          index === existingIndex ? { ...selection, isEnabled } : selection
+        );
+      } else {
+        newSelections = [...currentSelections, { serviceTypeId, isEnabled }];
+      }
+      
+      return {
+        ...prev,
+        blockServiceSelections: newSelections
+      };
+    });
+  };
+
+  const getEnabledServiceTypes = () => {
+    return serviceTypes.filter(serviceType => {
+      const isBaseService = serviceType.name === 'Solo Alojamiento';
+      if (isBaseService) return true; // El alojamiento siempre está habilitado
+      
+      const selection = formData.blockServiceSelections?.find(s => s.serviceTypeId === serviceType.id);
+      return selection?.isEnabled ?? true; // Por defecto habilitado si no hay selección
+    });
+  };
+
+  const getCombinedPrice = (roomTypeId, serviceTypeId) => {
+    const isBaseService = serviceTypes.find(st => st.id === serviceTypeId)?.name === 'Solo Alojamiento';
+    
+    if (isBaseService) {
+      return getSeasonPrice(roomTypeId);
+    }
+    
+    // Para servicios adicionales, combinar precio base + ajuste
+    const basePrice = getSeasonPrice(roomTypeId);
+    const adjustment = getServiceAdjustment(roomTypeId, serviceTypeId);
+    
+    if (!basePrice.basePrice) return { finalPrice: 0 };
+    
+    let finalPrice = basePrice.basePrice;
+    
+    if (adjustment.value && adjustment.value !== 0) {
+      if (adjustment.mode === 'PERCENTAGE') {
+        finalPrice += (basePrice.basePrice * adjustment.value / 100);
+      } else {
+        finalPrice += adjustment.value;
+      }
+    }
+    
+    return { finalPrice };
+  };
+
+  const updateCombinedPrice = (roomTypeId, serviceTypeId, value) => {
+    const isBaseService = serviceTypes.find(st => st.id === serviceTypeId)?.name === 'Solo Alojamiento';
+    
+    if (isBaseService) {
+      updateSeasonPrice(roomTypeId, value);
+    } else {
+      // Para servicios adicionales, calcular el ajuste basado en el precio final
+      const basePrice = getSeasonPrice(roomTypeId);
+      const finalPrice = parseFloat(value) || 0;
+      
+      if (basePrice.basePrice && basePrice.basePrice > 0) {
+        const adjustment = ((finalPrice - basePrice.basePrice) / basePrice.basePrice) * 100;
+        updateServiceAdjustment(roomTypeId, serviceTypeId, 'value', adjustment);
+        updateServiceAdjustment(roomTypeId, serviceTypeId, 'mode', 'PERCENTAGE');
+      }
+    }
+  };
+
+  // Funciones de utilidad para obtener datos
+  const getSeasonPrice = (roomTypeId) => {
+    return formData.seasonPrices.find(price => price.roomTypeId === roomTypeId) || { basePrice: 0 };
+  };
+
+  const getServiceAdjustment = (roomTypeId, serviceTypeId) => {
+    return formData.serviceAdjustments.find(adjustment => 
+      adjustment.roomTypeId === roomTypeId && adjustment.serviceTypeId === serviceTypeId
+    ) || { mode: 'PERCENTAGE', value: 0 };
+  };
+
+  const validateForm = (requireDates = false) => {
     const errors = {};
 
     // Validar nombre
@@ -201,12 +293,14 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
       errors.name = 'El nombre es requerido';
     }
 
-    // Validar fechas
-    if (!formData.startDate) {
-      errors.startDate = 'La fecha de inicio es requerida';
-    }
-    if (!formData.endDate) {
-      errors.endDate = 'La fecha de fin es requerida';
+    // Validar fechas solo si se requieren (para confirmación)
+    if (requireDates) {
+      if (!formData.startDate) {
+        errors.startDate = 'La fecha de inicio es requerida';
+      }
+      if (!formData.endDate) {
+        errors.endDate = 'La fecha de fin es requerida';
+      }
     }
 
     if (formData.startDate && formData.endDate) {
@@ -218,12 +312,14 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
       }
     }
 
-    // Validar precios base
-    const hasEmptyPrices = formData.seasonPrices.some(price => 
-      !price.basePrice || price.basePrice <= 0
-    );
-    if (hasEmptyPrices) {
-      errors.seasonPrices = 'Todos los precios base deben ser mayores a 0';
+    // Solo validar precios base si se requieren fechas (confirmación)
+    if (requireDates) {
+      const hasEmptyPrices = formData.seasonPrices.some(price => 
+        !price.basePrice || price.basePrice <= 0
+      );
+      if (hasEmptyPrices) {
+        errors.seasonPrices = 'Todos los precios base deben ser mayores a 0';
+      }
     }
 
     // Validar ajustes por servicio
@@ -269,7 +365,7 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
   };
 
   const saveSeasonBlock = async (force = false) => {
-    if (!validateForm()) {
+    if (!validateForm(false)) { // No requerir fechas para guardar en borrador
       return { success: false, errors: validationErrors };
     }
 
@@ -314,6 +410,41 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
 
       const savedBlock = await response.json();
       return { success: true, data: savedBlock };
+
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmSeasonBlock = async () => {
+    if (!blockId) {
+      return { success: false, error: 'No hay bloque para confirmar' };
+    }
+
+    // Validar que todas las fechas estén completas antes de confirmar
+    if (!validateForm(true)) { // Requerir fechas para confirmación
+      return { success: false, errors: validationErrors };
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const response = await fetch(`${API_URL}/season-blocks/${blockId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al confirmar los cambios');
+      }
+
+      const result = await response.json();
+      return { success: true, data: result.data, message: result.message };
 
     } catch (err) {
       setError(err.message);
@@ -375,9 +506,18 @@ export const useSeasonBlock = (blockId = null, hotelId = null) => {
     copyValueToAll,
     validateForm,
     saveSeasonBlock,
+    confirmSeasonBlock,
     deleteSeasonBlock,
     cloneSeasonBlock,
     checkOverlaps,
+
+    // Nuevas funciones para diseño combinado
+    updateServiceSelection,
+    getEnabledServiceTypes,
+    getCombinedPrice,
+    updateCombinedPrice,
+    getSeasonPrice,
+    getServiceAdjustment,
 
     // Utilidades
     setError

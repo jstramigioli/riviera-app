@@ -1,3 +1,252 @@
+/* ===== CSS RESET COMPLETO ===== */
+/* Reset y normalización de estilos por defecto del navegador */
+
+/* Box sizing para todos los elementos */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Reset de márgenes y padding */
+* {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset de elementos de encabezado */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.2;
+  height: auto;
+  min-height: 0;
+}
+
+/* Reset de listas */
+ul, ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset de enlaces */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Reset de botones */
+button {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+/* Reset de inputs y textareas */
+input, textarea, select {
+  font: inherit;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Reset de imágenes */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Reset de tablas */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* Reset de elementos de formulario */
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset de elementos de citación */
+blockquote, q {
+  quotes: none;
+}
+
+blockquote:before, blockquote:after,
+q:before, q:after {
+  content: '';
+  content: none;
+}
+
+/* Reset de elementos de código */
+code, pre {
+  font-family: inherit;
+}
+
+/* Reset de elementos de definición */
+dl, dt, dd {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset de elementos de figura */
+figure {
+  margin: 0;
+}
+
+/* Reset de elementos de navegación */
+nav {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset de elementos de sección */
+section, article, aside, header, footer, main {
+  display: block;
+}
+
+/* Reset de elementos de formulario específicos */
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  cursor: pointer;
+}
+
+/* Reset de elementos de lista de definición */
+dl {
+  margin: 0;
+}
+
+dt {
+  font-weight: inherit;
+}
+
+dd {
+  margin: 0;
+}
+
+/* Reset de elementos de citación */
+cite {
+  font-style: inherit;
+}
+
+/* Reset de elementos de énfasis */
+em, i {
+  font-style: inherit;
+}
+
+strong, b {
+  font-weight: inherit;
+}
+
+/* Reset de elementos de código inline */
+code {
+  font-family: inherit;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Reset de elementos de preformateado */
+pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Reset de elementos de marcado */
+mark {
+  background: none;
+  color: inherit;
+}
+
+/* Reset de elementos de tiempo */
+time {
+  font-style: inherit;
+}
+
+/* Reset de elementos de dirección */
+address {
+  font-style: inherit;
+}
+
+/* Reset de elementos de abreviatura */
+abbr {
+  text-decoration: none;
+  border-bottom: none;
+}
+
+/* Reset de elementos de acrónimo */
+acronym {
+  text-decoration: none;
+  border-bottom: none;
+}
+
+/* Reset de elementos de inserción y eliminación */
+ins {
+  text-decoration: none;
+}
+
+del {
+  text-decoration: none;
+}
+
+/* Reset de elementos de subíndice y superíndice */
+sub, sup {
+  font-size: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+/* Reset de elementos de detalles */
+details {
+  display: block;
+}
+
+summary {
+  display: list-item;
+  cursor: pointer;
+}
+
+/* Reset de elementos de progreso */
+progress {
+  vertical-align: baseline;
+}
+
+/* Reset de elementos de medidor */
+meter {
+  vertical-align: baseline;
+}
+
+/* Reset de elementos de salida */
+output {
+  display: inline;
+}
+
+/* Reset de elementos de plantilla */
+template {
+  display: none;
+}
+
+/* Reset de elementos de contenido */
+[hidden] {
+  display: none !important;
+}
+
+/* ===== FIN DEL CSS RESET ===== */
+
+/* Estilos base del proyecto */
 @import './styles/variables.css';
 
 html, body, #root {

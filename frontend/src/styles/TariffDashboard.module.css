@@ -1,0 +1,535 @@
+/* Dashboard Container */
+.dashboardContainer {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 100px);
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Header */
+.header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.cardContent {
+  padding: 1.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Loading States */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.error {
+  color: #dc3545;
+  text-align: center;
+  padding: 1rem;
+  background-color: #f8d7da;
+  border-radius: 8px;
+  border: 1px solid #f5c6cb;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Current Rates Summary */
+.blockSelector {
+  margin-bottom: 1.5rem;
+}
+
+.selectorLabel {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.blockSelect {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.blockSelect:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.selectedBlockInfo {
+  background-color: #e8f5e8;
+  border: 1px solid #c3e6c3;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.activeBlockInfo {
+  background-color: #e8f5e8;
+  border: 1px solid #c3e6c3;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.blockName {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.blockDates {
+  font-size: 0.9rem;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.activeIndicator {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.blockMode {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.noActiveBlock {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: #856404;
+}
+
+.ratesList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.rateItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #007bff;
+}
+
+.roomTypeInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.roomTypeName {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.roomTypeCapacity {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.rateInfo {
+  text-align: right;
+}
+
+.ratePrice {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #28a745;
+}
+
+.serviceRates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.serviceRate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.serviceName {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.servicePrice {
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Intelligent Pricing Status */
+.statusContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.statusDot.enabled {
+  background-color: #28a745;
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.statusDot.disabled {
+  background-color: #dc3545;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+}
+
+.statusText {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.toggleButton {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleButton.enabled {
+  background-color: #dc3545;
+  color: white;
+}
+
+.toggleButton.enabled:hover {
+  background-color: #c82333;
+}
+
+.toggleButton.disabled {
+  background-color: #28a745;
+  color: white;
+}
+
+.toggleButton.disabled:hover {
+  background-color: #218838;
+}
+
+.statusDescription {
+  margin-bottom: 1rem;
+}
+
+.statusDescription p {
+  color: #6c757d;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Active Season Blocks */
+.blocksList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.blockItem {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.blockItem.active {
+  border-left: 4px solid #28a745;
+  background-color: #f8fff9;
+}
+
+.blockItem.upcoming {
+  border-left: 4px solid #ffc107;
+  background-color: #fffef8;
+}
+
+.blockItem.past {
+  border-left: 4px solid #6c757d;
+  background-color: #f8f9fa;
+  opacity: 0.7;
+}
+
+.blockHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.blockName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.blockStatus {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.blockStatus.active {
+  color: #155724;
+  background-color: #d4edda;
+}
+
+.blockStatus.upcoming {
+  color: #856404;
+  background-color: #fff3cd;
+}
+
+.blockStatus.past {
+  color: #6c757d;
+  background-color: #e9ecef;
+}
+
+.blockDates {
+  margin-bottom: 0.5rem;
+}
+
+.dateRange {
+  font-size: 0.9rem;
+  color: #495057;
+  font-weight: 500;
+}
+
+.blockDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.adjustmentMode,
+.lastSaved {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* Quick Actions */
+.actionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.actionButton:hover {
+  background-color: #e9ecef;
+  border-color: #007bff;
+  transform: translateX(4px);
+}
+
+.actionIcon {
+  font-size: 1.5rem;
+  width: 40px;
+  text-align: center;
+}
+
+.actionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.actionTitle {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.actionDescription {
+  font-size: 0.875rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+/* Card Footer */
+.cardFooter {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.lastUpdate,
+.blockCount,
+.helpText {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboardContainer {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .cardContent {
+    padding: 1rem;
+  }
+
+  .statusContainer {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .blockHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .actionButton {
+    padding: 0.75rem;
+  }
+
+  .actionIcon {
+    font-size: 1.25rem;
+    width: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboardContainer {
+    padding: 0.5rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .rateItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .rateInfo {
+    text-align: left;
+  }
+} 

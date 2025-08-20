@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiX, FiSave, FiTrash2, FiCopy, FiCalendar, FiDollarSign, FiSettings } from 'react-icons/fi';
+import { FiX, FiSave, FiTrash2, FiCopy, FiCalendar, FiDollarSign, FiSettings, FiPercent } from 'react-icons/fi';
 import { useSeasonBlock } from '../../hooks/useSeasonBlock';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './SeasonBlockModal.module.css';
@@ -31,15 +31,22 @@ const SeasonBlockModal = ({
     serviceTypes,
     validationErrors,
     updateFormData,
-    updateSeasonPrice,
     updateServiceAdjustment,
     copyValueToRow,
     copyValueToColumn,
     copyValueToAll,
     saveSeasonBlock,
+    confirmSeasonBlock,
     deleteSeasonBlock,
     cloneSeasonBlock,
-    setError
+    setError,
+    // Nuevas funciones para el diseño combinado
+    updateServiceSelection,
+    getEnabledServiceTypes,
+    getCombinedPrice,
+    updateCombinedPrice,
+    getSeasonPrice,
+    getServiceAdjustment
   } = useSeasonBlock(blockId, hotelId);
 
   // Focus management y accesibilidad
@@ -129,14 +136,28 @@ const SeasonBlockModal = ({
     
     if (result.success) {
       showNotification(
-        blockId ? 'Bloque de temporada actualizado exitosamente' : 'Bloque de temporada creado exitosamente'
+        blockId ? 'Cambios guardados en borrador' : 'Bloque de temporada creado exitosamente'
       );
       onSaved?.(result.data);
-      onClose();
+      if (!blockId) {
+        onClose();
+      }
     } else if (result.hasConflict) {
       setShowConflictModal(true);
     } else {
       showNotification(result.error || 'Error al guardar el bloque de temporada', 'error');
+    }
+  };
+
+  const handleConfirm = async () => {
+    const result = await confirmSeasonBlock();
+    
+    if (result.success) {
+      showNotification(result.message || 'Cambios confirmados exitosamente');
+      onSaved?.(result.data);
+      onClose();
+    } else {
+      showNotification(result.error || 'Error al confirmar los cambios', 'error');
     }
   };
 
@@ -164,17 +185,7 @@ const SeasonBlockModal = ({
     showNotification('Bloque clonado. Modifica las fechas y guarda para crear una copia.');
   };
 
-  const getServiceAdjustment = (roomTypeId, serviceTypeId) => {
-    return formData.serviceAdjustments.find(
-      adj => adj.roomTypeId === roomTypeId && adj.serviceTypeId === serviceTypeId
-    ) || { mode: 'PERCENTAGE', value: '' };
-  };
 
-  const getSeasonPrice = (roomTypeId) => {
-    return formData.seasonPrices.find(
-      price => price.roomTypeId === roomTypeId
-    ) || { basePrice: '' };
-  };
 
   const handleQuickCopyColumn = (serviceTypeId) => {
     const firstAdjustment = formData.serviceAdjustments.find(
@@ -222,9 +233,16 @@ const SeasonBlockModal = ({
         >
           {/* Header */}
           <div className={styles.modalHeader}>
-            <h2 id="modal-title">
-              {blockId ? 'Editar Bloque de Temporada' : 'Nuevo Bloque de Temporada'}
-            </h2>
+            <div>
+              <h2 id="modal-title">
+                {blockId ? 'Editar Bloque de Temporada' : 'Nuevo Bloque de Temporada'}
+              </h2>
+              {blockId && formData.isDraft && (
+                <div className={styles.draftIndicator}>
+                  <span>📝 Cambios sin confirmar</span>
+                </div>
+              )}
+            </div>
             <button
               className={styles.closeButton}
               onClick={handleClose}
@@ -351,66 +369,71 @@ const SeasonBlockModal = ({
                       </div>
                     </div>
                   </div>
+
+
                 </div>
 
-                {/* Right Column - Tables */}
+                {/* Right Column - Service Selection and Combined Table */}
                 <div className={styles.rightColumn}>
-                  {/* Base Prices Table */}
-                  <div className={styles.tableSection}>
-                    <div className={styles.tableSectionHeader}>
-                      <h3 className={styles.tableSectionTitle}>
-                        <FiDollarSign /> Tarifas Base por Habitación
-                      </h3>
+                  {/* Service Selection Panel */}
+                  <div className={styles.section}>
+                    <h3 className={styles.sectionTitle}>
+                      <FiSettings /> Servicios Incluidos
+                    </h3>
+                    <div className={styles.serviceSelectionGrid}>
+                      {serviceTypes.map(serviceType => {
+                        const isBaseService = serviceType.name === 'Solo Alojamiento';
+                        const isEnabled = formData.blockServiceSelections?.find(
+                          s => s.serviceTypeId === serviceType.id
+                        )?.isEnabled ?? true;
+                        
+                        return (
+                          <div key={serviceType.id} className={styles.serviceSelectionItem}>
+                            <label className={styles.serviceToggle}>
+                              <input
+                                type="checkbox"
+                                checked={isEnabled}
+                                onChange={(e) => updateServiceSelection(serviceType.id, e.target.checked)}
+                                disabled={isBaseService} // El alojamiento siempre está habilitado
+                              />
+                              <span className={styles.serviceName}>
+                                {serviceType.name}
+                                {isBaseService && <span className={styles.baseServiceLabel}> (Base)</span>}
+                              </span>
+                            </label>
+                          </div>
+                        );
+                      })}
                     </div>
-                    
-                    <div className={styles.tableContainer}>
-                      <table className={styles.table} role="table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Tipo de Habitación</th>
-                            <th scope="col">Tarifa Base ($)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {roomTypes.map(roomType => {
-                            const price = getSeasonPrice(roomType.id);
-                            return (
-                              <tr key={roomType.id}>
-                                <td className={styles.roomTypeCell}>
-                                  {roomType.name}
-                                </td>
-                                <td>
-                                  <input
-                                    type="number"
-                                    className={styles.priceInput}
-                                    value={price.basePrice || ''}
-                                    onChange={(e) => updateSeasonPrice(roomType.id, e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    step="1"
-                                    aria-label={`Tarifa base para ${roomType.name}`}
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    {validationErrors.seasonPrices && (
-                      <div className={styles.errorText} style={{ padding: '12px 16px' }}>
-                        {validationErrors.seasonPrices}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Service Adjustments Table */}
+                  {/* Combined Prices Table */}
                   <div className={styles.tableSection}>
                     <div className={styles.tableSectionHeader}>
-                      <h3 className={styles.tableSectionTitle}>
-                        Ajustes por Servicio
-                      </h3>
+                      <div className={styles.tableHeaderLeft}>
+                        <h3 className={styles.tableSectionTitle}>
+                          <FiDollarSign /> Establecer Tarifas
+                        </h3>
+                        <div className={styles.adjustmentModeSelector}>
+                          <label className={styles.modeLabel}>Modo de ajuste:</label>
+                          <div className={styles.modeButtons}>
+                            <button
+                              type="button"
+                              className={`${styles.modeButton} ${formData.serviceAdjustmentMode === 'FIXED' ? styles.active : ''}`}
+                              onClick={() => updateFormData('serviceAdjustmentMode', 'FIXED')}
+                            >
+                              <FiDollarSign /> Monto fijo
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.modeButton} ${formData.serviceAdjustmentMode === 'PERCENTAGE' ? styles.active : ''}`}
+                              onClick={() => updateFormData('serviceAdjustmentMode', 'PERCENTAGE')}
+                            >
+                              <FiPercent /> Porcentaje
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                       <div className={styles.quickActions}>
                         <button
                           type="button"
@@ -428,7 +451,7 @@ const SeasonBlockModal = ({
                         <thead>
                           <tr>
                             <th scope="col">Habitación</th>
-                            {serviceTypes.map(serviceType => (
+                            {getEnabledServiceTypes().map(serviceType => (
                               <th key={serviceType.id} scope="col">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   {serviceType.name}
@@ -445,13 +468,51 @@ const SeasonBlockModal = ({
                               </th>
                             ))}
                           </tr>
+                          {/* Percentage Adjustment Row */}
+                          {formData.serviceAdjustmentMode === 'PERCENTAGE' && (
+                            <tr>
+                              <th scope="col" style={{ background: '#f8f9fa' }}>Ajuste (%)</th>
+                              {getEnabledServiceTypes().map(serviceType => {
+                                const isBaseService = serviceType.name === 'Solo Alojamiento';
+                                const adjustment = getServiceAdjustment(null, serviceType.id);
+                                
+                                return (
+                                  <th key={`adj-${serviceType.id}`} style={{ background: '#f8f9fa' }}>
+                                    {!isBaseService ? (
+                                      <div className={styles.adjustmentInputGroup}>
+                                        <input
+                                          type="number"
+                                          className={styles.adjustmentInput}
+                                          value={adjustment.value || ''}
+                                          onChange={(e) => updateServiceAdjustment(
+                                            null, 
+                                            serviceType.id, 
+                                            'value', 
+                                            e.target.value
+                                          )}
+                                          placeholder="0"
+                                          min="-100"
+                                          max="500"
+                                          step="1"
+                                          aria-label={`Ajuste porcentual para ${serviceType.name}`}
+                                        />
+                                        <span>%</span>
+                                      </div>
+                                    ) : (
+                                      <span style={{ color: '#6c757d' }}>-</span>
+                                    )}
+                                  </th>
+                                );
+                              })}
+                            </tr>
+                          )}
                         </thead>
                         <tbody>
                           {roomTypes.map(roomType => (
                             <tr key={roomType.id}>
                               <td className={styles.roomTypeCell}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  {roomType.name}
+                                  <strong>{roomType.name}</strong>
                                   <button
                                     type="button"
                                     className={styles.copyButton}
@@ -463,42 +524,24 @@ const SeasonBlockModal = ({
                                   </button>
                                 </div>
                               </td>
-                              {serviceTypes.map(serviceType => {
-                                const adjustment = getServiceAdjustment(roomType.id, serviceType.id);
+                              {getEnabledServiceTypes().map(serviceType => {
+                                const isBaseService = serviceType.name === 'Solo Alojamiento';
+                                const price = isBaseService ? 
+                                  getSeasonPrice(roomType.id) : 
+                                  getCombinedPrice(roomType.id, serviceType.id);
+                                
                                 return (
-                                  <td key={serviceType.id} className={styles.adjustmentCell}>
-                                    <div className={styles.adjustmentInputGroup}>
-                                      <select
-                                        className={styles.modeSelect}
-                                        value={adjustment.mode}
-                                        onChange={(e) => updateServiceAdjustment(
-                                          roomType.id, 
-                                          serviceType.id, 
-                                          'mode', 
-                                          e.target.value
-                                        )}
-                                        aria-label={`Modo de ajuste para ${roomType.name} - ${serviceType.name}`}
-                                      >
-                                        <option value="PERCENTAGE">%</option>
-                                        <option value="FIXED">$</option>
-                                      </select>
-                                      <input
-                                        type="number"
-                                        className={styles.adjustmentInput}
-                                        value={adjustment.value || ''}
-                                        onChange={(e) => updateServiceAdjustment(
-                                          roomType.id, 
-                                          serviceType.id, 
-                                          'value', 
-                                          e.target.value
-                                        )}
-                                        placeholder="0"
-                                        min={adjustment.mode === 'PERCENTAGE' ? -100 : 0}
-                                        max={adjustment.mode === 'PERCENTAGE' ? 500 : undefined}
-                                        step={adjustment.mode === 'PERCENTAGE' ? 1 : 1}
-                                        aria-label={`Valor de ajuste para ${roomType.name} - ${serviceType.name}`}
-                                      />
-                                    </div>
+                                  <td key={serviceType.id} className={styles.priceCell}>
+                                    <input
+                                      type="number"
+                                      className={styles.priceInput}
+                                      value={price?.basePrice || price?.finalPrice || ''}
+                                      onChange={(e) => updateCombinedPrice(roomType.id, serviceType.id, e.target.value)}
+                                      placeholder="0"
+                                      min="0"
+                                      step="1"
+                                      aria-label={`Precio para ${roomType.name} - ${serviceType.name}`}
+                                    />
                                   </td>
                                 );
                               })}
@@ -508,9 +551,9 @@ const SeasonBlockModal = ({
                       </table>
                     </div>
                     
-                    {validationErrors.serviceAdjustments && (
+                    {validationErrors.seasonPrices && (
                       <div className={styles.errorText} style={{ padding: '12px 16px' }}>
-                        {validationErrors.serviceAdjustments}
+                        {validationErrors.seasonPrices}
                       </div>
                     )}
                   </div>
@@ -569,10 +612,30 @@ const SeasonBlockModal = ({
                 ) : (
                   <>
                     <FiSave />
-                    {blockId ? 'Actualizar' : 'Crear'}
+                    {blockId ? 'Guardar Cambios' : 'Crear'}
                   </>
                 )}
               </button>
+              {blockId && (
+                <button
+                  type="button"
+                  className={`${styles.button} ${styles.buttonConfirm}`}
+                  onClick={handleConfirm}
+                  disabled={saving || loading}
+                >
+                  {saving ? (
+                    <>
+                      <div className={styles.loadingSpinner}></div>
+                      Confirmando...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave />
+                      Confirmar Cambios
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

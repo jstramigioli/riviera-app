@@ -13,6 +13,7 @@ import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import RatesCalendar from './components/RatesCalendar';
+import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
 import CobrosPagos from './pages/CobrosPagos';
 import ErrorDisplay from './components/ErrorDisplay';
@@ -646,6 +647,10 @@ function ConsultasReservasViewWrapper() {
 }
 
 function TarifasView() {
+  return <TariffDashboard />;
+}
+
+function TarifasCalendarioView() {
   return <RatesCalendar />;
 }
 
@@ -664,6 +669,7 @@ function App() {
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
             <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
             <Route path="/tarifas" element={<TarifasView />} />
+            <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />

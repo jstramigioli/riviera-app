@@ -438,38 +438,63 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [saveTimeout, setSaveTimeout] = useState(null);
 
   // Validar formulario
-  const validateForm = (formDataToValidate) => {
+  const validateForm = (formDataToValidate, requireDates = false) => {
     const errors = {};
 
-    if (!formDataToValidate.name.trim()) {
+    console.log('=== VALIDATION DEBUG ===');
+    console.log('Validating formData:', formDataToValidate);
+    console.log('requireDates:', requireDates);
+    console.log('name:', formDataToValidate.name, 'trimmed:', formDataToValidate.name?.trim());
+    console.log('startDate:', formDataToValidate.startDate);
+    console.log('endDate:', formDataToValidate.endDate);
+
+    if (!formDataToValidate.name || !formDataToValidate.name.trim()) {
       errors.name = 'El nombre es requerido';
+      console.log('❌ Name validation failed');
+    } else {
+      console.log('✅ Name validation passed');
     }
 
-    if (!formDataToValidate.startDate) {
-      errors.startDate = 'La fecha de inicio es requerida';
-    }
+    // Solo validar fechas si se requieren
+    if (requireDates) {
+      if (!formDataToValidate.startDate) {
+        errors.startDate = 'La fecha de inicio es requerida';
+        console.log('❌ StartDate validation failed');
+      } else {
+        console.log('✅ StartDate validation passed');
+      }
 
-    if (!formDataToValidate.endDate) {
-      errors.endDate = 'La fecha de fin es requerida';
+      if (!formDataToValidate.endDate) {
+        errors.endDate = 'La fecha de fin es requerida';
+        console.log('❌ EndDate validation failed');
+      } else {
+        console.log('✅ EndDate validation passed');
+      }
+    } else {
+      console.log('📝 Date validation skipped (requireDates = false)');
     }
 
     if (formDataToValidate.startDate && formDataToValidate.endDate && formDataToValidate.startDate >= formDataToValidate.endDate) {
       errors.endDate = 'La fecha de fin debe ser posterior a la fecha de inicio';
+      console.log('❌ Date range validation failed');
+    } else if (formDataToValidate.startDate && formDataToValidate.endDate) {
+      console.log('✅ Date range validation passed');
     }
 
+    console.log('Validation errors:', errors);
     setValidationErrors(errors);
     return { isValid: Object.keys(errors).length === 0, errors: Object.values(errors) };
   };
 
   // Guardar bloque de temporada
-  const saveSeasonBlock = useCallback(async (currentFormData = null, currentPrices = null) => {
+  const saveSeasonBlock = useCallback(async (currentFormData = null) => {
     const dataToSave = currentFormData || formData; // Prioritize passed formData
-    const pricesToSave = currentPrices || prices; // Prioritize passed prices
+    const pricesToSave = prices; // Use current prices state
 
-    console.log('saveSeasonBlock called with formData:', dataToSave, 'and pricesToSave:', pricesToSave);
+
     
-    // Validar formulario
-    const validationResult = validateForm(dataToSave);
+    // Validar formulario (no requerir fechas para guardar en borrador)
+    const validationResult = validateForm(dataToSave, false);
     if (!validationResult.isValid) {
       console.error('Validation failed:', validationResult.errors);
       setError(validationResult.errors.join(', '));
@@ -521,6 +546,17 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       });
       console.log('Block service selections:', payload.blockServiceSelections);
       console.log('Block service selections count:', payload.blockServiceSelections.length);
+      
+      // Log detallado de los porcentajes de ajuste
+      console.log('=== PERCENTAGE ADJUSTMENTS DEBUG ===');
+      payload.blockServiceSelections.forEach((selection, index) => {
+        console.log(`Selection ${index + 1}:`, {
+          serviceTypeId: selection.serviceTypeId,
+          isEnabled: selection.isEnabled,
+          percentageAdjustment: selection.percentageAdjustment,
+          orderIndex: selection.orderIndex
+        });
+      });
 
       const url = blockId 
         ? `${API_URL}/season-blocks/${blockId}`
@@ -552,20 +588,70 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   }, [blockId, formData, prices, blockServiceSelections, validateForm]);
 
-  // Función de guardado automático
-  const autoSave = useCallback(async (currentFormData = null, currentPrices = null) => {
+  // Función de guardado automático (deshabilitada para guardado manual)
+  const autoSave = useCallback(async (currentFormData = null) => {
     console.log('autoSave called with currentFormData:', currentFormData);
-    if (blockId) {
-      console.log('Calling saveSeasonBlock with blockId:', blockId);
-      const result = await saveSeasonBlock(currentFormData, currentPrices);
-      console.log('saveSeasonBlock result:', result);
-      if (!result.success) {
-        console.error('Error en guardado automático:', result.error);
-      }
-    }
+    // Deshabilitado para implementar guardado manual
+    console.log('Auto-save disabled - using manual save system');
   }, [blockId, saveSeasonBlock]);
 
-  // Actualizar datos del formulario con guardado automático
+  // Función para confirmar cambios (guardado manual)
+  const confirmSeasonBlock = useCallback(async () => {
+    if (!blockId) {
+      return { success: false, error: 'No hay bloque para confirmar' };
+    }
+
+    console.log('=== CONFIRMING SEASON BLOCK ===');
+    console.log('Current formData before confirmation:', formData);
+
+    // Asegurar que tenemos los datos más recientes del estado
+    const currentFormData = {
+      name: formData.name || '',
+      description: formData.description || '',
+      startDate: formData.startDate || '',
+      endDate: formData.endDate || '',
+      useProportions: formData.useProportions,
+      serviceAdjustmentMode: formData.serviceAdjustmentMode,
+      useBlockServices: formData.useBlockServices
+    };
+
+    console.log('Processed formData for validation:', currentFormData);
+
+    // Validar que todas las fechas estén completas antes de confirmar
+    const validationResult = validateForm(currentFormData, true); // Requerir fechas para confirmación
+    if (!validationResult.isValid) {
+      console.error('Validation failed for confirmation:', validationResult.errors);
+      setError(validationResult.errors.join(', '));
+      return { success: false, error: validationResult.errors.join(', ') };
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const response = await fetch(`${API_URL}/season-blocks/${blockId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al confirmar los cambios');
+      }
+
+      const result = await response.json();
+      return { success: true, data: result.data, message: result.message };
+
+    } catch (err) {
+      console.error('Error confirming season block:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setSaving(false);
+    }
+  }, [blockId, formData]);
+
+  // Actualizar datos del formulario (sin guardado automático)
   const updateFormData = (field, value) => {
     console.log('updateFormData called:', { field, value, blockId });
     
@@ -582,20 +668,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       });
     }
 
-    // Guardado automático con debounce
-    if (blockId) {
-      console.log('Scheduling auto-save for blockId:', blockId);
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
-      }
-      const newTimeout = setTimeout(() => {
-        console.log('Auto-save triggered for field:', field);
-        console.log('Using updated formData for auto-save:', newFormData);
-        console.log('About to call autoSave with formData:', newFormData);
-        autoSave(newFormData);
-      }, 1000); // Guardar después de 1 segundo de inactividad
-      setSaveTimeout(newTimeout);
-    }
+    // No guardado automático - los cambios se guardarán manualmente
+    console.log('Form data updated - manual save required');
   };
 
   // Actualizar precio de una habitación-servicio con proporciones inteligentes y guardado automático
@@ -682,39 +756,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         }
       });
       
-      // Activar auto-guardado después de actualizar precios
-      if (blockId) {
-        console.log('=== TRIGGERING AUTO-SAVE AFTER PRICE UPDATE ===');
-        console.log('blockId:', blockId);
-        console.log('saveTimeout:', saveTimeout);
-        
-        if (saveTimeout) {
-          clearTimeout(saveTimeout);
-          console.log('Cleared existing timeout');
-        }
-        
-        const newTimeout = setTimeout(() => {
-          console.log('=== AUTO-SAVE TIMEOUT TRIGGERED ===');
-          // Usar el estado más reciente de prices
-          setPrices(currentPrices => {
-            console.log('=== CAPTURING LATEST PRICES STATE ===');
-            console.log('Latest prices state:', currentPrices);
-            
-            // Buscar el precio específico que se modificó
-            const modifiedPrice = currentPrices.find(p => 
-              p.roomTypeId === 7 && p.serviceTypeId === 'cme7kpo5j0000nwnjj7vy418d'
-            );
-            console.log('Modified price in latest state:', modifiedPrice);
-            
-            // Llamar autoSave con el estado más reciente
-            autoSave(null, currentPrices);
-            return currentPrices; // No cambiar el estado, solo capturarlo
-          });
-        }, 2000); // Guardar después de 2 segundos de inactividad
-        
-        setSaveTimeout(newTimeout);
-        console.log('New timeout set:', newTimeout);
-      }
+      // No auto-guardado - los cambios se guardarán manualmente
+      console.log('Price updated - manual save required');
       
       return;
     }
@@ -834,13 +877,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     });
 
     // Guardado automático con debounce
-    if (blockId) {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
-      }
-      const newTimeout = setTimeout(autoSave, 2000); // Guardar después de 2 segundos de inactividad
-      setSaveTimeout(newTimeout);
-    }
+    // No auto-guardado - los cambios se guardarán manualmente
+    console.log('Service adjustment updated - manual save required');
   };
 
 
@@ -1026,6 +1064,29 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     setPrices(calculatedPrices);
   };
 
+  // Función para resetear precios a sus valores originales
+  const resetPrices = async () => {
+    if (!blockId) return;
+    
+    try {
+      console.log('=== RESETTING PRICES TO ORIGINAL ===');
+      const response = await fetch(`${API_URL}/season-blocks/${blockId}`);
+      
+      if (response.ok) {
+        const blockData = await response.json();
+        if (blockData.data && blockData.data.seasonPrices) {
+          console.log('Resetting prices with original data:', blockData.data.seasonPrices);
+          setPrices(blockData.data.seasonPrices);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error resetting prices:', error);
+      return false;
+    }
+  };
+
   return {
     // Estados
     loading,
@@ -1045,6 +1106,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     updateServiceAdjustment,
     getCalculatedPrice,
     saveSeasonBlock,
+    confirmSeasonBlock,
     autoSave,
     deleteSeasonBlock,
     cloneSeasonBlock,
@@ -1055,6 +1117,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     initializePricesForNewService,
     removePricesForDeletedService,
     loadBlockServiceSelections,
-    updatePricesFromCalculated
+    updatePricesFromCalculated,
+    setBlockServiceSelections,
+    resetPrices
   };
 }; 

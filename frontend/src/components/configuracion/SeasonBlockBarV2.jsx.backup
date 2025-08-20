@@ -808,7 +808,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
             </button>
           </div>
         </div>
-      </div>
 
       {/* Contenido expandido */}
       {isExpanded && (

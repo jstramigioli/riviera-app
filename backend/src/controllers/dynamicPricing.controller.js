@@ -562,14 +562,57 @@ class DynamicPricingController {
       const { hotelId } = req.params;
       const configData = req.body;
 
-      const config = await prisma.dynamicPricingConfig.upsert({
-        where: { hotelId },
-        update: configData,
-        create: {
-          hotelId,
-          ...configData
-        }
+
+
+      // Primero obtener la configuración existente
+      const existingConfig = await prisma.dynamicPricingConfig.findUnique({
+        where: { hotelId }
       });
+
+      let config;
+      if (existingConfig) {
+        // Si existe, actualizar solo los campos proporcionados
+        config = await prisma.dynamicPricingConfig.update({
+          where: { hotelId },
+          data: configData
+        });
+      } else {
+        // Si no existe, crear con valores por defecto
+        const defaultConfig = {
+          hotelId,
+          enabled: false,
+          anticipationThresholds: [7, 14, 30],
+          anticipationWeight: 0.3,
+          globalOccupancyWeight: 0.2,
+          isWeekendWeight: 0.15,
+          weekendDays: [0, 6],
+          isHolidayWeight: 0.2,
+          weatherScoreWeight: 0.1,
+          eventImpactWeight: 0.05,
+          maxAdjustmentPercentage: 50,
+          enableGapPromos: true,
+          enableWeatherApi: false,
+          enableRecentDemand: false,
+          anticipationMode: 'ESCALONADO',
+          anticipationMaxDays: 30,
+          anticipationSteps: null,
+          standardRate: 100,
+          idealOccupancy: 80,
+          occupancyAdjustmentPercentage: 20,
+          anticipationAdjustmentPercentage: 15,
+          weekendAdjustmentPercentage: 10,
+          holidayAdjustmentPercentage: 25,
+          occupancyEnabled: true,
+          anticipationEnabled: true,
+          weekendEnabled: true,
+          holidayEnabled: true,
+          ...configData // Sobrescribir con los datos proporcionados
+        };
+        
+        config = await prisma.dynamicPricingConfig.create({
+          data: defaultConfig
+        });
+      }
 
       res.json(config);
     } catch (error) {

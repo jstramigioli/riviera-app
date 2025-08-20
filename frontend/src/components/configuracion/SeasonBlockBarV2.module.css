@@ -60,35 +60,36 @@
 }
 
 .title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
 }
 
 .titleInput {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: #1f2937;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: white;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   width: 100%;
-  max-width: 400px;
+  outline: none;
 }
 
 .titleInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border: none;
+  background: transparent;
 }
 
 .titleInput.error {
-  border-color: #ef4444;
+  color: #ef4444;
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: #6b7280;
   display: flex;
@@ -103,42 +104,49 @@
 }
 
 .dateInput {
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 14px;
-  background: white;
+  font-size: 18px;
+  font-weight: 600;
+  color: #6b7280;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  outline: none;
 }
 
 .dateInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border: none;
+  background: transparent;
 }
 
 .dateInput.error {
-  border-color: #ef4444;
+  color: #ef4444;
 }
 
 .description {
-  font-size: 14px;
+  font-size: 18px;
   color: #6b7280;
-  line-height: 1.5;
+  margin: 0;
 }
 
 .descriptionInput {
+  font-size: 18px;
+  color: #6b7280;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   width: 100%;
-  max-width: 500px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
-  resize: vertical;
-  min-height: 60px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
 }
 
 .descriptionInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border: none;
+  background: transparent;
 }
 
 /* Acciones */
@@ -200,6 +208,15 @@
 
 .actionBtn.save:hover:not(:disabled) {
   background: #bbf7d0;
+}
+
+.actionBtn.confirm {
+  background: #3b82f6;
+  color: white;
+}
+
+.actionBtn.confirm:hover:not(:disabled) {
+  background: #2563eb;
 }
 
 .actionBtn.cancel {
@@ -463,7 +480,7 @@
 .pricesGrid {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .pricesGrid th {
@@ -472,14 +489,16 @@
   text-align: left;
   font-weight: 600;
   color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 2px solid #d1d5db;
   white-space: nowrap;
+  font-size: 16px;
 }
 
 .pricesGrid td {
   padding: 12px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 2px solid #e5e7eb;
   vertical-align: top;
+  font-size: 16px;
 }
 
 .pricesGrid tr:last-child td {
@@ -490,6 +509,8 @@
   background: #f9fafb;
   font-weight: 600;
   min-width: 150px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .coefficientInfo {
@@ -499,6 +520,7 @@
   margin-top: 4px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
@@ -514,29 +536,8 @@
 .priceCell {
   min-width: 120px;
   text-align: center;
-}
-
-
-
-.disabledService {
-  background-color: #f8f9fa;
-  color: #6c757d;
-  opacity: 0.6;
-  position: relative;
-}
-
-.disabledService::after {
-  content: "⏸️";
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 10px;
-  opacity: 0.8;
-}
-
-.disabledService .finalPrice {
-  color: #6c757d;
-  text-decoration: line-through;
+  height: 60px; /* Altura fija para mantener consistencia */
+  vertical-align: middle;
 }
 
 .priceInput {
@@ -545,8 +546,10 @@
   border: 1px solid #d1d5db;
   border-radius: 4px;
   padding: 6px 8px;
-  font-size: 14px;
-  text-align: right;
+  font-size: 16px;
+  text-align: center;
+  height: 36px; /* Altura fija para el input */
+  box-sizing: border-box;
 }
 
 .priceInput:focus {
@@ -556,23 +559,49 @@
 
 .priceDisplay {
   text-align: center;
+  height: 36px; /* Misma altura que el input */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.disabledService {
+  opacity: 0.6;
+  background-color: #f8f9fa;
+}
+
+.serviceToggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.serviceToggle:hover {
+  cursor: pointer;
+}
+
+.disabledService .finalPrice {
+  color: #6c757d;
+  text-decoration: line-through;
 }
 
 .finalPrice {
   font-weight: 600;
   color: #1f2937;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .originalPrice {
-  font-size: 12px;
+  font-size: 14px;
   color: #6b7280;
   font-style: italic;
   margin-top: 2px;
 }
 
 .adjustmentInfo {
-  font-size: 11px;
+  font-size: 13px;
   color: #059669;
   background: #d1fae5;
   padding: 2px 6px;
@@ -953,9 +982,82 @@
 }
 
 .toggleText {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   color: #374151;
+}
+
+/* Toggle personalizado para borrador/activo */
+.draftToggleContainer {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggleWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.customToggle {
+  width: 120px; /* Ancho fijo para mantener consistencia */
+  height: 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.customToggle.draft {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 2px solid #d1d5db;
+}
+
+.customToggle.draft:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.customToggle.active {
+  background: #10b981;
+  color: white;
+  border: 2px solid #059669;
+}
+
+.customToggle.active:hover {
+  background: #059669;
+  border-color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.customToggle .toggleText {
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+
+/* Botones de acción superiores */
+.topActions {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.actionButtonsRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .toggleDescription {
@@ -963,4 +1065,178 @@
   color: #6b7280;
   margin-left: 32px;
   font-style: italic;
+}
+
+/* Estilos para los botones de acción */
+.actionButtons {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggleControls {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actionButtonsRight {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.actionButton {
+  padding: 14px 28px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+  text-align: center;
+}
+
+.saveButton {
+  background: #10b981;
+  color: white;
+}
+
+.saveButton:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.saveButton:active {
+  transform: translateY(0);
+}
+
+.cancelButton {
+  background: #6b7280;
+  color: white;
+}
+
+.cancelButton:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+
+.cancelButton:active {
+  transform: translateY(0);
+}
+
+/* Estilos para campos editables */
+.editableField {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.editableField:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.editableField:active {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Ajustes para inputs que mantienen apariencia visual */
+.titleInput {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  outline: none;
+}
+
+.titleInput:focus {
+  outline: none;
+  border: none;
+  background: transparent;
+}
+
+.titleInput.error {
+  color: #ef4444;
+}
+
+.dateInput {
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+.dateInput:focus {
+  outline: none;
+  border: none;
+  background: transparent;
+}
+
+.dateInput.error {
+  color: #ef4444;
+}
+
+.descriptionInput {
+  font-size: 16px;
+  color: #6b7280;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+}
+
+.descriptionInput:focus {
+  outline: none;
+  border: none;
+  background: transparent;
+} 
+
+/* Botón de revertir */
+.revertButton {
+  background: #ef4444;
+  color: white;
+}
+
+.revertButton:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.revertButton:active {
+  transform: translateY(0);
 } 

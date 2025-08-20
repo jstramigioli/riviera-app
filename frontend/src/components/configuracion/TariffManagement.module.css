@@ -291,6 +291,67 @@
   transform: translateY(-1px);
 }
 
+/* Información sobre el sistema de borradores */
+.draftInfo {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.draftInfoIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.draftInfoContent {
+  flex: 1;
+}
+
+.draftInfoContent strong {
+  color: #495057;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.draftInfoContent ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.draftInfoContent li {
+  color: #6c757d;
+  font-size: 13px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.draftIndicator {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #f59e0b;
+}
+
+.confirmedIndicator {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #10b981;
+}
+
 /* Blocks List */
 .blocksList {
   display: flex;

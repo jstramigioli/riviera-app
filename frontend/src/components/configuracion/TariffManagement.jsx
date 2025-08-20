@@ -11,7 +11,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [seasonBlocks, setSeasonBlocks] = useState([]);
   const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices', 'rounding'
   
-
+  // Estado para key reset de bloques
+  const [blockKeys, setBlockKeys] = useState({});
 
   // Estados para notificaciones
   const [notification, setNotification] = useState(null);
@@ -87,47 +88,64 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
   const handleCreateBlock = async () => {
     try {
-      // Crear un nuevo bloque con valores por defecto
-      const newBlock = {
-        name: 'Nuevo Bloque de Temporada',
-        description: '',
+      // Crear un nuevo bloque automáticamente en modo borrador
+      const newBlockData = {
+        name: `Nuevo Bloque ${new Date().toLocaleDateString()}`,
+        description: 'Bloque creado automáticamente',
         startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días después
-        hotelId: hotelId,
-        isActive: true,
-        orderIndex: seasonBlocks.length + 1
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días desde hoy
+        useProportions: true,
+        serviceAdjustmentMode: 'PERCENTAGE',
+        useBlockServices: false,
+        isDraft: true // Siempre crear en modo borrador
       };
 
       const response = await fetch(`${API_URL}/season-blocks`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newBlock)
+        body: JSON.stringify(newBlockData)
       });
 
       if (response.ok) {
-        await loadSeasonBlocks();
+        await response.json();
+        showNotification('Bloque creado exitosamente en modo borrador', 'success');
+        loadSeasonBlocks(); // Recargar la lista
       } else {
-        const result = await response.json();
-        throw new Error(result.errors?.[0] || 'Error al crear el bloque');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al crear el bloque');
       }
     } catch (error) {
-      console.error('Error creating new block:', error);
-      showNotification(error.message, 'error');
+      console.error('Error creating season block:', error);
+      showNotification(error.message || 'Error al crear el bloque de temporada', 'error');
     }
   };
 
 
 
-  const handleBlockSaved = () => {
+
+
+
+
+  const handleBlockSaved = (updatedBlock) => {
+    showNotification('Bloque guardado exitosamente', 'success');
     loadSeasonBlocks();
   };
 
   const handleBlockDeleted = () => {
+    showNotification('Bloque eliminado exitosamente', 'success');
     loadSeasonBlocks();
   };
 
+  // Función para resetear un bloque específico (key reset)
+  const resetBlock = (blockId) => {
+    setBlockKeys(prev => ({
+      ...prev,
+      [blockId]: (prev[blockId] || 0) + 1
+    }));
+    console.log(`Resetting block ${blockId} with new key`);
+  };
 
 
   if (loading) {
@@ -215,17 +233,21 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                 </button>
               </div>
             ) : (
-              <div className={styles.blocksList}>
-                {seasonBlocks.map(block => (
-                  <SeasonBlockBarV2
-                    key={block.id}
-                    block={block}
-                    onSaved={handleBlockSaved}
-                    onDeleted={handleBlockDeleted}
-                    hotelId={hotelId}
-                  />
-                ))}
-              </div>
+              <>
+                <div className={styles.blocksList}>
+                  {seasonBlocks.map(block => (
+                    <SeasonBlockBarV2
+                      key={`${block.id}-${blockKeys[block.id] || 0}`}
+                      block={block}
+                      onSaved={handleBlockSaved}
+                      onDeleted={handleBlockDeleted}
+                      onBlockUpdated={loadSeasonBlocks}
+                      onResetBlock={() => resetBlock(block.id)}
+                      hotelId={hotelId}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -346,6 +368,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           </div>
         )}
       </div>
+
+
 
       {/* Notificación */}
       {notification && (

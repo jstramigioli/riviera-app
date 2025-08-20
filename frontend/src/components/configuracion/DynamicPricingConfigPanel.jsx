@@ -68,7 +68,12 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
     console.log('DynamicPricingConfigPanel - Loading config from API...');
     fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         console.log('DynamicPricingConfigPanel - Raw data from API:', data);
 
@@ -110,6 +115,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
       })
       .catch((error) => {
         console.error('DynamicPricingConfigPanel - Error loading config:', error);
+        alert(`Error al cargar la configuración: ${error.message}`);
         setLoading(false);
       });
   }, [hotelId]);
@@ -151,7 +157,35 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           if (reloadResponse.ok) {
             const reloadedData = await reloadResponse.json();
             console.log('DynamicPricingConfigPanel - reloaded data:', reloadedData);
-            setConfig(reloadedData);
+            
+            // Mapear los datos del backend al formato del frontend
+            const mappedData = {
+              ...defaultConfig,
+              enabled: reloadedData.enabled !== undefined ? reloadedData.enabled : defaultConfig.enabled,
+              idealOccupancy: reloadedData.idealOccupancy || defaultConfig.idealOccupancy,
+              occupancyAdjustmentPercentage: reloadedData.occupancyAdjustmentPercentage || defaultConfig.occupancyAdjustmentPercentage,
+              anticipationAdjustmentPercentage: reloadedData.anticipationAdjustmentPercentage || defaultConfig.anticipationAdjustmentPercentage,
+              weekendAdjustmentPercentage: reloadedData.weekendAdjustmentPercentage || defaultConfig.weekendAdjustmentPercentage,
+              holidayAdjustmentPercentage: reloadedData.holidayAdjustmentPercentage || defaultConfig.holidayAdjustmentPercentage,
+              anticipationMode: reloadedData.anticipationMode || defaultConfig.anticipationMode,
+              anticipationMaxDays: reloadedData.anticipationMaxDays || defaultConfig.anticipationMaxDays,
+              anticipationSteps: reloadedData.anticipationSteps || defaultConfig.anticipationSteps,
+              weekendDays: reloadedData.weekendDays !== undefined ? reloadedData.weekendDays : defaultConfig.weekendDays,
+              occupancyEnabled: reloadedData.occupancyEnabled !== undefined ? reloadedData.occupancyEnabled : true,
+              anticipationEnabled: reloadedData.anticipationEnabled !== undefined ? reloadedData.anticipationEnabled : true,
+              weekendEnabled: reloadedData.weekendEnabled !== undefined ? reloadedData.weekendEnabled : true,
+              holidayEnabled: reloadedData.holidayEnabled !== undefined ? reloadedData.holidayEnabled : true,
+            };
+            
+            setConfig(mappedData);
+            
+            // Sincronizar el estado de factores activos
+            setActiveFactors({
+              occupancy: mappedData.occupancyEnabled,
+              anticipation: mappedData.anticipationEnabled,
+              weekend: mappedData.weekendEnabled,
+              holiday: mappedData.holidayEnabled
+            });
           }
         }
         // Recargar los porcentajes máximos
@@ -161,10 +195,13 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           setMaxAdjustments(maxAdjustmentsData);
         }
       } else {
-        console.error('Error al guardar la configuración:', response.statusText);
+        const errorText = await response.text();
+        console.error('Error al guardar la configuración:', response.status, errorText);
+        alert(`Error al guardar la configuración: ${response.status} - ${errorText}`);
       }
     } catch (error) {
       console.error('Error al guardar la configuración:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
