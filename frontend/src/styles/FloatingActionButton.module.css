@@ -1,0 +1,205 @@
+/* FloatingActionButton.module.css */
+.floatingActionContainer {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Botón principal */
+.mainButton {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 2.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1002;
+}
+
+.mainButton:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.mainButton:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 2px 15px rgba(102, 126, 234, 0.3);
+}
+
+.mainButton.expanded {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  transform: rotate(45deg);
+}
+
+.mainButton.expanded:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+}
+
+.plusIcon {
+  line-height: 1;
+  margin-top: -2px;
+  transition: transform 0.3s ease;
+}
+
+/* Contenedor de botones de acción */
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(20px) scale(0.8);
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.actionButtons.expanded {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Botones de acción individuales */
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 25px;
+  background: white;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 140px;
+  justify-content: flex-start;
+}
+
+.actionButton:hover {
+  transform: translateX(-4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.actionButton:active {
+  transform: translateX(-2px) scale(0.98);
+}
+
+/* Estilos específicos para cada tipo de botón */
+.queryButton {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+}
+
+.queryButton:hover {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+}
+
+.reservationButton {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  color: white;
+}
+
+.reservationButton:hover {
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+}
+
+.actionIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.actionLabel {
+  font-weight: 500;
+}
+
+/* Animaciones */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .floatingActionContainer {
+    bottom: 1.5rem;
+    right: 1.5rem;
+  }
+
+  .mainButton {
+    width: 55px;
+    height: 55px;
+    font-size: 2rem;
+  }
+
+  .actionButton {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-width: 120px;
+  }
+
+  .actionButtons {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .floatingActionContainer {
+    bottom: 1rem;
+    right: 1rem;
+  }
+
+  .mainButton {
+    width: 50px;
+    height: 50px;
+    font-size: 1.8rem;
+  }
+
+  .actionButton {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: 100px;
+  }
+
+  .actionButtons {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+} 

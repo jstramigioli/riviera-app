@@ -449,6 +449,56 @@ export async function getDetailedOccupancyScore(params) {
   return data;
 }
 
+// Funciones para consultas
+export async function fetchQueries() {
+  const res = await fetch(`${API_URL}/queries`);
+  if (!res.ok) throw new Error('Error fetching queries');
+  return res.json();
+}
+
+export async function fetchQuery(id) {
+  const res = await fetch(`${API_URL}/queries/${id}`);
+  if (!res.ok) throw new Error('Error fetching query');
+  return res.json();
+}
+
+export async function createQuery(data) {
+  const res = await fetch(`${API_URL}/queries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating query');
+  return res.json();
+}
+
+export async function updateQuery(id, data) {
+  const res = await fetch(`${API_URL}/queries/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error updating query');
+  return res.json();
+}
+
+export async function deleteQuery(id) {
+  const res = await fetch(`${API_URL}/queries/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting query');
+  return res.ok;
+}
+
+export async function convertQueryToReservation(id) {
+  const res = await fetch(`${API_URL}/queries/${id}/convert-to-reservation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) throw new Error('Error converting query to reservation');
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -492,5 +542,11 @@ export default {
   getPricesForDateRange,
   getHotel,
   updateHotel,
-  getCalculatedRates
+  getCalculatedRates,
+  fetchQueries,
+  fetchQuery,
+  createQuery,
+  updateQuery,
+  deleteQuery,
+  convertQueryToReservation
 };

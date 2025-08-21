@@ -1,0 +1,2858 @@
+[
+  {
+    "id": "cmej7tqqe0001nwfhxqlmc68k",
+    "hotelId": "default-hotel",
+    "name": "Nuevo Bloque 8/19/2025",
+    "description": "Bloque creado automáticamente",
+    "startDate": "2025-08-20T00:00:00.000Z",
+    "endDate": "2025-09-19T00:00:00.000Z",
+    "isActive": true,
+    "orderIndex": 3,
+    "useBlockServices": false,
+    "basePrice": null,
+    "useProportions": true,
+    "referenceRoomTypeId": null,
+    "serviceAdjustmentMode": "PERCENTAGE",
+    "isDraft": true,
+    "lastSavedAt": null,
+    "createdAt": "2025-08-20T00:09:25.143Z",
+    "updatedAt": "2025-08-20T00:12:11.607Z",
+    "hotel": {
+      "id": "default-hotel",
+      "name": "Hotel Riviera",
+      "description": "Hotel por defecto",
+      "address": null,
+      "phone": null,
+      "email": null,
+      "website": null,
+      "isActive": true,
+      "createdAt": "2025-08-11T20:36:04.262Z",
+      "updatedAt": "2025-08-11T20:36:04.262Z"
+    },
+    "blockServiceSelections": [
+      {
+        "id": "cmej7tqra000ynwfhka6stlfe",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "isEnabled": true,
+        "orderIndex": 1,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.174Z",
+        "updatedAt": "2025-08-20T00:09:25.174Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqra000znwfhm7y7jk09",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "isEnabled": true,
+        "orderIndex": 2,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.174Z",
+        "updatedAt": "2025-08-20T00:09:25.174Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqra0010nwfhxi4h6kbf",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "isEnabled": true,
+        "orderIndex": 3,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.174Z",
+        "updatedAt": "2025-08-20T00:09:25.174Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqra0011nwfhvna3rdbn",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "isEnabled": true,
+        "orderIndex": 5,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.174Z",
+        "updatedAt": "2025-08-20T00:09:25.174Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      }
+    ],
+    "proportionCoefficients": [],
+    "seasonPrices": [
+      {
+        "id": "cmej7tqr60002nwfhe6nkotmx",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60003nwfh60edmw78",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60004nwfh8z36c6ku",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60005nwfhh8f9x6p2",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60006nwfhjhroalfa",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60007nwfh2l5o0y5h",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60008nwfh7e425ckw",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr60009nwfh82f79brw",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000anwfhbhfm4zmi",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000bnwfh2ny0j995",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000cnwfhxwktl38r",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000dnwfh22z5v5u4",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000enwfhmtk15b5w",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000fnwfhpeccmzkj",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000gnwfhl22r6xqi",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000hnwfhbvvk9pti",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000inwfhj9vtyiv9",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000jnwfhacy3doqr",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000knwfha530khnk",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000lnwfhqtg0he9q",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000mnwfhtyapx2wj",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000nnwfhoo9jep3m",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000onwfhe4fq8z81",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000pnwfhbq62h5iw",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000qnwfhgy7ktbd3",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000rnwfhev7l3lti",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000snwfh5he1edmk",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000tnwfhdyiybo4e",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000unwfht2whvbuz",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000vnwfhmocv640u",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000wnwfhd1cicran",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmej7tqr6000xnwfhbd59ew15",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": false,
+        "createdAt": "2025-08-20T00:09:25.171Z",
+        "updatedAt": "2025-08-20T00:09:25.171Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cme7uwqua0013nwg5xdu9kfmg",
+    "hotelId": "default-hotel",
+    "name": "Bloque de prueba de agosto asdx",
+    "description": "Bloque probando si funciona todasdfdas ahora se guarda bien",
+    "startDate": "2025-08-01T00:00:00.000Z",
+    "endDate": "2025-08-30T00:00:00.000Z",
+    "isActive": true,
+    "orderIndex": 1,
+    "useBlockServices": false,
+    "basePrice": null,
+    "useProportions": true,
+    "referenceRoomTypeId": null,
+    "serviceAdjustmentMode": "PERCENTAGE",
+    "isDraft": true,
+    "lastSavedAt": "2025-08-20T00:34:24.936Z",
+    "createdAt": "2025-08-12T01:22:22.306Z",
+    "updatedAt": "2025-08-21T02:06:11.772Z",
+    "hotel": {
+      "id": "default-hotel",
+      "name": "Hotel Riviera",
+      "description": "Hotel por defecto",
+      "address": null,
+      "phone": null,
+      "email": null,
+      "website": null,
+      "isActive": true,
+      "createdAt": "2025-08-11T20:36:04.262Z",
+      "updatedAt": "2025-08-11T20:36:04.262Z"
+    },
+    "blockServiceSelections": [
+      {
+        "id": "cmekrfrs500vtnwq5ic4egeu1",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "isEnabled": true,
+        "orderIndex": 1,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.814Z",
+        "updatedAt": "2025-08-21T02:06:11.814Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrsy00vvnwq589520lvc",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "isEnabled": false,
+        "orderIndex": 2,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.842Z",
+        "updatedAt": "2025-08-21T02:06:11.842Z",
+        "percentageAdjustment": 52,
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrsz00vxnwq5m1zqad0l",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "isEnabled": true,
+        "orderIndex": 3,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.843Z",
+        "updatedAt": "2025-08-21T02:06:11.843Z",
+        "percentageAdjustment": 20,
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrt000vznwq5he1d3y2a",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "isEnabled": true,
+        "orderIndex": 5,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.844Z",
+        "updatedAt": "2025-08-21T02:06:11.844Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      }
+    ],
+    "proportionCoefficients": [],
+    "seasonPrices": [
+      {
+        "id": "cmekrfrr300u1nwq5pmjew08s",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.776Z",
+        "updatedAt": "2025-08-21T02:06:11.776Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrr600u3nwq5a0v8xeu8",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.778Z",
+        "updatedAt": "2025-08-21T02:06:11.778Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrr700u5nwq5ukujgody",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.779Z",
+        "updatedAt": "2025-08-21T02:06:11.779Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrr700u7nwq5ijcqefcd",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 12000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.780Z",
+        "updatedAt": "2025-08-21T02:06:11.780Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrr800u9nwq5dbpx4i2a",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.780Z",
+        "updatedAt": "2025-08-21T02:06:11.780Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrr900ubnwq5b6gtc5fo",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.781Z",
+        "updatedAt": "2025-08-21T02:06:11.781Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrb00udnwq5k11a3613",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.783Z",
+        "updatedAt": "2025-08-21T02:06:11.783Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrb00ufnwq5ecg5dqes",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.784Z",
+        "updatedAt": "2025-08-21T02:06:11.784Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrc00uhnwq5y26xvqfo",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.785Z",
+        "updatedAt": "2025-08-21T02:06:11.785Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrrd00ujnwq5myys040y",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.785Z",
+        "updatedAt": "2025-08-21T02:06:11.785Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrf00ulnwq5dnhhta29",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.787Z",
+        "updatedAt": "2025-08-21T02:06:11.787Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrf00unnwq5wpwj1mwr",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.788Z",
+        "updatedAt": "2025-08-21T02:06:11.788Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrg00upnwq5qx2np2x8",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.788Z",
+        "updatedAt": "2025-08-21T02:06:11.788Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrrh00urnwq513rhg41r",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.789Z",
+        "updatedAt": "2025-08-21T02:06:11.789Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrh00utnwq5302kqvqm",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.790Z",
+        "updatedAt": "2025-08-21T02:06:11.790Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrj00uvnwq5ztn6gsfo",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.792Z",
+        "updatedAt": "2025-08-21T02:06:11.792Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrk00uxnwq50sxko8b0",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.793Z",
+        "updatedAt": "2025-08-21T02:06:11.793Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrrl00uznwq5mzwjhw0o",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.793Z",
+        "updatedAt": "2025-08-21T02:06:11.793Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrl00v1nwq55498higc",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 10,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.794Z",
+        "updatedAt": "2025-08-21T02:06:11.794Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrr00v3nwq55fz29402",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 6000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.800Z",
+        "updatedAt": "2025-08-21T02:06:11.800Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrs00v5nwq5ucqnq4y3",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 10,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.800Z",
+        "updatedAt": "2025-08-21T02:06:11.800Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrrt00v7nwq5ylj7pzbw",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.801Z",
+        "updatedAt": "2025-08-21T02:06:11.801Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrru00v9nwq5w83l6cuu",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 60,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.802Z",
+        "updatedAt": "2025-08-21T02:06:11.802Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrv00vbnwq5an9gwwhd",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 12000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.803Z",
+        "updatedAt": "2025-08-21T02:06:11.803Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrv00vdnwq56hsd9na8",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 60,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.804Z",
+        "updatedAt": "2025-08-21T02:06:11.804Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrrw00vfnwq5xltb3fnb",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.804Z",
+        "updatedAt": "2025-08-21T02:06:11.804Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrx00vhnwq54h90z76w",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.805Z",
+        "updatedAt": "2025-08-21T02:06:11.805Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrrx00vjnwq5vxojraqa",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.806Z",
+        "updatedAt": "2025-08-21T02:06:11.806Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrry00vlnwq57tueps49",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.806Z",
+        "updatedAt": "2025-08-21T02:06:11.806Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmekrfrry00vnnwq5nixn0vri",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 3000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.807Z",
+        "updatedAt": "2025-08-21T02:06:11.807Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmekrfrrz00vpnwq5yrsl0qsf",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.807Z",
+        "updatedAt": "2025-08-21T02:06:11.807Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmekrfrs300vrnwq5qqyctwqz",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 3600,
+        "isDraft": true,
+        "createdAt": "2025-08-21T02:06:11.811Z",
+        "updatedAt": "2025-08-21T02:06:11.811Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      }
+    ]
+  },
+  {
+    "id": "cmej5ob610001nw2oz99o9gki",
+    "hotelId": "default-hotel",
+    "name": "Bloque de prueba",
+    "description": "Bloque para probar",
+    "startDate": "2025-09-01T00:00:00.000Z",
+    "endDate": "2025-09-25T00:00:00.000Z",
+    "isActive": true,
+    "orderIndex": 2,
+    "useBlockServices": false,
+    "basePrice": null,
+    "useProportions": true,
+    "referenceRoomTypeId": null,
+    "serviceAdjustmentMode": "PERCENTAGE",
+    "isDraft": true,
+    "lastSavedAt": "2025-08-20T01:09:27.476Z",
+    "createdAt": "2025-08-19T23:09:12.457Z",
+    "updatedAt": "2025-08-21T00:58:53.241Z",
+    "hotel": {
+      "id": "default-hotel",
+      "name": "Hotel Riviera",
+      "description": "Hotel por defecto",
+      "address": null,
+      "phone": null,
+      "email": null,
+      "website": null,
+      "isActive": true,
+      "createdAt": "2025-08-11T20:36:04.262Z",
+      "updatedAt": "2025-08-11T20:36:04.262Z"
+    },
+    "blockServiceSelections": [
+      {
+        "id": "cmejbr9e200btnwjoe6nbwgxv",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "isEnabled": true,
+        "orderIndex": 1,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.818Z",
+        "updatedAt": "2025-08-20T01:59:27.818Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr9e300bvnwjo80rtsogx",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "isEnabled": false,
+        "orderIndex": 2,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.819Z",
+        "updatedAt": "2025-08-20T01:59:27.819Z",
+        "percentageAdjustment": 20,
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9e400bxnwjozd2ntke6",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "isEnabled": true,
+        "orderIndex": 3,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.820Z",
+        "updatedAt": "2025-08-20T01:59:27.820Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9e400bznwjoa7b6w5r7",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "isEnabled": true,
+        "orderIndex": 5,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.821Z",
+        "updatedAt": "2025-08-20T01:59:27.821Z",
+        "percentageAdjustment": 0,
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      }
+    ],
+    "proportionCoefficients": [],
+    "seasonPrices": [
+      {
+        "id": "cmejbr93a00a1nwjohbsz8fv9",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.430Z",
+        "updatedAt": "2025-08-20T01:59:27.430Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr93b00a3nwjo4at83wyf",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.431Z",
+        "updatedAt": "2025-08-20T01:59:27.431Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr93c00a5nwjo0bt5b99i",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.432Z",
+        "updatedAt": "2025-08-20T01:59:27.432Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr93c00a7nwjons2o2072",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.433Z",
+        "updatedAt": "2025-08-20T01:59:27.433Z",
+        "roomType": {
+          "id": 8,
+          "name": "departamento La Esquinita",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr93d00a9nwjofj6ntegi",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.434Z",
+        "updatedAt": "2025-08-20T01:59:27.434Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr93e00abnwjoa112vigz",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.434Z",
+        "updatedAt": "2025-08-20T01:59:27.434Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr93f00adnwjo776rq5v6",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.436Z",
+        "updatedAt": "2025-08-20T01:59:27.436Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr93g00afnwjo5rkehrd7",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.437Z",
+        "updatedAt": "2025-08-20T01:59:27.437Z",
+        "roomType": {
+          "id": 5,
+          "name": "departamento El Romerito",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr93h00ahnwjonuis4wgm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.437Z",
+        "updatedAt": "2025-08-20T01:59:27.437Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr96y00ajnwjot0mrmh5o",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 8.4,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.562Z",
+        "updatedAt": "2025-08-20T01:59:27.562Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr97z00alnwjo5rkbojrq",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.600Z",
+        "updatedAt": "2025-08-20T01:59:27.600Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr99i00annwjo6ywh8xt5",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.655Z",
+        "updatedAt": "2025-08-20T01:59:27.655Z",
+        "roomType": {
+          "id": 6,
+          "name": "departamento El Tilo",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr99k00apnwjoncccb0b3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.656Z",
+        "updatedAt": "2025-08-20T01:59:27.656Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr99l00arnwjoyq66cm63",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.657Z",
+        "updatedAt": "2025-08-20T01:59:27.657Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9ba00atnwjoy2zzrxgl",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.718Z",
+        "updatedAt": "2025-08-20T01:59:27.718Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9bb00avnwjo5g9pm5j8",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.719Z",
+        "updatedAt": "2025-08-20T01:59:27.719Z",
+        "roomType": {
+          "id": 7,
+          "name": "departamento Via 1",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr9bb00axnwjotbv4sb5h",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.720Z",
+        "updatedAt": "2025-08-20T01:59:27.720Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr9bc00aznwjoaty664mv",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.720Z",
+        "updatedAt": "2025-08-20T01:59:27.720Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9bd00b1nwjop5t6l61n",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.721Z",
+        "updatedAt": "2025-08-20T01:59:27.721Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9bd00b3nwjo0tcrrlxf",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.722Z",
+        "updatedAt": "2025-08-20T01:59:27.722Z",
+        "roomType": {
+          "id": 4,
+          "name": "cuadruple",
+          "description": null,
+          "orderIndex": 0
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr9c400b5nwjofbwsbwe3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.749Z",
+        "updatedAt": "2025-08-20T01:59:27.749Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr9c500b7nwjovubng7mm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.750Z",
+        "updatedAt": "2025-08-20T01:59:27.750Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9c600b9nwjo99ssda6z",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.750Z",
+        "updatedAt": "2025-08-20T01:59:27.750Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9cz00bbnwjon786k5ec",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.779Z",
+        "updatedAt": "2025-08-20T01:59:27.779Z",
+        "roomType": {
+          "id": 1,
+          "name": "single",
+          "description": null,
+          "orderIndex": 1
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr9d100bdnwjo2u3x49f3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.782Z",
+        "updatedAt": "2025-08-20T01:59:27.782Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr9d200bfnwjoj6z8t8zn",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.782Z",
+        "updatedAt": "2025-08-20T01:59:27.782Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9d200bhnwjo7nps53vo",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.783Z",
+        "updatedAt": "2025-08-20T01:59:27.783Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9d300bjnwjoziwkozgd",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.784Z",
+        "updatedAt": "2025-08-20T01:59:27.784Z",
+        "roomType": {
+          "id": 2,
+          "name": "doble",
+          "description": null,
+          "orderIndex": 2
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      },
+      {
+        "id": "cmejbr9d600blnwjog5j1n9pm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.787Z",
+        "updatedAt": "2025-08-20T01:59:27.787Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0000nwnjj7vy418d",
+          "hotelId": "default-hotel",
+          "name": "Tarifa base",
+          "description": "Tarifa base sin servicios adicionales",
+          "isActive": true,
+          "orderIndex": 1,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-21T02:07:05.131Z"
+        }
+      },
+      {
+        "id": "cmejbr9d800bnnwjo67odmjmx",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.788Z",
+        "updatedAt": "2025-08-20T01:59:27.788Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0001nwnj0jez7i6h",
+          "hotelId": "default-hotel",
+          "name": "Desayuno",
+          "description": "Incluye desayuno",
+          "isActive": true,
+          "orderIndex": 2,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9dz00bpnwjo3wnvroqk",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.815Z",
+        "updatedAt": "2025-08-20T01:59:27.815Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7kpo5j0002nwnj1a2e6g20",
+          "hotelId": "default-hotel",
+          "name": "Media Pensión",
+          "description": "Incluye desayuno y cena",
+          "isActive": true,
+          "orderIndex": 3,
+          "createdAt": "2025-08-11T20:36:56.071Z",
+          "updatedAt": "2025-08-11T20:36:56.071Z"
+        }
+      },
+      {
+        "id": "cmejbr9dz00brnwjo9m3ncs1v",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.816Z",
+        "updatedAt": "2025-08-20T01:59:27.816Z",
+        "roomType": {
+          "id": 3,
+          "name": "triple",
+          "description": null,
+          "orderIndex": 3
+        },
+        "serviceType": {
+          "id": "cme7umahb0025nwc9dytah6ay",
+          "hotelId": "default-hotel",
+          "name": "Servicio de prueba",
+          "description": "ased",
+          "isActive": true,
+          "orderIndex": 5,
+          "createdAt": "2025-08-12T01:14:14.544Z",
+          "updatedAt": "2025-08-12T01:14:14.544Z"
+        }
+      }
+    ]
+  }
+]

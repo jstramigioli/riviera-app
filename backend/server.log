@@ -1,0 +1,22 @@
+nohup: ignoring input
+🚀 Servidor corriendo en puerto 3001
+📊 API disponible en http://localhost:3001/api
+🏥 Health check en http://localhost:3001/api/health
+Conexión a la base de datos exitosa
+2025-08-21T20:31:34.982Z - GET /api/queries
+2025-08-21T20:32:39.216Z - POST /api/queries
+2025-08-21T20:32:42.813Z - GET /api/queries/5
+2025-08-21T20:32:50.907Z - PUT /api/queries/5
+2025-08-21T20:33:33.245Z - GET /api/clients
+2025-08-21T20:39:55.367Z - GET /api/clients
+2025-08-21T20:40:36.093Z - GET /api/clients
+2025-08-21T20:40:36.144Z - GET /api/rooms
+2025-08-21T20:40:36.146Z - GET /api/clients
+2025-08-21T20:40:36.152Z - GET /api/tags
+2025-08-21T20:40:36.297Z - GET /api/reservations
+2025-08-21T20:40:36.369Z - GET /api/rooms
+2025-08-21T20:40:36.439Z - GET /api/reservations
+2025-08-21T20:40:37.511Z - GET /api/tags
+2025-08-21T20:40:38.142Z - GET /api/dynamic-pricing/config/default-hotel
+2025-08-21T20:40:38.243Z - GET /api/dynamic-pricing/config/default-hotel
+2025-08-21T20:40:40.962Z - GET /api/clients

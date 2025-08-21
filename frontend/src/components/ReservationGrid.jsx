@@ -3,8 +3,9 @@ import { addDays, format, differenceInDays, subDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
-import FloatingAddButton from './FloatingAddButton';
+import FloatingActionButton from './FloatingActionButton';
 import CreateReservationPanel from './CreateReservationPanel';
+import CreateQueryPanel from './CreateQueryPanel';
 import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
@@ -89,6 +90,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   
   // Nuevas variables para el panel de creación de reservas
   const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
+  const [isCreateQueryPanelOpen, setIsCreateQueryPanelOpen] = useState(false);
   
   // Estado para configuración de precios dinámicos
   const [dynamicPricingConfig, setDynamicPricingConfig] = useState(null);
@@ -602,6 +604,26 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setIsCreateReservationPanelOpen(false);
   }
 
+  function handleCreateQueryClick() {
+    setIsCreateQueryPanelOpen(true);
+  }
+
+  function handleCreateQueryPanelClose() {
+    setIsCreateQueryPanelOpen(false);
+  }
+
+  async function handleCreateQuery(newQuery) {
+    try {
+      // Aquí podrías agregar la lógica para manejar la nueva consulta
+      console.log('Nueva consulta creada:', newQuery);
+      setIsCreateQueryPanelOpen(false);
+      // Opcional: mostrar un mensaje de éxito
+      alert('Consulta creada exitosamente');
+    } catch (error) {
+      console.error('Error creating query:', error);
+    }
+  }
+
   async function handleCreateReservation(newReservation) {
     try {
       let mainClientId = newReservation.mainClient.id;
@@ -1078,8 +1100,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onClose={handleDayInfoPanelClose}
       />
 
-      {/* Botón flotante para crear nueva reserva */}
-      <FloatingAddButton onClick={handleCreateReservationClick} />
+      {/* Botón flotante para crear nueva reserva o consulta */}
+      <FloatingActionButton 
+        onCreateReservation={handleCreateReservationClick}
+        onCreateQuery={handleCreateQueryClick}
+      />
 
       {/* Panel de creación de reservas */}
       <CreateReservationPanel
@@ -1088,6 +1113,16 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onCreateReservation={handleCreateReservation}
         operationalPeriods={operationalPeriods}
       />
+
+      {/* Panel de creación de consultas */}
+      {isCreateQueryPanelOpen && (
+        <CreateQueryPanel
+          isOpen={isCreateQueryPanelOpen}
+          onClose={handleCreateQueryPanelClose}
+          onCreateQuery={handleCreateQuery}
+          rooms={rooms}
+        />
+      )}
 
       {/* Modal de detalles del score de ocupación */}
       <OccupancyScoreModal

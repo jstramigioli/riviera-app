@@ -1,0 +1,577 @@
+[
+  {
+    "id": 2,
+    "roomId": 6,
+    "mainClientId": 3,
+    "checkIn": "2025-06-20T02:44:37.391Z",
+    "checkOut": "2025-06-25T02:44:37.391Z",
+    "totalAmount": 120000,
+    "status": "finished",
+    "reservationType": "con_desayuno",
+    "notes": "Familia con niños, solicita cuna adicional",
+    "fixed": true,
+    "requiredGuests": 2,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-27T01:02:46.270Z",
+    "updatedAt": "2025-06-28T02:46:52.013Z",
+    "guests": [
+      {
+        "id": 3,
+        "firstName": "Roberto",
+        "lastName": "Silva",
+        "documentType": "DNI",
+        "documentNumber": "DNI 44444444",
+        "phone": "+54 11 4444-4444",
+        "email": "roberto.silva@email.com",
+        "address": "Calle San Martín 456",
+        "city": "CORDOBA",
+        "reservationId": 2,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.622Z",
+        "payments": []
+      }
+    ],
+    "room": {
+      "id": 6,
+      "name": "10",
+      "description": "Habitación 10",
+      "maxPeople": 2,
+      "status": "available",
+      "orderIndex": 8,
+      "roomTypeId": 2,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 2,
+        "name": "doble",
+        "description": null,
+        "orderIndex": 2
+      }
+    },
+    "mainClient": {
+      "id": 3,
+      "firstName": "Carlos",
+      "lastName": "Rodríguez",
+      "email": "carlos.rodriguez@email.com",
+      "phone": "+54 11 5555-1234",
+      "documentType": "CUIT",
+      "documentNumber": "20-55551234-5",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Viaja por trabajo, necesita facturación empresarial",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 3,
+    "roomId": 11,
+    "mainClientId": 2,
+    "checkIn": "2025-06-23T02:44:37.391Z",
+    "checkOut": "2025-06-26T02:44:37.391Z",
+    "totalAmount": 75000,
+    "status": "active",
+    "reservationType": "media_pension",
+    "notes": "Departamento para luna de miel, decoración especial",
+    "fixed": false,
+    "requiredGuests": 3,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-27T01:02:46.270Z",
+    "updatedAt": "2025-06-28T02:46:56.241Z",
+    "guests": [
+      {
+        "id": 4,
+        "firstName": "Laura",
+        "lastName": "Fernández",
+        "documentType": "DNI",
+        "documentNumber": "DNI 33333333",
+        "phone": "+54 11 3333-3333",
+        "email": "laura.fernandez@email.com",
+        "address": "Av. Santa Fe 890",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 3,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.626Z",
+        "payments": [
+          {
+            "id": 1,
+            "guestId": 4,
+            "amount": 75000,
+            "type": "charge",
+            "description": "Cargo por reserva #2",
+            "date": "2024-01-20T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          },
+          {
+            "id": 5,
+            "guestId": 4,
+            "amount": 75000,
+            "type": "payment",
+            "description": "Pago completo con tarjeta",
+            "date": "2024-01-20T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          }
+        ]
+      }
+    ],
+    "room": {
+      "id": 11,
+      "name": "13",
+      "description": "Habitación 13",
+      "maxPeople": 3,
+      "status": "available",
+      "orderIndex": 11,
+      "roomTypeId": 3,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 3,
+        "name": "triple",
+        "description": null,
+        "orderIndex": 3
+      }
+    },
+    "mainClient": {
+      "id": 2,
+      "firstName": "María",
+      "lastName": "González",
+      "email": "maria.gonzalez@email.com",
+      "phone": "+54 11 8765-4321",
+      "documentType": "DNI",
+      "documentNumber": "87654321",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente VIP, solicita servicio de limpieza diario",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 1,
+    "roomId": 5,
+    "mainClientId": 1,
+    "checkIn": "2025-06-24T02:44:37.391Z",
+    "checkOut": "2025-06-28T02:44:37.391Z",
+    "totalAmount": 45000,
+    "status": "active",
+    "reservationType": "con_desayuno",
+    "notes": "Cliente solicita cama king size si es posible",
+    "fixed": false,
+    "requiredGuests": 2,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-27T01:02:46.269Z",
+    "updatedAt": "2025-06-28T02:46:59.884Z",
+    "guests": [
+      {
+        "id": 1,
+        "firstName": "Ana",
+        "lastName": "López",
+        "documentType": "DNI",
+        "documentNumber": "DNI 11111111",
+        "phone": "+54 11 1111-1111",
+        "email": "ana.lopez@email.com",
+        "address": "Av. Corrientes 1234",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 1,
+        "createdAt": "2025-06-27T01:02:46.279Z",
+        "updatedAt": "2025-06-29T20:35:25.272Z",
+        "payments": [
+          {
+            "id": 2,
+            "guestId": 1,
+            "amount": 30000,
+            "type": "payment",
+            "description": "Pago parcial en efectivo",
+            "date": "2024-01-15T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          },
+          {
+            "id": 3,
+            "guestId": 1,
+            "amount": 45000,
+            "type": "charge",
+            "description": "Cargo por reserva #1",
+            "date": "2024-01-15T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.290Z",
+            "updatedAt": "2025-06-27T01:02:46.290Z"
+          },
+          {
+            "id": 4,
+            "guestId": 1,
+            "amount": 5000,
+            "type": "charge",
+            "description": "Cargo por minibar y servicios",
+            "date": "2024-01-16T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "firstName": "Pedro",
+        "lastName": "Martínez",
+        "documentType": "DNI",
+        "documentNumber": "DNI 22222222",
+        "phone": "+54 11 2222-2222",
+        "email": "pedro.martinez@email.com",
+        "address": "Calle Florida 567",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 1,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.618Z",
+        "payments": []
+      }
+    ],
+    "room": {
+      "id": 5,
+      "name": "8",
+      "description": "Habitación 8",
+      "maxPeople": 2,
+      "status": "available",
+      "orderIndex": 6,
+      "roomTypeId": 2,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        },
+        {
+          "id": 12,
+          "name": "Vista a la calle",
+          "color": "#3B82F6"
+        }
+      ],
+      "roomType": {
+        "id": 2,
+        "name": "doble",
+        "description": null,
+        "orderIndex": 2
+      }
+    },
+    "mainClient": {
+      "id": 1,
+      "firstName": "Juan        ",
+      "lastName": "Pérez",
+      "email": "juan.perez@email.com",
+      "phone": "+54 11 1234-5678",
+      "documentType": "DNI",
+      "documentNumber": "12345678",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente frecuente, prefiere habitaciones con vista al mar",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 4,
+    "roomId": 17,
+    "mainClientId": 1,
+    "checkIn": "2025-06-27T00:00:00.000Z",
+    "checkOut": "2025-07-01T00:00:00.000Z",
+    "totalAmount": 0,
+    "status": "confirmed",
+    "reservationType": "con_desayuno",
+    "notes": "",
+    "fixed": false,
+    "requiredGuests": 4,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-28T02:57:09.475Z",
+    "updatedAt": "2025-06-28T02:57:09.475Z",
+    "guests": [],
+    "room": {
+      "id": 17,
+      "name": "18",
+      "description": "Habitación 18",
+      "maxPeople": 4,
+      "status": "available",
+      "orderIndex": 16,
+      "roomTypeId": 4,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 4,
+        "name": "cuadruple",
+        "description": null,
+        "orderIndex": 0
+      }
+    },
+    "mainClient": {
+      "id": 1,
+      "firstName": "Juan        ",
+      "lastName": "Pérez",
+      "email": "juan.perez@email.com",
+      "phone": "+54 11 1234-5678",
+      "documentType": "DNI",
+      "documentNumber": "12345678",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente frecuente, prefiere habitaciones con vista al mar",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 6,
+    "roomId": 7,
+    "mainClientId": 4,
+    "checkIn": "2025-06-27T00:00:00.000Z",
+    "checkOut": "2025-06-29T03:12:15.818Z",
+    "totalAmount": 0,
+    "status": "active",
+    "reservationType": "con_desayuno",
+    "notes": "",
+    "fixed": false,
+    "requiredGuests": 2,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-28T03:00:27.846Z",
+    "updatedAt": "2025-06-28T03:17:17.219Z",
+    "guests": [],
+    "room": {
+      "id": 7,
+      "name": "9",
+      "description": "Habitación 9",
+      "maxPeople": 2,
+      "status": "available",
+      "orderIndex": 7,
+      "roomTypeId": 2,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        },
+        {
+          "id": 12,
+          "name": "Vista a la calle",
+          "color": "#3B82F6"
+        }
+      ],
+      "roomType": {
+        "id": 2,
+        "name": "doble",
+        "description": null,
+        "orderIndex": 2
+      }
+    },
+    "mainClient": {
+      "id": 4,
+      "firstName": "Julian",
+      "lastName": "Stram",
+      "email": "julianstramigioli@gmail.com",
+      "phone": "1232333",
+      "documentType": "DNI",
+      "documentNumber": "38043287",
+      "country": "AR",
+      "province": "Buenos Aires",
+      "city": "Villa Gesell",
+      "notes": "Domicilio: Avenida 10 N°303",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 7,
+    "roomId": 18,
+    "mainClientId": 5,
+    "checkIn": "2025-06-13T20:07:18.234Z",
+    "checkOut": "2025-06-29T00:00:00.000Z",
+    "totalAmount": 0,
+    "status": "active",
+    "reservationType": "con_desayuno",
+    "notes": "",
+    "fixed": false,
+    "requiredGuests": 2,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-28T03:02:34.401Z",
+    "updatedAt": "2025-06-28T20:07:29.766Z",
+    "guests": [],
+    "room": {
+      "id": 18,
+      "name": "21",
+      "description": "Habitación 21",
+      "maxPeople": 2,
+      "status": "available",
+      "orderIndex": 18,
+      "roomTypeId": 2,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 2,
+        "name": "doble",
+        "description": null,
+        "orderIndex": 2
+      }
+    },
+    "mainClient": {
+      "id": 5,
+      "firstName": "Pablina",
+      "lastName": "Chico",
+      "email": "pablinachico88@gmail.com",
+      "phone": "213",
+      "documentType": "DNI",
+      "documentNumber": "456456",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": null,
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 5,
+    "roomId": 13,
+    "mainClientId": 2,
+    "checkIn": "2025-06-17T23:29:27.988Z",
+    "checkOut": "2025-06-27T23:29:27.988Z",
+    "totalAmount": 0,
+    "status": "active",
+    "reservationType": "con_desayuno",
+    "notes": "",
+    "fixed": false,
+    "requiredGuests": 3,
+    "requiredRoomId": null,
+    "requiredTags": [],
+    "requirementsNotes": null,
+    "createdAt": "2025-06-28T02:58:50.328Z",
+    "updatedAt": "2025-07-06T23:32:01.574Z",
+    "guests": [],
+    "room": {
+      "id": 13,
+      "name": "14",
+      "description": "Habitación 14",
+      "maxPeople": 3,
+      "status": "available",
+      "orderIndex": 12,
+      "roomTypeId": 3,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 3,
+        "name": "triple",
+        "description": null,
+        "orderIndex": 3
+      }
+    },
+    "mainClient": {
+      "id": 2,
+      "firstName": "María",
+      "lastName": "González",
+      "email": "maria.gonzalez@email.com",
+      "phone": "+54 11 8765-4321",
+      "documentType": "DNI",
+      "documentNumber": "87654321",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente VIP, solicita servicio de limpieza diario",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 8,
+    "roomId": 12,
+    "mainClientId": 4,
+    "checkIn": "2025-06-28T00:00:00.000Z",
+    "checkOut": "2025-07-03T23:29:27.988Z",
+    "totalAmount": 0,
+    "status": "active",
+    "reservationType": "con_desayuno",
+    "notes": "",
+    "fixed": false,
+    "requiredGuests": 3,
+    "requiredRoomId": 12,
+    "requiredTags": [
+      "3"
+    ],
+    "requirementsNotes": "",
+    "createdAt": "2025-06-28T22:46:00.372Z",
+    "updatedAt": "2025-07-06T23:32:13.481Z",
+    "guests": [],
+    "room": {
+      "id": 12,
+      "name": "15",
+      "description": "Habitación 15",
+      "maxPeople": 3,
+      "status": "available",
+      "orderIndex": 13,
+      "roomTypeId": 3,
+      "tags": [
+        {
+          "id": 3,
+          "name": "Planta alta",
+          "color": "#F59E0B"
+        }
+      ],
+      "roomType": {
+        "id": 3,
+        "name": "triple",
+        "description": null,
+        "orderIndex": 3
+      }
+    },
+    "mainClient": {
+      "id": 4,
+      "firstName": "Julian",
+      "lastName": "Stram",
+      "email": "julianstramigioli@gmail.com",
+      "phone": "1232333",
+      "documentType": "DNI",
+      "documentNumber": "38043287",
+      "country": "AR",
+      "province": "Buenos Aires",
+      "city": "Villa Gesell",
+      "notes": "Domicilio: Avenida 10 N°303",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  }
+]

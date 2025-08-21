@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createQuery, createReservation, createClient, getDetailedOccupancyScore } from '../../services/api';
 import { useReservationGridData } from './hooks/useReservationGridData';
 import { useReservationGridInteractions } from './hooks/useReservationGridInteractions';
 import { useReservationGridCalculations } from './hooks/useReservationGridCalculations';
@@ -6,8 +7,10 @@ import GridCanvas from './components/GridCanvas';
 import GridHeader from './components/GridHeader';
 import GridControls from './components/GridControls';
 import DayInfoSidePanel from '../DayInfoSidePanel';
-import FloatingAddButton from '../FloatingAddButton';
+import FloatingActionButton from '../FloatingActionButton';
 import CreateReservationPanel from '../CreateReservationPanel';
+import CreateQueryPanel from '../CreateQueryPanel';
+import OccupancyScoreModal from '../OccupancyScoreModal';
 import styles from './ReservationGrid.module.css';
 
 export default function ReservationGrid({ 
@@ -15,7 +18,8 @@ export default function ReservationGrid({
   reservations, 
   setReservations, 
   updateReservation, 
-  onReservationClick 
+  onReservationClick,
+  operationalPeriods = []
 }) {
   console.log('🔍 DEBUG ReservationGrid');
   console.log('📊 rooms:', rooms.length);
@@ -24,6 +28,16 @@ export default function ReservationGrid({
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayInfoPanelOpen, setIsDayInfoPanelOpen] = useState(false);
   const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
+  const [isCreateQueryPanelOpen, setIsCreateQueryPanelOpen] = useState(false);
+  
+  // Estado para configuración de precios dinámicos
+  const [dynamicPricingConfig, setDynamicPricingConfig] = useState(null);
+  const [occupancyScores, setOccupancyScores] = useState({});
+  
+  // Estado para el modal de score de ocupación
+  const [isOccupancyModalOpen, setIsOccupancyModalOpen] = useState(false);
+  const [selectedOccupancyData, setSelectedOccupancyData] = useState(null);
+  const [selectedOccupancyDate, setSelectedOccupancyDate] = useState(null);
 
   const {
     startDate,
@@ -118,6 +132,27 @@ export default function ReservationGrid({
     }
   };
 
+  const handleCreateQueryClick = () => {
+    setIsCreateQueryPanelOpen(true);
+  };
+
+  const handleCreateQueryPanelClose = () => {
+    setIsCreateQueryPanelOpen(false);
+  };
+
+  const handleCreateQuery = async (newQuery) => {
+    try {
+      const createdQuery = await createQuery(newQuery);
+      console.log('Nueva consulta creada:', createdQuery);
+      setIsCreateQueryPanelOpen(false);
+      // Opcional: mostrar un mensaje de éxito
+      alert('Consulta creada exitosamente');
+    } catch (error) {
+      console.error('Error creating query:', error);
+      alert('Error al crear la consulta: ' + error.message);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <GridControls
@@ -169,7 +204,10 @@ export default function ReservationGrid({
         />
       </div>
 
-      <FloatingAddButton onClick={handleCreateReservationClick} />
+      <FloatingActionButton 
+        onCreateReservation={handleCreateReservationClick}
+        onCreateQuery={handleCreateQueryClick}
+      />
 
       {isDayInfoPanelOpen && selectedDate && (
         <DayInfoSidePanel
@@ -185,6 +223,23 @@ export default function ReservationGrid({
           rooms={rooms}
         />
       )}
+
+      {isCreateQueryPanelOpen && (
+        <CreateQueryPanel
+          isOpen={isCreateQueryPanelOpen}
+          onClose={handleCreateQueryPanelClose}
+          onCreateQuery={handleCreateQuery}
+          rooms={rooms}
+        />
+      )}
+
+      {/* Modal de detalles del score de ocupación */}
+      <OccupancyScoreModal
+        isOpen={isOccupancyModalOpen}
+        onClose={() => setIsOccupancyModalOpen(false)}
+        occupancyData={selectedOccupancyData}
+        date={selectedOccupancyDate}
+      />
     </div>
   );
 } 

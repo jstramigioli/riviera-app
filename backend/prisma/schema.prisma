@@ -53,6 +53,7 @@ model Room {
   orderIndex    Int                @default(0)
   roomTypeId    Int
   reservations  Reservation[]
+  queries       Query[]            @relation("RoomQueries")
   roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
   gapPromotions RoomGapPromotion[]
   tags          Tag[]              @relation("RoomToTag")
@@ -72,6 +73,7 @@ model Client {
   notes           String?
   wantsPromotions Boolean       @default(false)
   reservations    Reservation[]
+  queries         Query[]       @relation("ClientQueries")
 }
 
 model Guest {
@@ -124,6 +126,87 @@ model Reservation {
   mainClient        Client                 @relation(fields: [mainClientId], references: [id])
   room              Room                   @relation(fields: [roomId], references: [id])
   nightRates        ReservationNightRate[]
+}
+
+model Query {
+  id                Int                    @id @default(autoincrement())
+  roomId            Int?
+  mainClientId      Int?
+  checkIn           DateTime?
+  checkOut          DateTime?
+  totalAmount       Float?
+  status            String?                @default("pendiente")
+  reservationType   String?                @default("con_desayuno")
+  notes             String?
+  fixed             Boolean?               @default(false)
+  requiredGuests    Int?
+  requiredRoomId    Int?
+  requiredTags      String[]
+  requirementsNotes String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  guests            QueryGuest[]
+  mainClient        Client?                @relation("ClientQueries", fields: [mainClientId], references: [id])
+  room              Room?                  @relation("RoomQueries", fields: [roomId], references: [id])
+  nightRates        QueryNightRate[]
+}
+
+model QueryGuest {
+  id             Int          @id @default(autoincrement())
+  firstName      String?
+  lastName       String?
+  documentType   String?      @default("DNI")
+  documentNumber String?
+  phone          String?
+  email          String?
+  address        String?
+  city           String?
+  queryId        Int?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  query          Query?       @relation(fields: [queryId], references: [id])
+  payments       QueryPayment[]
+}
+
+model QueryPayment {
+  id          Int         @id @default(autoincrement())
+  queryGuestId Int
+  amount      Float?
+  type        String?
+  description String?
+  date        DateTime?   @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  queryGuest  QueryGuest  @relation(fields: [queryGuestId], references: [id])
+}
+
+model QueryNightRate {
+  id                     String      @id @default(cuid())
+  queryId                Int
+  date                   DateTime?
+  baseRate               Float?
+  dynamicRate            Float?
+  finalRate              Float?
+  serviceType            String?
+  serviceRate            Float?
+  occupancyScore         Float?
+  isWeekend              Boolean?    @default(false)
+  isHoliday              Boolean?    @default(false)
+  gapPromotionApplied    Boolean?    @default(false)
+  gapPromotionRate       Float?
+  manualOverride         Boolean?    @default(false)
+  basePrice              Float?
+  occupancyAdjustment    Float?
+  anticipationAdjustment Float?
+  weekendAdjustment      Float?
+  holidayAdjustment      Float?
+  gapPromotionAmount     Float?
+  serviceAdjustment      Float?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  query                  Query       @relation(fields: [queryId], references: [id])
+
+  @@unique([queryId, date])
 }
 
 model OpenDay {

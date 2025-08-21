@@ -1,3 +1,5 @@
+@import './styles/variables.css';
+
 /* ===== CSS RESET COMPLETO ===== */
 /* Reset y normalización de estilos por defecto del navegador */
 
@@ -247,8 +249,6 @@ template {
 /* ===== FIN DEL CSS RESET ===== */
 
 /* Estilos base del proyecto */
-@import './styles/variables.css';
-
 html, body, #root {
   height: 100vh;
   width: 100vw;

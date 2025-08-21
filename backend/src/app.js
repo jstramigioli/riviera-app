@@ -19,6 +19,7 @@ const blockServiceTypeRoutes = require('./routes/blockServiceType.routes');
 const blockServiceSelectionRoutes = require('./routes/blockServiceSelection.routes');
 const tariffCalculationRoutes = require('./routes/tariffCalculation.routes');
 const roundingConfigRoutes = require('./routes/roundingConfig.routes');
+const queryRoutes = require('./routes/query.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -54,6 +55,7 @@ app.use('/api/block-service-types', blockServiceTypeRoutes);
 app.use('/api/block-service-selections', blockServiceSelectionRoutes);
 app.use('/api/tariff-calculations', tariffCalculationRoutes);
 app.use('/api/rounding-config', roundingConfigRoutes);
+app.use('/api/queries', queryRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {
