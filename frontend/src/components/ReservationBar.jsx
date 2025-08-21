@@ -219,7 +219,7 @@ export default function ReservationBar({
       id={`reservation-bar-${reservation.id}`}
       data-checkin={reservation.checkIn}
       data-checkout={reservation.checkOut}
-      data-startdate={startDate.toISOString()}
+      data-startdate={startDate?.toISOString() || ''}
       className={`reservation-bar ${isDragging ? 'dragging' : ''}`}
       style={{
         position: 'absolute',
