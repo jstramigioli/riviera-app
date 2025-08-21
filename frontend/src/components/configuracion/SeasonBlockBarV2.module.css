@@ -1,3 +1,53 @@
+/* Estilos para la primera columna (tipos de habitación) */
+.roomTypeHeader {
+  text-align: left !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  padding: 16px 20px !important;
+  border-right: 2px solid #cbd5e1 !important;
+  position: relative !important;
+}
+
+.roomTypeHeader::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+}
+
+.roomTypeCell {
+  text-align: left !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  padding: 16px 20px !important;
+  border-right: 2px solid #e2e8f0 !important;
+  border-bottom: 2px solid #e5e7eb !important;
+  position: relative !important;
+}
+
+.roomTypeCell::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+  opacity: 0.3;
+}
+
+.roomTypeCell strong {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+
 /* Contenedor principal de la barra */
 .bar {
   background: white;

@@ -286,8 +286,8 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         setFormData({
           name: block.name,
           description: block.description || '',
-          startDate: block.startDate.split('T')[0],
-          endDate: block.endDate.split('T')[0],
+          startDate: new Date(block.startDate).toISOString().split('T')[0],
+          endDate: new Date(block.endDate).toISOString().split('T')[0],
           useProportions: block.useProportions,
           serviceAdjustmentMode: block.serviceAdjustmentMode,
           useBlockServices: block.useBlockServices || false
@@ -666,6 +666,38 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         delete newErrors[field];
         return newErrors;
       });
+    }
+
+    // Si se cambió una fecha, validar ambas fechas y limpiar errores relacionados
+    if (field === 'startDate' || field === 'endDate') {
+      const startDate = field === 'startDate' ? value : newFormData.startDate;
+      const endDate = field === 'endDate' ? value : newFormData.endDate;
+      
+      // Si ambas fechas están presentes, validar el rango
+      if (startDate && endDate) {
+        if (startDate >= endDate) {
+          // Error en la fecha de fin
+          setValidationErrors(prev => ({
+            ...prev,
+            endDate: 'La fecha de fin debe ser posterior a la fecha de inicio'
+          }));
+        } else {
+          // Las fechas son válidas, limpiar errores de fechas
+          setValidationErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors.startDate;
+            delete newErrors.endDate;
+            return newErrors;
+          });
+        }
+      } else {
+        // Si falta una fecha, limpiar errores de rango pero mantener errores de campos requeridos
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.endDate; // Limpiar error de rango
+          return newErrors;
+        });
+      }
     }
 
     // No guardado automático - los cambios se guardarán manualmente
@@ -1087,6 +1119,60 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   };
 
+  // Función para resetear todos los datos del formulario a sus valores originales
+  const resetAllData = async () => {
+    if (!blockId) return false;
+    
+    try {
+      console.log('=== RESETTING ALL DATA TO ORIGINAL ===');
+      const response = await fetch(`${API_URL}/season-blocks/${blockId}`);
+      
+      if (response.ok) {
+        const blockData = await response.json();
+        const block = blockData.data;
+        
+        console.log('Resetting all data with original block:', block);
+        
+        // Resetear formData
+        setFormData({
+          name: block.name,
+          description: block.description || '',
+          startDate: new Date(block.startDate).toISOString().split('T')[0],
+          endDate: new Date(block.endDate).toISOString().split('T')[0],
+          useProportions: block.useProportions,
+          serviceAdjustmentMode: block.serviceAdjustmentMode,
+          useBlockServices: block.useBlockServices || false
+        });
+        
+        // Resetear precios
+        if (block.seasonPrices) {
+          setPrices(block.seasonPrices);
+        }
+        
+        // Resetear selecciones de servicios
+        try {
+          const blockServiceSelectionsRes = await fetch(`${API_URL}/block-service-selections/block/${blockId}`);
+          if (blockServiceSelectionsRes.ok) {
+            const blockServiceSelectionsData = await blockServiceSelectionsRes.json();
+            setBlockServiceSelections(blockServiceSelectionsData);
+          }
+        } catch (err) {
+          console.error('Error resetting block service selections:', err);
+        }
+        
+        // Limpiar errores de validación
+        setValidationErrors({});
+        
+        console.log('All data reset successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error resetting all data:', error);
+      return false;
+    }
+  };
+
   return {
     // Estados
     loading,
@@ -1119,6 +1205,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     loadBlockServiceSelections,
     updatePricesFromCalculated,
     setBlockServiceSelections,
-    resetPrices
+    resetPrices,
+    resetAllData
   };
 }; 

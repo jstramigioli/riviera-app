@@ -21,6 +21,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   // Estado para rastrear cambios en tarifas
   const [hasTariffChanges, setHasTariffChanges] = useState(false);
   const [originalPrices, setOriginalPrices] = useState([]);
+  
+  // Estado para rastrear cualquier tipo de cambio
+  const [hasAnyChanges, setHasAnyChanges] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState({});
+  const [originalBlockServiceSelections, setOriginalBlockServiceSelections] = useState([]);
 
 
   const {
@@ -43,7 +48,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
     setBlockServiceSelections,
     setPrices,
-    resetPrices
+    resetPrices,
+    resetAllData
   } = useSeasonBlockV2(block?.id, hotelId);
   
   // Debug log para verificar el valor de serviceAdjustmentMode
@@ -115,6 +121,44 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   }, [prices, originalPrices]);
 
+  // Rastrear cualquier tipo de cambio
+  useEffect(() => {
+    // Inicializar datos originales cuando se cargan
+    if (formData && Object.keys(formData).length > 0 && Object.keys(originalFormData).length === 0) {
+      console.log('=== INITIALIZING ORIGINAL FORM DATA ===');
+      setOriginalFormData({ ...formData });
+    }
+    
+    if (blockServiceSelections.length > 0 && originalBlockServiceSelections.length === 0) {
+      console.log('=== INITIALIZING ORIGINAL BLOCK SERVICE SELECTIONS ===');
+      setOriginalBlockServiceSelections([...blockServiceSelections]);
+    }
+    
+    // Detectar cambios en formData
+    const hasFormDataChanges = Object.keys(originalFormData).length > 0 && 
+      Object.keys(formData).some(key => formData[key] !== originalFormData[key]);
+    
+    // Detectar cambios en blockServiceSelections
+    const hasServiceChanges = originalBlockServiceSelections.length > 0 && 
+      blockServiceSelections.some((selection, index) => {
+        const original = originalBlockServiceSelections[index];
+        return original && (
+          selection.isEnabled !== original.isEnabled ||
+          selection.percentageAdjustment !== original.percentageAdjustment
+        );
+      });
+    
+    // Cualquier cambio (tarifas, formData, o servicios)
+    const anyChanges = hasTariffChanges || hasFormDataChanges || hasServiceChanges;
+    setHasAnyChanges(anyChanges);
+    
+    console.log('=== CHANGE DETECTION ===');
+    console.log('hasTariffChanges:', hasTariffChanges);
+    console.log('hasFormDataChanges:', hasFormDataChanges);
+    console.log('hasServiceChanges:', hasServiceChanges);
+    console.log('hasAnyChanges:', anyChanges);
+  }, [prices, originalPrices, formData, originalFormData, blockServiceSelections, originalBlockServiceSelections, hasTariffChanges]);
+
   // Forzar actualización después de guardar exitosamente
   useEffect(() => {
     if (!hasTariffChanges && !isEditing) {
@@ -125,12 +169,44 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
+    
+    // Si es una fecha en formato YYYY-MM-DD, usarla directamente
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    // Si es una fecha ISO, convertirla a YYYY-MM-DD primero
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    });
+    if (isNaN(date.getTime())) return '';
+    
+    // Usar UTC para evitar problemas de zona horaria
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    
+    return `${day}/${month}/${year}`;
+  };
+
+  // Función auxiliar para obtener fechas de manera consistente
+  const getDisplayDate = (dateString) => {
+    if (!dateString) return '';
+    
+    // Si es una fecha en formato YYYY-MM-DD, usarla directamente
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // Si es una fecha ISO, convertirla a YYYY-MM-DD
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    
+    // Usar UTC para evitar problemas de zona horaria
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   };
 
   const formatCurrency = (amount) => {
@@ -233,17 +309,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     setEditingField(prev => ({ ...prev, [fieldName]: true }));
   };
 
-  const handleFieldBlur = async (fieldName) => {
+  const handleFieldBlur = (fieldName) => {
     setEditingField(prev => ({ ...prev, [fieldName]: false }));
-    // Guardar automáticamente al salir del campo
-    await saveSeasonBlock();
+    // NO guardar automáticamente - los cambios se guardarán con el botón "Guardar"
   };
 
-  const handleFieldKeyPress = async (e, fieldName) => {
+  const handleFieldKeyPress = (e, fieldName) => {
     if (e.key === 'Enter') {
       setEditingField(prev => ({ ...prev, [fieldName]: false }));
-      // Guardar automáticamente al presionar Enter
-      await saveSeasonBlock();
+      // NO guardar automáticamente - los cambios se guardarán con el botón "Guardar"
     } else if (e.key === 'Escape') {
       setEditingField(prev => ({ ...prev, [fieldName]: false }));
       // No guardar al presionar Escape
@@ -310,10 +384,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       
       setOriginalPrices([...prices]);
       setHasTariffChanges(false);
+      setHasAnyChanges(false);
       setIsEditing(false); // Desactivar modo edición después de guardar
       setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
       
-      showNotification('Cambios en tarifas guardados exitosamente');
+      showNotification('Cambios guardados exitosamente');
     } else {
       showNotification(saveResult.error || 'Error al guardar los cambios', 'error');
     }
@@ -423,13 +498,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       });
       
       if (response.ok) {
-        showNotification(
-          newDraftStatus 
-            ? 'Bloque cambiado a modo borrador' 
-            : 'Bloque cambiado a modo activo', 
-          'success'
-        );
-        
         // Recargar los datos del bloque para sincronizar
         if (onBlockUpdated) {
           onBlockUpdated();
@@ -711,8 +779,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                     onChange={(e) => updateFormData('startDate', e.target.value)}
                     onBlur={() => handleFieldBlur('startDate')}
                     onKeyPress={(e) => handleFieldKeyPress(e, 'startDate')}
+                    onClick={(e) => e.stopPropagation()}
                     className={`${styles.dateInput} ${validationErrors.startDate ? styles.error : ''}`}
-                    autoFocus={editingField.startDate}
                   />
                   <span> - </span>
                   <input
@@ -721,8 +789,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                     onChange={(e) => updateFormData('endDate', e.target.value)}
                     onBlur={() => handleFieldBlur('endDate')}
                     onKeyPress={(e) => handleFieldKeyPress(e, 'endDate')}
+                    onClick={(e) => e.stopPropagation()}
                     className={`${styles.dateInput} ${validationErrors.endDate ? styles.error : ''}`}
-                    autoFocus={editingField.endDate}
                   />
                 </div>
               ) : (
@@ -730,10 +798,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   onClick={(e) => {
                     e.stopPropagation();
                     handleFieldClick('startDate');
+                    handleFieldClick('endDate');
                   }}
                   className={isEditing ? styles.editableField : ''}
                 >
-                  {formatDate(formData.startDate || block?.startDate)} - {formatDate(formData.endDate || block?.endDate)}
+                  {formatDate(getDisplayDate(formData.startDate || block?.startDate))} - {formatDate(getDisplayDate(formData.endDate || block?.endDate))}
                 </span>
               )}
             </div>
@@ -772,8 +841,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           onClick={(e) => e.stopPropagation()}
           title={
             block?.isDraft 
-              ? "Sistema de Borradores: Los cambios se guardan como borrador sin afectar las reservaciones. Para aplicar los cambios a las reservaciones, cambia a 'Activo'."
-              : "Bloque Activo: Los precios se aplican a las reservaciones. Cambia a 'Borrador' para editar sin afectar reservaciones existentes."
+              ? "Modo Borrador: Los precios no están disponibles para nuevas reservas. Cambia a 'Activo' para que los precios estén vigentes para nuevas reservas."
+              : "Modo Activo: Los precios están vigentes y disponibles para nuevas reservas. Cambia a 'Borrador' para desactivar temporalmente los precios."
           }
         >
           <div className={styles.toggleWrapper}>
@@ -823,7 +892,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           <table className={styles.pricesGrid}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'center' }}>Habitación</th>
+                <th className={styles.roomTypeHeader}>Habitación</th>
                 {getActiveServiceTypes().map(serviceType => {
                   const isServiceEnabled = serviceType.isEnabled;
                   const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
@@ -838,7 +907,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         <span>{serviceType.serviceType?.name || serviceType.name}</span>
-                        {!isBaseService && (
+                        {!isBaseService && isEditing && (
                           <div className={styles.serviceToggle}>
                             <Switch
                               checked={isServiceEnabled}
@@ -859,7 +928,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               </tr>
               {formData.serviceAdjustmentMode === 'PERCENTAGE' && (
                 <tr>
-                  <th style={{ textAlign: 'center', background: '#f8f9fa' }}>Porcentaje de Ajuste</th>
+                  <th className={styles.roomTypeHeader} style={{ background: '#f8f9fa' }}>Porcentaje de Ajuste</th>
                   {getActiveServiceTypes().map(serviceType => {
                     const isServiceEnabled = serviceType.isEnabled;
                     const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
@@ -875,26 +944,32 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                         }}
                       >
                         {!isBaseService ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
-                            <input
-                              type="number"
-                              placeholder="0"
-                              value={currentPercentage}
-                              onChange={(e) => handlePercentageChange(serviceType.id, e.target.value)}
-                              onKeyPress={(e) => handlePercentageKeyPress(e, serviceType.id)}
-                              onBlur={(e) => handlePercentageBlur(e, serviceType.id)}
-                              style={{
-                                width: '60px',
-                                textAlign: 'center',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                padding: '6px',
-                                fontSize: '16px'
-                              }}
-                              disabled={!isServiceEnabled}
-                            />
-                            <span style={{ fontSize: '16px', color: '#6c757d' }}>%</span>
-                          </div>
+                          isEditing ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                value={currentPercentage}
+                                onChange={(e) => handlePercentageChange(serviceType.id, e.target.value)}
+                                onKeyPress={(e) => handlePercentageKeyPress(e, serviceType.id)}
+                                onBlur={(e) => handlePercentageBlur(e, serviceType.id)}
+                                style={{
+                                  width: '60px',
+                                  textAlign: 'center',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  padding: '6px',
+                                  fontSize: '16px'
+                                }}
+                                disabled={!isServiceEnabled}
+                              />
+                              <span style={{ fontSize: '16px', color: '#6c757d' }}>%</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '16px', color: '#6c757d' }}>
+                              {currentPercentage ? `${currentPercentage}%` : '-'}
+                            </span>
+                          )
                         ) : (
                           <span style={{ color: '#6c757d', fontSize: '16px' }}>-</span>
                         )}
@@ -967,44 +1042,48 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
         </div>
       )}
 
-      {/* Botones de acción inferiores - solo cuando hay cambios en tarifas */}
-      {hasTariffChanges && (
+      {/* Botones de acción inferiores - cuando hay cualquier tipo de cambio Y estamos en modo edición */}
+      {hasAnyChanges && isEditing && (
         <div className={styles.actionButtons}>
-          {isEditing && (
-            <div className={styles.toggleControls}>
-              <label className={styles.toggleLabel}>
-                <Switch
-                  checked={formData.useProportions}
-                  onChange={handleProportionToggle}
-                  onColor="#3b82f6"
-                  offColor="#d1d5db"
-                  checkedIcon={false}
-                  uncheckedIcon={false}
-                  width={44}
-                  height={24}
-                  handleDiameter={18}
-                  disabled={!isEditing}
-                />
-                <span className={styles.toggleText}>Mantener proporciones</span>
-              </label>
-              
-              <label className={styles.toggleLabel}>
-                <Switch
-                  checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
-                  onChange={handlePercentageToggle}
-                  onColor="#3b82f6"
-                  offColor="#d1d5db"
-                  checkedIcon={false}
-                  uncheckedIcon={false}
-                  width={44}
-                  height={24}
-                  handleDiameter={18}
-                  disabled={!isEditing}
-                />
-                <span className={styles.toggleText}>Usar porcentajes</span>
-              </label>
-            </div>
-          )}
+          <div className={styles.toggleControls}>
+            <label 
+              className={styles.toggleLabel}
+              title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
+            >
+              <Switch
+                checked={formData.useProportions}
+                onChange={handleProportionToggle}
+                onColor="#3b82f6"
+                offColor="#d1d5db"
+                checkedIcon={false}
+                uncheckedIcon={false}
+                width={44}
+                height={24}
+                handleDiameter={18}
+                disabled={!isEditing}
+              />
+              <span className={styles.toggleText}>Mantener proporciones</span>
+            </label>
+            
+            <label 
+              className={styles.toggleLabel}
+              title="Usar porcentajes: Cuando está activado, los ajustes de servicios se aplican como porcentajes sobre el precio base. Cuando está desactivado, se usan montos fijos. Por ejemplo: +15% vs +$500."
+            >
+              <Switch
+                checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
+                onChange={handlePercentageToggle}
+                onColor="#3b82f6"
+                offColor="#d1d5db"
+                checkedIcon={false}
+                uncheckedIcon={false}
+                width={44}
+                height={24}
+                handleDiameter={18}
+                disabled={!isEditing}
+              />
+              <span className={styles.toggleText}>Usar porcentajes</span>
+            </label>
+          </div>
           
           <div className={styles.actionButtonsRight}>
             <button
@@ -1019,24 +1098,26 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 console.log('=== CANCEL BUTTON CLICKED ===');
                 setIsEditing(false);
                 
-                // Usar resetPrices del hook para restaurar precios sin re-renderizar
-                if (resetPrices) {
-                  console.log('Calling resetPrices to restore original prices');
-                  const success = await resetPrices();
+                // Resetear todos los datos a sus valores originales
+                if (resetAllData) {
+                  console.log('Calling resetAllData to restore all original data');
+                  const success = await resetAllData();
                   if (success) {
                     setHasTariffChanges(false);
+                    setHasAnyChanges(false);
                     setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
-                    console.log('Prices reset successfully');
+                    setEditingField({ name: false, startDate: false, endDate: false, description: false });
+                    console.log('All data reset successfully');
                   } else {
                     console.log('Reset failed, using fallback');
-                    // Fallback al key reset si resetPrices falla
+                    // Fallback al key reset si resetAllData falla
                     if (onResetBlock) {
                       onResetBlock();
                     }
                   }
                 } else {
-                  console.log('No resetPrices available, using fallback');
-                  // Fallback al key reset si resetPrices no está disponible
+                  console.log('No resetAllData available, using fallback');
+                  // Fallback al key reset si resetAllData no está disponible
                   if (onResetBlock) {
                     onResetBlock();
                   }
@@ -1050,12 +1131,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
         </div>
       )}
 
-      {/* Botón de editar/cancelar - solo cuando no hay cambios en tarifas */}
-      {!hasTariffChanges && (
+      {/* Botón de editar/cancelar - cuando no hay cambios O no estamos en modo edición */}
+      {(!hasAnyChanges || !isEditing) && (
         <div className={styles.actionButtons}>
           {isEditing && (
             <div className={styles.toggleControls}>
-              <label className={styles.toggleLabel}>
+              <label 
+                className={styles.toggleLabel}
+                title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
+              >
                 <Switch
                   checked={formData.useProportions}
                   onChange={handleProportionToggle}
@@ -1071,7 +1155,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 <span className={styles.toggleText}>Mantener proporciones</span>
               </label>
               
-              <label className={styles.toggleLabel}>
+              <label 
+                className={styles.toggleLabel}
+                title="Usar porcentajes: Cuando está activado, los ajustes de servicios se aplican como porcentajes sobre el precio base. Cuando está desactivado, se usan montos fijos. Por ejemplo: +15% vs +$500."
+              >
                 <Switch
                   checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
                   onChange={handlePercentageToggle}
