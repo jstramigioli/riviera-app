@@ -41,6 +41,7 @@ model RoomType {
   dailyRoomRates         DailyRoomRate[]
   proportionCoefficients ProportionCoefficient[]
   rooms                  Room[]
+  segments               ReservationSegment[]
   seasonPrices           SeasonPrice[]
 }
 
@@ -52,8 +53,8 @@ model Room {
   status        String
   orderIndex    Int                @default(0)
   roomTypeId    Int
-  reservations  Reservation[]
   queries       Query[]            @relation("RoomQueries")
+  segments      ReservationSegment[]
   roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
   gapPromotions RoomGapPromotion[]
   tags          Tag[]              @relation("RoomToTag")
@@ -107,25 +108,24 @@ model Payment {
 
 model Reservation {
   id                Int                    @id @default(autoincrement())
-  roomId            Int
   mainClientId      Int
-  checkIn           DateTime
-  checkOut          DateTime
-  totalAmount       Float
   status            String
-  reservationType   String                 @default("con_desayuno")
   notes             String?
-  fixed             Boolean                @default(false)
-  requiredGuests    Int
-  requiredRoomId    Int?
-  requiredTags      String[]
-  requirementsNotes String?
+  
+  // Campos para reservas multi-habitación
+  isMultiRoom       Boolean                @default(false)
+  parentReservationId Int?                 // Para agrupar reservas familiares
+  parentReservation  Reservation?          @relation("MultiRoomReservations", fields: [parentReservationId], references: [id])
+  childReservations  Reservation[]         @relation("MultiRoomReservations")
+  
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
+  
+  // Relaciones
   guests            Guest[]
   mainClient        Client                 @relation(fields: [mainClientId], references: [id])
-  room              Room                   @relation(fields: [roomId], references: [id])
   nightRates        ReservationNightRate[]
+  segments          ReservationSegment[]
 }
 
 model Query {
@@ -412,4 +412,39 @@ model BlockServiceSelection {
 enum ServiceAdjustmentMode {
   FIXED
   PERCENTAGE
+}
+
+model ReservationSegment {
+  id                Int         @id @default(autoincrement())
+  reservationId     Int
+  startDate         DateTime
+  endDate           DateTime
+  
+  // Habitación (ahora obligatoria)
+  roomId            Int         // Habitación para este segmento
+  roomTypeId        Int?        // Tipo de habitación
+  
+  // Servicios
+  services          String[]    // Servicios disponibles
+  serviceAdjustments Json?      // Ajustes específicos por servicio
+  
+  // Tarifas
+  baseRate          Float       // Tarifa base (obligatoria)
+  rateAdjustments   Json?       // Ajustes de tarifa (descuentos, recargos)
+  
+  // Ocupación
+  guestCount        Int         // Número de huéspedes (obligatorio)
+  
+  // Metadatos
+  reason            String?     // Razón del cambio (mantenimiento, disponibilidad, etc.)
+  notes             String?     // Notas adicionales
+  isActive          Boolean     @default(true)
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  // Relaciones
+  reservation       Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room              Room        @relation(fields: [roomId], references: [id])
+  roomType          RoomType?   @relation(fields: [roomTypeId], references: [id])
 }

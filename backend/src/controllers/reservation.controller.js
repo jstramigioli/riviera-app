@@ -1,24 +1,21 @@
 const prisma = require('../utils/prisma');
 const ReservationPricingService = require('../services/reservationPricingService');
 const reservationPricingService = new ReservationPricingService(prisma);
+const {
+  getReservationWithData,
+  getAllReservationsWithData,
+  createReservationWithSegment,
+  updateReservationWithSegments,
+  checkRoomAvailability
+} = require('../utils/reservationHelpers');
 
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
   try {
-    const reservations = await prisma.reservation.findMany({
-      include: {
-        room: {
-          include: {
-            roomType: true,
-            tags: true
-          }
-        },
-        mainClient: true,
-        guests: true
-      }
-    });
+    const reservations = await getAllReservationsWithData();
     res.json(reservations);
   } catch (error) {
+    console.error('Error fetching reservations:', error);
     res.status(500).json({ error: 'Error fetching reservations' });
   }
 };
@@ -27,24 +24,13 @@ exports.getAllReservations = async (req, res) => {
 exports.getReservationById = async (req, res) => {
   const { id } = req.params;
   try {
-    const reservation = await prisma.reservation.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        room: {
-          include: {
-            roomType: true,
-            tags: true
-          }
-        },
-        mainClient: true,
-        guests: true
-      }
-    });
+    const reservation = await getReservationWithData(parseInt(id));
     if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
     res.json(reservation);
   } catch (error) {
+    console.error('Error fetching reservation:', error);
     res.status(500).json({ error: 'Error fetching reservation' });
   }
 };
@@ -72,6 +58,15 @@ exports.createReservation = async (req, res) => {
   }
   
   try {
+    // Verificar disponibilidad de la habitación
+    const availability = await checkRoomAvailability(roomId, checkIn, checkOut);
+    if (!availability.available) {
+      return res.status(400).json({ 
+        error: 'Habitación no disponible en las fechas especificadas',
+        conflicts: availability.conflicts
+      });
+    }
+
     // Verificar si hay días cerrados en el rango de fechas
     const operationalPeriods = await prisma.operationalPeriod.findMany({
       where: { hotelId: 'default-hotel' }
@@ -115,44 +110,21 @@ exports.createReservation = async (req, res) => {
         message: `No se pueden crear reservas en días cerrados: ${closedDates}`
       });
     }
-    const newReservation = await prisma.reservation.create({
-      data: {
-        roomId,
-        mainClientId,
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        totalAmount: totalAmount || 0,
-        status: status || 'active',
-        reservationType: reservationType || 'con_desayuno',
-        notes,
-        requiredGuests: parseInt(requiredGuests),
-        requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
-        requiredTags: requiredTags && Array.isArray(requiredTags) ? requiredTags : [],
-        requirementsNotes,
-        guests: {
-          create: guests && Array.isArray(guests) ? guests.map(g => ({ 
-            firstName: g.firstName, 
-            lastName: g.lastName,
-            documentType: g.documentType || 'DNI',
-            documentNumber: g.documentNumber,
-            phone: g.phone,
-            email: g.email,
-            address: g.address,
-            city: g.city
-          })) : []
-        }
-      },
-      include: {
-        room: {
-          include: {
-            roomType: true,
-            tags: true
-          }
-        },
-        mainClient: true,
-        guests: true
-      }
-    });
+
+    // Crear la reserva con su segmento inicial
+    const reservationData = {
+      mainClientId,
+      roomId,
+      checkIn,
+      checkOut,
+      totalAmount: totalAmount || 0,
+      status: status || 'active',
+      reservationType: reservationType || 'con_desayuno',
+      notes,
+      requiredGuests
+    };
+
+    const newReservation = await createReservationWithSegment(reservationData);
 
     // Calcular y almacenar tarifas detalladas por noche
     try {

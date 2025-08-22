@@ -1,0 +1,22 @@
+[
+  {
+    "id": "cme7kokq50003nw44ke52u07a",
+    "hotelId": "default-hotel",
+    "multiple": 1,
+    "mode": "nearest",
+    "createdAt": "2025-08-11T20:36:04.973Z",
+    "updatedAt": "2025-08-11T20:36:04.973Z",
+    "hotel": {
+      "id": "default-hotel",
+      "name": "Hotel Riviera",
+      "description": "Hotel por defecto",
+      "address": null,
+      "phone": null,
+      "email": null,
+      "website": null,
+      "isActive": true,
+      "createdAt": "2025-08-11T20:36:04.262Z",
+      "updatedAt": "2025-08-11T20:36:04.262Z"
+    }
+  }
+]
