@@ -9,6 +9,8 @@ const {
   checkRoomAvailability
 } = require('../utils/reservationHelpers');
 
+
+
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
   try {
@@ -382,19 +384,95 @@ exports.findAvailableRooms = async (req, res) => {
   }
 
   try {
-    // Obtener habitaciones ocupadas en el período
-    const occupiedRooms = await prisma.reservation.findMany({
+    // Verificar disponibilidad de tarifas para la fecha de check-in
+    const checkInDate = new Date(checkIn);
+    const seasonBlocks = await prisma.seasonBlock.findMany({
+      where: {
+        hotelId: 'default-hotel',
+        startDate: { lte: checkInDate },
+        endDate: { gte: checkInDate }
+      },
+      select: {
+        id: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        isDraft: true
+      },
+      orderBy: { isDraft: 'asc' }
+    });
+
+    // Determinar el estado de las tarifas
+    let tariffStatus = {
+      hasTariffs: false,
+      hasActiveBlock: false,
+      hasDraftBlock: false,
+      message: '',
+      reason: ''
+    };
+
+    if (seasonBlocks.length === 0) {
+      tariffStatus = {
+        hasTariffs: false,
+        hasActiveBlock: false,
+        hasDraftBlock: false,
+        message: 'No hay tarifas cargadas para la fecha especificada',
+        reason: 'no_blocks_for_date'
+      };
+    } else {
+      const activeBlock = seasonBlocks.find(block => !block.isDraft);
+      
+      if (!activeBlock) {
+        const draftBlocks = seasonBlocks.filter(block => block.isDraft);
+        tariffStatus = {
+          hasTariffs: false,
+          hasActiveBlock: false,
+          hasDraftBlock: true,
+          message: 'No hay tarifas confirmadas para la fecha especificada. Existen bloques en borrador.',
+          draftBlocks: draftBlocks.map(block => ({
+            id: block.id,
+            name: block.name,
+            startDate: block.startDate,
+            endDate: block.endDate
+          })),
+          reason: 'only_draft_blocks'
+        };
+      } else {
+        tariffStatus = {
+          hasTariffs: true,
+          hasActiveBlock: true,
+          hasDraftBlock: seasonBlocks.some(block => block.isDraft),
+          activeBlock: {
+            id: activeBlock.id,
+            name: activeBlock.name,
+            startDate: activeBlock.startDate,
+            endDate: activeBlock.endDate
+          },
+          message: 'Tarifas disponibles para la fecha especificada'
+        };
+      }
+    }
+
+    // Obtener habitaciones ocupadas en el período usando segmentos de reserva
+    const occupiedRooms = await prisma.reservationSegment.findMany({
       where: {
         AND: [
           {
             OR: [
               {
-                checkIn: { lt: new Date(checkOut) },
-                checkOut: { gt: new Date(checkIn) }
+                startDate: { lt: new Date(checkOut) },
+                endDate: { gt: new Date(checkIn) }
               }
             ]
           },
-          ...(excludeReservationId ? [{ id: { not: parseInt(excludeReservationId) } }] : [])
+          {
+            isActive: true
+          },
+          ...(excludeReservationId ? [{ 
+            reservation: { 
+              id: { not: parseInt(excludeReservationId) } 
+            } 
+          }] : [])
         ]
       },
       select: { roomId: true }
@@ -465,7 +543,8 @@ exports.findAvailableRooms = async (req, res) => {
         requiredGuests: parseInt(requiredGuests),
         roomId: requiredRoomId,
         tags: tagsArray
-      }
+      },
+      tariffStatus: tariffStatus
     });
   } catch (error) {
     console.error('Error in findAvailableRooms:', error);

@@ -22,16 +22,16 @@ class DynamicPricingService {
         return 0.5; // Valor por defecto si no hay habitaciones
       }
 
-      // Obtener reservas activas para esa fecha
-      const activeReservations = await this.prisma.reservation.count({
+      // Obtener segmentos de reserva activos para esa fecha
+      const activeReservations = await this.prisma.reservationSegment.count({
         where: {
-          checkIn: {
+          startDate: {
             lte: date
           },
-          checkOut: {
+          endDate: {
             gt: date
           },
-          // Asumiendo que las reservas están asociadas a habitaciones del hotel
+          isActive: true
         }
       });
 
@@ -478,7 +478,7 @@ class DynamicPricingService {
     return 0;
   }
 
-  async interpolateBasePrice(date, hotelId) {
+  async interpolateBasePrice(date, hotelId, roomTypeId = null) {
     // Buscar bloque de temporada activo para la fecha
     const targetDate = new Date(date);
     
@@ -486,10 +486,11 @@ class DynamicPricingService {
       where: {
         hotelId,
         startDate: { lte: targetDate },
-        endDate: { gte: targetDate }
+        endDate: { gte: targetDate },
+        isDraft: false
       },
       include: {
-        roomTypePrices: true
+        seasonPrices: true
       }
     });
     
@@ -497,9 +498,17 @@ class DynamicPricingService {
       throw new Error('No se encontró un bloque de temporada para la fecha especificada');
     }
     
-    // Retornar el precio base del bloque (usar el primer roomTypePrice como referencia)
-    if (seasonBlock.roomTypePrices && seasonBlock.roomTypePrices.length > 0) {
-      return seasonBlock.roomTypePrices[0].basePrice;
+    // Si se especifica un roomTypeId, buscar el precio específico para ese tipo de habitación
+    if (roomTypeId && seasonBlock.seasonPrices && seasonBlock.seasonPrices.length > 0) {
+      const roomTypePrice = seasonBlock.seasonPrices.find(price => price.roomTypeId === roomTypeId);
+      if (roomTypePrice) {
+        return roomTypePrice.basePrice;
+      }
+    }
+    
+    // Si no se encuentra precio específico, usar el primer precio como referencia
+    if (seasonBlock.seasonPrices && seasonBlock.seasonPrices.length > 0) {
+      return seasonBlock.seasonPrices[0].basePrice;
     }
     
     // Si no hay precios específicos por tipo de habitación, usar precio base por defecto
@@ -507,31 +516,40 @@ class DynamicPricingService {
   }
 
   async calculateMealPrices(baseRate, hotelId) {
-    const mealRules = await this.prisma.mealPricingRule.findUnique({
-      where: { hotelId }
-    });
-    if (!mealRules) {
+    try {
+      const mealRules = await this.prisma.mealPricingRule.findUnique({
+        where: { hotelId }
+      });
+      if (!mealRules) {
+        return {
+          withBreakfast: Math.round(baseRate * 1.15),
+          withHalfBoard: Math.round(baseRate * 1.35)
+        };
+      }
+      let breakfastPrice = baseRate;
+      let halfBoardPrice = baseRate;
+      if (mealRules.breakfastMode === 'FIXED') {
+        breakfastPrice = baseRate + mealRules.breakfastValue;
+      } else {
+        breakfastPrice = baseRate * (1 + mealRules.breakfastValue);
+      }
+      if (mealRules.dinnerMode === 'FIXED') {
+        halfBoardPrice = breakfastPrice + mealRules.dinnerValue;
+      } else {
+        halfBoardPrice = breakfastPrice * (1 + mealRules.dinnerValue);
+      }
+      return {
+        withBreakfast: Math.round(breakfastPrice),
+        withHalfBoard: Math.round(halfBoardPrice)
+      };
+    } catch (error) {
+      console.error('Error en calculateMealPrices, usando valores por defecto:', error);
+      // Usar valores por defecto si hay error
       return {
         withBreakfast: Math.round(baseRate * 1.15),
         withHalfBoard: Math.round(baseRate * 1.35)
       };
     }
-    let breakfastPrice = baseRate;
-    let halfBoardPrice = baseRate;
-    if (mealRules.breakfastMode === 'FIXED') {
-      breakfastPrice = baseRate + mealRules.breakfastValue;
-    } else {
-      breakfastPrice = baseRate * (1 + mealRules.breakfastValue);
-    }
-    if (mealRules.dinnerMode === 'FIXED') {
-      halfBoardPrice = breakfastPrice + mealRules.dinnerValue;
-    } else {
-      halfBoardPrice = breakfastPrice * (1 + mealRules.dinnerValue);
-    }
-    return {
-      withBreakfast: Math.round(breakfastPrice),
-      withHalfBoard: Math.round(halfBoardPrice)
-    };
   }
 
   async generateDynamicRates(hotelId, roomTypeId, startDate, endDate) {
@@ -583,7 +601,7 @@ class DynamicPricingService {
       // Determinar si es fin de semana según la configuración
       const weekendDays = config?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
       const isWeekend = weekendDays.includes(date.getDay());
-      const baseRate = await this.interpolateBasePrice(date, hotelId);
+      const baseRate = await this.interpolateBasePrice(date, hotelId, roomTypeId);
       const occupancyScore = await this.calculateRealOccupancy(hotelId, date); // Usar calculateRealOccupancy
       const adjustmentPercentages = await this.calculateIndividualAdjustmentPercentages({
         date,

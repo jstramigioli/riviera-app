@@ -6,6 +6,9 @@ const router = express.Router();
 // GET /api/season-blocks - Listar todos los bloques de temporada
 router.get('/', seasonBlockController.getAllSeasonBlocks);
 
+// GET /api/season-blocks/active - Obtener el bloque de temporada activo para una fecha
+router.get('/active', seasonBlockController.getActiveSeasonBlock);
+
 // GET /api/season-blocks/:id/calculated-prices - Obtener precios calculados con redondeo
 router.get('/:id/calculated-prices', seasonBlockController.getCalculatedPrices);
 

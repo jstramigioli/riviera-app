@@ -5,7 +5,7 @@ import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
 import CreateReservationPanel from './CreateReservationPanel';
-import CreateQueryPanel from './CreateQueryPanel';
+import CreateQueryModal from './CreateQueryModal';
 import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
@@ -596,10 +596,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setSelectedDate(null);
   }
 
-  function handleCreateReservationClick() {
-    setIsCreateReservationPanelOpen(true);
-  }
-
   function handleCreateReservationPanelClose() {
     setIsCreateReservationPanelOpen(false);
   }
@@ -612,17 +608,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setIsCreateQueryPanelOpen(false);
   }
 
-  async function handleCreateQuery(newQuery) {
-    try {
-      // Aquí podrías agregar la lógica para manejar la nueva consulta
-      console.log('Nueva consulta creada:', newQuery);
-      setIsCreateQueryPanelOpen(false);
-      // Opcional: mostrar un mensaje de éxito
-      alert('Consulta creada exitosamente');
-    } catch (error) {
-      console.error('Error creating query:', error);
-    }
-  }
+
 
   async function handleCreateReservation(newReservation) {
     try {
@@ -1100,9 +1086,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onClose={handleDayInfoPanelClose}
       />
 
-      {/* Botón flotante para crear nueva reserva o consulta */}
+      {/* Botón flotante para crear nueva consulta */}
       <FloatingActionButton 
-        onCreateReservation={handleCreateReservationClick}
         onCreateQuery={handleCreateQueryClick}
       />
 
@@ -1114,15 +1099,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         operationalPeriods={operationalPeriods}
       />
 
-      {/* Panel de creación de consultas */}
-      {isCreateQueryPanelOpen && (
-        <CreateQueryPanel
-          isOpen={isCreateQueryPanelOpen}
-          onClose={handleCreateQueryPanelClose}
-          onCreateQuery={handleCreateQuery}
-          rooms={rooms}
-        />
-      )}
+      {/* Modal de creación de consultas */}
+      <CreateQueryModal
+        isOpen={isCreateQueryPanelOpen}
+        onClose={handleCreateQueryPanelClose}
+      />
 
       {/* Modal de detalles del score de ocupación */}
       <OccupancyScoreModal

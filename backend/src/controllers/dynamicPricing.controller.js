@@ -1,6 +1,6 @@
-const dynamicPricingService = require('../services/dynamicPricingService');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const dynamicPricingService = require('../services/dynamicPricingService');
 
 class DynamicPricingController {
 

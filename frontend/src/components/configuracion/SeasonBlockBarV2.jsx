@@ -42,6 +42,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     updatePrice,
     getActiveServiceTypes,
     saveSeasonBlock,
+    confirmSeasonBlock,
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
@@ -380,15 +381,28 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   const handleSaveTariffChanges = async () => {
     const saveResult = await saveSeasonBlock();
     if (saveResult.success) {
-      console.log('=== SAVE SUCCESSFUL - CLEANING STATES ===');
+      console.log('=== SAVE SUCCESSFUL - CONFIRMING BLOCK ===');
       
-      setOriginalPrices([...prices]);
-      setHasTariffChanges(false);
-      setHasAnyChanges(false);
-      setIsEditing(false); // Desactivar modo edición después de guardar
-      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
-      
-      showNotification('Cambios guardados exitosamente');
+      // Confirmar el bloque después de guardar
+      const confirmResult = await confirmSeasonBlock();
+      if (confirmResult.success) {
+        console.log('=== BLOCK CONFIRMED SUCCESSFULLY ===');
+        
+        setOriginalPrices([...prices]);
+        setHasTariffChanges(false);
+        setHasAnyChanges(false);
+        setIsEditing(false); // Desactivar modo edición después de guardar
+        setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
+        
+        showNotification('Cambios guardados y bloque confirmado exitosamente');
+        
+        // Recargar los datos del bloque para sincronizar
+        if (onBlockUpdated) {
+          onBlockUpdated();
+        }
+      } else {
+        showNotification('Cambios guardados pero error al confirmar: ' + confirmResult.error, 'warning');
+      }
     } else {
       showNotification(saveResult.error || 'Error al guardar los cambios', 'error');
     }
@@ -424,12 +438,23 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   // Función para manejar cambios en porcentajes de ajuste
   const handlePercentageChange = (serviceTypeId, value) => {
+    const numericValue = parseFloat(value) || 0;
+    
+    // Actualizar percentageAdjustments
     const newAdjustments = {
       ...percentageAdjustments,
-      [serviceTypeId]: value
+      [serviceTypeId]: numericValue
     };
-    
     setPercentageAdjustments(newAdjustments);
+    
+    // También actualizar blockServiceSelections para que se recalculen los precios
+    setBlockServiceSelections(prev => 
+      prev.map(selection => 
+        selection.id === serviceTypeId 
+          ? { ...selection, percentageAdjustment: numericValue }
+          : selection
+      )
+    );
   };
 
   // Función para guardar el porcentaje de ajuste (solo localmente)
@@ -662,12 +687,12 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     let basePrice = currentPrice?.basePrice || 0;
     let adjustedPrice = basePrice;
     
-    // Si hay un ajuste de porcentaje, usar el precio base de "Solo Alojamiento" como referencia
-    if (percentageAdjustment && percentageAdjustment !== 0) {
-      // Buscar el servicio "Solo Alojamiento" para este tipo de habitación
-      const baseService = getActiveServiceTypes().find(s => 
-        s.serviceType?.name === 'Solo Alojamiento' || s.name === 'Solo Alojamiento'
-      );
+          // Si hay un ajuste de porcentaje, usar el precio base de "Tarifa base" como referencia
+      if (percentageAdjustment && percentageAdjustment !== 0) {
+        // Buscar el servicio "Tarifa base" para este tipo de habitación
+        const baseService = getActiveServiceTypes().find(s => 
+          s.serviceType?.name === 'Tarifa base' || s.name === 'Tarifa base'
+        );
       
       if (baseService) {
         const baseServicePrice = prices.find(p => 
@@ -1022,14 +1047,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                                 (de {formatCurrency(priceInfo.adjustedPrice)})
                               </div>
                             )}
-                            {priceInfo.adjustment && priceInfo.adjustment.value !== 0 && (
-                              <div className={styles.adjustmentInfo}>
-                                {priceInfo.adjustment.mode === 'PERCENTAGE' ? 
-                                  `${priceInfo.adjustment.value > 0 ? '+' : ''}${priceInfo.adjustment.value}%` :
-                                  `${priceInfo.adjustment.value > 0 ? '+' : ''}${formatCurrency(priceInfo.adjustment.value)}`
-                                }
-                              </div>
-                            )}
+                            {/* Los ajustes se aplican automáticamente al precio, no se muestran indicadores */}
                           </div>
                         )}
                       </td>

@@ -1,4 +1,88 @@
-const prisma = require('../utils/prisma');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+// Obtener el bloque de temporada activo para una fecha específica
+exports.getActiveSeasonBlock = async (req, res) => {
+  try {
+    const { hotelId, date } = req.query;
+
+    if (!hotelId || !date) {
+      return res.status(400).json({ 
+        message: 'Se requieren hotelId y date' 
+      });
+    }
+
+    const targetDate = new Date(date);
+    
+    if (isNaN(targetDate.getTime())) {
+      return res.status(400).json({ message: 'Fecha inválida' });
+    }
+
+    // Buscar bloques que cubran la fecha (tanto borradores como confirmados)
+    const seasonBlocks = await prisma.seasonBlock.findMany({
+      where: {
+        hotelId,
+        startDate: { lte: targetDate },
+        endDate: { gte: targetDate }
+      },
+      include: {
+        seasonPrices: {
+          include: {
+            roomType: true,
+            serviceType: true
+          }
+        },
+        blockServiceSelections: {
+          include: {
+            serviceType: true
+          }
+        }
+      },
+      orderBy: { isDraft: 'asc' } // Primero los confirmados, luego los borradores
+    });
+
+    // Si no hay ningún bloque para esta fecha
+    if (seasonBlocks.length === 0) {
+      return res.status(404).json({ 
+        message: 'No hay tarifas cargadas para la fecha especificada',
+        hasActiveBlock: false,
+        hasDraftBlock: false,
+        reason: 'no_blocks_for_date'
+      });
+    }
+
+    // Buscar el primer bloque confirmado (no borrador)
+    const activeBlock = seasonBlocks.find(block => !block.isDraft);
+    
+    if (!activeBlock) {
+      // Solo hay borradores, no hay bloque confirmado
+      const draftBlocks = seasonBlocks.filter(block => block.isDraft);
+      return res.status(404).json({ 
+        message: 'No hay tarifas confirmadas para la fecha especificada. Existen bloques en borrador.',
+        hasActiveBlock: false,
+        hasDraftBlock: true,
+        draftBlocks: draftBlocks.map(block => ({
+          id: block.id,
+          name: block.name,
+          startDate: block.startDate,
+          endDate: block.endDate
+        })),
+        reason: 'only_draft_blocks'
+      });
+    }
+
+    // Hay un bloque confirmado activo
+    res.json({
+      seasonBlock: activeBlock,
+      hasActiveBlock: true,
+      hasDraftBlock: seasonBlocks.some(block => block.isDraft),
+      message: 'Bloque de temporada activo encontrado'
+    });
+  } catch (error) {
+    console.error('Error al obtener bloque de temporada activo:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
 
 // Función auxiliar para validar fechas
 const validateDates = (startDate, endDate) => {
@@ -888,3 +972,6 @@ exports.confirmSeasonBlock = async (req, res) => {
     });
   }
 }; 
+
+// El archivo ya tiene todas las funciones exportadas correctamente arriba
+// No necesitamos la clase duplicada 

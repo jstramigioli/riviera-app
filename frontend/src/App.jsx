@@ -16,6 +16,7 @@ import RatesCalendar from './components/RatesCalendar';
 import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
 import CobrosPagos from './pages/CobrosPagos';
+import NuevaConsulta from './pages/NuevaConsulta';
 import ErrorDisplay from './components/ErrorDisplay';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
@@ -668,6 +669,7 @@ function App() {
             <Route path="/" element={<ReservationsView />} />
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
             <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
+            <Route path="/nueva-consulta" element={<NuevaConsulta />} />
             <Route path="/tarifas" element={<TarifasView />} />
             <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />

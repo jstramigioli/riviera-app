@@ -315,6 +315,8 @@ export async function findAvailableRooms(params) {
   return res.json();
 }
 
+
+
 // Exportación por defecto con todas las funciones
 // Funciones para el Calendario de Gestión
 export async function fetchOpenDays(startDate, endDate) {

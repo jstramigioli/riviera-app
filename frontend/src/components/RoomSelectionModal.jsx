@@ -20,6 +20,7 @@ function RoomSelectionModal({
   const [error, setError] = useState(null);
   const [roomRates, setRoomRates] = useState({});
   const [loadingRates, setLoadingRates] = useState({});
+  const [tariffAvailability, setTariffAvailability] = useState(null);
 
   useEffect(() => {
     if (isOpen && requirements.requiredGuests && checkIn && checkOut) {
@@ -85,6 +86,8 @@ function RoomSelectionModal({
 
     setLoading(true);
     setError(null);
+    setTariffAvailability(null);
+    
     try {
       const params = {
         checkIn,
@@ -94,10 +97,16 @@ function RoomSelectionModal({
       };
 
       const result = await findAvailableRooms(params);
+      
+      // Extraer información de tarifas de la respuesta
+      if (result.tariffStatus) {
+        setTariffAvailability(result.tariffStatus);
+      }
+      
       setSearchResults(result);
       
       // Seleccionar automáticamente la primera habitación si hay disponibles
-      if (result.availableRooms.length > 0) {
+      if (result.availableRooms && result.availableRooms.length > 0) {
         setSelectedRoomId(result.availableRooms[0].id);
         setSelectedCombination(null);
       }
@@ -444,6 +453,44 @@ function RoomSelectionModal({
             fontSize: 'var(--font-size-medium)'
           }}>
             {error}
+          </div>
+        )}
+
+        {/* Mensaje cuando no hay tarifas disponibles */}
+        {!loading && !error && tariffAvailability && !tariffAvailability.hasTariffs && (
+          <div style={{
+            padding: '20px',
+            backgroundColor: 'var(--color-warning-light)',
+            color: 'var(--color-warning)',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center',
+            fontSize: 'var(--font-size-medium)'
+          }}>
+            <div style={{ marginBottom: '12px', fontSize: 'var(--font-size-large)' }}>
+              ⚠️ No hay tarifas cargadas
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              {tariffAvailability.message}
+            </div>
+            {tariffAvailability.hasDraftBlock && tariffAvailability.draftBlocks && (
+              <div style={{ 
+                marginTop: '12px', 
+                padding: '12px', 
+                backgroundColor: 'var(--color-bg)', 
+                borderRadius: '6px',
+                fontSize: 'var(--font-size-small)'
+              }}>
+                <strong>Bloques en borrador encontrados:</strong>
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                  {tariffAvailability.draftBlocks.map(block => (
+                    <li key={block.id}>
+                      {block.name} ({new Date(block.startDate).toLocaleDateString()} - {new Date(block.endDate).toLocaleDateString()})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
