@@ -1,7 +1,8 @@
 /* ReservationGrid.module.css */
 .reservationGridContainer {
   width: calc(100% - 2rem); /* Restar el margen */
-  height: calc(100vh - 280px); /* Ajustar altura para considerar header y otros elementos */
+  height: 100%; /* Usar toda la altura disponible del contenedor padre */
+  min-height: 0; /* Permitir que se reduzca si es necesario */
   overflow-x: auto;
   overflow-y: auto;
   position: relative;
@@ -11,6 +12,9 @@
   margin: 1rem;
   box-sizing: border-box; /* Asegurar que el padding/margin se incluya en el ancho */
   padding-right: 12px; /* Espacio para la barra vertical */
+  flex: 1; /* Hacer que ocupe todo el espacio disponible */
+  display: flex;
+  flex-direction: column;
 }
 
 .reservationBarsContainer {
