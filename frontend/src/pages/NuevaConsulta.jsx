@@ -477,7 +477,7 @@ export default function NuevaConsulta() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} page-content`}>
       <div className={styles.header}>
         <div className={styles.headerContent}>
           <div>

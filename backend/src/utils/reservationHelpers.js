@@ -54,7 +54,10 @@ function getReservationData(reservation) {
     mainClient: reservation.mainClient,
     guests: reservation.guests,
     segments: activeSegments,
-    childReservations: reservation.childReservations
+    childReservations: reservation.childReservations,
+    
+    // Incluir la información de la habitación desde el primer segmento
+    room: firstSegment.room
   };
 }
 

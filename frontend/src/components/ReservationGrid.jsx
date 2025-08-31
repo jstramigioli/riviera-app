@@ -439,14 +439,60 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
   }, [rooms, isInitialLoad]);
 
+  // Función para obtener las posiciones reales de las celdas de la tabla
+  function getCellPosition(roomIndex, dayIndex) {
+    if (!tableRef.current) return { left: 0, top: 0 };
+    
+    const table = tableRef.current;
+    const rows = table.querySelectorAll('tbody tr');
+    const cells = rows[roomIndex]?.querySelectorAll('td');
+    
+    if (!cells || !cells[dayIndex + 1]) return { left: 0, top: 0 }; // +1 porque la primera celda es el nombre de la habitación
+    
+    const cell = cells[dayIndex + 1];
+    const rect = cell.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    
+    return {
+      left: rect.left - containerRect.left + containerRef.current.scrollLeft,
+      top: rect.top - containerRect.top + containerRef.current.scrollTop
+    };
+  }
+
+  // Función para medir la altura real de las celdas en el navegador
+  function measureRealCellHeight() {
+    if (!tableRef.current) return 30; // Valor por defecto
+    
+    const table = tableRef.current;
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return 30;
+    
+    const firstRow = tbody.querySelector('tr');
+    if (!firstRow) return 30;
+    
+    const firstCell = firstRow.querySelector('td');
+    if (!firstCell) return 30;
+    
+    const realHeight = firstCell.offsetHeight;
+    console.log('🔍 ALTURA REAL DE CELDA:', {
+      offsetHeight: realHeight,
+      clientHeight: firstCell.clientHeight,
+      scrollHeight: firstCell.scrollHeight,
+      computedStyle: window.getComputedStyle(firstCell).height
+    });
+    
+    return realHeight;
+  }
+
   // Función para medir el ancho y alto real de las celdas después de que se renderice la tabla
   function measureCellDimensions() {
     // Usar valores fijos que coincidan con el CSS
     const fixedWidth = 50;
-    const fixedHeight = 30;
+    const realHeight = measureRealCellHeight(); // Usar altura real de las celdas
+    
     setCellWidth(fixedWidth);
-    setCellHeight(fixedHeight);
-    console.log('Dimensiones fijas:', { width: fixedWidth, height: fixedHeight });
+    setCellHeight(realHeight);
+    console.log('Dimensiones actualizadas:', { width: fixedWidth, height: realHeight });
   }
 
   // Función para medir la altura real de los headers
@@ -470,21 +516,22 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   }
 
   useEffect(() => {
-    if (tableRef.current && rooms.length > 0) {
-      setTimeout(() => {
-        measureCellDimensions();
-        measureHeaderHeight();
-      }, 200);
-    }
-  }, [rooms, days]);
-
-  useEffect(() => {
     // Medir dimensiones cuando el componente se monte
     setTimeout(() => {
       measureCellDimensions();
       measureHeaderHeight();
     }, 100);
   }, []);
+
+  useEffect(() => {
+    // Medir dimensiones después de que se renderice la tabla
+    if (tableRef.current && rooms.length > 0) {
+      setTimeout(() => {
+        measureCellDimensions();
+        measureHeaderHeight();
+      }, 500); // Aumentar el delay para asegurar que la tabla se haya renderizado
+    }
+  }, [rooms, days]);
 
   useEffect(() => {
     // Escuchar mouseup global para detectar fin de resize
@@ -1004,7 +1051,16 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           </tbody>
         </table>
         
-        <div className={styles.reservationBarsContainer} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+        <div className={styles.reservationBarsContainer} style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          pointerEvents: 'none',
+          margin: 0,
+          padding: 0
+        }}>
           {/* Barras de reservas */}
 
           {rooms.map((room, roomIndex) => {
@@ -1032,6 +1088,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                   justFinishedResize={justFinishedResize}
                   onReservationHover={handleReservationHover}
                   onReservationLeave={handleReservationLeave}
+                  getCellPosition={getCellPosition}
                 />
               );
             });
@@ -1043,7 +1100,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
               className={styles.dragPreview}
               style={{
                 position: 'absolute',
-                left: `${roomColumnWidth + ((() => {
+                left: `${16 + 120 + ((() => {
                   const checkIn = new Date(dragPreview.checkIn);
                   const checkInStr = format(checkIn, 'yyyy-MM-dd');
                   const days = [];

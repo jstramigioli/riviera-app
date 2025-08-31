@@ -9,9 +9,15 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2px 4px;
+  padding: 0;
   box-sizing: border-box;
   min-width: 20px;
+  /* Remover altura fija para usar la altura dinámica del componente */
+}
+
+/* Clase específica para forzar altura */
+.reservation-bar-fixed-height {
+  /* Remover altura fija para usar la altura dinámica */
 }
 
 .reservation-bar:hover {
@@ -45,7 +51,7 @@
 .reservation-client {
   font-weight: bold;
   font-size: var(--font-size-small);
-  line-height: 1.2;
+  line-height: 1;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;

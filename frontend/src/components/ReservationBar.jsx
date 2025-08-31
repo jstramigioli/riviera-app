@@ -16,7 +16,8 @@ export default function ReservationBar({
   isResizing,
   justFinishedResize,
   onReservationHover,
-  onReservationLeave
+  onReservationLeave,
+  getCellPosition
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef();
@@ -33,10 +34,8 @@ export default function ReservationBar({
   checkIn.setUTCHours(0, 0, 0, 0);
   checkOut.setUTCHours(0, 0, 0, 0);
   
-  // Ajustar posiciones considerando headers y columna de habitaciones
+  // Usar el ancho fijo de la columna de habitaciones del CSS
   const roomColumnWidth = 120;
-  
-
   
   // Encontrar el índice del día en el array de días usando comparación de timestamps
   const days = [];
@@ -49,37 +48,78 @@ export default function ReservationBar({
   }
   
   const daysFromStart = days.findIndex(day => day.getTime() === checkIn.getTime());
-  
-
-
   const duration = differenceInDays(checkOut, checkIn);
   
-    // Usar las dimensiones reales del DOM
-  const firstRoomCell = document.querySelector('td:first-child');
-  const realRoomWidth = firstRoomCell?.offsetWidth || roomColumnWidth;
+  // DEBUG: Verificar el cálculo de daysFromStart
+  // if (reservation.id === 1) {
+  //   console.log('🔍 DEBUG DAYS FROM START:', {
+  //     startDate: startDate.toISOString(),
+  //     checkIn: checkIn.toISOString(),
+  //     daysGenerated: days.length,
+  //     firstDay: days[0]?.toISOString(),
+  //     lastDay: days[days.length - 1]?.toISOString(),
+  //     daysFromStart,
+  //     daysArray: days.slice(0, 10).map(d => d.toISOString().split('T')[0]) // Primeros 10 días
+  //   });
+  // }
   
-  const left = realRoomWidth + (daysFromStart * cellWidth);
+  // Calcular posición usando valores fijos del CSS en lugar de consultas al DOM
+  // Considerar el margen del contenedor principal (1rem = 16px)
+  const containerMargin = 16;
+  const left = containerMargin + roomColumnWidth + (daysFromStart * cellWidth);
   
   // DEBUG: Mostrar el cálculo corregido
-  if (reservation.id === 1) {
-    console.log('🎯 CÁLCULO CORREGIDO:', {
-      realRoomWidth,
-      cellWidth,
-      daysFromStart,
-      calculo: `${realRoomWidth} + (${daysFromStart} * ${cellWidth}) = ${left}`,
-      leftFinal: left
-    });
-  }
+  // if (reservation.id === 1) {
+  //   console.log('🎯 CÁLCULO CORREGIDO:', {
+  //     containerMargin,
+  //     roomColumnWidth,
+  //     cellWidth,
+  //     daysFromStart,
+  //     calculo: `${containerMargin} + ${roomColumnWidth} + (${daysFromStart} * ${cellWidth}) = ${left}`,
+  //     leftFinal: left
+  //   });
+  // }
+  
   const width = duration * cellWidth;
-  const top = headerHeight + (roomIndex * cellHeight) - 1;
-  
+  // Simplificar el cálculo del top - usar solo la altura de los headers + el índice de la habitación
+  const top = headerHeight + (roomIndex * cellHeight);
 
+  // Usar getCellPosition si está disponible para un posicionamiento más preciso
+  let finalLeft = left;
+  let finalTop = top;
   
+  if (getCellPosition && daysFromStart >= 0) {
+    const cellPos = getCellPosition(roomIndex, daysFromStart);
+    if (cellPos.left > 0) {
+      finalLeft = cellPos.left;
+      finalTop = cellPos.top;
+      // console.log('🎯 USANDO POSICIÓN REAL DE CELDA:', {
+      //   reservationId: reservation.id,
+      //   cellPos,
+      //   finalLeft,
+      //   finalTop
+      // });
+    }
+  }
 
-  
-
-  
-
+  // DEBUG: Mostrar todos los valores de posicionamiento para todas las reservas
+  // console.log('🔍 DEBUG POSICIONAMIENTO:', {
+  //   reservationId: reservation.id,
+  //   checkIn: checkIn.toISOString(),
+  //   checkOut: checkOut.toISOString(),
+  //   startDate: startDate.toISOString(),
+  //   daysFromStart,
+  //   roomIndex,
+  //   containerMargin,
+  //   roomColumnWidth,
+  //   cellWidth,
+  //   cellHeight,
+  //   headerHeight,
+  //   left,
+  //   top,
+  //   width,
+  //   duration
+  // });
 
   // Memoizar los cálculos de hover para evitar recálculos innecesarios
   const hoverData = useCallback(() => {
@@ -154,55 +194,98 @@ export default function ReservationBar({
     }
   }, [onReservationLeave]);
 
-  // Función para calcular el ancho aproximado del texto
-  const getTextWidth = (text, barWidth) => {
-    // Determinar el tamaño de fuente basado en el ancho de la barra
-    let fontSize = '0.75rem';
-    if (barWidth < 50) fontSize = '0.65rem';
-    if (barWidth < 30) fontSize = '0.55rem';
-    
-    // Crear un elemento temporal para medir el texto
+  // Validar que se encontró la fecha después de los hooks
+  if (daysFromStart === -1) {
+    console.error('❌ ERROR: No se pudo encontrar la fecha de check-in en el array de días:', {
+      checkIn: checkIn.toISOString(),
+      startDate: startDate.toISOString(),
+      reservationId: reservation.id
+    });
+    return null; // No renderizar la barra si no se puede calcular la posición
+  }
+  
+
+
+  // Función para medir el ancho real del texto
+  const measureTextWidth = (text, fontSize = '1rem') => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    context.font = fontSize + ' Arial, sans-serif';
-    return context.measureText(text).width;
+    // Usar la misma fuente que se usa en el CSS (bold para reservation-client)
+    context.font = `bold ${fontSize} Arial, sans-serif`;
+    const metrics = context.measureText(text);
+    
+    // DEBUG: Log para María González
+    if (text.includes('Maria') || text.includes('Gonzalez')) {
+      console.log('🔍 MEDICIÓN TEXTO:', {
+        text,
+        fontSize,
+        width: metrics.width,
+        actualBoundingBoxLeft: metrics.actualBoundingBoxLeft,
+        actualBoundingBoxRight: metrics.actualBoundingBoxRight,
+        fontBoundingBoxAscent: metrics.fontBoundingBoxAscent,
+        fontBoundingBoxDescent: metrics.fontBoundingBoxDescent
+      });
+    }
+    
+    return metrics.width;
   };
 
-  // Función para truncar nombres largos basada en el ancho real del texto
+  // Función para truncar nombres largos basada en el ancho real disponible
   const truncateName = (firstName, lastName, barWidth, guestCount = '') => {
     const fullName = `${firstName || ''} ${lastName || ''}`.trim();
     
     if (!fullName) return 'Sin cliente';
     
-    // Calcular anchos de las diferentes opciones
-    const fullNameWidth = getTextWidth(fullName, barWidth);
-    const lastNameWidth = getTextWidth(lastName || firstName || 'Cliente', barWidth);
-    const firstInitial = firstName ? firstName[0] : '';
-    const lastInitial = lastName ? lastName[0] : '';
-    const initials = `${firstInitial}${lastInitial}`.toUpperCase();
-    const initialsWidth = getTextWidth(initials, barWidth);
+    // Determinar el tamaño de fuente basado en el ancho de la barra (igual que el CSS)
+    let fontSize = '1rem'; // var(--font-size-small)
+    if (barWidth < 50) fontSize = '0.8rem';
+    if (barWidth < 30) fontSize = '0.7rem';
     
-    // Dejar un margen de 8px (4px a cada lado) y espacio para el contador si es necesario
-    const guestCountWidth = guestCount ? getTextWidth(guestCount, barWidth) + 8 : 0;
-    const availableWidth = barWidth - 8 - guestCountWidth;
+    // Calcular el espacio disponible (dejar margen de 8px)
+    let availableWidth = barWidth - 8;
     
-    // Prioridad 1: Nombre completo si cabe
-    if (fullNameWidth <= availableWidth) {
-      return fullName;
+    // Si hay contador de huéspedes, reservar espacio para él
+    let guestCountSpace = 0;
+    if (guestCount) {
+      guestCountSpace = measureTextWidth(guestCount, fontSize) + 4; // 4px de margen
+      availableWidth -= guestCountSpace;
     }
     
-    // Prioridad 2: Solo apellido si cabe
-    if (lastNameWidth <= availableWidth) {
-      return lastName || firstName || 'Cliente';
+    // Opciones de texto en orden de preferencia
+    const options = [
+      fullName, // Nombre completo
+      lastName || firstName || 'Cliente', // Solo apellido
+      firstName || 'Cliente', // Solo nombre
+      `${firstName ? firstName[0] : ''}${lastName ? lastName[0] : ''}`.toUpperCase() || 'C', // Iniciales
+      firstName ? firstName[0].toUpperCase() : 'C' // Primera inicial
+    ];
+    
+    // DEBUG: Log detallado para María González
+    if (firstName === 'Maria' && lastName === 'Gonzalez') {
+      console.log('🔍 DEBUG MARÍA GONZÁLEZ:', {
+        barWidth,
+        availableWidth,
+        guestCount,
+        guestCountSpace,
+        fontSize,
+        options: options.map(option => ({
+          text: option,
+          width: measureTextWidth(option, fontSize),
+          fits: measureTextWidth(option, fontSize) <= availableWidth
+        }))
+      });
     }
     
-    // Prioridad 3: Iniciales si cabe
-    if (initialsWidth <= availableWidth) {
-      return initials;
+    // Probar cada opción hasta encontrar una que quepa
+    for (const option of options) {
+      const textWidth = measureTextWidth(option, fontSize);
+      if (textWidth <= availableWidth) {
+        return option;
+      }
     }
     
-    // Si nada cabe, usar iniciales de todos modos
-    return initials;
+    // Si nada cabe, usar la primera inicial
+    return firstName ? firstName[0].toUpperCase() : 'C';
   };
 
   // Obtener la cantidad de personas (huéspedes + cliente principal)
@@ -212,7 +295,59 @@ export default function ReservationBar({
   // Determinar si hay espacio para mostrar el contador de personas
   const hasSpaceForGuestCount = width > 80; // Mínimo 80px para mostrar el contador
   
-  const clientName = truncateName(reservation.mainClient?.firstName, reservation.mainClient?.lastName, width, hasSpaceForGuestCount ? guestCount : '');
+  const clientName = truncateName(
+    reservation.mainClient?.firstName, 
+    reservation.mainClient?.lastName, 
+    width, 
+    hasSpaceForGuestCount ? guestCount : ''
+  );
+
+  // DEBUG: Verificar dimensiones de la barra
+  if (reservation.id === 1) {
+    console.log('🔍 DIMENSIONES BARRA:', {
+      reservationId: reservation.id,
+      width,
+      height: `${cellHeight}px (real)`,
+      cellHeight,
+      clientName,
+      barWidth: width,
+      firstName: reservation.mainClient?.firstName,
+      lastName: reservation.mainClient?.lastName,
+      truncateResult: clientName,
+      guestCount,
+      hasSpaceForGuestCount,
+      finalLeft,
+      finalTop,
+      roomIndex,
+      daysFromStart
+    });
+    
+    // Verificar las dimensiones reales del DOM después del render
+    setTimeout(() => {
+      const barElement = document.getElementById(`reservation-bar-${reservation.id}`);
+      if (barElement) {
+        const rect = barElement.getBoundingClientRect();
+        console.log('🔍 DIMENSIONES REALES DOM:', {
+          reservationId: reservation.id,
+          offsetHeight: barElement.offsetHeight,
+          clientHeight: barElement.clientHeight,
+          scrollHeight: barElement.scrollHeight,
+          getBoundingClientRect: {
+            height: rect.height,
+            width: rect.width,
+            top: rect.top,
+            left: rect.left
+          },
+          computedStyle: {
+            height: window.getComputedStyle(barElement).height,
+            width: window.getComputedStyle(barElement).width,
+            padding: window.getComputedStyle(barElement).padding,
+            border: window.getComputedStyle(barElement).border
+          }
+        });
+      }
+    }, 100);
+  }
 
   return (
     <div
@@ -220,15 +355,14 @@ export default function ReservationBar({
       data-checkin={reservation.checkIn}
       data-checkout={reservation.checkOut}
       data-startdate={startDate?.toISOString() || ''}
-      className={`reservation-bar ${isDragging ? 'dragging' : ''}`}
+      className={`reservation-bar reservation-bar-fixed-height ${isDragging ? 'dragging' : ''}`}
       style={{
         position: 'absolute',
-        left: `${left}px`,
-        top: `${top}px`,
+        left: `${finalLeft}px`,
+        top: `${finalTop}px`,
         width: `${width}px`,
         height: `${cellHeight}px`,
         backgroundColor: '#f4e4c1',
-        border: '1px solid #d4c4a1',
         borderRadius: '3px',
         cursor: isResizing ? 'ew-resize' : 'grab',
         zIndex: 5,
@@ -236,7 +370,8 @@ export default function ReservationBar({
         boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
         transform: isDragging ? 'scale(1.02)' : 'scale(1)',
         transition: 'transform 0.1s ease',
-        opacity: 1
+        opacity: 1,
+        border: '1px solid #d4c4a1'
       }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
