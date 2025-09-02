@@ -41,6 +41,7 @@ model RoomType {
   dailyRoomRates         DailyRoomRate[]
   proportionCoefficients ProportionCoefficient[]
   rooms                  Room[]
+  virtualRooms           VirtualRoom[]           // Nueva relación
   segments               ReservationSegment[]
   seasonPrices           SeasonPrice[]
 }
@@ -58,6 +59,65 @@ model Room {
   roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
   gapPromotions RoomGapPromotion[]
   tags          Tag[]              @relation("RoomToTag")
+  
+  // Nuevas relaciones para inventario
+  virtualRoomComponents VirtualRoomComponent[] @relation("VirtualRoomComponents")
+  virtualRooms          VirtualRoom[]         @relation("VirtualRoomRooms")
+  inventory             RoomInventory[]       // Nueva relación
+}
+
+// Nuevo modelo para habitaciones virtuales
+model VirtualRoom {
+  id            Int                @id @default(autoincrement())
+  name          String             // Ej: "Suite Conectable 8-9"
+  description   String?
+  maxPeople     Int                // Capacidad total de la habitación virtual
+  roomTypeId    Int
+  isActive      Boolean            @default(true)
+  orderIndex    Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  
+  // Relaciones
+  roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
+  components    VirtualRoomComponent[]
+  segments      ReservationSegment[]
+  inventory     RoomInventory[]    // Nueva relación
+  rooms         Room[]             @relation("VirtualRoomRooms") // Nueva relación
+}
+
+// Modelo para conectar habitaciones físicas con virtuales
+model VirtualRoomComponent {
+  id            Int         @id @default(autoincrement())
+  virtualRoomId Int
+  roomId        Int
+  isRequired    Boolean     @default(true) // Si es requerida para que funcione la virtual
+  orderIndex    Int         @default(0)
+  
+  // Relaciones
+  virtualRoom   VirtualRoom @relation(fields: [virtualRoomId], references: [id], onDelete: Cascade)
+  room          Room        @relation("VirtualRoomComponents", fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@unique([virtualRoomId, roomId])
+}
+
+// Modelo para el inventario diario
+model RoomInventory {
+  id            Int      @id @default(autoincrement())
+  roomId        Int
+  virtualRoomId Int?     // Null si es habitación física individual
+  date          DateTime
+  isAvailable   Boolean  @default(true)
+  isBlocked     Boolean  @default(false)
+  blockedReason String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relaciones
+  room          Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  virtualRoom   VirtualRoom? @relation(fields: [virtualRoomId], references: [id], onDelete: Cascade)
+  
+  @@unique([roomId, virtualRoomId, date])
 }
 
 model Client {
@@ -423,6 +483,7 @@ model ReservationSegment {
   // Habitación (ahora obligatoria)
   roomId            Int         // Habitación para este segmento
   roomTypeId        Int?        // Tipo de habitación
+  virtualRoomId     Int?        // Habitación virtual (opcional)
   
   // Servicios
   services          String[]    // Servicios disponibles
@@ -447,4 +508,5 @@ model ReservationSegment {
   reservation       Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   room              Room        @relation(fields: [roomId], references: [id])
   roomType          RoomType?   @relation(fields: [roomTypeId], references: [id])
+  virtualRoom       VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
 }

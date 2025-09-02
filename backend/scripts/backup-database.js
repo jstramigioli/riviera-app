@@ -65,15 +65,10 @@ async function backupDatabase() {
         query: prisma.room.findMany({ 
           include: { 
             tags: true,
-            reservations: {
-              include: {
-                guests: true,
-                nightRates: true,
-                mainClient: true
-              }
-            },
+            segments: true,
             gapPromotions: true,
-            roomType: true
+            roomType: true,
+            queries: true
           } 
         })
       },
@@ -85,7 +80,12 @@ async function backupDatabase() {
               include: {
                 guests: true,
                 nightRates: true,
-                room: true
+                segments: {
+                  include: {
+                    room: true,
+                    roomType: true
+                  }
+                }
               }
             }
           }
@@ -117,11 +117,16 @@ async function backupDatabase() {
                 payments: true
               }
             },
-            room: { 
-              include: { 
-                tags: true,
+            segments: {
+              include: {
+                room: {
+                  include: {
+                    tags: true,
+                    roomType: true
+                  }
+                },
                 roomType: true
-              } 
+              }
             },
             mainClient: true,
             nightRates: true

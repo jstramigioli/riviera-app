@@ -14,6 +14,41 @@ export async function fetchRoomTypes() {
   return res.json()
 }
 
+// Funciones para habitaciones virtuales
+export async function fetchVirtualRooms() {
+  const res = await fetch(`${API_URL}/virtual-rooms`);
+  if (!res.ok) throw new Error('Error fetching virtual rooms');
+  return res.json();
+}
+
+export async function createVirtualRoom(data) {
+  const res = await fetch(`${API_URL}/virtual-rooms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error creating virtual room');
+  return res.json();
+}
+
+export async function updateVirtualRoom(id, data) {
+  const res = await fetch(`${API_URL}/virtual-rooms/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Error updating virtual room');
+  return res.json();
+}
+
+export async function deleteVirtualRoom(id) {
+  const res = await fetch(`${API_URL}/virtual-rooms/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Error deleting virtual room');
+  return res.ok;
+}
+
 export async function fetchReservations() {
   const res = await fetch(`${API_URL}/reservations`);
   if (!res.ok) throw new Error('Error fetching reservations');

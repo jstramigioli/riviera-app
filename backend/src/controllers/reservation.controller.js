@@ -493,10 +493,49 @@ exports.findAvailableRooms = async (req, res) => {
       }
     });
 
+    // Obtener habitaciones virtuales disponibles
+    const virtualRooms = await prisma.virtualRoom.findMany({
+      where: {
+        isActive: true
+      },
+      include: {
+        roomType: true,
+        components: {
+          include: {
+            room: true
+          }
+        }
+      }
+    });
+
+    // Filtrar habitaciones virtuales que estén disponibles (sus componentes no estén ocupados)
+    const availableVirtualRooms = virtualRooms.filter(virtualRoom => {
+      const componentRoomIds = virtualRoom.components.map(comp => comp.roomId);
+      // Verificar que ninguna de las habitaciones componentes esté ocupada
+      return !componentRoomIds.some(roomId => occupiedRoomIds.includes(roomId));
+    });
+
+    // Convertir habitaciones virtuales al formato esperado
+    const virtualRoomsFormatted = availableVirtualRooms.map(virtualRoom => ({
+      id: `virtual_${virtualRoom.id}`, // ID especial para identificar como virtual
+      name: virtualRoom.name,
+      description: virtualRoom.description,
+      maxPeople: virtualRoom.maxPeople,
+      status: 'available',
+      isVirtual: true, // Flag para identificar como habitación virtual
+      roomType: virtualRoom.roomType,
+      tags: [], // Las habitaciones virtuales no tienen tags por ahora
+      components: virtualRoom.components, // Mantener información de componentes
+      virtualRoomId: virtualRoom.id // ID original de la habitación virtual
+    }));
+
+    // Combinar habitaciones físicas y virtuales
+    const allRooms = [...allAvailableRooms, ...virtualRoomsFormatted];
+
     // Filtrar por etiquetas requeridas si se especifican
-    let filteredRooms = allAvailableRooms;
+    let filteredRooms = allRooms;
     if (tagsArray.length > 0) {
-      filteredRooms = allAvailableRooms.filter(room => {
+      filteredRooms = allRooms.filter(room => {
         const roomTagIds = room.tags.map(tag => tag.id.toString());
         // Al menos una etiqueta debe coincidir (más flexible)
         return tagsArray.some(requiredTagId => roomTagIds.includes(requiredTagId));

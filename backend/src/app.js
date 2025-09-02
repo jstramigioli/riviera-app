@@ -22,6 +22,7 @@ const roundingConfigRoutes = require('./routes/roundingConfig.routes');
 const queryRoutes = require('./routes/query.routes');
 const reservationSegmentRoutes = require('./routes/reservationSegment.routes');
 const multiRoomReservationRoutes = require('./routes/multiRoomReservation.routes');
+const virtualRoomRoutes = require('./routes/virtualRoom.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -60,6 +61,7 @@ app.use('/api/rounding-config', roundingConfigRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/reservation-segments', reservationSegmentRoutes);
 app.use('/api/multi-room-reservations', multiRoomReservationRoutes);
+app.use('/api/virtual-rooms', virtualRoomRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

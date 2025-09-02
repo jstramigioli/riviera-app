@@ -1,0 +1,970 @@
+[
+  {
+    "id": 2,
+    "mainClientId": 3,
+    "status": "finished",
+    "notes": "Familia con niños, solicita cuna adicional",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-27T01:02:46.270Z",
+    "updatedAt": "2025-06-28T02:46:52.013Z",
+    "guests": [
+      {
+        "id": 3,
+        "firstName": "Roberto",
+        "lastName": "Silva",
+        "documentType": "DNI",
+        "documentNumber": "DNI 44444444",
+        "phone": "+54 11 4444-4444",
+        "email": "roberto.silva@email.com",
+        "address": "Calle San Martín 456",
+        "city": "CORDOBA",
+        "reservationId": 2,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.622Z",
+        "payments": []
+      }
+    ],
+    "segments": [
+      {
+        "id": 5,
+        "reservationId": 2,
+        "startDate": "2025-06-20T02:44:37.391Z",
+        "endDate": "2025-06-25T02:44:37.391Z",
+        "roomId": 6,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 24000,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 2",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:49.940Z",
+        "updatedAt": "2025-08-21T21:51:49.940Z",
+        "room": {
+          "id": 6,
+          "name": "10",
+          "description": "Habitación 10",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 8,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 3,
+      "firstName": "Carlos",
+      "lastName": "Rodríguez",
+      "email": "carlos.rodriguez@email.com",
+      "phone": "+54 11 5555-1234",
+      "documentType": "CUIT",
+      "documentNumber": "20-55551234-5",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Viaja por trabajo, necesita facturación empresarial",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 3,
+    "mainClientId": 2,
+    "status": "active",
+    "notes": "Departamento para luna de miel, decoración especial",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-27T01:02:46.270Z",
+    "updatedAt": "2025-06-28T02:46:56.241Z",
+    "guests": [
+      {
+        "id": 4,
+        "firstName": "Laura",
+        "lastName": "Fernández",
+        "documentType": "DNI",
+        "documentNumber": "DNI 33333333",
+        "phone": "+54 11 3333-3333",
+        "email": "laura.fernandez@email.com",
+        "address": "Av. Santa Fe 890",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 3,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.626Z",
+        "payments": [
+          {
+            "id": 1,
+            "guestId": 4,
+            "amount": 75000,
+            "type": "charge",
+            "description": "Cargo por reserva #2",
+            "date": "2024-01-20T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          },
+          {
+            "id": 5,
+            "guestId": 4,
+            "amount": 75000,
+            "type": "payment",
+            "description": "Pago completo con tarjeta",
+            "date": "2024-01-20T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          }
+        ]
+      }
+    ],
+    "segments": [
+      {
+        "id": 6,
+        "reservationId": 3,
+        "startDate": "2025-06-23T02:44:37.391Z",
+        "endDate": "2025-06-26T02:44:37.391Z",
+        "roomId": 11,
+        "roomTypeId": null,
+        "services": [
+          "media_pension"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 25000,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 3",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.003Z",
+        "updatedAt": "2025-08-21T21:51:50.003Z",
+        "room": {
+          "id": 11,
+          "name": "13",
+          "description": "Habitación 13",
+          "maxPeople": 3,
+          "status": "available",
+          "orderIndex": 11,
+          "roomTypeId": 3,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 3,
+            "name": "triple",
+            "description": null,
+            "orderIndex": 3
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 2,
+      "firstName": "María",
+      "lastName": "González",
+      "email": "maria.gonzalez@email.com",
+      "phone": "+54 11 8765-4321",
+      "documentType": "DNI",
+      "documentNumber": "87654321",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente VIP, solicita servicio de limpieza diario",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 1,
+    "mainClientId": 1,
+    "status": "active",
+    "notes": "Cliente solicita cama king size si es posible",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-27T01:02:46.269Z",
+    "updatedAt": "2025-06-28T02:46:59.884Z",
+    "guests": [
+      {
+        "id": 1,
+        "firstName": "Ana",
+        "lastName": "López",
+        "documentType": "DNI",
+        "documentNumber": "DNI 11111111",
+        "phone": "+54 11 1111-1111",
+        "email": "ana.lopez@email.com",
+        "address": "Av. Corrientes 1234",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 1,
+        "createdAt": "2025-06-27T01:02:46.279Z",
+        "updatedAt": "2025-06-29T20:35:25.272Z",
+        "payments": [
+          {
+            "id": 2,
+            "guestId": 1,
+            "amount": 30000,
+            "type": "payment",
+            "description": "Pago parcial en efectivo",
+            "date": "2024-01-15T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          },
+          {
+            "id": 3,
+            "guestId": 1,
+            "amount": 45000,
+            "type": "charge",
+            "description": "Cargo por reserva #1",
+            "date": "2024-01-15T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.290Z",
+            "updatedAt": "2025-06-27T01:02:46.290Z"
+          },
+          {
+            "id": 4,
+            "guestId": 1,
+            "amount": 5000,
+            "type": "charge",
+            "description": "Cargo por minibar y servicios",
+            "date": "2024-01-16T00:00:00.000Z",
+            "createdAt": "2025-06-27T01:02:46.291Z",
+            "updatedAt": "2025-06-27T01:02:46.291Z"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "firstName": "Pedro",
+        "lastName": "Martínez",
+        "documentType": "DNI",
+        "documentNumber": "DNI 22222222",
+        "phone": "+54 11 2222-2222",
+        "email": "pedro.martinez@email.com",
+        "address": "Calle Florida 567",
+        "city": "CIUDAD AUTONOMA BUENOS AIRES",
+        "reservationId": 1,
+        "createdAt": "2025-06-27T01:02:46.280Z",
+        "updatedAt": "2025-06-29T20:35:25.618Z",
+        "payments": []
+      }
+    ],
+    "segments": [
+      {
+        "id": 7,
+        "reservationId": 1,
+        "startDate": "2025-06-24T02:44:37.391Z",
+        "endDate": "2025-06-28T02:44:37.391Z",
+        "roomId": 5,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 11250,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 1",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.006Z",
+        "updatedAt": "2025-08-21T21:51:50.006Z",
+        "room": {
+          "id": 5,
+          "name": "8",
+          "description": "Habitación 8",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 6,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            },
+            {
+              "id": 12,
+              "name": "Vista a la calle",
+              "color": "#3B82F6"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 1,
+      "firstName": "Juan        ",
+      "lastName": "Pérez",
+      "email": "juan.perez@email.com",
+      "phone": "+54 11 1234-5678",
+      "documentType": "DNI",
+      "documentNumber": "12345678",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente frecuente, prefiere habitaciones con vista al mar",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 4,
+    "mainClientId": 1,
+    "status": "confirmed",
+    "notes": "",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-28T02:57:09.475Z",
+    "updatedAt": "2025-06-28T02:57:09.475Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 8,
+        "reservationId": 4,
+        "startDate": "2025-06-27T00:00:00.000Z",
+        "endDate": "2025-07-01T00:00:00.000Z",
+        "roomId": 17,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 4,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 4",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.009Z",
+        "updatedAt": "2025-08-21T21:51:50.009Z",
+        "room": {
+          "id": 17,
+          "name": "18",
+          "description": "Habitación 18",
+          "maxPeople": 4,
+          "status": "available",
+          "orderIndex": 16,
+          "roomTypeId": 4,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 4,
+            "name": "cuadruple",
+            "description": null,
+            "orderIndex": 0
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 1,
+      "firstName": "Juan        ",
+      "lastName": "Pérez",
+      "email": "juan.perez@email.com",
+      "phone": "+54 11 1234-5678",
+      "documentType": "DNI",
+      "documentNumber": "12345678",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente frecuente, prefiere habitaciones con vista al mar",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 7,
+    "mainClientId": 5,
+    "status": "active",
+    "notes": "",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-28T03:02:34.401Z",
+    "updatedAt": "2025-06-28T20:07:29.766Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 10,
+        "reservationId": 7,
+        "startDate": "2025-06-13T20:07:18.234Z",
+        "endDate": "2025-06-29T00:00:00.000Z",
+        "roomId": 18,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 7",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.016Z",
+        "updatedAt": "2025-08-21T21:51:50.016Z",
+        "room": {
+          "id": 18,
+          "name": "21",
+          "description": "Habitación 21",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 18,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 5,
+      "firstName": "Pablina",
+      "lastName": "Chico",
+      "email": "pablinachico88@gmail.com",
+      "phone": "213",
+      "documentType": "DNI",
+      "documentNumber": "456456",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": null,
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 5,
+    "mainClientId": 2,
+    "status": "active",
+    "notes": "",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-28T02:58:50.328Z",
+    "updatedAt": "2025-07-06T23:32:01.574Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 11,
+        "reservationId": 5,
+        "startDate": "2025-06-17T23:29:27.988Z",
+        "endDate": "2025-06-27T23:29:27.988Z",
+        "roomId": 13,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 5",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.021Z",
+        "updatedAt": "2025-08-21T21:51:50.021Z",
+        "room": {
+          "id": 13,
+          "name": "14",
+          "description": "Habitación 14",
+          "maxPeople": 3,
+          "status": "available",
+          "orderIndex": 12,
+          "roomTypeId": 3,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 3,
+            "name": "triple",
+            "description": null,
+            "orderIndex": 3
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 2,
+      "firstName": "María",
+      "lastName": "González",
+      "email": "maria.gonzalez@email.com",
+      "phone": "+54 11 8765-4321",
+      "documentType": "DNI",
+      "documentNumber": "87654321",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente VIP, solicita servicio de limpieza diario",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 8,
+    "mainClientId": 4,
+    "status": "active",
+    "notes": "",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-06-28T22:46:00.372Z",
+    "updatedAt": "2025-07-06T23:32:13.481Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 12,
+        "reservationId": 8,
+        "startDate": "2025-06-28T00:00:00.000Z",
+        "endDate": "2025-07-03T23:29:27.988Z",
+        "roomId": 12,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 8",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.024Z",
+        "updatedAt": "2025-08-21T21:51:50.024Z",
+        "room": {
+          "id": 12,
+          "name": "15",
+          "description": "Habitación 15",
+          "maxPeople": 3,
+          "status": "available",
+          "orderIndex": 13,
+          "roomTypeId": 3,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 3,
+            "name": "triple",
+            "description": null,
+            "orderIndex": 3
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 4,
+      "firstName": "Julian",
+      "lastName": "Stram",
+      "email": "julianstramigioli@gmail.com",
+      "phone": "1232333",
+      "documentType": "DNI",
+      "documentNumber": "38043287",
+      "country": "AR",
+      "province": "Buenos Aires",
+      "city": "Villa Gesell",
+      "notes": "Domicilio: Avenida 10 N°303",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 9,
+    "mainClientId": 3,
+    "status": "active",
+    "notes": "Familia García - 2 habitaciones",
+    "isMultiRoom": true,
+    "parentReservationId": null,
+    "createdAt": "2025-08-21T21:41:48.487Z",
+    "updatedAt": "2025-08-21T21:41:48.487Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 13,
+        "reservationId": 9,
+        "startDate": "2025-03-01T00:00:00.000Z",
+        "endDate": "2025-03-10T00:00:00.000Z",
+        "roomId": 6,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 200,
+        "rateAdjustments": null,
+        "guestCount": 4,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 9",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.028Z",
+        "updatedAt": "2025-08-21T21:51:50.028Z",
+        "room": {
+          "id": 6,
+          "name": "10",
+          "description": "Habitación 10",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 8,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 3,
+      "firstName": "Carlos",
+      "lastName": "Rodríguez",
+      "email": "carlos.rodriguez@email.com",
+      "phone": "+54 11 5555-1234",
+      "documentType": "CUIT",
+      "documentNumber": "20-55551234-5",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Viaja por trabajo, necesita facturación empresarial",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 10,
+    "mainClientId": 3,
+    "status": "active",
+    "notes": "Parte de reserva multi-habitación #9",
+    "isMultiRoom": true,
+    "parentReservationId": 9,
+    "createdAt": "2025-08-21T21:41:49.015Z",
+    "updatedAt": "2025-08-21T21:41:49.015Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 14,
+        "reservationId": 10,
+        "startDate": "2025-03-01T00:00:00.000Z",
+        "endDate": "2025-03-10T00:00:00.000Z",
+        "roomId": 7,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 177.7777777777778,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 10",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.032Z",
+        "updatedAt": "2025-08-21T21:51:50.032Z",
+        "room": {
+          "id": 7,
+          "name": "9",
+          "description": "Habitación 9",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 7,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 3,
+              "name": "Planta alta",
+              "color": "#F59E0B"
+            },
+            {
+              "id": 12,
+              "name": "Vista a la calle",
+              "color": "#3B82F6"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 3,
+      "firstName": "Carlos",
+      "lastName": "Rodríguez",
+      "email": "carlos.rodriguez@email.com",
+      "phone": "+54 11 5555-1234",
+      "documentType": "CUIT",
+      "documentNumber": "20-55551234-5",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Viaja por trabajo, necesita facturación empresarial",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 11,
+    "mainClientId": 1,
+    "status": "active",
+    "notes": "Reserva de prueba del nuevo sistema",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-08-22T01:06:48.734Z",
+    "updatedAt": "2025-08-22T01:06:48.734Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 15,
+        "reservationId": 11,
+        "startDate": "2025-04-01T00:00:00.000Z",
+        "endDate": "2025-04-05T00:00:00.000Z",
+        "roomId": 1,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 150,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Reserva de prueba",
+        "notes": "Segmento de prueba del nuevo sistema",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:48.907Z",
+        "updatedAt": "2025-08-22T01:06:48.907Z",
+        "room": {
+          "id": 1,
+          "name": "6",
+          "description": "Habitación 6",
+          "maxPeople": 4,
+          "status": "available",
+          "orderIndex": 4,
+          "roomTypeId": 4,
+          "tags": [
+            {
+              "id": 10,
+              "name": "Planta baja",
+              "color": "#6366F1"
+            },
+            {
+              "id": 1,
+              "name": "Vista al patio de invierno",
+              "color": "#3B82F6"
+            }
+          ],
+          "roomType": {
+            "id": 4,
+            "name": "cuadruple",
+            "description": null,
+            "orderIndex": 0
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 1,
+      "firstName": "Juan        ",
+      "lastName": "Pérez",
+      "email": "juan.perez@email.com",
+      "phone": "+54 11 1234-5678",
+      "documentType": "DNI",
+      "documentNumber": "12345678",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente frecuente, prefiere habitaciones con vista al mar",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  },
+  {
+    "id": 12,
+    "mainClientId": 2,
+    "status": "active",
+    "notes": "Reserva con cambios de servicios",
+    "isMultiRoom": false,
+    "parentReservationId": null,
+    "createdAt": "2025-08-22T01:06:49.050Z",
+    "updatedAt": "2025-08-22T01:06:49.050Z",
+    "guests": [],
+    "segments": [
+      {
+        "id": 16,
+        "reservationId": 12,
+        "startDate": "2025-04-10T00:00:00.000Z",
+        "endDate": "2025-04-12T00:00:00.000Z",
+        "roomId": 2,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo",
+          "cena"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 200,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Período con cena",
+        "notes": "Primer segmento con todos los servicios",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:49.066Z",
+        "updatedAt": "2025-08-22T01:06:49.066Z",
+        "room": {
+          "id": 2,
+          "name": "7",
+          "description": "Habitación 7",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 5,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 10,
+              "name": "Planta baja",
+              "color": "#6366F1"
+            },
+            {
+              "id": 14,
+              "name": "Vista al pasillo lateral",
+              "color": "#3B82F6"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      },
+      {
+        "id": 17,
+        "reservationId": 12,
+        "startDate": "2025-04-12T00:00:00.000Z",
+        "endDate": "2025-04-15T00:00:00.000Z",
+        "roomId": 2,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 160,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Período sin cena",
+        "notes": "Segundo segmento sin cena",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:49.072Z",
+        "updatedAt": "2025-08-22T01:06:49.072Z",
+        "room": {
+          "id": 2,
+          "name": "7",
+          "description": "Habitación 7",
+          "maxPeople": 2,
+          "status": "available",
+          "orderIndex": 5,
+          "roomTypeId": 2,
+          "tags": [
+            {
+              "id": 10,
+              "name": "Planta baja",
+              "color": "#6366F1"
+            },
+            {
+              "id": 14,
+              "name": "Vista al pasillo lateral",
+              "color": "#3B82F6"
+            }
+          ],
+          "roomType": {
+            "id": 2,
+            "name": "doble",
+            "description": null,
+            "orderIndex": 2
+          }
+        },
+        "roomType": null
+      }
+    ],
+    "mainClient": {
+      "id": 2,
+      "firstName": "María",
+      "lastName": "González",
+      "email": "maria.gonzalez@email.com",
+      "phone": "+54 11 8765-4321",
+      "documentType": "DNI",
+      "documentNumber": "87654321",
+      "country": null,
+      "province": null,
+      "city": null,
+      "notes": "Cliente VIP, solicita servicio de limpieza diario",
+      "wantsPromotions": false
+    },
+    "nightRates": []
+  }
+]

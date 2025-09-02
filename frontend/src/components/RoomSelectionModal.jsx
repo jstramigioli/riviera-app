@@ -58,9 +58,12 @@ function RoomSelectionModal({
           serviceType = 'base';
       }
 
+      // Para habitaciones virtuales, usar el roomTypeId de la habitación virtual
+      const roomTypeId = selectedRoom.isVirtual ? selectedRoom.roomType.id : selectedRoom.roomType.id;
+
       const rates = await getCalculatedRates(
         'default-hotel', // Por ahora hardcodeado
-        selectedRoom.roomType.id,
+        roomTypeId,
         checkIn,
         checkOut,
         serviceType
@@ -191,9 +194,27 @@ function RoomSelectionModal({
           backgroundColor: isSelected ? 'var(--color-primary-light)' : 'white',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          marginBottom: '12px'
+          marginBottom: '12px',
+          position: 'relative'
         }}
       >
+        {/* Badge para habitaciones virtuales */}
+        {room.isVirtual && (
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            backgroundColor: 'var(--color-primary)',
+            color: 'white',
+            padding: '4px 8px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}>
+            🏗️ Virtual
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1 }}>
             <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-text)' }}>
@@ -206,6 +227,26 @@ function RoomSelectionModal({
               <div style={{ color: capacityMatch.color }}>
                 {capacityMatch.text}
               </div>
+              
+              {/* Mostrar componentes para habitaciones virtuales */}
+              {room.isVirtual && room.components && (
+                <div style={{ 
+                  marginTop: '8px', 
+                  padding: '8px', 
+                  backgroundColor: 'var(--color-bg)', 
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                    Habitaciones incluidas:
+                  </div>
+                  {room.components.map((component) => (
+                    <div key={component.roomId} style={{ marginLeft: '8px' }}>
+                      • {component.room.name} ({component.room.maxPeople} pers.)
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Información de tarifas */}

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "cme7koklm0001nw44d6sbyqbb",
+    "hotelId": "default-hotel",
+    "enabled": false,
+    "anticipationThresholds": [
+      7,
+      14,
+      30
+    ],
+    "anticipationWeight": 0.3,
+    "globalOccupancyWeight": 0.2,
+    "isWeekendWeight": 0.15,
+    "weekendDays": [
+      0,
+      6
+    ],
+    "isHolidayWeight": 0.2,
+    "weatherScoreWeight": 0.1,
+    "eventImpactWeight": 0.05,
+    "maxAdjustmentPercentage": 50,
+    "enableGapPromos": true,
+    "enableWeatherApi": false,
+    "enableRecentDemand": false,
+    "anticipationMode": "ESCALONADO",
+    "anticipationMaxDays": 30,
+    "anticipationSteps": [
+      {
+        "days": 21,
+        "weight": 1
+      },
+      {
+        "days": 14,
+        "weight": 0.7
+      },
+      {
+        "days": 7,
+        "weight": 0.4
+      },
+      {
+        "days": 3,
+        "weight": 0.2
+      }
+    ],
+    "standardRate": 100,
+    "idealOccupancy": 80,
+    "occupancyAdjustmentPercentage": 20,
+    "anticipationAdjustmentPercentage": 15,
+    "weekendAdjustmentPercentage": 10,
+    "holidayAdjustmentPercentage": 25,
+    "occupancyEnabled": true,
+    "anticipationEnabled": true,
+    "weekendEnabled": true,
+    "holidayEnabled": true,
+    "createdAt": "2025-08-11T20:36:04.704Z",
+    "updatedAt": "2025-08-19T23:03:33.227Z",
+    "hotel": {
+      "id": "default-hotel",
+      "name": "Hotel Riviera",
+      "description": "Hotel por defecto",
+      "address": null,
+      "phone": null,
+      "email": null,
+      "website": null,
+      "isActive": true,
+      "createdAt": "2025-08-11T20:36:04.262Z",
+      "updatedAt": "2025-08-11T20:36:04.262Z"
+    }
+  }
+]

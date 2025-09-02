@@ -1,0 +1,1273 @@
+[
+  {
+    "id": 38,
+    "name": "El Romerito",
+    "description": "Departamento para 2 personas",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 34,
+    "roomTypeId": 5,
+    "tags": [],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 5,
+      "name": "departamento El Romerito",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": [
+      {
+        "id": 1,
+        "roomId": 38,
+        "mainClientId": 2,
+        "checkIn": "2025-02-01T00:00:00.000Z",
+        "checkOut": "2025-02-03T00:00:00.000Z",
+        "totalAmount": 800,
+        "status": "confirmada",
+        "reservationType": "con_desayuno",
+        "notes": "Consulta actualizada - lista para convertir a reserva",
+        "fixed": false,
+        "requiredGuests": 1,
+        "requiredRoomId": null,
+        "requiredTags": [
+          "vista_mar"
+        ],
+        "requirementsNotes": null,
+        "createdAt": "2025-08-21T20:27:16.144Z",
+        "updatedAt": "2025-08-21T20:27:16.929Z"
+      },
+      {
+        "id": 3,
+        "roomId": 38,
+        "mainClientId": 2,
+        "checkIn": "2025-02-01T00:00:00.000Z",
+        "checkOut": "2025-02-03T00:00:00.000Z",
+        "totalAmount": 800,
+        "status": "confirmada",
+        "reservationType": "con_desayuno",
+        "notes": "Consulta actualizada - lista para convertir a reserva",
+        "fixed": false,
+        "requiredGuests": 1,
+        "requiredRoomId": null,
+        "requiredTags": [
+          "vista_mar"
+        ],
+        "requirementsNotes": null,
+        "createdAt": "2025-08-21T20:27:30.648Z",
+        "updatedAt": "2025-08-21T20:27:30.730Z"
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "name": "El Tilo",
+    "description": "Departamento para 5 personas",
+    "maxPeople": 5,
+    "status": "available",
+    "orderIndex": 35,
+    "roomTypeId": 6,
+    "tags": [],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 6,
+      "name": "departamento El Tilo",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  },
+  {
+    "id": 14,
+    "name": "1",
+    "description": "Habitación 1",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 0,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 7,
+        "name": "Vista al Jardin",
+        "color": "#EC4899"
+      },
+      {
+        "id": 1,
+        "name": "Vista al patio de invierno",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 4,
+    "name": "2",
+    "description": "Habitación 2",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 1,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 14,
+        "name": "Vista al pasillo lateral",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 3,
+    "name": "3",
+    "description": "Habitación 3",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 2,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 14,
+        "name": "Vista al pasillo lateral",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 10,
+    "name": "5",
+    "description": "Habitación 5",
+    "maxPeople": 4,
+    "status": "available",
+    "orderIndex": 3,
+    "roomTypeId": 4,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 1,
+        "name": "Vista al patio de invierno",
+        "color": "#3B82F6"
+      },
+      {
+        "id": 13,
+        "name": "Escalera",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 4,
+      "name": "cuadruple",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  },
+  {
+    "id": 1,
+    "name": "6",
+    "description": "Habitación 6",
+    "maxPeople": 4,
+    "status": "available",
+    "orderIndex": 4,
+    "roomTypeId": 4,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 1,
+        "name": "Vista al patio de invierno",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [
+      {
+        "id": 15,
+        "reservationId": 11,
+        "startDate": "2025-04-01T00:00:00.000Z",
+        "endDate": "2025-04-05T00:00:00.000Z",
+        "roomId": 1,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 150,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Reserva de prueba",
+        "notes": "Segmento de prueba del nuevo sistema",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:48.907Z",
+        "updatedAt": "2025-08-22T01:06:48.907Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 4,
+      "name": "cuadruple",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  },
+  {
+    "id": 2,
+    "name": "7",
+    "description": "Habitación 7",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 5,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 10,
+        "name": "Planta baja",
+        "color": "#6366F1"
+      },
+      {
+        "id": 14,
+        "name": "Vista al pasillo lateral",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [
+      {
+        "id": 16,
+        "reservationId": 12,
+        "startDate": "2025-04-10T00:00:00.000Z",
+        "endDate": "2025-04-12T00:00:00.000Z",
+        "roomId": 2,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo",
+          "cena"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 200,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Período con cena",
+        "notes": "Primer segmento con todos los servicios",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:49.066Z",
+        "updatedAt": "2025-08-22T01:06:49.066Z"
+      },
+      {
+        "id": 17,
+        "reservationId": 12,
+        "startDate": "2025-04-12T00:00:00.000Z",
+        "endDate": "2025-04-15T00:00:00.000Z",
+        "roomId": 2,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno",
+          "almuerzo"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 160,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Período sin cena",
+        "notes": "Segundo segmento sin cena",
+        "isActive": true,
+        "createdAt": "2025-08-22T01:06:49.072Z",
+        "updatedAt": "2025-08-22T01:06:49.072Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 5,
+    "name": "8",
+    "description": "Habitación 8",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 6,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      },
+      {
+        "id": 12,
+        "name": "Vista a la calle",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [
+      {
+        "id": 7,
+        "reservationId": 1,
+        "startDate": "2025-06-24T02:44:37.391Z",
+        "endDate": "2025-06-28T02:44:37.391Z",
+        "roomId": 5,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 11250,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 1",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.006Z",
+        "updatedAt": "2025-08-21T21:51:50.006Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 7,
+    "name": "9",
+    "description": "Habitación 9",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 7,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      },
+      {
+        "id": 12,
+        "name": "Vista a la calle",
+        "color": "#3B82F6"
+      }
+    ],
+    "segments": [
+      {
+        "id": 14,
+        "reservationId": 10,
+        "startDate": "2025-03-01T00:00:00.000Z",
+        "endDate": "2025-03-10T00:00:00.000Z",
+        "roomId": 7,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 177.7777777777778,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 10",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.032Z",
+        "updatedAt": "2025-08-21T21:51:50.032Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 6,
+    "name": "10",
+    "description": "Habitación 10",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 8,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 5,
+        "reservationId": 2,
+        "startDate": "2025-06-20T02:44:37.391Z",
+        "endDate": "2025-06-25T02:44:37.391Z",
+        "roomId": 6,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 24000,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 2",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:49.940Z",
+        "updatedAt": "2025-08-21T21:51:49.940Z"
+      },
+      {
+        "id": 13,
+        "reservationId": 9,
+        "startDate": "2025-03-01T00:00:00.000Z",
+        "endDate": "2025-03-10T00:00:00.000Z",
+        "roomId": 6,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 200,
+        "rateAdjustments": null,
+        "guestCount": 4,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 9",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.028Z",
+        "updatedAt": "2025-08-21T21:51:50.028Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 8,
+    "name": "11",
+    "description": "Habitación 11",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 9,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 9,
+    "name": "12",
+    "description": "Habitación 12",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 10,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 11,
+    "name": "13",
+    "description": "Habitación 13",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 11,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 6,
+        "reservationId": 3,
+        "startDate": "2025-06-23T02:44:37.391Z",
+        "endDate": "2025-06-26T02:44:37.391Z",
+        "roomId": 11,
+        "roomTypeId": null,
+        "services": [
+          "media_pension"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 25000,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 3",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.003Z",
+        "updatedAt": "2025-08-21T21:51:50.003Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 13,
+    "name": "14",
+    "description": "Habitación 14",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 12,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 11,
+        "reservationId": 5,
+        "startDate": "2025-06-17T23:29:27.988Z",
+        "endDate": "2025-06-27T23:29:27.988Z",
+        "roomId": 13,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 5",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.021Z",
+        "updatedAt": "2025-08-21T21:51:50.021Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 12,
+    "name": "15",
+    "description": "Habitación 15",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 13,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 12,
+        "reservationId": 8,
+        "startDate": "2025-06-28T00:00:00.000Z",
+        "endDate": "2025-07-03T23:29:27.988Z",
+        "roomId": 12,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 3,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 8",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.024Z",
+        "updatedAt": "2025-08-21T21:51:50.024Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 15,
+    "name": "16",
+    "description": "Habitación 16",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 14,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 16,
+    "name": "17",
+    "description": "Habitación 17",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 15,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 19,
+    "name": "19",
+    "description": "Habitación 19",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 17,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 17,
+    "name": "18",
+    "description": "Habitación 18",
+    "maxPeople": 4,
+    "status": "available",
+    "orderIndex": 16,
+    "roomTypeId": 4,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 8,
+        "reservationId": 4,
+        "startDate": "2025-06-27T00:00:00.000Z",
+        "endDate": "2025-07-01T00:00:00.000Z",
+        "roomId": 17,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 4,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 4",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.009Z",
+        "updatedAt": "2025-08-21T21:51:50.009Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 4,
+      "name": "cuadruple",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  },
+  {
+    "id": 18,
+    "name": "21",
+    "description": "Habitación 21",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 18,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [
+      {
+        "id": 10,
+        "reservationId": 7,
+        "startDate": "2025-06-13T20:07:18.234Z",
+        "endDate": "2025-06-29T00:00:00.000Z",
+        "roomId": 18,
+        "roomTypeId": null,
+        "services": [
+          "con_desayuno"
+        ],
+        "serviceAdjustments": null,
+        "baseRate": 0,
+        "rateAdjustments": null,
+        "guestCount": 2,
+        "reason": "Migración inicial",
+        "notes": "Segmento inicial creado durante migración - Reserva original: 7",
+        "isActive": true,
+        "createdAt": "2025-08-21T21:51:50.016Z",
+        "updatedAt": "2025-08-21T21:51:50.016Z"
+      }
+    ],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 20,
+    "name": "22",
+    "description": "Habitación 22",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 19,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 21,
+    "name": "23",
+    "description": "Habitación 23",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 20,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 22,
+    "name": "24",
+    "description": "Habitación 24",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 21,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 23,
+    "name": "25",
+    "description": "Habitación 25",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 22,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 24,
+    "name": "26",
+    "description": "Habitación 26",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 23,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 25,
+    "name": "27",
+    "description": "Habitación 27",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 24,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 26,
+    "name": "28",
+    "description": "Habitación 28",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 25,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 27,
+    "name": "29",
+    "description": "Habitación 29",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 26,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 28,
+    "name": "30",
+    "description": "Habitación 30",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 27,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 30,
+    "name": "31",
+    "description": "Habitación 31",
+    "maxPeople": 1,
+    "status": "available",
+    "orderIndex": 28,
+    "roomTypeId": 1,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 1,
+      "name": "single",
+      "description": null,
+      "orderIndex": 1
+    },
+    "queries": []
+  },
+  {
+    "id": 29,
+    "name": "32",
+    "description": "Habitación 32",
+    "maxPeople": 1,
+    "status": "available",
+    "orderIndex": 29,
+    "roomTypeId": 1,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 1,
+      "name": "single",
+      "description": null,
+      "orderIndex": 1
+    },
+    "queries": []
+  },
+  {
+    "id": 32,
+    "name": "33",
+    "description": "Habitación 33",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 30,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 33,
+    "name": "34",
+    "description": "Habitación 34",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 31,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 36,
+    "name": "35",
+    "description": "Habitación 35",
+    "maxPeople": 3,
+    "status": "available",
+    "orderIndex": 32,
+    "roomTypeId": 3,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 3,
+      "name": "triple",
+      "description": null,
+      "orderIndex": 3
+    },
+    "queries": []
+  },
+  {
+    "id": 37,
+    "name": "36",
+    "description": "Habitación 36",
+    "maxPeople": 2,
+    "status": "available",
+    "orderIndex": 33,
+    "roomTypeId": 2,
+    "tags": [
+      {
+        "id": 3,
+        "name": "Planta alta",
+        "color": "#F59E0B"
+      }
+    ],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 2,
+      "name": "doble",
+      "description": null,
+      "orderIndex": 2
+    },
+    "queries": []
+  },
+  {
+    "id": 34,
+    "name": "Via 1",
+    "description": "Departamento para 4 personas",
+    "maxPeople": 4,
+    "status": "available",
+    "orderIndex": 36,
+    "roomTypeId": 7,
+    "tags": [],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 7,
+      "name": "departamento Via 1",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  },
+  {
+    "id": 35,
+    "name": "La Esquinita",
+    "description": "Departamento para 4 personas",
+    "maxPeople": 4,
+    "status": "available",
+    "orderIndex": 37,
+    "roomTypeId": 8,
+    "tags": [],
+    "segments": [],
+    "gapPromotions": [],
+    "roomType": {
+      "id": 8,
+      "name": "departamento La Esquinita",
+      "description": null,
+      "orderIndex": 0
+    },
+    "queries": []
+  }
+]
