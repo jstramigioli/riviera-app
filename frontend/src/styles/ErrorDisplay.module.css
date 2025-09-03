@@ -47,10 +47,10 @@
 
 .errorTitle {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: #1f2937;
   margin-bottom: 1rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-main);
 }
 
 .errorMessage {
@@ -58,7 +58,7 @@
   color: #6b7280;
   line-height: 1.6;
   margin-bottom: 1.5rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-main);
 }
 
 .errorDetails {
@@ -83,13 +83,13 @@
   border-radius: 8px;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-main);
 }
 
 .retryButton:hover {

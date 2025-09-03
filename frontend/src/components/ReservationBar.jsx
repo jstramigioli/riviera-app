@@ -18,7 +18,8 @@ export default function ReservationBar({
   justFinishedResize,
   onReservationHover,
   onReservationLeave,
-  getCellPosition
+  getCellPosition,
+  hoveredReservationId
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef();
@@ -230,14 +231,15 @@ export default function ReservationBar({
           height: `${cellHeight}px`,
           backgroundColor: '#ff6b6b',
           border: '1px solid #ff4757',
-          borderRadius: '3px',
+          borderRadius: '6px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '0.7rem',
           color: 'white',
           zIndex: 10,
-          cursor: 'pointer'
+          cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(255, 107, 107, 0.3)'
         }}
         onClick={() => onClick && onClick(reservation)}
         onMouseEnter={() => onReservationHover && onReservationHover({
@@ -404,23 +406,19 @@ export default function ReservationBar({
       data-checkin={reservation.checkIn}
       data-checkout={reservation.checkOut}
       data-startdate={startDate?.toISOString() || ''}
-      className={`reservation-bar reservation-bar-fixed-height ${isDragging ? 'dragging' : ''}`}
+      className={`reservation-bar reservation-bar-fixed-height ${isDragging ? 'dragging' : ''} ${hoveredReservationId === reservation.id ? 'hovered' : ''}`}
       style={{
         position: 'absolute',
         left: `${finalLeft}px`,
         top: `${finalTop}px`,
         width: `${width}px`,
         height: `${cellHeight}px`,
-        backgroundColor: '#f4e4c1',
-        borderRadius: '3px',
         cursor: isResizing ? 'ew-resize' : 'grab',
         zIndex: 5,
         userSelect: 'none',
-        boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
         transform: isDragging ? 'scale(1.02)' : 'scale(1)',
         transition: 'transform 0.1s ease',
-        opacity: 1,
-        border: '1px solid #d4c4a1'
+        opacity: 1
       }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

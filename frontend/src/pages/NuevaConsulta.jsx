@@ -24,8 +24,21 @@ export default function NuevaConsulta() {
   // Estado para requerimientos con persistencia en localStorage
   const [requirements, setRequirements] = useLocalStorage('nuevaConsulta_requirements', {
     requiredGuests: 1,
-    requiredTags: []
+    requiredTags: [],
+    serviceType: 'con_desayuno'
   });
+
+  // Estado para segmentos de consulta
+  const [segments, setSegments] = useLocalStorage('nuevaConsulta_segments', [
+    {
+      id: 1,
+      checkIn: '',
+      checkOut: '',
+      requiredGuests: 1,
+      requiredTags: [],
+      serviceType: 'con_desayuno'
+    }
+  ]);
 
   // Estado para clientes
   const [clients, setClients] = useState([]);
@@ -39,15 +52,15 @@ export default function NuevaConsulta() {
 
   // Estado para tarifas por día
   const [selectedRoomType, setSelectedRoomType] = useState(null);
-  const [roomTypes, setRoomTypes] = useState([]);
   const [dailyRates, setDailyRates] = useState([]);
+  
+  // Estado para habitación seleccionada
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Estado para errores
-  const [errors, setErrors] = useState({});
 
-  // Obtener las funciones de limpieza del localStorage
-  const [, , clearFormData] = useLocalStorage('nuevaConsulta_formData', {});
-  const [, , clearRequirements] = useLocalStorage('nuevaConsulta_requirements', {});
+
+
 
   // Cargar datos de la consulta desde el modal si existen
   useEffect(() => {
@@ -71,10 +84,22 @@ export default function NuevaConsulta() {
     }
   }, [location.state]);
 
+  // Cargar habitación seleccionada desde localStorage
+  useEffect(() => {
+    const savedSelectedRoom = localStorage.getItem('nuevaConsulta_selectedRoom');
+    if (savedSelectedRoom) {
+      try {
+        const room = JSON.parse(savedSelectedRoom);
+        setSelectedRoom(room);
+      } catch (error) {
+        console.error('Error parsing saved selected room:', error);
+      }
+    }
+  }, []);
+
   // Cargar clientes al montar el componente
   useEffect(() => {
     loadClients();
-    loadRoomTypes();
   }, []);
 
   // Buscar habitaciones disponibles cuando cambien las fechas, huéspedes o etiquetas
@@ -84,36 +109,36 @@ export default function NuevaConsulta() {
     }
   }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags]);
 
-  // Seleccionar tipo de habitación por defecto cuando se carguen los tipos o cambien los huéspedes
+  // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada
   useEffect(() => {
-    if (roomTypes.length > 0 && availableRooms.length > 0) {
-      // Buscar el primer tipo de habitación con capacidad exacta
+    if (availableRooms.length > 0 && !selectedRoom) {
+      // Buscar primero una habitación con capacidad exacta
       const exactCapacityRoom = availableRooms.find(room => room.maxPeople === requirements.requiredGuests);
       
       if (exactCapacityRoom) {
-        // Si hay habitación con capacidad exacta, seleccionar ese tipo
-        const roomType = roomTypes.find(rt => rt.id === exactCapacityRoom.roomType.id);
-        if (roomType && (!selectedRoomType || selectedRoomType.id !== roomType.id)) {
-          setSelectedRoomType(roomType);
-        }
-      } else if (!selectedRoomType) {
-        // Si no hay capacidad exacta, seleccionar el primer tipo disponible
-        const firstAvailableType = roomTypes.find(rt => 
-          availableRooms.some(room => room.roomType.id === rt.id)
-        );
-        if (firstAvailableType) {
-          setSelectedRoomType(firstAvailableType);
-        }
+        setSelectedRoom(exactCapacityRoom);
+        setSelectedRoomType(exactCapacityRoom.roomType);
+      } else {
+        // Si no hay capacidad exacta, seleccionar la primera disponible
+        setSelectedRoom(availableRooms[0]);
+        setSelectedRoomType(availableRooms[0].roomType);
       }
     }
-  }, [roomTypes, availableRooms, requirements.requiredGuests, selectedRoomType]);
+  }, [availableRooms, requirements.requiredGuests, selectedRoom]);
 
-  // Cargar tarifas por día cuando cambien las fechas o el tipo de habitación seleccionado
+  // Actualizar tipo de habitación cuando cambie la habitación seleccionada
   useEffect(() => {
-    if (formData.checkIn && formData.checkOut && selectedRoomType) {
+    if (selectedRoom && selectedRoom.roomType) {
+      setSelectedRoomType(selectedRoom.roomType);
+    }
+  }, [selectedRoom]);
+
+  // Cargar tarifas por día cuando cambien las fechas del primer segmento, el tipo de habitación o el servicio seleccionado
+  useEffect(() => {
+    if (selectedRoomType && segments.length > 0 && segments[0].checkIn && segments[0].checkOut) {
       loadDailyRates();
     }
-  }, [formData.checkIn, formData.checkOut, selectedRoomType]);
+  }, [selectedRoomType, segments]);
 
   // Filtrar clientes cuando cambie el término de búsqueda
   useEffect(() => {
@@ -129,37 +154,9 @@ export default function NuevaConsulta() {
     }
   }, [searchTerm, clients]);
 
-  // Función para limpiar todos los datos guardados
-  const clearAllSavedData = () => {
-    clearFormData();
-    clearRequirements();
-    setSearchTerm('');
-    setShowNewClientForm(false);
-    setAvailableRooms([]);
-    setSelectedRoomType(null);
-    setDailyRates([]);
-    setErrors({});
-  };
 
-  // Función para obtener los servicios habilitados del primer día (para generar columnas)
-  const getEnabledServices = () => {
-    if (dailyRates.length === 0) return [];
-    
-    // Obtener el primer día que tenga datos
-    const firstDayWithData = dailyRates.find(rate => !rate.noRatesAvailable);
-    if (!firstDayWithData) return [];
-    
-    // Obtener todas las claves excepto las que no son servicios
-    const excludeKeys = ['date', 'blockName', 'noRatesAvailable'];
-    const serviceKeys = Object.keys(firstDayWithData).filter(key => !excludeKeys.includes(key));
-    
-    // Si hay tanto 'baseRate' como 'Tarifa base', remover 'baseRate' para evitar duplicación
-    if (serviceKeys.includes('baseRate') && serviceKeys.includes('Tarifa base')) {
-      return serviceKeys.filter(key => key !== 'baseRate');
-    }
-    
-    return serviceKeys;
-  };
+
+
 
   const loadClients = async () => {
     try {
@@ -216,27 +213,18 @@ export default function NuevaConsulta() {
     }
   };
 
-  const loadRoomTypes = async () => {
-    try {
-      const response = await fetch('/api/room-types');
-      if (response.ok) {
-        const data = await response.json();
-        setRoomTypes(data);
-      } else {
-        console.error('Error en respuesta de room-types:', response.status);
-      }
-    } catch (error) {
-      console.error('Error loading room types:', error);
-    }
-  };
+
 
   const loadDailyRates = async () => {
-    if (!selectedRoomType || !formData.checkIn || !formData.checkOut) return;
+    if (!selectedRoomType || segments.length === 0) return;
+    
+    const firstSegment = segments[0];
+    if (!firstSegment.checkIn || !firstSegment.checkOut) return;
 
     try {
-      // Calcular días entre check-in y check-out
-      const startDate = new Date(formData.checkIn);
-      const endDate = new Date(formData.checkOut);
+      // Calcular días entre check-in y check-out del primer segmento
+      const startDate = new Date(firstSegment.checkIn);
+      const endDate = new Date(firstSegment.checkOut);
       const days = [];
       
       for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
@@ -244,6 +232,19 @@ export default function NuevaConsulta() {
       }
 
       const rates = [];
+      
+      // Obtener el servicio seleccionado del primer segmento
+      const selectedServiceType = segments[0]?.serviceType || 'con_desayuno';
+      
+      // Mapear el tipo de servicio a nombres de servicio
+      const serviceTypeMap = {
+        'con_desayuno': 'Con Desayuno',
+        'sin_desayuno': 'Sin Desayuno',
+        'media_pension': 'Media Pensión',
+        'pension_completa': 'Pensión Completa'
+      };
+      
+      const selectedServiceName = serviceTypeMap[selectedServiceType];
       
       for (const day of days) {
         const dateStr = day.toISOString().split('T')[0];
@@ -264,57 +265,44 @@ export default function NuevaConsulta() {
               // Obtener ajustes de porcentaje del bloque
               const serviceAdjustments = seasonBlockData.seasonBlock.blockServiceSelections || [];
               
-              // Obtener todos los servicios habilitados del bloque
-              const enabledServices = serviceAdjustments.filter(selection => selection.isEnabled);
+              // Buscar el precio para el servicio seleccionado
+              const servicePrice = roomTypePrices.find(price => 
+                price.serviceType && price.serviceType.name === selectedServiceName
+              );
               
-              // Crear objeto con precios para todos los servicios
-              const servicePrices = {};
-              
-              // Agregar precio base
+              // Buscar precio base como fallback
               const basePrice = roomTypePrices.find(price => 
                 !price.serviceType || price.serviceType.name === 'Tarifa base'
               ) || roomTypePrices[0];
               
-              // Solo agregar baseRate si no hay un servicio llamado "Tarifa base"
-              const hasTarifaBaseService = enabledServices.some(service => 
-                service.serviceType.name === 'Tarifa base'
+              // Obtener el ajuste de porcentaje para el servicio seleccionado
+              const serviceAdjustment = serviceAdjustments.find(selection => 
+                selection.serviceType && selection.serviceType.name === selectedServiceName
               );
               
-              if (!hasTarifaBaseService) {
-                servicePrices.baseRate = Math.round(basePrice.basePrice);
-              }
-              
-              // Agregar precios para cada servicio habilitado
-              enabledServices.forEach(serviceSelection => {
-                const serviceName = serviceSelection.serviceType.name;
-                const servicePrice = roomTypePrices.find(price => 
-                  price.serviceType && price.serviceType.name === serviceName
-                );
+              let finalPrice = 0;
                 
                 if (servicePrice) {
-                  const adjustment = serviceSelection.percentageAdjustment || 0;
-                  const adjustedPrice = servicePrice.basePrice * (1 + adjustment / 100);
-                  servicePrices[serviceName] = Math.round(adjustedPrice);
-                } else {
+                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
+              } else if (basePrice) {
                   // Si no hay precio específico para el servicio, usar precio base
-                  const adjustment = serviceSelection.percentageAdjustment || 0;
-                  const adjustedPrice = basePrice.basePrice * (1 + adjustment / 100);
-                  servicePrices[serviceName] = Math.round(adjustedPrice);
+                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                finalPrice = basePrice.basePrice * (1 + adjustment / 100);
                 }
-              });
               
               rates.push({
                 date: dateStr,
                 blockName: seasonBlockData.seasonBlock.name,
-                ...servicePrices
+                serviceName: selectedServiceName,
+                price: Math.round(finalPrice)
               });
             } else {
               rates.push({
                 date: dateStr,
-                baseRate: 0,
-                withBreakfast: 0,
-                withHalfBoard: 0,
-                serviceType: 'Sin tarifa',
+                blockName: seasonBlockData.seasonBlock.name,
+                serviceName: selectedServiceName,
+                price: 0,
                 noRatesAvailable: true
               });
             }
@@ -336,55 +324,57 @@ export default function NuevaConsulta() {
                 if (roomTypePrices.length > 0) {
                   const serviceAdjustments = draftBlockData.data.blockServiceSelections || [];
                   
-                  // Obtener todos los servicios habilitados del bloque
-                  const enabledServices = serviceAdjustments.filter(selection => selection.isEnabled);
+                  // Obtener el servicio seleccionado del primer segmento
+                  const selectedServiceType = segments[0]?.serviceType || 'con_desayuno';
                   
-                  // Crear objeto con precios para todos los servicios
-                  const servicePrices = {};
+                  // Mapear el tipo de servicio a nombres de servicio
+                  const serviceTypeMap = {
+                    'con_desayuno': 'Con Desayuno',
+                    'sin_desayuno': 'Sin Desayuno',
+                    'media_pension': 'Media Pensión',
+                    'pension_completa': 'Pensión Completa'
+                  };
                   
-                  // Agregar precio base
+                  const selectedServiceName = serviceTypeMap[selectedServiceType];
+                  
+                  // Buscar el precio para el servicio seleccionado
+                  const servicePrice = roomTypePrices.find(price => 
+                    price.serviceType && price.serviceType.name === selectedServiceName
+                  );
+                  
+                  // Buscar precio base como fallback
                   const basePrice = roomTypePrices.find(price => 
                     !price.serviceType || price.serviceType.name === 'Tarifa base'
                   ) || roomTypePrices[0];
                   
-                  // Solo agregar baseRate si no hay un servicio llamado "Tarifa base"
-                  const hasTarifaBaseService = enabledServices.some(service => 
-                    service.serviceType.name === 'Tarifa base'
+                  // Obtener el ajuste de porcentaje para el servicio seleccionado
+                  const serviceAdjustment = serviceAdjustments.find(selection => 
+                    selection.serviceType && selection.serviceType.name === selectedServiceName
                   );
                   
-                  if (!hasTarifaBaseService) {
-                    servicePrices.baseRate = Math.round(basePrice.basePrice);
-                  }
-                  
-                  // Agregar precios para cada servicio habilitado
-                  enabledServices.forEach(serviceSelection => {
-                    const serviceName = serviceSelection.serviceType.name;
-                    const servicePrice = roomTypePrices.find(price => 
-                      price.serviceType && price.serviceType.name === serviceName
-                    );
+                  let finalPrice = 0;
                     
                     if (servicePrice) {
-                      const adjustment = serviceSelection.percentageAdjustment || 0;
-                      const adjustedPrice = servicePrice.basePrice * (1 + adjustment / 100);
-                      servicePrices[serviceName] = Math.round(adjustedPrice);
-                    } else {
+                    const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                    finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
+                  } else if (basePrice) {
                       // Si no hay precio específico para el servicio, usar precio base
-                      const adjustment = serviceSelection.percentageAdjustment || 0;
-                      const adjustedPrice = basePrice.basePrice * (1 + adjustment / 100);
-                      servicePrices[serviceName] = Math.round(adjustedPrice);
+                    const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                    finalPrice = basePrice.basePrice * (1 + adjustment / 100);
                     }
-                  });
                   
                   rates.push({
                     date: dateStr,
                     blockName: draftBlockData.data.name,
-                    ...servicePrices
+                    serviceName: selectedServiceName,
+                    price: Math.round(finalPrice)
                   });
                 } else {
                   rates.push({
                     date: dateStr,
-                    blockName: 'Sin bloque',
-                    baseRate: 0,
+                    blockName: draftBlockData.data.name,
+                    serviceName: selectedServiceName,
+                    price: 0,
                     noRatesAvailable: true
                   });
                 }
@@ -392,7 +382,8 @@ export default function NuevaConsulta() {
                 rates.push({
                   date: dateStr,
                   blockName: 'Sin bloque',
-                  baseRate: 0,
+                  serviceName: selectedServiceName,
+                  price: 0,
                   noRatesAvailable: true
                 });
               }
@@ -400,7 +391,8 @@ export default function NuevaConsulta() {
               rates.push({
                 date: dateStr,
                 blockName: 'Sin bloque',
-                baseRate: 0,
+                serviceName: selectedServiceName,
+                price: 0,
                 noRatesAvailable: true
               });
             }
@@ -408,7 +400,8 @@ export default function NuevaConsulta() {
             rates.push({
               date: dateStr,
               blockName: 'Sin bloque',
-              baseRate: 0,
+              serviceName: selectedServiceName,
+              price: 0,
               noRatesAvailable: true
             });
           }
@@ -422,38 +415,7 @@ export default function NuevaConsulta() {
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => {
-      const newFormData = {
-        ...prev,
-        [field]: value
-      };
-      
-      // Si se está cambiando la fecha de entrada y es posterior a la fecha de salida
-      if (field === 'checkIn' && value && prev.checkOut) {
-        const checkInDate = new Date(value);
-        const checkOutDate = new Date(prev.checkOut);
-        
-        // Si la fecha de entrada es posterior a la fecha de salida
-        if (checkInDate > checkOutDate) {
-          // Calcular la fecha de salida como el día siguiente a la entrada
-          const nextDay = new Date(checkInDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          newFormData.checkOut = nextDay.toISOString().split('T')[0];
-        }
-      }
-      
-      return newFormData;
-    });
-    
-    // Limpiar error del campo
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: null
-      }));
-    }
-  };
+
 
   const handleClientInputChange = (field, value) => {
     setFormData(prev => ({
@@ -492,207 +454,287 @@ export default function NuevaConsulta() {
     }));
   };
 
+  const handleSaveNewClient = async () => {
+    // Validar que los campos requeridos estén completos
+    if (!formData.mainClient.firstName || !formData.mainClient.lastName) {
+      alert('Por favor, completa al menos el nombre y apellido del cliente.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.mainClient.firstName,
+          lastName: formData.mainClient.lastName,
+          email: formData.mainClient.email || null,
+          phone: formData.mainClient.phone || null,
+        }),
+      });
+
+      if (response.ok) {
+        const newClient = await response.json();
+        
+        // Actualizar el cliente en el formulario con los datos del servidor
+        setFormData(prev => ({
+          ...prev,
+          mainClient: {
+            firstName: newClient.firstName,
+            lastName: newClient.lastName,
+            email: newClient.email || '',
+            phone: newClient.phone || ''
+          }
+        }));
+        
+        // Cerrar el formulario de nuevo cliente
+        setShowNewClientForm(false);
+        
+        alert('✅ Cliente guardado correctamente en la base de datos.');
+      } else {
+        const errorData = await response.json();
+        alert(`❌ Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error saving client:', error);
+      alert('❌ Error al conectar con el servidor. Intenta nuevamente.');
+    }
+  };
+
+  const handleSaveQuery = () => {
+    // Validaciones básicas
+    const newErrors = {};
+    
+    // Validar que todos los segmentos tengan fechas
+    segments.forEach((segment, index) => {
+      if (!segment.checkIn) {
+        newErrors[`segment${index}CheckIn`] = `La fecha de entrada del segmento ${index + 1} es requerida`;
+      }
+      if (!segment.checkOut) {
+        newErrors[`segment${index}CheckOut`] = `La fecha de salida del segmento ${index + 1} es requerida`;
+      }
+      if (!segment.requiredGuests) {
+        newErrors[`segment${index}Guests`] = `La cantidad de huéspedes del segmento ${index + 1} es requerida`;
+      }
+    });
+    
+    if (Object.keys(newErrors).length > 0) {
+      alert('Por favor, completa todos los campos requeridos.');
+      return;
+    }
+
+    // Los datos ya se guardan automáticamente en localStorage gracias a useLocalStorage
+    // También guardar la habitación seleccionada
+    if (selectedRoom) {
+      localStorage.setItem('nuevaConsulta_selectedRoom', JSON.stringify(selectedRoom));
+    }
+    
+    // Solo mostrar confirmación
+    alert('✅ Consulta guardada correctamente. Los datos se han guardado y estarán disponibles cuando vuelvas a esta página.');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
     // Validaciones básicas
     const newErrors = {};
     
-    if (!formData.checkIn) newErrors.checkIn = 'La fecha de entrada es requerida';
-    if (!formData.checkOut) newErrors.checkOut = 'La fecha de salida es requerida';
-    if (!requirements.requiredGuests) newErrors.requiredGuests = 'La cantidad de huéspedes es requerida';
+    // Validar que todos los segmentos tengan fechas
+    segments.forEach((segment, index) => {
+      if (!segment.checkIn) {
+        newErrors[`segment${index}CheckIn`] = `La fecha de entrada del segmento ${index + 1} es requerida`;
+      }
+      if (!segment.checkOut) {
+        newErrors[`segment${index}CheckOut`] = `La fecha de salida del segmento ${index + 1} es requerida`;
+      }
+      if (!segment.requiredGuests) {
+        newErrors[`segment${index}Guests`] = `La cantidad de huéspedes del segmento ${index + 1} es requerida`;
+      }
+    });
+    
+    if (!selectedRoom) newErrors.selectedRoom = 'Debe seleccionar una habitación';
     
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+      alert('Por favor, completa todos los campos requeridos.');
       return;
     }
 
-    console.log('Datos de la consulta:', formData);
+    console.log('Datos de la consulta:', segments);
+    console.log('Habitación seleccionada:', selectedRoom);
     console.log('Habitaciones disponibles:', availableRooms);
     
-    // Por ahora, solo mostrar un mensaje
-    alert('Consulta enviada correctamente');
+    // Aquí se abriría el modal de selección de habitaciones para crear la reserva
+    // Por ahora, mostrar un mensaje con la habitación seleccionada
+    alert(`🏨 Funcionalidad de reserva: Se procederá a crear la reserva para la habitación ${selectedRoom.name} (${selectedRoom.roomType?.name}).`);
   };
 
 
 
-  const getMatchingTags = (room) => {
-    if (!room.tags || room.tags.length === 0) return [];
-    return room.tags.map(tag => tag.name);
+
+
+  const checkRequirementsCompliance = (room) => {
+    // Obtener todas las etiquetas requeridas de todos los segmentos
+    const allRequiredTagIds = segments.flatMap(segment => segment.requiredTags);
+    
+    if (allRequiredTagIds.length === 0) {
+      return { complies: true, message: 'No hay etiquetas requeridas', score: 0 };
+    }
+    
+    // Obtener las etiquetas de la habitación
+    const roomTagIds = room.tags ? room.tags.map(tag => tag.id) : [];
+    
+    // Verificar si la habitación tiene todas las etiquetas requeridas
+    const missingTags = allRequiredTagIds.filter(tagId => !roomTagIds.includes(tagId));
+    const matchingTags = room.tags.filter(tag => allRequiredTagIds.includes(tag.id));
+    
+    const complianceScore = matchingTags.length / allRequiredTagIds.length;
+    
+    if (missingTags.length === 0) {
+      // La habitación cumple con todos los requerimientos
+      const tagNames = matchingTags.map(tag => tag.name);
+      return { 
+        complies: true, 
+        message: tagNames.length > 0 ? tagNames.join(', ') : 'Cumple con todos los requerimientos',
+        score: complianceScore
+      };
+    } else {
+      // La habitación no cumple con todos los requerimientos
+      const tagNames = matchingTags.map(tag => tag.name);
+      return { 
+        complies: false, 
+        message: tagNames.length > 0 ? tagNames.join(', ') : 'No cumple con los requerimientos',
+        score: complianceScore
+      };
+    }
+  };
+
+  // Funciones para manejar segmentos
+  const handleSegmentChange = (segmentId, field, value) => {
+    setSegments(prev => prev.map(segment => 
+      segment.id === segmentId ? { ...segment, [field]: value } : segment
+    ));
+  };
+
+  const handleSegmentTagToggle = (segmentId, tagId) => {
+    setSegments(prev => prev.map(segment => {
+      if (segment.id === segmentId) {
+        const newTags = segment.requiredTags.includes(tagId)
+          ? segment.requiredTags.filter(id => id !== tagId)
+          : [...segment.requiredTags, tagId];
+        return { ...segment, requiredTags: newTags };
+      }
+      return segment;
+    }));
+  };
+
+  const handleAddSegment = () => {
+    const newSegment = {
+      id: Date.now(),
+      checkIn: '',
+      checkOut: '',
+      requiredGuests: 1,
+      requiredTags: [],
+      serviceType: 'con_desayuno'
+    };
+    setSegments(prev => [...prev, newSegment]);
+  };
+
+  const handleRemoveSegment = (segmentId) => {
+    if (segments.length > 1) {
+      setSegments(prev => prev.filter(segment => segment.id !== segmentId));
+    }
+  };
+
+  // Función para calcular el total
+  const calculateTotal = () => {
+    if (!dailyRates.length) return 0;
+    
+    return dailyRates.reduce((total, rate) => {
+      if (rate.noRatesAvailable) return total;
+      return total + (rate.price || 0);
+    }, 0);
+  };
+
+  // Función para obtener las fechas globales
+  const getGlobalDates = () => {
+    if (segments.length === 0) return { checkIn: '', checkOut: '' };
+    
+    const checkIns = segments.map(s => s.checkIn).filter(date => date);
+    const checkOuts = segments.map(s => s.checkOut).filter(date => date);
+    
+    if (checkIns.length === 0 || checkOuts.length === 0) {
+      return { checkIn: '', checkOut: '' };
+    }
+    
+    const globalCheckIn = checkIns.sort()[0]; // Primera fecha de entrada
+    const globalCheckOut = checkOuts.sort().reverse()[0]; // Última fecha de salida
+    
+    // Formatear fechas con barras en lugar de guiones
+    const formatDate = (dateStr) => {
+      return dateStr.replace(/-/g, '/');
+    };
+    
+    return `${formatDate(globalCheckIn)} / ${formatDate(globalCheckOut)}`;
+  };
+
+  // Función para obtener el nombre del huésped
+  const getGuestName = () => {
+    const firstName = formData.mainClient.firstName || '';
+    const lastName = formData.mainClient.lastName || '';
+    
+    if (firstName || lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+    
+    return 'Huésped';
   };
 
   return (
-    <div className={`${styles.container} page-content`}>
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div>
-            <h1>Nueva Consulta</h1>
-            <p>Completa los datos de la consulta y visualiza las tarifas disponibles</p>
-          </div>
-          <button
-            type="button"
-            onClick={clearAllSavedData}
-            className={styles.clearButton}
-            title="Limpiar todos los datos guardados"
-          >
-            🗑️ Limpiar Datos
-          </button>
-        </div>
-      </div>
-
-      <div className={styles.content}>
-        {/* Formulario de consulta */}
-        <div className={styles.formSection}>
-          <h2>Datos de la Consulta</h2>
-          
-          <form onSubmit={handleSubmit} className={styles.form}>
-            {/* Fechas y huéspedes */}
-            <div className={styles.row}>
-              <div className={styles.field}>
-                <label htmlFor="checkIn">Fecha de Entrada *</label>
-                <input
-                  type="date"
-                  id="checkIn"
-                  value={formData.checkIn}
-                  onChange={(e) => handleInputChange('checkIn', e.target.value)}
-                  className={errors.checkIn ? styles.error : ''}
-                />
-                {errors.checkIn && <span className={styles.errorText}>{errors.checkIn}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="checkOut">Fecha de Salida *</label>
-                <input
-                  type="date"
-                  id="checkOut"
-                  value={formData.checkOut}
-                  onChange={(e) => handleInputChange('checkOut', e.target.value)}
-                  className={errors.checkOut ? styles.error : ''}
-                />
-                {errors.checkOut && <span className={styles.errorText}>{errors.checkOut}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="requiredGuests">Cantidad de Huéspedes *</label>
-                <input
-                  type="number"
-                  id="requiredGuests"
-                  min="1"
-                  max="10"
-                  value={requirements.requiredGuests}
-                  onChange={(e) => setRequirements(prev => ({ ...prev, requiredGuests: parseInt(e.target.value) }))}
-                  className={errors.requiredGuests ? styles.error : ''}
-                />
-                {errors.requiredGuests && <span className={styles.errorText}>{errors.requiredGuests}</span>}
-              </div>
-            </div>
-
-            {/* Selección de Etiquetas */}
-            <div className={styles.section}>
-              <h3>Etiquetas Requeridas (Opcional)</h3>
-              <p style={{
-                margin: '0 0 16px 0',
-                fontSize: 'var(--font-size-small)',
-                color: 'var(--color-text-muted)'
-              }}>
-                Selecciona las etiquetas que deben tener las habitaciones para filtrar los resultados
-              </p>
-              
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                {tags.map(tag => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => {
-                      const newTags = requirements.requiredTags.includes(tag.id.toString())
-                        ? requirements.requiredTags.filter(id => id !== tag.id.toString())
-                        : [...requirements.requiredTags, tag.id.toString()];
-                      
-                      setRequirements(prev => ({
-                        ...prev,
-                        requiredTags: newTags
-                      }));
-                    }}
-                    style={{
-                      padding: '8px 12px',
-                      border: requirements.requiredTags.includes(tag.id.toString())
-                        ? '2px solid var(--color-primary)'
-                        : '1px solid var(--color-border)',
-                      borderRadius: '16px',
-                      backgroundColor: requirements.requiredTags.includes(tag.id.toString())
-                        ? tag.color
-                        : 'var(--color-bg-white)',
-                      color: requirements.requiredTags.includes(tag.id.toString())
-                        ? 'var(--color-text-light)'
-                        : 'var(--color-text-main)',
-                      cursor: 'pointer',
-                      fontSize: 'var(--font-size-medium)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-              
-              {requirements.requiredTags.length > 0 && (
-                <div style={{
-                  marginTop: '12px',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--color-bg)',
-                  borderRadius: '6px',
-                  fontSize: 'var(--font-size-small)',
-                  color: 'var(--color-text-muted)'
-                }}>
-                  <strong>Etiquetas seleccionadas:</strong> {requirements.requiredTags.length}
+    <div className={styles.newLayout}>
+      {/* Side Panel */}
+      <div className={styles.sidePanel}>
+        {/* Header del side panel */}
+        <div className={styles.sidePanelHeader}>
+          <h2>Consulta</h2>
+          <div className={styles.guestInfo}>
+            <div className={styles.guestName}>{getGuestName()}</div>
+            <div className={styles.guestDates}>{getGlobalDates()}</div>
                 </div>
-              )}
             </div>
 
-            {/* Cliente */}
-            <div className={styles.section}>
-              <h3>Cliente Principal (Opcional)</h3>
+        {/* Contenido del side panel */}
+        <div className={styles.sidePanelContent}>
+          <form onSubmit={handleSubmit}>
+            {/* Cliente principal */}
+            <div className={styles.field}>
+              <label>Cliente Principal</label>
               
               {showNewClientForm ? (
                 <>
-                  <div className={styles.newClientHeader}>
-                    <h4>Nuevo Cliente</h4>
-                    <button
-                      type="button"
-                      className={styles.backButton}
-                      onClick={handleNewSearch}
-                    >
-                      ← Volver a buscar
-                    </button>
-                  </div>
-                  
-                  <div className={styles.nameGroup}>
                     <div className={styles.field}>
-                      <label>Nombre *</label>
+                    <label>Nombre</label>
                       <input
                         type="text"
                         value={formData.mainClient.firstName}
                         onChange={(e) => handleClientInputChange('firstName', e.target.value)}
                         placeholder="Nombre"
+                      required
                       />
                     </div>
                     
                     <div className={styles.field}>
-                      <label>Apellido *</label>
+                    <label>Apellido</label>
                       <input
                         type="text"
                         value={formData.mainClient.lastName}
                         onChange={(e) => handleClientInputChange('lastName', e.target.value)}
                         placeholder="Apellido"
+                      required
                       />
-                    </div>
                   </div>
                   
-                  <div className={styles.row}>
                     <div className={styles.field}>
                       <label>Email</label>
                       <input
@@ -712,17 +754,32 @@ export default function NuevaConsulta() {
                         placeholder="+54 9 11 1234-5678"
                       />
                     </div>
+                  
+                  <div className={styles.newClientButtons}>
+                    <button
+                      type="button"
+                      className={styles.saveClientButton}
+                      onClick={handleSaveNewClient}
+                    >
+                      💾 Guardar Cliente
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.cancelClientButton}
+                      onClick={handleNewSearch}
+                    >
+                      ❌ Cancelar
+                    </button>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className={styles.searchSection}>
                     <div className={styles.field}>
-                      <label>Buscar Cliente Existente</label>
                       <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                      onBlur={() => setTimeout(() => setSearchTerm(''), 200)}
                         placeholder="Buscar por nombre, email o teléfono..."
                       />
                     </div>
@@ -745,25 +802,141 @@ export default function NuevaConsulta() {
                     
                     <button
                       type="button"
-                      className={styles.newClientButton}
+                    className={styles.addSegmentButton}
                       onClick={() => setShowNewClientForm(true)}
                     >
                       + Crear Nuevo Cliente
                     </button>
-                  </div>
                 </>
               )}
             </div>
 
-            {/* Botón de envío */}
-            <button type="submit" className={styles.submitButton}>
-              Crear Consulta
+            {/* Segmentos */}
+            <div className={styles.segmentsSection}>
+              {segments.map((segment, index) => (
+                <div key={segment.id} className={styles.segment}>
+                  <div className={styles.segmentTitle}>
+                    {segments.length > 1 ? `Segmento ${index + 1}` : 'Requerimientos'}
+                  </div>
+                  
+                  {segments.length > 1 && (
+                    <button
+                      type="button"
+                      className={styles.removeSegmentButton}
+                      onClick={() => handleRemoveSegment(segment.id)}
+                    >
+                      ×
             </button>
+                  )}
+
+                  {/* Fechas del segmento */}
+                  <div className={styles.segmentDates}>
+                    <div className={styles.field}>
+                      <label>Check-in</label>
+                      <input
+                        type="date"
+                        value={segment.checkIn}
+                        onChange={(e) => handleSegmentChange(segment.id, 'checkIn', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <label>Check-out</label>
+                      <input
+                        type="date"
+                        value={segment.checkOut}
+                        onChange={(e) => handleSegmentChange(segment.id, 'checkOut', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Huéspedes y Tipo de servicio */}
+                  <div className={styles.segmentRow}>
+                    <div className={styles.field}>
+                      <label>Huéspedes</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={segment.requiredGuests}
+                        onChange={(e) => handleSegmentChange(segment.id, 'requiredGuests', parseInt(e.target.value))}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label>Tipo de Servicio</label>
+                      <select
+                        value={segment.serviceType}
+                        onChange={(e) => handleSegmentChange(segment.id, 'serviceType', e.target.value)}
+                      >
+                        <option value="con_desayuno">Con Desayuno</option>
+                        <option value="sin_desayuno">Sin Desayuno</option>
+                        <option value="media_pension">Media Pensión</option>
+                        <option value="pension_completa">Pensión Completa</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Etiquetas requeridas */}
+                  <div className={styles.field}>
+                    <label>Etiquetas Requeridas</label>
+                    <div className={styles.tagsContainer}>
+                      {tags.map(tag => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          className={`${styles.tagButton} ${
+                            segment.requiredTags.includes(tag.id) ? styles.tagSelected : ''
+                          }`}
+                          onClick={() => handleSegmentTagToggle(segment.id, tag.id)}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className={styles.addSegmentButton}
+                onClick={handleAddSegment}
+              >
+                + Agregar Segmento
+              </button>
+            </div>
+
+
           </form>
         </div>
 
+        {/* Footer con botones de acción */}
+        <div className={styles.sidePanelFooter}>
+          <div className={styles.actionButtons}>
+            <button 
+              type="button" 
+              className={styles.saveButton}
+              onClick={handleSaveQuery}
+            >
+              💾 Guardar Consulta
+            </button>
+            <button 
+              type="submit" 
+              className={styles.reserveButton}
+              onClick={handleSubmit}
+            >
+              🏨 Reservar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className={styles.mainContent}>
         {/* Habitaciones disponibles */}
-        <div className={styles.previewSection}>
           <h2>Habitaciones Disponibles</h2>
           
           {loadingRooms ? (
@@ -776,369 +949,176 @@ export default function NuevaConsulta() {
               <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
             </div>
           ) : (
-            <div style={{ 
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
-            }}>
-              <div style={{ 
-                flex: 1, 
-                overflowY: 'auto',
-                maxHeight: '400px'
-              }}>
-                <table style={{ 
-                  width: '100%', 
-                  borderCollapse: 'collapse',
-                  fontSize: 'var(--font-size-medium)'
-                }}>
+          <div className={styles.tableContainer}>
+            <table className={styles.roomsTable}>
                   <thead>
-                    <tr style={{ 
-                      backgroundColor: '#f8f9fa',
-                      borderBottom: '2px solid #dee2e6',
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 10
-                    }}>
-                      <th style={{ 
-                        padding: '16px', 
-                        textAlign: 'left', 
-                        fontWeight: '600', 
-                        color: '#495057',
-                        fontSize: 'var(--font-size-medium)',
-                        minWidth: '150px'
-                      }}>
-                        Habitación
-                      </th>
-                      <th style={{ 
-                        padding: '16px', 
-                        textAlign: 'center', 
-                        fontWeight: '600', 
-                        color: '#495057',
-                        fontSize: 'var(--font-size-medium)',
-                        minWidth: '120px'
-                      }}>
-                        Tipo
-                      </th>
-                      <th style={{ 
-                        padding: '16px', 
-                        textAlign: 'center', 
-                        fontWeight: '600', 
-                        color: '#495057',
-                        fontSize: 'var(--font-size-medium)',
-                        minWidth: '100px'
-                      }}>
-                        Capacidad
-                      </th>
-                      <th style={{ 
-                        padding: '16px', 
-                        textAlign: 'center', 
-                        fontWeight: '600', 
-                        color: '#495057',
-                        fontSize: 'var(--font-size-medium)',
-                        minWidth: '120px'
-                      }}>
-                        Etiquetas
-                      </th>
+                <tr>
+                  <th></th>
+                  <th>Habitación</th>
+                  <th>Tipo</th>
+                  <th>Capacidad</th>
+                  <th>Cumple con los requerimientos</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {availableRooms.map((room) => {
-                      const matchingTags = getMatchingTags(room);
+                {availableRooms
+                  .map((room) => {
+                    const compliance = checkRequirementsCompliance(room);
+                    return { room, compliance };
+                  })
+                  .sort((a, b) => {
+                    // Primero las que cumplen completamente
+                    if (a.compliance.complies && !b.compliance.complies) return -1;
+                    if (!a.compliance.complies && b.compliance.complies) return 1;
+                    
+                    // Luego por score de cumplimiento
+                    if (a.compliance.score !== b.compliance.score) {
+                      return b.compliance.score - a.compliance.score;
+                    }
+                    
+                    // Finalmente por capacidad exacta
+                    const aExactCapacity = a.room.maxPeople === requirements.requiredGuests;
+                    const bExactCapacity = b.room.maxPeople === requirements.requiredGuests;
+                    if (aExactCapacity && !bExactCapacity) return -1;
+                    if (!aExactCapacity && bExactCapacity) return 1;
+                    
+                    return 0;
+                  })
+                  .map(({ room, compliance }) => {
+                    const isSelected = selectedRoom && selectedRoom.id === room.id;
                       
                       return (
-                        <tr key={room.id} style={{ 
-                          borderBottom: '1px solid #e9ecef',
-                          backgroundColor: matchingTags.length > 0 ? '#f8fff8' : 'white'
-                        }}>
-                          <td style={{ 
-                            padding: '16px', 
-                            textAlign: 'left', 
-                            fontWeight: '500', 
-                            color: '#495057',
-                            fontSize: 'var(--font-size-medium)'
-                          }}>
-                            <strong>{room.name}</strong>
-                            {room.description && (
-                              <div style={{ 
-                                fontSize: 'var(--font-size-small)', 
-                                color: '#6c757d',
-                                marginTop: '4px'
-                              }}>
-                                {room.description}
+                    <tr 
+                      key={room.id} 
+                      className={`${styles.roomRow} ${isSelected ? styles.roomSelected : ''}`}
+                      onClick={() => setSelectedRoom(room)}
+                    >
+                      <td>
+                        <div className={styles.radioButton}>
+                          <input
+                            type="radio"
+                            name="selectedRoom"
+                            id={`room-${room.id}`}
+                            checked={isSelected}
+                            onChange={() => setSelectedRoom(room)}
+                            style={{ display: 'none' }}
+                          />
+                          <label 
+                            htmlFor={`room-${room.id}`}
+                            className={`${styles.radioLabel} ${isSelected ? styles.radioSelected : ''}`}
+                          >
+                            <span className={styles.radioCircle}></span>
+                          </label>
                               </div>
-                            )}
                           </td>
-                          <td style={{ 
-                            padding: '16px', 
-                            textAlign: 'center',
-                            color: '#495057',
-                            fontSize: 'var(--font-size-medium)'
-                          }}>
-                            {room.roomType?.name}
-                          </td>
-                          <td style={{ 
-                            padding: '16px', 
-                            textAlign: 'center',
-                            color: '#495057',
-                            fontSize: 'var(--font-size-medium)'
-                          }}>
-                            <span style={{
-                              backgroundColor: room.maxPeople === requirements.requiredGuests ? '#d4edda' : '#fff3cd',
-                              color: room.maxPeople === requirements.requiredGuests ? '#155724' : '#856404',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              fontSize: 'var(--font-size-small)',
-                              fontWeight: '500'
-                            }}>
+                      <td><strong>{room.name}</strong></td>
+                      <td>{room.roomType?.name}</td>
+                      <td>
+                        <span className={`${styles.capacityBadge} ${
+                          room.maxPeople === requirements.requiredGuests ? styles.capacityExact : styles.capacityLarger
+                        }`}>
                               {room.maxPeople} pers.
                             </span>
                           </td>
-                          <td style={{ 
-                            padding: '16px', 
-                            textAlign: 'center',
-                            color: '#495057',
-                            fontSize: 'var(--font-size-small)'
-                          }}>
-                            {matchingTags.length > 0 ? (
-                              <div style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '4px'
-                              }}>
-                                {matchingTags.map(tagName => (
-                                  <span key={tagName} style={{
-                                    backgroundColor: '#007bff',
-                                    color: 'white',
-                                    padding: '2px 6px',
-                                    borderRadius: '3px',
-                                    fontSize: 'var(--font-size-small)'
-                                  }}>
-                                    {tagName}
-                                  </span>
-                                ))}
-                              </div>
+                      <td>
+                        <div className={styles.complianceIndicator} title={compliance.message}>
+                          <div className={styles.complianceIcon}>
+                            {compliance.complies ? (
+                              <span className={styles.complianceCheck}>✓</span>
                             ) : (
-                              <span style={{ color: '#6c757d' }}>-</span>
+                              <span className={styles.complianceX}>✗</span>
                             )}
+                          </div>
+                        </div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-              </div>
             </div>
           )}
-        </div>
 
         {/* Tarifas por día */}
-        <div className={styles.previewSection}>
           <h2>Tarifas por Día</h2>
           
           {!formData.checkIn || !formData.checkOut ? (
-            <div style={{
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              textAlign: 'center',
-              color: '#6c757d'
-            }}>
+          <div className={styles.noDataMessage}>
               Selecciona las fechas de entrada y salida para ver las tarifas
             </div>
           ) : availableRooms.length === 0 ? (
-            <div style={{
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              textAlign: 'center',
-              color: '#6c757d'
-            }}>
+          <div className={styles.noDataMessage}>
               No hay habitaciones disponibles para las fechas seleccionadas
             </div>
           ) : !selectedRoomType ? (
-            <div style={{
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              textAlign: 'center',
-              color: '#6c757d'
-            }}>
+          <div className={styles.noDataMessage}>
               Cargando tipos de habitación...
             </div>
           ) : (
             <>
-              {/* Selector de tipo de habitación */}
-              <div style={{
-                marginBottom: '16px',
-                padding: '16px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '8px'
-              }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  color: '#495057'
-                }}>
-                  Tipo de Habitación:
-                </label>
-                <select
-                  value={selectedRoomType?.id || ''}
-                  onChange={(e) => {
-                    const roomType = roomTypes.find(rt => rt.id === parseInt(e.target.value));
-                    setSelectedRoomType(roomType);
-                  }}
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px',
-                    fontSize: 'var(--font-size-medium)',
-                    minWidth: '200px'
-                  }}
-                >
-                  {roomTypes
-                    .filter(roomType => availableRooms.some(room => room.roomType.id === roomType.id))
-                    .map(roomType => {
-                      const roomsOfThisType = availableRooms.filter(room => room.roomType.id === roomType.id);
-                      const hasExactCapacity = roomsOfThisType.some(room => room.maxPeople === requirements.requiredGuests);
-                      const capacityText = hasExactCapacity ? ' (Capacidad exacta)' : ' (Mayor capacidad)';
-                      
-                      return (
-                        <option key={roomType.id} value={roomType.id}>
-                          {roomType.name}{capacityText}
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
-
               {/* Tabla de tarifas por día */}
               {dailyRates.length === 0 ? (
-                <div style={{
-                  padding: '20px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  color: '#6c757d'
-                }}>
+              <div className={styles.noDataMessage}>
                   No hay tarifas disponibles para las fechas seleccionadas
                 </div>
               ) : (
-                <div style={{ 
-                  backgroundColor: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{ 
-                    flex: 1, 
-                    overflowX: 'auto',
-                    maxHeight: '400px'
-                  }}>
-                    <table style={{ 
-                      width: '100%', 
-                      borderCollapse: 'collapse',
-                      fontSize: 'var(--font-size-medium)'
-                    }}>
+              <div className={styles.tableContainer}>
+                <table className={styles.ratesTable}>
                       <thead>
-                        <tr style={{ 
-                          backgroundColor: '#f8f9fa',
-                          borderBottom: '2px solid #dee2e6',
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 10
-                        }}>
-                          <th style={{ 
-                            padding: '16px', 
-                            textAlign: 'center', 
-                            fontWeight: '600', 
-                            color: '#495057',
-                            fontSize: 'var(--font-size-medium)',
-                            minWidth: '120px'
-                          }}>
-                            Fecha
-                          </th>
-                          <th style={{ 
-                            padding: '16px', 
-                            textAlign: 'center', 
-                            fontWeight: '600', 
-                            color: '#495057',
-                            fontSize: 'var(--font-size-medium)',
-                            minWidth: '150px'
-                          }}>
-                            Bloque
-                          </th>
-                          {getEnabledServices().map(serviceName => (
-                            <th key={serviceName} style={{ 
-                              padding: '16px', 
-                              textAlign: 'center', 
-                              fontWeight: '600', 
-                              color: '#495057',
-                              fontSize: 'var(--font-size-medium)',
-                              minWidth: '140px'
-                            }}>
-                              {serviceName === 'baseRate' ? 'Precio Base' : serviceName}
-                            </th>
-                          ))}
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Tipo de Habitación</th>
+                      <th>Servicio</th>
+                      <th>Precio</th>
                         </tr>
                       </thead>
                       <tbody>
                         {dailyRates.map((rate, index) => (
-                          <tr key={index} style={{ 
-                            borderBottom: '1px solid #e9ecef',
-                            backgroundColor: rate.noRatesAvailable ? '#f8d7da' : 'white'
-                          }}>
-                            <td style={{ 
-                              padding: '16px', 
-                              textAlign: 'center',
-                              color: '#495057',
-                              fontSize: 'var(--font-size-medium)',
-                              fontWeight: '500'
-                            }}>
+                      <tr key={index} className={rate.noRatesAvailable ? styles.noRatesRow : ''}>
+                        <td>
                               {new Date(rate.date).toLocaleDateString('es-AR', {
                                 weekday: 'short',
                                 month: 'short',
                                 day: 'numeric'
                               })}
                             </td>
-                            <td style={{ 
-                              padding: '16px', 
-                              textAlign: 'center',
-                              color: rate.noRatesAvailable ? '#dc3545' : '#495057',
-                              fontSize: 'var(--font-size-small)',
-                              fontWeight: '500'
-                            }}>
-                              {rate.blockName || 'Sin bloque'}
+                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
+                          {selectedRoomType?.name || 'Sin tipo'}
                             </td>
-                            {getEnabledServices().map(serviceName => (
-                              <td key={serviceName} style={{ 
-                                padding: '16px', 
-                                textAlign: 'center',
-                                color: rate.noRatesAvailable ? '#dc3545' : '#495057',
-                                fontSize: 'var(--font-size-medium)',
-                                fontWeight: '600'
-                              }}>
+                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
+                          {rate.serviceName}
+                        </td>
+                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
                                 {rate.noRatesAvailable ? (
-                                  <span style={{ color: '#dc3545' }}>Sin tarifa</span>
+                            <span>Sin tarifa</span>
                                 ) : (
                                   new Intl.NumberFormat('es-AR', {
                                     style: 'currency',
                                     currency: 'ARS'
-                                  }).format(rate[serviceName] || 0)
+                            }).format(rate.price || 0)
                                 )}
                               </td>
-                            ))}
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                
+                {/* Total */}
+                <div className={styles.totalSection}>
+                  <div className={styles.totalRow}>
+                    <span>Total:</span>
+                    <span className={styles.totalAmount}>
+                      {new Intl.NumberFormat('es-AR', {
+                        style: 'currency',
+                        currency: 'ARS'
+                      }).format(calculateTotal())}
+                    </span>
+                  </div>
                   </div>
                 </div>
               )}
             </>
           )}
-        </div>
       </div>
     </div>
   );

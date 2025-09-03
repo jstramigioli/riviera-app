@@ -1,9 +1,9 @@
 .reservation-bar {
   position: absolute;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: grab;
   user-select: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -13,6 +13,9 @@
   box-sizing: border-box;
   min-width: 20px;
   /* Remover altura fija para usar la altura dinámica del componente */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-reservation-border);
+  background-color: var(--color-reservation);
 }
 
 /* Clase específica para forzar altura */
@@ -20,22 +23,27 @@
   /* Remover altura fija para usar la altura dinámica */
 }
 
+/* Estado hover simple */
 .reservation-bar:hover {
-  transform: scale(1.02);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   z-index: 6;
-  background-color: var(--color-accent-hover) !important;
-  border-color: var(--color-border-hover) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  background-color: var(--color-reservation-hover) !important;
+}
+
+/* Estado hover para todas las barras de la misma reserva */
+.reservation-bar.hovered {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  z-index: 6;
+  background-color: var(--color-reservation-hover) !important;
 }
 
 .reservation-bar.dragging {
   cursor: grabbing;
   transform: scale(1.05);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
   z-index: 10;
-  background-color: var(--color-accent-drag) !important;
-  border-color: var(--color-border-drag) !important;
 }
 
 .reservation-bar.updating {
@@ -57,7 +65,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: var(--color-text-accent);
+  color: var(--color-text-dark);
   margin: 0;
   padding: 0;
   display: flex;
@@ -84,8 +92,6 @@
 .reservation-dates {
   font-size: 0.65rem;
   opacity: 0.8;
-  text-align: center;
-  line-height: 1;
 }
 
 .reservation-guests {

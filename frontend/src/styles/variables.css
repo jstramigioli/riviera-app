@@ -19,6 +19,8 @@
   --color-text-dark: #2c3e50;
   --color-text-muted: #6c757d;
   --color-text-accent: #8b7355;
+  --color-text-primary: #495057;
+  --color-text-secondary: #6c757d;
   
   /* Colores de borde */
   --color-border: #dee2e6;
@@ -36,14 +38,28 @@
   --color-danger-light: #f8d7da;
   --color-info: #17a2b8;
   --color-info-light: #d1ecf1;
+  --color-info-dark: #117a8b;
+  --color-error: #dc3545;
+  --color-success-dark: #1e7e34;
+  --color-danger-dark: #c82333;
   
   /* Colores de acento para reservas */
   --color-accent: #f4e4c1;
   --color-accent-hover: #f0e6c8;
   --color-accent-drag: #e8d8b0;
   
+  /* NUEVO: Color pastel único para todas las reservas */
+  --color-reservation: #b8d4e3;
+  --color-reservation-hover: #a8c4d3;
+  --color-reservation-border: rgba(184, 212, 227, 0.5);
+  
   /* Tipografía */
-  --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   --font-size-base: 22px;
   --font-size-small: 1rem;
   --font-size-medium: 1.3rem;

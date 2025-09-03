@@ -101,6 +101,9 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [selectedOccupancyData, setSelectedOccupancyData] = useState(null);
   const [selectedOccupancyDate, setSelectedOccupancyDate] = useState(null);
   
+  // Estado para rastrear la reserva que está siendo hovered
+  const [hoveredReservationId, setHoveredReservationId] = useState(null);
+  
   const tableRef = useRef();
   const containerRef = useRef();
   const resizingReservationRef = useRef(null);
@@ -809,6 +812,9 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     
     const { reservation } = hoverData;
     
+    // Actualizar el estado de la reserva hovered
+    setHoveredReservationId(reservation.id);
+    
     // Encontrar todos los segmentos de la misma reserva
     const allSegments = reservation.segments.filter(seg => seg.isActive);
     
@@ -889,6 +895,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   const handleReservationLeave = () => {
     handleCellLeave();
+    setHoveredReservationId(null);
   };
 
   // Función para manejar el click en el score de ocupación
@@ -1138,6 +1145,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                     onReservationHover={handleReservationHover}
                     onReservationLeave={handleReservationLeave}
                     getCellPosition={getCellPosition}
+                    hoveredReservationId={hoveredReservationId}
                   />
                 );
               });

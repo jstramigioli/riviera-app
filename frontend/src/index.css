@@ -1,5 +1,14 @@
 @import './styles/variables.css';
 
+/* ===== FUENTE PRINCIPAL ===== */
+body {
+  font-family: var(--font-main);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* ===== CSS RESET COMPLETO ===== */
 /* Reset y normalización de estilos por defecto del navegador */
 
