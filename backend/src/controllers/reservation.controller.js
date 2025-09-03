@@ -8,6 +8,10 @@ const {
   updateReservationWithSegments,
   checkRoomAvailability
 } = require('../utils/reservationHelpers');
+const {
+  validateReservationCreation,
+  validateReservationUpdate
+} = require('../utils/segmentValidation');
 
 
 
@@ -40,93 +44,38 @@ exports.getReservationById = async (req, res) => {
 // Crear una reserva
 exports.createReservation = async (req, res) => {
   const { 
-    roomId, 
     mainClientId, 
-    guests, 
-    checkIn, 
-    checkOut, 
-    totalAmount, 
+    segments,
     status, 
     notes,
-    reservationType,
-    requiredGuests,
-    requiredRoomId,
-    requiredTags,
-    requirementsNotes
+    isMultiRoom = false
   } = req.body;
   
-  if (!roomId || !mainClientId || !checkIn || !checkOut || !requiredGuests) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
+    return res.status(400).json({ error: 'Debe especificar un cliente principal y al menos un segmento' });
   }
   
   try {
-    // Verificar disponibilidad de la habitación
-    const availability = await checkRoomAvailability(roomId, checkIn, checkOut);
-    if (!availability.available) {
-      return res.status(400).json({ 
-        error: 'Habitación no disponible en las fechas especificadas',
-        conflicts: availability.conflicts
-      });
-    }
-
-    // Verificar si hay días cerrados en el rango de fechas
-    const operationalPeriods = await prisma.operationalPeriod.findMany({
-      where: { hotelId: 'default-hotel' }
-    });
-    
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    
-    // Verificar si hay días cerrados en el rango
-    const closedDays = [];
-    for (let day = new Date(checkInDate); day < checkOutDate; day.setDate(day.getDate() + 1)) {
-      const dayDate = new Date(day);
-      dayDate.setHours(0, 0, 0, 0);
-      
-      let isDayOpen = false;
-      for (const period of operationalPeriods) {
-        const periodStart = new Date(period.startDate);
-        const periodEnd = new Date(period.endDate);
-        periodStart.setHours(0, 0, 0, 0);
-        periodEnd.setHours(0, 0, 0, 0);
-        
-        if (dayDate >= periodStart && dayDate <= periodEnd) {
-          isDayOpen = true;
-          break;
-        }
-      }
-      
-      if (!isDayOpen) {
-        closedDays.push(new Date(day));
-      }
-    }
-    
-    if (closedDays.length > 0) {
-      const closedDates = closedDays.map(day => 
-        day.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      ).join(', ');
-      
-      return res.status(400).json({ 
-        error: 'No se pueden crear reservas en días cerrados',
-        closedDays: closedDates,
-        message: `No se pueden crear reservas en días cerrados: ${closedDates}`
-      });
-    }
-
-    // Crear la reserva con su segmento inicial
+    // Preparar datos de la reserva para validación
     const reservationData = {
       mainClientId,
-      roomId,
-      checkIn,
-      checkOut,
-      totalAmount: totalAmount || 0,
+      segments,
       status: status || 'active',
-      reservationType: reservationType || 'con_desayuno',
       notes,
-      requiredGuests
+      isMultiRoom
     };
 
-    const newReservation = await createReservationWithSegment(reservationData);
+    // Validar la reserva completa antes de crearla
+    const validation = await validateReservationCreation(reservationData);
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        error: 'Error de validación en la reserva',
+        details: validation.errors
+      });
+    }
+
+    // Crear la reserva con sus segmentos
+    const newReservation = await createReservationWithSegments(reservationData);
 
     // Calcular y almacenar tarifas detalladas por noche
     try {
@@ -176,6 +125,52 @@ exports.createReservation = async (req, res) => {
   }
 };
 
+// Crear una reserva con segmentos múltiples
+exports.createMultiSegmentReservation = async (req, res) => {
+  const { 
+    mainClientId, 
+    segments,
+    status, 
+    notes,
+    isMultiRoom = false
+  } = req.body;
+  
+  if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
+    return res.status(400).json({ error: 'Debe especificar un cliente principal y al menos un segmento' });
+  }
+  
+  try {
+    // Preparar datos de la reserva para validación
+    const reservationData = {
+      mainClientId,
+      segments,
+      status: status || 'active',
+      notes,
+      isMultiRoom
+    };
+
+    // Validar la reserva completa antes de crearla
+    const validation = await validateReservationCreation(reservationData);
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        error: 'Error de validación en la reserva',
+        details: validation.errors
+      });
+    }
+
+    // Crear la reserva con sus segmentos
+    const newReservation = await createReservationWithSegments(reservationData);
+
+    res.status(201).json({
+      message: 'Reserva creada exitosamente',
+      reservation: newReservation
+    });
+  } catch (error) {
+    console.error('Error creating multi-segment reservation:', error);
+    res.status(500).json({ error: 'Error creating reservation', details: error.message });
+  }
+};
+
 // Obtener tarifas detalladas de una reserva
 exports.getReservationPricingDetails = async (req, res) => {
   const { id } = req.params;
@@ -217,28 +212,10 @@ exports.getReservationPricingDetails = async (req, res) => {
 // Actualizar una reserva
 exports.updateReservation = async (req, res) => {
   const { id } = req.params;
-  const { 
-    roomId, 
-    mainClientId, 
-    checkIn, 
-    checkOut, 
-    totalAmount, 
-    status, 
-    reservationType, 
-    fixed, 
-    notes,
-    requiredGuests,
-    requiredRoomId,
-    requiredTags,
-    requirementsNotes
-  } = req.body;
-  
-  if (!roomId || !checkIn || !checkOut) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
+  const updateData = req.body;
   
   try {
-    // Verificar si hay días cerrados en el rango de fechas (solo si las fechas cambiaron)
+    // Verificar que la reserva existe
     const existingReservation = await prisma.reservation.findUnique({
       where: { id: parseInt(id) }
     });
@@ -246,90 +223,20 @@ exports.updateReservation = async (req, res) => {
     if (!existingReservation) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
-    
-    // Solo validar si las fechas cambiaron
-    const checkInChanged = new Date(checkIn).getTime() !== existingReservation.checkIn.getTime();
-    const checkOutChanged = new Date(checkOut).getTime() !== existingReservation.checkOut.getTime();
-    
-    if (checkInChanged || checkOutChanged) {
-      const operationalPeriods = await prisma.operationalPeriod.findMany({
-        where: { hotelId: 'default-hotel' }
-      });
-      
-      const checkInDate = new Date(checkIn);
-      const checkOutDate = new Date(checkOut);
-      
-      // Verificar si hay días cerrados en el rango
-      const closedDays = [];
-      for (let day = new Date(checkInDate); day < checkOutDate; day.setDate(day.getDate() + 1)) {
-        const dayDate = new Date(day);
-        dayDate.setHours(0, 0, 0, 0);
-        
-        let isDayOpen = false;
-        for (const period of operationalPeriods) {
-          const periodStart = new Date(period.startDate);
-          const periodEnd = new Date(period.endDate);
-          periodStart.setHours(0, 0, 0, 0);
-          periodEnd.setHours(0, 0, 0, 0);
-          
-          if (dayDate >= periodStart && dayDate <= periodEnd) {
-            isDayOpen = true;
-            break;
-          }
-        }
-        
-        if (!isDayOpen) {
-          closedDays.push(new Date(day));
-        }
-      }
-      
-      if (closedDays.length > 0) {
-        const closedDates = closedDays.map(day => 
-          day.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        ).join(', ');
-        
-        return res.status(400).json({ 
-          error: 'No se pueden actualizar reservas a días cerrados',
-          closedDays: closedDates,
-          message: `No se pueden actualizar reservas a días cerrados: ${closedDates}`
-        });
-      }
-    }
-    
-    const updateData = {
-      roomId: parseInt(roomId),
-      checkIn: new Date(checkIn),
-      checkOut: new Date(checkOut),
-      ...(requiredGuests !== undefined && { requiredGuests: parseInt(requiredGuests) }),
-      ...(typeof fixed !== 'undefined' ? { fixed } : {}),
-      ...(mainClientId && { mainClientId: parseInt(mainClientId) }),
-      ...(totalAmount && { totalAmount: parseFloat(totalAmount) }),
-      ...(status && { status }),
-      ...(reservationType && { reservationType }),
-      ...(notes !== undefined && { notes }),
-      ...(requiredRoomId !== undefined && { 
-        requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null 
-      }),
-      ...(requiredTags !== undefined && { requiredTags }),
-      ...(requirementsNotes !== undefined && { requirementsNotes })
-    };
 
-    const updatedReservation = await prisma.reservation.update({
-      where: { id: parseInt(id) },
-      data: updateData,
-      include: {
-        room: {
-          include: {
-            roomType: true,
-            tags: true
-          }
-        },
-        mainClient: true,
-        guests: true
-      }
-    });
+    // Validar la actualización antes de proceder
+    const validation = await validateReservationUpdate(parseInt(id), updateData);
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        error: 'Error de validación en la actualización',
+        details: validation.errors
+      });
+    }
+
+    const updatedReservation = await updateReservationWithSegments(id, updateData);
     res.json(updatedReservation);
   } catch (error) {
+    console.error('Error updating reservation:', error);
     res.status(500).json({ error: 'Error updating reservation', details: error.message });
   }
 };

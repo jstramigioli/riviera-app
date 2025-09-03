@@ -5,7 +5,7 @@ import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
 import CreateReservationPanel from './CreateReservationPanel';
-import CreateQueryModal from './CreateQueryModal';
+
 import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
@@ -58,14 +58,14 @@ function groupDaysByMonth(days) {
 
 export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation, onReservationClick, operationalPeriods = [] }) {
   const today = new Date();
-  // Normalizar la fecha de inicio a medianoche UTC
+  // Normalizar la fecha de inicio a medianoche en zona horaria local
   const normalizedStartDate = new Date(addDays(today, -30));
-  normalizedStartDate.setUTCHours(0, 0, 0, 0);
+  normalizedStartDate.setHours(0, 0, 0, 0);
   
   const [startDate, setStartDate] = useState(normalizedStartDate);
-  // Normalizar la fecha de fin a medianoche UTC
+  // Normalizar la fecha de fin a medianoche en zona horaria local
   const normalizedEndDate = new Date(addDays(today, 30));
-  normalizedEndDate.setUTCHours(0, 0, 0, 0);
+  normalizedEndDate.setHours(0, 0, 0, 0);
   
   const [endDate, setEndDate] = useState(normalizedEndDate);
   const [days, setDays] = useState(getDaysArray(normalizedStartDate, normalizedEndDate));
@@ -90,7 +90,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   
   // Nuevas variables para el panel de creación de reservas
   const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
-  const [isCreateQueryPanelOpen, setIsCreateQueryPanelOpen] = useState(false);
+
   
   // Estado para configuración de precios dinámicos
   const [dynamicPricingConfig, setDynamicPricingConfig] = useState(null);
@@ -107,7 +107,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const resizeDataRef = useRef(null);
 
   // Constantes para el cálculo de posiciones
-  const roomColumnWidth = 120;
+  const roomColumnWidth = 140; // Actualizado para coincidir con el CSS
 
   // Función para determinar si un día está en un período cerrado
   const isDayClosed = (day) => {
@@ -648,12 +648,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   }
 
   function handleCreateQueryClick() {
-    setIsCreateQueryPanelOpen(true);
+    // Navegar directamente a la página de nueva consulta sin pasar por el modal
+    window.location.href = '/nueva-consulta';
   }
 
-  function handleCreateQueryPanelClose() {
-    setIsCreateQueryPanelOpen(false);
-  }
+
 
 
 
@@ -808,42 +807,69 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     // Limpiar estilos anteriores
     handleCellLeave();
     
-    const { rowIndex, startColIndex, endColIndex } = hoverData;
+    const { reservation } = hoverData;
+    
+    // Encontrar todos los segmentos de la misma reserva
+    const allSegments = reservation.segments.filter(seg => seg.isActive);
     
     // Recolectar todas las celdas a marcar
     const cellsToHighlight = [];
     
-    // Marcar todas las columnas de la reserva hacia arriba
-    for (let col = startColIndex; col <= endColIndex; col++) {
-      for (let row = 0; row <= rowIndex; row++) {
-        const cell = tableRef.current.querySelector(`td[data-room-index="${row}"][data-col-index="${col}"]`);
-        if (cell) {
-          cellsToHighlight.push({ cell, type: 'data' });
+    // Marcar todas las celdas de todos los segmentos de la misma reserva
+    allSegments.forEach(seg => {
+      const segStartDate = new Date(seg.startDate);
+      const segEndDate = new Date(seg.endDate);
+      
+      // Encontrar los índices de columna para este segmento
+      const segStartColIndex = days.findIndex(day => 
+        day.getFullYear() === segStartDate.getFullYear() &&
+        day.getMonth() === segStartDate.getMonth() &&
+        day.getDate() === segStartDate.getDate()
+      );
+      
+      const segEndColIndex = days.findIndex(day => 
+        day.getFullYear() === segEndDate.getFullYear() &&
+        day.getMonth() === segEndDate.getMonth() &&
+        day.getDate() === segEndDate.getDate()
+      );
+      
+      // Encontrar el índice de la fila para la habitación de este segmento
+      const segRoomIndex = rooms.findIndex(room => room.id === seg.roomId);
+      
+      if (segStartColIndex >= 0 && segEndColIndex >= 0 && segRoomIndex >= 0) {
+        // Marcar todas las columnas de este segmento hacia arriba
+        for (let col = segStartColIndex; col < segEndColIndex; col++) {
+          for (let row = 0; row <= segRoomIndex; row++) {
+            const cell = tableRef.current.querySelector(`td[data-room-index="${row}"][data-col-index="${col}"]`);
+            if (cell) {
+              cellsToHighlight.push({ cell, type: 'data' });
+            }
+          }
+        }
+        
+        // Marcar la fila hacia la izquierda (desde el inicio hasta el final del segmento)
+        for (let col = 0; col < segEndColIndex; col++) {
+          const cell = tableRef.current.querySelector(`td[data-room-index="${segRoomIndex}"][data-col-index="${col}"]`);
+          if (cell) {
+            cellsToHighlight.push({ cell, type: 'data' });
+          }
+        }
+        
+        // Marcar nombre de habitación
+        const roomNameCell = tableRef.current.querySelector(`td[data-room-index="${segRoomIndex}"]:not([data-col-index])`);
+        if (roomNameCell) {
+          cellsToHighlight.push({ cell: roomNameCell, type: 'room' });
+        }
+        
+        // Marcar headers de las columnas de este segmento
+        for (let col = segStartColIndex; col < segEndColIndex; col++) {
+          const headerCell = tableRef.current.querySelector(`th[data-col-index="${col}"]`);
+          if (headerCell) {
+            cellsToHighlight.push({ cell: headerCell, type: 'header' });
+          }
         }
       }
-    }
-    
-    // Marcar la fila hacia la izquierda (desde el inicio hasta el final de la reserva)
-    for (let col = 0; col <= endColIndex; col++) {
-      const cell = tableRef.current.querySelector(`td[data-room-index="${rowIndex}"][data-col-index="${col}"]`);
-      if (cell) {
-        cellsToHighlight.push({ cell, type: 'data' });
-      }
-    }
-    
-    // Marcar nombre de habitación
-    const roomNameCell = tableRef.current.querySelector(`td[data-room-index="${rowIndex}"]:not([data-col-index])`);
-    if (roomNameCell) {
-      cellsToHighlight.push({ cell: roomNameCell, type: 'room' });
-    }
-    
-    // Marcar headers de las columnas de la reserva
-    for (let col = startColIndex; col <= endColIndex; col++) {
-      const headerCell = tableRef.current.querySelector(`th[data-col-index="${col}"]`);
-      if (headerCell) {
-        cellsToHighlight.push({ cell: headerCell, type: 'header' });
-      }
-    }
+    });
     
     // Aplicar estilos en batch
     cellsToHighlight.forEach(({ cell, type }) => {
@@ -859,7 +885,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           break;
       }
     });
-    
   };
 
   const handleReservationLeave = () => {
@@ -1024,6 +1049,14 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
               <tr key={room.id}>
                 <td className={styles.roomNameCell} data-room-index={roomIndex}>
                   <strong>{room.name}</strong>
+                  <span style={{ 
+                    fontWeight: '300', 
+                    color: '#6c757d', 
+                    fontSize: '0.85em',
+                    marginLeft: '4px'
+                  }}>
+                    (x{room.maxPeople})
+                  </span>
                 </td>
                 {days.map((day, colIndex) => {
                   const isClosed = isDayClosed(day);
@@ -1064,33 +1097,50 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           {/* Barras de reservas */}
 
           {rooms.map((room, roomIndex) => {
-            const roomReservations = reservations.filter(res => res.roomId === room.id);
-            return roomReservations.map((reservation) => {
-              let displayReservation = reservation;
-              if (resizingReservation === reservation.id && resizeData) {
-                displayReservation = { ...reservation, ...resizeData };
-              }
-              return (
-                <ReservationBar
-                  key={`${room.id}-${reservation.id}`}
-                  id={`reservation-bar-${reservation.id}`}
-                  reservation={displayReservation}
-                  roomIndex={roomIndex}
-                  cellWidth={cellWidth}
-                  cellHeight={cellHeight}
-                  startDate={startDate}
-                  headerHeight={headerHeight}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onClick={handleReservationClick}
-                  onResizeStart={handleResizeStart}
-                  isResizing={isResizing && resizeReservationId === reservation.id}
-                  justFinishedResize={justFinishedResize}
-                  onReservationHover={handleReservationHover}
-                  onReservationLeave={handleReservationLeave}
-                  getCellPosition={getCellPosition}
-                />
+            // Filtrar reservas que tengan segmentos en esta habitación
+            const roomReservations = reservations.filter(reservation => {
+              // Verificar si la reserva tiene segmentos activos en esta habitación
+              return reservation.segments && reservation.segments.some(segment => 
+                segment.roomId === room.id && segment.isActive
               );
+            });
+
+            return roomReservations.map((reservation) => {
+              // Obtener todos los segmentos de esta reserva en esta habitación
+              const roomSegments = reservation.segments.filter(segment => 
+                segment.roomId === room.id && segment.isActive
+              );
+
+              // Crear una barra por cada segmento
+              return roomSegments.map((segment) => {
+                let displaySegment = segment;
+                if (resizingReservation === reservation.id && resizeData) {
+                  displaySegment = { ...segment, ...resizeData };
+                }
+
+                return (
+                  <ReservationBar
+                    key={`${room.id}-${reservation.id}-${segment.id}`}
+                    id={`reservation-bar-${reservation.id}-${segment.id}`}
+                    reservation={reservation}
+                    segment={displaySegment}
+                    roomIndex={roomIndex}
+                    cellWidth={cellWidth}
+                    cellHeight={cellHeight}
+                    startDate={startDate}
+                    headerHeight={headerHeight}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onClick={handleReservationClick}
+                    onResizeStart={handleResizeStart}
+                    isResizing={isResizing && resizeReservationId === reservation.id}
+                    justFinishedResize={justFinishedResize}
+                    onReservationHover={handleReservationHover}
+                    onReservationLeave={handleReservationLeave}
+                    getCellPosition={getCellPosition}
+                  />
+                );
+              });
             });
           })}
           
@@ -1100,7 +1150,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
               className={styles.dragPreview}
               style={{
                 position: 'absolute',
-                left: `${16 + 120 + ((() => {
+                left: `${16 + 140 + ((() => {
                   const checkIn = new Date(dragPreview.checkIn);
                   const checkInStr = format(checkIn, 'yyyy-MM-dd');
                   const days = [];
@@ -1156,11 +1206,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         operationalPeriods={operationalPeriods}
       />
 
-      {/* Modal de creación de consultas */}
-      <CreateQueryModal
-        isOpen={isCreateQueryPanelOpen}
-        onClose={handleCreateQueryPanelClose}
-      />
+
 
       {/* Modal de detalles del score de ocupación */}
       <OccupancyScoreModal

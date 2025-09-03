@@ -1,0 +1,1400 @@
+[
+  {
+    "id": 1,
+    "name": "single",
+    "description": null,
+    "orderIndex": 1,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 30,
+        "name": "31",
+        "description": "Habitación 31",
+        "maxPeople": 1,
+        "status": "available",
+        "orderIndex": 28,
+        "roomTypeId": 1
+      },
+      {
+        "id": 29,
+        "name": "32",
+        "description": "Habitación 32",
+        "maxPeople": 1,
+        "status": "available",
+        "orderIndex": 29,
+        "roomTypeId": 1
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnvj0001nwrb22bn7xt0",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.782Z",
+        "updatedAt": "2025-08-31T00:12:10.782Z"
+      },
+      {
+        "id": "cmeyxrnwr0003nwrb2piasc1b",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.827Z",
+        "updatedAt": "2025-08-31T00:12:10.827Z"
+      },
+      {
+        "id": "cmeyxrnws0005nwrb6fuhwcgq",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.828Z",
+        "updatedAt": "2025-08-31T00:12:10.828Z"
+      },
+      {
+        "id": "cmeyxrnwv0007nwrbmjkrrjcp",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.831Z",
+        "updatedAt": "2025-08-31T00:12:10.831Z"
+      },
+      {
+        "id": "cmeyydwgs0001nwbgwyk6apas",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.349Z",
+        "updatedAt": "2025-08-31T00:29:28.349Z"
+      },
+      {
+        "id": "cmeyydwz5001nnwbgjxfiph0v",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 3000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:29.010Z",
+        "updatedAt": "2025-08-31T00:29:29.010Z"
+      },
+      {
+        "id": "cmeyydwz6001pnwbg6hmirned",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:29.010Z",
+        "updatedAt": "2025-08-31T00:29:29.010Z"
+      },
+      {
+        "id": "cmeyydwz7001rnwbgeislb96p",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 3600,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:29.011Z",
+        "updatedAt": "2025-08-31T00:29:29.011Z"
+      },
+      {
+        "id": "cmejbr9c400b5nwjofbwsbwe3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.749Z",
+        "updatedAt": "2025-08-20T01:59:27.749Z"
+      },
+      {
+        "id": "cmejbr9c500b7nwjovubng7mm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.750Z",
+        "updatedAt": "2025-08-20T01:59:27.750Z"
+      },
+      {
+        "id": "cmejbr9c600b9nwjo99ssda6z",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.750Z",
+        "updatedAt": "2025-08-20T01:59:27.750Z"
+      },
+      {
+        "id": "cmejbr9cz00bbnwjon786k5ec",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 1,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.779Z",
+        "updatedAt": "2025-08-20T01:59:27.779Z"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "doble",
+    "description": null,
+    "orderIndex": 2,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 4,
+        "name": "2",
+        "description": "Habitación 2",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 1,
+        "roomTypeId": 2
+      },
+      {
+        "id": 2,
+        "name": "7",
+        "description": "Habitación 7",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 5,
+        "roomTypeId": 2
+      },
+      {
+        "id": 5,
+        "name": "8",
+        "description": "Habitación 8",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 6,
+        "roomTypeId": 2
+      },
+      {
+        "id": 7,
+        "name": "9",
+        "description": "Habitación 9",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 7,
+        "roomTypeId": 2
+      },
+      {
+        "id": 6,
+        "name": "10",
+        "description": "Habitación 10",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 8,
+        "roomTypeId": 2
+      },
+      {
+        "id": 15,
+        "name": "16",
+        "description": "Habitación 16",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 14,
+        "roomTypeId": 2
+      },
+      {
+        "id": 19,
+        "name": "19",
+        "description": "Habitación 19",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 17,
+        "roomTypeId": 2
+      },
+      {
+        "id": 18,
+        "name": "21",
+        "description": "Habitación 21",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 18,
+        "roomTypeId": 2
+      },
+      {
+        "id": 21,
+        "name": "23",
+        "description": "Habitación 23",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 20,
+        "roomTypeId": 2
+      },
+      {
+        "id": 22,
+        "name": "24",
+        "description": "Habitación 24",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 21,
+        "roomTypeId": 2
+      },
+      {
+        "id": 23,
+        "name": "25",
+        "description": "Habitación 25",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 22,
+        "roomTypeId": 2
+      },
+      {
+        "id": 24,
+        "name": "26",
+        "description": "Habitación 26",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 23,
+        "roomTypeId": 2
+      },
+      {
+        "id": 25,
+        "name": "27",
+        "description": "Habitación 27",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 24,
+        "roomTypeId": 2
+      },
+      {
+        "id": 27,
+        "name": "29",
+        "description": "Habitación 29",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 26,
+        "roomTypeId": 2
+      },
+      {
+        "id": 28,
+        "name": "30",
+        "description": "Habitación 30",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 27,
+        "roomTypeId": 2
+      },
+      {
+        "id": 33,
+        "name": "34",
+        "description": "Habitación 34",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 31,
+        "roomTypeId": 2
+      },
+      {
+        "id": 37,
+        "name": "36",
+        "description": "Habitación 36",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 33,
+        "roomTypeId": 2
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnww0009nwrb17w4envq",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.832Z",
+        "updatedAt": "2025-08-31T00:12:10.832Z"
+      },
+      {
+        "id": "cmeyxrnww000bnwrbx5as0s2p",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.833Z",
+        "updatedAt": "2025-08-31T00:12:10.833Z"
+      },
+      {
+        "id": "cmeyxrnwx000dnwrbzfslxr03",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.833Z",
+        "updatedAt": "2025-08-31T00:12:10.833Z"
+      },
+      {
+        "id": "cmeyxrnwy000fnwrbjsd772ex",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.834Z",
+        "updatedAt": "2025-08-31T00:12:10.834Z"
+      },
+      {
+        "id": "cmeyydwo40003nwbg3mw0p2dg",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.613Z",
+        "updatedAt": "2025-08-31T00:29:28.613Z"
+      },
+      {
+        "id": "cmeyydwo60005nwbgbmcyq85u",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.614Z",
+        "updatedAt": "2025-08-31T00:29:28.614Z"
+      },
+      {
+        "id": "cmeyydwo70007nwbgmriim5bg",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 12000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.615Z",
+        "updatedAt": "2025-08-31T00:29:28.615Z"
+      },
+      {
+        "id": "cmeyydwo80009nwbgvx5qg069",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.616Z",
+        "updatedAt": "2025-08-31T00:29:28.616Z"
+      },
+      {
+        "id": "cmejbr9d100bdnwjo2u3x49f3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.782Z",
+        "updatedAt": "2025-08-20T01:59:27.782Z"
+      },
+      {
+        "id": "cmejbr9d200bfnwjoj6z8t8zn",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.782Z",
+        "updatedAt": "2025-08-20T01:59:27.782Z"
+      },
+      {
+        "id": "cmejbr9d200bhnwjo7nps53vo",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.783Z",
+        "updatedAt": "2025-08-20T01:59:27.783Z"
+      },
+      {
+        "id": "cmejbr9d300bjnwjoziwkozgd",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 2,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.784Z",
+        "updatedAt": "2025-08-20T01:59:27.784Z"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "triple",
+    "description": null,
+    "orderIndex": 3,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 14,
+        "name": "1",
+        "description": "Habitación 1",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 0,
+        "roomTypeId": 3
+      },
+      {
+        "id": 3,
+        "name": "3",
+        "description": "Habitación 3",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 2,
+        "roomTypeId": 3
+      },
+      {
+        "id": 8,
+        "name": "11",
+        "description": "Habitación 11",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 9,
+        "roomTypeId": 3
+      },
+      {
+        "id": 9,
+        "name": "12",
+        "description": "Habitación 12",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 10,
+        "roomTypeId": 3
+      },
+      {
+        "id": 11,
+        "name": "13",
+        "description": "Habitación 13",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 11,
+        "roomTypeId": 3
+      },
+      {
+        "id": 13,
+        "name": "14",
+        "description": "Habitación 14",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 12,
+        "roomTypeId": 3
+      },
+      {
+        "id": 12,
+        "name": "15",
+        "description": "Habitación 15",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 13,
+        "roomTypeId": 3
+      },
+      {
+        "id": 16,
+        "name": "17",
+        "description": "Habitación 17",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 15,
+        "roomTypeId": 3
+      },
+      {
+        "id": 20,
+        "name": "22",
+        "description": "Habitación 22",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 19,
+        "roomTypeId": 3
+      },
+      {
+        "id": 26,
+        "name": "28",
+        "description": "Habitación 28",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 25,
+        "roomTypeId": 3
+      },
+      {
+        "id": 32,
+        "name": "33",
+        "description": "Habitación 33",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 30,
+        "roomTypeId": 3
+      },
+      {
+        "id": 36,
+        "name": "35",
+        "description": "Habitación 35",
+        "maxPeople": 3,
+        "status": "available",
+        "orderIndex": 32,
+        "roomTypeId": 3
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnwy000hnwrbhm1xperp",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.835Z",
+        "updatedAt": "2025-08-31T00:12:10.835Z"
+      },
+      {
+        "id": "cmeyxrnwz000jnwrbnvtwcxv1",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.835Z",
+        "updatedAt": "2025-08-31T00:12:10.835Z"
+      },
+      {
+        "id": "cmeyxrnx0000lnwrbyhrq3jth",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.836Z",
+        "updatedAt": "2025-08-31T00:12:10.836Z"
+      },
+      {
+        "id": "cmeyxrnx1000nnwrbugvn9lks",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.837Z",
+        "updatedAt": "2025-08-31T00:12:10.837Z"
+      },
+      {
+        "id": "cmeyydwo9000bnwbglghdjx6i",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.617Z",
+        "updatedAt": "2025-08-31T00:29:28.617Z"
+      },
+      {
+        "id": "cmeyydwoa000dnwbgboj0jzgq",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.618Z",
+        "updatedAt": "2025-08-31T00:29:28.618Z"
+      },
+      {
+        "id": "cmeyydwy7000fnwbgtz97dajg",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.975Z",
+        "updatedAt": "2025-08-31T00:29:28.975Z"
+      },
+      {
+        "id": "cmeyydwy8000hnwbghv655n27",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.976Z",
+        "updatedAt": "2025-08-31T00:29:28.976Z"
+      },
+      {
+        "id": "cmejbr9d600blnwjog5j1n9pm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.787Z",
+        "updatedAt": "2025-08-20T01:59:27.787Z"
+      },
+      {
+        "id": "cmejbr9d800bnnwjo67odmjmx",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.788Z",
+        "updatedAt": "2025-08-20T01:59:27.788Z"
+      },
+      {
+        "id": "cmejbr9dz00bpnwjo3wnvroqk",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.815Z",
+        "updatedAt": "2025-08-20T01:59:27.815Z"
+      },
+      {
+        "id": "cmejbr9dz00brnwjo9m3ncs1v",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 3,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.816Z",
+        "updatedAt": "2025-08-20T01:59:27.816Z"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "cuadruple",
+    "description": null,
+    "orderIndex": 0,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 10,
+        "name": "5",
+        "description": "Habitación 5",
+        "maxPeople": 4,
+        "status": "available",
+        "orderIndex": 3,
+        "roomTypeId": 4
+      },
+      {
+        "id": 1,
+        "name": "6",
+        "description": "Habitación 6",
+        "maxPeople": 4,
+        "status": "available",
+        "orderIndex": 4,
+        "roomTypeId": 4
+      },
+      {
+        "id": 17,
+        "name": "18",
+        "description": "Habitación 18",
+        "maxPeople": 4,
+        "status": "available",
+        "orderIndex": 16,
+        "roomTypeId": 4
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnx5000pnwrb8q1v8tqk",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.841Z",
+        "updatedAt": "2025-08-31T00:12:10.841Z"
+      },
+      {
+        "id": "cmeyxrnx8000rnwrb5gihlzlw",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.844Z",
+        "updatedAt": "2025-08-31T00:12:10.844Z"
+      },
+      {
+        "id": "cmeyxrnxb000tnwrb8cm1a9io",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.848Z",
+        "updatedAt": "2025-08-31T00:12:10.848Z"
+      },
+      {
+        "id": "cmeyxrnxd000vnwrbbdqxo5nh",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.849Z",
+        "updatedAt": "2025-08-31T00:12:10.849Z"
+      },
+      {
+        "id": "cmeyydwyt001fnwbg8wcyxmz2",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.997Z",
+        "updatedAt": "2025-08-31T00:29:28.997Z"
+      },
+      {
+        "id": "cmeyydwyt001hnwbgg5n2xihn",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.998Z",
+        "updatedAt": "2025-08-31T00:29:28.998Z"
+      },
+      {
+        "id": "cmeyydwyu001jnwbgi0axocwb",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.999Z",
+        "updatedAt": "2025-08-31T00:29:28.999Z"
+      },
+      {
+        "id": "cmeyydwz4001lnwbgdcmpdbcu",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:29.009Z",
+        "updatedAt": "2025-08-31T00:29:29.009Z"
+      },
+      {
+        "id": "cmejbr9bb00axnwjotbv4sb5h",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.720Z",
+        "updatedAt": "2025-08-20T01:59:27.720Z"
+      },
+      {
+        "id": "cmejbr9bc00aznwjoaty664mv",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.720Z",
+        "updatedAt": "2025-08-20T01:59:27.720Z"
+      },
+      {
+        "id": "cmejbr9bd00b1nwjop5t6l61n",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.721Z",
+        "updatedAt": "2025-08-20T01:59:27.721Z"
+      },
+      {
+        "id": "cmejbr9bd00b3nwjo0tcrrlxf",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 4,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.722Z",
+        "updatedAt": "2025-08-20T01:59:27.722Z"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "departamento El Romerito",
+    "description": null,
+    "orderIndex": 0,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 38,
+        "name": "El Romerito",
+        "description": "Departamento para 2 personas",
+        "maxPeople": 2,
+        "status": "available",
+        "orderIndex": 34,
+        "roomTypeId": 5
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnxe000xnwrbt56iel43",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.850Z",
+        "updatedAt": "2025-08-31T00:12:10.850Z"
+      },
+      {
+        "id": "cmeyxrnxf000znwrb5za44egs",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.852Z",
+        "updatedAt": "2025-08-31T00:12:10.852Z"
+      },
+      {
+        "id": "cmeyxrnxh0011nwrb254e470t",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.854Z",
+        "updatedAt": "2025-08-31T00:12:10.854Z"
+      },
+      {
+        "id": "cmeyxrnxj0013nwrbw5lyc4bw",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.855Z",
+        "updatedAt": "2025-08-31T00:12:10.855Z"
+      },
+      {
+        "id": "cmeyydwyc000rnwbg37ae6meg",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.981Z",
+        "updatedAt": "2025-08-31T00:29:28.981Z"
+      },
+      {
+        "id": "cmeyydwyd000tnwbgdb6os0it",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.981Z",
+        "updatedAt": "2025-08-31T00:29:28.981Z"
+      },
+      {
+        "id": "cmeyydwye000vnwbg1knm552a",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.982Z",
+        "updatedAt": "2025-08-31T00:29:28.982Z"
+      },
+      {
+        "id": "cmeyydwye000xnwbgegs98npj",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.983Z",
+        "updatedAt": "2025-08-31T00:29:28.983Z"
+      },
+      {
+        "id": "cmejbr93d00a9nwjofj6ntegi",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.434Z",
+        "updatedAt": "2025-08-20T01:59:27.434Z"
+      },
+      {
+        "id": "cmejbr93e00abnwjoa112vigz",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.434Z",
+        "updatedAt": "2025-08-20T01:59:27.434Z"
+      },
+      {
+        "id": "cmejbr93f00adnwjo776rq5v6",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.436Z",
+        "updatedAt": "2025-08-20T01:59:27.436Z"
+      },
+      {
+        "id": "cmejbr93g00afnwjo5rkehrd7",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 5,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.437Z",
+        "updatedAt": "2025-08-20T01:59:27.437Z"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "departamento El Tilo",
+    "description": null,
+    "orderIndex": 0,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 31,
+        "name": "El Tilo",
+        "description": "Departamento para 5 personas",
+        "maxPeople": 5,
+        "status": "available",
+        "orderIndex": 35,
+        "roomTypeId": 6
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnxk0015nwrbc04gjys0",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.856Z",
+        "updatedAt": "2025-08-31T00:12:10.856Z"
+      },
+      {
+        "id": "cmeyxrny00017nwrb24tynuhr",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.872Z",
+        "updatedAt": "2025-08-31T00:12:10.872Z"
+      },
+      {
+        "id": "cmeyxrny20019nwrba02nly7f",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.874Z",
+        "updatedAt": "2025-08-31T00:12:10.874Z"
+      },
+      {
+        "id": "cmeyxrny3001bnwrb4rnqlm8y",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.875Z",
+        "updatedAt": "2025-08-31T00:12:10.875Z"
+      },
+      {
+        "id": "cmeyydwyf000znwbgoidt5uqr",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.983Z",
+        "updatedAt": "2025-08-31T00:29:28.983Z"
+      },
+      {
+        "id": "cmeyydwyj0011nwbgw4r6v0me",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 10,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.987Z",
+        "updatedAt": "2025-08-31T00:29:28.987Z"
+      },
+      {
+        "id": "cmeyydwyj0013nwbgg8bksmvw",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 6000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.988Z",
+        "updatedAt": "2025-08-31T00:29:28.988Z"
+      },
+      {
+        "id": "cmeyydwyk0015nwbgiqz457nm",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 10,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.988Z",
+        "updatedAt": "2025-08-31T00:29:28.988Z"
+      },
+      {
+        "id": "cmejbr93h00ahnwjonuis4wgm",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.437Z",
+        "updatedAt": "2025-08-20T01:59:27.437Z"
+      },
+      {
+        "id": "cmejbr96y00ajnwjot0mrmh5o",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 8.4,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.562Z",
+        "updatedAt": "2025-08-20T01:59:27.562Z"
+      },
+      {
+        "id": "cmejbr97z00alnwjo5rkbojrq",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.600Z",
+        "updatedAt": "2025-08-20T01:59:27.600Z"
+      },
+      {
+        "id": "cmejbr99i00annwjo6ywh8xt5",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 6,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.655Z",
+        "updatedAt": "2025-08-20T01:59:27.655Z"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "departamento Via 1",
+    "description": null,
+    "orderIndex": 0,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 34,
+        "name": "Via 1",
+        "description": "Departamento para 4 personas",
+        "maxPeople": 4,
+        "status": "available",
+        "orderIndex": 36,
+        "roomTypeId": 7
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrny3001dnwrbby4wyawe",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.876Z",
+        "updatedAt": "2025-08-31T00:12:10.876Z"
+      },
+      {
+        "id": "cmeyxrny5001fnwrb8utgc5l3",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.877Z",
+        "updatedAt": "2025-08-31T00:12:10.877Z"
+      },
+      {
+        "id": "cmeyxrny7001hnwrblyt1otes",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.880Z",
+        "updatedAt": "2025-08-31T00:12:10.880Z"
+      },
+      {
+        "id": "cmeyxrnya001jnwrb1es8lbau",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.883Z",
+        "updatedAt": "2025-08-31T00:12:10.883Z"
+      },
+      {
+        "id": "cmeyydwyl0017nwbgdy47wich",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 10000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.989Z",
+        "updatedAt": "2025-08-31T00:29:28.989Z"
+      },
+      {
+        "id": "cmeyydwyr0019nwbg36jke7yx",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 60,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.995Z",
+        "updatedAt": "2025-08-31T00:29:28.995Z"
+      },
+      {
+        "id": "cmeyydwys001bnwbgbyr4q1pl",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 12000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.996Z",
+        "updatedAt": "2025-08-31T00:29:28.996Z"
+      },
+      {
+        "id": "cmeyydwys001dnwbglfur8r2t",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 60,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.997Z",
+        "updatedAt": "2025-08-31T00:29:28.997Z"
+      },
+      {
+        "id": "cmejbr99k00apnwjoncccb0b3",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.656Z",
+        "updatedAt": "2025-08-20T01:59:27.656Z"
+      },
+      {
+        "id": "cmejbr99l00arnwjoyq66cm63",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.657Z",
+        "updatedAt": "2025-08-20T01:59:27.657Z"
+      },
+      {
+        "id": "cmejbr9ba00atnwjoy2zzrxgl",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.718Z",
+        "updatedAt": "2025-08-20T01:59:27.718Z"
+      },
+      {
+        "id": "cmejbr9bb00avnwjo5g9pm5j8",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 7,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 0.7,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.719Z",
+        "updatedAt": "2025-08-20T01:59:27.719Z"
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "departamento La Esquinita",
+    "description": null,
+    "orderIndex": 0,
+    "dailyRoomRates": [],
+    "proportionCoefficients": [],
+    "rooms": [
+      {
+        "id": 35,
+        "name": "La Esquinita",
+        "description": "Departamento para 4 personas",
+        "maxPeople": 4,
+        "status": "available",
+        "orderIndex": 37,
+        "roomTypeId": 8
+      }
+    ],
+    "seasonPrices": [
+      {
+        "id": "cmeyxrnyd001lnwrbne95hwn9",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.885Z",
+        "updatedAt": "2025-08-31T00:12:10.885Z"
+      },
+      {
+        "id": "cmeyxrnyg001nnwrbeppabmm0",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.888Z",
+        "updatedAt": "2025-08-31T00:12:10.888Z"
+      },
+      {
+        "id": "cmeyxrnyi001pnwrbqfp9cgsa",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.890Z",
+        "updatedAt": "2025-08-31T00:12:10.890Z"
+      },
+      {
+        "id": "cmeyydwy9000jnwbg1roco86h",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.977Z",
+        "updatedAt": "2025-08-31T00:29:28.977Z"
+      },
+      {
+        "id": "cmeyydwya000lnwbgstzwh5p9",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.978Z",
+        "updatedAt": "2025-08-31T00:29:28.978Z"
+      },
+      {
+        "id": "cmeyydwyb000nnwbgxrsz7pnx",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.979Z",
+        "updatedAt": "2025-08-31T00:29:28.979Z"
+      },
+      {
+        "id": "cmeyydwyc000pnwbgpnmnvrl4",
+        "seasonBlockId": "cme7uwqua0013nwg5xdu9kfmg",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 5000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:29:28.980Z",
+        "updatedAt": "2025-08-31T00:29:28.980Z"
+      },
+      {
+        "id": "cmeyxrnym001rnwrbmsmpq4em",
+        "seasonBlockId": "cmej7tqqe0001nwfhxqlmc68k",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 50000,
+        "isDraft": true,
+        "createdAt": "2025-08-31T00:12:10.895Z",
+        "updatedAt": "2025-08-31T00:12:10.895Z"
+      },
+      {
+        "id": "cmejbr93a00a1nwjohbsz8fv9",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0000nwnjj7vy418d",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.430Z",
+        "updatedAt": "2025-08-20T01:59:27.430Z"
+      },
+      {
+        "id": "cmejbr93b00a3nwjo4at83wyf",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0001nwnj0jez7i6h",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.431Z",
+        "updatedAt": "2025-08-20T01:59:27.431Z"
+      },
+      {
+        "id": "cmejbr93c00a5nwjo0bt5b99i",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7kpo5j0002nwnj1a2e6g20",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.432Z",
+        "updatedAt": "2025-08-20T01:59:27.432Z"
+      },
+      {
+        "id": "cmejbr93c00a7nwjons2o2072",
+        "seasonBlockId": "cmej5ob610001nw2oz99o9gki",
+        "roomTypeId": 8,
+        "serviceTypeId": "cme7umahb0025nwc9dytah6ay",
+        "basePrice": 500,
+        "isDraft": true,
+        "createdAt": "2025-08-20T01:59:27.433Z",
+        "updatedAt": "2025-08-20T01:59:27.433Z"
+      }
+    ]
+  }
+]

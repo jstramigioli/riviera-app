@@ -229,6 +229,42 @@ function ReservationsView() {
               )}
             </div>
 
+            {/* Segmentos de la reserva */}
+            {selectedReservation.segments && selectedReservation.segments.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <b>Segmentos de la reserva:</b>
+                <div style={{ marginTop: 8, padding: 8, backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                  {selectedReservation.segments
+                    .filter(segment => segment.isActive)
+                    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+                    .map((segment, index) => {
+                      const room = rooms.find(r => r.id === segment.roomId);
+                      return (
+                        <div key={segment.id} style={{ 
+                          marginBottom: 8, 
+                          padding: 8, 
+                          backgroundColor: 'white', 
+                          borderRadius: '4px',
+                          border: '1px solid #ddd'
+                        }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                            Segmento {index + 1}
+                          </div>
+                          <div style={{ fontSize: '0.9rem' }}>
+                            <div><b>Habitación:</b> {room?.name || `ID: ${segment.roomId}`}</div>
+                            <div><b>Fechas:</b> {format(new Date(segment.startDate), 'dd/MM/yyyy')} - {format(new Date(segment.endDate), 'dd/MM/yyyy')}</div>
+                            <div><b>Huéspedes:</b> {segment.guestCount}</div>
+                            <div><b>Tarifa base:</b> ${segment.baseRate}</div>
+                            {segment.reason && <div><b>Razón:</b> {segment.reason}</div>}
+                            {segment.notes && <div><b>Notas:</b> {segment.notes}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {/* Estado */}
             <div style={{ marginBottom: 8 }}>
               <b>Estado:</b> {isEditing ? (

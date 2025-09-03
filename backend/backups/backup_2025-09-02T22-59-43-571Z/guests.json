@@ -1,0 +1,118 @@
+[
+  {
+    "id": 3,
+    "firstName": "Roberto",
+    "lastName": "Silva",
+    "documentType": "DNI",
+    "documentNumber": "DNI 44444444",
+    "phone": "+54 11 4444-4444",
+    "email": "roberto.silva@email.com",
+    "address": "Calle San Martín 456",
+    "city": "CORDOBA",
+    "reservationId": null,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.622Z",
+    "reservation": null,
+    "payments": []
+  },
+  {
+    "id": 4,
+    "firstName": "Laura",
+    "lastName": "Fernández",
+    "documentType": "DNI",
+    "documentNumber": "DNI 33333333",
+    "phone": "+54 11 3333-3333",
+    "email": "laura.fernandez@email.com",
+    "address": "Av. Santa Fe 890",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": null,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.626Z",
+    "reservation": null,
+    "payments": [
+      {
+        "id": 1,
+        "guestId": 4,
+        "amount": 75000,
+        "type": "charge",
+        "description": "Cargo por reserva #2",
+        "date": "2024-01-20T00:00:00.000Z",
+        "createdAt": "2025-06-27T01:02:46.291Z",
+        "updatedAt": "2025-06-27T01:02:46.291Z"
+      },
+      {
+        "id": 5,
+        "guestId": 4,
+        "amount": 75000,
+        "type": "payment",
+        "description": "Pago completo con tarjeta",
+        "date": "2024-01-20T00:00:00.000Z",
+        "createdAt": "2025-06-27T01:02:46.291Z",
+        "updatedAt": "2025-06-27T01:02:46.291Z"
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "firstName": "Ana",
+    "lastName": "López",
+    "documentType": "DNI",
+    "documentNumber": "DNI 11111111",
+    "phone": "+54 11 1111-1111",
+    "email": "ana.lopez@email.com",
+    "address": "Av. Corrientes 1234",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": null,
+    "createdAt": "2025-06-27T01:02:46.279Z",
+    "updatedAt": "2025-06-29T20:35:25.272Z",
+    "reservation": null,
+    "payments": [
+      {
+        "id": 2,
+        "guestId": 1,
+        "amount": 30000,
+        "type": "payment",
+        "description": "Pago parcial en efectivo",
+        "date": "2024-01-15T00:00:00.000Z",
+        "createdAt": "2025-06-27T01:02:46.291Z",
+        "updatedAt": "2025-06-27T01:02:46.291Z"
+      },
+      {
+        "id": 3,
+        "guestId": 1,
+        "amount": 45000,
+        "type": "charge",
+        "description": "Cargo por reserva #1",
+        "date": "2024-01-15T00:00:00.000Z",
+        "createdAt": "2025-06-27T01:02:46.290Z",
+        "updatedAt": "2025-06-27T01:02:46.290Z"
+      },
+      {
+        "id": 4,
+        "guestId": 1,
+        "amount": 5000,
+        "type": "charge",
+        "description": "Cargo por minibar y servicios",
+        "date": "2024-01-16T00:00:00.000Z",
+        "createdAt": "2025-06-27T01:02:46.291Z",
+        "updatedAt": "2025-06-27T01:02:46.291Z"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "firstName": "Pedro",
+    "lastName": "Martínez",
+    "documentType": "DNI",
+    "documentNumber": "DNI 22222222",
+    "phone": "+54 11 2222-2222",
+    "email": "pedro.martinez@email.com",
+    "address": "Calle Florida 567",
+    "city": "CIUDAD AUTONOMA BUENOS AIRES",
+    "reservationId": null,
+    "createdAt": "2025-06-27T01:02:46.280Z",
+    "updatedAt": "2025-06-29T20:35:25.618Z",
+    "reservation": null,
+    "payments": []
+  }
+]

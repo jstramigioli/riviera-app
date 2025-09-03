@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import { parseISO, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import '../styles/ReservationBar.css';
 
 export default function ReservationBar({ 
   reservation, 
+  segment,
   roomIndex, 
   cellWidth, 
   cellHeight, 
@@ -22,32 +23,32 @@ export default function ReservationBar({
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef();
   
-
+  // Usar las fechas del segmento en lugar de las de la reserva
+  const checkIn = new Date(segment.startDate);
+  const checkOut = new Date(segment.endDate);
   
-
-
-  // Calcular posición y ancho de la barra
-  const checkIn = parseISO(reservation.checkIn);
-  const checkOut = parseISO(reservation.checkOut);
-  
-  // Normalizar las fechas para evitar problemas de zona horaria
-  checkIn.setUTCHours(0, 0, 0, 0);
-  checkOut.setUTCHours(0, 0, 0, 0);
+  // Normalizar las fechas para evitar problemas de zona horaria usando zona horaria local
+  checkIn.setHours(0, 0, 0, 0);
+  checkOut.setHours(0, 0, 0, 0);
   
   // Usar el ancho fijo de la columna de habitaciones del CSS
-  const roomColumnWidth = 120;
+  const roomColumnWidth = 140; // Actualizado para coincidir con el CSS
   
   // Encontrar el índice del día en el array de días usando comparación de timestamps
   const days = [];
   let currentDate = new Date(startDate);
-  currentDate.setUTCHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
   
   for (let i = 0; i < 100; i++) { // Generar suficientes días
     days.push(new Date(currentDate));
     currentDate.setDate(currentDate.getDate() + 1);
   }
   
-  const daysFromStart = days.findIndex(day => day.getTime() === checkIn.getTime());
+  const daysFromStart = days.findIndex(day => 
+    day.getFullYear() === checkIn.getFullYear() &&
+    day.getMonth() === checkIn.getMonth() &&
+    day.getDate() === checkIn.getDate()
+  );
   const duration = differenceInDays(checkOut, checkIn);
   
   // DEBUG: Verificar el cálculo de daysFromStart
@@ -127,11 +128,13 @@ export default function ReservationBar({
     const endColIndex = startColIndex + duration - 1;
     
     return {
+      reservation,
+      segment,
       rowIndex: roomIndex,
       startColIndex,
       endColIndex
     };
-  }, [daysFromStart, duration, roomIndex]);
+  }, [daysFromStart, duration, roomIndex, reservation, segment]);
 
   const handleClick = (e) => {
     // Prevenir que se abra el panel si estamos resizing, si el click viene de un resize handle, o si acabamos de hacer resize
@@ -199,9 +202,55 @@ export default function ReservationBar({
     console.error('❌ ERROR: No se pudo encontrar la fecha de check-in en el array de días:', {
       checkIn: checkIn.toISOString(),
       startDate: startDate.toISOString(),
-      reservationId: reservation.id
+      reservationId: reservation.id,
+      status: reservation.status
     });
-    return null; // No renderizar la barra si no se puede calcular la posición
+    
+    // Debug adicional para la reserva 978
+    if (reservation.id === 978) {
+      console.log('🔍 DEBUG RESERVA 978:', {
+        checkIn: checkIn.toISOString(),
+        checkOut: checkOut.toISOString(),
+        startDate: startDate.toISOString(),
+        daysGenerated: days.length,
+        firstDay: days[0]?.toISOString(),
+        lastDay: days[days.length - 1]?.toISOString(),
+        daysArray: days.slice(0, 10).map(d => d.toISOString().split('T')[0])
+      });
+    }
+    
+    // En lugar de retornar null, mostrar una barra de error
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          left: `${containerMargin + roomColumnWidth}px`,
+          top: `${headerHeight + (roomIndex * cellHeight)}px`,
+          width: '200px',
+          height: `${cellHeight}px`,
+          backgroundColor: '#ff6b6b',
+          border: '1px solid #ff4757',
+          borderRadius: '3px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '0.7rem',
+          color: 'white',
+          zIndex: 10,
+          cursor: 'pointer'
+        }}
+        onClick={() => onClick && onClick(reservation)}
+        onMouseEnter={() => onReservationHover && onReservationHover({
+          rowIndex: roomIndex,
+          startColIndex: 0,
+          endColIndex: 0
+        })}
+        onMouseLeave={() => onReservationLeave && onReservationLeave()}
+        title={`Error: Reserva ${reservation.id} fuera del rango visible (${checkIn.toISOString().split('T')[0]} - ${checkOut.toISOString().split('T')[0]})`}
+      >
+        ⚠️ Fuera de rango
+      </div>
+    );
   }
   
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useTags } from '../hooks/useTags';
 import styles from '../styles/CreateQueryModal.module.css';
 
 export default function CreateQueryModal({ 
@@ -8,10 +9,12 @@ export default function CreateQueryModal({
   onClose
 }) {
   const navigate = useNavigate();
+  const { tags } = useTags();
   const [formData, setFormData] = useState({
     checkIn: format(new Date(), 'yyyy-MM-dd'),
     checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-    requiredGuests: 1
+    requiredGuests: 1,
+    requiredTags: []
   });
 
   const [errors, setErrors] = useState({});
@@ -28,6 +31,17 @@ export default function CreateQueryModal({
         [field]: null
       }));
     }
+  };
+
+  const handleTagToggle = (tagId) => {
+    const newTags = formData.requiredTags.includes(tagId)
+      ? formData.requiredTags.filter(id => id !== tagId)
+      : [...formData.requiredTags, tagId];
+    
+    setFormData(prev => ({
+      ...prev,
+      requiredTags: newTags
+    }));
   };
 
   const validateForm = () => {
@@ -57,16 +71,26 @@ export default function CreateQueryModal({
       return;
     }
 
-    // Cerrar el modal y navegar a la nueva página sin parámetros
+    // Cerrar el modal y navegar a la nueva página con los datos de la consulta
     handleClose();
-    navigate('/nueva-consulta');
+    navigate('/nueva-consulta', { 
+      state: { 
+        queryData: {
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
+          requiredGuests: formData.requiredGuests,
+          requiredTags: formData.requiredTags
+        }
+      }
+    });
   };
 
   const handleClose = () => {
     setFormData({
       checkIn: format(new Date(), 'yyyy-MM-dd'),
       checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-      requiredGuests: 1
+      requiredGuests: 1,
+      requiredTags: []
     });
     setErrors({});
     onClose();
@@ -121,6 +145,50 @@ export default function CreateQueryModal({
               className={errors.requiredGuests ? styles.error : ''}
             />
             {errors.requiredGuests && <span className={styles.errorText}>{errors.requiredGuests}</span>}
+          </div>
+
+          {/* Selección de Etiquetas */}
+          <div className={styles.formGroup}>
+            <label>Etiquetas Requeridas (Opcional)</label>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              marginTop: '8px'
+            }}>
+              {tags.map(tag => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => handleTagToggle(tag.id.toString())}
+                  style={{
+                    padding: '8px 12px',
+                    border: formData.requiredTags.includes(tag.id.toString())
+                      ? '2px solid var(--color-primary)'
+                      : '1px solid var(--color-border)',
+                    borderRadius: '16px',
+                    backgroundColor: formData.requiredTags.includes(tag.id.toString())
+                      ? tag.color
+                      : 'var(--color-bg-white)',
+                    color: formData.requiredTags.includes(tag.id.toString())
+                      ? 'var(--color-text-light)'
+                      : 'var(--color-text-main)',
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-medium)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+            <p style={{
+              margin: '8px 0 0 0',
+              fontSize: 'var(--font-size-small)',
+              color: 'var(--color-text-muted)'
+            }}>
+              Las etiquetas seleccionadas filtrarán las habitaciones disponibles según sus características
+            </p>
           </div>
 
           <div className={styles.modalActions}>

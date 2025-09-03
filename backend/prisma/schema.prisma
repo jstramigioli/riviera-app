@@ -133,6 +133,7 @@ model Client {
   city            String?
   notes           String?
   wantsPromotions Boolean       @default(false)
+  esFicticio      Boolean       @default(false)
   reservations    Reservation[]
   queries         Query[]       @relation("ClientQueries")
 }

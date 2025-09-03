@@ -19,6 +19,9 @@ router.get('/:id/pricing', reservationController.getReservationPricingDetails);
 // POST /api/reservations - Crear una nueva reserva
 router.post('/', validateReservation, reservationController.createReservation);
 
+// POST /api/reservations/multi-segment - Crear una reserva con segmentos múltiples
+router.post('/multi-segment', validateReservation, reservationController.createMultiSegmentReservation);
+
 // PUT /api/reservations/:id - Actualizar una reserva
 router.put('/:id', validateReservation, reservationController.updateReservation);
 

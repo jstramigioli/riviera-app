@@ -1,0 +1,84 @@
+{
+  "backupCreatedAt": "2025-09-02T22:59:44.613Z",
+  "totalRecords": 1381,
+  "models": [
+    {
+      "name": "hotels",
+      "count": 1
+    },
+    {
+      "name": "tags",
+      "count": 10
+    },
+    {
+      "name": "roomTypes",
+      "count": 8
+    },
+    {
+      "name": "rooms",
+      "count": 38
+    },
+    {
+      "name": "clients",
+      "count": 1198
+    },
+    {
+      "name": "guests",
+      "count": 4
+    },
+    {
+      "name": "payments",
+      "count": 5
+    },
+    {
+      "name": "reservations",
+      "count": 0
+    },
+    {
+      "name": "openDays",
+      "count": 0
+    },
+    {
+      "name": "dynamicPricingConfigs",
+      "count": 1
+    },
+    {
+      "name": "dailyRoomRates",
+      "count": 0
+    },
+    {
+      "name": "roomGapPromotions",
+      "count": 0
+    },
+    {
+      "name": "reservationNightRates",
+      "count": 0
+    },
+    {
+      "name": "roundingConfigs",
+      "count": 1
+    },
+    {
+      "name": "seasonBlocks",
+      "count": 3
+    },
+    {
+      "name": "seasonPrices",
+      "count": 96
+    },
+    {
+      "name": "proportionCoefficients",
+      "count": 0
+    },
+    {
+      "name": "serviceTypes",
+      "count": 4
+    },
+    {
+      "name": "blockServiceSelections",
+      "count": 12
+    }
+  ],
+  "schemaVersion": "latest",
+  "backupType": "full"
+}

@@ -138,7 +138,60 @@ async function getAllReservationsWithData() {
 }
 
 /**
- * Crea una nueva reserva con su segmento inicial
+ * Crea una nueva reserva con sus segmentos
+ */
+async function createReservationWithSegments(reservationData) {
+  const {
+    mainClientId,
+    segments,
+    status = 'active',
+    notes,
+    isMultiRoom = false,
+    parentReservationId = null
+  } = reservationData;
+
+  // Crear la reserva
+  const reservation = await prisma.reservation.create({
+    data: {
+      mainClientId: parseInt(mainClientId),
+      status,
+      notes,
+      isMultiRoom: segments.length > 1 || isMultiRoom,
+      parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
+    }
+  });
+
+  // Crear todos los segmentos
+  const createdSegments = [];
+  for (const segmentData of segments) {
+    const segment = await prisma.reservationSegment.create({
+      data: {
+        reservationId: reservation.id,
+        startDate: new Date(segmentData.startDate),
+        endDate: new Date(segmentData.endDate),
+        roomId: parseInt(segmentData.roomId),
+        roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+        services: segmentData.services || ['con_desayuno'],
+        baseRate: parseFloat(segmentData.baseRate),
+        guestCount: parseInt(segmentData.guestCount),
+        reason: segmentData.reason || 'Segmento de reserva',
+        notes: segmentData.notes || 'Segmento creado automáticamente',
+        isActive: true
+      },
+      include: {
+        room: true,
+        roomType: true
+      }
+    });
+    createdSegments.push(segment);
+  }
+
+  // Retornar la reserva completa
+  return getReservationWithData(reservation.id);
+}
+
+/**
+ * Crea una nueva reserva con su segmento inicial (mantener para compatibilidad)
  */
 async function createReservationWithSegment(reservationData) {
   const {
@@ -299,6 +352,7 @@ module.exports = {
   getReservationWithData,
   getAllReservationsWithData,
   createReservationWithSegment,
+  createReservationWithSegments,
   updateReservationWithSegments,
   checkRoomAvailability
 }; 

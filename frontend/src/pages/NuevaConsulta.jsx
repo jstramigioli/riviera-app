@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fetchClients, findAvailableRooms } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useTags } from '../hooks/useTags';
 import styles from '../styles/NuevaConsulta.module.css';
 
 export default function NuevaConsulta() {
+  const location = useLocation();
+  const { tags } = useTags();
 
   // Estado del formulario con persistencia en localStorage
   const [formData, setFormData] = useLocalStorage('nuevaConsulta_formData', {
@@ -44,6 +48,28 @@ export default function NuevaConsulta() {
   // Obtener las funciones de limpieza del localStorage
   const [, , clearFormData] = useLocalStorage('nuevaConsulta_formData', {});
   const [, , clearRequirements] = useLocalStorage('nuevaConsulta_requirements', {});
+
+  // Cargar datos de la consulta desde el modal si existen
+  useEffect(() => {
+    if (location.state?.queryData) {
+      const { checkIn, checkOut, requiredGuests, requiredTags } = location.state.queryData;
+      
+      setFormData(prev => ({
+        ...prev,
+        checkIn,
+        checkOut
+      }));
+      
+      setRequirements(prev => ({
+        ...prev,
+        requiredGuests,
+        requiredTags
+      }));
+      
+      // Limpiar el state para evitar que se recargue en futuras navegaciones
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Cargar clientes al montar el componente
   useEffect(() => {
@@ -397,10 +423,29 @@ export default function NuevaConsulta() {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // Si se está cambiando la fecha de entrada y es posterior a la fecha de salida
+      if (field === 'checkIn' && value && prev.checkOut) {
+        const checkInDate = new Date(value);
+        const checkOutDate = new Date(prev.checkOut);
+        
+        // Si la fecha de entrada es posterior a la fecha de salida
+        if (checkInDate > checkOutDate) {
+          // Calcular la fecha de salida como el día siguiente a la entrada
+          const nextDay = new Date(checkInDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          newFormData.checkOut = nextDay.toISOString().split('T')[0];
+        }
+      }
+      
+      return newFormData;
+    });
+    
     // Limpiar error del campo
     if (errors[field]) {
       setErrors(prev => ({
@@ -540,6 +585,72 @@ export default function NuevaConsulta() {
                 />
                 {errors.requiredGuests && <span className={styles.errorText}>{errors.requiredGuests}</span>}
               </div>
+            </div>
+
+            {/* Selección de Etiquetas */}
+            <div className={styles.section}>
+              <h3>Etiquetas Requeridas (Opcional)</h3>
+              <p style={{
+                margin: '0 0 16px 0',
+                fontSize: 'var(--font-size-small)',
+                color: 'var(--color-text-muted)'
+              }}>
+                Selecciona las etiquetas que deben tener las habitaciones para filtrar los resultados
+              </p>
+              
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                {tags.map(tag => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => {
+                      const newTags = requirements.requiredTags.includes(tag.id.toString())
+                        ? requirements.requiredTags.filter(id => id !== tag.id.toString())
+                        : [...requirements.requiredTags, tag.id.toString()];
+                      
+                      setRequirements(prev => ({
+                        ...prev,
+                        requiredTags: newTags
+                      }));
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      border: requirements.requiredTags.includes(tag.id.toString())
+                        ? '2px solid var(--color-primary)'
+                        : '1px solid var(--color-border)',
+                      borderRadius: '16px',
+                      backgroundColor: requirements.requiredTags.includes(tag.id.toString())
+                        ? tag.color
+                        : 'var(--color-bg-white)',
+                      color: requirements.requiredTags.includes(tag.id.toString())
+                        ? 'var(--color-text-light)'
+                        : 'var(--color-text-main)',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-medium)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+              
+              {requirements.requiredTags.length > 0 && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--color-bg)',
+                  borderRadius: '6px',
+                  fontSize: 'var(--font-size-small)',
+                  color: 'var(--color-text-muted)'
+                }}>
+                  <strong>Etiquetas seleccionadas:</strong> {requirements.requiredTags.length}
+                </div>
+              )}
             </div>
 
             {/* Cliente */}
