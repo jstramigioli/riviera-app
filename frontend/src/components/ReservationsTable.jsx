@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationsTable.module.css';
@@ -121,14 +122,7 @@ export default function ReservationsTable({
   };
 
   // Función para obtener el estado en español
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'active': return 'Activa';
-      case 'finished': return 'Finalizada';
-      case 'cancelled': return 'Cancelada';
-      default: return status;
-    }
-  };
+  const getStatusText = (status) => getStatusLabel(status);
 
   // Función para obtener el tipo de reserva en español
   const getReservationTypeText = (type) => {
@@ -175,9 +169,12 @@ export default function ReservationsTable({
             className={styles.filterSelect}
           >
             <option value="all">Todos los estados</option>
-            <option value="active">Activas</option>
-            <option value="finished">Finalizadas</option>
-            <option value="cancelled">Canceladas</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="confirmada">Confirmadas</option>
+                <option value="ingresada">Ingresadas</option>
+                <option value="finalizada">Finalizadas</option>
+                <option value="cancelada">Canceladas</option>
+                <option value="no presentada">No presentadas</option>
           </select>
         </div>
       </div>

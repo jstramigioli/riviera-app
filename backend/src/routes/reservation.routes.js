@@ -1,6 +1,6 @@
 const express = require('express');
 const reservationController = require('../controllers/reservation.controller');
-const { validateReservation } = require('../middlewares/validation');
+const { validateReservation, validateMultiSegmentReservation } = require('../middlewares/validation');
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.get('/:id/pricing', reservationController.getReservationPricingDetails);
 router.post('/', validateReservation, reservationController.createReservation);
 
 // POST /api/reservations/multi-segment - Crear una reserva con segmentos múltiples
-router.post('/multi-segment', validateReservation, reservationController.createMultiSegmentReservation);
+router.post('/multi-segment', validateMultiSegmentReservation, reservationController.createMultiSegmentReservation);
 
 // PUT /api/reservations/:id - Actualizar una reserva
 router.put('/:id', validateReservation, reservationController.updateReservation);

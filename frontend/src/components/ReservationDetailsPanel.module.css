@@ -1,0 +1,292 @@
+.panel {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+}
+
+.icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.body {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.clientSection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.clientName {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  transition: color 0.2s;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.clientName:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.requirementsSection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.requirementsTitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.requirementsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.requirementsTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.requirementsTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid #bbdefb;
+}
+
+.noTags {
+  color: #9e9e9e;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.staySection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.stayTitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.stayPeriod {
+  margin-bottom: 16px;
+}
+
+.stayPeriod:last-child {
+  margin-bottom: 0;
+}
+
+.stayTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.stayTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.stayTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.changeIndicator {
+  background: #fff3cd;
+  color: #856404;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid #ffeaa7;
+  margin-top: 8px;
+}
+
+.roomSection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.roomTitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.roomTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.roomTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.roomTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.totalSection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.totalTitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.totalTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.totalTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.totalTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.statusSection {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+}
+
+.statusTitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.statusTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.statusTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.statusTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.tableLabel {
+  padding: 8px 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 500;
+  width: 30%;
+  vertical-align: top;
+}
+
+.tableValue {
+  padding: 8px 0;
+  color: #212529;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .header {
+    padding: 16px 16px 12px 16px;
+  }
+  
+  .body {
+    padding: 16px;
+  }
+  
+  .title {
+    font-size: 1.3rem;
+  }
+  
+  .clientName {
+    font-size: 1.1rem;
+  }
+  
+  .tableLabel {
+    width: 35%;
+    font-size: 0.85rem;
+  }
+  
+  .tableValue {
+    font-size: 0.9rem;
+  }
+} 

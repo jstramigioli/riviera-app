@@ -1125,6 +1125,11 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
                   displaySegment = { ...segment, ...resizeData };
                 }
 
+                // Solo renderizar barras cuando la carga inicial esté completa
+                if (isInitialLoad) {
+                  return null;
+                }
+
                 return (
                   <ReservationBar
                     key={`${room.id}-${reservation.id}-${segment.id}`}

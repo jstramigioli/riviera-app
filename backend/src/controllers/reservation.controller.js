@@ -4,7 +4,7 @@ const reservationPricingService = new ReservationPricingService(prisma);
 const {
   getReservationWithData,
   getAllReservationsWithData,
-  createReservationWithSegment,
+  createReservationWithSegments,
   updateReservationWithSegments,
   checkRoomAvailability
 } = require('../utils/reservationHelpers');

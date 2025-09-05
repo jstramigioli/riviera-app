@@ -1,0 +1,254 @@
+import React from 'react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
+import styles from './ReservationDetailsPanel.module.css';
+
+const ReservationDetailsPanel = ({ reservation }) => {
+  const navigate = useNavigate();
+  
+  if (!reservation) return null;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No especificada';
+    try {
+      return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getServiceTypeLabel = (serviceType) => {
+    const serviceMap = {
+      'con_desayuno': 'Con Desayuno',
+      'sin_desayuno': 'Sin Desayuno',
+      'media_pension': 'Media Pensión',
+      'pension_completa': 'Pensión Completa'
+    };
+    return serviceMap[serviceType] || serviceType;
+  };
+
+  const getChangeDescription = (currentSegment, nextSegment) => {
+    const changes = [];
+    
+    // Detectar cambio de servicio
+    if (currentSegment.serviceType !== nextSegment.serviceType) {
+      changes.push(`A partir de ${formatDate(nextSegment.startDate)}, ${getServiceTypeLabel(nextSegment.serviceType)}`);
+    }
+    
+    // Detectar cambio de huéspedes
+    if (currentSegment.guestCount !== nextSegment.guestCount) {
+      changes.push(`A partir de ${formatDate(nextSegment.startDate)}, ${nextSegment.guestCount} huéspedes`);
+    }
+    
+    // Detectar cambio de etiquetas y mostrar específicamente qué cambió
+    const currentTags = currentSegment.services || [];
+    const nextTags = nextSegment.services || [];
+    if (JSON.stringify(currentTags.sort()) !== JSON.stringify(nextTags.sort())) {
+      // Encontrar etiquetas que se agregaron
+      const addedTags = nextTags.filter(tag => !currentTags.includes(tag));
+      // Encontrar etiquetas que se removieron
+      const removedTags = currentTags.filter(tag => !nextTags.includes(tag));
+      
+      if (addedTags.length > 0 && removedTags.length > 0) {
+        // Si hay múltiples cambios, mostrar un resumen más detallado
+        if (addedTags.length === 1 && removedTags.length === 1) {
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, cambio de ${getServiceTypeLabel(removedTags[0])} a ${getServiceTypeLabel(addedTags[0])}`);
+        } else {
+          const removedText = removedTags.map(tag => getServiceTypeLabel(tag)).join(', ');
+          const addedText = addedTags.map(tag => getServiceTypeLabel(tag)).join(', ');
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, cambia ${removedText} por ${addedText}`);
+        }
+      } else if (addedTags.length > 0) {
+        if (addedTags.length === 1) {
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, agrega ${getServiceTypeLabel(addedTags[0])}`);
+        } else {
+          const addedText = addedTags.map(tag => getServiceTypeLabel(tag)).join(', ');
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, agrega ${addedText}`);
+        }
+      } else if (removedTags.length > 0) {
+        if (removedTags.length === 1) {
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, remueve ${getServiceTypeLabel(removedTags[0])}`);
+        } else {
+          const removedText = removedTags.map(tag => getServiceTypeLabel(tag)).join(', ');
+          changes.push(`A partir de ${formatDate(nextSegment.startDate)}, remueve ${removedText}`);
+        }
+      }
+    }
+    
+    return changes.length > 0 ? changes.join(' • ') : `A partir de ${formatDate(nextSegment.startDate)}`;
+  };
+
+  const handleClientClick = () => {
+    if (reservation.mainClient?.id) {
+      navigate(`/clients/${reservation.mainClient.id}`);
+    }
+  };
+
+  return (
+    <div className={styles.panel}>
+      <div className={styles.header}>
+        <div className={styles.icon}>🏨</div>
+        <h2 className={styles.title}>Datos de la Reserva</h2>
+      </div>
+      
+      <div className={styles.body}>
+        {/* Cliente */}
+        <div className={styles.clientSection}>
+          <span 
+            className={styles.clientName} 
+            onClick={handleClientClick}
+            style={{ cursor: reservation.mainClient?.id ? 'pointer' : 'default' }}
+          >
+            {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
+          </span>
+        </div>
+
+        {/* Información de Huéspedes y Servicio */}
+        {reservation.segments && reservation.segments.length > 0 && (
+          <div className={styles.requirementsSection}>
+            <h3 className={styles.requirementsTitle}>Requerimientos</h3>
+            <table className={styles.requirementsTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Huéspedes:</td>
+                  <td className={styles.tableValue}>
+                    {reservation.segments[0].guestCount || reservation.requiredGuests || 1} persona{(reservation.segments[0].guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={styles.tableLabel}>Servicio:</td>
+                  <td className={styles.tableValue}>
+                    {getServiceTypeLabel(reservation.segments[0].services?.[0] || reservation.reservationType || 'con_desayuno')}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={styles.tableLabel}>Etiquetas:</td>
+                  <td className={styles.tableValue}>
+                    {reservation.segments[0].services && reservation.segments[0].services.length > 0 ? (
+                      <div className={styles.tagsContainer}>
+                        {reservation.segments[0].services.map((service, index) => (
+                          <span key={index} className={styles.tag}>
+                            {getServiceTypeLabel(service)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className={styles.noTags}>Sin etiquetas requeridas</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Estancia */}
+        {reservation.segments && reservation.segments.length > 0 && (
+          <div className={styles.staySection}>
+            <h3 className={styles.stayTitle}>Estancia</h3>
+            {reservation.segments.map((segment, index) => (
+              <div key={segment.id} className={styles.stayPeriod}>
+                <table className={styles.stayTable}>
+                  <tbody>
+                    <tr>
+                      <td className={styles.tableLabel}>Check-in:</td>
+                      <td className={styles.tableValue}>{formatDate(segment.startDate)}</td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Check-out:</td>
+                      <td className={styles.tableValue}>{formatDate(segment.endDate)}</td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Noches:</td>
+                      <td className={styles.tableValue}>
+                        {Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                
+                {/* Mostrar cambio entre segmentos si hay más de uno */}
+                {index < reservation.segments.length - 1 && (
+                  <div className={styles.changeIndicator}>
+                    {getChangeDescription(reservation.segments[index], reservation.segments[index + 1])}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Habitación */}
+        {reservation.room && (
+          <div className={styles.roomSection}>
+            <h3 className={styles.roomTitle}>Habitación</h3>
+            <table className={styles.roomTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Nombre:</td>
+                  <td className={styles.tableValue}>{reservation.room.name}</td>
+                </tr>
+                <tr>
+                  <td className={styles.tableLabel}>Tipo:</td>
+                  <td className={styles.tableValue}>{reservation.room.roomType?.name}</td>
+                </tr>
+                <tr>
+                  <td className={styles.tableLabel}>Capacidad:</td>
+                  <td className={styles.tableValue}>{reservation.room.maxPeople} personas</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Total */}
+        {reservation.totalAmount && (
+          <div className={styles.totalSection}>
+            <h3 className={styles.totalTitle}>Tarifa Total</h3>
+            <table className={styles.totalTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Monto:</td>
+                  <td className={styles.tableValue}>
+                    ${reservation.totalAmount.toLocaleString('es-AR')}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Estado */}
+        <div className={styles.statusSection}>
+          <h3 className={styles.statusTitle}>Estado</h3>
+          <table className={styles.statusTable}>
+            <tbody>
+              <tr>
+                <td className={styles.tableLabel}>Estado:</td>
+                <td className={styles.tableValue}>
+                  {reservation.status === 'active' ? 'Activa' : 
+                   reservation.status === 'finished' ? 'Finalizada' : 
+                   reservation.status === 'cancelled' ? 'Cancelada' : 
+                   reservation.status === 'confirmed' ? 'Confirmada' : reservation.status}
+                </td>
+              </tr>
+              <tr>
+                <td className={styles.tableLabel}>ID:</td>
+                <td className={styles.tableValue}>#{reservation.id}</td>
+              </tr>
+              {reservation.notes && (
+                <tr>
+                  <td className={styles.tableLabel}>Notas:</td>
+                  <td className={styles.tableValue}>{reservation.notes}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ReservationDetailsPanel; 

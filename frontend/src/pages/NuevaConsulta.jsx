@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { fetchClients, findAvailableRooms } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useTags } from '../hooks/useTags';
+import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import styles from '../styles/NuevaConsulta.module.css';
 
 export default function NuevaConsulta() {
@@ -48,6 +49,8 @@ export default function NuevaConsulta() {
 
   // Estado para habitaciones disponibles
   const [availableRooms, setAvailableRooms] = useState([]);
+  const [allAvailableRooms, setAllAvailableRooms] = useState([]);
+  const [showLargerCapacity, setShowLargerCapacity] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Estado para tarifas por día
@@ -56,6 +59,10 @@ export default function NuevaConsulta() {
   
   // Estado para habitación seleccionada
   const [selectedRoom, setSelectedRoom] = useState(null);
+
+  // Estado para el modal de confirmación
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [isCreatingReservation, setIsCreatingReservation] = useState(false);
 
   // Estado para errores
 
@@ -108,6 +115,37 @@ export default function NuevaConsulta() {
       searchAvailableRooms();
     }
   }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags]);
+
+  // Sincronizar segmentos con las fechas del formulario principal
+  useEffect(() => {
+    if (formData.checkIn && formData.checkOut) {
+      setSegments(prevSegments => 
+        prevSegments.map(segment => ({
+          ...segment,
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut
+        }))
+      );
+    }
+  }, [formData.checkIn, formData.checkOut]);
+
+  // Sincronizar segmentos con formData para la búsqueda de habitaciones
+  useEffect(() => {
+    if (segments.length > 0 && segments[0].checkIn && segments[0].checkOut) {
+      setFormData(prev => ({
+        ...prev,
+        checkIn: segments[0].checkIn,
+        checkOut: segments[0].checkOut
+      }));
+    }
+
+    if (segments.length > 0 && segments[0].requiredGuests) {
+      setRequirements(prev => ({
+        ...prev,
+        requiredGuests: segments[0].requiredGuests
+      }));
+    }
+  }, [segments]);
 
   // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada
   useEffect(() => {
@@ -185,29 +223,39 @@ export default function NuevaConsulta() {
       if (result && result.availableRooms) {
         console.log(`Encontradas ${result.availableRooms.length} habitaciones disponibles`);
         
+        // Guardar todas las habitaciones disponibles
+        setAllAvailableRooms(result.availableRooms);
+        
         // Filtrar habitaciones: primero capacidad exacta, luego mayor capacidad
         const exactCapacityRooms = result.availableRooms.filter(room => room.maxPeople === requirements.requiredGuests);
         const largerCapacityRooms = result.availableRooms.filter(room => room.maxPeople > requirements.requiredGuests);
         
-        // Determinar qué habitaciones mostrar
+        // Determinar qué habitaciones mostrar inicialmente
         let roomsToShow = [];
+        let shouldShowLargerCapacityButton = false;
         
         if (exactCapacityRooms.length > 0) {
           // Si hay habitaciones con capacidad exacta, mostrar solo esas
           roomsToShow = exactCapacityRooms;
+          // Solo mostrar el botón si también hay habitaciones de mayor capacidad
+          shouldShowLargerCapacityButton = largerCapacityRooms.length > 0;
         } else if (largerCapacityRooms.length > 0) {
-          // Si no hay capacidad exacta pero sí mayor capacidad, mostrar esas
+          // Si no hay capacidad exacta pero sí mayor capacidad, mostrar esas automáticamente
           roomsToShow = largerCapacityRooms;
+          shouldShowLargerCapacityButton = false; // No mostrar botón porque ya se muestran
         }
         
         setAvailableRooms(roomsToShow);
+        setShowLargerCapacity(!shouldShowLargerCapacityButton); // true si no hay botón, false si hay botón
       } else {
         console.log('No se encontraron habitaciones disponibles');
         setAvailableRooms([]);
+        setAllAvailableRooms([]);
       }
     } catch (error) {
       console.error('Error buscando habitaciones disponibles:', error);
       setAvailableRooms([]);
+      setAllAvailableRooms([]);
     } finally {
       setLoadingRooms(false);
     }
@@ -454,6 +502,16 @@ export default function NuevaConsulta() {
     }));
   };
 
+  const handleShowLargerCapacity = () => {
+    const exactCapacityRooms = allAvailableRooms.filter(room => room.maxPeople === requirements.requiredGuests);
+    const largerCapacityRooms = allAvailableRooms.filter(room => room.maxPeople > requirements.requiredGuests);
+    
+    // Combinar habitaciones de capacidad exacta con las de mayor capacidad
+    const combinedRooms = [...exactCapacityRooms, ...largerCapacityRooms];
+    setAvailableRooms(combinedRooms);
+    setShowLargerCapacity(true);
+  };
+
   const handleSaveNewClient = async () => {
     // Validar que los campos requeridos estén completos
     if (!formData.mainClient.firstName || !formData.mainClient.lastName) {
@@ -561,13 +619,8 @@ export default function NuevaConsulta() {
       return;
     }
 
-    console.log('Datos de la consulta:', segments);
-    console.log('Habitación seleccionada:', selectedRoom);
-    console.log('Habitaciones disponibles:', availableRooms);
-    
-    // Aquí se abriría el modal de selección de habitaciones para crear la reserva
-    // Por ahora, mostrar un mensaje con la habitación seleccionada
-    alert(`🏨 Funcionalidad de reserva: Se procederá a crear la reserva para la habitación ${selectedRoom.name} (${selectedRoom.roomType?.name}).`);
+    // Abrir modal de confirmación
+    setShowConfirmationModal(true);
   };
 
 
@@ -659,13 +712,13 @@ export default function NuevaConsulta() {
 
   // Función para obtener las fechas globales
   const getGlobalDates = () => {
-    if (segments.length === 0) return { checkIn: '', checkOut: '' };
+    if (segments.length === 0) return 'Sin fechas';
     
     const checkIns = segments.map(s => s.checkIn).filter(date => date);
     const checkOuts = segments.map(s => s.checkOut).filter(date => date);
     
     if (checkIns.length === 0 || checkOuts.length === 0) {
-      return { checkIn: '', checkOut: '' };
+      return 'Fechas incompletas';
     }
     
     const globalCheckIn = checkIns.sort()[0]; // Primera fecha de entrada
@@ -689,6 +742,140 @@ export default function NuevaConsulta() {
     }
     
     return 'Huésped';
+  };
+
+
+
+  // Función para crear la reserva
+  const handleCreateReservation = async () => {
+    setIsCreatingReservation(true);
+    
+    try {
+      // Validaciones básicas
+      if (!selectedRoom) {
+        throw new Error('No se ha seleccionado una habitación');
+      }
+      
+      if (!formData.mainClient.firstName || !formData.mainClient.lastName) {
+        throw new Error('El cliente debe tener nombre y apellido');
+      }
+      
+      if (!segments || segments.length === 0) {
+        throw new Error('Debe haber al menos un segmento de estancia');
+      }
+      
+      let clientId = null;
+      
+      // Si el cliente no existe, crearlo primero
+      if (!formData.mainClient.id) {
+        console.log('Creando nuevo cliente...');
+        try {
+          const newClient = await fetch('/api/clients', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              firstName: formData.mainClient.firstName,
+              lastName: formData.mainClient.lastName,
+              email: formData.mainClient.email || null,
+              phone: formData.mainClient.phone || null,
+            }),
+          });
+
+          if (newClient.ok) {
+            const createdClient = await newClient.json();
+            clientId = createdClient.id;
+            console.log('Cliente creado con ID:', clientId);
+          } else {
+            const errorData = await newClient.json();
+            throw new Error(`Error al crear el cliente: ${errorData.error || errorData.message || 'Error desconocido'}`);
+          }
+        } catch (clientError) {
+          console.error('Error creando cliente:', clientError);
+          alert(`❌ Error al crear el cliente: ${clientError.message}`);
+          return;
+        }
+      } else {
+        clientId = formData.mainClient.id;
+        console.log('Usando cliente existente con ID:', clientId);
+      }
+
+      // Preparar datos de la reserva
+      const reservationData = {
+        mainClientId: clientId,
+        segments: segments.map(segment => ({
+          roomId: selectedRoom.id,
+          startDate: segment.checkIn, // El backend espera startDate
+          endDate: segment.checkOut,  // El backend espera endDate
+          requiredGuests: segment.requiredGuests,
+          serviceType: segment.serviceType,
+          requiredTags: segment.requiredTags || [],
+          baseRate: 100, // Tarifa base por defecto - esto debería calcularse dinámicamente
+          guestCount: segment.requiredGuests
+        })),
+        status: 'pendiente',
+        notes: '',
+        isMultiRoom: false
+      };
+
+      console.log('Datos de reserva a enviar:', reservationData);
+
+      // Crear la reserva en el backend
+      console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
+      console.log('Datos completos de la reserva:', JSON.stringify(reservationData, null, 2));
+      
+      const newReservation = await createReservation(reservationData);
+      
+      console.log('Reserva creada:', newReservation);
+      
+      // Mostrar mensaje de éxito
+      alert('✅ Reserva creada exitosamente');
+      
+      // Cerrar modal y limpiar formulario
+      setShowConfirmationModal(false);
+      resetForm();
+      
+    } catch (error) {
+      console.error('Error al crear la reserva:', error);
+      alert(`❌ Error al crear la reserva: ${error.message}`);
+    } finally {
+      setIsCreatingReservation(false);
+    }
+  };
+
+  // Función para resetear el formulario
+  const resetForm = () => {
+    setFormData({
+      checkIn: '',
+      checkOut: '',
+      mainClient: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: ''
+      }
+    });
+    setRequirements({
+      requiredGuests: 1,
+      requiredTags: [],
+      serviceType: 'con_desayuno'
+    });
+    setSegments([
+      {
+        id: 1,
+        checkIn: '',
+        checkOut: '',
+        requiredGuests: 1,
+        requiredTags: [],
+        serviceType: 'con_desayuno'
+      }
+    ]);
+    setSelectedRoom(null);
+    setSelectedRoomType(null);
+    setDailyRates([]);
+    setSearchTerm('');
+    setShowNewClientForm(false);
   };
 
   return (
@@ -936,8 +1123,13 @@ export default function NuevaConsulta() {
 
       {/* Main Content */}
       <div className={styles.mainContent}>
-        {/* Habitaciones disponibles */}
-          <h2>Habitaciones Disponibles</h2>
+        {/* Contenido principal */}
+        <div className={styles.mainContentBody}>
+          {/* Contenedor para tablas lado a lado */}
+          <div className={styles.tablesContainer}>
+            {/* Columna izquierda - Habitaciones disponibles */}
+            <div className={styles.tableColumn}>
+              <h2>Habitaciones Disponibles</h2>
           
           {loadingRooms ? (
             <div className={styles.loading}>
@@ -1034,92 +1226,131 @@ export default function NuevaConsulta() {
                         </tr>
                       );
                     })}
+                    
+                    {/* Fila especial para mostrar habitaciones de mayor capacidad */}
+                    {!showLargerCapacity && 
+                     allAvailableRooms.some(room => room.maxPeople > requirements.requiredGuests) && 
+                     allAvailableRooms.some(room => room.maxPeople === requirements.requiredGuests) && (
+                      <tr className={styles.showLargerCapacityRow}>
+                        <td colSpan="5">
+                          <button
+                            type="button"
+                            className={styles.showLargerCapacityButton}
+                            onClick={handleShowLargerCapacity}
+                          >
+                            📋 Mostrar habitaciones de mayor capacidad
+                          </button>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
             </div>
           )}
+            </div>
 
-        {/* Tarifas por día */}
-          <h2>Tarifas por Día</h2>
-          
-          {!formData.checkIn || !formData.checkOut ? (
-          <div className={styles.noDataMessage}>
-              Selecciona las fechas de entrada y salida para ver las tarifas
-            </div>
-          ) : availableRooms.length === 0 ? (
-          <div className={styles.noDataMessage}>
-              No hay habitaciones disponibles para las fechas seleccionadas
-            </div>
-          ) : !selectedRoomType ? (
-          <div className={styles.noDataMessage}>
-              Cargando tipos de habitación...
-            </div>
-          ) : (
-            <>
-              {/* Tabla de tarifas por día */}
-              {dailyRates.length === 0 ? (
-              <div className={styles.noDataMessage}>
-                  No hay tarifas disponibles para las fechas seleccionadas
+            {/* Columna derecha - Tarifas por día */}
+            <div className={styles.tableColumn}>
+              <h2>Tarifas por Día</h2>
+              
+              {!formData.checkIn || !formData.checkOut ? (
+                <div className={styles.noDataMessage}>
+                  Selecciona las fechas de entrada y salida para ver las tarifas
+                </div>
+              ) : availableRooms.length === 0 ? (
+                <div className={styles.noDataMessage}>
+                  No hay habitaciones disponibles para las fechas seleccionadas
+                </div>
+              ) : !selectedRoomType ? (
+                <div className={styles.noDataMessage}>
+                  Cargando tipos de habitación...
                 </div>
               ) : (
-              <div className={styles.tableContainer}>
-                <table className={styles.ratesTable}>
-                      <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Tipo de Habitación</th>
-                      <th>Servicio</th>
-                      <th>Precio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dailyRates.map((rate, index) => (
-                      <tr key={index} className={rate.noRatesAvailable ? styles.noRatesRow : ''}>
-                        <td>
-                              {new Date(rate.date).toLocaleDateString('es-AR', {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </td>
-                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
-                          {selectedRoomType?.name || 'Sin tipo'}
-                            </td>
-                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
-                          {rate.serviceName}
-                        </td>
-                        <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
+                <>
+                  {/* Tabla de tarifas por día */}
+                  {dailyRates.length === 0 ? (
+                    <div className={styles.noDataMessage}>
+                      No hay tarifas disponibles para las fechas seleccionadas
+                    </div>
+                  ) : (
+                    <div className={styles.tableContainer}>
+                      <table className={styles.ratesTable}>
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Tipo de Habitación</th>
+                            <th>Servicio</th>
+                            <th>Precio</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dailyRates.map((rate, index) => (
+                            <tr key={index} className={rate.noRatesAvailable ? styles.noRatesRow : ''}>
+                              <td>
+                                {new Date(rate.date).toLocaleDateString('es-AR', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </td>
+                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
+                                {selectedRoomType?.name || 'Sin tipo'}
+                              </td>
+                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
+                                {rate.serviceName}
+                              </td>
+                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
                                 {rate.noRatesAvailable ? (
-                            <span>Sin tarifa</span>
+                                  <span>Sin tarifa</span>
                                 ) : (
                                   new Intl.NumberFormat('es-AR', {
                                     style: 'currency',
                                     currency: 'ARS'
-                            }).format(rate.price || 0)
+                                  }).format(rate.price || 0)
                                 )}
                               </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                
-                {/* Total */}
-                <div className={styles.totalSection}>
-                  <div className={styles.totalRow}>
-                    <span>Total:</span>
-                    <span className={styles.totalAmount}>
-                      {new Intl.NumberFormat('es-AR', {
-                        style: 'currency',
-                        currency: 'ARS'
-                      }).format(calculateTotal())}
-                    </span>
-                  </div>
-                  </div>
-                </div>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer del main content */}
+        <div className={styles.mainContentFooter}>
+          <div className={styles.mainTotalSection}>
+            <div className={styles.mainTotalRow}>
+              <span>Total:</span>
+              <span className={styles.mainTotalAmount}>
+                {new Intl.NumberFormat('es-AR', {
+                  style: 'currency',
+                  currency: 'ARS'
+                }).format(calculateTotal())}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Modal de confirmación de reserva */}
+      <ReservationConfirmationModal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        onConfirm={handleCreateReservation}
+        reservationData={{
+          mainClient: formData.mainClient,
+          selectedRoom: selectedRoom,
+          segments: segments,
+          dailyRates: dailyRates,
+          tags: tags
+        }}
+        isLoading={isCreatingReservation}
+      />
     </div>
   );
 } 

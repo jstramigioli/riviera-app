@@ -90,12 +90,25 @@ export async function updateReservation(id, data) {
 }
 
 export async function createReservation(data) {
-  const res = await fetch(`${API_URL}/reservations`, {
+  // Siempre usar la ruta de multi-segment ya que todas las reservas usan segmentos
+  const res = await fetch(`${API_URL}/reservations/multi-segment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creating reservation');
+  
+  if (!res.ok) {
+    let errorMessage = 'Error creating reservation';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // Si no se puede parsear el error, usar el status
+      errorMessage = `Error creating reservation: ${res.status} ${res.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+  
   return res.json();
 }
 

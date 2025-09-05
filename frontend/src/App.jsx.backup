@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { getStatusLabel } from "./utils/reservationStatusUtils";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
@@ -124,36 +123,6 @@ function ReservationsView() {
     }
   };
 
-  const handleStatusChange = async (reservationId, newStatus, actionType) => {
-    try {
-      // Llamar al API para actualizar el estado
-      const response = await updateReservationOnServer(reservationId, { status: newStatus }, setReservations);
-      
-      // Actualizar la reserva seleccionada si es la misma
-      if (selectedReservation && selectedReservation.id === reservationId) {
-        const updatedReservation = { ...selectedReservation, status: newStatus };
-        setSelectedReservation(updatedReservation);
-      }
-      
-      // Mostrar notificación de éxito
-      const actionMessages = {
-        "confirm": "Reserva confirmada exitosamente",
-        "cancel": "Reserva cancelada exitosamente",
-        "check-in": "Check-in registrado exitosamente",
-        "check-out": "Check-out registrado exitosamente",
-        "no-show": "Reserva marcada como no presentada",
-        "reopen": "Estadía reabierta exitosamente",
-        "reactivate": "Reserva reactivada exitosamente"
-      };
-      
-      alert(actionMessages[actionType] || "Estado actualizado exitosamente");
-      
-    } catch (error) {
-      console.error("Error updating reservation status:", error);
-      alert(`Error al actualizar el estado de la reserva: ${error.message}`);
-    }
-  };
-
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
@@ -184,7 +153,7 @@ function ReservationsView() {
         width={600}
       >
         {panelMode === 'reservation' && selectedReservation && (
-          <ReservationDetailsPanel reservation={selectedReservation} onStatusChange={handleStatusChange} />
+          <ReservationDetailsPanel reservation={selectedReservation} />
         )}
 
         {panelMode === 'client' && selectedClient && (
@@ -366,7 +335,7 @@ function ReservationsView() {
                             {format(new Date(reservation.checkIn), 'dd/MM/yyyy')} - {format(new Date(reservation.checkOut), 'dd/MM/yyyy')}
                           </div>
                           <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                            Estado: {getStatusLabel(reservation.status)}
+                            Estado: {reservation.status === 'active' ? 'Activa' : reservation.status === 'finished' ? 'Finalizada' : 'Cancelada'}
                           </div>
                         </div>
                       ))

@@ -101,9 +101,55 @@ const validateRoom = (req, res, next) => {
   next();
 };
 
+const validateMultiSegmentReservation = (req, res, next) => {
+  const { mainClientId, segments, status, notes, isMultiRoom } = req.body;
+  const errors = [];
+
+  // Validar cliente principal
+  if (!mainClientId) {
+    errors.push('El ID del cliente principal es requerido');
+  }
+
+  // Validar segmentos
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    errors.push('Debe especificar al menos un segmento de estancia');
+  } else {
+    segments.forEach((segment, index) => {
+      if (!segment.roomId) {
+        errors.push(`Segmento ${index + 1}: El ID de la habitación es requerido`);
+      }
+      if (!segment.startDate) {
+        errors.push(`Segmento ${index + 1}: La fecha de inicio es requerida`);
+      }
+      if (!segment.endDate) {
+        errors.push(`Segmento ${index + 1}: La fecha de fin es requerida`);
+      }
+      if (segment.startDate && segment.endDate && new Date(segment.startDate) >= new Date(segment.endDate)) {
+        errors.push(`Segmento ${index + 1}: La fecha de fin debe ser posterior a la fecha de inicio`);
+      }
+      if (!segment.requiredGuests || segment.requiredGuests < 1) {
+        errors.push(`Segmento ${index + 1}: El número de huéspedes debe ser al menos 1`);
+      }
+      if (!segment.serviceType) {
+        errors.push(`Segmento ${index + 1}: El tipo de servicio es requerido`);
+      }
+    });
+  }
+
+  if (errors.length > 0) {
+    const error = new Error('Error de validación');
+    error.name = 'ValidationError';
+    error.message = errors.join(', ');
+    return next(error);
+  }
+
+  next();
+};
+
 module.exports = {
   validateClient,
   validateReservation,
   validateRoom,
+  validateMultiSegmentReservation,
   validateEmail
 }; 

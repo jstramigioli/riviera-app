@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationCard.module.css';
@@ -58,7 +59,7 @@ const ReservationCard = React.memo(function ReservationCard({
           {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
         </h3>
         <span className={`${styles.status} ${styles[statusColor]}`}>
-          {statusColor === 'active' && '🟢 Activa'}
+          {getStatusLabel(reservation.status)}
           {statusColor === 'upcoming' && '🔵 Próxima'}
           {statusColor === 'past' && '⚫ Pasada'}
         </span>

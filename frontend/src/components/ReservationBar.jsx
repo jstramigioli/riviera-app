@@ -200,59 +200,17 @@ export default function ReservationBar({
 
   // Validar que se encontró la fecha después de los hooks
   if (daysFromStart === -1) {
-    console.error('❌ ERROR: No se pudo encontrar la fecha de check-in en el array de días:', {
+    // Durante la carga inicial, no mostrar errores para evitar confusión
+    // Solo loggear en consola para debugging
+    console.warn('⚠️ Reserva temporalmente fuera del rango visible durante la carga:', {
+      reservationId: reservation.id,
       checkIn: checkIn.toISOString(),
       startDate: startDate.toISOString(),
-      reservationId: reservation.id,
-      status: reservation.status
+      daysGenerated: days.length
     });
     
-    // Debug adicional para la reserva 978
-    if (reservation.id === 978) {
-      console.log('🔍 DEBUG RESERVA 978:', {
-        checkIn: checkIn.toISOString(),
-        checkOut: checkOut.toISOString(),
-        startDate: startDate.toISOString(),
-        daysGenerated: days.length,
-        firstDay: days[0]?.toISOString(),
-        lastDay: days[days.length - 1]?.toISOString(),
-        daysArray: days.slice(0, 10).map(d => d.toISOString().split('T')[0])
-      });
-    }
-    
-    // En lugar de retornar null, mostrar una barra de error
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: `${containerMargin + roomColumnWidth}px`,
-          top: `${headerHeight + (roomIndex * cellHeight)}px`,
-          width: '200px',
-          height: `${cellHeight}px`,
-          backgroundColor: '#ff6b6b',
-          border: '1px solid #ff4757',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.7rem',
-          color: 'white',
-          zIndex: 10,
-          cursor: 'pointer',
-          boxShadow: '0 2px 8px rgba(255, 107, 107, 0.3)'
-        }}
-        onClick={() => onClick && onClick(reservation)}
-        onMouseEnter={() => onReservationHover && onReservationHover({
-          rowIndex: roomIndex,
-          startColIndex: 0,
-          endColIndex: 0
-        })}
-        onMouseLeave={() => onReservationLeave && onReservationLeave()}
-        title={`Error: Reserva ${reservation.id} fuera del rango visible (${checkIn.toISOString().split('T')[0]} - ${checkOut.toISOString().split('T')[0]})`}
-      >
-        ⚠️ Fuera de rango
-      </div>
-    );
+    // Retornar null en lugar de mostrar el error durante la carga
+    return null;
   }
   
 

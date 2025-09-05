@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
 import { format } from 'date-fns';
@@ -242,16 +243,16 @@ function ConsultasReservasView() {
               <b>Estado:</b> {isEditing ? (
                 <select
                   value={editData.status || selectedReservation.status}
-                  onChange={e => handleEditChange('status', e.target.value)}
-                  style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 >
-                  <option value="active">Activa</option>
-                  <option value="finished">Finalizada</option>
-                  <option value="cancelled">Cancelada</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="confirmada">Confirmada</option>
+                  <option value="ingresada">Ingresada</option>
+                  <option value="finalizada">Finalizada</option>
+                  <option value="cancelada">Cancelada</option>
+                  <option value="no presentada">No presentada</option>
                 </select>
               ) : (
-                selectedReservation.status === 'active' ? 'Activa' : 
-                selectedReservation.status === 'finished' ? 'Finalizada' : 'Cancelada'
+                getStatusLabel(selectedReservation.status)
               )}
             </div>
 
@@ -477,7 +478,7 @@ function ConsultasReservasView() {
                           {format(new Date(reservation.checkIn), 'dd/MM/yyyy')} - {format(new Date(reservation.checkOut), 'dd/MM/yyyy')}
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                          Estado: {reservation.status === 'active' ? 'Activa' : reservation.status === 'finished' ? 'Finalizada' : 'Cancelada'}
+                          Estado: {getStatusLabel(reservation.status)}
                         </div>
                       </div>
                     ))
