@@ -1,0 +1,666 @@
+/* Estilos idénticos a NuevaConsulta.module.css */
+.newLayout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.sidePanel {
+  width: 350px;
+  background: var(--color-primary);
+  color: white;
+  padding: 0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  height: calc(100vh - 80px);
+  left: 0;
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Todos los textos en el side panel deben ser blancos */
+.sidePanel label {
+  color: white;
+}
+
+.sidePanel input,
+.sidePanel select {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.sidePanel input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sidePanel input:focus,
+.sidePanel select:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  outline: none;
+}
+
+.sidePanelHeader {
+  padding: 24px 15% 24px 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sidePanelHeader h2 {
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
+  color: white;
+}
+
+.guestInfo {
+  margin-top: 0;
+}
+
+.guestName {
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  margin: 0 0 4px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.guestDates {
+  font-size: var(--font-size-small);
+  font-weight: 300;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.guestStatus {
+  margin-top: 8px;
+}
+
+.statusValue {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusValue.pending {
+  background: rgba(254, 243, 199, 0.9);
+  color: #92400e;
+}
+
+.statusValue.confirmed {
+  background: rgba(209, 250, 229, 0.9);
+  color: #065f46;
+}
+
+.statusValue.ingresada {
+  background: rgba(219, 234, 254, 0.9);
+  color: #1e40af;
+}
+
+.statusValue.checked_out {
+  background: rgba(229, 231, 235, 0.9);
+  color: #374151;
+}
+
+.statusValue.cancelled {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+}
+
+.sidePanelContent {
+  padding: 24px 15% 24px 5%;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.sectionButton {
+  padding: 16px 20px;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.sectionButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: none;
+}
+
+.sectionButton.active {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  font-weight: 600;
+  border-left: 4px solid white;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.field label {
+  font-weight: 500;
+  color: white;
+  font-size: var(--font-size-small);
+}
+
+.clientDisplay,
+.dateDisplay,
+.requirementsDisplay,
+.roomDisplay,
+.notesDisplay {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clientDisplay:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.clientName {
+  font-weight: 600;
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.clientDetail {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.25rem;
+}
+
+.roomName {
+  font-weight: 600;
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.roomDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.notesDisplay {
+  white-space: pre-wrap;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.editSection {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.editSection h3 {
+  margin: 0 0 16px 0;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.editInput,
+.editSelect {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.editInput:focus,
+.editSelect:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dateGroup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.saveButton {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.saveButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.sidePanelFooter {
+  padding: 0 15% 0 5%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.editButton,
+.backButton {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editButton:hover,
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.editButton.editing {
+  background: rgba(220, 53, 69, 0.8);
+  border-color: rgba(220, 53, 69, 0.3);
+}
+
+.editButton.editing:hover {
+  background: rgba(220, 53, 69, 1);
+}
+
+.statusButtons {
+  display: flex;
+  justify-content: center;
+}
+
+.mainContent {
+  flex: 1;
+  margin-left: 350px;
+  background: white;
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+.mainContentBody {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: white;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.section h2 {
+  color: var(--color-primary);
+  font-size: var(--font-size-large);
+  margin: 0 0 16px 0;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.infoCard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  margin-bottom: 20px;
+  transition: all 0.2s ease;
+}
+
+.infoCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.infoCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.infoGrid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.infoItem:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.infoItem .label {
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.infoItem .value {
+  font-weight: 600;
+  color: #212529;
+  font-size: 1rem;
+}
+
+.notesContent {
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  color: #495057;
+  line-height: 1.6;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.saveSection {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.tablesContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  height: 100%;
+  min-height: 0;
+}
+
+.tableColumn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tableColumn h2 {
+  color: var(--color-primary);
+  font-size: var(--font-size-large);
+  margin: 0 0 16px 0;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.infoTable,
+.ratesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.infoTable th,
+.ratesTable th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  font-size: var(--font-size-small);
+}
+
+.infoTable td,
+.ratesTable td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  color: #495057;
+}
+
+.infoTable thead,
+.ratesTable thead {
+  display: table;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.infoTable tbody,
+.ratesTable tbody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.infoTable tbody tr,
+.ratesTable tbody tr {
+  display: table;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.totalAmount {
+  font-weight: 700;
+  color: var(--color-success);
+  font-size: 1.1rem;
+}
+
+.modifications {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modification {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.noModifications {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+.finalRate {
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.noDataMessage {
+  padding: 40px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.mainContentFooter {
+  padding: 0 15% 0 5%;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  height: 150px;
+  display: flex;
+  align-items: center;
+}
+
+.mainTotalSection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.mainTotalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
+  color: var(--color-primary);
+  width: 100%;
+  max-width: 400px;
+}
+
+.mainTotalAmount {
+  font-size: var(--font-size-xlarge);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Responsive para el nuevo layout */
+@media (max-width: 1024px) {
+  .sidePanel {
+    width: 350px;
+  }
+  
+  .mainContent {
+    margin-left: 350px;
+  }
+  
+  .infoGrid {
+    flex-direction: column;
+  }
+  
+  .infoItem {
+    min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .newLayout {
+    flex-direction: column;
+  }
+  
+  .sidePanel {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+  
+  .mainContent {
+    margin-left: 0;
+  }
+  
+  .mainContentFooter {
+    padding: 24px 5%;
+  }
+  
+  .sectionMenu {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .sectionButton {
+    min-width: 150px;
+    white-space: nowrap;
+    border-bottom: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .infoGrid {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .infoItem {
+    min-width: auto;
+  }
+}

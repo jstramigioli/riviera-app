@@ -89,6 +89,16 @@ export async function updateReservation(id, data) {
   return res.json();
 }
 
+export async function updateReservationStatus(id, status) {
+  const res = await fetch(`${API_URL}/reservations/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  if (!res.ok) throw new Error('Error updating reservation status');
+  return res.json();
+}
+
 export async function createReservation(data) {
   // Siempre usar la ruta de multi-segment ya que todas las reservas usan segmentos
   const res = await fetch(`${API_URL}/reservations/multi-segment`, {

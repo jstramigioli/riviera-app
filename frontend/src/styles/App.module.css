@@ -1,21 +1,27 @@
 /* App.module.css */
 .app {
-  height: 100vh; /* Altura fija de la ventana */
+  min-height: 100vh; /* Permite crecer con el contenido */
   width: 100%;
   max-width: 100%;
   background-color: var(--color-bg-light);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Cambiar de auto a hidden para evitar scroll */
+  overflow-x: hidden; /* Evita scroll horizontal, permite vertical */
 }
 
 .navigation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   background-color: var(--color-primary);
   padding: 0 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 80px;
 }
 
 .navLeft {
@@ -100,11 +106,12 @@
 .appContainer {
   width: 100%;
   max-width: 100%;
-  height: calc(100vh - 80px); /* Altura fija basada en la altura de la navegación */
+  min-height: calc(100vh - 80px); /* Deja crecer si el contenido es mayor */
+  margin-top: 80px; /* Espacio para el header fijo */
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden; /* Cambiar de auto a hidden para evitar scroll de página */
+  overflow-x: hidden;
 }
 
 /* Contenedor específico para tarifas con max-width y padding */
@@ -234,7 +241,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden; /* Cambiar de visible a hidden para evitar scroll de página */
+  overflow-x: hidden; /* No bloquear scroll vertical */
   width: 100%;
   box-sizing: border-box;
 }

@@ -1,431 +1,1040 @@
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.header {
+/* Estilos idénticos a ReservationDetails.module.css con adaptaciones para cliente */
+.newLayout {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e5e7eb;
+  min-height: 100vh;
+  background: var(--color-bg);
 }
 
-.backButton {
-  background: #6b7280;
+.sidePanel {
+  width: 350px;
+  background: var(--color-primary);
   color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
+  padding: 0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  height: calc(100vh - 80px);
+  left: 0;
+  top: 80px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
 }
 
-.backButton:hover {
-  background: #4b5563;
+/* Todos los textos en el side panel deben ser blancos */
+.sidePanel label {
+  color: white;
 }
 
-.title {
-  margin: 0;
-  font-size: 2rem;
+.sidePanel input,
+.sidePanel select {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.sidePanel input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sidePanel input:focus,
+.sidePanel select:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  outline: none;
+}
+
+.sidePanelHeader {
+  padding: 24px 15% 24px 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sidePanelHeader h2 {
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.guestInfo {
+  margin-top: 0;
+}
+
+.guestName {
+  font-size: var(--font-size-xlarge);
   font-weight: 700;
-  color: #1f2937;
-}
-
-.loading {
-  text-align: center;
-  padding: 60px 20px;
-  font-size: 1.2rem;
-  color: #6b7280;
-}
-
-.error {
-  text-align: center;
-  padding: 60px 20px;
-  color: #dc3545;
-}
-
-.error h2 {
-  margin-bottom: 16px;
-  font-size: 1.5rem;
-}
-
-.error p {
-  margin-bottom: 24px;
-  font-size: 1.1rem;
-}
-
-/* Tarjeta Principal del Cliente */
-.clientCard {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 32px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-}
-
-.clientHeader {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 2px solid #f3f4f6;
-}
-
-.clientAvatar {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: 0 0 4px 0;
   color: white;
-  border-radius: 50%;
+}
+
+.guestDates {
+  font-size: var(--font-size-small);
+  font-weight: 300;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.guestStatus {
+  margin-top: 8px;
+}
+
+.statusValue {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusValue.pending {
+  background: rgba(254, 243, 199, 0.9);
+  color: #92400e;
+}
+
+.statusValue.confirmed {
+  background: rgba(209, 250, 229, 0.9);
+  color: #065f46;
+}
+
+.statusValue.ingresada {
+  background: rgba(219, 234, 254, 0.9);
+  color: #1e40af;
+}
+
+.statusValue.checked_out {
+  background: rgba(229, 231, 235, 0.9);
+  color: #374151;
+}
+
+.statusValue.cancelled {
+  background: rgba(254, 226, 226, 0.9);
+  color: #991b1b;
+}
+
+.sidePanelContent {
+  padding: 24px 15% 24px 5%;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.field label {
+  font-weight: 500;
+  color: white;
+  font-size: var(--font-size-small);
+}
+
+/* Eliminamos los estilos de recuadros para simplificar la lectura */
+
+.clientName {
+  font-weight: 600;
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.clientDetail {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
+}
+
+/* Botones de contacto */
+.contactButtons {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 0 15% 0 5%;
+}
+
+.contactButton {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  min-height: 40px;
+  border-radius: 50%;
 }
 
-.clientInfo h2 {
-  margin: 0 0 8px 0;
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #1f2937;
+.contactButton svg {
+  width: 24px;
+  height: 24px;
 }
 
-.clientId {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #6b7280;
+.contactButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.sidePanelFooter {
+  padding: 0 15% 0 5%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.backButton {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
   font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Secciones de Información */
-.balanceSection,
-.contactSection,
-.documentSection,
-.locationSection,
-.notesSection {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid #f3f4f6;
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
-.balanceSection:last-child,
-.contactSection:last-child,
-.documentSection:last-child,
-.locationSection:last-child,
-.notesSection:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
+.mainContent {
+  flex: 1;
+  margin-left: 350px;
+  background: white;
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
 }
 
-.balanceSection h3,
-.contactSection h3,
-.documentSection h3,
-.locationSection h3,
-.notesSection h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.3rem;
+.mainContentHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: white;
+  min-height: 60px; /* Asegurar altura mínima */
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+.sectionMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.sectionButton {
+  padding: 16px 20px;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.sectionButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: none;
+}
+
+.sectionButton.active {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  border-left: 4px solid white;
+}
+
+.mainContentBody {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: white;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.section h2 {
+  color: var(--color-primary);
+  font-size: var(--font-size-large);
+  margin: 0 0 16px 0;
+  border-bottom: 2px solid var(--color-primary);
   padding-bottom: 8px;
 }
 
-/* Balance */
-.balanceAmount {
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 1.2rem;
+  flex-direction: column;
 }
 
-.balanceLabel {
+.reservationsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  table-layout: fixed;
+}
+
+.reservationsTable th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
   font-weight: 600;
-  color: #6b7280;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  font-size: var(--font-size-small);
 }
 
-.balanceValue {
-  font-weight: 700;
-  font-size: 1.4rem;
+.reservationsTable th:nth-child(1) { width: 8%; }  /* ID */
+.reservationsTable th:nth-child(2) { width: 20%; } /* Habitación */
+.reservationsTable th:nth-child(3) { width: 15%; } /* Check-in */
+.reservationsTable th:nth-child(4) { width: 15%; } /* Check-out */
+.reservationsTable th:nth-child(5) { width: 12%; } /* Estado */
+.reservationsTable th:nth-child(6) { width: 15%; } /* Total */
+.reservationsTable th:nth-child(7) { width: 15%; } /* Acciones */
+
+.reservationsTable td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  color: #495057;
 }
 
-/* Información de Contacto */
-.contactGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+/* Centrar contenido de columnas específicas */
+.reservationsTable td:nth-child(1),  /* ID */
+.reservationsTable td:nth-child(5),  /* Estado */
+.reservationsTable td:nth-child(6),  /* Total */
+.reservationsTable td:nth-child(7) { /* Acciones */
+  text-align: center;
 }
 
-.contactItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f9fafb;
+.reservationsTable th:nth-child(1),  /* ID */
+.reservationsTable th:nth-child(5),  /* Estado */
+.reservationsTable th:nth-child(6),  /* Total */
+.reservationsTable th:nth-child(7) { /* Acciones */
+  text-align: center;
+}
+
+.reservationsTable thead {
+  display: table-header-group;
+}
+
+.reservationsTable tbody {
+  display: table-row-group;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.reservationsTable tbody tr {
+  display: table-row;
+}
+
+.reservationRow {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.reservationRow:hover {
+  background-color: #f8f9fa;
+}
+
+.totalAmount {
+  font-weight: 600;
+  color: var(--color-success);
+  font-size: 1rem;
+}
+
+.viewButton {
+  padding: 4px 8px;
+  border: 1px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.viewButton:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.noDataMessage {
+  padding: 40px;
+  background: #f8f9fa;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
 }
 
-.contactLabel {
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.contactValue {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-/* Información de Documento */
-.documentInfo {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  margin-bottom: 12px;
-}
-
-.documentInfo:last-child {
-  margin-bottom: 0;
-}
-
-.documentLabel {
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.documentValue {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-/* Información de Ubicación */
-.locationInfo {
+/* Estilos para sección de balance */
+.balanceGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  height: 100%;
+}
+
+.balanceCard {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.balanceCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.balanceDetails,
+.statusBreakdown {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.locationItem {
+.balanceItem,
+.statusItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
 }
 
-.locationLabel {
-  font-weight: 600;
-  color: #6b7280;
+.balanceItem:last-child,
+.statusItem:last-child {
+  border-bottom: none;
 }
 
-.locationValue {
+.label {
   font-weight: 500;
-  color: #1f2937;
+  color: #495057;
 }
 
-/* Notas */
-.notesText {
-  margin: 0;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  line-height: 1.6;
-  font-style: italic;
-}
-
-/* Sección de Reservas */
-.reservationsSection {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-}
-
-.reservationsSection h3 {
-  margin: 0 0 24px 0;
-  font-size: 1.5rem;
+.value {
   font-weight: 600;
-  color: #1f2937;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 12px;
+  color: #212529;
 }
 
-.noReservations {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6b7280;
+.value.positive {
+  color: var(--color-success);
+}
+
+.value.negative {
+  color: var(--color-danger);
+}
+
+/* Estilos para historial */
+.historyContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.historyTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.historyItem {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid var(--color-primary);
+}
+
+.historyIcon {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.historyContent {
+  flex: 1;
+}
+
+.historyTitle {
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.historyDetails {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.historyDetails > div {
+  margin-bottom: 4px;
+}
+
+.historyDate {
+  font-size: 0.8rem;
+  color: #adb5bd;
   font-style: italic;
 }
 
-.noReservations p {
-  margin: 0;
-  font-size: 1.1rem;
+/* Estilos para información personal */
+.personalInfoContainer {
+  flex: 1;
 }
 
-/* Grid de Reservas */
-.reservationsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+.personalInfoGrid {
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-.reservationCard {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+.personalInfoCard {
+  background: #f8f9fa;
   border-radius: 12px;
   padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
 }
 
-.reservationCard:hover {
+.personalInfoCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #d1d5db;
 }
 
-.reservationHeader {
+.personalInfoCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.infoList {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 200px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.infoItem:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.infoItemNonEditable {
+  cursor: default !important;
+}
+
+.infoItemNonEditable:hover {
+  border-color: #e9ecef !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.infoItem .label {
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.infoItem .value {
+  font-weight: 600;
+  color: #212529;
+  font-size: 1rem;
+}
+
+/* Estilos para documentación asociada */
+.documentsContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.documentsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.documentCard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 32px 20px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.documentCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.documentIcon {
+  font-size: 3rem;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.documentInfo {
+  flex: 1;
+  text-align: center;
+}
+
+.documentInfo h3 {
+  color: var(--color-primary);
+  font-size: 1.3rem;
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.documentInfo p {
+  color: #6c757d;
+  font-size: 1rem;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+.documentActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.uploadButton,
+.viewButton {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  background: white;
+  color: #495057;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.uploadButton:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.viewButton:hover {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.mainContentFooter {
+  padding: 0 15% 0 5%;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  height: 150px;
+  display: flex;
+  align-items: center;
+}
+
+.mainTotalSection {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.mainTotalRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
+  color: var(--color-primary);
+  width: 100%;
+  max-width: 400px;
+}
+
+.mainTotalAmount {
+  font-size: var(--font-size-xlarge);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Estados de carga y error */
+.loadingContainer,
+.errorContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading {
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+.error {
+  font-size: 1.2rem;
+  color: #dc3545;
+}
+
+.retryButton {
+  padding: 8px 16px;
+  border: 1px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Responsive para el nuevo layout */
+@media (max-width: 1024px) {
+  .sidePanel {
+    width: 350px;
+  }
+  
+  .mainContent {
+    margin-left: 350px;
+  }
+  
+  .balanceGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .personalInfoGrid {
+    flex-direction: column;
+  }
+  
+  .infoList {
+    flex-direction: column;
+  }
+  
+  .infoItem {
+    min-width: auto;
+  }
+  
+  .documentsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .newLayout {
+    flex-direction: column;
+  }
+  
+  .sidePanel {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+  
+  .mainContent {
+    margin-left: 0;
+  }
+  
+  .mainContentFooter {
+    padding: 24px 5%;
+  }
+  
+  .sectionMenu {
+    flex-direction: column;
+  }
+  
+  .sectionButton {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .balanceGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .personalInfoGrid {
+    gap: 16px;
+  }
+  
+  .infoList {
+    flex-direction: column;
+  }
+  
+  .infoItem {
+    min-width: auto;
+  }
+  
+  .documentsGrid {
+    gap: 16px;
+  }
+  
+  .documentCard {
+    padding: 24px 16px;
+  }
+  
+  .documentIcon {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+  }
+  
+  .documentInfo h3 {
+    font-size: 1.2rem;
+  }
+  
+  .documentInfo p {
+    font-size: 0.9rem;
+  }
+  
+  .documentActions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .uploadButton,
+  .viewButton {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .contactButtons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .contactButton {
+    width: auto;
+    min-height: 48px;
+    padding: 12px;
+  }
+  
+  .contactButton svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Estilos del modal de edición */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.reservationId {
+.modalHeader h3 {
   margin: 0;
-  font-size: 1.2rem;
+  color: var(--color-primary);
+  font-size: 1.1rem;
   font-weight: 600;
-  color: #1f2937;
 }
 
-.reservationStatus {
-  padding: 6px 12px;
-  border-radius: 20px;
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.reservationDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reservationInfo {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.infoLabel {
-  font-weight: 600;
+.modalClose {
+  background: none;
+  border: none;
+  font-size: 24px;
   color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modalClose:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.modalButtonCancel,
+.modalButtonSave {
+  padding: 10px 20px;
+  border-radius: 6px;
   font-size: 0.9rem;
-}
-
-.infoValue {
   font-weight: 500;
-  color: #1f2937;
-  text-align: right;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .container {
-    padding: 16px;
-  }
-  
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .title {
-    font-size: 1.8rem;
-  }
-  
-  .clientCard {
-    padding: 24px;
-  }
-  
-  .clientHeader {
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
-  }
-  
-  .clientInfo h2 {
-    font-size: 2rem;
-  }
-  
-  .contactGrid,
-  .locationInfo {
-    grid-template-columns: 1fr;
-  }
-  
-  .reservationsGrid {
-    grid-template-columns: 1fr;
-  }
-  
-  .balanceAmount {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .contactItem,
-  .documentInfo,
-  .locationItem {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
+.modalButtonCancel {
+  background: white;
+  color: #6b7280;
+  border-color: #d1d5db;
 }
 
-@media (max-width: 480px) {
-  .clientCard,
-  .reservationsSection {
-    padding: 20px;
-  }
-  
-  .clientAvatar {
-    width: 60px;
-    height: 60px;
-    font-size: 1.5rem;
-  }
-  
-  .clientInfo h2 {
-    font-size: 1.8rem;
-  }
-  
-  .title {
-    font-size: 1.5rem;
-  }
-} 
+.modalButtonCancel:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.modalButtonSave {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.modalButtonSave:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+}

@@ -179,22 +179,70 @@ exports.getReservationPricingDetails = async (req, res) => {
     const reservation = await prisma.reservation.findUnique({
       where: { id: parseInt(id) },
       include: {
-        room: {
-          include: {
-            roomType: true,
-            tags: true
-          }
-        },
         mainClient: true,
         guests: true,
         nightRates: {
           orderBy: { date: 'asc' }
+        },
+        segments: {
+          include: {
+            room: {
+              include: {
+                roomType: true,
+                tags: true
+              }
+            }
+          }
         }
       }
     });
 
     if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found' });
+    }
+
+    // Si no hay nightRates, generar las tarifas
+    if (!reservation.nightRates || reservation.nightRates.length === 0) {
+      console.log(`Generando nightRates para reserva ${id}`);
+      const roomId = reservation.segments && reservation.segments.length > 0 
+        ? reservation.segments[0].roomId 
+        : null;
+      
+      if (!roomId) {
+        return res.status(400).json({ error: 'No room found for reservation' });
+      }
+      
+      await reservationPricingService.calculateAndStoreNightRates(
+        parseInt(id),
+        roomId,
+        reservation.segments[0].startDate,
+        reservation.segments[0].endDate,
+        reservation.segments[0].services[0] || 'con_desayuno'
+      );
+      
+      // Recargar la reserva con las nightRates generadas
+      const updatedReservation = await prisma.reservation.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+          mainClient: true,
+          guests: true,
+          nightRates: {
+            orderBy: { date: 'asc' }
+          },
+          segments: {
+            include: {
+              room: {
+                include: {
+                  roomType: true,
+                  tags: true
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      reservation.nightRates = updatedReservation.nightRates;
     }
 
     const pricingSummary = await reservationPricingService.getReservationPricingSummary(parseInt(id));
@@ -205,7 +253,7 @@ exports.getReservationPricingDetails = async (req, res) => {
     });
   } catch (error) {
     console.error('Error obteniendo detalles de tarifas:', error);
-    res.status(500).json({ error: 'Error fetching pricing details' });
+    res.status(500).json({ error: 'Error fetching pricing details', details: error.message });
   }
 };
 
@@ -238,6 +286,49 @@ exports.updateReservation = async (req, res) => {
   } catch (error) {
     console.error('Error updating reservation:', error);
     res.status(500).json({ error: 'Error updating reservation', details: error.message });
+  }
+};
+
+// Actualizar solo el estado de una reserva
+exports.updateReservationStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  try {
+    // Verificar que la reserva existe
+    const existingReservation = await prisma.reservation.findUnique({
+      where: { id: parseInt(id) }
+    });
+    
+    if (!existingReservation) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+
+    // Validar el estado
+    const validStatuses = ['pendiente', 'confirmada', 'ingresada', 'finalizada', 'cancelada', 'no presentada'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    // Actualizar solo el estado
+    const updatedReservation = await prisma.reservation.update({
+      where: { id: parseInt(id) },
+      data: { status },
+      include: {
+        mainClient: true,
+        segments: {
+          include: {
+            room: true,
+            roomType: true
+          }
+        }
+      }
+    });
+
+    res.json(updatedReservation);
+  } catch (error) {
+    console.error('Error updating reservation status:', error);
+    res.status(500).json({ error: 'Error updating reservation status', details: error.message });
   }
 };
 

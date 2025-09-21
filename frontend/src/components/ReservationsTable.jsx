@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -11,6 +12,7 @@ export default function ReservationsTable({
   onReservationClick,
   operationalPeriods = [] 
 }) {
+  const navigate = useNavigate();
   const [sortField, setSortField] = useState('checkIn');
   const [sortDirection, setSortDirection] = useState('asc');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -145,6 +147,18 @@ export default function ReservationsTable({
     }
   };
 
+  // Función para manejar el clic en el nombre de habitación
+  const handleRoomClick = (e, roomId) => {
+    e.stopPropagation(); // Evitar que se active el clic de la fila
+    navigate(`/rooms/${roomId}`);
+  };
+
+  // Función para manejar el clic en el nombre del cliente
+  const handleClientClick = (e, clientId) => {
+    e.stopPropagation(); // Evitar que se active el clic de la fila
+    navigate(`/clients/${clientId}`);
+  };
+
   // Procesar las reservas
   const processedReservations = sortReservations(filterReservations(reservations));
 
@@ -263,20 +277,20 @@ export default function ReservationsTable({
                 >
                   <td className={styles.cell}>#{reservation.id}</td>
                   <td className={styles.cell}>
-                    <span className={styles.roomName}>{reservation.room?.name}</span>
+                    <span 
+                      className={styles.roomName}
+                      onClick={(e) => handleRoomClick(e, reservation.room?.id)}
+                    >
+                      {reservation.room?.name}
+                    </span>
                   </td>
                   <td className={styles.cell}>
                     <div className={styles.clientInfo}>
-                      <div className={styles.clientName}>
+                      <div 
+                        className={styles.clientName}
+                        onClick={(e) => handleClientClick(e, reservation.mainClient?.id)}
+                      >
                         {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
-                      </div>
-                      <div className={styles.clientDetails}>
-                        {reservation.mainClient?.email && (
-                          <span className={styles.clientEmail}>{reservation.mainClient.email}</span>
-                        )}
-                        {reservation.mainClient?.phone && (
-                          <span className={styles.clientPhone}>{reservation.mainClient.phone}</span>
-                        )}
                       </div>
                     </div>
                   </td>

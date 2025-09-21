@@ -40,6 +40,24 @@
   flex: 1;
 }
 
+.reservationStatus {
+  margin-top: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusIndicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .body {
   padding: 24px;
   flex: 1;
@@ -68,9 +86,7 @@
 }
 
 .requirementsSection {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 8px;
 }
 
 .requirementsTitle {
@@ -118,9 +134,7 @@
 }
 
 .staySection {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 8px;
 }
 
 .stayTitle {
@@ -165,9 +179,7 @@
 }
 
 .roomSection {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 8px;
 }
 
 .roomTitle {
@@ -193,9 +205,7 @@
 }
 
 .totalSection {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 8px;
 }
 
 .totalTitle {
@@ -221,8 +231,7 @@
 }
 
 .statusSection {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .statusTitle {
@@ -261,6 +270,14 @@
   color: #212529;
   font-weight: 600;
   font-size: 1rem;
+}
+
+.infoRow {
+  padding: 4px 0;
+  color: #212529;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 2px;
 }
 
 /* Responsive design */

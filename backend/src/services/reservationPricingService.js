@@ -163,10 +163,11 @@ class ReservationPricingService {
 
       // Actualizar el total de la reserva
       const totalAmount = nightRates.reduce((sum, rate) => sum + rate.finalRate, 0);
-      await this.prisma.reservation.update({
-        where: { id: reservationId },
-        data: { totalAmount }
-      });
+      // TODO: El modelo Reservation no tiene campo totalAmount, necesitamos agregarlo al esquema
+      // await this.prisma.reservation.update({
+      //   where: { id: reservationId },
+      //   data: { totalAmount }
+      // });
 
       return {
         nightRates,

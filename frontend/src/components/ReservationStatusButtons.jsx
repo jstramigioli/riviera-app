@@ -112,7 +112,6 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
 
   return (
     <div className={styles.statusButtonsContainer}>
-      <h3 className={styles.actionsTitle}>Acciones</h3>
       <div className={styles.buttonsGrid}>
         {buttons}
       </div>

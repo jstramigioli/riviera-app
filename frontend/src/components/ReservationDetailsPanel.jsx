@@ -30,6 +30,18 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
     return serviceMap[serviceType] || serviceType;
   };
 
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'pendiente': '#ffc107',      // Amarillo - Pendiente de confirmación
+      'confirmada': '#17a2b8',     // Azul cian - Confirmada, esperando llegada
+      'ingresada': '#28a745',      // Verde - Actualmente en el hotel
+      'finalizada': '#6c757d',     // Gris - Estadía completada
+      'cancelada': '#dc3545',      // Rojo - Cancelada
+      'no presentada': '#fd7e14'   // Naranja - No se presentó
+    };
+    return statusColors[status] || '#6c757d';
+  };
+
   const getChangeDescription = (currentSegment, nextSegment) => {
     const changes = [];
     
@@ -90,8 +102,25 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <div className={styles.icon}>🏨</div>
-        <h2 className={styles.title}>Datos de la Reserva</h2>
+        <div>
+          <h2 className={styles.title}>
+            <a 
+              href={`/reservations/${reservation.id}`}
+              onClick={(e) => { e.preventDefault(); navigate(`/reservations/${reservation.id}`); }}
+              style={{ color: 'white', textDecoration: 'underline', cursor: 'pointer' }}
+              title={`Ver detalles de la Reserva #${reservation.id}`}
+            >
+              Reserva #{reservation.id}
+            </a>
+          </h2>
+          <div className={styles.reservationStatus}>
+            <span 
+              className={styles.statusIndicator} 
+              style={{ backgroundColor: getStatusColor(reservation.status) }}
+            ></span>
+            {getStatusLabel(reservation.status)}
+          </div>
+        </div>
       </div>
       
       <div className={styles.body}>
@@ -109,7 +138,6 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
         {/* Información de Huéspedes y Servicio */}
         {reservation.segments && reservation.segments.length > 0 && (
           <div className={styles.requirementsSection}>
-            <h3 className={styles.requirementsTitle}>Requerimientos</h3>
             <table className={styles.requirementsTable}>
               <tbody>
                 <tr>
@@ -148,56 +176,59 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
         {/* Estancia */}
         {reservation.segments && reservation.segments.length > 0 && (
           <div className={styles.staySection}>
-            <h3 className={styles.stayTitle}>Estancia</h3>
-            {reservation.segments.map((segment, index) => (
-              <div key={segment.id} className={styles.stayPeriod}>
-                <table className={styles.stayTable}>
-                  <tbody>
-                    <tr>
-                      <td className={styles.tableLabel}>Check-in:</td>
-                      <td className={styles.tableValue}>{formatDate(segment.startDate)}</td>
-                    </tr>
-                    <tr>
-                      <td className={styles.tableLabel}>Check-out:</td>
-                      <td className={styles.tableValue}>{formatDate(segment.endDate)}</td>
-                    </tr>
-                    <tr>
-                      <td className={styles.tableLabel}>Noches:</td>
-                      <td className={styles.tableValue}>
-                        {Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24))}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                
-                {/* Mostrar cambio entre segmentos si hay más de uno */}
-                {index < reservation.segments.length - 1 && (
-                  <div className={styles.changeIndicator}>
-                    {getChangeDescription(reservation.segments[index], reservation.segments[index + 1])}
-                  </div>
-                )}
-              </div>
-            ))}
+            <div className={styles.stayPeriod}>
+              <table className={styles.stayTable}>
+                <tbody>
+                  <tr>
+                    <td className={styles.tableLabel}>Check-in:</td>
+                    <td className={styles.tableValue}>{formatDate(reservation.segments[0].startDate)}</td>
+                  </tr>
+                  <tr>
+                    <td className={styles.tableLabel}>Check-out:</td>
+                    <td className={styles.tableValue}>{formatDate(reservation.segments[reservation.segments.length - 1].endDate)}</td>
+                  </tr>
+                  <tr>
+                    <td className={styles.tableLabel}>Noches:</td>
+                    <td className={styles.tableValue}>
+                      {Math.ceil((new Date(reservation.segments[reservation.segments.length - 1].endDate) - new Date(reservation.segments[0].startDate)) / (1000 * 60 * 60 * 24))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              {/* Mostrar cambios entre segmentos si hay más de uno */}
+              {reservation.segments.length > 1 && (
+                <div>
+                  {reservation.segments.map((segment, index) => (
+                    index < reservation.segments.length - 1 && (
+                      <div key={`change-${segment.id}`} className={styles.changeIndicator}>
+                        {getChangeDescription(reservation.segments[index], reservation.segments[index + 1])}
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* Habitación */}
         {reservation.room && (
           <div className={styles.roomSection}>
-            <h3 className={styles.roomTitle}>Habitación</h3>
             <table className={styles.roomTable}>
               <tbody>
                 <tr>
-                  <td className={styles.tableLabel}>Nombre:</td>
-                  <td className={styles.tableValue}>{reservation.room.name}</td>
-                </tr>
-                <tr>
-                  <td className={styles.tableLabel}>Tipo:</td>
-                  <td className={styles.tableValue}>{reservation.room.roomType?.name}</td>
-                </tr>
-                <tr>
-                  <td className={styles.tableLabel}>Capacidad:</td>
-                  <td className={styles.tableValue}>{reservation.room.maxPeople} personas</td>
+                  <td className={styles.tableLabel}>Habitación:</td>
+                  <td className={styles.tableValue}>
+                    <a 
+                      href={`/rooms/${reservation.room.id}`}
+                      onClick={(e) => { e.preventDefault(); navigate(`/rooms/${reservation.room.id}`); }}
+                      style={{ color: '#1976d2', textDecoration: 'underline', cursor: 'pointer' }}
+                      title={`Ver detalles de la habitación ${reservation.room.name}`}
+                    >
+                      {reservation.room.name}
+                    </a>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -207,7 +238,6 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
         {/* Total */}
         {reservation.totalAmount && (
           <div className={styles.totalSection}>
-            <h3 className={styles.totalTitle}>Tarifa Total</h3>
             <table className={styles.totalTable}>
               <tbody>
                 <tr>
@@ -221,30 +251,19 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
           </div>
         )}
 
-        {/* Estado */}
-        <div className={styles.statusSection}>
-          <h3 className={styles.statusTitle}>Estado</h3>
-          <table className={styles.statusTable}>
-            <tbody>
-              <tr>
-                <td className={styles.tableLabel}>Estado:</td>
-                <td className={styles.tableValue}>
-                  {getStatusLabel(reservation.status)}
-                </td>
-              </tr>
-              <tr>
-                <td className={styles.tableLabel}>ID:</td>
-                <td className={styles.tableValue}>#{reservation.id}</td>
-              </tr>
-              {reservation.notes && (
+        {/* Notas */}
+        {reservation.notes && (
+          <div className={styles.statusSection}>
+            <table className={styles.statusTable}>
+              <tbody>
                 <tr>
                   <td className={styles.tableLabel}>Notas:</td>
                   <td className={styles.tableValue}>{reservation.notes}</td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Botones de Estado */}
         <ReservationStatusButtons 

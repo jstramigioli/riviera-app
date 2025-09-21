@@ -22,17 +22,38 @@ import ErrorDisplay from './components/ErrorDisplay';
 import { TagsProvider } from './contexts/TagsContext';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
-import { updateReservationOnServer, updateClientOnServer } from './utils/apiUtils.js';
-import { getDocumentAbbreviation } from './utils/documentUtils.js';
+import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
 import { deleteReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
+import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
+import ReservationDetails from './pages/ReservationDetails';
+import RoomDetails from './pages/RoomDetails';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [notificationModal, setNotificationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'success'
+  });
+
+  const showNotification = (title, message, type = 'success') => {
+    setNotificationModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  const closeNotification = () => {
+    setNotificationModal(prev => ({ ...prev, isOpen: false }));
+  };
   
   const {
     rooms,
@@ -53,7 +74,6 @@ function ReservationsView() {
     editData,
     panelMode,
     handleReservationClick,
-    handleClientClick,
     handleEditChange,
     handleEditToggle,
     closePanel,
@@ -108,9 +128,7 @@ function ReservationsView() {
     }
   }
 
-  const handleDeleteClick = () => {
-    setShowDeleteModal(true);
-  };
+  // Eliminado: handleDeleteClick no utilizado
 
   const handleDeleteConfirm = async () => {
     if (!selectedReservation) return;
@@ -120,14 +138,18 @@ function ReservationsView() {
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
-      alert(`Error al eliminar la reserva: ${error.message}`);
+      showNotification(
+        "Error",
+        `Error al eliminar la reserva: ${error.message}`,
+        "error"
+      );
     }
   };
 
   const handleStatusChange = async (reservationId, newStatus, actionType) => {
     try {
-      // Llamar al API para actualizar el estado
-      const response = await updateReservationOnServer(reservationId, { status: newStatus }, setReservations);
+      // Llamar al API específico para actualizar solo el estado
+      await updateReservationStatusOnServer(reservationId, newStatus, setReservations);
       
       // Actualizar la reserva seleccionada si es la misma
       if (selectedReservation && selectedReservation.id === reservationId) {
@@ -146,11 +168,19 @@ function ReservationsView() {
         "reactivate": "Reserva reactivada exitosamente"
       };
       
-      alert(actionMessages[actionType] || "Estado actualizado exitosamente");
+      showNotification(
+        "¡Éxito!",
+        actionMessages[actionType] || "Estado actualizado exitosamente",
+        "success"
+      );
       
     } catch (error) {
       console.error("Error updating reservation status:", error);
-      alert(`Error al actualizar el estado de la reserva: ${error.message}`);
+      showNotification(
+        "Error",
+        `Error al actualizar el estado de la reserva: ${error.message}`,
+        "error"
+      );
     }
   };
 
@@ -421,6 +451,14 @@ function ReservationsView() {
         cancelText="Cancelar"
         type="danger"
       />
+      
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        onClose={closeNotification}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+      />
     </div>
   );
 }
@@ -456,7 +494,9 @@ function App() {
             <Route path="/libro-de-reservas" element={<ReservationsView />} />
             <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
             <Route path="/nueva-consulta" element={<NuevaConsulta />} />
+            <Route path="/reservations/:reservationId" element={<ReservationDetails />} />
             <Route path="/clients/:clientId" element={<ClientDetails />} />
+            <Route path="/rooms/:roomId" element={<RoomDetails />} />
             <Route path="/tarifas" element={<TarifasView />} />
             <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />

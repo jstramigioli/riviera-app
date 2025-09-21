@@ -1,4 +1,4 @@
-import { fetchReservations, fetchClients, updateReservation, updateClient } from '../services/api.js';
+import { fetchReservations, fetchClients, updateReservation, updateClient, updateReservationStatus } from '../services/api.js';
 
 // Función para actualizar reservas con actualización optimista
 export async function updateReservationOnServer(reservationId, updateData, setReservations) {
@@ -6,6 +6,23 @@ export async function updateReservationOnServer(reservationId, updateData, setRe
   setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, ...updateData } : r));
   try {
     const updated = await updateReservation(reservationId, updateData);
+    setReservations(prev => prev.map(r => r.id === reservationId ? updated : r));
+    return updated;
+  } catch (error) {
+    alert('Error de conexión. Los cambios se han revertido.');
+    // Revertir
+    const reservations = await fetchReservations();
+    setReservations(reservations);
+    throw error;
+  }
+}
+
+// Función para actualizar solo el estado de una reserva
+export async function updateReservationStatusOnServer(reservationId, newStatus, setReservations) {
+  // Actualización optimista
+  setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: newStatus } : r));
+  try {
+    const updated = await updateReservationStatus(reservationId, newStatus);
     setReservations(prev => prev.map(r => r.id === reservationId ? updated : r));
     return updated;
   } catch (error) {

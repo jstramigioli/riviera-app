@@ -72,7 +72,7 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--color-bg-white);
-  font-size: var(--font-size-medium);
+  font-size: var(--font-size-small);
   table-layout: fixed;
   min-width: 800px;
   display: table;
@@ -190,7 +190,14 @@
 
 .clientName {
   font-weight: 600;
-  color: var(--color-text-dark);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.clientName:hover {
+  color: var(--color-primary-dark);
 }
 
 .clientDetails {
@@ -212,7 +219,14 @@
 /* Nombre de habitación */
 .roomName {
   font-weight: 600;
-  color: var(--color-text-dark);
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.roomName:hover {
+  color: var(--color-primary-dark);
 }
 
 /* Monto */

@@ -131,7 +131,7 @@ function ConsultasReservasView() {
       <SidePanel
         open={sidePanelOpen}
         onClose={closePanel}
-        title={panelMode === 'reservation' ? "DATOS DE LA RESERVA" : "DATOS DEL CLIENTE"}
+        title={panelMode === 'reservation' && selectedReservation ? `Reserva #${selectedReservation.id}` : "DATOS DEL CLIENTE"}
         width={520}
       >
         {panelMode === 'reservation' && selectedReservation && (
@@ -158,7 +158,14 @@ function ConsultasReservasView() {
                   ))}
                 </select>
               ) : (
-                selectedReservation.room?.name
+                <a
+                  href={`/rooms/${selectedReservation.room?.id}`}
+                  onClick={(e) => { e.preventDefault(); window.location.href = `/rooms/${selectedReservation.room?.id}`; }}
+                  style={{ cursor: 'pointer', color: '#1976d2', textDecoration: 'underline' }}
+                  title={`Ver detalles de la habitación ${selectedReservation.room?.name}`}
+                >
+                  {selectedReservation.room?.name}
+                </a>
               )}
             </div>
 
@@ -177,12 +184,13 @@ function ConsultasReservasView() {
                   ))}
                 </select>
               ) : (
-                <span 
+                <a
+                  href={`/clients/${selectedReservation.mainClientId}`}
+                  onClick={(e) => { e.preventDefault(); handleClientClick(clients.find(c => c.id === selectedReservation.mainClientId)); }}
                   style={{ cursor: 'pointer', color: '#1976d2', textDecoration: 'underline' }}
-                  onClick={() => handleClientClick(clients.find(c => c.id === selectedReservation.mainClientId))}
                 >
                   {selectedReservation.mainClient?.firstName} {selectedReservation.mainClient?.lastName}
-                </span>
+                </a>
               )}
             </div>
 
@@ -223,18 +231,14 @@ function ConsultasReservasView() {
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 />
               ) : (
-                <span 
-                  style={{ 
-                    cursor: 'pointer', 
-                    color: '#3b82f6', 
-                    textDecoration: 'underline',
-                    fontWeight: 'bold'
-                  }}
-                  onClick={() => window.location.href = `/cobros-pagos?clientId=${selectedReservation.mainClientId}`}
+                <a 
+                  href={`/cobros-pagos?clientId=${selectedReservation.mainClientId}`}
+                  onClick={(e) => { e.preventDefault(); window.location.href = `/cobros-pagos?clientId=${selectedReservation.mainClientId}`; }}
+                  style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', fontWeight: 'bold' }}
                   title="Ver detalles de cobros y pagos"
                 >
                   ${selectedReservation.totalAmount?.toLocaleString('es-AR')}
-                </span>
+                </a>
               )}
             </div>
 

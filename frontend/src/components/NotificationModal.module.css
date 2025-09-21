@@ -1,0 +1,178 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.content {
+  padding: 20px 24px;
+}
+
+.message {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.footer {
+  padding: 16px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #e5e7eb;
+}
+
+.confirmButton {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.confirmButton:hover {
+  background-color: #2563eb;
+}
+
+.confirmButton:active {
+  background-color: #1d4ed8;
+}
+
+/* Estilos para diferentes tipos de notificación */
+.success .title {
+  color: #059669;
+}
+
+.success .confirmButton {
+  background-color: #059669;
+}
+
+.success .confirmButton:hover {
+  background-color: #047857;
+}
+
+.success .confirmButton:active {
+  background-color: #065f46;
+}
+
+.error .title {
+  color: #dc2626;
+}
+
+.error .confirmButton {
+  background-color: #dc2626;
+}
+
+.error .confirmButton:hover {
+  background-color: #b91c1c;
+}
+
+.error .confirmButton:active {
+  background-color: #991b1b;
+}
+
+.warning .title {
+  color: #d97706;
+}
+
+.warning .confirmButton {
+  background-color: #d97706;
+}
+
+.warning .confirmButton:hover {
+  background-color: #b45309;
+}
+
+.warning .confirmButton:active {
+  background-color: #92400e;
+}
+
+.info .title {
+  color: #2563eb;
+}
+
+.info .confirmButton {
+  background-color: #2563eb;
+}
+
+.info .confirmButton:hover {
+  background-color: #1d4ed8;
+}
+
+.info .confirmButton:active {
+  background-color: #1e40af;
+}

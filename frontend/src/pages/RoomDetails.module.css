@@ -1,0 +1,714 @@
+/* Estilos idénticos a ClientDetails.module.css con adaptaciones para habitación */
+.newLayout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.sidePanel {
+  width: 350px;
+  background: var(--color-primary);
+  color: white;
+  padding: 0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  height: calc(100vh - 80px);
+  left: 0;
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Todos los textos en el side panel deben ser blancos */
+.sidePanel label {
+  color: white;
+}
+
+.sidePanel input,
+.sidePanel select {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.sidePanel input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sidePanel input:focus,
+.sidePanel select:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  outline: none;
+}
+
+.sidePanelHeader {
+  padding: 24px 15% 24px 5%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidePanelHeader h2 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.roomInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.roomName {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: white;
+}
+
+.roomType {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+}
+
+.roomStatus,
+.currentGuest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusValue,
+.guestValue {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+}
+
+.sidePanelContent {
+  flex: 1;
+  padding: 20px 5%;
+  overflow-y: auto;
+}
+
+.sidePanelFooter {
+  padding: 20px 5%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backButton {
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.mainContent {
+  flex: 1;
+  margin-left: 350px;
+  background: var(--color-bg);
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+.mainContentBody {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section h2 {
+  color: var(--color-primary);
+  font-size: 1.8rem;
+  margin: 0 0 24px 0;
+  font-weight: 600;
+}
+
+.sectionMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.sectionButton {
+  padding: 16px 20px;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.sectionButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: none;
+}
+
+.sectionButton.active {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+  font-weight: 600;
+  border-left: 4px solid white;
+}
+
+/* Estilos para el resumen general */
+.overviewContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.overviewCard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.overviewCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.overviewCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.infoItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.infoItem:last-child {
+  border-bottom: none;
+}
+
+.infoItem .label {
+  font-weight: 500;
+  color: #495057;
+  flex: 1;
+}
+
+.infoItem .value {
+  font-weight: 600;
+  color: #212529;
+  flex: 1;
+  text-align: right;
+}
+
+/* Estilos para el calendario */
+.calendarContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.calendarInfo h3 {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+}
+
+.upcomingList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upcomingItem {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.upcomingItem:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.upcomingDates {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.upcomingGuest {
+  font-size: 0.9rem;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.upcomingStatus {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.statusBadge.confirmed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.statusBadge.checked_in {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.statusBadge.checked_out {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.statusBadge.cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Estilos para mantenimiento */
+.maintenanceContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.maintenanceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.maintenanceCard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.maintenanceCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.maintenanceCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.cleaningStatus,
+.maintenanceStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.statusItem:last-child {
+  border-bottom: none;
+}
+
+.statusLabel {
+  font-weight: 500;
+  color: #495057;
+  flex: 1;
+}
+
+.statusIndicator {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.statusIndicator.clean {
+  background: #d4edda;
+  color: #155724;
+}
+
+.statusIndicator.working {
+  background: #d4edda;
+  color: #155724;
+}
+
+.statusIndicator.needsCleaning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.statusIndicator.needsRepair {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Estilos para la tabla de reservas */
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.reservationsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.reservationsTable th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  font-size: var(--font-size-small);
+}
+
+.reservationsTable td {
+  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+  color: #495057;
+}
+
+.reservationsTable thead {
+  display: table;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.reservationsTable tbody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.reservationsTable tbody tr {
+  display: table;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.reservationRow {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.reservationRow:hover {
+  background-color: #f8f9fa;
+}
+
+.totalAmount {
+  font-weight: 600;
+  color: var(--color-success);
+  font-size: 1rem;
+}
+
+.viewButton {
+  padding: 4px 8px;
+  border: 1px solid var(--color-primary);
+  background: white;
+  color: var(--color-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.viewButton:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.statusValue {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.statusValue.confirmed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.statusValue.checked_in {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.statusValue.checked_out {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.statusValue.cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Estilos para notas */
+.notesContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 1;
+}
+
+.notesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.notesCard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.notesCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.notesCard h3 {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.notesContent {
+  line-height: 1.6;
+}
+
+.notesContent p {
+  margin: 0 0 12px 0;
+  color: #495057;
+}
+
+.notesContent p:last-child {
+  margin-bottom: 0;
+}
+
+/* Estados de carga y error */
+.loadingContainer,
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+}
+
+.loading {
+  font-size: 1.1rem;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.error {
+  font-size: 1.1rem;
+  color: var(--color-danger);
+  font-weight: 500;
+  text-align: center;
+}
+
+.retryButton {
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: var(--color-secondary);
+  transform: translateY(-1px);
+}
+
+.noDataMessage {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+/* Responsive para el nuevo layout */
+@media (max-width: 1024px) {
+  .sidePanel {
+    width: 350px;
+  }
+  
+  .mainContent {
+    margin-left: 350px;
+  }
+  
+  .overviewGrid,
+  .maintenanceGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .newLayout {
+    flex-direction: column;
+  }
+  
+  .sidePanel {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 200px;
+  }
+  
+  .mainContent {
+    margin-left: 0;
+    height: auto;
+  }
+  
+  .sidePanelHeader {
+    padding: 16px 20px;
+  }
+  
+  .sidePanelContent {
+    padding: 16px 20px;
+  }
+  
+  .sidePanelFooter {
+    padding: 16px 20px;
+  }
+  
+  .sectionMenu {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+  }
+  
+  .sectionButton {
+    min-width: 120px;
+    flex-shrink: 0;
+  }
+  
+  .overviewGrid,
+  .maintenanceGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
