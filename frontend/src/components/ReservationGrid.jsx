@@ -636,6 +636,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     resizeDataRef.current = resizeData;
   }, [resizeData]);
 
+
   function handleDayClick(day) {
     setSelectedDate(day);
     setIsDayInfoPanelOpen(true);

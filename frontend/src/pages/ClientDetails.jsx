@@ -166,21 +166,6 @@ const ClientDetails = () => {
     return 'Sin reservas';
   };
 
-  const getCurrentRoom = () => {
-    const activeReservations = getActiveReservations();
-    if (activeReservations.length === 0) {
-      return null;
-    }
-    
-    const now = new Date();
-    const currentReservation = activeReservations.find(r => {
-      const checkIn = new Date(r.checkIn);
-      const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut;
-    });
-    
-    return currentReservation?.room || null;
-  };
 
   if (loading) {
     return (
@@ -222,7 +207,6 @@ const ClientDetails = () => {
   const activeReservations = getActiveReservations();
   const completedReservations = getCompletedReservations();
   const currentStatus = getCurrentStatus();
-  const currentRoom = getCurrentRoom();
 
   return (
     <div className={styles.newLayout}>
@@ -397,7 +381,7 @@ const ClientDetails = () => {
               ) : (
                 <div className={styles.tableContainer}>
                   <table className={styles.reservationsTable}>
-                    <thead>
+                    <thead className={styles.tableHeader}>
                       <tr>
                         <th>ID</th>
                         <th>Habitación</th>
@@ -408,7 +392,7 @@ const ClientDetails = () => {
                         <th>Acciones</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className={styles.tableBody}>
                       {reservations.map(reservation => (
                         <tr 
                           key={reservation.id} 

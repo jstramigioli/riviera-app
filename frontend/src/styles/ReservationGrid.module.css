@@ -1,7 +1,8 @@
 /* ReservationGrid.module.css */
 .reservationGridContainer {
   width: calc(100% - 2rem); /* Restar el margen */
-  height: 100%; /* Usar toda la altura disponible del contenedor padre */
+  height: calc(100vh - 80px - 144px - 44px - 15px); /* 100vh - header(80px) - panel bienvenida(144px) - margen grid(44px) - margen seguridad(15px) */
+  max-height: calc(100vh - 80px - 144px - 44px - 15px); /* Limitar altura máxima */
   min-height: 0; /* Permitir que se reduzca si es necesario */
   overflow-x: auto; /* Asegurar scroll horizontal */
   overflow-y: auto;
@@ -16,6 +17,7 @@
   display: flex;
   flex-direction: column;
 }
+
 
 .reservationBarsContainer {
   position: absolute;
@@ -334,11 +336,11 @@
   scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
-/* Forzar scrollbars siempre visibles */
+/* Scrollbars controlados por altura fija */
 .reservationGridContainer {
-  overflow: auto !important;
-  overflow-x: auto !important;
-  overflow-y: auto !important;
+  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 /* Responsive Design */
@@ -347,6 +349,8 @@
     margin: 0.5rem;
     border-radius: 8px;
     min-width: 600px;
+    height: calc(100vh - 80px - 144px - 44px - 15px); /* Tablet: 100vh - header(80px) - panel bienvenida(144px) - margen grid(44px) - margen seguridad(15px) */
+    max-height: calc(100vh - 80px - 144px - 44px - 15px);
   }
   
   .reservationGridTable {
@@ -388,6 +392,8 @@
 @media (max-width: 480px) {
   .reservationGridContainer {
     margin: 0.25rem;
+    height: calc(100vh - 80px - 144px - 44px - 15px); /* Móvil: 100vh - header(80px) - panel bienvenida(144px) - margen grid(44px) - margen seguridad(15px) */
+    max-height: calc(100vh - 80px - 144px - 44px - 15px);
   }
   
   .monthHeader {
