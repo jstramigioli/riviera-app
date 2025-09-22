@@ -432,15 +432,78 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
   }
 
-  // Centrar la grilla después de que se carguen los datos
+  // Función para posicionar la grilla en una fecha específica con 2/3 futuros y 1/3 pasados
+  function centerOnDate(targetDate) {
+    if (containerRef.current) {
+      const targetIndex = days.findIndex(day => 
+        format(day, 'yyyy-MM-dd') === format(targetDate, 'yyyy-MM-dd')
+      );
+      if (targetIndex !== -1) {
+        // Calcular la posición para mostrar 2/3 futuros y 1/3 pasados
+        // En lugar de centrar exactamente, posicionamos para que la fecha objetivo
+        // esté a 1/3 del ancho del contenedor desde la izquierda
+        const containerWidth = containerRef.current.clientWidth;
+        const targetPosition = (targetIndex * cellWidth) + (cellWidth / 2);
+        const desiredScrollPosition = targetPosition - (containerWidth / 3);
+        
+        containerRef.current.scrollLeft = Math.max(0, desiredScrollPosition);
+      }
+    }
+  }
+
+  // Función para determinar la fecha de centrado automático
+  function getAutoCenterDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Verificar si hay reservas actuales (que incluyen el día de hoy)
+    const currentReservations = reservations.filter(reservation => {
+      const checkIn = new Date(reservation.checkIn);
+      const checkOut = new Date(reservation.checkOut);
+      checkIn.setHours(0, 0, 0, 0);
+      checkOut.setHours(0, 0, 0, 0);
+      
+      // Una reserva es actual si el día de hoy está entre checkIn y checkOut (inclusive)
+      return checkIn <= today && today < checkOut;
+    });
+
+    // Si hay reservas actuales, centrar en el día de hoy
+    if (currentReservations.length > 0) {
+      return today;
+    }
+
+    // Si no hay reservas actuales, buscar la primera reserva futura
+    const futureReservations = reservations.filter(reservation => {
+      const checkIn = new Date(reservation.checkIn);
+      checkIn.setHours(0, 0, 0, 0);
+      return checkIn > today;
+    });
+
+    if (futureReservations.length > 0) {
+      // Ordenar por fecha de check-in y tomar la primera
+      const sortedFutureReservations = futureReservations.sort((a, b) => 
+        new Date(a.checkIn) - new Date(b.checkIn)
+      );
+      const firstFutureReservation = sortedFutureReservations[0];
+      const firstCheckIn = new Date(firstFutureReservation.checkIn);
+      firstCheckIn.setHours(0, 0, 0, 0);
+      return firstCheckIn;
+    }
+
+    // Si no hay reservas futuras, centrar en el día de hoy por defecto
+    return today;
+  }
+
+  // Posicionar la grilla después de que se carguen los datos (2/3 futuros, 1/3 pasados)
   useEffect(() => {
-    if (rooms.length > 0 && containerRef.current && isInitialLoad) {
+    if (rooms.length > 0 && reservations.length > 0 && containerRef.current && isInitialLoad) {
       setTimeout(() => {
-        centerOnToday();
+        const targetDate = getAutoCenterDate();
+        centerOnDate(targetDate);
         setIsInitialLoad(false); // Marcar que ya no es la carga inicial
       }, 100);
     }
-  }, [rooms, isInitialLoad]);
+  }, [rooms, reservations, isInitialLoad]);
 
   // Función para obtener las posiciones reales de las celdas de la tabla
   function getCellPosition(roomIndex, dayIndex) {
