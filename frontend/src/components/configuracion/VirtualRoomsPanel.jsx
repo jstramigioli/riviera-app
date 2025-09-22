@@ -224,22 +224,22 @@ function VirtualRoomsPanel() {
 
   const renderComponentRooms = (components) => {
     if (!components || components.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-medium)' }}>Sin habitaciones</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin habitaciones</span>;
     }
 
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
         {components.map(component => {
           const room = getRoomById(component.roomId);
           return (
             <span
               key={component.roomId}
               style={{
-                padding: '4px 8px',
+                padding: '2px 6px',
                 backgroundColor: 'var(--color-primary)',
                 color: 'var(--color-text-light)',
-                borderRadius: '12px',
-                fontSize: 'var(--font-size-small)',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
                 fontWeight: '500'
               }}
             >
@@ -253,20 +253,20 @@ function VirtualRoomsPanel() {
 
   const renderComponentRoomSelector = (selectedRoomIds = []) => {
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
         {rooms.map(room => (
           <button
             key={room.id}
             onClick={() => handleComponentRoomToggle(room.id)}
             style={{
-              padding: '4px 8px',
+              padding: '2px 6px',
               backgroundColor: selectedRoomIds.includes(room.id) 
                 ? 'var(--color-primary)' 
                 : 'var(--color-bg)',
               color: selectedRoomIds.includes(room.id) ? 'var(--color-text-light)' : 'var(--color-text-main)',
               border: '1px solid var(--color-primary)',
-              borderRadius: '12px',
-              fontSize: 'var(--font-size-small)',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
               fontWeight: '500',
               cursor: 'pointer',
               transition: 'all 0.2s'
@@ -291,8 +291,7 @@ function VirtualRoomsPanel() {
     <div style={{ 
       display: 'flex',
       flexDirection: 'column',
-      gap: '32px',
-      minHeight: 'calc(100vh - 300px)'
+      gap: '16px'
     }}>
       {/* Panel de Habitaciones Virtuales */}
       <div style={{ 
@@ -303,13 +302,13 @@ function VirtualRoomsPanel() {
         minWidth: '800px'
       }}>
         <div style={{ 
-          padding: '24px 24px 0 24px',
+          padding: '20px 20px 0 20px',
           borderBottom: '2px solid #e9ecef'
         }}>
           <h2 style={{ 
             margin: '0 0 16px 0', 
             color: '#2c3e50', 
-            fontSize: '1.5rem',
+            fontSize: 'var(--font-size-base)',
             fontWeight: '600',
             display: 'flex',
             alignItems: 'center',
@@ -321,7 +320,7 @@ function VirtualRoomsPanel() {
           <p style={{ 
             margin: '0 0 16px 0', 
             color: '#6c757d', 
-            fontSize: 'var(--font-size-medium)'
+            fontSize: 'var(--font-size-small)'
           }}>
             Configure habitaciones conectables que combinan múltiples habitaciones físicas. 
             El tipo de habitación asignado determina la capacidad y tarifa de la habitación virtual.
@@ -329,12 +328,11 @@ function VirtualRoomsPanel() {
         </div>
         
         <div style={{ 
-          padding: '24px',
-          overflow: 'auto',
-          maxHeight: 'calc(100vh - 400px)'
+          padding: '20px'
         }}>
           <div style={{ 
             overflowX: 'auto',
+            overflowY: 'visible',
             border: '1px solid var(--color-border)',
             borderRadius: '8px'
           }}>
@@ -346,52 +344,52 @@ function VirtualRoomsPanel() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--color-bg)' }}>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Habitación Virtual
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Tipo de Habitación Asignado
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Habitaciones Componentes
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Descripción
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'center', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Acciones
                   </th>
@@ -403,7 +401,7 @@ function VirtualRoomsPanel() {
                   
                   return (
                     <tr key={virtualRoom.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingVirtualRoom === virtualRoom.id ? (
                           <input
                             type="text"
@@ -411,27 +409,27 @@ function VirtualRoomsPanel() {
                             onChange={(e) => handleInputChange('name', e.target.value)}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)'
+                              fontSize: 'var(--font-size-small)'
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: 'var(--font-size-medium)' }}>{virtualRoom.name}</strong>
+                          <strong style={{ fontSize: 'var(--font-size-small)' }}>{virtualRoom.name}</strong>
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingVirtualRoom === virtualRoom.id ? (
                           <select
                             value={editForm.roomTypeId}
                             onChange={(e) => handleInputChange('roomTypeId', parseInt(e.target.value))}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)'
+                              fontSize: 'var(--font-size-small)'
                             }}
                           >
                             {roomTypes.map(type => (
@@ -442,60 +440,60 @@ function VirtualRoomsPanel() {
                           </select>
                         ) : (
                           <span style={{
-                            padding: '6px 12px',
+                            padding: '4px 8px',
                             backgroundColor: 'var(--color-bg)',
                             color: 'var(--color-text-main)',
                             border: '1px solid var(--color-border)',
                             borderRadius: '6px',
-                            fontSize: 'var(--font-size-medium)',
+                            fontSize: 'var(--font-size-small)',
                             fontWeight: '500'
                           }}>
                             {roomType ? getRoomTypeLabel(roomType.name) : 'Sin tipo'}
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingVirtualRoom === virtualRoom.id ? (
                           renderComponentRoomSelector(editForm.componentRoomIds)
                         ) : (
                           renderComponentRooms(virtualRoom.components)
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingVirtualRoom === virtualRoom.id ? (
                           <textarea
                             value={editForm.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)',
+                              fontSize: 'var(--font-size-small)',
                               resize: 'vertical',
-                              minHeight: '80px'
+                              minHeight: '60px'
                             }}
                             placeholder="Descripción de la habitación virtual..."
                           />
                         ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-medium)' }}>
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
                             {virtualRoom.description || 'Sin descripción'}
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
                         {editingVirtualRoom === virtualRoom.id ? (
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button
                               onClick={() => handleSaveEdit(virtualRoom.id)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-success)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Guardar
@@ -503,13 +501,13 @@ function VirtualRoomsPanel() {
                             <button
                               onClick={handleCancelEdit}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-text-muted)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Cancelar
@@ -520,13 +518,13 @@ function VirtualRoomsPanel() {
                             <button
                               onClick={() => handleEdit(virtualRoom)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-primary)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Editar
@@ -534,13 +532,13 @@ function VirtualRoomsPanel() {
                             <button
                               onClick={() => handleDeleteVirtualRoom(virtualRoom)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-danger)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Eliminar
@@ -563,13 +561,13 @@ function VirtualRoomsPanel() {
           }}>
             <button
               style={{
-                padding: '16px 32px',
+                padding: '12px 24px',
                 backgroundColor: 'var(--color-primary)',
                 color: 'var(--color-text-light)',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: 'var(--font-size-large)',
+                fontSize: 'var(--font-size-base)',
                 fontWeight: '500'
               }}
               onClick={handleAddVirtualRoom}
@@ -614,7 +612,7 @@ function VirtualRoomsPanel() {
               <h3 style={{
                 margin: 0,
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-large)',
+                fontSize: 'var(--font-size-base)',
                 fontWeight: '600'
               }}>
                 Agregar Nueva Habitación Virtual
@@ -638,9 +636,10 @@ function VirtualRoomsPanel() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Nombre de la Habitación Virtual *
                 </label>
@@ -652,10 +651,10 @@ function VirtualRoomsPanel() {
                   required
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     boxSizing: 'border-box'
                   }}
                   placeholder="Ej: Suite Conectable"
@@ -666,16 +665,17 @@ function VirtualRoomsPanel() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Tipo de Habitación Asignado *
                 </label>
                 <p style={{
-                  margin: '0 0 12px 0',
+                  margin: '0 0 8px 0',
                   color: 'var(--color-text-muted)',
-                  fontSize: 'var(--font-size-small)'
+                  fontSize: '0.8rem'
                 }}>
                   Determina la capacidad y tarifa de la habitación virtual
                 </p>
@@ -684,10 +684,10 @@ function VirtualRoomsPanel() {
                   onChange={(e) => handleNewVirtualRoomInputChange('roomTypeId', parseInt(e.target.value))}
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     boxSizing: 'border-box'
                   }}
                 >
@@ -704,16 +704,17 @@ function VirtualRoomsPanel() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Habitaciones Componentes *
                 </label>
                 <p style={{
-                  margin: '0 0 12px 0',
+                  margin: '0 0 8px 0',
                   color: 'var(--color-text-muted)',
-                  fontSize: 'var(--font-size-small)'
+                  fontSize: '0.8rem'
                 }}>
                   Selecciona las habitaciones físicas que formarán esta habitación virtual
                 </p>
@@ -731,10 +732,10 @@ function VirtualRoomsPanel() {
                         onChange={(e) => updateComponentInput(input.id, e.target.value)}
                         style={{
                           flex: 1,
-                          padding: '8px 12px',
+                          padding: '6px 8px',
                           border: '1px solid var(--color-border)',
                           borderRadius: '6px',
-                          fontSize: 'var(--font-size-medium)',
+                          fontSize: 'var(--font-size-small)',
                           backgroundColor: 'var(--color-bg-white)'
                         }}
                       >
@@ -751,14 +752,14 @@ function VirtualRoomsPanel() {
                           type="button"
                           onClick={() => removeComponentInput(input.id)}
                           style={{
-                            padding: '8px 12px',
+                            padding: '6px 8px',
                             backgroundColor: 'var(--color-danger)',
                             color: 'var(--color-text-light)',
                             border: 'none',
                             borderRadius: '6px',
                             cursor: 'pointer',
-                            fontSize: 'var(--font-size-medium)',
-                            minWidth: '40px'
+                            fontSize: 'var(--font-size-small)',
+                            minWidth: '32px'
                           }}
                           title="Eliminar habitación"
                         >
@@ -771,16 +772,16 @@ function VirtualRoomsPanel() {
                   <button
                     type="button"
                     onClick={addComponentInput}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'var(--color-primary)',
-                      color: 'var(--color-text-light)',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: 'var(--font-size-medium)',
-                      alignSelf: 'flex-start'
-                    }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: 'var(--color-primary)',
+                        color: 'var(--color-text-light)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-small)',
+                        alignSelf: 'flex-start'
+                      }}
                   >
                     + Agregar Habitación
                   </button>
@@ -791,9 +792,10 @@ function VirtualRoomsPanel() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Descripción
                 </label>
@@ -803,10 +805,10 @@ function VirtualRoomsPanel() {
                   rows="3"
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     resize: 'vertical',
                     boxSizing: 'border-box'
                   }}
@@ -824,13 +826,13 @@ function VirtualRoomsPanel() {
                 <button
                   onClick={handleCancelAdd}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: 'var(--color-text-muted)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   Cancelar
@@ -839,13 +841,13 @@ function VirtualRoomsPanel() {
                   onClick={handleSaveNewVirtualRoom}
                   disabled={saving}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: saving ? 'var(--color-text-muted)' : 'var(--color-success)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: saving ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   {saving ? 'Guardando...' : 'Guardar'}

@@ -53,7 +53,7 @@
   background: white;
   border: 1px solid #e1e5e9;
   border-radius: 12px;
-  margin-bottom: 1px;
+  margin-bottom: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   position: relative;
@@ -65,7 +65,7 @@
 }
 
 .bar.expanded {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
@@ -1120,12 +1120,24 @@
 /* Estilos para los botones de acción */
 .actionButtons {
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
+  padding: 16px 24px;
+  border: none;
   background: #f9fafb;
-  justify-content: space-between;
-  align-items: center;
+  border-radius: 0 0 12px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.actionButtons:hover {
+  background: #f3f4f6;
+}
+
+.actionButtons:active {
+  background: #e5e7eb;
 }
 
 .toggleControls {
@@ -1139,6 +1151,16 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  width: 100%;
+}
+
+.actionButtonText {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  width: 100%;
+  padding: 4px 0;
 }
 
 .toggleLabel {
@@ -1153,14 +1175,14 @@
 }
 
 .actionButton {
-  padding: 14px 28px;
+  padding: 16px 28px;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 120px;
+  width: 100%;
   text-align: center;
 }
 
@@ -1289,4 +1311,4 @@
 
 .revertButton:active {
   transform: translateY(0);
-} 
+}

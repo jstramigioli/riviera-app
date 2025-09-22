@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchReservations, fetchRooms, getReservationPricingDetails } from '../services/api.js';
+import { fetchReservations, fetchRooms, getReservationPricingDetails, API_URL } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { updateReservationOnServer } from '../utils/apiUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
@@ -10,7 +10,7 @@ import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import EditPanel from '../components/EditPanel';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import SidePanel from '../components/SidePanel';
-import { FaPen, FaTimes, FaSave, FaUser, FaCalendarAlt, FaBed, FaDollarSign, FaStickyNote, FaTable } from 'react-icons/fa';
+import { FaPen, FaTimes, FaSave, FaUser, FaCalendarAlt, FaBed, FaDollarSign, FaStickyNote, FaTable, FaTrash } from 'react-icons/fa';
 import styles from './ReservationDetails.module.css';
 
 const ReservationDetails = () => {
@@ -25,6 +25,7 @@ const ReservationDetails = () => {
   const [editData, setEditData] = useState(null);
   const [showPricingTable, setShowPricingTable] = useState(false);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     const loadReservationData = async () => {
@@ -154,6 +155,57 @@ const ReservationDetails = () => {
     console.log('Status change:', reservationId, newStatus, actionType);
   };
 
+  const handleDeleteReservation = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar la reserva');
+      }
+
+      // Redirigir a la página anterior después de eliminar
+      navigate(-1);
+    } catch (error) {
+      console.error('Error eliminando reserva:', error);
+      alert('Error al eliminar la reserva. Por favor, inténtalo de nuevo.');
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reservations/${reservationId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'cancelada' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cancelar la reserva');
+      }
+
+      const updatedReservation = await response.json();
+      setReservation(updatedReservation);
+      setShowDeleteModal(false);
+      
+      alert('Reserva cancelada exitosamente');
+    } catch (error) {
+      console.error('Error cancelando reserva:', error);
+      alert('Error al cancelar la reserva. Por favor, inténtalo de nuevo.');
+    }
+  };
+
+  const handleShowDeleteModal = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -248,6 +300,14 @@ const ReservationDetails = () => {
             >
               {isEditing ? <FaTimes /> : <FaPen />}
               {isEditing ? 'Cancelar' : 'Editar'}
+            </button>
+            <button 
+              onClick={handleShowDeleteModal}
+              className={styles.deleteButton}
+              title="Eliminar reserva"
+            >
+              <FaTrash />
+              Eliminar
             </button>
             <button 
               onClick={handleBackClick}
@@ -352,8 +412,7 @@ const ReservationDetails = () => {
                   <div className={styles.infoItem}>
                     <span className={styles.label}>Huéspedes:</span>
                     <span className={styles.value}>
-                      {reservation.segments[0].guestCount || reservation.requiredGuests || 1} 
-                      persona{(reservation.segments[0].guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
+                      {reservation.segments[0].guestCount || reservation.requiredGuests || 1} persona{(reservation.segments[0].guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className={styles.infoItem}>
@@ -442,6 +501,51 @@ const ReservationDetails = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <div className={styles.modalHeader}>
+              <h3>⚠️ Confirmar Acción</h3>
+            </div>
+            <div className={styles.modalBody}>
+              <p>
+                Estás a punto de <strong>eliminar permanentemente</strong> la reserva #{reservation.id}.
+              </p>
+              <p>
+                Esta acción <strong>no se puede deshacer</strong> y eliminará todos los registros 
+                relacionados con esta reserva del sistema.
+              </p>
+              <p>
+                ¿No preferirías cambiar el estado de la reserva a <strong>"Cancelada"</strong> 
+                en su lugar? Esto mantendría un registro histórico de la reserva.
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button 
+                onClick={handleDeleteReservation}
+                className={`${styles.modalButton} ${styles.deleteButton}`}
+              >
+                <FaTrash />
+                Eliminar Definitivamente
+              </button>
+              <button 
+                onClick={handleCancelReservation}
+                className={`${styles.modalButton} ${styles.cancelButton}`}
+              >
+                ❌ Marcar como Cancelada
+              </button>
+              <button 
+                onClick={handleCloseDeleteModal}
+                className={`${styles.modalButton} ${styles.backButton}`}
+              >
+                ← Volver Atrás
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -275,7 +275,17 @@ export default function ReservationsTable({
                   className={styles.tableRow}
                   onClick={() => onReservationClick(reservation)}
                 >
-                  <td className={styles.cell}>#{reservation.id}</td>
+                  <td className={styles.cell}>
+                    <span 
+                      className={styles.reservationId}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Evitar que se active el clic de la fila
+                        navigate(`/reservations/${reservation.id}`);
+                      }}
+                    >
+                      #{reservation.id}
+                    </span>
+                  </td>
                   <td className={styles.cell}>
                     <span 
                       className={styles.roomName}

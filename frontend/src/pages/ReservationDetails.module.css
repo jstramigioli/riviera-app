@@ -306,7 +306,8 @@
 }
 
 .editButton,
-.backButton {
+.backButton,
+.deleteButton {
   padding: 8px 16px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.2);
@@ -324,6 +325,12 @@
 .editButton:hover,
 .backButton:hover {
   background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.deleteButton:hover {
+  background: rgba(220, 53, 69, 0.8);
+  border-color: rgba(220, 53, 69, 0.5);
   transform: translateY(-1px);
 }
 
@@ -661,6 +668,128 @@
   }
   
   .infoItem {
+    min-width: auto;
+  }
+}
+
+/* Estilos del Modal de Confirmación */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  padding: 24px 24px 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modalBody {
+  padding: 20px 24px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.modalBody p {
+  margin: 0 0 16px 0;
+}
+
+.modalBody p:last-child {
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  padding: 16px 24px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #e5e7eb;
+}
+
+.modalButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.modalButton.deleteButton {
+  background: #dc2626;
+  color: white;
+}
+
+.modalButton.deleteButton:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.modalButton.cancelButton {
+  background: #f59e0b;
+  color: white;
+}
+
+.modalButton.cancelButton:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.modalButton.backButton {
+  background: #6b7280;
+  color: white;
+}
+
+.modalButton.backButton:hover {
+  background: #4b5563;
+  transform: translateY(-1px);
+}
+
+/* Responsive para el modal */
+@media (max-width: 640px) {
+  .modalContent {
+    margin: 10px;
+    max-width: none;
+  }
+  
+  .modalFooter {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .modalButton {
+    width: 100%;
     min-width: auto;
   }
 }

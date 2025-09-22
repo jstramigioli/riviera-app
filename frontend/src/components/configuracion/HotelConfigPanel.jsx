@@ -257,14 +257,25 @@ const HotelConfigPanel = () => {
           text: 'Servicio eliminado correctamente'
         });
       } else {
-        setServiceError('Error al eliminar el servicio');
+        const result = await response.json();
+        const errorMessage = result.errors?.[0] || 'Error al eliminar el servicio';
+        setServiceError(errorMessage);
+        setMessage({
+          type: 'error',
+          text: errorMessage
+        });
       }
     } catch (error) {
       console.error('Error deleting service type:', error);
       setServiceError('Error al eliminar el servicio');
+      setMessage({
+        type: 'error',
+        text: 'Error al eliminar el servicio'
+      });
     } finally {
       setLoadingServices(false);
       setServiceToDelete(null);
+      setShowDeleteConfirmation(false);
     }
   };
 
@@ -555,7 +566,20 @@ const HotelConfigPanel = () => {
             color: '#721c24',
             border: '1px solid #f5c6cb'
           }}>
-            {serviceError}
+            <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+              ⚠️ Error al eliminar servicio
+            </div>
+            <div>{serviceError}</div>
+            {serviceError.includes('bloques de temporada') && (
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '0.9rem', 
+                fontStyle: 'italic',
+                color: '#6c757d'
+              }}>
+                💡 Para eliminar este servicio, primero debes removerlo de todos los bloques de temporada donde esté siendo utilizado.
+              </div>
+            )}
           </div>
         )}
 
@@ -639,7 +663,7 @@ const HotelConfigPanel = () => {
                 </label>
                 <input
                   type="text"
-                  value={editingServiceData.name}
+                  value={editingServiceData.name || ''}
                   onChange={(e) => setEditingServiceData({
                     ...editingServiceData,
                     name: e.target.value
@@ -665,7 +689,7 @@ const HotelConfigPanel = () => {
                   Descripción
                 </label>
                 <textarea
-                  value={editingServiceData.description}
+                  value={editingServiceData.description || ''}
                   onChange={(e) => setEditingServiceData({
                     ...editingServiceData,
                     description: e.target.value

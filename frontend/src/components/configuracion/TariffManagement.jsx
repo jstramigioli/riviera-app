@@ -4,7 +4,7 @@ import DynamicPricingConfigPanel from './DynamicPricingConfigPanel';
 import RoundingConfigPanel from './RoundingConfigPanel';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
-import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiPercent } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiPercent, FiChevronDown } from 'react-icons/fi';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,44 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loadingPrices, setLoadingPrices] = useState(false);
 
+  // Estados para manejo de bloques concluidos
+  const [showConcludedBlocks, setShowConcludedBlocks] = useState(false);
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+  // Función para formatear fechas en español para nombres de bloques
+  const formatDateForBlockName = (date) => {
+    const months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    
+    // Crear la fecha correctamente para evitar problemas de zona horaria
+    const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const monthName = months[month - 1]; // Los meses en el array son 0-indexed
+    
+    return { day, month: monthName, year };
+  };
+
+  // Función para generar el nombre por defecto del bloque basado en las fechas
+  const generateDefaultBlockName = (startDate, endDate) => {
+    const start = formatDateForBlockName(startDate);
+    const end = formatDateForBlockName(endDate);
+    
+    // Si es el mismo año
+    if (start.year === end.year) {
+      // Si es el mismo mes
+      if (start.month === end.month) {
+        return `${start.day} al ${end.day} de ${start.month} (${start.year})`;
+      } else {
+        return `${start.day} de ${start.month} al ${end.day} de ${end.month} (${start.year})`;
+      }
+    } else {
+      // Diferentes años
+      return `${start.day} de ${start.month} (${start.year}) al ${end.day} de ${end.month} (${end.year})`;
+    }
+  };
 
   useEffect(() => {
     loadInitialData();
@@ -88,12 +125,19 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
   const handleCreateBlock = async () => {
     try {
+      // Definir fechas por defecto
+      const startDate = new Date().toISOString().split('T')[0];
+      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 días desde hoy
+      
+      // Generar nombre por defecto basado en las fechas
+      const defaultName = generateDefaultBlockName(startDate, endDate);
+      
       // Crear un nuevo bloque automáticamente en modo borrador
       const newBlockData = {
-        name: `Nuevo Bloque ${new Date().toLocaleDateString()}`,
+        name: defaultName,
         description: 'Bloque creado automáticamente',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días desde hoy
+        startDate: startDate,
+        endDate: endDate,
         useProportions: true,
         serviceAdjustmentMode: 'PERCENTAGE',
         useBlockServices: false,
@@ -147,6 +191,40 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     console.log(`Resetting block ${blockId} with new key`);
   };
 
+  // Función para verificar si un bloque ya concluyó
+  const isBlockConcluded = (block) => {
+    if (!block.endDate) return false;
+    const today = new Date();
+    const endDate = new Date(block.endDate);
+    return endDate < today;
+  };
+
+  // Función para filtrar y ordenar bloques
+  const getFilteredAndSortedBlocks = () => {
+    const today = new Date();
+    
+    // Separar bloques activos/futuros de los concluidos
+    const activeBlocks = seasonBlocks.filter(block => !isBlockConcluded(block));
+    const concludedBlocks = seasonBlocks.filter(block => isBlockConcluded(block));
+    
+    // Ordenar por fecha de inicio (más recientes primero)
+    const sortByStartDate = (a, b) => {
+      const dateA = new Date(a.startDate || '1900-01-01');
+      const dateB = new Date(b.startDate || '1900-01-01');
+      return dateB - dateA; // Orden descendente (más recientes primero)
+    };
+    
+    const sortedActiveBlocks = activeBlocks.sort(sortByStartDate);
+    const sortedConcludedBlocks = concludedBlocks.sort(sortByStartDate);
+    
+    // Si se muestran bloques concluidos, agregarlos al final
+    if (showConcludedBlocks) {
+      return [...sortedActiveBlocks, ...sortedConcludedBlocks];
+    }
+    
+    return sortedActiveBlocks;
+  };
+
 
   if (loading) {
     return (
@@ -159,29 +237,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
   return (
     <div className={styles.container}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.headerInfo}>
-            <h2 className={styles.title}>
-              <FiDollarSign className={styles.titleIcon} />
-              Gestión de Tarifas
-            </h2>
-            <p className={styles.subtitle}>
-              Configura bloques de temporada, precios inteligentes y ajustes por servicio
-            </p>
-          </div>
-          <div className={styles.headerActions}>
-            <button
-              className={styles.primaryButton}
-              onClick={handleCreateBlock}
-            >
-              <FiPlus />
-              Nuevo Bloque
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Navigation Tabs */}
       <div className={styles.navigationTabs}>
@@ -235,7 +290,23 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             ) : (
               <>
                 <div className={styles.blocksList}>
-                  {seasonBlocks.map(block => (
+                  {/* Tarjeta para crear nuevo bloque */}
+                  <button 
+                    className={styles.newBlockCard}
+                    onClick={handleCreateBlock}
+                    type="button"
+                  >
+                    <div className={styles.newBlockContent}>
+                      <div className={styles.newBlockIcon}>
+                        <FiPlus />
+                      </div>
+                      <div className={styles.newBlockText}>
+                        <h3 className={styles.newBlockTitle}>Nuevo Bloque</h3>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {getFilteredAndSortedBlocks().map(block => (
                     <SeasonBlockBarV2
                       key={`${block.id}-${blockKeys[block.id] || 0}`}
                       block={block}
@@ -247,6 +318,46 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                     />
                   ))}
                 </div>
+                
+                {/* Botón para mostrar/ocultar bloques concluidos */}
+                {seasonBlocks.some(block => isBlockConcluded(block)) && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    marginTop: '20px',
+                    padding: '16px'
+                  }}>
+                    <button
+                      onClick={() => setShowConcludedBlocks(!showConcludedBlocks)}
+                      style={{
+                        padding: '12px 24px',
+                        backgroundColor: showConcludedBlocks ? 'var(--color-primary)' : 'var(--color-bg)',
+                        color: showConcludedBlocks ? 'white' : 'var(--color-text-main)',
+                        border: '2px solid var(--color-primary)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-small)',
+                        fontWeight: '600',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      {showConcludedBlocks ? (
+                        <>
+                          <span>Ocultar bloques anteriores</span>
+                          <FiChevronDown />
+                        </>
+                      ) : (
+                        <>
+                          <span>Mostrar bloques anteriores</span>
+                          <FiChevronDown />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

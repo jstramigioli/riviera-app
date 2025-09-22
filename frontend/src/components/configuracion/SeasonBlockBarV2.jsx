@@ -8,7 +8,7 @@ import styles from './SeasonBlockBarV2.module.css';
 
 const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel' }) => {
   console.log('SeasonBlockBarV2 - Component mounted/rendered with block:', block?.id);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
@@ -219,6 +219,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }).format(amount || 0);
   };
 
+
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type: 'success' }), 3000);
@@ -381,27 +382,19 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   const handleSaveTariffChanges = async () => {
     const saveResult = await saveSeasonBlock();
     if (saveResult.success) {
-      console.log('=== SAVE SUCCESSFUL - CONFIRMING BLOCK ===');
+      console.log('=== SAVE SUCCESSFUL ===');
       
-      // Confirmar el bloque después de guardar
-      const confirmResult = await confirmSeasonBlock();
-      if (confirmResult.success) {
-        console.log('=== BLOCK CONFIRMED SUCCESSFULLY ===');
-        
-        setOriginalPrices([...prices]);
-        setHasTariffChanges(false);
-        setHasAnyChanges(false);
-        setIsEditing(false); // Desactivar modo edición después de guardar
-        setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
-        
-        showNotification('Cambios guardados y bloque confirmado exitosamente');
-        
-        // Recargar los datos del bloque para sincronizar
-        if (onBlockUpdated) {
-          onBlockUpdated();
-        }
-      } else {
-        showNotification('Cambios guardados pero error al confirmar: ' + confirmResult.error, 'warning');
+      setOriginalPrices([...prices]);
+      setHasTariffChanges(false);
+      setHasAnyChanges(false);
+      setIsEditing(false); // Desactivar modo edición después de guardar
+      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
+      
+      showNotification('Cambios guardados exitosamente');
+      
+      // Recargar los datos del bloque para sincronizar
+      if (onBlockUpdated) {
+        onBlockUpdated();
       }
     } else {
       showNotification(saveResult.error || 'Error al guardar los cambios', 'error');
@@ -633,9 +626,9 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   // Función para determinar si una celda debe ser editable
   const isCellEditable = (serviceType) => {
-    // El servicio "Solo Alojamiento" siempre es editable (es la tarifa base)
-    if (serviceType.serviceType?.name === 'Solo Alojamiento' || 
-        serviceType.name === 'Solo Alojamiento') {
+    // El servicio "Tarifa base" siempre es editable (es la tarifa base)
+    if (serviceType.serviceType?.name === 'Tarifa base' || 
+        serviceType.name === 'Tarifa base') {
       return true;
     }
     
@@ -648,17 +641,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       return isEnabled;
     }
     
-    // Si el modo de ajuste es PERCENTAGE, solo los servicios con modo FIXED son editables
+    // Si el modo de ajuste es PERCENTAGE, solo el servicio base es editable
     if (formData.serviceAdjustmentMode === 'PERCENTAGE') {
-      // Los servicios con modo "FIXED" son editables
-      if (serviceType.pricingMode === 'FIXED') {
-        return true;
-      }
-      
-      // Los servicios con modo "PERCENTAGE" NO son editables (se calculan automáticamente)
-      if (serviceType.pricingMode === 'PERCENTAGE') {
-        return false;
-      }
+      // Solo el servicio "Tarifa base" es editable en modo PERCENTAGE
+      // Los demás servicios se calculan automáticamente como porcentajes del base
+      return false;
     }
     
     // Por defecto, no editable
@@ -687,32 +674,63 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     let basePrice = currentPrice?.basePrice || 0;
     let adjustedPrice = basePrice;
     
-          // Si hay un ajuste de porcentaje, usar el precio base de "Tarifa base" como referencia
-      if (percentageAdjustment && percentageAdjustment !== 0) {
-        // Buscar el servicio "Tarifa base" para este tipo de habitación
+    // Verificar si este servicio es el servicio base
+    const isBaseService = getActiveServiceTypes().some(s => 
+      (s.serviceTypeId === serviceTypeId || s.id === serviceTypeId) && 
+      (s.serviceType?.name === 'Tarifa base' || s.name === 'Tarifa base')
+    );
+
+    if (formData.serviceAdjustmentMode === 'PERCENTAGE') {
+      if (isBaseService) {
+        // El servicio base siempre usa su precio directo
+        adjustedPrice = basePrice;
+        console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - BASE SERVICE) ===');
+        console.log('roomTypeId:', roomTypeId);
+        console.log('serviceTypeId:', serviceTypeId);
+        console.log('basePrice (direct):', basePrice);
+        console.log('adjustedPrice (base service, no calculation):', adjustedPrice);
+      } else {
+        // Los demás servicios se calculan como porcentaje del servicio base
         const baseService = getActiveServiceTypes().find(s => 
           s.serviceType?.name === 'Tarifa base' || s.name === 'Tarifa base'
         );
       
-      if (baseService) {
-        const baseServicePrice = prices.find(p => 
-          p.roomTypeId === roomTypeId && p.serviceTypeId === baseService.serviceTypeId
-        );
-        
-        if (baseServicePrice) {
-          basePrice = baseServicePrice.basePrice;
-          const adjustmentMultiplier = 1 + (percentageAdjustment / 100);
-          adjustedPrice = Math.round(basePrice * adjustmentMultiplier);
+        if (baseService && percentageAdjustment !== undefined && percentageAdjustment !== 0) {
+          const baseServicePrice = prices.find(p => 
+            p.roomTypeId === roomTypeId && p.serviceTypeId === baseService.serviceTypeId
+          );
           
-          console.log('=== PRICE CALCULATION DEBUG ===');
+          if (baseServicePrice) {
+            basePrice = baseServicePrice.basePrice;
+            const adjustmentMultiplier = 1 + (percentageAdjustment / 100);
+            adjustedPrice = Math.round(basePrice * adjustmentMultiplier);
+            
+            console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - CALCULATED SERVICE) ===');
+            console.log('roomTypeId:', roomTypeId);
+            console.log('serviceTypeId:', serviceTypeId);
+            console.log('baseServicePrice.basePrice:', baseServicePrice.basePrice);
+            console.log('percentageAdjustment:', percentageAdjustment);
+            console.log('adjustmentMultiplier:', adjustmentMultiplier);
+            console.log('adjustedPrice:', adjustedPrice);
+          }
+        } else {
+          // Si no hay porcentaje definido, usar el precio directo
+          adjustedPrice = currentPrice?.basePrice || 0;
+          console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - NO PERCENTAGE) ===');
           console.log('roomTypeId:', roomTypeId);
           console.log('serviceTypeId:', serviceTypeId);
-          console.log('baseServicePrice.basePrice:', baseServicePrice.basePrice);
-          console.log('percentageAdjustment:', percentageAdjustment);
-          console.log('adjustmentMultiplier:', adjustmentMultiplier);
+          console.log('basePrice (direct, no percentage set):', adjustedPrice);
           console.log('adjustedPrice:', adjustedPrice);
         }
       }
+    } else if (formData.serviceAdjustmentMode === 'FIXED') {
+      // En modo FIXED, usar el precio directo sin aplicar porcentajes
+      adjustedPrice = basePrice;
+      console.log('=== PRICE CALCULATION DEBUG (FIXED MODE) ===');
+      console.log('roomTypeId:', roomTypeId);
+      console.log('serviceTypeId:', serviceTypeId);
+      console.log('basePrice (direct):', basePrice);
+      console.log('adjustedPrice (no percentage applied):', adjustedPrice);
     }
     
     const roundedPrice = adjustedPrice; // Por ahora sin redondeo adicional
@@ -721,7 +739,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       adjustedPrice: adjustedPrice,
       roundedPrice: roundedPrice,
       wasRounded: false,
-      adjustment: percentageAdjustment ? {
+      adjustment: (formData.serviceAdjustmentMode === 'PERCENTAGE' && percentageAdjustment) ? {
         mode: 'PERCENTAGE',
         value: percentageAdjustment
       } : null
@@ -913,6 +931,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               <span>Redondeo activo: múltiplos de ${roundingConfig.multiple} ({roundingConfig.mode})</span>
             </div>
           )}
+          
 
           <table className={styles.pricesGrid}>
             <thead>
@@ -920,7 +939,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 <th className={styles.roomTypeHeader}>Habitación</th>
                 {getActiveServiceTypes().map(serviceType => {
                   const isServiceEnabled = serviceType.isEnabled;
-                  const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
+                  const isBaseService = serviceType.serviceType?.name === 'Tarifa base';
                   return (
                     <th 
                       key={serviceType.id} 
@@ -956,7 +975,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   <th className={styles.roomTypeHeader} style={{ background: '#f8f9fa' }}>Porcentaje de Ajuste</th>
                   {getActiveServiceTypes().map(serviceType => {
                     const isServiceEnabled = serviceType.isEnabled;
-                    const isBaseService = serviceType.serviceType?.name === 'Solo Alojamiento';
+                    const isBaseService = serviceType.serviceType?.name === 'Tarifa base';
                     const currentPercentage = percentageAdjustments[serviceType.id] || '';
                     
                     return (
@@ -1151,12 +1170,17 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
       {/* Botón de editar/cancelar - cuando no hay cambios O no estamos en modo edición */}
       {(!hasAnyChanges || !isEditing) && (
-        <div className={styles.actionButtons}>
+        <button 
+          className={styles.actionButtons}
+          onClick={() => setIsEditing(!isEditing)}
+          type="button"
+        >
           {isEditing && (
             <div className={styles.toggleControls}>
               <label 
                 className={styles.toggleLabel}
                 title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
+                onClick={(e) => e.stopPropagation()}
               >
                 <Switch
                   checked={formData.useProportions}
@@ -1176,6 +1200,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               <label 
                 className={styles.toggleLabel}
                 title="Usar porcentajes: Cuando está activado, los ajustes de servicios se aplican como porcentajes sobre el precio base. Cuando está desactivado, se usan montos fijos. Por ejemplo: +15% vs +$500."
+                onClick={(e) => e.stopPropagation()}
               >
                 <Switch
                   checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
@@ -1194,15 +1219,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
             </div>
           )}
           
-          <div className={styles.actionButtonsRight}>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className={`${styles.actionButton} ${styles.cancelButton}`}
-            >
-              {isEditing ? 'Cancelar' : 'Editar'}
-            </button>
+          <div className={styles.actionButtonText}>
+            {isEditing ? 'Cancelar' : 'Editar'}
           </div>
-        </div>
+        </button>
       )}
 
       {/* Modal de confirmación de eliminación */}

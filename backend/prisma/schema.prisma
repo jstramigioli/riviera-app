@@ -37,6 +37,7 @@ model RoomType {
   id                     Int                     @id @default(autoincrement())
   name                   String                  @unique
   description            String?
+  maxPeople              Int                     @default(1)
   orderIndex             Int                     @default(0)
   dailyRoomRates         DailyRoomRate[]
   proportionCoefficients ProportionCoefficient[]

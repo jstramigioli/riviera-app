@@ -191,20 +191,20 @@ function HabitacionesTab() {
 
   const renderTags = (roomTags) => {
     if (!roomTags || roomTags.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-medium)' }}>Sin etiquetas</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin etiquetas</span>;
     }
 
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
         {roomTags.map(tag => (
           <span
             key={tag.id}
             style={{
-              padding: '4px 8px',
+              padding: '2px 6px',
               backgroundColor: tag.color || 'var(--color-primary)',
               color: 'var(--color-text-light)',
-              borderRadius: '12px',
-              fontSize: 'var(--font-size-small)',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
               fontWeight: '500'
             }}
           >
@@ -217,20 +217,20 @@ function HabitacionesTab() {
 
   const renderTagSelector = (selectedTagIds = []) => {
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
         {tags.map(tag => (
           <button
             key={tag.id}
             onClick={() => handleTagToggle(tag.id)}
             style={{
-              padding: '4px 8px',
+              padding: '2px 6px',
               backgroundColor: selectedTagIds.includes(tag.id) 
                 ? (tag.color || 'var(--color-primary)') 
                 : 'var(--color-bg)',
               color: selectedTagIds.includes(tag.id) ? 'var(--color-text-light)' : 'var(--color-text-main)',
               border: `1px solid ${tag.color || 'var(--color-primary)'}`,
-              borderRadius: '12px',
-              fontSize: 'var(--font-size-small)',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
               fontWeight: '500',
               cursor: 'pointer',
               transition: 'all 0.2s'
@@ -255,8 +255,8 @@ function HabitacionesTab() {
     <div style={{ 
       display: 'flex',
       flexDirection: 'column',
-      gap: '32px',
-      minHeight: 'calc(100vh - 300px)'
+      gap: '16px',
+      padding: '0'
     }}>
       {/* Panel de Habitaciones */}
       <div style={{ 
@@ -267,13 +267,13 @@ function HabitacionesTab() {
         minWidth: '800px'
       }}>
         <div style={{ 
-          padding: '24px 24px 0 24px',
+          padding: '20px 20px 0 20px',
           borderBottom: '2px solid #e9ecef'
         }}>
           <h2 style={{ 
             margin: '0 0 16px 0', 
             color: '#2c3e50', 
-            fontSize: '1.5rem',
+            fontSize: 'var(--font-size-base)',
             fontWeight: '600',
             display: 'flex',
             alignItems: 'center',
@@ -285,12 +285,11 @@ function HabitacionesTab() {
         </div>
         
         <div style={{ 
-          padding: '24px',
-          overflow: 'auto',
-          maxHeight: 'calc(100vh - 400px)'
+          padding: '20px'
         }}>
           <div style={{ 
             overflowX: 'auto',
+            overflowY: 'visible',
             border: '1px solid var(--color-border)',
             borderRadius: '8px'
           }}>
@@ -302,52 +301,52 @@ function HabitacionesTab() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--color-bg)' }}>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Habitación
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Tipo
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Etiquetas
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'left', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Descripción
                   </th>
                   <th style={{ 
-                    padding: '16px', 
+                    padding: '12px', 
                     textAlign: 'center', 
                     borderBottom: '2px solid var(--color-border)',
                     fontWeight: '600',
                     color: 'var(--color-text-main)',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}>
                     Acciones
                   </th>
@@ -359,7 +358,7 @@ function HabitacionesTab() {
                   
                   return (
                     <tr key={room.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingRoom === room.id ? (
                           <input
                             type="text"
@@ -367,27 +366,27 @@ function HabitacionesTab() {
                             onChange={(e) => handleInputChange('name', e.target.value)}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)'
+                              fontSize: 'var(--font-size-small)'
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: 'var(--font-size-medium)' }}>{room.name}</strong>
+                          <strong style={{ fontSize: 'var(--font-size-small)' }}>{room.name}</strong>
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingRoom === room.id ? (
                           <select
                             value={editForm.roomTypeId}
                             onChange={(e) => handleInputChange('roomTypeId', parseInt(e.target.value))}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)'
+                              fontSize: 'var(--font-size-small)'
                             }}
                           >
                             {roomTypes.map(type => (
@@ -398,60 +397,60 @@ function HabitacionesTab() {
                           </select>
                         ) : (
                           <span style={{
-                            padding: '6px 12px',
+                            padding: '4px 8px',
                             backgroundColor: 'var(--color-bg)',
                             color: 'var(--color-text-main)',
                             border: '1px solid var(--color-border)',
                             borderRadius: '6px',
-                            fontSize: 'var(--font-size-medium)',
+                            fontSize: 'var(--font-size-small)',
                             fontWeight: '500'
                           }}>
                             {roomType ? getRoomTypeLabel(roomType.name) : 'Sin tipo'}
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingRoom === room.id ? (
                           renderTagSelector(editForm.tagIds)
                         ) : (
                           renderTags(room.tags)
                         )}
                       </td>
-                      <td style={{ padding: '16px' }}>
+                      <td style={{ padding: '12px' }}>
                         {editingRoom === room.id ? (
                           <textarea
                             value={editForm.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             style={{
                               width: '100%',
-                              padding: '12px',
+                              padding: '8px',
                               border: '1px solid var(--color-border)',
                               borderRadius: '6px',
-                              fontSize: 'var(--font-size-medium)',
+                              fontSize: 'var(--font-size-small)',
                               resize: 'vertical',
-                              minHeight: '80px'
+                              minHeight: '60px'
                             }}
                             placeholder="Descripción de la habitación..."
                           />
                         ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-medium)' }}>
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
                             {room.description || 'Sin descripción'}
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
                         {editingRoom === room.id ? (
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button
                               onClick={() => handleSaveEdit(room.id)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-success)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Guardar
@@ -459,13 +458,13 @@ function HabitacionesTab() {
                             <button
                               onClick={handleCancelEdit}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-text-muted)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Cancelar
@@ -476,13 +475,13 @@ function HabitacionesTab() {
                             <button
                               onClick={() => handleEdit(room)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-primary)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Editar
@@ -490,13 +489,13 @@ function HabitacionesTab() {
                             <button
                               onClick={() => handleDeleteRoom(room)}
                               style={{
-                                padding: '8px 16px',
+                                padding: '6px 12px',
                                 backgroundColor: 'var(--color-danger)',
                                 color: 'var(--color-text-light)',
                                 border: 'none',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: 'var(--font-size-medium)'
+                                fontSize: 'var(--font-size-small)'
                               }}
                             >
                               Eliminar
@@ -519,13 +518,13 @@ function HabitacionesTab() {
           }}>
             <button
               style={{
-                padding: '16px 32px',
+                padding: '12px 24px',
                 backgroundColor: 'var(--color-primary)',
                 color: 'var(--color-text-light)',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: 'var(--font-size-large)',
+                fontSize: 'var(--font-size-base)',
                 fontWeight: '500'
               }}
               onClick={handleAddRoom}
@@ -542,7 +541,7 @@ function HabitacionesTab() {
       {/* Contenedor para Etiquetas y Tipos de Habitaciones */}
       <div style={{ 
         display: 'flex',
-        gap: '32px',
+        gap: '16px',
         flexWrap: 'wrap'
       }}>
         {/* Panel de Etiquetas */}
@@ -552,16 +551,17 @@ function HabitacionesTab() {
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
           flex: '1',
-          minWidth: '400px'
+          minWidth: '350px',
+          maxWidth: '500px'
         }}>
           <div style={{ 
-            padding: '24px 24px 0 24px',
+            padding: '20px 20px 0 20px',
             borderBottom: '2px solid #e9ecef'
           }}>
             <h2 style={{ 
               margin: '0 0 16px 0', 
               color: '#2c3e50', 
-              fontSize: '1.5rem',
+              fontSize: 'var(--font-size-base)',
               fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
@@ -573,9 +573,7 @@ function HabitacionesTab() {
           </div>
           
           <div style={{ 
-            padding: '24px',
-            overflow: 'auto',
-            maxHeight: 'calc(100vh - 400px)'
+            padding: '20px'
           }}>
             <EtiquetasTab onDataChange={refreshData} />
           </div>
@@ -588,12 +586,10 @@ function HabitacionesTab() {
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
           flex: '2',
-          minWidth: '600px'
+          minWidth: '500px'
         }}>
           <div style={{ 
-            padding: '24px',
-            overflow: 'auto',
-            maxHeight: 'calc(100vh - 400px)'
+            padding: '20px'
           }}>
             <RoomTypesPanel />
           </div>
@@ -634,7 +630,7 @@ function HabitacionesTab() {
               <h3 style={{
                 margin: 0,
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-large)',
+                fontSize: 'var(--font-size-base)',
                 fontWeight: '600'
               }}>
                 Agregar Nueva Habitación
@@ -658,9 +654,10 @@ function HabitacionesTab() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Nombre de la Habitación *
                 </label>
@@ -672,10 +669,10 @@ function HabitacionesTab() {
                   required
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     boxSizing: 'border-box'
                   }}
                   placeholder="Nombre de la habitación"
@@ -686,9 +683,10 @@ function HabitacionesTab() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Tipo de Habitación *
                 </label>
@@ -697,10 +695,10 @@ function HabitacionesTab() {
                   onChange={(e) => handleNewRoomInputChange('roomTypeId', parseInt(e.target.value))}
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     boxSizing: 'border-box'
                   }}
                 >
@@ -717,9 +715,10 @@ function HabitacionesTab() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Descripción
                 </label>
@@ -729,10 +728,10 @@ function HabitacionesTab() {
                   rows="3"
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     resize: 'vertical',
                     boxSizing: 'border-box'
                   }}
@@ -744,26 +743,27 @@ function HabitacionesTab() {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Etiquetas
                 </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                   {tags.map(tag => (
                     <button
                       key={tag.id}
                       onClick={() => handleNewRoomTagToggle(tag.id)}
                       style={{
-                        padding: '4px 8px',
+                        padding: '2px 6px',
                         backgroundColor: newRoomForm.tagIds.includes(tag.id) 
                           ? (tag.color || 'var(--color-primary)') 
                           : 'var(--color-bg)',
                         color: newRoomForm.tagIds.includes(tag.id) ? 'var(--color-text-light)' : 'var(--color-text-main)',
                         border: `1px solid ${tag.color || 'var(--color-primary)'}`,
-                        borderRadius: '12px',
-                        fontSize: 'var(--font-size-small)',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
                         fontWeight: '500',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
@@ -785,13 +785,13 @@ function HabitacionesTab() {
                 <button
                   onClick={handleCancelAdd}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: 'var(--color-text-muted)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   Cancelar
@@ -800,13 +800,13 @@ function HabitacionesTab() {
                   onClick={handleSaveNewRoom}
                   disabled={saving}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: saving ? 'var(--color-text-muted)' : 'var(--color-success)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: saving ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   {saving ? 'Guardando...' : 'Guardar'}

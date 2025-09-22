@@ -9,7 +9,8 @@ const RoomTypesPanel = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTypeForm, setNewTypeForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    maxPeople: 1
   });
   const [saving, setSaving] = useState(false);
   
@@ -38,7 +39,8 @@ const RoomTypesPanel = () => {
     setEditingType(roomType.id);
     setEditForm({
       name: roomType.name,
-      description: roomType.description || ''
+      description: roomType.description || '',
+      maxPeople: roomType.maxPeople || 1
     });
   };
 
@@ -84,7 +86,8 @@ const RoomTypesPanel = () => {
     setShowAddModal(true);
     setNewTypeForm({
       name: '',
-      description: ''
+      description: '',
+      maxPeople: 1
     });
   };
 
@@ -92,13 +95,19 @@ const RoomTypesPanel = () => {
     setShowAddModal(false);
     setNewTypeForm({
       name: '',
-      description: ''
+      description: '',
+      maxPeople: 1
     });
   };
 
   const handleSaveNewType = async () => {
     if (!newTypeForm.name.trim()) {
       alert('El nombre del tipo de habitación es obligatorio');
+      return;
+    }
+
+    if (!newTypeForm.maxPeople || newTypeForm.maxPeople < 1) {
+      alert('La capacidad debe ser al menos 1 persona');
       return;
     }
 
@@ -110,7 +119,7 @@ const RoomTypesPanel = () => {
       setNewTypeForm({
         name: '',
         description: '',
-        multiplier: 1.0
+        maxPeople: 1
       });
       
       // Disparar evento para actualizar otros componentes
@@ -146,7 +155,12 @@ const RoomTypesPanel = () => {
     }
   };
 
-  const getRoomTypeCapacity = (name) => {
+  const getRoomTypeCapacity = (roomType) => {
+    // Si roomType es un objeto, usar maxPeople directamente
+    if (typeof roomType === 'object' && roomType.maxPeople) {
+      return roomType.maxPeople;
+    }
+    // Fallback para compatibilidad si roomType es solo el nombre
     const capacityMap = {
       'single': 1,
       'doble': 2,
@@ -159,7 +173,7 @@ const RoomTypesPanel = () => {
       'departamento Via 1': 4,
       'departamento La Esquinita': 4
     };
-    return capacityMap[name] || 1;
+    return capacityMap[roomType] || 1;
   };
 
   const getRoomTypeLabel = (name) => {
@@ -263,7 +277,7 @@ const RoomTypesPanel = () => {
         <h3 style={{ 
           margin: '0', 
           color: 'var(--color-text-main)', 
-          fontSize: 'var(--font-size-large)',
+          fontSize: 'var(--font-size-base)',
           fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
@@ -275,7 +289,7 @@ const RoomTypesPanel = () => {
         <p style={{ 
           margin: '8px 0 0 0', 
           color: 'var(--color-text-muted)',
-          fontSize: 'var(--font-size-medium)'
+          fontSize: 'var(--font-size-small)'
         }}>
           Gestiona los tipos de habitaciones disponibles
         </p>
@@ -283,6 +297,7 @@ const RoomTypesPanel = () => {
 
       <div style={{ 
         overflowX: 'auto',
+        overflowY: 'visible',
         border: '1px solid var(--color-border)',
         borderRadius: '8px'
       }}>
@@ -294,43 +309,43 @@ const RoomTypesPanel = () => {
           <thead>
             <tr style={{ backgroundColor: 'var(--color-bg)' }}>
               <th style={{ 
-                padding: '16px', 
+                padding: '12px', 
                 textAlign: 'left', 
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Tipo
               </th>
               <th style={{ 
-                padding: '16px', 
+                padding: '12px', 
                 textAlign: 'left', 
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Capacidad
               </th>
 
               <th style={{ 
-                padding: '16px', 
+                padding: '12px', 
                 textAlign: 'left', 
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Descripción
               </th>
               <th style={{ 
-                padding: '16px', 
+                padding: '12px', 
                 textAlign: 'center', 
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Acciones
               </th>
@@ -359,22 +374,22 @@ const RoomTypesPanel = () => {
                       ? 'var(--color-primary-light)' 
                       : 'transparent',
                   opacity: isDragging && draggedItem?.id === roomType.id ? 0.5 : 1,
-                  cursor: isDragging ? 'grabbing' : 'grab',
+                  cursor: editingType === roomType.id ? 'default' : (isDragging ? 'grabbing' : 'grab'),
                   transition: 'all 0.2s ease'
                 }}
-                draggable={true}
-                onDragStart={(e) => handleDragStart(e, roomType)}
-                onDragOver={(e) => handleDragOver(e, roomType)}
-                onDragEnter={(e) => handleDragEnter(e, roomType)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, roomType)}
-                onDragEnd={() => {
+                draggable={editingType !== roomType.id}
+                onDragStart={editingType !== roomType.id ? (e) => handleDragStart(e, roomType) : undefined}
+                onDragOver={editingType !== roomType.id ? (e) => handleDragOver(e, roomType) : undefined}
+                onDragEnter={editingType !== roomType.id ? (e) => handleDragEnter(e, roomType) : undefined}
+                onDragLeave={editingType !== roomType.id ? handleDragLeave : undefined}
+                onDrop={editingType !== roomType.id ? (e) => handleDrop(e, roomType) : undefined}
+                onDragEnd={editingType !== roomType.id ? () => {
                   setIsDragging(false);
                   setDraggedItem(null);
                   setDragOverItem(null);
-                }}
+                } : undefined}
               >
-                <td style={{ padding: '16px' }}>
+                <td style={{ padding: '12px' }}>
                   {editingType === roomType.id ? (
                     <input
                       type="text"
@@ -382,10 +397,10 @@ const RoomTypesPanel = () => {
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '12px',
+                        padding: '8px',
                         border: '1px solid var(--color-border)',
                         borderRadius: '6px',
-                        fontSize: 'var(--font-size-medium)'
+                        fontSize: 'var(--font-size-small)'
                       }}
                     />
                   ) : (
@@ -398,61 +413,78 @@ const RoomTypesPanel = () => {
                       }}>
                         ⋮⋮
                       </span>
-                      <strong style={{ fontSize: 'var(--font-size-medium)' }}>
+                      <strong style={{ fontSize: 'var(--font-size-small)' }}>
                         {getRoomTypeLabel(roomType.name)}
                       </strong>
                     </div>
                   )}
                 </td>
-                <td style={{ padding: '16px' }}>
-                  <span style={{
-                    padding: '6px 12px',
-                    backgroundColor: 'var(--color-bg)',
-                    color: 'var(--color-text-main)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '6px',
-                    fontSize: 'var(--font-size-medium)',
-                    fontWeight: '500'
-                  }}>
-                    {getRoomTypeCapacity(roomType.name)} personas
-                  </span>
+                <td style={{ padding: '12px' }}>
+                  {editingType === roomType.id ? (
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={editForm.maxPeople}
+                      onChange={(e) => handleInputChange('maxPeople', parseInt(e.target.value) || 1)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '6px',
+                        fontSize: 'var(--font-size-small)'
+                      }}
+                    />
+                  ) : (
+                    <span style={{
+                      padding: '4px 8px',
+                      backgroundColor: 'var(--color-bg)',
+                      color: 'var(--color-text-main)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '6px',
+                      fontSize: 'var(--font-size-small)',
+                      fontWeight: '500'
+                    }}>
+                      {getRoomTypeCapacity(roomType)} personas
+                    </span>
+                  )}
                 </td>
 
-                <td style={{ padding: '16px' }}>
+                <td style={{ padding: '12px' }}>
                   {editingType === roomType.id ? (
                     <textarea
                       value={editForm.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '12px',
+                        padding: '8px',
                         border: '1px solid var(--color-border)',
                         borderRadius: '6px',
-                        fontSize: 'var(--font-size-medium)',
+                        fontSize: 'var(--font-size-small)',
                         resize: 'vertical',
-                        minHeight: '60px'
+                        minHeight: '50px'
                       }}
                       placeholder="Descripción del tipo..."
                     />
                   ) : (
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-medium)' }}>
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
                       {roomType.description || 'Sin descripción'}
                     </span>
                   )}
                 </td>
-                <td style={{ padding: '16px', textAlign: 'center' }}>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
                   {editingType === roomType.id ? (
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button
                         onClick={() => handleSaveEdit(roomType.id)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-success)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Guardar
@@ -460,13 +492,13 @@ const RoomTypesPanel = () => {
                       <button
                         onClick={handleCancelEdit}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-text-muted)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Cancelar
@@ -477,13 +509,13 @@ const RoomTypesPanel = () => {
                       <button
                         onClick={() => handleEdit(roomType)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-primary)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Editar
@@ -491,13 +523,13 @@ const RoomTypesPanel = () => {
                       <button
                         onClick={() => handleDeleteType(roomType)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-danger)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Eliminar
@@ -519,13 +551,13 @@ const RoomTypesPanel = () => {
       }}>
         <button
           style={{
-            padding: '16px 32px',
+            padding: '12px 24px',
             backgroundColor: 'var(--color-primary)',
             color: 'var(--color-text-light)',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
-            fontSize: 'var(--font-size-large)',
+            fontSize: 'var(--font-size-base)',
             fontWeight: '500'
           }}
           onClick={handleAddType}
@@ -568,7 +600,7 @@ const RoomTypesPanel = () => {
               <h3 style={{
                 margin: 0,
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-large)',
+                fontSize: 'var(--font-size-base)',
                 fontWeight: '600'
               }}>
                 Agregar Nuevo Tipo de Habitación
@@ -592,9 +624,10 @@ const RoomTypesPanel = () => {
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Nombre del Tipo *
                 </label>
@@ -604,25 +637,53 @@ const RoomTypesPanel = () => {
                   onChange={(e) => handleNewTypeInputChange('name', e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     boxSizing: 'border-box'
                   }}
                   placeholder="Ej: single, doble, triple..."
                 />
               </div>
 
-
+              {/* Capacidad */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '6px',
+                  fontWeight: '600',
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
+                }}>
+                  Capacidad Máxima (personas) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={newTypeForm.maxPeople}
+                  onChange={(e) => handleNewTypeInputChange('maxPeople', parseInt(e.target.value) || 1)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '8px',
+                    fontSize: 'var(--font-size-small)',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Ej: 1, 2, 4..."
+                />
+              </div>
 
               {/* Descripción */}
               <div>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                   fontWeight: '600',
-                  color: 'var(--color-text-main)'
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
                 }}>
                   Descripción
                 </label>
@@ -632,10 +693,10 @@ const RoomTypesPanel = () => {
                   rows="3"
                   style={{
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     border: '1px solid var(--color-border)',
                     borderRadius: '8px',
-                    fontSize: 'var(--font-size-medium)',
+                    fontSize: 'var(--font-size-small)',
                     resize: 'vertical',
                     boxSizing: 'border-box'
                   }}
@@ -653,13 +714,13 @@ const RoomTypesPanel = () => {
                 <button
                   onClick={handleCancelAdd}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: 'var(--color-text-muted)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   Cancelar
@@ -668,13 +729,13 @@ const RoomTypesPanel = () => {
                   onClick={handleSaveNewType}
                   disabled={saving}
                   style={{
-                    padding: '12px 24px',
+                    padding: '8px 16px',
                     backgroundColor: saving ? 'var(--color-text-muted)' : 'var(--color-success)',
                     color: 'var(--color-text-light)',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: saving ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--font-size-medium)'
+                    fontSize: 'var(--font-size-small)'
                   }}
                 >
                   {saving ? 'Guardando...' : 'Guardar'}

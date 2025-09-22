@@ -216,6 +216,19 @@
   color: var(--color-text-muted);
 }
 
+/* ID de reserva clickeable */
+.reservationId {
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.reservationId:hover {
+  color: var(--color-primary-dark);
+}
+
 /* Nombre de habitación */
 .roomName {
   font-weight: 600;

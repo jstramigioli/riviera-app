@@ -90,7 +90,7 @@ function EtiquetasTab({ onDataChange }) {
       <div style={{
         border: '1px solid var(--color-border)',
         borderRadius: '8px',
-        overflow: 'hidden',
+        overflow: 'visible',
         backgroundColor: 'var(--color-bg-white)'
       }}>
         <table style={{ 
@@ -100,23 +100,23 @@ function EtiquetasTab({ onDataChange }) {
           <thead>
             <tr style={{ backgroundColor: 'var(--color-bg)' }}>
               <th style={{
-                padding: '16px',
+                padding: '12px',
                 textAlign: 'left',
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Etiqueta
               </th>
               <th style={{
-                padding: '16px',
+                padding: '12px',
                 textAlign: 'center',
                 borderBottom: '2px solid var(--color-border)',
                 fontWeight: '600',
                 color: 'var(--color-text-main)',
                 width: '140px',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}>
                 Acciones
               </th>
@@ -125,7 +125,7 @@ function EtiquetasTab({ onDataChange }) {
           <tbody>
             {tags.map(tag => (
               <tr key={tag.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                <td style={{ padding: '16px' }}>
+                <td style={{ padding: '12px' }}>
                   {editingTag === tag.id ? (
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                       <input
@@ -134,10 +134,10 @@ function EtiquetasTab({ onDataChange }) {
                         onChange={(e) => handleInputChange('name', e.target.value)}
                         style={{
                           flex: 1,
-                          padding: '8px 12px',
+                          padding: '6px 8px',
                           border: '1px solid var(--color-border)',
                           borderRadius: '6px',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       />
                       <input
@@ -145,8 +145,8 @@ function EtiquetasTab({ onDataChange }) {
                         value={editForm.color}
                         onChange={(e) => handleInputChange('color', e.target.value)}
                         style={{
-                          width: '50px',
-                          height: '40px',
+                          width: '40px',
+                          height: '32px',
                           border: '1px solid var(--color-border)',
                           borderRadius: '6px',
                           cursor: 'pointer'
@@ -156,13 +156,13 @@ function EtiquetasTab({ onDataChange }) {
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{
-                        padding: '6px 12px',
+                        padding: '4px 8px',
                         backgroundColor: tag.color,
                         color: 'var(--color-text-light)',
-                        borderRadius: '16px',
-                        fontSize: 'var(--font-size-medium)',
+                        borderRadius: '12px',
+                        fontSize: 'var(--font-size-small)',
                         fontWeight: '500',
-                        minWidth: '80px',
+                        minWidth: '60px',
                         textAlign: 'center'
                       }}>
                         {tag.name}
@@ -170,19 +170,19 @@ function EtiquetasTab({ onDataChange }) {
                     </div>
                   )}
                 </td>
-                <td style={{ padding: '16px', textAlign: 'center' }}>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
                   {editingTag === tag.id ? (
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button
                         onClick={() => handleSaveEdit(tag.id)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-success)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Guardar
@@ -190,13 +190,13 @@ function EtiquetasTab({ onDataChange }) {
                       <button
                         onClick={handleCancelEdit}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-text-muted)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Cancelar
@@ -207,13 +207,13 @@ function EtiquetasTab({ onDataChange }) {
                       <button
                         onClick={() => handleEdit(tag)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-primary)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Editar
@@ -221,13 +221,13 @@ function EtiquetasTab({ onDataChange }) {
                       <button
                         onClick={() => handleDelete(tag.id)}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           backgroundColor: 'var(--color-danger)',
                           color: 'var(--color-text-light)',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          fontSize: 'var(--font-size-medium)'
+                          fontSize: 'var(--font-size-small)'
                         }}
                       >
                         Eliminar
@@ -241,7 +241,7 @@ function EtiquetasTab({ onDataChange }) {
             {/* Fila para agregar nueva etiqueta */}
             {showCreateForm ? (
               <tr style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                <td style={{ padding: '16px' }}>
+                <td style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <input
                       type="text"
@@ -250,10 +250,10 @@ function EtiquetasTab({ onDataChange }) {
                       onChange={(e) => handleCreateInputChange('name', e.target.value)}
                       style={{
                         flex: 1,
-                        padding: '8px 12px',
+                        padding: '6px 8px',
                         border: '1px solid var(--color-border)',
                         borderRadius: '6px',
-                        fontSize: 'var(--font-size-medium)'
+                        fontSize: 'var(--font-size-small)'
                       }}
                     />
                     <input
@@ -261,8 +261,8 @@ function EtiquetasTab({ onDataChange }) {
                       value={createForm.color}
                       onChange={(e) => handleCreateInputChange('color', e.target.value)}
                       style={{
-                        width: '50px',
-                        height: '40px',
+                        width: '40px',
+                        height: '32px',
                         border: '1px solid var(--color-border)',
                         borderRadius: '6px',
                         cursor: 'pointer'
@@ -270,19 +270,19 @@ function EtiquetasTab({ onDataChange }) {
                     />
                   </div>
                 </td>
-                <td style={{ padding: '16px', textAlign: 'center' }}>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                     <button
                       onClick={handleCreate}
                       disabled={!createForm.name.trim()}
                       style={{
-                        padding: '8px 16px',
+                        padding: '6px 12px',
                         backgroundColor: 'var(--color-success)',
                         color: 'var(--color-text-light)',
                         border: 'none',
                         borderRadius: '6px',
                         cursor: 'pointer',
-                        fontSize: 'var(--font-size-medium)',
+                        fontSize: 'var(--font-size-small)',
                         opacity: createForm.name.trim() ? 1 : 0.6
                       }}
                     >
@@ -291,13 +291,13 @@ function EtiquetasTab({ onDataChange }) {
                     <button
                       onClick={() => setShowCreateForm(false)}
                       style={{
-                        padding: '8px 16px',
+                        padding: '6px 12px',
                         backgroundColor: 'var(--color-text-muted)',
                         color: 'var(--color-text-light)',
                         border: 'none',
                         borderRadius: '6px',
                         cursor: 'pointer',
-                        fontSize: 'var(--font-size-medium)'
+                        fontSize: 'var(--font-size-small)'
                       }}
                     >
                       Cancelar
@@ -316,25 +316,25 @@ function EtiquetasTab({ onDataChange }) {
                     <button
                       onClick={() => setShowCreateForm(true)}
                       style={{
-                        padding: '16px 32px',
+                        padding: '12px 24px',
                         backgroundColor: 'var(--color-primary)',
                         color: 'var(--color-text-light)',
                         border: 'none',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        fontSize: 'var(--font-size-large)',
+                        fontSize: 'var(--font-size-base)',
                         fontWeight: '500',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px'
                       }}
                     >
-                      <span style={{ fontSize: 'var(--font-size-large)' }}>+</span>
+                      <span style={{ fontSize: 'var(--font-size-base)' }}>+</span>
                       Agregar Etiqueta
                     </button>
                   </div>
                 </td>
-                <td style={{ padding: '16px', textAlign: 'center' }}>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
                   {/* Celda vacía para mantener la estructura */}
                 </td>
               </tr>

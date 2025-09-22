@@ -38,6 +38,7 @@
   color: white;
 }
 
+
 .headerContent {
   display: flex;
   justify-content: space-between;
@@ -647,4 +648,67 @@
   .priceCell {
     min-width: 100px;
   }
+}
+
+/* Tarjeta de nuevo bloque */
+.newBlockCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.newBlockCard:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.newBlockCard:active {
+  transform: translateY(0);
+}
+
+.newBlockContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  width: 100%;
+}
+
+.newBlockIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  color: #6b7280;
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+.newBlockCard:hover .newBlockIcon {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.newBlockText {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.newBlockTitle {
+  margin: 0;
+  color: #374151;
+  font-size: 18px;
+  font-weight: 600;
 } 

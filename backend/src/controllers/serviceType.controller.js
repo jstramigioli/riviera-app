@@ -189,14 +189,29 @@ exports.deleteServiceType = async (req, res) => {
       });
     }
     
-    // Verificar que no esté en uso
-    if (existingServiceType.seasonPrices.length > 0 || existingServiceType.blockServiceSelections.length > 0) {
+    // Verificar que no esté en uso activamente
+    // Solo bloquear si hay selecciones activas (isEnabled = true y isDraft = false)
+    const activeSelections = existingServiceType.blockServiceSelections.filter(
+      selection => selection.isEnabled && !selection.isDraft
+    );
+    
+    if (activeSelections.length > 0) {
       return res.status(400).json({ 
         data: null, 
-        errors: ['No se puede eliminar el tipo de servicio porque está siendo usado en bloques de temporada'] 
+        errors: ['No se puede eliminar el tipo de servicio porque está siendo usado activamente en bloques de temporada'] 
       });
     }
     
+    // Eliminar primero las relaciones dependientes
+    await prisma.seasonPrice.deleteMany({
+      where: { serviceTypeId: id }
+    });
+    
+    await prisma.blockServiceSelection.deleteMany({
+      where: { serviceTypeId: id }
+    });
+    
+    // Luego eliminar el servicio
     await prisma.serviceType.delete({
       where: { id }
     });

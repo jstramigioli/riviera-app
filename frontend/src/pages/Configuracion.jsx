@@ -35,8 +35,8 @@ function ConfiguracionView() {
         return (
           <div style={{ 
             display: 'flex', 
-            gap: '24px',
-            minHeight: 'calc(100vh - 300px)'
+            gap: '16px',
+            padding: '16px'
           }}>
             {/* Panel de configuración del hotel */}
             <div style={{ 
@@ -51,7 +51,11 @@ function ConfiguracionView() {
           </div>
         );
       case 'habitaciones':
-        return <HabitacionesTab />;
+        return (
+          <div style={{ padding: '16px' }}>
+            <HabitacionesTab />
+          </div>
+        );
       case 'tarifas':
         return <TariffManagement />;
       case 'calendario':
@@ -84,11 +88,11 @@ function ConfiguracionView() {
       
       <div style={{ 
         width: '100%', 
-        padding: '20px',
-        height: 'calc(100vh - 200px)', // Altura fija
+        padding: '16px',
+        height: 'calc(100vh - 180px)', // Altura ajustada
         display: 'flex',
         flexDirection: 'column',
-        marginRight: '20px', // Margin derecho para ver la scrollbar
+        marginRight: '16px', // Margin derecho reducido
         boxSizing: 'border-box', // Incluir padding en el ancho
         maxWidth: '100vw', // Máximo ancho de la ventana
         overflow: 'hidden' // Evitar overflow horizontal
@@ -97,10 +101,10 @@ function ConfiguracionView() {
         <div style={{ 
           display: 'flex', 
           borderBottom: '2px solid #e9ecef',
-          marginBottom: '24px',
+          marginBottom: '16px',
           backgroundColor: 'white',
           borderRadius: '12px 12px 0 0',
-          padding: '0 24px',
+          padding: '0 20px',
           flexShrink: 0 // No se encoja
         }}>
           {tabs.map(tab => (
@@ -136,10 +140,8 @@ function ConfiguracionView() {
           overflow: 'auto',
           flex: 1, // Toma el espacio restante
           minHeight: 0, // Permite que se encoja
-          marginRight: '10px', // Margin derecho para ver la scrollbar
           width: '100%', // Ancho completo
-          boxSizing: 'border-box', // Incluir padding en el ancho
-          maxWidth: 'calc(100% - 10px)' // Ajustar por el margin
+          boxSizing: 'border-box' // Incluir padding en el ancho
         }}>
           {renderTabContent()}
         </div>
