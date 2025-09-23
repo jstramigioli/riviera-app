@@ -516,6 +516,47 @@ export async function fetchQueries() {
   return res.json();
 }
 
+// Funciones para SeasonBlocks
+export async function fetchSeasonBlocks(hotelId = 'default-hotel') {
+  const res = await fetch(`${API_URL}/season-blocks?hotelId=${hotelId}`);
+  if (!res.ok) throw new Error('Error fetching season blocks');
+  const data = await res.json();
+  return data.data || [];
+}
+
+export async function getActiveSeasonBlock(hotelId, date) {
+  const res = await fetch(`${API_URL}/season-blocks/active?hotelId=${hotelId}&date=${date}`);
+  if (!res.ok) {
+    if (res.status === 404) {
+      return null; // No hay bloque activo para esa fecha
+    }
+    throw new Error('Error fetching active season block');
+  }
+  const data = await res.json();
+  return data.seasonBlock || null;
+}
+
+// Función para obtener el próximo bloque de temporada activo
+export async function getNextActiveSeasonBlock(hotelId, fromDate) {
+  try {
+    const seasonBlocks = await fetchSeasonBlocks(hotelId);
+    const fromDateObj = new Date(fromDate);
+    
+    // Filtrar bloques activos (no borradores) que empiecen después de la fecha actual
+    const futureBlocks = seasonBlocks
+      .filter(block => 
+        !block.isDraft && 
+        new Date(block.startDate) >= fromDateObj
+      )
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    
+    return futureBlocks.length > 0 ? futureBlocks[0] : null;
+  } catch (error) {
+    console.error('Error getting next active season block:', error);
+    return null;
+  }
+}
+
 export async function fetchQuery(id) {
   const res = await fetch(`${API_URL}/queries/${id}`);
   if (!res.ok) throw new Error('Error fetching query');

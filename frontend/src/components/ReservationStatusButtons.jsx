@@ -18,43 +18,43 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
 
   const renderButtons = () => {
     switch (reservation.status) {
-      case 'pendiente':
+      case 'PENDIENTE':
         return (
           <>
             <button 
               className={`${styles.actionButton} ${styles.confirm}`}
-              onClick={() => handleStatusChange('confirmada', 'confirm')}
+              onClick={() => handleStatusChange('CONFIRMADA', 'confirm')}
             >
               ✅ Confirmar reserva
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
-              onClick={() => handleStatusChange('cancelada', 'cancel')}
+              onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
               ❌ Cancelar reserva
             </button>
           </>
         );
 
-      case 'confirmada':
+      case 'CONFIRMADA':
         return (
           <>
             <button 
               className={`${styles.actionButton} ${styles.checkIn}`}
-              onClick={() => handleStatusChange('ingresada', 'check-in')}
+              onClick={() => handleStatusChange('INGRESADA', 'check-in')}
             >
               ✅ Registrar check-in
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
-              onClick={() => handleStatusChange('cancelada', 'cancel')}
+              onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
               ❌ Cancelar reserva
             </button>
             {checkInPassed && (
               <button 
                 className={`${styles.actionButton} ${styles.noShow}`}
-                onClick={() => handleStatusChange('no presentada', 'no-show')}
+                onClick={() => handleStatusChange('NO_PRESENTADA', 'no-show')}
               >
                 ⚠️ Marcar como no presentada
               </button>
@@ -62,41 +62,41 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
           </>
         );
 
-      case 'ingresada':
+      case 'INGRESADA':
         return (
           <button 
             className={`${styles.actionButton} ${styles.checkOut}`}
-            onClick={() => handleStatusChange('finalizada', 'check-out')}
+            onClick={() => handleStatusChange('FINALIZADA', 'check-out')}
           >
             ✅ Registrar check-out
           </button>
         );
 
-      case 'finalizada':
+      case 'FINALIZADA':
         return (
           <button 
             className={`${styles.actionButton} ${styles.reopen}`}
-            onClick={() => handleStatusChange('ingresada', 'reopen')}
+            onClick={() => handleStatusChange('INGRESADA', 'reopen')}
           >
             🔄 Reabrir estadía
           </button>
         );
 
-      case 'cancelada':
+      case 'CANCELADA':
         return (
           <button 
             className={`${styles.actionButton} ${styles.reactivate}`}
-            onClick={() => handleStatusChange('confirmada', 'reactivate')}
+            onClick={() => handleStatusChange('CONFIRMADA', 'reactivate')}
           >
             🔄 Reactivar
           </button>
         );
 
-      case 'no presentada':
+      case 'NO_PRESENTADA':
         return (
           <button 
             className={`${styles.actionButton} ${styles.reactivate}`}
-            onClick={() => handleStatusChange('confirmada', 'reactivate')}
+            onClick={() => handleStatusChange('CONFIRMADA', 'reactivate')}
           >
             🔄 Reactivar
           </button>

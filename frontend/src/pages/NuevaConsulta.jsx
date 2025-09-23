@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { format, addDays } from 'date-fns';
 import { fetchClients, findAvailableRooms, createReservation } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useTags } from '../hooks/useTags';
@@ -9,6 +10,74 @@ import styles from '../styles/NuevaConsulta.module.css';
 export default function NuevaConsulta() {
   const location = useLocation();
   const { tags } = useTags();
+
+  // Función para obtener las fechas por defecto basadas en bloques de temporada
+  const getDefaultDates = async () => {
+    console.log('🎯 getDefaultDates iniciada');
+    try {
+      const today = new Date();
+      const todayString = format(today, 'yyyy-MM-dd');
+      console.log('📅 Fecha de hoy:', todayString);
+      
+      // Verificar si hay un bloque activo para hoy
+      console.log('🔍 Buscando bloque activo para hoy...');
+      const activeBlockResponse = await fetch(`http://localhost:3001/api/season-blocks/active?hotelId=default-hotel&date=${todayString}`);
+      
+      if (activeBlockResponse.ok) {
+        const activeBlockData = await activeBlockResponse.json();
+        console.log('📋 Bloque activo encontrado:', activeBlockData);
+        
+        if (activeBlockData.seasonBlock) {
+          // Si hay un bloque activo para hoy, usar hoy como check-in
+          const checkInDate = todayString;
+          const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
+          console.log('✅ Usando fechas con bloque activo:', { checkIn: checkInDate, checkOut: checkOutDate });
+          return { checkIn: checkInDate, checkOut: checkOutDate };
+        }
+      }
+      
+      // Si no hay bloque activo para hoy, buscar el próximo bloque activo
+      console.log('🔍 Buscando próximo bloque activo...');
+      const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+      
+      if (seasonBlocksResponse.ok) {
+        const seasonBlocksData = await seasonBlocksResponse.json();
+        const seasonBlocks = seasonBlocksData.data || [];
+        
+        // Filtrar bloques activos que empiecen después de hoy
+        const futureBlocks = seasonBlocks
+          .filter(block => 
+            !block.isDraft && 
+            new Date(block.startDate) >= today
+          )
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        
+        console.log('📋 Próximo bloque encontrado:', futureBlocks[0]);
+        
+        if (futureBlocks.length > 0) {
+          // Usar el primer día del próximo bloque como check-in
+          const checkInDate = format(new Date(futureBlocks[0].startDate), 'yyyy-MM-dd');
+          const checkOutDate = format(addDays(new Date(futureBlocks[0].startDate), 1), 'yyyy-MM-dd');
+          console.log('✅ Usando fechas con próximo bloque:', { checkIn: checkInDate, checkOut: checkOutDate });
+          return { checkIn: checkInDate, checkOut: checkOutDate };
+        }
+      }
+      
+      // Si no hay bloques de temporada, usar fechas por defecto (hoy y mañana)
+      const checkInDate = todayString;
+      const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
+      console.log('✅ Usando fechas por defecto:', { checkIn: checkInDate, checkOut: checkOutDate });
+      return { checkIn: checkInDate, checkOut: checkOutDate };
+    } catch (error) {
+      console.error('❌ Error obteniendo fechas por defecto:', error);
+      // En caso de error, usar fechas por defecto
+      const today = new Date();
+      const checkInDate = format(today, 'yyyy-MM-dd');
+      const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
+      console.log('🔄 Usando fechas de fallback:', { checkIn: checkInDate, checkOut: checkOutDate });
+      return { checkIn: checkInDate, checkOut: checkOutDate };
+    }
+  };
 
   // Estado del formulario con persistencia en localStorage
   const [formData, setFormData] = useLocalStorage('nuevaConsulta_formData', {
@@ -104,10 +173,42 @@ export default function NuevaConsulta() {
     }
   }, []);
 
-  // Cargar clientes al montar el componente
+  // Cargar clientes y fechas por defecto al montar el componente
   useEffect(() => {
+    console.log('🚀 NuevaConsulta montado - iniciando carga...');
     loadClients();
+    loadDefaultDates();
   }, []);
+
+  // Función para cargar las fechas por defecto
+  const loadDefaultDates = async () => {
+    console.log('🔄 loadDefaultDates llamada');
+    console.log('📋 formData actual:', formData);
+    
+    try {
+      const defaultDates = await getDefaultDates();
+      console.log('✅ Fechas por defecto obtenidas:', defaultDates);
+      
+      setFormData(prev => ({
+        ...prev,
+        checkIn: defaultDates.checkIn,
+        checkOut: defaultDates.checkOut
+      }));
+      
+      // También actualizar el primer segmento
+      setSegments(prev => prev.map((segment, index) => 
+        index === 0 ? {
+          ...segment,
+          checkIn: defaultDates.checkIn,
+          checkOut: defaultDates.checkOut
+        } : segment
+      ));
+      
+      console.log('✅ Fechas actualizadas en el estado');
+    } catch (error) {
+      console.error('❌ Error cargando fechas por defecto:', error);
+    }
+  };
 
   // Buscar habitaciones disponibles cuando cambien las fechas, huéspedes o etiquetas
   useEffect(() => {
@@ -298,7 +399,7 @@ export default function NuevaConsulta() {
         const dateStr = day.toISOString().split('T')[0];
         
         // Obtener bloque activo para esta fecha
-        const seasonBlockResponse = await fetch(`/api/season-blocks/active?hotelId=default-hotel&date=${dateStr}`);
+        const seasonBlockResponse = await fetch(`http://localhost:3001/api/season-blocks/active?hotelId=default-hotel&date=${dateStr}`);
         
         if (seasonBlockResponse.ok) {
           const seasonBlockData = await seasonBlockResponse.json();
@@ -665,9 +766,65 @@ export default function NuevaConsulta() {
 
   // Funciones para manejar segmentos
   const handleSegmentChange = (segmentId, field, value) => {
-    setSegments(prev => prev.map(segment => 
-      segment.id === segmentId ? { ...segment, [field]: value } : segment
-    ));
+    setSegments(prev => prev.map(segment => {
+      if (segment.id === segmentId) {
+        const updatedSegment = { ...segment, [field]: value };
+        
+        // Lógica especial para fechas
+        if (field === 'checkIn') {
+          // Comparar fechas como strings para evitar problemas de zona horaria
+          const checkInString = value; // formato: YYYY-MM-DD
+          const checkOutString = segment.checkOut; // formato: YYYY-MM-DD
+          
+          console.log('📅 Modificando check-in:', {
+            nuevoCheckIn: checkInString,
+            checkOutActual: checkOutString,
+            esAnteriorOIgual: checkOutString <= checkInString
+          });
+          
+          if (checkOutString <= checkInString) {
+            // Si el check-out es anterior o igual al check-in, ajustarlo al día siguiente
+            // Crear fecha local para evitar problemas de zona horaria
+            const checkInDateLocal = new Date(checkInString + 'T00:00:00');
+            const nextDay = addDays(checkInDateLocal, 1);
+            const nextDayString = format(nextDay, 'yyyy-MM-dd');
+            updatedSegment.checkOut = nextDayString;
+            console.log('🔄 Check-out ajustado al día siguiente del check-in:', {
+              checkIn: checkInString,
+              checkOutAnterior: checkOutString,
+              checkOutNuevo: nextDayString
+            });
+          }
+        } else if (field === 'checkOut') {
+          // Comparar fechas como strings para evitar problemas de zona horaria
+          const checkInString = segment.checkIn; // formato: YYYY-MM-DD
+          const checkOutString = value; // formato: YYYY-MM-DD
+          
+          console.log('📅 Modificando check-out:', {
+            checkInActual: checkInString,
+            nuevoCheckOut: checkOutString,
+            esAnteriorOIgual: checkOutString <= checkInString
+          });
+          
+          if (checkOutString <= checkInString) {
+            // Si el check-out es anterior o igual al check-in, ajustarlo al día siguiente
+            // Crear fecha local para evitar problemas de zona horaria
+            const checkInDateLocal = new Date(checkInString + 'T00:00:00');
+            const nextDay = addDays(checkInDateLocal, 1);
+            const nextDayString = format(nextDay, 'yyyy-MM-dd');
+            updatedSegment.checkOut = nextDayString;
+            console.log('🔄 Check-out ajustado al día siguiente del check-in:', {
+              checkIn: checkInString,
+              checkOutAnterior: checkOutString,
+              checkOutNuevo: nextDayString
+            });
+          }
+        }
+        
+        return updatedSegment;
+      }
+      return segment;
+    }));
   };
 
   const handleSegmentTagToggle = (segmentId, tagId) => {

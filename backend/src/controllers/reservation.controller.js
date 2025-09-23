@@ -305,9 +305,14 @@ exports.updateReservationStatus = async (req, res) => {
     }
 
     // Validar el estado
-    const validStatuses = ['pendiente', 'confirmada', 'ingresada', 'finalizada', 'cancelada', 'no presentada'];
+    const validStatuses = ['PENDIENTE', 'CONFIRMADA', 'INGRESADA', 'FINALIZADA', 'CANCELADA', 'NO_PRESENTADA'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Estado inválido' });
+      return res.status(400).json({ 
+        error: 'Estado inválido',
+        message: `El estado '${status}' no es válido`,
+        validStatuses: validStatuses,
+        receivedStatus: status
+      });
     }
 
     // Actualizar solo el estado

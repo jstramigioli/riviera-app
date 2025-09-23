@@ -248,12 +248,12 @@ function ConsultasReservasView() {
                 <select
                   value={editData.status || selectedReservation.status}
                 >
-                  <option value="pendiente">Pendiente</option>
-                  <option value="confirmada">Confirmada</option>
-                  <option value="ingresada">Ingresada</option>
-                  <option value="finalizada">Finalizada</option>
-                  <option value="cancelada">Cancelada</option>
-                  <option value="no presentada">No presentada</option>
+                  <option value="PENDIENTE">Pendiente</option>
+                  <option value="CONFIRMADA">Confirmada</option>
+                  <option value="INGRESADA">Ingresada</option>
+                  <option value="FINALIZADA">Finalizada</option>
+                  <option value="CANCELADA">Cancelada</option>
+                  <option value="NO_PRESENTADA">No presentada</option>
                 </select>
               ) : (
                 getStatusLabel(selectedReservation.status)

@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enum para estados de reserva
+enum ReservationStatus {
+  PENDIENTE
+  CONFIRMADA
+  INGRESADA
+  FINALIZADA
+  CANCELADA
+  NO_PRESENTADA
+}
+
 model Hotel {
   id                   String                @id @default(cuid())
   name                 String
@@ -171,7 +181,7 @@ model Payment {
 model Reservation {
   id                Int                    @id @default(autoincrement())
   mainClientId      Int
-  status            String
+  status            ReservationStatus      @default(PENDIENTE)
   notes             String?
   
   // Campos para reservas multi-habitación

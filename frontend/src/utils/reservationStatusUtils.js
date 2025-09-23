@@ -1,12 +1,12 @@
 // Utilidades para manejo de estados de reserva
 
 export const RESERVATION_STATUSES = {
-  PENDIENTE: 'pendiente',
-  CONFIRMADA: 'confirmada',
-  INGRESADA: 'ingresada',
-  FINALIZADA: 'finalizada',
-  CANCELADA: 'cancelada',
-  NO_PRESENTADA: 'no presentada'
+  PENDIENTE: 'PENDIENTE',
+  CONFIRMADA: 'CONFIRMADA',
+  INGRESADA: 'INGRESADA',
+  FINALIZADA: 'FINALIZADA',
+  CANCELADA: 'CANCELADA',
+  NO_PRESENTADA: 'NO_PRESENTADA'
 };
 
 export const getStatusLabel = (status) => {

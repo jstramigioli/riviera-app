@@ -4,7 +4,6 @@ import { es } from 'date-fns/locale';
 import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
-import CreateReservationPanel from './CreateReservationPanel';
 
 import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
@@ -88,8 +87,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayInfoPanelOpen, setIsDayInfoPanelOpen] = useState(false);
   
-  // Nuevas variables para el panel de creación de reservas
-  const [isCreateReservationPanelOpen, setIsCreateReservationPanelOpen] = useState(false);
 
   
   // Estado para configuración de precios dinámicos
@@ -710,9 +707,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setSelectedDate(null);
   }
 
-  function handleCreateReservationPanelClose() {
-    setIsCreateReservationPanelOpen(false);
-  }
 
   function handleCreateQueryClick() {
     // Navegar directamente a la página de nueva consulta sin pasar por el modal
@@ -768,8 +762,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       
       console.log('Nueva reserva creada exitosamente:', createdReservation);
       
-      // Cerrar el panel
-      setIsCreateReservationPanelOpen(false);
       
     } catch (error) {
       console.error('Error al crear la reserva:', error);
@@ -1275,13 +1267,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onCreateQuery={handleCreateQueryClick}
       />
 
-      {/* Panel de creación de reservas */}
-      <CreateReservationPanel
-        isOpen={isCreateReservationPanelOpen}
-        onClose={handleCreateReservationPanelClose}
-        onCreateReservation={handleCreateReservation}
-        operationalPeriods={operationalPeriods}
-      />
 
 
 

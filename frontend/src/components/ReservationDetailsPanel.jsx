@@ -32,12 +32,12 @@ const ReservationDetailsPanel = ({ reservation, onStatusChange }) => {
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'pendiente': '#ffc107',      // Amarillo - Pendiente de confirmación
-      'confirmada': '#17a2b8',     // Azul cian - Confirmada, esperando llegada
-      'ingresada': '#28a745',      // Verde - Actualmente en el hotel
-      'finalizada': '#6c757d',     // Gris - Estadía completada
-      'cancelada': '#dc3545',      // Rojo - Cancelada
-      'no presentada': '#fd7e14'   // Naranja - No se presentó
+      'PENDIENTE': '#ffc107',      // Amarillo - Pendiente de confirmación
+      'CONFIRMADA': '#17a2b8',     // Azul cian - Confirmada, esperando llegada
+      'INGRESADA': '#28a745',      // Verde - Actualmente en el hotel
+      'FINALIZADA': '#6c757d',     // Gris - Estadía completada
+      'CANCELADA': '#dc3545',      // Rojo - Cancelada
+      'NO_PRESENTADA': '#fd7e14'   // Naranja - No se presentó
     };
     return statusColors[status] || '#6c757d';
   };
