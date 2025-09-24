@@ -495,7 +495,7 @@ class DynamicPricingService {
     });
     
     if (!seasonBlock) {
-      throw new Error('No se encontró un bloque de temporada para la fecha especificada');
+      throw new Error('No hay precios configurados para las fechas solicitadas. Por favor, configure bloques de temporada con precios válidos.');
     }
     
     // Si se especifica un roomTypeId, buscar el precio específico para ese tipo de habitación
@@ -625,18 +625,14 @@ class DynamicPricingService {
         },
         update: {
           baseRate,
-          dynamicRate,
-          withBreakfast: mealPrices.withBreakfast,
-          withHalfBoard: mealPrices.withHalfBoard
+          dynamicRate
         },
         create: {
           hotelId,
           roomTypeId,
           date,
           baseRate,
-          dynamicRate,
-          withBreakfast: mealPrices.withBreakfast,
-          withHalfBoard: mealPrices.withHalfBoard
+          dynamicRate
         }
       });
       rates.push(rate);

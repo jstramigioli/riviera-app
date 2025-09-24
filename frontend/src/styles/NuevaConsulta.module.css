@@ -1,4 +1,965 @@
 /* NuevaConsulta.module.css */
+
+/* Nuevo Layout */
+.newLayout {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+/* Secciones comunes */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sectionHeader:hover {
+  background: #e9ecef;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: #495057;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.collapseIcon {
+  font-size: 1rem;
+  color: #6c757d;
+  transition: transform 0.2s;
+}
+
+/* 1. Datos Básicos */
+.basicDataSection {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Cliente Principal - Todo el primer renglón */
+.clientRow {
+  padding: 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.clientRow .formGroup {
+  max-width: none;
+}
+
+.basicDataGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.formGroup input,
+.formGroup select {
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.formGroup input:focus,
+.formGroup select:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.searchButton {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 10px;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.searchButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Cliente */
+.clientSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clientResults {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ced4da;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.clientOption {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+.clientOption:hover {
+  background: #f8f9fa;
+}
+
+.clientOption:last-child {
+  border-bottom: none;
+}
+
+.addNewClientOption {
+  padding: 10px 12px;
+  border-top: 2px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.addNewClientButton {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.addNewClientButton:hover {
+  background: #218838;
+}
+
+.newClientForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.newClientGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.newClientButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.newClientButtons button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.saveClientButton {
+  background: #28a745;
+  color: white;
+}
+
+.saveClientButton:hover {
+  background: #218838;
+}
+
+.cancelClientButton {
+  background: #dc3545;
+  color: white;
+}
+
+.cancelClientButton:hover {
+  background: #c82333;
+}
+
+/* 2. Preferencias */
+.preferencesSection {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preferencesContent {
+  padding: 20px;
+}
+
+.preferenceGroup {
+  margin-bottom: 20px;
+}
+
+.preferenceGroup h3 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tagsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tagButton {
+  padding: 6px 12px;
+  border: 1px solid #ced4da;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.tagButton:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.tagSelected {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* 1. Cliente Section */
+.clientSection {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.clientContent {
+  padding: 20px;
+}
+
+/* 2. Pestañas estilo navegador */
+.tabsContainer {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tabsHeader {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  overflow-x: auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #dee2e6;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 120px;
+}
+
+.tab:hover {
+  background: #e9ecef;
+}
+
+.tabActive {
+  background: white !important;
+  border-bottom: 3px solid #007bff;
+  color: #007bff;
+  font-weight: 600;
+}
+
+.tabTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.tabDates {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.tabClose {
+  background: #dc3545;
+  color: white;
+  border: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  margin-left: 8px;
+}
+
+.tabClose:hover {
+  background: #c82333;
+}
+
+.addTabButton {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+.addTabButton:hover {
+  background: #218838;
+}
+
+/* Contenido de pestaña */
+.tabContent {
+  padding: 20px;
+}
+
+.blockForm {
+  margin-bottom: 30px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* Sección expandible */
+.expandableSection {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.expandableHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.expandableHeader:hover {
+  background: #e9ecef;
+}
+
+.expandableHeader label {
+  margin: 0;
+  font-weight: 600;
+  color: #495057;
+}
+
+.expandIcon {
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+.expandableContent {
+  padding: 20px;
+  background: white;
+  border-top: 1px solid #dee2e6;
+}
+
+/* Habitaciones dentro de pestaña */
+.roomsSection {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 4. Resultados */
+.resultsSection {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+.noRooms {
+  padding: 40px;
+  text-align: center;
+  color: #6c757d;
+}
+
+.noRooms p {
+  margin: 10px 0;
+}
+
+/* Lista de habitaciones horizontal */
+.roomsList {
+  padding: 20px;
+}
+
+.roomListItem {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.roomListItem:last-child {
+  border-bottom: none;
+}
+
+.roomItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.roomItem:hover {
+  background: #f8f9fa;
+}
+
+.roomItemSelected {
+  background: #e3f2fd !important;
+  border: 2px solid #2196f3;
+}
+
+.roomItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.roomItemRight {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.roomMainInfo {
+  flex: 1;
+}
+
+.roomMainInfo h3 {
+  margin: 0 0 8px 0;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.roomSecondaryInfo {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 8px;
+}
+
+.roomType {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.roomDescription {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.roomRate {
+  display: flex;
+  align-items: center;
+}
+
+.rateAmount {
+  font-weight: 600;
+  color: #28a745;
+  font-size: 1.1rem;
+}
+
+.detailsButton {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.detailsButton:hover {
+  background: #0056b3;
+}
+
+.roomDetailsExpanded {
+  padding: 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+}
+
+.roomDetailsExpanded h4 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dailyRatesTable {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dailyRateRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  border: 1px solid #dee2e6;
+}
+
+.roomCard {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.roomCard:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.roomCardSelected {
+  border-color: #007bff;
+  background: #f8f9ff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+.roomCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.roomSelection {
+  display: flex;
+  align-items: center;
+}
+
+.roomSelection input[type="radio"] {
+  margin-right: 8px;
+}
+
+.roomCardHeader h3 {
+  margin: 0;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.complianceIndicator {
+  font-size: 1.2rem;
+}
+
+.complianceCheck {
+  color: #28a745;
+}
+
+.complianceX {
+  color: #dc3545;
+}
+
+.roomCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roomInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roomType {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.capacityBadge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.capacityExact {
+  background: #d4edda;
+  color: #155724;
+}
+
+.capacityLarger {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.roomDescription {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.roomRate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid #dee2e6;
+}
+
+.rateLabel {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.rateAmount {
+  font-weight: 600;
+  color: #28a745;
+  font-size: 1.1rem;
+}
+
+.roomDetails {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+}
+
+.roomDetails h4 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dailyRatesTable {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dailyRateRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* 5. Resumen Final */
+.summarySection {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  position: sticky;
+  bottom: 20px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.summaryContent {
+  padding: 20px;
+}
+
+.summaryHeader {
+  margin-bottom: 20px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+/* Resumen de bloques */
+.blocksSummary {
+  margin-bottom: 20px;
+}
+
+.blocksSummary h4 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.blockSummaryItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border: 1px solid #dee2e6;
+}
+
+.blockSummaryLabel {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+  min-width: 80px;
+}
+
+.blockSummaryDetails {
+  color: #6c757d;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.totalSection {
+  margin-top: 15px;
+}
+
+.totalSeparator {
+  height: 1px;
+  background: #dee2e6;
+  margin: 15px 0;
+}
+
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.summaryItem label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.summaryItem span {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.totalAmount {
+  font-weight: 600;
+  color: #28a745 !important;
+  font-size: 1.1rem !important;
+}
+
+.summaryActions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+.draftButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.draftButton:hover {
+  background: #5a6268;
+}
+
+.confirmButton {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.confirmButton:hover:not(:disabled) {
+  background: #218838;
+}
+
+.confirmButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Estilos para alertas */
+.alertWarning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #856404;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.alertWarning strong {
+  color: #533f03;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .newLayout {
+    padding: 10px;
+    gap: 15px;
+  }
+  
+  .clientRow {
+    padding: 15px;
+  }
+  
+  .basicDataGrid {
+    grid-template-columns: 1fr;
+    padding: 15px;
+  }
+  
+  .newClientGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tabsHeader {
+    flex-direction: column;
+  }
+  
+  .tab {
+    border-right: none;
+    border-bottom: 1px solid #dee2e6;
+    min-width: auto;
+    justify-content: space-between;
+  }
+  
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+  
+  .roomItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .roomItemLeft {
+    width: 100%;
+    gap: 15px;
+  }
+  
+  .roomItemRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .roomSecondaryInfo {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summaryActions {
+    flex-direction: column;
+  }
+}
 .container {
   max-width: 1400px;
   width: 100%;
@@ -931,25 +1892,6 @@
   margin-bottom: 16px;
 }
 
-.tagButton {
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  background: transparent;
-  color: white;
-  cursor: pointer;
-  font-size: var(--font-size-small);
-  transition: all 0.2s ease;
-}
-
-.tagButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tagSelected {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border-color: rgba(255, 255, 255, 0.5);
-}
 
 /* Estilos para el contenido principal */
 .section {

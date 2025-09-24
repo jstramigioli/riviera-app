@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
-import { fetchClients, findAvailableRooms, createReservation } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
@@ -17,56 +17,70 @@ export default function NuevaConsulta() {
     try {
       const today = new Date();
       const todayString = format(today, 'yyyy-MM-dd');
-      console.log('📅 Fecha de hoy:', todayString);
+      console.log('📅 Fecha de hoy:', {
+        today: today,
+        todayString: todayString,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
       
-      // Verificar si hay un bloque activo para hoy
-      console.log('🔍 Buscando bloque activo para hoy...');
-      const activeBlockResponse = await fetch(`http://localhost:3001/api/season-blocks/active?hotelId=default-hotel&date=${todayString}`);
-      
-      if (activeBlockResponse.ok) {
-        const activeBlockData = await activeBlockResponse.json();
-        console.log('📋 Bloque activo encontrado:', activeBlockData);
-        
-        if (activeBlockData.seasonBlock) {
-          // Si hay un bloque activo para hoy, usar hoy como check-in
-          const checkInDate = todayString;
-          const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
-          console.log('✅ Usando fechas con bloque activo:', { checkIn: checkInDate, checkOut: checkOutDate });
-          return { checkIn: checkInDate, checkOut: checkOutDate };
-        }
-      }
-      
-      // Si no hay bloque activo para hoy, buscar el próximo bloque activo
-      console.log('🔍 Buscando próximo bloque activo...');
+      // Obtener todos los bloques de temporada
+      console.log('🔍 Buscando bloques de temporada...');
       const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
       
       if (seasonBlocksResponse.ok) {
         const seasonBlocksData = await seasonBlocksResponse.json();
         const seasonBlocks = seasonBlocksData.data || [];
         
-        // Filtrar bloques activos que empiecen después de hoy
-        const futureBlocks = seasonBlocks
-          .filter(block => 
-            !block.isDraft && 
-            new Date(block.startDate) >= today
-          )
-          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        console.log('📋 Bloques de temporada encontrados:', seasonBlocks.length);
         
-        console.log('📋 Próximo bloque encontrado:', futureBlocks[0]);
+        // Buscar bloques que empiecen hoy o en el futuro
+        const availableBlocks = seasonBlocks
+          .filter(block => {
+            if (block.isDraft) return false;
+            // Extraer solo la parte de fecha para evitar problemas de zona horaria
+            const blockStartDate = block.startDate.split('T')[0];
+            return blockStartDate >= todayString; // El bloque debe empezar hoy o después
+          })
+          .sort((a, b) => {
+            // Ordenar por fecha de inicio usando strings extraídos
+            const startDateA = a.startDate.split('T')[0];
+            const startDateB = b.startDate.split('T')[0];
+            return startDateA.localeCompare(startDateB);
+          });
         
-        if (futureBlocks.length > 0) {
-          // Usar el primer día del próximo bloque como check-in
-          const checkInDate = format(new Date(futureBlocks[0].startDate), 'yyyy-MM-dd');
-          const checkOutDate = format(addDays(new Date(futureBlocks[0].startDate), 1), 'yyyy-MM-dd');
-          console.log('✅ Usando fechas con próximo bloque:', { checkIn: checkInDate, checkOut: checkOutDate });
+        console.log('📋 Bloques disponibles:', availableBlocks.map(b => ({
+          name: b.name,
+          startDate: b.startDate.split('T')[0],
+          endDate: b.endDate.split('T')[0]
+        })));
+        
+        if (availableBlocks.length > 0) {
+          // Usar el primer día del primer bloque disponible
+          const firstBlock = availableBlocks[0];
+          
+          // Extraer solo la parte de fecha (YYYY-MM-DD) del string ISO para evitar problemas de zona horaria
+          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10" de "2025-10-10T00:00:00.000Z"
+          const checkInDate = startDateISO;
+          const checkOutDate = format(addDays(new Date(startDateISO + 'T12:00:00'), 1), 'yyyy-MM-dd');
+          
+          console.log('✅ Usando fechas del primer bloque disponible:', { 
+            bloque: firstBlock.name,
+            checkIn: checkInDate, 
+            checkOut: checkOutDate
+          });
           return { checkIn: checkInDate, checkOut: checkOutDate };
         }
+      } else {
+        console.error('❌ Error en respuesta de API:', {
+          status: seasonBlocksResponse.status,
+          statusText: seasonBlocksResponse.statusText
+        });
       }
       
-      // Si no hay bloques de temporada, usar fechas por defecto (hoy y mañana)
+      // Si no hay bloques de temporada o hay error, usar fechas por defecto (hoy y mañana)
       const checkInDate = todayString;
       const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
-      console.log('✅ Usando fechas por defecto:', { checkIn: checkInDate, checkOut: checkOutDate });
+      console.log('⚠️ No se encontraron bloques de temporada o hay error. Usando fechas por defecto:', { checkIn: checkInDate, checkOut: checkOutDate });
       return { checkIn: checkInDate, checkOut: checkOutDate };
     } catch (error) {
       console.error('❌ Error obteniendo fechas por defecto:', error);
@@ -119,7 +133,6 @@ export default function NuevaConsulta() {
   // Estado para habitaciones disponibles
   const [availableRooms, setAvailableRooms] = useState([]);
   const [allAvailableRooms, setAllAvailableRooms] = useState([]);
-  const [showLargerCapacity, setShowLargerCapacity] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Estado para tarifas por día
@@ -133,7 +146,83 @@ export default function NuevaConsulta() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
 
-  // Estado para errores
+  // Estados para las secciones colapsables del nuevo diseño
+  const [showSegments, setShowSegments] = useState(false);
+  
+  // Estado para mostrar detalles de habitaciones
+  const [showRoomDetails, setShowRoomDetails] = useState({});
+  
+  // Estado para navegación de bloques de estadía
+  const [activeBlockIndex, setActiveBlockIndex] = useState(0);
+  const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
+  const [pricingError, setPricingError] = useState(null);
+
+  // Función para toggle de detalles de habitación
+  const toggleRoomDetails = (roomId) => {
+    setShowRoomDetails(prev => ({
+      ...prev,
+      [roomId]: !prev[roomId]
+    }));
+  };
+
+  // Funciones para manejar bloques de estadía
+  const addNewBlock = () => {
+    const newBlockId = Date.now();
+    const lastBlock = segments[segments.length - 1];
+    
+    // Calcular fechas del nuevo bloque
+    let checkInDate;
+    let checkOutDate;
+    
+    if (lastBlock?.checkOut) {
+      // Usar el check-out del bloque anterior como check-in del nuevo bloque
+      checkInDate = lastBlock.checkOut;
+      // Check-out será el día siguiente al check-in
+      checkOutDate = format(addDays(new Date(checkInDate + 'T00:00:00'), 1), 'yyyy-MM-dd');
+    } else {
+      // Si no hay bloque anterior, usar fechas por defecto
+      const today = format(new Date(), 'yyyy-MM-dd');
+      checkInDate = today;
+      checkOutDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+    }
+    
+    const newBlock = {
+      id: newBlockId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      requiredGuests: lastBlock?.requiredGuests || 1,
+      requiredTags: [],
+      serviceType: lastBlock?.serviceType || 'con_desayuno'
+    };
+    
+    console.log('➕ Nuevo bloque agregado:', {
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      diasEntreFechas: Math.ceil((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24))
+    });
+    
+    setSegments(prev => [...prev, newBlock]);
+    setActiveBlockIndex(segments.length);
+  };
+
+  const removeBlock = (blockId) => {
+    if (segments.length <= 1) return; // No permitir eliminar el último bloque
+    
+    const blockIndex = segments.findIndex(block => block.id === blockId);
+    setSegments(prev => prev.filter(block => block.id !== blockId));
+    
+    // Ajustar el índice activo si es necesario
+    if (activeBlockIndex >= segments.length - 1) {
+      setActiveBlockIndex(Math.max(0, activeBlockIndex - 1));
+    }
+  };
+
+  const selectRoomForBlock = (blockIndex, room) => {
+    setSelectedRoomsPerBlock(prev => ({
+      ...prev,
+      [blockIndex]: room
+    }));
+  };
 
 
 
@@ -195,13 +284,23 @@ export default function NuevaConsulta() {
         checkOut: defaultDates.checkOut
       }));
       
-      // También actualizar el primer segmento
+      // También actualizar el primer segmento, asegurando que siempre tenga valores definidos
       setSegments(prev => prev.map((segment, index) => 
         index === 0 ? {
           ...segment,
           checkIn: defaultDates.checkIn,
-          checkOut: defaultDates.checkOut
-        } : segment
+          checkOut: defaultDates.checkOut,
+          requiredGuests: segment.requiredGuests || 1,
+          requiredTags: segment.requiredTags || [],
+          serviceType: segment.serviceType || 'con_desayuno'
+        } : {
+          ...segment,
+          checkIn: segment.checkIn || '',
+          checkOut: segment.checkOut || '',
+          requiredGuests: segment.requiredGuests || 1,
+          requiredTags: segment.requiredTags || [],
+          serviceType: segment.serviceType || 'con_desayuno'
+        }
       ));
       
       console.log('✅ Fechas actualizadas en el estado');
@@ -308,13 +407,19 @@ export default function NuevaConsulta() {
   };
 
   const searchAvailableRooms = async () => {
+    if (!segments[activeBlockIndex]) {
+      console.log('No hay bloque activo para buscar habitaciones');
+      return;
+    }
+    
     setLoadingRooms(true);
     try {
+      const activeBlock = segments[activeBlockIndex];
       const params = {
-        checkIn: formData.checkIn,
-        checkOut: formData.checkOut,
-        requiredGuests: requirements.requiredGuests,
-        requiredTags: requirements.requiredTags
+        checkIn: activeBlock.checkIn,
+        checkOut: activeBlock.checkOut,
+        requiredGuests: activeBlock.requiredGuests,
+        requiredTags: activeBlock.requiredTags
       };
 
       console.log('Buscando habitaciones con parámetros:', params);
@@ -324,12 +429,75 @@ export default function NuevaConsulta() {
       if (result && result.availableRooms) {
         console.log(`Encontradas ${result.availableRooms.length} habitaciones disponibles`);
         
-        // Guardar todas las habitaciones disponibles
-        setAllAvailableRooms(result.availableRooms);
+        // Calcular tarifas para cada habitación usando el endpoint correcto
+        const roomsWithRates = await Promise.all(
+          result.availableRooms.map(async (room) => {
+            let totalRate = 0;
+            
+            console.log(`🏨 Procesando habitación: ${room.name}, tipo: ${room.roomType?.id}`);
+            
+            try {
+              // Usar el endpoint correcto: /api/dynamic-pricing/calculated-rates/:hotelId/:roomTypeId
+              const ratesResult = await getCalculatedRates(
+                'default-hotel',
+                room.roomType?.id,
+                activeBlock.checkIn,
+                activeBlock.checkOut,
+                activeBlock.serviceType
+              );
+              
+              console.log(`📊 Respuesta para habitación ${room.name}:`, ratesResult);
+              
+              if (ratesResult && ratesResult.totalAmount !== undefined) {
+                totalRate = ratesResult.totalAmount;
+                console.log(`✅ Habitación ${room.name}: Total del backend = $${totalRate}`);
+              } else {
+                console.log(`⚠️ Respuesta inesperada para habitación ${room.name}:`, ratesResult);
+                totalRate = 0;
+              }
+            } catch (error) {
+              console.error(`❌ Error obteniendo tarifa para habitación ${room.name}:`, error);
+              
+              // Verificar si es un error 404 (precios no configurados)
+              if (error.message.includes('404') || error.message.includes('No se encontraron precios')) {
+                console.log(`⚠️ No hay precios configurados para las fechas solicitadas`);
+                totalRate = 0; // Mantener $0 cuando no hay precios configurados
+              } else {
+                console.log(`⚠️ Error del servidor al obtener precios para ${room.name}`);
+                totalRate = 0; // Mantener $0 cuando hay error del servidor
+              }
+            }
+            
+            return {
+              ...room,
+              baseRate: Math.round(totalRate)
+            };
+          })
+        );
+        
+        console.log('Habitaciones con tarifas calculadas:', roomsWithRates);
+        
+        // Verificar si alguna habitación tiene tarifa $0 (indicando problema con el backend)
+        const hasZeroRates = roomsWithRates.some(room => room.baseRate === 0);
+        if (hasZeroRates) {
+          console.log('⚠️ Algunas habitaciones tienen tarifa $0 - posible problema con el backend');
+        }
+        
+        // Verificar si TODAS las habitaciones tienen tarifa $0 (precios no configurados)
+        const allZeroRates = roomsWithRates.length > 0 && roomsWithRates.every(room => room.baseRate === 0);
+        if (allZeroRates) {
+          console.log('⚠️ TODAS las habitaciones tienen tarifa $0 - precios no configurados');
+          setPricingError('No se encontraron precios para las fechas solicitadas. No hay bloques de temporada configurados para estas fechas.');
+        } else {
+          setPricingError(null);
+        }
+        
+        // Guardar todas las habitaciones disponibles con tarifas
+        setAllAvailableRooms(roomsWithRates);
         
         // Filtrar habitaciones: primero capacidad exacta, luego mayor capacidad
-        const exactCapacityRooms = result.availableRooms.filter(room => room.maxPeople === requirements.requiredGuests);
-        const largerCapacityRooms = result.availableRooms.filter(room => room.maxPeople > requirements.requiredGuests);
+        const exactCapacityRooms = roomsWithRates.filter(room => room.maxPeople === activeBlock.requiredGuests);
+        const largerCapacityRooms = roomsWithRates.filter(room => room.maxPeople > activeBlock.requiredGuests);
         
         // Determinar qué habitaciones mostrar inicialmente
         let roomsToShow = [];
@@ -347,7 +515,6 @@ export default function NuevaConsulta() {
         }
         
         setAvailableRooms(roomsToShow);
-        setShowLargerCapacity(!shouldShowLargerCapacityButton); // true si no hay botón, false si hay botón
       } else {
         console.log('No se encontraron habitaciones disponibles');
         setAvailableRooms([]);
@@ -398,21 +565,30 @@ export default function NuevaConsulta() {
       for (const day of days) {
         const dateStr = day.toISOString().split('T')[0];
         
-        // Obtener bloque activo para esta fecha
-        const seasonBlockResponse = await fetch(`http://localhost:3001/api/season-blocks/active?hotelId=default-hotel&date=${dateStr}`);
+        // Obtener bloque activo para esta fecha (simulamos la lógica del endpoint)
+        const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
         
-        if (seasonBlockResponse.ok) {
-          const seasonBlockData = await seasonBlockResponse.json();
+        if (seasonBlocksResponse.ok) {
+          const seasonBlocksData = await seasonBlocksResponse.json();
+          const seasonBlocks = seasonBlocksData.data || [];
           
-          if (seasonBlockData.seasonBlock && seasonBlockData.seasonBlock.seasonPrices) {
+          // Buscar el bloque activo para esta fecha
+          const activeBlockForDate = seasonBlocks.find(block => {
+            const startDate = new Date(block.startDate);
+            const endDate = new Date(block.endDate);
+            const checkDate = new Date(dateStr);
+            return !block.isDraft && checkDate >= startDate && checkDate <= endDate;
+          });
+          
+          if (activeBlockForDate && activeBlockForDate.seasonPrices) {
             // Buscar precios para este tipo de habitación
-            const roomTypePrices = seasonBlockData.seasonBlock.seasonPrices.filter(
+            const roomTypePrices = activeBlockForDate.seasonPrices.filter(
               price => price.roomTypeId === selectedRoomType.id
             );
             
             if (roomTypePrices.length > 0) {
               // Obtener ajustes de porcentaje del bloque
-              const serviceAdjustments = seasonBlockData.seasonBlock.blockServiceSelections || [];
+              const serviceAdjustments = activeBlockForDate.blockServiceSelections || [];
               
               // Buscar el precio para el servicio seleccionado
               const servicePrice = roomTypePrices.find(price => 
@@ -458,7 +634,7 @@ export default function NuevaConsulta() {
           }
         } else {
           // Intentar obtener un bloque en borrador si no hay confirmados
-          const errorData = await seasonBlockResponse.json();
+          const errorData = await seasonBlocksResponse.json();
           if (errorData.reason === 'only_draft_blocks' && errorData.draftBlocks && errorData.draftBlocks.length > 0) {
             // Usar el primer bloque en borrador disponible
             const draftBlockResponse = await fetch(`/api/season-blocks/${errorData.draftBlocks[0].id}`);
@@ -604,13 +780,15 @@ export default function NuevaConsulta() {
   };
 
   const handleShowLargerCapacity = () => {
-    const exactCapacityRooms = allAvailableRooms.filter(room => room.maxPeople === requirements.requiredGuests);
-    const largerCapacityRooms = allAvailableRooms.filter(room => room.maxPeople > requirements.requiredGuests);
+    if (!segments[activeBlockIndex]) return;
+    
+    const activeBlock = segments[activeBlockIndex];
+    const exactCapacityRooms = allAvailableRooms.filter(room => room.maxPeople === activeBlock.requiredGuests);
+    const largerCapacityRooms = allAvailableRooms.filter(room => room.maxPeople > activeBlock.requiredGuests);
     
     // Combinar habitaciones de capacidad exacta con las de mayor capacidad
     const combinedRooms = [...exactCapacityRooms, ...largerCapacityRooms];
     setAvailableRooms(combinedRooms);
-    setShowLargerCapacity(true);
   };
 
   const handleSaveNewClient = async () => {
@@ -729,10 +907,15 @@ export default function NuevaConsulta() {
 
 
   const checkRequirementsCompliance = (room) => {
-    // Obtener todas las etiquetas requeridas de todos los segmentos
-    const allRequiredTagIds = segments.flatMap(segment => segment.requiredTags);
+    // Obtener las etiquetas requeridas del bloque activo
+    const activeBlock = segments[activeBlockIndex];
+    if (!activeBlock) {
+      return { complies: true, message: 'No hay bloque activo', score: 0 };
+    }
     
-    if (allRequiredTagIds.length === 0) {
+    const requiredTagIds = activeBlock.requiredTags || [];
+    
+    if (requiredTagIds.length === 0) {
       return { complies: true, message: 'No hay etiquetas requeridas', score: 0 };
     }
     
@@ -740,10 +923,10 @@ export default function NuevaConsulta() {
     const roomTagIds = room.tags ? room.tags.map(tag => tag.id) : [];
     
     // Verificar si la habitación tiene todas las etiquetas requeridas
-    const missingTags = allRequiredTagIds.filter(tagId => !roomTagIds.includes(tagId));
-    const matchingTags = room.tags.filter(tag => allRequiredTagIds.includes(tag.id));
+    const missingTags = requiredTagIds.filter(tagId => !roomTagIds.includes(tagId));
+    const matchingTags = room.tags.filter(tag => requiredTagIds.includes(tag.id));
     
-    const complianceScore = matchingTags.length / allRequiredTagIds.length;
+    const complianceScore = matchingTags.length / requiredTagIds.length;
     
     if (missingTags.length === 0) {
       // La habitación cumple con todos los requerimientos
@@ -816,6 +999,24 @@ export default function NuevaConsulta() {
             console.log('🔄 Check-out ajustado al día siguiente del check-in:', {
               checkIn: checkInString,
               checkOutAnterior: checkOutString,
+              checkOutNuevo: nextDayString
+            });
+          }
+        }
+        
+        // Validación final: asegurar que check-out siempre sea al menos un día después de check-in
+        if (updatedSegment.checkIn && updatedSegment.checkOut) {
+          const finalCheckInString = updatedSegment.checkIn;
+          const finalCheckOutString = updatedSegment.checkOut;
+          
+          if (finalCheckOutString <= finalCheckInString) {
+            // Ajustar check-out al día siguiente del check-in
+            const checkInDateLocal = new Date(finalCheckInString + 'T00:00:00');
+            const nextDay = addDays(checkInDateLocal, 1);
+            const nextDayString = format(nextDay, 'yyyy-MM-dd');
+            updatedSegment.checkOut = nextDayString;
+            console.log('🔒 Validación final: Check-out ajustado:', {
+              checkIn: finalCheckInString,
               checkOutNuevo: nextDayString
             });
           }
@@ -1037,462 +1238,436 @@ export default function NuevaConsulta() {
 
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel */}
-      <div className={styles.sidePanel}>
-        {/* Header del side panel */}
-        <div className={styles.sidePanelHeader}>
-          <h2>Consulta</h2>
-          <div className={styles.guestInfo}>
-            <div className={styles.guestName}>{getGuestName()}</div>
-            <div className={styles.guestDates}>{getGlobalDates()}</div>
+      {/* 1. Cliente Principal */}
+      <div className={styles.clientSection}>
+        <div className={styles.sectionHeader}>
+          <h2>👤 Cliente Principal</h2>
+        </div>
+        
+        <div className={styles.clientContent}>
+          <div className={styles.formGroup}>
+            <label>Cliente Principal</label>
+            {showNewClientForm ? (
+              <div className={styles.newClientForm}>
+                <div className={styles.newClientGrid}>
+                  <input
+                    type="text"
+                    value={formData.mainClient.firstName}
+                    onChange={(e) => handleClientInputChange('firstName', e.target.value)}
+                    placeholder="Nombre"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={formData.mainClient.lastName}
+                    onChange={(e) => handleClientInputChange('lastName', e.target.value)}
+                    placeholder="Apellido"
+                    required
+                  />
+                  <input
+                    type="email"
+                    value={formData.mainClient.email}
+                    onChange={(e) => handleClientInputChange('email', e.target.value)}
+                    placeholder="Email"
+                  />
+                  <input
+                    type="tel"
+                    value={formData.mainClient.phone}
+                    onChange={(e) => handleClientInputChange('phone', e.target.value)}
+                    placeholder="Teléfono"
+                  />
                 </div>
-            </div>
+                <div className={styles.newClientButtons}>
+                  <button type="button" onClick={handleSaveNewClient}>💾 Guardar</button>
+                  <button type="button" onClick={handleNewSearch}>❌ Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.clientSelector}>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onBlur={() => setTimeout(() => setSearchTerm(''), 200)}
+                  placeholder="Buscar por nombre, email o teléfono..."
+                />
+                {searchTerm && (
+                  <div className={styles.clientResults}>
+                    {filteredClients.map(client => (
+                      <div key={client.id} className={styles.clientOption} onClick={() => handleClientSelect(client)}>
+                        <strong>{client.firstName} {client.lastName}</strong>
+                        {client.email && <div>{client.email}</div>}
+                        {client.phone && <div>{client.phone}</div>}
+                      </div>
+                    ))}
+                    <div className={styles.addNewClientOption}>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowNewClientForm(true)}
+                        className={styles.addNewClientButton}
+                      >
+                        + Crear Nuevo Cliente
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!searchTerm && !formData.mainClient.id && (
+                  <button 
+                    type="button" 
+                    onClick={() => setShowNewClientForm(true)}
+                    className={styles.addNewClientButton}
+                  >
+                    + Nuevo Cliente
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
-        {/* Contenido del side panel */}
-        <div className={styles.sidePanelContent}>
-          <form onSubmit={handleSubmit}>
-            {/* Cliente principal */}
-            <div className={styles.field}>
-              <label>Cliente Principal</label>
-              
-              {showNewClientForm ? (
-                <>
-                    <div className={styles.field}>
-                    <label>Nombre</label>
-                      <input
-                        type="text"
-                        value={formData.mainClient.firstName}
-                        onChange={(e) => handleClientInputChange('firstName', e.target.value)}
-                        placeholder="Nombre"
-                      required
-                      />
-                    </div>
-                    
-                    <div className={styles.field}>
-                    <label>Apellido</label>
-                      <input
-                        type="text"
-                        value={formData.mainClient.lastName}
-                        onChange={(e) => handleClientInputChange('lastName', e.target.value)}
-                        placeholder="Apellido"
-                      required
-                      />
-                  </div>
+
+      {/* 2. Pestañas de Bloques de Estadía */}
+      <div className={styles.tabsContainer}>
+        {/* Pestañas */}
+        <div className={styles.tabsHeader}>
+          {segments.map((block, index) => (
+            <button
+              key={block.id}
+              className={`${styles.tab} ${activeBlockIndex === index ? styles.tabActive : ''}`}
+              onClick={() => setActiveBlockIndex(index)}
+            >
+              <span className={styles.tabTitle}>
+                {format(new Date(block.checkIn), 'dd/MM')} – {format(new Date(block.checkOut), 'dd/MM')}
+              </span>
+              {segments.length > 1 && (
+                <button
+                  type="button"
+                  className={styles.tabClose}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeBlock(block.id);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </button>
+          ))}
+          
+          <button
+            type="button"
+            className={styles.addTabButton}
+            onClick={addNewBlock}
+            title="Agregar Bloque"
+          >
+            +
+          </button>
+        </div>
+        
+        {/* Contenido de la pestaña activa */}
+        {segments[activeBlockIndex] && (
+          <div className={styles.tabContent}>
+            <div className={styles.blockForm}>
+              {/* Fechas */}
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>Check-in</label>
+                  <input
+                    type="date"
+                    value={segments[activeBlockIndex]?.checkIn || ''}
+                    onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'checkIn', e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Check-out</label>
+                  <input
+                    type="date"
+                    value={segments[activeBlockIndex]?.checkOut || ''}
+                    onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'checkOut', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Huéspedes y Tipo de servicio */}
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>Huéspedes</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={segments[activeBlockIndex]?.requiredGuests || 1}
+                    onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'requiredGuests', parseInt(e.target.value))}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Tipo de Servicio</label>
+                  <select
+                    value={segments[activeBlockIndex]?.serviceType || 'con_desayuno'}
+                    onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'serviceType', e.target.value)}
+                  >
+                    <option value="sin_desayuno">Solo Alojamiento</option>
+                    <option value="con_desayuno">Desayuno</option>
+                    <option value="media_pension">Media Pensión</option>
+                    <option value="pension_completa">Pensión Completa</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Requisitos Especiales (expandible) */}
+              <div className={styles.formGroup}>
+                <div className={styles.expandableSection}>
+                  <button
+                    type="button"
+                    className={styles.expandableHeader}
+                    onClick={() => setShowSegments(!showSegments)}
+                  >
+                    <label>Requisitos Especiales</label>
+                    <span className={styles.expandIcon}>{showSegments ? '▼' : '▶'}</span>
+                  </button>
                   
-                    <div className={styles.field}>
-                      <label>Email</label>
-                      <input
-                        type="email"
-                        value={formData.mainClient.email}
-                        onChange={(e) => handleClientInputChange('email', e.target.value)}
-                        placeholder="email@ejemplo.com"
-                      />
-                    </div>
-                    
-                    <div className={styles.field}>
-                      <label>Teléfono</label>
-                      <input
-                        type="tel"
-                        value={formData.mainClient.phone}
-                        onChange={(e) => handleClientInputChange('phone', e.target.value)}
-                        placeholder="+54 9 11 1234-5678"
-                      />
-                    </div>
-                  
-                  <div className={styles.newClientButtons}>
-                    <button
-                      type="button"
-                      className={styles.saveClientButton}
-                      onClick={handleSaveNewClient}
-                    >
-                      💾 Guardar Cliente
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.cancelClientButton}
-                      onClick={handleNewSearch}
-                    >
-                      ❌ Cancelar
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                    <div className={styles.field}>
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      onBlur={() => setTimeout(() => setSearchTerm(''), 200)}
-                        placeholder="Buscar por nombre, email o teléfono..."
-                      />
-                    </div>
-                    
-                    {searchTerm && (
-                      <div className={styles.clientResults}>
-                        {filteredClients.map(client => (
-                          <div
-                            key={client.id}
-                            className={styles.clientOption}
-                            onClick={() => handleClientSelect(client)}
+                  {showSegments && (
+                    <div className={styles.expandableContent}>
+                      <div className={styles.tagsContainer}>
+                        {tags.map(tag => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            className={`${styles.tagButton} ${
+                              segments[activeBlockIndex]?.requiredTags.includes(tag.id) ? styles.tagSelected : ''
+                            }`}
+                            onClick={() => segments[activeBlockIndex] && handleSegmentTagToggle(segments[activeBlockIndex].id, tag.id)}
                           >
-                            <strong>{client.firstName} {client.lastName}</strong>
-                            {client.email && <div>{client.email}</div>}
-                            {client.phone && <div>{client.phone}</div>}
-                          </div>
+                            {tag.name}
+                          </button>
                         ))}
                       </div>
-                    )}
-                    
-                    <button
-                      type="button"
-                    className={styles.addSegmentButton}
-                      onClick={() => setShowNewClientForm(true)}
-                    >
-                      + Crear Nuevo Cliente
-                    </button>
-                </>
-              )}
-            </div>
-
-            {/* Segmentos */}
-            <div className={styles.segmentsSection}>
-              {segments.map((segment, index) => (
-                <div key={segment.id} className={styles.segment}>
-                  <div className={styles.segmentTitle}>
-                    {segments.length > 1 ? `Segmento ${index + 1}` : 'Requerimientos'}
-                  </div>
-                  
-                  {segments.length > 1 && (
-                    <button
-                      type="button"
-                      className={styles.removeSegmentButton}
-                      onClick={() => handleRemoveSegment(segment.id)}
-                    >
-                      ×
-            </button>
+                    </div>
                   )}
-
-                  {/* Fechas del segmento */}
-                  <div className={styles.segmentDates}>
-                    <div className={styles.field}>
-                      <label>Check-in</label>
-                      <input
-                        type="date"
-                        value={segment.checkIn}
-                        onChange={(e) => handleSegmentChange(segment.id, 'checkIn', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className={styles.field}>
-                      <label>Check-out</label>
-                      <input
-                        type="date"
-                        value={segment.checkOut}
-                        onChange={(e) => handleSegmentChange(segment.id, 'checkOut', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Huéspedes y Tipo de servicio */}
-                  <div className={styles.segmentRow}>
-                    <div className={styles.field}>
-                      <label>Huéspedes</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={segment.requiredGuests}
-                        onChange={(e) => handleSegmentChange(segment.id, 'requiredGuests', parseInt(e.target.value))}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label>Tipo de Servicio</label>
-                      <select
-                        value={segment.serviceType}
-                        onChange={(e) => handleSegmentChange(segment.id, 'serviceType', e.target.value)}
-                      >
-                        <option value="con_desayuno">Con Desayuno</option>
-                        <option value="sin_desayuno">Sin Desayuno</option>
-                        <option value="media_pension">Media Pensión</option>
-                        <option value="pension_completa">Pensión Completa</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Etiquetas requeridas */}
-                  <div className={styles.field}>
-                    <label>Etiquetas Requeridas</label>
-                    <div className={styles.tagsContainer}>
-                      {tags.map(tag => (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          className={`${styles.tagButton} ${
-                            segment.requiredTags.includes(tag.id) ? styles.tagSelected : ''
-                          }`}
-                          onClick={() => handleSegmentTagToggle(segment.id, tag.id)}
-                        >
-                          {tag.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              ))}
+              </div>
 
-              <button
-                type="button"
-                className={styles.addSegmentButton}
-                onClick={handleAddSegment}
-              >
-                + Agregar Segmento
-              </button>
+              {/* Botón de búsqueda */}
+              <div className={styles.formGroup}>
+                <button 
+                  type="button" 
+                  className={styles.searchButton}
+                  onClick={() => searchAvailableRooms()}
+                  disabled={!segments[activeBlockIndex]?.checkIn || !segments[activeBlockIndex]?.checkOut}
+                >
+                  🔍 Buscar Habitaciones para este Bloque
+                </button>
+              </div>
             </div>
 
-
-          </form>
-        </div>
-
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button 
-              type="button" 
-              className={styles.saveButton}
-              onClick={handleSaveQuery}
-            >
-              💾 Guardar Consulta
-            </button>
-            <button 
-              type="submit" 
-              className={styles.reserveButton}
-              onClick={handleSubmit}
-            >
-              🏨 Reservar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className={styles.mainContent}>
-        {/* Contenido principal */}
-        <div className={styles.mainContentBody}>
-          {/* Contenedor para tablas lado a lado */}
-          <div className={styles.tablesContainer}>
-            {/* Columna izquierda - Habitaciones disponibles */}
-            <div className={styles.tableColumn}>
-              <h2>Habitaciones Disponibles</h2>
-          
-          {loadingRooms ? (
-            <div className={styles.loading}>
-              Buscando habitaciones disponibles...
-            </div>
-          ) : availableRooms.length === 0 ? (
-            <div className={styles.noRooms}>
-              <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
-              <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
-            </div>
-          ) : (
-          <div className={styles.tableContainer}>
-            <table className={styles.roomsTable}>
-                  <thead>
-                <tr>
-                  <th></th>
-                  <th>Habitación</th>
-                  <th>Tipo</th>
-                  <th>Capacidad</th>
-                  <th>Cumple con los requerimientos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                {availableRooms
-                  .map((room) => {
-                    const compliance = checkRequirementsCompliance(room);
-                    return { room, compliance };
-                  })
-                  .sort((a, b) => {
-                    // Primero las que cumplen completamente
-                    if (a.compliance.complies && !b.compliance.complies) return -1;
-                    if (!a.compliance.complies && b.compliance.complies) return 1;
-                    
-                    // Luego por score de cumplimiento
-                    if (a.compliance.score !== b.compliance.score) {
-                      return b.compliance.score - a.compliance.score;
-                    }
-                    
-                    // Finalmente por capacidad exacta
-                    const aExactCapacity = a.room.maxPeople === requirements.requiredGuests;
-                    const bExactCapacity = b.room.maxPeople === requirements.requiredGuests;
-                    if (aExactCapacity && !bExactCapacity) return -1;
-                    if (!aExactCapacity && bExactCapacity) return 1;
-                    
-                    return 0;
-                  })
-                  .map(({ room, compliance }) => {
-                    const isSelected = selectedRoom && selectedRoom.id === room.id;
-                      
-                      return (
-                    <tr 
-                      key={room.id} 
-                      className={`${styles.roomRow} ${isSelected ? styles.roomSelected : ''}`}
-                      onClick={() => setSelectedRoom(room)}
-                    >
-                      <td>
-                        <div className={styles.radioButton}>
-                          <input
-                            type="radio"
-                            name="selectedRoom"
-                            id={`room-${room.id}`}
-                            checked={isSelected}
-                            onChange={() => setSelectedRoom(room)}
-                            style={{ display: 'none' }}
-                          />
-                          <label 
-                            htmlFor={`room-${room.id}`}
-                            className={`${styles.radioLabel} ${isSelected ? styles.radioSelected : ''}`}
-                          >
-                            <span className={styles.radioCircle}></span>
-                          </label>
-                              </div>
-                          </td>
-                      <td><strong>{room.name}</strong></td>
-                      <td>{room.roomType?.name}</td>
-                      <td>
-                        <span className={`${styles.capacityBadge} ${
-                          room.maxPeople === requirements.requiredGuests ? styles.capacityExact : styles.capacityLarger
-                        }`}>
-                              {room.maxPeople} pers.
-                            </span>
-                          </td>
-                      <td>
-                        <div className={styles.complianceIndicator} title={compliance.message}>
-                          <div className={styles.complianceIcon}>
-                            {compliance.complies ? (
-                              <span className={styles.complianceCheck}>✓</span>
-                            ) : (
-                              <span className={styles.complianceX}>✗</span>
-                            )}
-                          </div>
-                        </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    
-                    {/* Fila especial para mostrar habitaciones de mayor capacidad */}
-                    {!showLargerCapacity && 
-                     allAvailableRooms.some(room => room.maxPeople > requirements.requiredGuests) && 
-                     allAvailableRooms.some(room => room.maxPeople === requirements.requiredGuests) && (
-                      <tr className={styles.showLargerCapacityRow}>
-                        <td colSpan="5">
-                          <button
-                            type="button"
-                            className={styles.showLargerCapacityButton}
-                            onClick={handleShowLargerCapacity}
-                          >
-                            📋 Mostrar habitaciones de mayor capacidad
-                          </button>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-            </div>
-          )}
-            </div>
-
-            {/* Columna derecha - Tarifas por día */}
-            <div className={styles.tableColumn}>
-              <h2>Tarifas por Día</h2>
+            {/* Habitaciones Disponibles dentro de la pestaña */}
+            <div className={styles.roomsSection}>
+              <div className={styles.sectionHeader}>
+                <h3>🏨 Habitaciones Disponibles</h3>
+              </div>
               
-              {!formData.checkIn || !formData.checkOut ? (
-                <div className={styles.noDataMessage}>
-                  Selecciona las fechas de entrada y salida para ver las tarifas
+              {/* Alerta si hay problemas con las tarifas */}
+              {pricingError && (
+                <div className={styles.alertWarning}>
+                  ⚠️ <strong>Precios no configurados:</strong> {pricingError} 
+                  Las habitaciones se muestran con tarifa $0. 
+                  <strong>No se pueden generar reservas sin precios válidos.</strong> Por favor, configure los precios en el sistema de gestión.
+                </div>
+              )}
+              
+              {loadingRooms ? (
+                <div className={styles.loading}>
+                  🔍 Buscando habitaciones disponibles...
                 </div>
               ) : availableRooms.length === 0 ? (
-                <div className={styles.noDataMessage}>
-                  No hay habitaciones disponibles para las fechas seleccionadas
-                </div>
-              ) : !selectedRoomType ? (
-                <div className={styles.noDataMessage}>
-                  Cargando tipos de habitación...
+                <div className={styles.noRooms}>
+                  <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
+                  <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
                 </div>
               ) : (
-                <>
-                  {/* Tabla de tarifas por día */}
-                  {dailyRates.length === 0 ? (
-                    <div className={styles.noDataMessage}>
-                      No hay tarifas disponibles para las fechas seleccionadas
-                    </div>
-                  ) : (
-                    <div className={styles.tableContainer}>
-                      <table className={styles.ratesTable}>
-                        <thead>
-                          <tr>
-                            <th>Fecha</th>
-                            <th>Tipo de Habitación</th>
-                            <th>Servicio</th>
-                            <th>Precio</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dailyRates.map((rate, index) => (
-                            <tr key={index} className={rate.noRatesAvailable ? styles.noRatesRow : ''}>
-                              <td>
-                                {new Date(rate.date).toLocaleDateString('es-AR', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
-                              </td>
-                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
-                                {selectedRoomType?.name || 'Sin tipo'}
-                              </td>
-                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
-                                {rate.serviceName}
-                              </td>
-                              <td className={rate.noRatesAvailable ? styles.noRatesText : ''}>
-                                {rate.noRatesAvailable ? (
-                                  <span>Sin tarifa</span>
+                <div className={styles.roomsList}>
+                  {availableRooms
+                    .map((room) => {
+                      const compliance = checkRequirementsCompliance(room);
+                      return { room, compliance };
+                    })
+                    .sort((a, b) => {
+                      // Primero las que cumplen completamente
+                      if (a.compliance.complies && !b.compliance.complies) return -1;
+                      if (!a.compliance.complies && b.compliance.complies) return 1;
+                      
+                      // Luego por capacidad exacta vs mayor capacidad
+                      const aExactCapacity = a.room.capacity === segments[activeBlockIndex]?.requiredGuests;
+                      const bExactCapacity = b.room.capacity === segments[activeBlockIndex]?.requiredGuests;
+                      
+                      if (aExactCapacity && !bExactCapacity) return -1;
+                      if (!aExactCapacity && bExactCapacity) return 1;
+                      
+                      return 0;
+                    })
+                    .map(({ room, compliance }) => {
+                      const isSelected = selectedRoomsPerBlock[activeBlockIndex] && selectedRoomsPerBlock[activeBlockIndex].id === room.id;
+                      const showDetails = showRoomDetails[room.id] || false;
+                      
+                      return (
+                        <div key={room.id} className={styles.roomListItem}>
+                          <div 
+                            className={`${styles.roomItem} ${isSelected ? styles.roomItemSelected : ''}`}
+                            onClick={() => selectRoomForBlock(activeBlockIndex, room)}
+                          >
+                            <div className={styles.roomItemLeft}>
+                              <div className={styles.roomSelection}>
+                                <input
+                                  type="radio"
+                                  name={`selectedRoom-${activeBlockIndex}`}
+                                  id={`room-${room.id}`}
+                                  checked={isSelected}
+                                  onChange={() => selectRoomForBlock(activeBlockIndex, room)}
+                                />
+                                <label htmlFor={`room-${room.id}`}>
+                                  <span className={styles.radioCircle}></span>
+                                </label>
+                              </div>
+                              
+                              <div className={styles.roomMainInfo}>
+                                <h3>{room.name}</h3>
+                                <div className={styles.roomSecondaryInfo}>
+                                  <span className={styles.roomType}>{room.roomType?.name}</span>
+                                  <span className={`${styles.capacityBadge} ${
+                                    room.maxPeople === segments[activeBlockIndex]?.requiredGuests ? styles.capacityExact : styles.capacityLarger
+                                  }`}>
+                                    {room.maxPeople} pers.
+                                  </span>
+                                </div>
+                                <div className={styles.roomDescription}>
+                                  {room.description || 'Descripción no disponible'}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className={styles.roomItemRight}>
+                              <div className={styles.complianceIndicator} title={compliance.message}>
+                                {compliance.complies ? (
+                                  <span className={styles.complianceCheck}>✓</span>
                                 ) : (
-                                  new Intl.NumberFormat('es-AR', {
-                                    style: 'currency',
-                                    currency: 'ARS'
-                                  }).format(rate.price || 0)
+                                  <span className={styles.complianceX}>✗</span>
                                 )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </>
+                              </div>
+                              
+                              <div className={styles.roomRate}>
+                                <span className={styles.rateAmount}>
+                                  ${new Intl.NumberFormat('es-AR').format(room.baseRate || 0)}
+                                </span>
+                              </div>
+                              
+                              <button 
+                                className={styles.detailsButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleRoomDetails(room.id);
+                                }}
+                              >
+                                {showDetails ? 'Ocultar Detalle' : 'Ver Detalle'}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {showDetails && (
+                            <div className={styles.roomDetailsExpanded}>
+                              <h4>Detalle Tarifario por Día</h4>
+                              <div className={styles.dailyRatesTable}>
+                                {dailyRates.map((rate, index) => (
+                                  <div key={index} className={styles.dailyRateRow}>
+                                    <span>{format(new Date(rate.date), 'dd/MM/yyyy')}</span>
+                                    <span>${new Intl.NumberFormat('es-AR').format(rate.amount)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               )}
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Footer del main content */}
-        <div className={styles.mainContentFooter}>
-          <div className={styles.mainTotalSection}>
-            <div className={styles.mainTotalRow}>
-              <span>Total:</span>
-              <span className={styles.mainTotalAmount}>
-                {new Intl.NumberFormat('es-AR', {
-                  style: 'currency',
-                  currency: 'ARS'
-                }).format(calculateTotal())}
-              </span>
+      {/* 4. Resumen Global (sección fija abajo) */}
+      {Object.keys(selectedRoomsPerBlock).length > 0 && (
+        <div className={styles.summarySection}>
+          <div className={styles.sectionHeader}>
+            <h2>📋 Resumen Global de la Reserva</h2>
+          </div>
+          
+          <div className={styles.summaryContent}>
+            <div className={styles.summaryHeader}>
+              <div className={styles.summaryItem}>
+                <label>Cliente:</label>
+                <span>{formData.mainClient.firstName} {formData.mainClient.lastName}</span>
+              </div>
+            </div>
+            
+            <div className={styles.blocksSummary}>
+              <h4>Bloques de Estadía:</h4>
+              {segments.map((block, index) => {
+                const selectedRoom = selectedRoomsPerBlock[index];
+                if (!selectedRoom) return null;
+                
+                return (
+                  <div key={block.id} className={styles.blockSummaryItem}>
+                    <span className={styles.blockSummaryLabel}>
+                      Bloque {index + 1}:
+                    </span>
+                    <span className={styles.blockSummaryDetails}>
+                      {selectedRoom.name} | {format(new Date(block.checkIn), 'dd/MM')} – {format(new Date(block.checkOut), 'dd/MM')} | {block.serviceType} | ${new Intl.NumberFormat('es-AR').format(selectedRoom.baseRate || 0)}
+                    </span>
+                  </div>
+                );
+              })}
+              
+              <div className={styles.totalSection}>
+                <div className={styles.totalSeparator}></div>
+                <div className={styles.summaryItem}>
+                  <label>Total General:</label>
+                  <span className={styles.totalAmount}>
+                    ${new Intl.NumberFormat('es-AR').format(
+                      Object.values(selectedRoomsPerBlock).reduce((total, room) => total + (room.baseRate || 0), 0)
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className={styles.summaryActions}>
+              <button 
+                type="button" 
+                className={styles.draftButton}
+                onClick={handleSaveQuery}
+              >
+                💾 Guardar Borrador
+              </button>
+              
+              <button 
+                type="button" 
+                className={styles.confirmButton}
+                onClick={() => setShowConfirmationModal(true)}
+                disabled={Object.keys(selectedRoomsPerBlock).length === 0}
+              >
+                ✅ Confirmar Reserva
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Modal de confirmación de reserva */}
       <ReservationConfirmationModal
@@ -1510,4 +1685,4 @@ export default function NuevaConsulta() {
       />
     </div>
   );
-} 
+}

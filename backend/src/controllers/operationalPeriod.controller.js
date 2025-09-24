@@ -30,8 +30,8 @@ class OperationalPeriodController {
       const { startDate, endDate, label } = req.body;
 
       // Validar que las fechas sean válidas y establecerlas a mediodía para evitar problemas de zona horaria
-      const start = new Date(startDate + 'T12:00:00.000Z');
-      const end = new Date(endDate + 'T12:00:00.000Z');
+      const start = new Date(startDate + 'T12:00:00');
+      const end = new Date(endDate + 'T12:00:00');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ message: 'Fechas inválidas' });
@@ -159,8 +159,8 @@ class OperationalPeriodController {
       const { startDate, endDate, label } = req.body;
 
       // Validar que las fechas sean válidas y establecerlas a mediodía para evitar problemas de zona horaria
-      const start = new Date(startDate + 'T12:00:00.000Z');
-      const end = new Date(endDate + 'T12:00:00.000Z');
+      const start = new Date(startDate + 'T12:00:00');
+      const end = new Date(endDate + 'T12:00:00');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return res.status(400).json({ message: 'Fechas inválidas' });

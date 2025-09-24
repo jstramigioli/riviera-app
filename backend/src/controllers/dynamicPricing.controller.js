@@ -406,10 +406,13 @@ class DynamicPricingController {
    */
   async getCalculatedRates(req, res) {
     try {
+      console.log('🔍 getCalculatedRates iniciado con params:', req.params, 'query:', req.query);
+      
       const { hotelId, roomTypeId } = req.params;
       const { startDate, endDate, serviceType = 'base' } = req.query;
 
       if (!startDate || !endDate) {
+        console.log('❌ Fechas faltantes');
         return res.status(400).json({ 
           message: 'Se requieren las fechas de inicio y fin' 
         });
@@ -419,14 +422,18 @@ class DynamicPricingController {
       const end = new Date(endDate);
 
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.log('❌ Fechas inválidas:', startDate, endDate);
         return res.status(400).json({ message: 'Fechas inválidas' });
       }
 
       if (start >= end) {
+        console.log('❌ Fecha inicio >= fecha fin');
         return res.status(400).json({ 
           message: 'La fecha de inicio debe ser anterior a la fecha de fin' 
         });
       }
+
+      console.log('📅 Buscando tarifas para:', hotelId, roomTypeId, start, end);
 
       // Obtener las tarifas para el rango de fechas
       const rates = await dynamicPricingService.getRatesForDateRange(
@@ -436,8 +443,27 @@ class DynamicPricingController {
         end
       );
 
-      // Si no hay tarifas calculadas, generarlas
+      console.log('📊 Tarifas encontradas:', rates.length);
+
+      // Si no hay tarifas calculadas, verificar bloques de temporada
       if (rates.length === 0) {
+        console.log('🔄 Verificando bloques de temporada...');
+        
+        // Verificar qué bloques de temporada existen
+        const seasonBlocks = await prisma.seasonBlock.findMany({
+          where: { hotelId },
+          include: { seasonPrices: true }
+        });
+        
+        console.log('📅 Bloques de temporada disponibles:', seasonBlocks.map(block => ({
+          id: block.id,
+          name: block.name,
+          startDate: block.startDate,
+          endDate: block.endDate,
+          prices: block.seasonPrices.length
+        })));
+        
+        console.log('🔄 Generando tarifas dinámicas...');
         await dynamicPricingService.generateDynamicRates(
           hotelId, 
           parseInt(roomTypeId), 
@@ -453,6 +479,7 @@ class DynamicPricingController {
           end
         );
         
+        console.log('📊 Tarifas generadas:', generatedRates.length);
         rates.push(...generatedRates);
       }
 
@@ -461,15 +488,21 @@ class DynamicPricingController {
       const ratesWithService = rates.map((rate, index) => {
         let serviceRate = rate.baseRate;
         
+        // Aplicar multiplicadores según el tipo de servicio
         switch (serviceType) {
-          case 'breakfast':
-            serviceRate = rate.withBreakfast;
+          case 'con_desayuno':
+            serviceRate = rate.baseRate * 1.2; // +20% para desayuno
             break;
-          case 'halfBoard':
-            serviceRate = rate.withHalfBoard;
+          case 'media_pension':
+            serviceRate = rate.baseRate * 1.5; // +50% para media pensión
             break;
+          case 'pension_completa':
+            serviceRate = rate.baseRate * 1.8; // +80% para pensión completa
+            break;
+          case 'sin_desayuno':
           default:
-            serviceRate = rate.baseRate;
+            serviceRate = rate.baseRate; // Sin ajuste
+            break;
         }
         
         // Solo sumar al total si no es el último día (día de salida)
@@ -495,8 +528,22 @@ class DynamicPricingController {
         averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0
       });
     } catch (error) {
-      console.error('Error al obtener tarifas calculadas:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
+      console.error('❌ Error al obtener tarifas calculadas:', error);
+      
+      // Si es un error de precios no configurados, devolver 404
+      if (error.message.includes('No hay precios configurados')) {
+        return res.status(404).json({
+          message: 'No se encontraron precios para las fechas solicitadas',
+          details: 'No hay bloques de temporada configurados para estas fechas. Por favor, configure precios en el sistema de gestión.',
+          error: error.message
+        });
+      }
+      
+      // Para otros errores, devolver 500
+      res.status(500).json({ 
+        message: 'Error interno del servidor',
+        error: error.message
+      });
     }
   }
 
