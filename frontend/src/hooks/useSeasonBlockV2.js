@@ -1078,17 +1078,46 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   };
 
   // Clonar bloque de temporada
-  const cloneSeasonBlock = () => {
-    const today = new Date();
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const cloneSeasonBlock = async () => {
+    if (!blockId) {
+      setError('No hay bloque para clonar');
+      return { success: false, error: 'No hay bloque para clonar' };
+    }
 
-    setFormData(prev => ({
-      ...prev,
-      name: `${prev.name} (Copia)`,
-      startDate: today.toISOString().split('T')[0],
-      endDate: nextMonth.toISOString().split('T')[0]
-    }));
+    try {
+      setSaving(true);
+      setError(null);
+
+      const today = new Date();
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+      const response = await fetch(`${API_URL}/season-blocks/${blockId}/clone`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          newName: `${formData.name} (Copia)`,
+          newStartDate: today.toISOString().split('T')[0],
+          newEndDate: nextMonth.toISOString().split('T')[0]
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.errors?.[0] || 'Error al clonar el bloque');
+      }
+
+      return { success: true, data: result.data };
+    } catch (err) {
+      console.error('Error cloning season block:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Función para actualizar precios desde el componente

@@ -240,11 +240,22 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     setShowDeleteConfirmation(false);
   };
 
-  const handleClone = () => {
-    cloneSeasonBlock();
-    setIsEditing(true);
-    setIsExpanded(true);
-    showNotification('Bloque clonado. Ajusta las fechas y guarda.', 'info');
+  const handleClone = async () => {
+    try {
+      const result = await cloneSeasonBlock();
+      if (result.success) {
+        showNotification('Bloque clonado exitosamente', 'success');
+        // Recargar la lista de bloques para mostrar el nuevo bloque
+        if (onBlockUpdated) {
+          onBlockUpdated();
+        }
+      } else {
+        showNotification(result.error || 'Error al clonar el bloque', 'error');
+      }
+    } catch (error) {
+      console.error('Error in handleClone:', error);
+      showNotification('Error al clonar el bloque', 'error');
+    }
   };
 
   const handleConfirm = async () => {

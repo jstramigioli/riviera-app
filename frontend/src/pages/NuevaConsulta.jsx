@@ -105,11 +105,23 @@ export default function NuevaConsulta() {
     }
   });
 
+  // Estado para tipos de servicio
+  const [serviceTypes, setServiceTypes] = useState([]);
+  
+  // Estados para manejo de disponibilidad de servicios
+  const [serviceAvailabilityError, setServiceAvailabilityError] = useState(null);
+  const [serviceAvailabilityMessages, setServiceAvailabilityMessages] = useState([]);
+  const [availableServices, setAvailableServices] = useState([]);
+  const [isPartiallyAvailable, setIsPartiallyAvailable] = useState(false);
+  const [suggestedAction, setSuggestedAction] = useState('');
+  const [availablePeriods, setAvailablePeriods] = useState([]);
+  const [serviceName, setServiceName] = useState('');
+
   // Estado para requerimientos con persistencia en localStorage
   const [requirements, setRequirements] = useLocalStorage('nuevaConsulta_requirements', {
     requiredGuests: 1,
     requiredTags: [],
-    serviceType: 'con_desayuno'
+    serviceType: ''
   });
 
   // Estado para segmentos de consulta
@@ -120,7 +132,7 @@ export default function NuevaConsulta() {
       checkOut: '',
       requiredGuests: 1,
       requiredTags: [],
-      serviceType: 'con_desayuno'
+      serviceType: ''
     }
   ]);
 
@@ -192,7 +204,7 @@ export default function NuevaConsulta() {
       checkOut: checkOutDate,
       requiredGuests: lastBlock?.requiredGuests || 1,
       requiredTags: [],
-      serviceType: lastBlock?.serviceType || 'con_desayuno'
+      serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
     };
     
     console.log('➕ Nuevo bloque agregado:', {
@@ -203,6 +215,40 @@ export default function NuevaConsulta() {
     
     setSegments(prev => [...prev, newBlock]);
     setActiveBlockIndex(segments.length);
+  };
+
+  // Función para crear segmentos automáticamente basados en períodos disponibles
+  const createSegmentsFromAvailablePeriods = () => {
+    if (availablePeriods.length === 0) return;
+    
+    const newSegments = [];
+    let currentId = Math.max(...segments.map(s => s.id)) + 1;
+    
+    // Crear un segmento para cada período disponible
+    for (const period of availablePeriods) {
+      const newSegment = {
+        id: currentId++,
+        checkIn: period.startDate,
+        checkOut: period.endDate,
+        requiredGuests: segments[activeBlockIndex]?.requiredGuests || 1,
+        requiredTags: segments[activeBlockIndex]?.requiredTags || [],
+        serviceType: segments[activeBlockIndex]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+      };
+      newSegments.push(newSegment);
+    }
+    
+    // Reemplazar el segmento actual con los nuevos segmentos
+    const updatedSegments = [...segments];
+    updatedSegments.splice(activeBlockIndex, 1, ...newSegments);
+    
+    setSegments(updatedSegments);
+    setActiveBlockIndex(activeBlockIndex); // Mantener el índice activo
+    
+    // Limpiar estados de error
+    setServiceAvailabilityError(null);
+    setAvailablePeriods([]);
+    
+    console.log('✅ Segmentos creados automáticamente:', newSegments);
   };
 
   const removeBlock = (blockId) => {
@@ -249,6 +295,55 @@ export default function NuevaConsulta() {
     }
   }, [location.state]);
 
+  // Cargar tipos de servicio desde la API
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        if (response.ok) {
+          const data = await response.json();
+          setServiceTypes(data.data || []);
+        } else {
+          console.error('Error al cargar tipos de servicio:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error al cargar tipos de servicio:', error);
+      }
+    };
+
+    loadServiceTypes();
+  }, []);
+
+  // Actualizar serviceType por defecto cuando se carguen los tipos de servicio
+  useEffect(() => {
+    if (serviceTypes.length > 0) {
+      const defaultServiceId = serviceTypes[0].id;
+      console.log('🔄 Actualizando serviceType por defecto:', defaultServiceId);
+      console.log('📋 Requirements serviceType actual:', requirements.serviceType);
+      console.log('📋 Segments serviceType actual:', segments.map(s => s.serviceType));
+      
+      // Actualizar requirements si está vacío
+      if (!requirements.serviceType) {
+        console.log('✅ Actualizando requirements vacío a:', defaultServiceId);
+        setRequirements(prev => ({
+          ...prev,
+          serviceType: defaultServiceId
+        }));
+      }
+      
+      // Actualizar segments si están vacíos
+      const segmentsToUpdate = segments.filter(s => !s.serviceType);
+      if (segmentsToUpdate.length > 0) {
+        console.log('✅ Actualizando segments vacíos a:', defaultServiceId);
+        setSegments(prev => prev.map(segment => 
+          !segment.serviceType 
+            ? { ...segment, serviceType: defaultServiceId }
+            : segment
+        ));
+      }
+    }
+  }, [serviceTypes, requirements.serviceType]);
+
   // Cargar habitación seleccionada desde localStorage
   useEffect(() => {
     const savedSelectedRoom = localStorage.getItem('nuevaConsulta_selectedRoom');
@@ -292,14 +387,14 @@ export default function NuevaConsulta() {
           checkOut: defaultDates.checkOut,
           requiredGuests: segment.requiredGuests || 1,
           requiredTags: segment.requiredTags || [],
-          serviceType: segment.serviceType || 'con_desayuno'
+          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
         } : {
           ...segment,
           checkIn: segment.checkIn || '',
           checkOut: segment.checkOut || '',
           requiredGuests: segment.requiredGuests || 1,
           requiredTags: segment.requiredTags || [],
-          serviceType: segment.serviceType || 'con_desayuno'
+          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
         }
       ));
       
@@ -422,23 +517,19 @@ export default function NuevaConsulta() {
         requiredTags: activeBlock.requiredTags
       };
 
-      console.log('Buscando habitaciones con parámetros:', params);
       const result = await findAvailableRooms(params);
-      console.log('Resultado de búsqueda de habitaciones:', result);
       
       if (result && result.availableRooms) {
-        console.log(`Encontradas ${result.availableRooms.length} habitaciones disponibles`);
         
         // Calcular tarifas para cada habitación usando el endpoint correcto
         const roomsWithRates = await Promise.all(
           result.availableRooms.map(async (room) => {
             let totalRate = 0;
-            
-            console.log(`🏨 Procesando habitación: ${room.name}, tipo: ${room.roomType?.id}`);
+            let ratesResult = null; // Declarar ratesResult fuera del try-catch
             
             try {
               // Usar el endpoint correcto: /api/dynamic-pricing/calculated-rates/:hotelId/:roomTypeId
-              const ratesResult = await getCalculatedRates(
+              ratesResult = await getCalculatedRates(
                 'default-hotel',
                 room.roomType?.id,
                 activeBlock.checkIn,
@@ -446,58 +537,164 @@ export default function NuevaConsulta() {
                 activeBlock.serviceType
               );
               
-              console.log(`📊 Respuesta para habitación ${room.name}:`, ratesResult);
-              
-              if (ratesResult && ratesResult.totalAmount !== undefined) {
-                totalRate = ratesResult.totalAmount;
-                console.log(`✅ Habitación ${room.name}: Total del backend = $${totalRate}`);
+              if (ratesResult && ratesResult.rates && ratesResult.rates.length > 0) {
+                // Calcular el número de días basado en las fechas de check-in y check-out
+                const checkInDate = new Date(activeBlock.checkIn);
+                const checkOutDate = new Date(activeBlock.checkOut);
+                const numberOfDays = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+                
+                console.log(`🔍 ${room.name}: Fechas ${activeBlock.checkIn} a ${activeBlock.checkOut} = ${numberOfDays} días`);
+                console.log(`🔍 Array de rates tiene ${ratesResult.rates.length} elementos`);
+                
+                // Sumar solo los primeros N días (donde N = numberOfDays)
+                const ratesToSum = ratesResult.rates.slice(0, numberOfDays);
+                console.log(`🔍 Sumando ${ratesToSum.length} días:`, ratesToSum.map(r => r.serviceRate || r.baseRate));
+                
+                totalRate = ratesToSum.reduce((sum, rate) => {
+                  return sum + (rate.serviceRate || rate.baseRate || 0);
+                }, 0);
+                
+                console.log(`🔍 Total calculado: $${totalRate}`);
               } else {
-                console.log(`⚠️ Respuesta inesperada para habitación ${room.name}:`, ratesResult);
                 totalRate = 0;
               }
             } catch (error) {
-              console.error(`❌ Error obteniendo tarifa para habitación ${room.name}:`, error);
-              
-              // Verificar si es un error 404 (precios no configurados)
-              if (error.message.includes('404') || error.message.includes('No se encontraron precios')) {
-                console.log(`⚠️ No hay precios configurados para las fechas solicitadas`);
+              console.log(`🔍 Error para ${room.name}:`, error.message);
+              // Verificar si es un error de servicio no disponible
+              if (error.message.includes('no está disponible para el período solicitado')) {
+                console.log(`🚫 Servicio no disponible para ${room.name}:`, error.message);
+                totalRate = 0;
+                room.serviceAvailabilityError = error.message;
+                // Capturar información adicional del error si está disponible
+                if (error.availableServices) {
+                  room.availableServices = error.availableServices;
+                }
+                if (error.serviceAvailabilityMessages) {
+                  room.serviceAvailabilityMessages = error.serviceAvailabilityMessages;
+                }
+                if (error.isPartiallyAvailable !== undefined) {
+                  room.isPartiallyAvailable = error.isPartiallyAvailable;
+                }
+                if (error.suggestedAction) {
+                  room.suggestedAction = error.suggestedAction;
+                }
+                if (error.availablePeriods) {
+                  room.availablePeriods = error.availablePeriods;
+                }
+                if (error.serviceName) {
+                  room.serviceName = error.serviceName;
+                }
+              } else if (error.message.includes('404') || error.message.includes('No se encontraron precios')) {
                 totalRate = 0; // Mantener $0 cuando no hay precios configurados
+              } else if (error.message.includes('No hay tarifas disponibles para todas las fechas solicitadas')) {
+                // Manejar error de fechas sin tarifas
+                console.error(`Fechas sin tarifas para ${room.name}:`, error);
+                totalRate = 0;
+                // Marcar esta habitación como no disponible
+                room.availabilityError = error.message;
+              } else if (error.message.includes('Error interno del servidor')) {
+                // Manejar error interno del servidor
+                console.error(`Error interno del servidor para ${room.name}:`, error);
+                totalRate = 0;
+                room.serviceAvailabilityError = 'Error interno del servidor. Por favor, intenta nuevamente.';
+              } else if (error.message.includes('disponible parcialmente')) {
+                // Manejar disponibilidad parcial
+                console.log(`🚫 Servicio parcialmente disponible para ${room.name}:`, error.message);
+                totalRate = 0;
+                room.serviceAvailabilityError = error.message;
+                // Capturar información adicional del error si está disponible
+                if (error.availableServices) {
+                  room.availableServices = error.availableServices;
+                }
+                if (error.serviceAvailabilityMessages) {
+                  room.serviceAvailabilityMessages = error.serviceAvailabilityMessages;
+                }
+                if (error.isPartiallyAvailable !== undefined) {
+                  room.isPartiallyAvailable = error.isPartiallyAvailable;
+                }
+                if (error.suggestedAction) {
+                  room.suggestedAction = error.suggestedAction;
+                }
+                if (error.availablePeriods) {
+                  room.availablePeriods = error.availablePeriods;
+                }
+                if (error.serviceName) {
+                  room.serviceName = error.serviceName;
+                }
               } else {
-                console.log(`⚠️ Error del servidor al obtener precios para ${room.name}`);
-                totalRate = 0; // Mantener $0 cuando hay error del servidor
+                console.error(`Error obteniendo tarifas para ${room.name}:`, error);
+                totalRate = 0;
               }
             }
             
             return {
               ...room,
-              baseRate: Math.round(totalRate)
+              baseRate: Math.round(totalRate),
+              ratesData: ratesResult // Guardar los datos completos de tarifas
             };
           })
         );
         
-        console.log('Habitaciones con tarifas calculadas:', roomsWithRates);
-        
-        // Verificar si alguna habitación tiene tarifa $0 (indicando problema con el backend)
-        const hasZeroRates = roomsWithRates.some(room => room.baseRate === 0);
-        if (hasZeroRates) {
-          console.log('⚠️ Algunas habitaciones tienen tarifa $0 - posible problema con el backend');
-        }
-        
         // Verificar si TODAS las habitaciones tienen tarifa $0 (precios no configurados)
         const allZeroRates = roomsWithRates.length > 0 && roomsWithRates.every(room => room.baseRate === 0);
+        const roomsWithAvailabilityErrors = roomsWithRates.filter(room => room.availabilityError);
+        const roomsWithServiceAvailabilityErrors = roomsWithRates.filter(room => room.serviceAvailabilityError);
+        
+        // Limpiar errores previos
+        setServiceAvailabilityError(null);
+        setServiceAvailabilityMessages([]);
+        setAvailableServices([]);
+        setIsPartiallyAvailable(false);
+        setSuggestedAction('');
+        setAvailablePeriods([]);
+        setServiceName('');
+        
         if (allZeroRates) {
-          console.log('⚠️ TODAS las habitaciones tienen tarifa $0 - precios no configurados');
-          setPricingError('No se encontraron precios para las fechas solicitadas. No hay bloques de temporada configurados para estas fechas.');
+          if (roomsWithServiceAvailabilityErrors.length > 0) {
+            // Error de disponibilidad de servicios
+            const firstServiceError = roomsWithServiceAvailabilityErrors[0];
+            setServiceAvailabilityError(firstServiceError.serviceAvailabilityError);
+            
+            if (firstServiceError.availableServices) {
+              setAvailableServices(firstServiceError.availableServices);
+            }
+            if (firstServiceError.serviceAvailabilityMessages) {
+              setServiceAvailabilityMessages(firstServiceError.serviceAvailabilityMessages);
+            }
+            if (firstServiceError.isPartiallyAvailable !== undefined) {
+              setIsPartiallyAvailable(firstServiceError.isPartiallyAvailable);
+            }
+            if (firstServiceError.suggestedAction) {
+              setSuggestedAction(firstServiceError.suggestedAction);
+            }
+            if (firstServiceError.availablePeriods) {
+              setAvailablePeriods(firstServiceError.availablePeriods);
+            }
+            if (firstServiceError.serviceName) {
+              setServiceName(firstServiceError.serviceName);
+            }
+            
+            setPricingError(null); // No mostrar error de precios si es un problema de servicios
+          } else if (roomsWithAvailabilityErrors.length > 0) {
+            // Usar el mensaje específico del primer error
+            const firstError = roomsWithAvailabilityErrors[0].availabilityError;
+            setPricingError(firstError);
+          } else {
+            setPricingError('No se encontraron precios para las fechas solicitadas. No hay bloques de temporada configurados para estas fechas.');
+          }
         } else {
           setPricingError(null);
         }
         
-        // Guardar todas las habitaciones disponibles con tarifas
-        setAllAvailableRooms(roomsWithRates);
+        // Filtrar habitaciones con errores de disponibilidad de servicios
+        const roomsWithoutServiceErrors = roomsWithRates.filter(room => !room.serviceAvailabilityError);
+        
+        // Guardar todas las habitaciones disponibles con tarifas (solo las que no tienen errores de servicios)
+        setAllAvailableRooms(roomsWithoutServiceErrors);
         
         // Filtrar habitaciones: primero capacidad exacta, luego mayor capacidad
-        const exactCapacityRooms = roomsWithRates.filter(room => room.maxPeople === activeBlock.requiredGuests);
-        const largerCapacityRooms = roomsWithRates.filter(room => room.maxPeople > activeBlock.requiredGuests);
+        const exactCapacityRooms = roomsWithoutServiceErrors.filter(room => room.maxPeople === activeBlock.requiredGuests);
+        const largerCapacityRooms = roomsWithoutServiceErrors.filter(room => room.maxPeople > activeBlock.requiredGuests);
         
         // Determinar qué habitaciones mostrar inicialmente
         let roomsToShow = [];
@@ -514,7 +711,13 @@ export default function NuevaConsulta() {
           shouldShowLargerCapacityButton = false; // No mostrar botón porque ya se muestran
         }
         
-        setAvailableRooms(roomsToShow);
+        // Si hay errores de disponibilidad de servicios, no mostrar habitaciones
+        if (roomsWithServiceAvailabilityErrors.length > 0) {
+          console.log('Hay errores de disponibilidad de servicios, no se muestran habitaciones');
+          setAvailableRooms([]);
+        } else {
+          setAvailableRooms(roomsToShow);
+        }
       } else {
         console.log('No se encontraron habitaciones disponibles');
         setAvailableRooms([]);
@@ -550,17 +753,11 @@ export default function NuevaConsulta() {
       const rates = [];
       
       // Obtener el servicio seleccionado del primer segmento
-      const selectedServiceType = segments[0]?.serviceType || 'con_desayuno';
+      const selectedServiceType = segments[0]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '');
       
-      // Mapear el tipo de servicio a nombres de servicio
-      const serviceTypeMap = {
-        'con_desayuno': 'Con Desayuno',
-        'sin_desayuno': 'Sin Desayuno',
-        'media_pension': 'Media Pensión',
-        'pension_completa': 'Pensión Completa'
-      };
-      
-      const selectedServiceName = serviceTypeMap[selectedServiceType];
+      // Obtener el nombre del tipo de servicio desde los tipos de servicio cargados
+      const selectedService = serviceTypes.find(st => st.id === selectedServiceType);
+      const selectedServiceName = selectedService ? selectedService.name : 'Servicio no encontrado';
       
       for (const day of days) {
         const dateStr = day.toISOString().split('T')[0];
@@ -618,14 +815,14 @@ export default function NuevaConsulta() {
               
               rates.push({
                 date: dateStr,
-                blockName: seasonBlockData.seasonBlock.name,
+                blockName: activeBlockForDate.name,
                 serviceName: selectedServiceName,
                 price: Math.round(finalPrice)
               });
             } else {
               rates.push({
                 date: dateStr,
-                blockName: seasonBlockData.seasonBlock.name,
+                blockName: 'Sin bloque',
                 serviceName: selectedServiceName,
                 price: 0,
                 noRatesAvailable: true
@@ -650,17 +847,11 @@ export default function NuevaConsulta() {
                   const serviceAdjustments = draftBlockData.data.blockServiceSelections || [];
                   
                   // Obtener el servicio seleccionado del primer segmento
-                  const selectedServiceType = segments[0]?.serviceType || 'con_desayuno';
+                  const selectedServiceType = segments[0]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '');
                   
-                  // Mapear el tipo de servicio a nombres de servicio
-                  const serviceTypeMap = {
-                    'con_desayuno': 'Con Desayuno',
-                    'sin_desayuno': 'Sin Desayuno',
-                    'media_pension': 'Media Pensión',
-                    'pension_completa': 'Pensión Completa'
-                  };
-                  
-                  const selectedServiceName = serviceTypeMap[selectedServiceType];
+                  // Obtener el nombre del tipo de servicio desde los tipos de servicio cargados
+                  const selectedService = serviceTypes.find(st => st.id === selectedServiceType);
+                  const selectedServiceName = selectedService ? selectedService.name : 'Servicio no encontrado';
                   
                   // Buscar el precio para el servicio seleccionado
                   const servicePrice = roomTypePrices.find(price => 
@@ -1047,7 +1238,7 @@ export default function NuevaConsulta() {
       checkOut: '',
       requiredGuests: 1,
       requiredTags: [],
-      serviceType: 'con_desayuno'
+      serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
     };
     setSegments(prev => [...prev, newSegment]);
   };
@@ -1217,7 +1408,7 @@ export default function NuevaConsulta() {
     setRequirements({
       requiredGuests: 1,
       requiredTags: [],
-      serviceType: 'con_desayuno'
+      serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
     });
     setSegments([
       {
@@ -1226,7 +1417,7 @@ export default function NuevaConsulta() {
         checkOut: '',
         requiredGuests: 1,
         requiredTags: [],
-        serviceType: 'con_desayuno'
+        serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
       }
     ]);
     setSelectedRoom(null);
@@ -1409,13 +1600,14 @@ export default function NuevaConsulta() {
                 <div className={styles.formGroup}>
                   <label>Tipo de Servicio</label>
                   <select
-                    value={segments[activeBlockIndex]?.serviceType || 'con_desayuno'}
+                    value={segments[activeBlockIndex]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'serviceType', e.target.value)}
                   >
-                    <option value="sin_desayuno">Solo Alojamiento</option>
-                    <option value="con_desayuno">Desayuno</option>
-                    <option value="media_pension">Media Pensión</option>
-                    <option value="pension_completa">Pensión Completa</option>
+                    {serviceTypes.map(serviceType => (
+                      <option key={serviceType.id} value={serviceType.id}>
+                        {serviceType.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1478,6 +1670,97 @@ export default function NuevaConsulta() {
                   ⚠️ <strong>Precios no configurados:</strong> {pricingError} 
                   Las habitaciones se muestran con tarifa $0. 
                   <strong>No se pueden generar reservas sin precios válidos.</strong> Por favor, configure los precios en el sistema de gestión.
+                </div>
+              )}
+              
+              {/* Alerta si hay problemas con la disponibilidad de servicios */}
+              {serviceAvailabilityError && (
+                <div className={styles.alertWarning}>
+                  🚫 <strong>Servicio no disponible:</strong> {serviceAvailabilityError}
+                  
+                  {availableServices.length > 0 && (
+                    <div style={{ marginTop: '10px' }}>
+                      <strong>Servicios disponibles para este período:</strong>
+                      <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                        {availableServices.map(service => (
+                          <li key={service.id}>
+                            {service.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {serviceAvailabilityMessages.length > 0 && (
+                    <div style={{ marginTop: '10px' }}>
+                      <strong>Información adicional:</strong>
+                      <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                        {serviceAvailabilityMessages.map((msg, index) => (
+                          <li key={index}>
+                            {msg.service}: {msg.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <div style={{ marginTop: '15px', padding: '10px', backgroundColor: isPartiallyAvailable ? '#fff3cd' : '#f0f8ff', borderRadius: '5px', border: `1px solid ${isPartiallyAvailable ? '#ffc107' : '#007bff'}` }}>
+                    <strong>💡 {isPartiallyAvailable ? 'Disponibilidad parcial detectada:' : 'Opciones disponibles:'}</strong>
+                    <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                      {suggestedAction && (
+                        <li>{suggestedAction}</li>
+                      )}
+                      {!suggestedAction && (
+                        <>
+                          <li>Selecciona un servicio diferente que esté disponible para todas las fechas</li>
+                          <li>Crea segmentos de reserva separados para dividir el período en tramos con diferentes servicios</li>
+                        </>
+                      )}
+                    </ul>
+                    
+                    {isPartiallyAvailable && availablePeriods.length > 0 && (
+                      <div style={{ marginTop: '10px', padding: '8px', backgroundColor: '#d1ecf1', borderRadius: '3px', border: '1px solid #bee5eb' }}>
+                        <strong>🔄 Opciones de segmentación automática:</strong>
+                        <p style={{ margin: '5px 0 10px 0', fontSize: '14px' }}>
+                          El servicio <strong>"{serviceName}"</strong> está disponible en los siguientes períodos:
+                        </p>
+                        
+                        <div style={{ marginBottom: '10px' }}>
+                          {availablePeriods.map((period, index) => (
+                            <div key={index} style={{ 
+                              marginBottom: '5px', 
+                              padding: '5px', 
+                              backgroundColor: '#f8f9fa', 
+                              borderRadius: '3px',
+                              border: '1px solid #dee2e6'
+                            }}>
+                              <strong>Período {index + 1}:</strong> {period.startDate} a {period.endDate}
+                              {period.blockName && <span style={{ color: '#6c757d', fontSize: '12px' }}> ({period.blockName})</span>}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <button 
+                          onClick={createSegmentsFromAvailablePeriods}
+                          style={{
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                          }}
+                        >
+                          🔄 Crear segmentos automáticamente
+                        </button>
+                        
+                        <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
+                          Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -1582,13 +1865,28 @@ export default function NuevaConsulta() {
                             <div className={styles.roomDetailsExpanded}>
                               <h4>Detalle Tarifario por Día</h4>
                               <div className={styles.dailyRatesTable}>
-                                {dailyRates.map((rate, index) => (
-                                  <div key={index} className={styles.dailyRateRow}>
-                                    <span>{format(new Date(rate.date), 'dd/MM/yyyy')}</span>
-                                    <span>${new Intl.NumberFormat('es-AR').format(rate.amount)}</span>
+                                {room.ratesData && room.ratesData.rates ? (
+                                  room.ratesData.rates.map((rate, index) => (
+                                    <div key={index} className={styles.dailyRateRow}>
+                                      <span>Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
+                                      <span>${new Intl.NumberFormat('es-AR').format(rate.serviceRate || rate.baseRate)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className={styles.noRatesMessage}>
+                                    No hay datos de tarifas disponibles para esta habitación
                                   </div>
-                                ))}
+                                )}
                               </div>
+                              {room.ratesData && room.ratesData.rates && (
+                                <div className={styles.dailyRatesTotal}>
+                                  <div className={styles.totalSeparator}></div>
+                                  <div className={styles.dailyRateRow}>
+                                    <span><strong>Total:</strong></span>
+                                    <span><strong>${new Intl.NumberFormat('es-AR').format(room.ratesData.totalAmount)}</strong></span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

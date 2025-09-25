@@ -478,7 +478,30 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
   });
   
   const res = await fetch(`${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/${roomTypeId}?${params}`);
-  if (!res.ok) throw new Error('Error getting calculated rates');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const error = new Error(errorData.message || 'Error getting calculated rates');
+    // Propagar información adicional para disponibilidad parcial
+    if (errorData.isPartiallyAvailable) {
+      error.isPartiallyAvailable = errorData.isPartiallyAvailable;
+    }
+    if (errorData.availablePeriods) {
+      error.availablePeriods = errorData.availablePeriods;
+    }
+    if (errorData.serviceName) {
+      error.serviceName = errorData.serviceName;
+    }
+    if (errorData.availableServices) {
+      error.availableServices = errorData.availableServices;
+    }
+    if (errorData.serviceAvailabilityMessages) {
+      error.serviceAvailabilityMessages = errorData.serviceAvailabilityMessages;
+    }
+    if (errorData.suggestedAction) {
+      error.suggestedAction = errorData.suggestedAction;
+    }
+    throw error;
+  }
   return res.json();
 }
 
