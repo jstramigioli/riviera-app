@@ -24,6 +24,9 @@ router.put('/:id', seasonBlockController.updateSeasonBlock);
 // POST /api/season-blocks/:id/confirm - Confirmar cambios de un bloque de temporada
 router.post('/:id/confirm', seasonBlockController.confirmSeasonBlock);
 
+// POST /api/season-blocks/:id/clone - Clonar un bloque de temporada
+router.post('/:id/clone', seasonBlockController.cloneSeasonBlock);
+
 // DELETE /api/season-blocks/:id - Eliminar un bloque de temporada
 router.delete('/:id', seasonBlockController.deleteSeasonBlock);
 

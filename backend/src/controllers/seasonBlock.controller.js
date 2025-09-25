@@ -846,6 +846,149 @@ exports.getCalculatedPrices = async (req, res) => {
   }
 };
 
+// Clonar bloque de temporada
+exports.cloneSeasonBlock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newName, newStartDate, newEndDate } = req.body;
+    
+    console.log('=== CLONE SEASON BLOCK ===');
+    console.log('Source block ID:', id);
+    console.log('New name:', newName);
+    console.log('New start date:', newStartDate);
+    console.log('New end date:', newEndDate);
+    
+    // Obtener el bloque original con todas sus relaciones
+    const originalBlock = await prisma.seasonBlock.findUnique({
+      where: { id },
+      include: {
+        seasonPrices: {
+          include: {
+            roomType: true,
+            serviceType: true
+          }
+        },
+        blockServiceSelections: {
+          include: {
+            serviceType: true
+          }
+        }
+      }
+    });
+    
+    if (!originalBlock) {
+      return res.status(404).json({ 
+        data: null, 
+        errors: ['Bloque de temporada no encontrado'] 
+      });
+    }
+    
+    // Validar fechas si se proporcionan
+    if (newStartDate && newEndDate) {
+      const dateValidation = validateDates(newStartDate, newEndDate);
+      if (dateValidation) {
+        return res.status(400).json({ 
+          data: null, 
+          errors: [dateValidation] 
+        });
+      }
+    }
+    
+    // Obtener el siguiente orderIndex
+    const lastBlock = await prisma.seasonBlock.findFirst({
+      where: { hotelId: originalBlock.hotelId },
+      orderBy: { orderIndex: 'desc' }
+    });
+    const orderIndex = (lastBlock?.orderIndex || 0) + 1;
+    
+    // Crear el bloque clonado en una transacción
+    const clonedBlock = await prisma.$transaction(async (tx) => {
+      // Crear el nuevo bloque
+      const newBlock = await tx.seasonBlock.create({
+        data: {
+          name: newName || `${originalBlock.name} (Copia)`,
+          description: originalBlock.description,
+          startDate: newStartDate ? new Date(newStartDate) : originalBlock.startDate,
+          endDate: newEndDate ? new Date(newEndDate) : originalBlock.endDate,
+          hotelId: originalBlock.hotelId,
+          useProportions: originalBlock.useProportions,
+          serviceAdjustmentMode: originalBlock.serviceAdjustmentMode,
+          useBlockServices: originalBlock.useBlockServices,
+          isDraft: true, // Siempre crear como borrador
+          orderIndex
+        }
+      });
+      
+      // Clonar precios
+      if (originalBlock.seasonPrices && originalBlock.seasonPrices.length > 0) {
+        const clonedPrices = originalBlock.seasonPrices.map(price => ({
+          seasonBlockId: newBlock.id,
+          roomTypeId: price.roomTypeId,
+          serviceTypeId: price.serviceTypeId,
+          basePrice: price.basePrice,
+          isDraft: true
+        }));
+        
+        await tx.seasonPrice.createMany({
+          data: clonedPrices
+        });
+      }
+      
+      // Clonar selecciones de servicios
+      if (originalBlock.blockServiceSelections && originalBlock.blockServiceSelections.length > 0) {
+        const clonedSelections = originalBlock.blockServiceSelections.map(selection => ({
+          seasonBlockId: newBlock.id,
+          serviceTypeId: selection.serviceTypeId,
+          isEnabled: selection.isEnabled,
+          orderIndex: selection.orderIndex,
+          percentageAdjustment: selection.percentageAdjustment,
+          isDraft: true
+        }));
+        
+        await tx.blockServiceSelection.createMany({
+          data: clonedSelections
+        });
+      }
+      
+      // Obtener el bloque completo con relaciones
+      return await tx.seasonBlock.findUnique({
+        where: { id: newBlock.id },
+        include: {
+          seasonPrices: {
+            include: {
+              roomType: true,
+              serviceType: true
+            }
+          },
+          blockServiceSelections: {
+            include: {
+              serviceType: true
+            }
+          }
+        }
+      });
+    });
+    
+    console.log('Block cloned successfully:', {
+      originalId: id,
+      newId: clonedBlock.id,
+      newName: clonedBlock.name
+    });
+    
+    res.status(201).json({ 
+      data: clonedBlock, 
+      errors: null,
+      message: 'Bloque clonado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error cloning season block:', error);
+    res.status(500).json({ 
+      data: null, 
+      errors: ['Error al clonar el bloque de temporada'] 
+    });
+  }
+};
+
 // Confirmar bloque de temporada (cambiar de borrador a confirmado)
 exports.confirmSeasonBlock = async (req, res) => {
   try {

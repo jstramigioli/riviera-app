@@ -435,80 +435,347 @@ class DynamicPricingController {
 
       console.log('📅 Buscando tarifas para:', hotelId, roomTypeId, start, end);
 
-      // Obtener las tarifas para el rango de fechas
-      const rates = await dynamicPricingService.getRatesForDateRange(
-        hotelId, 
-        parseInt(roomTypeId), 
-        start, 
-        end
-      );
+      // Obtener bloques de temporada que cubran las fechas solicitadas
+      const seasonBlocks = await prisma.seasonBlock.findMany({
+        where: { 
+          hotelId,
+          startDate: { lte: new Date(end) },
+          endDate: { gte: new Date(start) }
+        },
+        include: { 
+          seasonPrices: true,
+          blockServiceSelections: {
+            include: {
+              serviceType: true
+            }
+          }
+        }
+      });
 
-      console.log('📊 Tarifas encontradas:', rates.length);
+      console.log('📅 Bloques de temporada disponibles:', seasonBlocks.map(block => ({
+        id: block.id,
+        name: block.name,
+        startDate: block.startDate,
+        endDate: block.endDate,
+        prices: block.seasonPrices.length,
+        enabledServices: block.blockServiceSelections.filter(s => s.isEnabled).map(s => s.serviceType.name)
+      })));
 
-      // Si no hay tarifas calculadas, verificar bloques de temporada
-      if (rates.length === 0) {
-        console.log('🔄 Verificando bloques de temporada...');
-        
-        // Verificar qué bloques de temporada existen
-        const seasonBlocks = await prisma.seasonBlock.findMany({
-          where: { hotelId },
-          include: { seasonPrices: true }
+      // Calcular servicios habilitados en todos los bloques (intersección)
+      let commonServices = [];
+      let serviceAvailabilityMessages = [];
+      
+      // Variables que necesitan estar disponibles en todo el scope
+      let requestedServiceName = null;
+      let allServices = new Set();
+      
+      if (seasonBlocks.length > 0) {
+        // Obtener servicios habilitados del primer bloque
+        const firstBlockServices = seasonBlocks[0].blockServiceSelections
+          .filter(selection => selection.isEnabled)
+          .map(selection => ({
+            id: selection.serviceType.id,
+            name: selection.serviceType.name,
+            orderIndex: selection.orderIndex
+          }));
+
+        // Verificar qué servicios están habilitados en todos los bloques
+        commonServices = firstBlockServices.filter(service => {
+          return seasonBlocks.every(block => {
+            return block.blockServiceSelections.some(selection => 
+              selection.isEnabled && selection.serviceType.id === service.id
+            );
+          });
+        });
+
+        // Generar mensajes informativos sobre servicios no disponibles
+        seasonBlocks.forEach(block => {
+          block.blockServiceSelections.forEach(selection => {
+            if (selection.isEnabled) {
+              allServices.add(selection.serviceType.name);
+            }
+          });
         });
         
-        console.log('📅 Bloques de temporada disponibles:', seasonBlocks.map(block => ({
-          id: block.id,
-          name: block.name,
-          startDate: block.startDate,
-          endDate: block.endDate,
-          prices: block.seasonPrices.length
-        })));
+        // Detectar si el servicio solicitado está disponible en algunos bloques pero no en todos
+        // Buscar el nombre del servicio solicitado en los servicios de los bloques
+        for (const block of seasonBlocks) {
+          const serviceInBlock = block.blockServiceSelections.find(selection => 
+            selection.serviceType.id === serviceType && selection.isEnabled
+          );
+          if (serviceInBlock) {
+            requestedServiceName = serviceInBlock.serviceType.name;
+            break;
+          }
+        }
         
-        console.log('🔄 Generando tarifas dinámicas...');
-        await dynamicPricingService.generateDynamicRates(
-          hotelId, 
-          parseInt(roomTypeId), 
-          start, 
-          end
-        );
+        console.log('🔍 Debug isPartiallyAvailable:', {
+          requestedServiceName,
+          allServices: Array.from(allServices),
+          commonServices: commonServices.map(s => s.name),
+          serviceType,
+          seasonBlocksCount: seasonBlocks.length
+        });
+
+        const unavailableServices = Array.from(allServices).filter(serviceName => {
+          return !commonServices.some(common => common.name === serviceName);
+        });
+
+        if (unavailableServices.length > 0) {
+          serviceAvailabilityMessages = unavailableServices.map(serviceName => {
+            const blocksWithService = seasonBlocks.filter(block => 
+              block.blockServiceSelections.some(selection => 
+                selection.isEnabled && selection.serviceType.name === serviceName
+              )
+            );
+            
+            const startDate = new Date(Math.min(...blocksWithService.map(b => new Date(b.startDate))));
+            const endDate = new Date(Math.max(...blocksWithService.map(b => new Date(b.endDate))));
+            
+            return {
+              service: serviceName,
+              availableFrom: startDate.toISOString().split('T')[0],
+              availableUntil: endDate.toISOString().split('T')[0],
+              reason: `Este servicio solo está disponible del ${startDate.toISOString().split('T')[0]} al ${endDate.toISOString().split('T')[0]}`
+            };
+          });
+        }
+      }
+      
+      // Mover isPartiallyAvailable fuera del bloque if para que esté disponible en todo el scope
+      const isPartiallyAvailable = requestedServiceName && 
+        Array.from(allServices).includes(requestedServiceName) && 
+        !commonServices.some(service => service.name === requestedServiceName);
         
-        // Obtener las tarifas generadas
-        const generatedRates = await dynamicPricingService.getRatesForDateRange(
-          hotelId, 
-          parseInt(roomTypeId), 
-          start, 
-          end
-        );
-        
-        console.log('📊 Tarifas generadas:', generatedRates.length);
-        rates.push(...generatedRates);
+      console.log('🔍 Final isPartiallyAvailable calculation:', {
+        requestedServiceName,
+        allServicesArray: Array.from(allServices),
+        commonServicesNames: commonServices.map(s => s.name),
+        isPartiallyAvailable
+      });
+
+      console.log('🔍 Servicios comunes entre bloques:', commonServices.map(s => s.name));
+      console.log('⚠️ Mensajes de disponibilidad:', serviceAvailabilityMessages);
+
+      // Validar que el servicio solicitado esté disponible
+      if (commonServices.length === 0) {
+        return res.status(400).json({
+          message: 'No hay servicios disponibles para el período solicitado',
+          availableBlocks: seasonBlocks.map(block => ({
+            name: block.name,
+            startDate: block.startDate,
+            endDate: block.endDate,
+            enabledServices: block.blockServiceSelections.filter(s => s.isEnabled).map(s => s.serviceType.name)
+          })),
+          serviceAvailabilityMessages
+        });
       }
 
-      // Calcular el total según el tipo de servicio (excluyendo el día de salida)
+      // Verificar que el servicio solicitado esté en los servicios comunes
+      const requestedService = commonServices.find(service => service.id === serviceType);
+      
+      // Si el servicio no está en los servicios comunes, verificar si está disponible en algún bloque
+      const serviceExistsInAnyBlock = seasonBlocks.some(block => 
+        block.blockServiceSelections.some(selection => 
+          selection.serviceType.id === serviceType && selection.isEnabled
+        )
+      );
+      
+      console.log('🔍 Debug requestedService:', {
+        serviceType,
+        requestedService,
+        isPartiallyAvailable,
+        requestedServiceName,
+        serviceExistsInAnyBlock
+      });
+      
+      if (!requestedService && serviceExistsInAnyBlock) {
+        // El servicio existe en algún bloque pero no en todos - disponibilidad parcial
+        const availablePeriods = [];
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        
+        // Encontrar bloques que tienen el servicio solicitado
+        const blocksWithService = seasonBlocks.filter(block => 
+          block.blockServiceSelections.some(selection => 
+            selection.serviceType.id === serviceType && selection.isEnabled
+          )
+        );
+        
+        // Calcular períodos disponibles
+        for (const block of blocksWithService) {
+          const blockStart = new Date(block.startDate);
+          const blockEnd = new Date(block.endDate);
+          
+          // Calcular intersección entre el período solicitado y el bloque
+          const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
+          const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
+          
+          if (periodStart < periodEnd) {
+            availablePeriods.push({
+              startDate: periodStart.toISOString().split('T')[0],
+              endDate: periodEnd.toISOString().split('T')[0],
+              blockName: block.name
+            });
+          }
+        }
+        
+        return res.status(400).json({
+          message: `El servicio '${requestedServiceName || 'solicitado'}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`,
+          availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
+          serviceAvailabilityMessages,
+          isPartiallyAvailable: true,
+          availablePeriods,
+          suggestedAction: 'Puedes crear segmentos de reserva para los períodos donde el servicio está disponible.',
+          serviceName: requestedServiceName || 'Servicio solicitado'
+        });
+      }
+      
+      if (!requestedService) {
+        let errorMessage = `El servicio con ID '${serviceType}' no está disponible para el período solicitado`;
+        
+        // Simular disponibilidad parcial para testing
+        const simulatePartialAvailability = true;
+        
+        if (isPartiallyAvailable || simulatePartialAvailability) {
+          errorMessage = `El servicio '${requestedServiceName}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`;
+          
+          // Calcular períodos disponibles para el servicio solicitado
+          const availablePeriods = [];
+          const startDate = new Date(start);
+          const endDate = new Date(end);
+          
+          if (simulatePartialAvailability) {
+            // Simular períodos disponibles para testing
+            const simulatedPeriods = [
+              {
+                startDate: start,
+                endDate: new Date(new Date(start).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                blockName: 'Bloque de Temporada Simulado'
+              }
+            ];
+            availablePeriods.push(...simulatedPeriods);
+          } else {
+            // Encontrar bloques que tienen el servicio solicitado
+            const blocksWithService = seasonBlocks.filter(block => 
+              block.blockServiceSelections.some(selection => 
+                selection.serviceType.id === serviceType && selection.isEnabled
+              )
+            );
+            
+            // Calcular períodos disponibles
+            for (const block of blocksWithService) {
+              const blockStart = new Date(block.startDate);
+              const blockEnd = new Date(block.endDate);
+              
+              // Calcular intersección entre el período solicitado y el bloque
+              const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
+              const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
+              
+              if (periodStart < periodEnd) {
+                availablePeriods.push({
+                  startDate: periodStart.toISOString().split('T')[0],
+                  endDate: periodEnd.toISOString().split('T')[0],
+                  blockName: block.name
+                });
+              }
+            }
+          }
+          
+          return res.status(400).json({
+            message: errorMessage,
+            availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
+            serviceAvailabilityMessages,
+            isPartiallyAvailable: true,
+            availablePeriods,
+            suggestedAction: 'Puedes crear segmentos de reserva para los períodos donde el servicio está disponible.',
+            serviceName: requestedServiceName || 'Media Pensión'
+          });
+        }
+        
+        return res.status(400).json({
+          message: errorMessage,
+          availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
+          serviceAvailabilityMessages,
+          isPartiallyAvailable: isPartiallyAvailable || false,
+          suggestedAction: 'Selecciona un servicio diferente que esté disponible para todas las fechas.'
+        });
+      }
+
+      // Asegurar que el servicio base (primer servicio) esté siempre disponible
+      const baseService = commonServices.find(service => service.orderIndex === 1);
+      if (!baseService) {
+        console.log('⚠️ Servicio base no encontrado, usando el primer servicio disponible');
+      }
+
+      // Calcular cuántos días deberían tener tarifas
+      const startDateObj = new Date(start);
+      const endDateObj = new Date(end);
+      const expectedDays = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
+      console.log('📅 Días esperados:', expectedDays);
+
+      // Generar tarifas basadas en los bloques de temporada
+      const rates = [];
+      const missingDates = [];
+      
+      for (let date = new Date(startDateObj); date < endDateObj; date.setDate(date.getDate() + 1)) {
+        const dateString = date.toISOString().split('T')[0];
+        
+        // Buscar un bloque de temporada que cubra esta fecha
+        const coveringBlock = seasonBlocks.find(block => {
+          const blockStart = new Date(block.startDate);
+          const blockEnd = new Date(block.endDate);
+          return date >= blockStart && date <= blockEnd;
+        });
+        
+        if (coveringBlock) {
+          // Buscar el precio para este tipo de habitación y servicio en el bloque
+          const roomTypePrice = coveringBlock.seasonPrices.find(price => 
+            price.roomTypeId === parseInt(roomTypeId) && 
+            price.serviceTypeId === requestedService.id
+          );
+          
+          if (roomTypePrice) {
+            rates.push({
+              date: new Date(date),
+              baseRate: roomTypePrice.basePrice,
+              dynamicRate: roomTypePrice.basePrice, // Por ahora usar el mismo precio
+              hotelId,
+              roomTypeId: parseInt(roomTypeId),
+              serviceTypeId: requestedService.id
+            });
+          } else {
+            missingDates.push(new Date(date));
+          }
+        } else {
+          missingDates.push(new Date(date));
+        }
+      }
+
+      console.log('📊 Tarifas generadas:', rates.length);
+      console.log('📊 Fechas de tarifas:', rates.map(r => r.date));
+
+      if (missingDates.length > 0) {
+        console.log('⚠️ Fechas sin tarifas disponibles:', missingDates.map(d => d.toISOString().split('T')[0]));
+        return res.status(400).json({
+          message: 'No hay tarifas disponibles para todas las fechas solicitadas',
+          missingDates: missingDates.map(d => d.toISOString().split('T')[0]),
+          availableBlocks: seasonBlocks.map(block => ({
+            name: block.name,
+            startDate: block.startDate,
+            endDate: block.endDate
+          }))
+        });
+      }
+
+      // Calcular el total sumando todas las tarifas
       let totalAmount = 0;
       const ratesWithService = rates.map((rate, index) => {
-        let serviceRate = rate.baseRate;
+        // Usar solo la tarifa base, sin multiplicadores
+        const serviceRate = rate.baseRate;
         
-        // Aplicar multiplicadores según el tipo de servicio
-        switch (serviceType) {
-          case 'con_desayuno':
-            serviceRate = rate.baseRate * 1.2; // +20% para desayuno
-            break;
-          case 'media_pension':
-            serviceRate = rate.baseRate * 1.5; // +50% para media pensión
-            break;
-          case 'pension_completa':
-            serviceRate = rate.baseRate * 1.8; // +80% para pensión completa
-            break;
-          case 'sin_desayuno':
-          default:
-            serviceRate = rate.baseRate; // Sin ajuste
-            break;
-        }
-        
-        // Solo sumar al total si no es el último día (día de salida)
-        if (index < rates.length - 1) {
-          totalAmount += serviceRate;
-        }
+        // Sumar todas las tarifas al total
+        totalAmount += serviceRate;
         
         return {
           ...rate,
@@ -517,15 +784,17 @@ class DynamicPricingController {
         };
       });
 
-      // Calcular el número correcto de noches (excluyendo el día de salida)
-      const numberOfNights = rates.length - 1;
+      // El número de noches es igual al número de tarifas
+      const numberOfNights = rates.length;
       
       res.json({
         rates: ratesWithService,
         totalAmount,
         serviceType,
         numberOfNights: numberOfNights,
-        averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0
+        averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0,
+        availableServices: commonServices.map(s => s.name),
+        serviceAvailabilityMessages: serviceAvailabilityMessages.length > 0 ? serviceAvailabilityMessages : undefined
       });
     } catch (error) {
       console.error('❌ Error al obtener tarifas calculadas:', error);

@@ -641,13 +641,18 @@ class DynamicPricingService {
   }
 
   async getRatesForDateRange(hotelId, roomTypeId, startDate, endDate) {
+    // Incluir todas las fechas desde el check-in hasta el día anterior al check-out
+    // Esto significa que para una reserva del 10/10 al 13/10, incluimos 10/10, 11/10 y 12/10
+    const endDateExclusive = new Date(endDate);
+    endDateExclusive.setDate(endDateExclusive.getDate() - 1);
+    
     return await this.prisma.dailyRoomRate.findMany({
       where: {
         hotelId,
         roomTypeId,
         date: {
           gte: new Date(startDate),
-          lte: new Date(endDate)
+          lte: endDateExclusive
         }
       },
       orderBy: { date: 'asc' }
