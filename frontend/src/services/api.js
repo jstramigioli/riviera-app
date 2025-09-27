@@ -478,31 +478,45 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
   });
   
   const res = await fetch(`${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/${roomTypeId}?${params}`);
+  
   if (!res.ok) {
+    // Solo manejar errores HTTP reales (500, 404, etc.)
     const errorData = await res.json().catch(() => ({}));
     const error = new Error(errorData.message || 'Error getting calculated rates');
-    // Propagar información adicional para disponibilidad parcial
-    if (errorData.isPartiallyAvailable) {
-      error.isPartiallyAvailable = errorData.isPartiallyAvailable;
-    }
-    if (errorData.availablePeriods) {
-      error.availablePeriods = errorData.availablePeriods;
-    }
-    if (errorData.serviceName) {
-      error.serviceName = errorData.serviceName;
-    }
-    if (errorData.availableServices) {
-      error.availableServices = errorData.availableServices;
-    }
-    if (errorData.serviceAvailabilityMessages) {
-      error.serviceAvailabilityMessages = errorData.serviceAvailabilityMessages;
-    }
-    if (errorData.suggestedAction) {
-      error.suggestedAction = errorData.suggestedAction;
-    }
     throw error;
   }
-  return res.json();
+  
+  const responseData = await res.json();
+  
+  // Verificar si la respuesta indica un estado de disponibilidad específico
+  if (responseData.success && responseData.availability !== 'success') {
+    const error = new Error(responseData.message || 'Service availability issue');
+    error.availabilityStatus = responseData.availability;
+    
+    // Propagar información adicional para disponibilidad parcial
+    if (responseData.isPartiallyAvailable) {
+      error.isPartiallyAvailable = responseData.isPartiallyAvailable;
+    }
+    if (responseData.availablePeriods) {
+      error.availablePeriods = responseData.availablePeriods;
+    }
+    if (responseData.serviceName) {
+      error.serviceName = responseData.serviceName;
+    }
+    if (responseData.availableServices) {
+      error.availableServices = responseData.availableServices;
+    }
+    if (responseData.serviceAvailabilityMessages) {
+      error.serviceAvailabilityMessages = responseData.serviceAvailabilityMessages;
+    }
+    if (responseData.suggestedAction) {
+      error.suggestedAction = responseData.suggestedAction;
+    }
+    
+    throw error;
+  }
+  
+  return responseData;
 }
 
 export async function getReservationPricingDetails(reservationId) {

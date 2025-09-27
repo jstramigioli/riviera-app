@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTags } from '../hooks/useTags';
+import { fetchRooms } from '../services/api';
 import '../styles/variables.css';
 
 function ReservationRequirements({ 
@@ -7,6 +8,29 @@ function ReservationRequirements({
   onRequirementsChange
 }) {
   const { tags } = useTags();
+  const [rooms, setRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+
+  // Cargar habitaciones al montar el componente
+  useEffect(() => {
+    const loadRooms = async () => {
+      setLoadingRooms(true);
+      try {
+        const roomsData = await fetchRooms();
+        setRooms(roomsData);
+      } catch (error) {
+        console.error('Error cargando habitaciones:', error);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    loadRooms();
+  }, []);
+
+  // Filtrar habitaciones por capacidad mínima
+  const filteredRooms = rooms.filter(room => 
+    room.maxPeople >= (requirements.requiredGuests || 1)
+  );
 
   const handleGuestsChange = (guests) => {
     const newRequirements = {
@@ -26,6 +50,15 @@ function ReservationRequirements({
       ...requirements,
       requiredTags: newTags,
       requiredRoomId: null // Reset habitación específica al cambiar etiquetas
+    });
+  };
+
+  const handleRoomChange = (roomId) => {
+    const selectedRoomId = roomId === '' ? null : parseInt(roomId);
+    onRequirementsChange({
+      ...requirements,
+      requiredRoomId: selectedRoomId,
+      requiredTags: selectedRoomId ? [] : requirements.requiredTags // Reset etiquetas al seleccionar habitación específica, mantener si es "No"
     });
   };
 
@@ -80,7 +113,7 @@ function ReservationRequirements({
         </select>
       </div>
 
-      {/* Etiquetas Requeridas */}
+      {/* Habitación Específica */}
       <div style={{ marginBottom: '20px' }}>
         <label style={{
           display: 'block',
@@ -89,17 +122,57 @@ function ReservationRequirements({
           color: 'var(--color-text-main)',
           fontSize: 'var(--font-size-medium)'
         }}>
-          Etiquetas Requeridas:
+          Habitación Específica:
+        </label>
+        <select
+          value={requirements.requiredRoomId || ''}
+          onChange={(e) => handleRoomChange(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            border: '1px solid var(--color-border)',
+            borderRadius: '6px',
+            fontSize: 'var(--font-size-medium)',
+            backgroundColor: 'var(--color-bg-white)'
+          }}
+        >
+          <option value="">No</option>
+          {loadingRooms ? (
+            <option disabled>Cargando habitaciones...</option>
+          ) : (
+            filteredRooms.map(room => (
+              <option key={room.id} value={room.id}>
+                {room.name} - {room.roomType?.name} (Capacidad: {room.maxPeople})
+              </option>
+            ))
+          )}
+        </select>
+      </div>
+
+      {/* Requerimientos */}
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{
+          display: 'block',
+          marginBottom: '8px',
+          fontWeight: '500',
+          color: 'var(--color-text-main)',
+          fontSize: 'var(--font-size-medium)',
+          opacity: requirements.requiredRoomId ? 0.5 : 1
+        }}>
+          Requerimientos:
         </label>
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '8px'
+          gap: '8px',
+          opacity: requirements.requiredRoomId ? 0.5 : 1,
+          pointerEvents: requirements.requiredRoomId ? 'none' : 'auto'
         }}>
           {tags.map(tag => (
             <button
               key={tag.id}
               onClick={() => handleTagToggle(tag.id.toString())}
+              disabled={!!requirements.requiredRoomId}
               style={{
                 padding: '8px 12px',
                 border: requirements.requiredTags.includes(tag.id.toString())
@@ -112,7 +185,7 @@ function ReservationRequirements({
                 color: requirements.requiredTags.includes(tag.id.toString())
                   ? 'var(--color-text-light)'
                   : 'var(--color-text-main)',
-                cursor: 'pointer',
+                cursor: requirements.requiredRoomId ? 'not-allowed' : 'pointer',
                 fontSize: 'var(--font-size-medium)',
                 transition: 'all 0.2s'
               }}

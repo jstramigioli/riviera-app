@@ -509,6 +509,20 @@ class DynamicPricingController {
           }
         }
         
+        // Si no se encontró el nombre del servicio, intentar obtenerlo de los tipos de servicio
+        if (!requestedServiceName) {
+          try {
+            const serviceTypeRecord = await prisma.serviceType.findUnique({
+              where: { id: serviceType }
+            });
+            if (serviceTypeRecord) {
+              requestedServiceName = serviceTypeRecord.name;
+            }
+          } catch (error) {
+            console.log('Error obteniendo nombre del servicio:', error);
+          }
+        }
+        
         console.log('🔍 Debug isPartiallyAvailable:', {
           requestedServiceName,
           allServices: Array.from(allServices),
@@ -543,9 +557,15 @@ class DynamicPricingController {
       }
       
       // Mover isPartiallyAvailable fuera del bloque if para que esté disponible en todo el scope
+      // Solo considerar disponibilidad parcial si el servicio existe en algunos bloques pero no en todos
       const isPartiallyAvailable = requestedServiceName && 
         Array.from(allServices).includes(requestedServiceName) && 
-        !commonServices.some(service => service.name === requestedServiceName);
+        !commonServices.some(service => service.name === requestedServiceName) &&
+        seasonBlocks.some(block => 
+          block.blockServiceSelections.some(selection => 
+            selection.serviceType.id === serviceType && selection.isEnabled
+          )
+        );
         
       console.log('🔍 Final isPartiallyAvailable calculation:', {
         requestedServiceName,
@@ -559,7 +579,9 @@ class DynamicPricingController {
 
       // Validar que el servicio solicitado esté disponible
       if (commonServices.length === 0) {
-        return res.status(400).json({
+        return res.status(200).json({
+          success: true,
+          availability: 'no_availability',
           message: 'No hay servicios disponibles para el período solicitado',
           availableBlocks: seasonBlocks.map(block => ({
             name: block.name,
@@ -620,8 +642,10 @@ class DynamicPricingController {
           }
         }
         
-        return res.status(400).json({
-          message: `El servicio '${requestedServiceName || 'solicitado'}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`,
+        return res.status(200).json({
+          success: true,
+          availability: 'partial_availability',
+          message: `Servicio no disponible: El servicio '${requestedServiceName || 'solicitado'}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`,
           availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
           serviceAvailabilityMessages,
           isPartiallyAvailable: true,
@@ -632,72 +656,61 @@ class DynamicPricingController {
       }
       
       if (!requestedService) {
-        let errorMessage = `El servicio con ID '${serviceType}' no está disponible para el período solicitado`;
+        let errorMessage = `El servicio '${requestedServiceName || 'solicitado'}' no está disponible para el período solicitado`;
         
-        // Simular disponibilidad parcial para testing
-        const simulatePartialAvailability = true;
-        
-        if (isPartiallyAvailable || simulatePartialAvailability) {
-          errorMessage = `El servicio '${requestedServiceName}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`;
+        if (isPartiallyAvailable) {
+          errorMessage = `Servicio no disponible: El servicio '${requestedServiceName}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`;
           
           // Calcular períodos disponibles para el servicio solicitado
           const availablePeriods = [];
           const startDate = new Date(start);
           const endDate = new Date(end);
           
-          if (simulatePartialAvailability) {
-            // Simular períodos disponibles para testing
-            const simulatedPeriods = [
-              {
-                startDate: start,
-                endDate: new Date(new Date(start).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                blockName: 'Bloque de Temporada Simulado'
-              }
-            ];
-            availablePeriods.push(...simulatedPeriods);
-          } else {
-            // Encontrar bloques que tienen el servicio solicitado
-            const blocksWithService = seasonBlocks.filter(block => 
-              block.blockServiceSelections.some(selection => 
-                selection.serviceType.id === serviceType && selection.isEnabled
-              )
-            );
+          // Encontrar bloques que tienen el servicio solicitado
+          const blocksWithService = seasonBlocks.filter(block => 
+            block.blockServiceSelections.some(selection => 
+              selection.serviceType.id === serviceType && selection.isEnabled
+            )
+          );
+          
+          // Calcular períodos disponibles
+          for (const block of blocksWithService) {
+            const blockStart = new Date(block.startDate);
+            const blockEnd = new Date(block.endDate);
             
-            // Calcular períodos disponibles
-            for (const block of blocksWithService) {
-              const blockStart = new Date(block.startDate);
-              const blockEnd = new Date(block.endDate);
-              
-              // Calcular intersección entre el período solicitado y el bloque
-              const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
-              const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
-              
-              if (periodStart < periodEnd) {
-                availablePeriods.push({
-                  startDate: periodStart.toISOString().split('T')[0],
-                  endDate: periodEnd.toISOString().split('T')[0],
-                  blockName: block.name
-                });
-              }
+            // Calcular intersección entre el período solicitado y el bloque
+            const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
+            const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
+            
+            if (periodStart < periodEnd) {
+              availablePeriods.push({
+                startDate: periodStart.toISOString().split('T')[0],
+                endDate: periodEnd.toISOString().split('T')[0],
+                blockName: block.name
+              });
             }
           }
           
-          return res.status(400).json({
+          return res.status(200).json({
+            success: true,
+            availability: 'partial_availability',
             message: errorMessage,
             availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
             serviceAvailabilityMessages,
             isPartiallyAvailable: true,
             availablePeriods,
             suggestedAction: 'Puedes crear segmentos de reserva para los períodos donde el servicio está disponible.',
-            serviceName: requestedServiceName || 'Media Pensión'
+            serviceName: requestedServiceName || 'Servicio solicitado'
           });
         }
         
-        return res.status(400).json({
-          message: errorMessage,
+        return res.status(200).json({
+          success: true,
+          availability: 'service_not_available',
+          message: `Servicio no disponible: ${errorMessage}`,
           availableServices: commonServices.map(s => ({ id: s.id, name: s.name })),
           serviceAvailabilityMessages,
-          isPartiallyAvailable: isPartiallyAvailable || false,
+          isPartiallyAvailable: false,
           suggestedAction: 'Selecciona un servicio diferente que esté disponible para todas las fechas.'
         });
       }
@@ -787,7 +800,9 @@ class DynamicPricingController {
       // El número de noches es igual al número de tarifas
       const numberOfNights = rates.length;
       
-      res.json({
+      res.status(200).json({
+        success: true,
+        availability: 'success',
         rates: ratesWithService,
         totalAmount,
         serviceType,
