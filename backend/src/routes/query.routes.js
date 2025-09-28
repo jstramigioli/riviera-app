@@ -9,11 +9,13 @@ const {
   convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
-  deleteQueryGuest
+  deleteQueryGuest,
+  getQueryByClient
 } = require('../controllers/query.controller');
 
 // Rutas principales de consultas
 router.get('/', getAllQueries);
+router.get('/client/:clientId', getQueryByClient);
 router.get('/:id', getQueryById);
 router.post('/', createQuery);
 router.put('/:id', updateQuery);

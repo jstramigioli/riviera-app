@@ -7,14 +7,16 @@ import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUti
 import { deleteReservation } from '../services/api';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationsTable from './ReservationsTable';
+import QueriesTable from './QueriesTable';
 import SidePanel from './SidePanel';
 import EditPanel from './EditPanel';
 import ConfirmationModal from './ConfirmationModal';
 import ErrorDisplay from './ErrorDisplay';
-import styles from '../styles/App.module.css';
+import styles from './ConsultasReservasView.module.css';
 
 function ConsultasReservasView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeSection, setActiveSection] = useState('consultas');
   
   const {
     rooms,
@@ -22,6 +24,7 @@ function ConsultasReservasView() {
     setClients,
     reservations,
     setReservations,
+    queries,
     loading,
     error
   } = useAppData();
@@ -106,28 +109,85 @@ function ConsultasReservasView() {
     }
   };
 
+
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
   return (
-    <div className={styles.appContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Consultas y Reservas</h1>
-        <p className={styles.subtitle}>Consulta el listado completo de reservas con filtros y búsqueda avanzada.</p>
-        <div className={styles.stats}>
-          <span className={styles.statItem}>Habitaciones: {rooms.length}</span>
-          <span className={styles.statItem}>Reservas: {reservations.length}</span>
-          <span className={styles.statItem}>Clientes: {clients.length}</span>
+    <div className={styles.newLayout}>
+      {/* Sidebar Izquierdo */}
+      <div className={styles.sidebar}>
+        {/* Header del sidebar */}
+        <div className={styles.sidebarHeader}>
+          <h2>Consultas y Reservas</h2>
+          <div className={styles.stats}>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Consultas:</span>
+              <span className={styles.statValue}>{queries.length}</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Reservas:</span>
+              <span className={styles.statValue}>{reservations.length}</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Habitaciones:</span>
+              <span className={styles.statValue}>{rooms.length}</span>
+            </div>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Clientes:</span>
+              <span className={styles.statValue}>{clients.length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Menú de navegación */}
+        <div className={styles.sectionMenu}>
+          <button 
+            className={`${styles.sectionButton} ${activeSection === 'consultas' ? styles.active : ''}`}
+            onClick={() => setActiveSection('consultas')}
+          >
+            📋 Consultas
+          </button>
+          <button 
+            className={`${styles.sectionButton} ${activeSection === 'reservas' ? styles.active : ''}`}
+            onClick={() => setActiveSection('reservas')}
+          >
+            🏨 Reservas
+          </button>
         </div>
       </div>
-      <div className={styles.gridWrapper}>
-        <ReservationsTable 
-          reservations={reservations}
-          rooms={rooms}
-          clients={clients}
-          onReservationClick={handleReservationClick}
-        />
+
+      {/* Contenido Principal Derecho */}
+      <div className={styles.mainContent}>
+        <div className={styles.mainContentBody}>
+          {/* Sección de Consultas */}
+          {activeSection === 'consultas' && (
+            <div className={styles.section}>
+              <h2>Consultas</h2>
+              <QueriesTable 
+                queries={queries}
+                rooms={rooms}
+                clients={clients}
+              />
+            </div>
+          )}
+
+          {/* Sección de Reservas */}
+          {activeSection === 'reservas' && (
+            <div className={styles.section}>
+              <h2>Reservas</h2>
+              <ReservationsTable 
+                reservations={reservations}
+                rooms={rooms}
+                clients={clients}
+                onReservationClick={handleReservationClick}
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* SidePanel para detalles (mantenemos el existente) */}
       <SidePanel
         open={sidePanelOpen}
         onClose={closePanel}

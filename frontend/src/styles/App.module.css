@@ -298,4 +298,67 @@
   .subtitle {
     font-size: var(--font-size-small);
   }
+}
+
+/* Estilos para el header con sidepanel */
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.headerInfo {
+  flex: 1;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidePanelButton {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidePanelButton:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sidePanelButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive para el header */
+@media (max-width: 768px) {
+  .headerContent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .headerActions {
+    justify-content: center;
+  }
+  
+  .sidePanelButton {
+    width: 100%;
+    justify-content: center;
+  }
 } 

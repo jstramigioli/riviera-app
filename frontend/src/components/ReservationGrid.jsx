@@ -709,8 +709,8 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
 
   function handleCreateQueryClick() {
-    // Navegar directamente a la página de nueva consulta sin pasar por el modal
-    window.location.href = '/nueva-consulta';
+    // Navegar directamente a la página de consulta sin pasar por el modal
+    window.location.href = '/consulta';
   }
 
 
@@ -1262,7 +1262,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         onClose={handleDayInfoPanelClose}
       />
 
-      {/* Botón flotante para crear nueva consulta */}
+      {/* Botón flotante para crear consulta */}
       <FloatingActionButton 
         onCreateQuery={handleCreateQueryClick}
       />

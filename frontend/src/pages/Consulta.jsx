@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, createQuery, updateQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
-import styles from '../styles/NuevaConsulta.module.css';
+import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
+import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
 const RoomAvailabilityStatus = {
@@ -15,12 +16,12 @@ const RoomAvailabilityStatus = {
   ERROR: 'error'
 };
 
-export default function NuevaConsulta() {
+export default function Consulta() {
   const location = useLocation();
   const { tags } = useTags();
 
   // Función para validar si el hotel está cerrado en el período solicitado
-  const validateHotelAvailability = async (checkIn, checkOut) => {
+  const validateHotelAvailability = useCallback(async (checkIn, checkOut) => {
     try {
       // Validar que las fechas sean válidas
       if (!checkIn || !checkOut) {
@@ -95,10 +96,10 @@ export default function NuevaConsulta() {
       setIsHotelClosed(false);
       return false;
     }
-  };
+  }, []);
 
   // Función para obtener las fechas por defecto basadas en bloques de temporada
-  const getDefaultDates = async () => {
+  const getDefaultDates = useCallback(async () => {
     // console.log('🎯 getDefaultDates iniciada');
     try {
       const today = new Date();
@@ -165,7 +166,7 @@ export default function NuevaConsulta() {
       console.log('🔄 Usando fechas de fallback:', { checkIn: checkInDate, checkOut: checkOutDate });
       return { checkIn: checkInDate, checkOut: checkOutDate };
     }
-  };
+  }, []);
 
   // Estado del formulario (sin persistencia - se reinicia al actualizar)
   const [formData, setFormData] = useState({
@@ -186,7 +187,7 @@ export default function NuevaConsulta() {
   const [isPartiallyAvailable, setIsPartiallyAvailable] = useState(false);
   const [availablePeriods, setAvailablePeriods] = useState([]);
   const [serviceName, setServiceName] = useState('');
-  
+
   // Estado para manejar cuando el hotel está cerrado
   const [isHotelClosed, setIsHotelClosed] = useState(false);
 
@@ -246,6 +247,18 @@ export default function NuevaConsulta() {
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
   // const [pricingError, setPricingError] = useState(null); // Ya no se usa
+
+  // Estados para gestión de consultas
+  const [currentQueryId, setCurrentQueryId] = useState(null);
+  const [showLoadQueryModal, setShowLoadQueryModal] = useState(false);
+  const [existingQuery, setExistingQuery] = useState(null);
+  const [lastClientId, setLastClientId] = useState(null);
+  
+  // Estado para notas/observaciones
+  const [notes, setNotes] = useState('');
+  
+  // Flag para evitar cargar datos múltiples veces
+  const dataLoadedRef = useRef(false);
 
   // Función para toggle de detalles de habitación
   const toggleRoomDetails = (roomId) => {
@@ -482,27 +495,390 @@ export default function NuevaConsulta() {
 
 
 
-  // Cargar datos de la consulta desde el modal si existen
-  useEffect(() => {
-    if (location.state?.queryData) {
-      const { checkIn, checkOut, requiredGuests, requiredTags } = location.state.queryData;
+  // Función para guardar/actualizar consulta automáticamente
+  const saveQueryAutomatically = useCallback(async () => {
+    const clientId = formData.mainClient.id;
+    
+    console.log('🔍 saveQueryAutomatically ejecutándose');
+    console.log('🔍 currentQueryId:', currentQueryId);
+    console.log('🔍 clientId:', clientId);
+    
+    // Solo guardar si hay un cliente seleccionado
+    if (!clientId) return;
+
+    try {
+      const queryData = {
+        mainClientId: clientId,
+        checkIn: formData.checkIn ? new Date(formData.checkIn + 'T00:00:00') : null,
+        checkOut: formData.checkOut ? new Date(formData.checkOut + 'T00:00:00') : null,
+        requiredGuests: requirements.requiredGuests,
+        requiredRoomId: requirements.requiredRoomId,
+        requiredTags: requirements.requiredTags,
+        requirementsNotes: requirements.requirementsNotes,
+        notes: notes,
+        status: 'pendiente'
+      };
+
+      if (currentQueryId) {
+        // Actualizar consulta existente
+        console.log('🔍 Actualizando consulta existente:', currentQueryId);
+        console.log('🔍 Datos a actualizar:', queryData);
+        await updateQuery(currentQueryId, queryData);
+        console.log('✅ Consulta actualizada exitosamente');
+      } else {
+        // Crear consulta
+        console.log('🔍 Creando nueva consulta');
+        const newQuery = await createQuery(queryData);
+        setCurrentQueryId(newQuery.id);
+        console.log('✅ Nueva consulta creada:', newQuery.id);
+      }
+    } catch (error) {
+      console.error('Error guardando consulta automáticamente:', error);
+      // No mostrar error al usuario, es guardado automático
+    }
+  }, [formData.mainClient.id, formData.checkIn, formData.checkOut, requirements, notes, currentQueryId]);
+
+  // Función para cargar clientes
+  const loadClients = useCallback(async () => {
+    try {
+      const response = await fetchClients();
+      setClients(response);
+      setFilteredClients(response.slice(0, 10));
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  }, []);
+
+  // Función para cargar todas las habitaciones
+  const loadAllRooms = useCallback(async () => {
+    setLoadingAllRooms(true);
+    try {
+      const roomsData = await fetchRooms();
+      setAllRooms(roomsData);
+    } catch (error) {
+      console.error('Error cargando habitaciones:', error);
+    } finally {
+      setLoadingAllRooms(false);
+    }
+  }, []);
+
+  // Función para cargar las fechas por defecto
+  const loadDefaultDates = useCallback(async () => {
+    // console.log('🔄 loadDefaultDates llamada');
+    // console.log('📋 formData actual:', formData);
+    
+    try {
+      const defaultDates = await getDefaultDates();
+      // console.log('✅ Fechas por defecto obtenidas:', defaultDates);
       
       setFormData(prev => ({
         ...prev,
-        checkIn,
-        checkOut
+        checkIn: defaultDates.checkIn,
+        checkOut: defaultDates.checkOut
       }));
       
-      setRequirements(prev => ({
-        ...prev,
-        requiredGuests,
-        requiredTags
-      }));
+      // También actualizar el primer segmento, asegurando que siempre tenga valores definidos
+      setSegments(prev => prev.map((segment, index) => 
+        index === 0 ? {
+          ...segment,
+          checkIn: defaultDates.checkIn,
+          checkOut: defaultDates.checkOut,
+          requiredGuests: segment.requiredGuests || 1,
+          requiredTags: segment.requiredTags || [],
+          requiredRoomId: segment.requiredRoomId || null,
+          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+        } : {
+          ...segment,
+          checkIn: segment.checkIn || '',
+          checkOut: segment.checkOut || '',
+          requiredGuests: segment.requiredGuests || 1,
+          requiredTags: segment.requiredTags || [],
+          requiredRoomId: segment.requiredRoomId || null,
+          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+        }
+      ));
       
-      // Limpiar el state para evitar que se recargue en futuras navegaciones
+      // console.log('✅ Fechas actualizadas en el estado');
+    } catch (error) {
+      console.error('❌ Error cargando fechas por defecto:', error);
+    }
+  }, [getDefaultDates, serviceTypes]);
+
+  // Función para cargar tarifas diarias
+  const loadDailyRates = useCallback(async () => {
+    if (!selectedRoomType || segments.length === 0) return;
+    
+    const firstSegment = segments[0];
+    if (!firstSegment.checkIn || !firstSegment.checkOut) return;
+
+    try {
+      // Calcular días entre check-in y check-out del primer segmento
+      const startDate = new Date(firstSegment.checkIn);
+      const endDate = new Date(firstSegment.checkOut);
+      const days = [];
+      
+      for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
+        days.push(new Date(d));
+      }
+
+      const rates = [];
+      
+      // Obtener el servicio seleccionado del primer segmento
+      const selectedServiceType = segments[0]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '');
+      
+      // Obtener el nombre del tipo de servicio desde los tipos de servicio cargados
+      const selectedService = serviceTypes.find(st => st.id === selectedServiceType);
+      const selectedServiceName = selectedService ? selectedService.name : 'Servicio no encontrado';
+      
+      for (const day of days) {
+        const dateStr = day.toISOString().split('T')[0];
+        
+        // Obtener bloque activo para esta fecha (simulamos la lógica del endpoint)
+        const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+        
+        if (seasonBlocksResponse.ok) {
+          const seasonBlocksData = await seasonBlocksResponse.json();
+          const seasonBlocks = seasonBlocksData.data || [];
+          
+          // Buscar el bloque activo para esta fecha
+          const activeBlockForDate = seasonBlocks.find(block => {
+            const startDate = new Date(block.startDate);
+            const endDate = new Date(block.endDate);
+            const checkDate = new Date(dateStr);
+            return !block.isDraft && checkDate >= startDate && checkDate <= endDate;
+          });
+          
+          if (activeBlockForDate && activeBlockForDate.seasonPrices) {
+            // Buscar precios para este tipo de habitación
+            const roomTypePrices = activeBlockForDate.seasonPrices.filter(
+              price => price.roomTypeId === selectedRoomType.id
+            );
+            
+            if (roomTypePrices.length > 0) {
+              const basePrice = roomTypePrices[0];
+              
+              // Buscar precio específico para el servicio seleccionado
+              const servicePrice = activeBlockForDate.seasonPrices.find(
+                price => price.roomTypeId === selectedRoomType.id && price.serviceTypeId === selectedServiceType
+              );
+              
+              // Buscar ajuste de servicio si existe
+              const serviceAdjustment = activeBlockForDate.serviceAdjustments?.find(
+                adj => adj.serviceTypeId === selectedServiceType
+              );
+              
+              let finalPrice = 0;
+                
+                if (servicePrice) {
+                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
+              } else if (basePrice) {
+                  // Si no hay precio específico para el servicio, usar precio base
+                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                finalPrice = basePrice.basePrice * (1 + adjustment / 100);
+                }
+              
+              rates.push({
+                date: dateStr,
+                blockName: activeBlockForDate.name,
+                serviceName: selectedServiceName,
+                price: Math.round(finalPrice)
+              });
+            } else {
+              rates.push({
+                date: dateStr,
+                blockName: activeBlockForDate.name,
+                serviceName: selectedServiceName,
+                price: 0,
+                noRatesAvailable: true
+              });
+            }
+          } else {
+            // Intentar obtener un bloque en borrador si no hay confirmados
+            // Usar los datos que ya obtuvimos en lugar de leer el response nuevamente
+            if (seasonBlocksData.reason === 'only_draft_blocks' && seasonBlocksData.draftBlocks && seasonBlocksData.draftBlocks.length > 0) {
+              // Usar el primer bloque en borrador disponible
+              const draftBlockResponse = await fetch(`/api/season-blocks/${seasonBlocksData.draftBlocks[0].id}`);
+              if (draftBlockResponse.ok) {
+                const draftBlockData = await draftBlockResponse.json();
+                
+                if (draftBlockData.data && draftBlockData.data.seasonPrices) {
+                  const roomTypePrices = draftBlockData.data.seasonPrices.filter(
+                    price => price.roomTypeId === selectedRoomType.id
+                  );
+                  
+                  if (roomTypePrices.length > 0) {
+                    const basePrice = roomTypePrices[0];
+                    
+                    const servicePrice = draftBlockData.data.seasonPrices.find(
+                      price => price.roomTypeId === selectedRoomType.id && price.serviceTypeId === selectedServiceType
+                    );
+                    
+                    const serviceAdjustment = draftBlockData.data.serviceAdjustments?.find(
+                      adj => adj.serviceTypeId === selectedServiceType
+                    );
+                    
+                    let finalPrice = 0;
+                    
+                    if (servicePrice) {
+                      const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                      finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
+                    } else if (basePrice) {
+                      const adjustment = serviceAdjustment?.percentageAdjustment || 0;
+                      finalPrice = basePrice.basePrice * (1 + adjustment / 100);
+                    }
+                    
+                    rates.push({
+                      date: dateStr,
+                      blockName: draftBlockData.data.name + ' (Borrador)',
+                      serviceName: selectedServiceName,
+                      price: Math.round(finalPrice)
+                    });
+                  } else {
+                    rates.push({
+                      date: dateStr,
+                      blockName: draftBlockData.data.name + ' (Borrador)',
+                      serviceName: selectedServiceName,
+                      price: 0,
+                      noRatesAvailable: true
+                    });
+                  }
+                } else {
+                  rates.push({
+                    date: dateStr,
+                    blockName: draftBlockData.data.name + ' (Borrador)',
+                    serviceName: selectedServiceName,
+                    price: 0,
+                    noRatesAvailable: true
+                  });
+                }
+              } else {
+                rates.push({
+                  date: dateStr,
+                  blockName: 'Sin bloque',
+                  serviceName: selectedServiceName,
+                  price: 0,
+                  noRatesAvailable: true
+                });
+              }
+            } else {
+              rates.push({
+                date: dateStr,
+                blockName: 'Sin bloque',
+                serviceName: selectedServiceName,
+                price: 0,
+                noRatesAvailable: true
+              });
+            }
+          }
+        }
+      }
+      
+      setDailyRates(rates);
+    } catch (error) {
+      console.error('Error loading daily rates:', error);
+      setDailyRates([]);
+    }
+  }, [selectedRoomType, segments, serviceTypes]);
+
+  // Cargar datos de la consulta desde el modal o desde la tabla de consultas
+  useEffect(() => {
+    console.log('🔍 useEffect de carga ejecutándose');
+    console.log('🔍 location.state:', location.state);
+    console.log('🔍 dataLoaded:', dataLoadedRef.current);
+    
+    if (location.state?.queryData && !dataLoadedRef.current) {
+      const queryData = location.state.queryData;
+      console.log('🔍 queryData recibido:', queryData);
+      console.log('🔍 isEditing:', location.state.isEditing);
+      
+      // Si es una consulta existente (tiene ID), cargar todos los datos
+      if (location.state.isEditing && queryData.id) {
+        setCurrentQueryId(queryData.id);
+        
+        const formDataToSet = {
+          checkIn: queryData.checkIn ? format(new Date(queryData.checkIn), 'yyyy-MM-dd') : '',
+          checkOut: queryData.checkOut ? format(new Date(queryData.checkOut), 'yyyy-MM-dd') : '',
+          mainClient: {
+            id: queryData.mainClientId || null,
+            firstName: queryData.mainClient?.firstName || '',
+            lastName: queryData.mainClient?.lastName || '',
+            email: queryData.mainClient?.email || '',
+            phone: queryData.mainClient?.phone || ''
+          }
+        };
+        const requirementsToSet = {
+          requiredGuests: queryData.requiredGuests || 1,
+          requiredTags: queryData.requiredTags || [],
+          requiredRoomId: queryData.requiredRoomId || null,
+          requirementsNotes: queryData.requirementsNotes || ''
+        };
+        
+        console.log('🔍 FormData a setear:', formDataToSet);
+        console.log('🔍 Requirements a setear:', requirementsToSet);
+        
+        // Establecer todos los estados de una vez
+        setFormData(formDataToSet);
+        setRequirements(requirementsToSet);
+        setSelectedRoomType(queryData.reservationType || 'con_desayuno');
+        setNotes(queryData.notes || '');
+        
+        // Sincronizar los segmentos con los datos de la consulta
+        if (formDataToSet.checkIn && formDataToSet.checkOut) {
+          setSegments([{
+            id: 1,
+            checkIn: formDataToSet.checkIn,
+            checkOut: formDataToSet.checkOut,
+            requiredGuests: requirementsToSet.requiredGuests,
+            requiredTags: requirementsToSet.requiredTags,
+            requiredRoomId: requirementsToSet.requiredRoomId,
+            requirementsNotes: requirementsToSet.requirementsNotes
+          }]);
+        }
+        
+      } else {
+        // Si es una nueva consulta desde el modal
+        const { checkIn, checkOut, requiredGuests, requiredTags } = queryData;
+        
+        setFormData(prev => ({
+          ...prev,
+          checkIn,
+          checkOut
+        }));
+        
+        setRequirements(prev => ({
+          ...prev,
+          requiredGuests,
+          requiredTags
+        }));
+      }
+      
+      // Marcar como cargado y limpiar el state para evitar que se recargue en futuras navegaciones
+      dataLoadedRef.current = true;
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state?.queryData?.id, location.state?.isEditing]);
+
+  // Debug: Log del formData cada vez que cambie
+  useEffect(() => {
+    console.log('🔍 FormData actualizado:', formData);
+    console.trace('🔍 Stack trace del cambio de formData');
+  }, [formData]);
+
+  // useEffect para guardado automático de consulta cuando hay cliente seleccionado
+  useEffect(() => {
+    const clientId = formData.mainClient.id;
+    
+    // Solo guardar si hay un cliente seleccionado y datos válidos
+    if (clientId && (formData.checkIn || formData.checkOut || requirements.requiredGuests > 1)) {
+      // Debounce: esperar 2 segundos después del último cambio
+      const timeoutId = setTimeout(() => {
+        saveQueryAutomatically();
+      }, 2000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData.mainClient.id, formData.checkIn, formData.checkOut, requirements, saveQueryAutomatically]);
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -551,7 +927,7 @@ export default function NuevaConsulta() {
         ));
       }
     }
-  }, [serviceTypes, requirements.serviceType]);
+  }, [serviceTypes, requirements.serviceType, segments]);
 
   // Ya no se carga habitación seleccionada desde localStorage - se reinicia al actualizar
 
@@ -564,57 +940,25 @@ export default function NuevaConsulta() {
     } else {
       setIsHotelClosed(false);
     }
-  }, [segments, activeBlockIndex]);
+  }, [segments, activeBlockIndex, validateHotelAvailability]);
 
   // Cargar clientes y fechas por defecto al montar el componente
   useEffect(() => {
+    console.log('🔍 useEffect de inicialización ejecutándose');
+    console.log('🔍 isEditing en inicialización:', location.state?.isEditing);
     // console.log('🚀 NuevaConsulta montado - iniciando carga...');
     loadClients();
     loadAllRooms();
-    loadDefaultDates();
-  }, []);
-
-  // Función para cargar las fechas por defecto
-  const loadDefaultDates = async () => {
-    // console.log('🔄 loadDefaultDates llamada');
-    // console.log('📋 formData actual:', formData);
     
-    try {
-      const defaultDates = await getDefaultDates();
-      // console.log('✅ Fechas por defecto obtenidas:', defaultDates);
-      
-      setFormData(prev => ({
-        ...prev,
-        checkIn: defaultDates.checkIn,
-        checkOut: defaultDates.checkOut
-      }));
-      
-      // También actualizar el primer segmento, asegurando que siempre tenga valores definidos
-      setSegments(prev => prev.map((segment, index) => 
-        index === 0 ? {
-          ...segment,
-          checkIn: defaultDates.checkIn,
-          checkOut: defaultDates.checkOut,
-          requiredGuests: segment.requiredGuests || 1,
-          requiredTags: segment.requiredTags || [],
-          requiredRoomId: segment.requiredRoomId || null,
-          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
-        } : {
-          ...segment,
-          checkIn: segment.checkIn || '',
-          checkOut: segment.checkOut || '',
-          requiredGuests: segment.requiredGuests || 1,
-          requiredTags: segment.requiredTags || [],
-          requiredRoomId: segment.requiredRoomId || null,
-          serviceType: segment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
-        }
-      ));
-      
-      // console.log('✅ Fechas actualizadas en el estado');
-    } catch (error) {
-      console.error('❌ Error cargando fechas por defecto:', error);
+    // Solo cargar fechas por defecto si no estamos editando una consulta existente
+    if (!location.state?.isEditing) {
+      console.log('🔍 Cargando fechas por defecto');
+      loadDefaultDates();
+    } else {
+      console.log('🔍 NO cargando fechas por defecto (editando)');
     }
-  };
+  }, [loadClients, loadAllRooms, loadDefaultDates]);
+
 
   // Buscar habitaciones disponibles cuando cambien las fechas, huéspedes o etiquetas
   // COMENTADO: No debe ejecutarse automáticamente, solo al presionar el botón de búsqueda
@@ -639,7 +983,16 @@ export default function NuevaConsulta() {
 
   // Sincronizar segmentos con formData para la búsqueda de habitaciones
   useEffect(() => {
+    console.log('🔍 useEffect de sincronización ejecutándose');
+    console.log('🔍 isEditing en sincronización:', location.state?.isEditing);
+    // No sincronizar si estamos cargando datos de una consulta existente
+    if (location.state?.isEditing) {
+      console.log('🔍 NO sincronizando (editando)');
+      return;
+    }
+    
     if (segments.length > 0 && segments[activeBlockIndex] && segments[activeBlockIndex].checkIn && segments[activeBlockIndex].checkOut) {
+      console.log('🔍 Sincronizando segmentos con formData');
       setFormData(prev => ({
         ...prev,
         checkIn: segments[activeBlockIndex].checkIn,
@@ -653,7 +1006,7 @@ export default function NuevaConsulta() {
         requiredGuests: segments[activeBlockIndex].requiredGuests
       }));
     }
-  }, [segments, activeBlockIndex]);
+  }, [segments, activeBlockIndex, location.state?.isEditing]);
 
   // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada
   useEffect(() => {
@@ -684,7 +1037,7 @@ export default function NuevaConsulta() {
     if (selectedRoomType && segments.length > 0 && segments[0].checkIn && segments[0].checkOut) {
       loadDailyRates();
     }
-  }, [selectedRoomType, segments]);
+  }, [selectedRoomType, segments, loadDailyRates]);
 
   // Filtrar clientes cuando cambie el término de búsqueda
   useEffect(() => {
@@ -704,27 +1057,6 @@ export default function NuevaConsulta() {
 
 
 
-  const loadClients = async () => {
-    try {
-      const response = await fetchClients();
-      setClients(response);
-      setFilteredClients(response.slice(0, 10));
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    }
-  };
-
-  const loadAllRooms = async () => {
-    setLoadingAllRooms(true);
-    try {
-      const roomsData = await fetchRooms();
-      setAllRooms(roomsData);
-    } catch (error) {
-      console.error('Error cargando habitaciones:', error);
-    } finally {
-      setLoadingAllRooms(false);
-    }
-  };
 
   const searchAvailableRooms = async (customParams = null) => {
     setLoadingRooms(true);
@@ -740,21 +1072,21 @@ export default function NuevaConsulta() {
         console.log('🔍 Usando parámetros personalizados para búsqueda:', params);
       } else {
         // Usar parámetros del segmento activo (búsqueda manual)
-        if (!segments[activeBlockIndex]) {
-          console.log('No hay bloque activo para buscar habitaciones');
+    if (!segments[activeBlockIndex]) {
+      console.log('No hay bloque activo para buscar habitaciones');
           setLoadingRooms(false);
-          return;
-        }
-        
-        const activeBlock = segments[activeBlockIndex];
+      return;
+    }
+    
+      const activeBlock = segments[activeBlockIndex];
         params = {
-          checkIn: activeBlock.checkIn,
-          checkOut: activeBlock.checkOut,
-          requiredGuests: activeBlock.requiredGuests,
+        checkIn: activeBlock.checkIn,
+        checkOut: activeBlock.checkOut,
+        requiredGuests: activeBlock.requiredGuests,
           requiredTags: activeBlock.requiredTags,
           requiredRoomId: activeBlock.requiredRoomId,
           serviceType: activeBlock.serviceType || getAlternativeServiceType(activeBlock.serviceType)
-        };
+      };
         // console.log('🔍 Usando parámetros del segmento activo:', params);
       }
 
@@ -805,8 +1137,8 @@ export default function NuevaConsulta() {
               switch (availabilityStatus) {
                 case RoomAvailabilityStatus.PARTIAL_AVAILABILITY:
                   console.debug(`🔍 Servicio parcialmente disponible para ${room.name}`);
-                  totalRate = 0;
-                  room.serviceAvailabilityError = error.message;
+                totalRate = 0;
+                room.serviceAvailabilityError = error.message;
                   room.availabilityStatus = availabilityStatus;
                   // Capturar información adicional para disponibilidad parcial
                   if (error.availableServices) room.availableServices = error.availableServices;
@@ -819,7 +1151,7 @@ export default function NuevaConsulta() {
                   
                 case RoomAvailabilityStatus.SERVICE_NOT_AVAILABLE:
                   console.debug(`🔍 Servicio no disponible para ${room.name}`);
-                  totalRate = 0;
+                totalRate = 0;
                   room.serviceAvailabilityError = error.message;
                   room.availabilityStatus = availabilityStatus;
                   // Capturar servicios alternativos
@@ -829,14 +1161,14 @@ export default function NuevaConsulta() {
                   
                 case RoomAvailabilityStatus.NO_AVAILABILITY:
                   console.debug(`🔍 Sin disponibilidad para ${room.name}`);
-                  totalRate = 0;
+                totalRate = 0;
                   room.availabilityStatus = availabilityStatus;
                   break;
                   
                 default:
                   // Errores inesperados - mostrar en consola
                   console.error(`❌ Error inesperado para ${room.name}:`, error.message);
-                  totalRate = 0;
+                totalRate = 0;
                   room.availabilityStatus = RoomAvailabilityStatus.ERROR;
                   break;
               }
@@ -928,202 +1260,6 @@ export default function NuevaConsulta() {
 
 
 
-  const loadDailyRates = async () => {
-    if (!selectedRoomType || segments.length === 0) return;
-    
-    const firstSegment = segments[0];
-    if (!firstSegment.checkIn || !firstSegment.checkOut) return;
-
-    try {
-      // Calcular días entre check-in y check-out del primer segmento
-      const startDate = new Date(firstSegment.checkIn);
-      const endDate = new Date(firstSegment.checkOut);
-      const days = [];
-      
-      for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
-        days.push(new Date(d));
-      }
-
-      const rates = [];
-      
-      // Obtener el servicio seleccionado del primer segmento
-      const selectedServiceType = segments[0]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '');
-      
-      // Obtener el nombre del tipo de servicio desde los tipos de servicio cargados
-      const selectedService = serviceTypes.find(st => st.id === selectedServiceType);
-      const selectedServiceName = selectedService ? selectedService.name : 'Servicio no encontrado';
-      
-      for (const day of days) {
-        const dateStr = day.toISOString().split('T')[0];
-        
-        // Obtener bloque activo para esta fecha (simulamos la lógica del endpoint)
-        const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
-        
-        if (seasonBlocksResponse.ok) {
-          const seasonBlocksData = await seasonBlocksResponse.json();
-          const seasonBlocks = seasonBlocksData.data || [];
-          
-          // Buscar el bloque activo para esta fecha
-          const activeBlockForDate = seasonBlocks.find(block => {
-            const startDate = new Date(block.startDate);
-            const endDate = new Date(block.endDate);
-            const checkDate = new Date(dateStr);
-            return !block.isDraft && checkDate >= startDate && checkDate <= endDate;
-          });
-          
-          if (activeBlockForDate && activeBlockForDate.seasonPrices) {
-            // Buscar precios para este tipo de habitación
-            const roomTypePrices = activeBlockForDate.seasonPrices.filter(
-              price => price.roomTypeId === selectedRoomType.id
-            );
-            
-            if (roomTypePrices.length > 0) {
-              // Obtener ajustes de porcentaje del bloque
-              const serviceAdjustments = activeBlockForDate.blockServiceSelections || [];
-              
-              // Buscar el precio para el servicio seleccionado
-              const servicePrice = roomTypePrices.find(price => 
-                price.serviceType && price.serviceType.name === selectedServiceName
-              );
-              
-              // Buscar precio base como fallback
-              const basePrice = roomTypePrices.find(price => 
-                !price.serviceType || price.serviceType.name === 'Tarifa base'
-              ) || roomTypePrices[0];
-              
-              // Obtener el ajuste de porcentaje para el servicio seleccionado
-              const serviceAdjustment = serviceAdjustments.find(selection => 
-                selection.serviceType && selection.serviceType.name === selectedServiceName
-              );
-              
-              let finalPrice = 0;
-                
-                if (servicePrice) {
-                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
-              } else if (basePrice) {
-                  // Si no hay precio específico para el servicio, usar precio base
-                const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                finalPrice = basePrice.basePrice * (1 + adjustment / 100);
-                }
-              
-              rates.push({
-                date: dateStr,
-                blockName: activeBlockForDate.name,
-                serviceName: selectedServiceName,
-                price: Math.round(finalPrice)
-              });
-            } else {
-              rates.push({
-                date: dateStr,
-                blockName: 'Sin bloque',
-                serviceName: selectedServiceName,
-                price: 0,
-                noRatesAvailable: true
-              });
-            }
-          }
-        } else {
-          // Intentar obtener un bloque en borrador si no hay confirmados
-          const errorData = await seasonBlocksResponse.json();
-          if (errorData.reason === 'only_draft_blocks' && errorData.draftBlocks && errorData.draftBlocks.length > 0) {
-            // Usar el primer bloque en borrador disponible
-            const draftBlockResponse = await fetch(`/api/season-blocks/${errorData.draftBlocks[0].id}`);
-            if (draftBlockResponse.ok) {
-              const draftBlockData = await draftBlockResponse.json();
-              
-              if (draftBlockData.data && draftBlockData.data.seasonPrices) {
-                const roomTypePrices = draftBlockData.data.seasonPrices.filter(
-                  price => price.roomTypeId === selectedRoomType.id
-                );
-                
-                if (roomTypePrices.length > 0) {
-                  const serviceAdjustments = draftBlockData.data.blockServiceSelections || [];
-                  
-                  // Obtener el servicio seleccionado del primer segmento
-                  const selectedServiceType = segments[0]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '');
-                  
-                  // Obtener el nombre del tipo de servicio desde los tipos de servicio cargados
-                  const selectedService = serviceTypes.find(st => st.id === selectedServiceType);
-                  const selectedServiceName = selectedService ? selectedService.name : 'Servicio no encontrado';
-                  
-                  // Buscar el precio para el servicio seleccionado
-                  const servicePrice = roomTypePrices.find(price => 
-                    price.serviceType && price.serviceType.name === selectedServiceName
-                  );
-                  
-                  // Buscar precio base como fallback
-                  const basePrice = roomTypePrices.find(price => 
-                    !price.serviceType || price.serviceType.name === 'Tarifa base'
-                  ) || roomTypePrices[0];
-                  
-                  // Obtener el ajuste de porcentaje para el servicio seleccionado
-                  const serviceAdjustment = serviceAdjustments.find(selection => 
-                    selection.serviceType && selection.serviceType.name === selectedServiceName
-                  );
-                  
-                  let finalPrice = 0;
-                    
-                    if (servicePrice) {
-                    const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                    finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
-                  } else if (basePrice) {
-                      // Si no hay precio específico para el servicio, usar precio base
-                    const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                    finalPrice = basePrice.basePrice * (1 + adjustment / 100);
-                    }
-                  
-                  rates.push({
-                    date: dateStr,
-                    blockName: draftBlockData.data.name,
-                    serviceName: selectedServiceName,
-                    price: Math.round(finalPrice)
-                  });
-                } else {
-                  rates.push({
-                    date: dateStr,
-                    blockName: draftBlockData.data.name,
-                    serviceName: selectedServiceName,
-                    price: 0,
-                    noRatesAvailable: true
-                  });
-                }
-              } else {
-                rates.push({
-                  date: dateStr,
-                  blockName: 'Sin bloque',
-                  serviceName: selectedServiceName,
-                  price: 0,
-                  noRatesAvailable: true
-                });
-              }
-            } else {
-              rates.push({
-                date: dateStr,
-                blockName: 'Sin bloque',
-                serviceName: selectedServiceName,
-                price: 0,
-                noRatesAvailable: true
-              });
-            }
-          } else {
-            rates.push({
-              date: dateStr,
-              blockName: 'Sin bloque',
-              serviceName: selectedServiceName,
-              price: 0,
-              noRatesAvailable: true
-            });
-          }
-        }
-      }
-      
-      setDailyRates(rates);
-    } catch (error) {
-      console.error('Error loading daily rates:', error);
-      setDailyRates([]);
-    }
-  };
 
 
 
@@ -1137,17 +1273,23 @@ export default function NuevaConsulta() {
     }));
   };
 
-  const handleClientSelect = (client) => {
+  const handleClientSelect = async (client) => {
     setFormData(prev => ({
       ...prev,
       mainClient: {
         firstName: client.firstName,
         lastName: client.lastName,
         email: client.email || '',
-        phone: client.phone || ''
+        phone: client.phone || '',
+        id: client.id
       }
     }));
+    setSearchTerm('');
+    setFilteredClients([]);
     setShowNewClientForm(false);
+    
+    // Verificar si el cliente tiene una consulta preexistente
+    await checkForExistingQuery(client.id);
   };
 
   const handleNewSearch = () => {
@@ -1162,7 +1304,76 @@ export default function NuevaConsulta() {
         phone: ''
       }
     }));
+    // Limpiar consulta actual
+    setCurrentQueryId(null);
+    setLastClientId(null);
   };
+
+  // Función para verificar si existe una consulta para el cliente
+  const checkForExistingQuery = async (clientId) => {
+    try {
+      // Solo verificar si el cliente cambió
+      if (lastClientId === clientId) return;
+      
+      setLastClientId(clientId);
+      const existingQueryData = await fetchQueryByClient(clientId);
+      
+      if (existingQueryData) {
+        setExistingQuery(existingQueryData);
+        setShowLoadQueryModal(true);
+      } else {
+        // No hay consulta existente, continuar normalmente
+        setCurrentQueryId(null);
+      }
+    } catch (error) {
+      console.error('Error verificando consulta existente:', error);
+      // En caso de error, continuar sin mostrar modal
+      setCurrentQueryId(null);
+    }
+  };
+
+  // Función para cargar la consulta existente
+  const handleLoadExistingQuery = (query) => {
+    // Cargar datos de la consulta en el formulario
+    if (query.checkIn && query.checkOut) {
+      setFormData(prev => ({
+        ...prev,
+        checkIn: query.checkIn.split('T')[0], // Convertir a formato YYYY-MM-DD
+        checkOut: query.checkOut.split('T')[0]
+      }));
+    }
+
+    // Cargar requisitos
+    setRequirements({
+      requiredGuests: query.requiredGuests || 1,
+      requiredTags: query.requiredTags || [],
+      requiredRoomId: query.requiredRoomId || null,
+      requirementsNotes: query.requirementsNotes || ''
+    });
+
+    // Cargar segmentos (si existen)
+    if (query.checkIn && query.checkOut) {
+      setSegments([{
+        checkIn: query.checkIn.split('T')[0],
+        checkOut: query.checkOut.split('T')[0],
+        requiredGuests: query.requiredGuests || 1,
+        requiredTags: query.requiredTags || [],
+        requiredRoomId: query.requiredRoomId || null,
+        requirementsNotes: query.requirementsNotes || '',
+        serviceType: query.reservationType || 'base'
+      }]);
+    }
+
+    setCurrentQueryId(query.id);
+    setExistingQuery(null);
+  };
+
+  // Función para continuar sin cargar la consulta existente
+  const handleContinueWithoutLoading = () => {
+    setCurrentQueryId(null);
+    setExistingQuery(null);
+  };
+
 
   // Función para mostrar habitaciones de mayor capacidad (no utilizada actualmente)
   // const handleShowLargerCapacity = () => {
@@ -1559,7 +1770,7 @@ export default function NuevaConsulta() {
           guestCount: segment.requiredGuests
         })),
         status: 'pendiente',
-        notes: '',
+        notes: notes,
         isMultiRoom: false
       };
 
@@ -1626,6 +1837,13 @@ export default function NuevaConsulta() {
 
   return (
     <div className={styles.newLayout}>
+      {/* Título de la página */}
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>
+          {currentQueryId ? `📝 Editar Consulta #${currentQueryId}` : '📋 Nueva Consulta'}
+        </h1>
+      </div>
+      
       {/* 1. Cliente Principal */}
       <div className={styles.clientSection}>
         <div className={styles.sectionHeader}>
@@ -1876,19 +2094,19 @@ export default function NuevaConsulta() {
                           opacity: segments[activeBlockIndex]?.requiredRoomId ? 0.5 : 1,
                           pointerEvents: segments[activeBlockIndex]?.requiredRoomId ? 'none' : 'auto'
                         }}>
-                          {tags.map(tag => (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              className={`${styles.tagButton} ${
-                                segments[activeBlockIndex]?.requiredTags.includes(tag.id) ? styles.tagSelected : ''
-                              }`}
-                              onClick={() => segments[activeBlockIndex] && handleSegmentTagToggle(segments[activeBlockIndex].id, tag.id)}
+                        {tags.map(tag => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            className={`${styles.tagButton} ${
+                              segments[activeBlockIndex]?.requiredTags.includes(tag.id) ? styles.tagSelected : ''
+                            }`}
+                            onClick={() => segments[activeBlockIndex] && handleSegmentTagToggle(segments[activeBlockIndex].id, tag.id)}
                               disabled={!!segments[activeBlockIndex]?.requiredRoomId}
-                            >
-                              {tag.name}
-                            </button>
-                          ))}
+                          >
+                            {tag.name}
+                          </button>
+                        ))}
                         </div>
                       </div>
                     </div>
@@ -1936,39 +2154,39 @@ export default function NuevaConsulta() {
               {loadingRooms ? (
                 <div className={styles.loading}>
                   🔍 Buscando habitaciones disponibles...
-                </div>
+                    </div>
               ) : availableRooms.length === 0 ? (
                 <div className={styles.noRooms}>
                   {/* Mostrar mensaje específico si hay disponibilidad parcial, sino mensaje genérico */}
                   {isPartiallyAvailable && availablePeriods.length > 0 ? (
                     <>
                       <p>El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
-                      
-                      <button 
-                        onClick={createSegmentsFromAvailablePeriods}
-                        style={{
-                          backgroundColor: '#007bff',
-                          color: 'white',
-                          border: 'none',
+                        
+                        <button 
+                          onClick={createSegmentsFromAvailablePeriods}
+                          style={{
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
                           padding: '10px 20px',
                           borderRadius: '6px',
-                          cursor: 'pointer',
+                            cursor: 'pointer',
                           fontSize: '14px',
                           fontWeight: '500',
                           marginTop: '15px'
-                        }}
-                      >
+                          }}
+                        >
                         🔄 Dividir la reserva en tramos
-                      </button>
-                      
-                      <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
-                        Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
-                      </p>
+                        </button>
+                        
+                        <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
+                          Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
+                        </p>
                     </>
                   ) : (
                     <>
-                      <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
-                      <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
+                  <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
+                  <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
                     </>
                   )}
                 </div>
@@ -2098,7 +2316,30 @@ export default function NuevaConsulta() {
         )}
       </div>
 
-      {/* 4. Resumen Global (sección fija abajo) */}
+      {/* 4. Notas/Observaciones */}
+      <div className={styles.notesSection}>
+        <div className={styles.sectionHeader}>
+          <h2>📝 Notas y Observaciones</h2>
+        </div>
+        
+        <div className={styles.notesContent}>
+          <div className={styles.formGroup}>
+            <label htmlFor="notes" className={styles.label}>
+              Observaciones adicionales
+            </label>
+            <textarea
+              id="notes"
+              className={styles.textarea}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Agregar notas, comentarios especiales, solicitudes del cliente, etc..."
+              rows={4}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Resumen Global (sección fija abajo) */}
       {Object.keys(selectedRoomsPerBlock).length > 0 && (
         <div className={styles.summarySection}>
           <div className={styles.sectionHeader}>
@@ -2182,6 +2423,14 @@ export default function NuevaConsulta() {
           tags: tags
         }}
         isLoading={isCreatingReservation}
+      />
+
+      <LoadExistingQueryModal
+        isOpen={showLoadQueryModal}
+        onClose={() => setShowLoadQueryModal(false)}
+        onLoadQuery={handleLoadExistingQuery}
+        onContinueWithoutLoading={handleContinueWithoutLoading}
+        existingQuery={existingQuery}
       />
     </div>
   );

@@ -1,0 +1,171 @@
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background-color: #f9fafb;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.sortableHeader:hover {
+  background-color: #f3f4f6;
+}
+
+.sortableHeader:active {
+  background-color: #e5e7eb;
+}
+
+.table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.row:hover {
+  background-color: #f9fafb;
+}
+
+.row:last-child td {
+  border-bottom: none;
+}
+
+.idCell {
+  font-weight: 600;
+  color: #3b82f6;
+  width: 60px;
+}
+
+.clientCell {
+  min-width: 120px;
+  font-weight: 500;
+}
+
+.dateCell {
+  min-width: 120px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.roomCell {
+  min-width: 100px;
+  color: #6b7280;
+}
+
+.guestsCell {
+  text-align: center;
+  width: 60px;
+  color: #6b7280;
+}
+
+.statusCell {
+  width: 100px;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.statusBadge.pendiente {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.confirmada {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge.ingresada {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.statusBadge.finalizada {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.statusBadge.cancelada {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.statusBadge.no_presentada {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.typeCell {
+  min-width: 120px;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.noData {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .table th,
+  .table td {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+  
+  .dateCell {
+    min-width: 90px;
+    font-size: 0.7rem;
+  }
+  
+  .clientCell {
+    min-width: 100px;
+  }
+  
+  .typeCell {
+    min-width: 80px;
+  }
+  
+  .sortableHeader {
+    font-size: 0.65rem;
+  }
+}

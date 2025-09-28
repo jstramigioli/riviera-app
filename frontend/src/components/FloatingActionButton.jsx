@@ -13,8 +13,8 @@ export default function FloatingActionButton({ onCreateQuery }) {
       <button 
         className={styles.mainButton}
         onClick={handleCreateQuery}
-        aria-label="Nueva consulta"
-        title="Nueva consulta"
+        aria-label="Consulta"
+        title="Consulta"
         style={{
           backgroundColor: '#667eea'
         }}

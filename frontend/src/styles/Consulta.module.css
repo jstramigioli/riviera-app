@@ -1,4 +1,21 @@
-/* NuevaConsulta.module.css */
+/* Consulta.module.css */
+
+/* Título de la página */
+.pageHeader {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.pageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 /* Nuevo Layout */
 .newLayout {
@@ -120,6 +137,7 @@
 
 /* Cliente */
 .clientSelector {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -134,9 +152,10 @@
   border: 1px solid #ced4da;
   border-top: none;
   border-radius: 0 0 6px 6px;
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .clientOption {
@@ -144,6 +163,19 @@
   cursor: pointer;
   border-bottom: 1px solid #f8f9fa;
   transition: background-color 0.2s;
+}
+
+.clientOption strong {
+  font-weight: 700;
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.clientOption div {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 1px;
 }
 
 .clientOption:hover {
@@ -277,7 +309,7 @@
   background: white;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 20px;
 }
 
@@ -2155,5 +2187,54 @@
   .tablesContainer {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+}
+
+/* Estilos para la sección de notas */
+.notesSection {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
+}
+
+.notesContent {
+  margin-top: 16px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  font-size: var(--font-size-medium);
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.textarea::placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* Responsive para notas */
+@media (max-width: 768px) {
+  .notesSection {
+    padding: 16px;
+  }
+  
+  .textarea {
+    min-height: 80px;
+    font-size: var(--font-size-small);
   }
 } 

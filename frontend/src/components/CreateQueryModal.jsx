@@ -73,7 +73,7 @@ export default function CreateQueryModal({
 
     // Cerrar el modal y navegar a la nueva página con los datos de la consulta
     handleClose();
-    navigate('/nueva-consulta', { 
+    navigate('/consulta', { 
       state: { 
         queryData: {
           checkIn: formData.checkIn,
@@ -102,7 +102,7 @@ export default function CreateQueryModal({
     <div className={styles.modalOverlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>Nueva Consulta</h2>
+          <h2>Consulta</h2>
           <button className={styles.closeButton} onClick={handleClose}>
             ×
           </button>

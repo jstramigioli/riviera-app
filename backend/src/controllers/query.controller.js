@@ -396,6 +396,47 @@ const deleteQueryGuest = async (req, res) => {
   }
 };
 
+// Obtener consulta por cliente
+const getQueryByClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    
+    const query = await prisma.query.findFirst({
+      where: { 
+        mainClientId: parseInt(clientId),
+        status: { not: 'converted' } // Excluir consultas ya convertidas
+      },
+      include: {
+        guests: {
+          include: {
+            payments: true
+          }
+        },
+        room: {
+          include: {
+            tags: true,
+            roomType: true
+          }
+        },
+        mainClient: true,
+        nightRates: true
+      },
+      orderBy: {
+        updatedAt: 'desc' // Obtener la más reciente
+      }
+    });
+
+    if (!query) {
+      return res.status(404).json({ error: 'No se encontró consulta para este cliente' });
+    }
+
+    res.json(query);
+  } catch (error) {
+    console.error('Error al obtener consulta por cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   getAllQueries,
   getQueryById,
@@ -405,5 +446,6 @@ module.exports = {
   convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
-  deleteQueryGuest
+  deleteQueryGuest,
+  getQueryByClient
 }; 

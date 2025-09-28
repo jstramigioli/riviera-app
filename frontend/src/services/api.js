@@ -600,6 +600,17 @@ export async function fetchQuery(id) {
   return res.json();
 }
 
+export async function fetchQueryByClient(clientId) {
+  const res = await fetch(`${API_URL}/queries/client/${clientId}`);
+  if (!res.ok) {
+    if (res.status === 404) {
+      return null; // No hay consulta para este cliente
+    }
+    throw new Error('Error fetching query by client');
+  }
+  return res.json();
+}
+
 export async function createQuery(data) {
   const res = await fetch(`${API_URL}/queries`, {
     method: 'POST',
@@ -683,6 +694,7 @@ export default {
   getCalculatedRates,
   fetchQueries,
   fetchQuery,
+  fetchQueryByClient,
   createQuery,
   updateQuery,
   deleteQuery,
