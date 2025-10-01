@@ -128,7 +128,7 @@ const RoomTypesPanel = () => {
       }));
     } catch (error) {
       console.error('Error creando tipo de habitación:', error);
-      alert('Error al crear el tipo de habitación');
+      alert(error.message || 'Error al crear el tipo de habitación');
     } finally {
       setSaving(false);
     }

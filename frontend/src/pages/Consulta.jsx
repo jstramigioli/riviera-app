@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, createQuery, updateQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, createQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
+import SelectQueryModal from '../components/SelectQueryModal';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -239,6 +240,7 @@ export default function Consulta() {
 
   // Estados para las secciones colapsables del nuevo diseño
   const [showSegments, setShowSegments] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   
   // Estado para mostrar detalles de habitaciones
   const [showRoomDetails, setShowRoomDetails] = useState({});
@@ -253,6 +255,11 @@ export default function Consulta() {
   const [showLoadQueryModal, setShowLoadQueryModal] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
   const [lastClientId, setLastClientId] = useState(null);
+  
+  // Estados para selección de consultas múltiples
+  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [recentQueries, setRecentQueries] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
   
   // Estado para notas/observaciones
   const [notes, setNotes] = useState('');
@@ -506,23 +513,30 @@ export default function Consulta() {
     // Solo guardar si hay un cliente seleccionado
     if (!clientId) return;
 
+    // Usar datos del segmento activo
+    const activeSegment = segments[activeBlockIndex] || segments[0];
+    if (!activeSegment) {
+      console.log('⚠️ No hay segmento activo para guardar');
+      return;
+    }
+
     try {
       const queryData = {
         mainClientId: clientId,
-        checkIn: formData.checkIn ? new Date(formData.checkIn + 'T00:00:00') : null,
-        checkOut: formData.checkOut ? new Date(formData.checkOut + 'T00:00:00') : null,
-        requiredGuests: requirements.requiredGuests,
-        requiredRoomId: requirements.requiredRoomId,
-        requiredTags: requirements.requiredTags,
-        requirementsNotes: requirements.requirementsNotes,
-        notes: notes,
-        status: 'pendiente'
+        checkIn: activeSegment.checkIn ? new Date(activeSegment.checkIn + 'T00:00:00') : null,
+        checkOut: activeSegment.checkOut ? new Date(activeSegment.checkOut + 'T00:00:00') : null,
+        requiredGuests: activeSegment.requiredGuests,
+        requiredRoomId: activeSegment.requiredRoomId,
+        requiredTags: activeSegment.requiredTags || [],
+        requirementsNotes: activeSegment.requirementsNotes || '',
+        notes: notes
       };
+
+      console.log('🔍 Datos del segmento activo a guardar:', queryData);
 
       if (currentQueryId) {
         // Actualizar consulta existente
         console.log('🔍 Actualizando consulta existente:', currentQueryId);
-        console.log('🔍 Datos a actualizar:', queryData);
         await updateQuery(currentQueryId, queryData);
         console.log('✅ Consulta actualizada exitosamente');
       } else {
@@ -536,7 +550,7 @@ export default function Consulta() {
       console.error('Error guardando consulta automáticamente:', error);
       // No mostrar error al usuario, es guardado automático
     }
-  }, [formData.mainClient.id, formData.checkIn, formData.checkOut, requirements, notes, currentQueryId]);
+  }, [formData.mainClient.id, segments, activeBlockIndex, notes, currentQueryId]);
 
   // Función para cargar clientes
   const loadClients = useCallback(async () => {
@@ -796,15 +810,33 @@ export default function Consulta() {
       if (location.state.isEditing && queryData.id) {
         setCurrentQueryId(queryData.id);
         
+        // Si mainClient es null pero mainClientId existe, buscar el cliente en la lista de clientes
+        let clientData = queryData.mainClient;
+        if (!clientData && queryData.mainClientId) {
+          // Buscar el cliente en la lista de clientes cargados
+          const foundClient = clients.find(client => client.id === queryData.mainClientId);
+          if (foundClient) {
+            clientData = foundClient;
+          } else {
+            clientData = {
+              id: queryData.mainClientId,
+              firstName: '',
+              lastName: '',
+              email: '',
+              phone: ''
+            };
+          }
+        }
+        
         const formDataToSet = {
           checkIn: queryData.checkIn ? format(new Date(queryData.checkIn), 'yyyy-MM-dd') : '',
           checkOut: queryData.checkOut ? format(new Date(queryData.checkOut), 'yyyy-MM-dd') : '',
           mainClient: {
             id: queryData.mainClientId || null,
-            firstName: queryData.mainClient?.firstName || '',
-            lastName: queryData.mainClient?.lastName || '',
-            email: queryData.mainClient?.email || '',
-            phone: queryData.mainClient?.phone || ''
+            firstName: clientData?.firstName || '',
+            lastName: clientData?.lastName || '',
+            email: clientData?.email || '',
+            phone: clientData?.phone || ''
           }
         };
         const requirementsToSet = {
@@ -865,20 +897,7 @@ export default function Consulta() {
     console.trace('🔍 Stack trace del cambio de formData');
   }, [formData]);
 
-  // useEffect para guardado automático de consulta cuando hay cliente seleccionado
-  useEffect(() => {
-    const clientId = formData.mainClient.id;
-    
-    // Solo guardar si hay un cliente seleccionado y datos válidos
-    if (clientId && (formData.checkIn || formData.checkOut || requirements.requiredGuests > 1)) {
-      // Debounce: esperar 2 segundos después del último cambio
-      const timeoutId = setTimeout(() => {
-        saveQueryAutomatically();
-      }, 2000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formData.mainClient.id, formData.checkIn, formData.checkOut, requirements, saveQueryAutomatically]);
+  // Auto-guardado removido - ahora se guarda solo al buscar habitaciones
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -981,7 +1000,7 @@ export default function Consulta() {
   //   }
   // }, [formData.checkIn, formData.checkOut]);
 
-  // Sincronizar segmentos con formData para la búsqueda de habitaciones
+  // Sincronizar segmentos con formData para la búsqueda de habitaciones (solo para nuevas consultas)
   useEffect(() => {
     console.log('🔍 useEffect de sincronización ejecutándose');
     console.log('🔍 isEditing en sincronización:', location.state?.isEditing);
@@ -1007,6 +1026,38 @@ export default function Consulta() {
       }));
     }
   }, [segments, activeBlockIndex, location.state?.isEditing]);
+
+  // Sincronizar segments con formData cuando estamos editando (sincronización bidireccional)
+  useEffect(() => {
+    console.log('🔍 useEffect de sincronización bidireccional ejecutándose');
+    console.log('🔍 isEditing:', location.state?.isEditing);
+    
+    if (location.state?.isEditing) {
+      console.log('🔍 Sincronizando segments con formData (editando)');
+      console.log('🔍 formData actual:', formData);
+      
+      setSegments(prev => {
+        if (prev.length > 0 && prev[activeBlockIndex]) {
+          return prev.map((segment, index) => 
+            index === activeBlockIndex 
+              ? {
+                  ...segment,
+                  checkIn: formData.checkIn,
+                  checkOut: formData.checkOut,
+                  requiredGuests: requirements.requiredGuests,
+                  requiredTags: requirements.requiredTags,
+                  requiredRoomId: requirements.requiredRoomId,
+                  requirementsNotes: requirements.requirementsNotes
+                }
+              : segment
+          );
+        }
+        return prev;
+      });
+    } else {
+      console.log('🔍 NO sincronizando bidireccional - no está editando');
+    }
+  }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags, requirements.requiredRoomId, requirements.requirementsNotes, location.state?.isEditing, activeBlockIndex]);
 
   // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada
   useEffect(() => {
@@ -1059,6 +1110,11 @@ export default function Consulta() {
 
 
   const searchAvailableRooms = async (customParams = null) => {
+    // Guardar/actualizar consulta antes de buscar habitaciones
+    if (formData.mainClient.id) {
+      await saveQueryAutomatically();
+    }
+    
     setLoadingRooms(true);
     try {
       let params;
@@ -1316,17 +1372,18 @@ export default function Consulta() {
       if (lastClientId === clientId) return;
       
       setLastClientId(clientId);
-      const existingQueryData = await fetchQueryByClient(clientId);
+      const existingQueries = await fetchQueryByClient(clientId);
       
-      if (existingQueryData) {
-        setExistingQuery(existingQueryData);
-        setShowLoadQueryModal(true);
+      if (existingQueries && existingQueries.length > 0) {
+        // Tiene consultas recientes, mostrar modal de selección
+        setRecentQueries(existingQueries);
+        setShowSelectQueryModal(true);
       } else {
-        // No hay consulta existente, continuar normalmente
+        // No hay consultas existentes, continuar con consulta nueva
         setCurrentQueryId(null);
       }
     } catch (error) {
-      console.error('Error verificando consulta existente:', error);
+      console.error('Error verificando consultas existentes:', error);
       // En caso de error, continuar sin mostrar modal
       setCurrentQueryId(null);
     }
@@ -1374,6 +1431,20 @@ export default function Consulta() {
     setExistingQuery(null);
   };
 
+  // Funciones para el nuevo modal de selección de consultas
+  const handleSelectQuery = (query) => {
+    // Cargar la consulta seleccionada
+    handleLoadExistingQuery(query);
+    setShowSelectQueryModal(false);
+    setRecentQueries([]);
+  };
+
+  const handleCreateNewQuery = () => {
+    // Crear nueva consulta para el cliente
+    setCurrentQueryId(null);
+    setShowSelectQueryModal(false);
+    setRecentQueries([]);
+  };
 
   // Función para mostrar habitaciones de mayor capacidad (no utilizada actualmente)
   // const handleShowLargerCapacity = () => {
@@ -1412,10 +1483,11 @@ export default function Consulta() {
       if (response.ok) {
         const newClient = await response.json();
         
-        // Actualizar el cliente en el formulario con los datos del servidor
+        // Actualizar el cliente en el formulario con los datos del servidor (incluyendo el ID)
         setFormData(prev => ({
           ...prev,
           mainClient: {
+            id: newClient.id,  // ✨ Agregar el ID para que se setee como cliente principal
             firstName: newClient.firstName,
             lastName: newClient.lastName,
             email: newClient.email || '',
@@ -1425,8 +1497,6 @@ export default function Consulta() {
         
         // Cerrar el formulario de nuevo cliente
         setShowNewClientForm(false);
-        
-        alert('✅ Cliente guardado correctamente en la base de datos.');
       } else {
         const errorData = await response.json();
         alert(`❌ Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
@@ -1437,33 +1507,6 @@ export default function Consulta() {
     }
   };
 
-  const handleSaveQuery = () => {
-    // Validaciones básicas
-    const newErrors = {};
-    
-    // Validar que todos los segmentos tengan fechas
-    segments.forEach((segment, index) => {
-      if (!segment.checkIn) {
-        newErrors[`segment${index}CheckIn`] = `La fecha de entrada del segmento ${index + 1} es requerida`;
-      }
-      if (!segment.checkOut) {
-        newErrors[`segment${index}CheckOut`] = `La fecha de salida del segmento ${index + 1} es requerida`;
-      }
-      if (!segment.requiredGuests) {
-        newErrors[`segment${index}Guests`] = `La cantidad de huéspedes del segmento ${index + 1} es requerida`;
-      }
-    });
-    
-    if (Object.keys(newErrors).length > 0) {
-      alert('Por favor, completa todos los campos requeridos.');
-      return;
-    }
-
-    // Los datos ya no se guardan automáticamente - se reinician al actualizar la página
-    
-    // Solo mostrar confirmación
-    alert('✅ Consulta guardada correctamente.');
-  };
 
   // Función de submit del formulario (no utilizada actualmente)
   // const handleSubmit = (e) => {
@@ -1543,6 +1586,8 @@ export default function Consulta() {
 
   // Funciones para manejar segmentos
   const handleSegmentChange = (segmentId, field, value) => {
+    console.log('🔍 handleSegmentChange ejecutándose:', { segmentId, field, value, isEditing: location.state?.isEditing });
+    
     setSegments(prev => prev.map(segment => {
       if (segment.id === segmentId) {
         const updatedSegment = { ...segment, [field]: value };
@@ -1597,6 +1642,23 @@ export default function Consulta() {
               checkIn: finalCheckInString,
               checkOutNuevo: nextDayString
             });
+          }
+        }
+        
+        // Si estamos editando, también actualizar formData para que se dispare el guardado automático
+        if (location.state?.isEditing && (field === 'checkIn' || field === 'checkOut' || field === 'requiredGuests')) {
+          console.log('🔍 Actualizando formData desde handleSegmentChange');
+          setFormData(prev => ({
+            ...prev,
+            checkIn: updatedSegment.checkIn,
+            checkOut: updatedSegment.checkOut
+          }));
+          
+          if (field === 'requiredGuests') {
+            setRequirements(prev => ({
+              ...prev,
+              requiredGuests: value
+            }));
           }
         }
         
@@ -1784,6 +1846,17 @@ export default function Consulta() {
       
       console.log('Reserva creada:', newReservation);
       
+      // Eliminar la consulta si existe (ya se convirtió en reserva)
+      if (currentQueryId) {
+        try {
+          await deleteQuery(currentQueryId);
+          console.log('✅ Consulta eliminada después de crear reserva:', currentQueryId);
+        } catch (deleteError) {
+          console.error('Error al eliminar la consulta:', deleteError);
+          // No mostrar error al usuario, la reserva ya se creó exitosamente
+        }
+      }
+      
       // Mostrar mensaje de éxito
       alert('✅ Reserva creada exitosamente');
       
@@ -1833,26 +1906,54 @@ export default function Consulta() {
     setDailyRates([]);
     setSearchTerm('');
     setShowNewClientForm(false);
+    setCurrentQueryId(null);
+    setNotes('');
   };
 
   return (
     <div className={styles.newLayout}>
-      {/* Título de la página */}
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>
-          {currentQueryId ? `📝 Editar Consulta #${currentQueryId}` : '📋 Nueva Consulta'}
-        </h1>
-      </div>
-      
-      {/* 1. Cliente Principal */}
-      <div className={styles.clientSection}>
+      {/* Contenedor unificado: Cliente + Pestañas */}
+      <div className={styles.unifiedContainer}>
+        {/* 1. Sección de Cliente */}
         <div className={styles.sectionHeader}>
-          <h2>👤 Cliente Principal</h2>
+          <h2>
+            {!formData.mainClient.id ? (
+              'Consulta rápida'
+            ) : (
+              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'} - ${formData.mainClient.firstName} ${formData.mainClient.lastName}`
+            )}
+          </h2>
+          {formData.mainClient.id && (
+            <button 
+              type="button" 
+              onClick={() => {
+                // Eliminar el cliente de la consulta (mantener consulta original intacta)
+                setFormData(prev => ({
+                  ...prev,
+                  mainClient: {
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    phone: '',
+                    id: null
+                  }
+                }));
+                setSearchTerm('');
+                setFilteredClients([]);
+                // Limpiar el ID de la consulta actual para crear una nueva consulta temporal
+                setCurrentQueryId(null);
+              }}
+              className={styles.deleteClientButton}
+              title="Eliminar cliente de la consulta"
+            >
+              ✕
+            </button>
+          )}
         </div>
         
-        <div className={styles.clientContent}>
-          <div className={styles.formGroup}>
-            <label>Cliente Principal</label>
+        {!formData.mainClient.id && (
+          <div className={styles.clientContent}>
+            <div className={styles.formGroup}>
             {showNewClientForm ? (
               <div className={styles.newClientForm}>
                 <div className={styles.newClientGrid}>
@@ -1888,6 +1989,9 @@ export default function Consulta() {
                   <button type="button" onClick={handleNewSearch}>❌ Cancelar</button>
                 </div>
               </div>
+            ) : formData.mainClient.id ? (
+              // Cliente seleccionado - no mostrar nada aquí, el nombre ya está en el título
+              null
             ) : (
               <div className={styles.clientSelector}>
                 <input
@@ -1917,7 +2021,7 @@ export default function Consulta() {
                     </div>
                   </div>
                 )}
-                {!searchTerm && !formData.mainClient.id && (
+                {!searchTerm && (
                   <button 
                     type="button" 
                     onClick={() => setShowNewClientForm(true)}
@@ -1928,14 +2032,11 @@ export default function Consulta() {
                 )}
               </div>
             )}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-
-      {/* 2. Pestañas de Bloques de Estadía */}
-      <div className={styles.tabsContainer}>
-        {/* Pestañas */}
+        {/* 2. Pestañas de Bloques de Estadía */}
         <div className={styles.tabsHeader}>
           {segments.map((block, index) => (
             <button
@@ -1978,7 +2079,7 @@ export default function Consulta() {
             type="button"
             className={styles.addTabButton}
             onClick={addNewBlock}
-            title="Agregar Bloque"
+            title="Agregar tramo a la reserva"
           >
             +
           </button>
@@ -2040,8 +2141,9 @@ export default function Consulta() {
                 </div>
               </div>
 
-              {/* Requisitos Especiales (expandible) */}
-              <div className={styles.formGroup}>
+              {/* Contenedor para Requisitos y Notas lado a lado */}
+              <div className={styles.sideBySideContainer}>
+                {/* Requisitos Especiales (expandible) */}
                 <div className={styles.expandableSection}>
                   <button
                     type="button"
@@ -2112,6 +2214,28 @@ export default function Consulta() {
                     </div>
                   )}
                 </div>
+
+                {/* Notas (expandible) */}
+                <div className={styles.expandableSection}>
+                  <button
+                    type="button"
+                    className={styles.expandableHeader}
+                    onClick={() => setShowNotes(!showNotes)}
+                  >
+                    <label>Notas</label>
+                    <span className={styles.expandIcon}>{showNotes ? '▼' : '▶'}</span>
+                  </button>
+                  
+                  {showNotes && (
+                    <textarea
+                      className={styles.notesTextareaExpanded}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Agregar notas, comentarios especiales, solicitudes del cliente, etc..."
+                      rows={4}
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Botón de búsqueda */}
@@ -2122,7 +2246,7 @@ export default function Consulta() {
                   onClick={() => searchAvailableRooms()}
                   disabled={!segments[activeBlockIndex]?.checkIn || !segments[activeBlockIndex]?.checkOut || isHotelClosed}
                 >
-                  🔍 Buscar Habitaciones para este Bloque
+                  Buscar Habitaciones
                 </button>
                 
                 {/* Mensaje cuando el hotel está cerrado */}
@@ -2144,7 +2268,7 @@ export default function Consulta() {
             {/* Habitaciones Disponibles dentro de la pestaña */}
             <div className={styles.roomsSection}>
               <div className={styles.sectionHeader}>
-                <h3>🏨 Habitaciones Disponibles</h3>
+                <h3>Habitaciones Disponibles</h3>
               </div>
               
               {/* Alerta si hay problemas con las tarifas */}
@@ -2184,10 +2308,7 @@ export default function Consulta() {
                         </p>
                     </>
                   ) : (
-                    <>
                   <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
-                  <p>Intenta con otras fechas o una cantidad diferente de huéspedes.</p>
-                    </>
                   )}
                 </div>
               ) : (
@@ -2316,28 +2437,6 @@ export default function Consulta() {
         )}
       </div>
 
-      {/* 4. Notas/Observaciones */}
-      <div className={styles.notesSection}>
-        <div className={styles.sectionHeader}>
-          <h2>📝 Notas y Observaciones</h2>
-        </div>
-        
-        <div className={styles.notesContent}>
-          <div className={styles.formGroup}>
-            <label htmlFor="notes" className={styles.label}>
-              Observaciones adicionales
-            </label>
-            <textarea
-              id="notes"
-              className={styles.textarea}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Agregar notas, comentarios especiales, solicitudes del cliente, etc..."
-              rows={4}
-            />
-          </div>
-        </div>
-      </div>
 
       {/* 5. Resumen Global (sección fija abajo) */}
       {Object.keys(selectedRoomsPerBlock).length > 0 && (
@@ -2391,14 +2490,6 @@ export default function Consulta() {
             <div className={styles.summaryActions}>
               <button 
                 type="button" 
-                className={styles.draftButton}
-                onClick={handleSaveQuery}
-              >
-                💾 Guardar Borrador
-              </button>
-              
-              <button 
-                type="button" 
                 className={styles.confirmButton}
                 onClick={() => setShowConfirmationModal(true)}
                 disabled={Object.keys(selectedRoomsPerBlock).length === 0}
@@ -2431,6 +2522,19 @@ export default function Consulta() {
         onLoadQuery={handleLoadExistingQuery}
         onContinueWithoutLoading={handleContinueWithoutLoading}
         existingQuery={existingQuery}
+      />
+
+      {/* Modal de selección de consultas recientes */}
+      <SelectQueryModal
+        isOpen={showSelectQueryModal}
+        onClose={() => {
+          setShowSelectQueryModal(false);
+          setRecentQueries([]);
+        }}
+        queries={recentQueries}
+        clientName={formData.mainClient.firstName ? `${formData.mainClient.firstName} ${formData.mainClient.lastName}` : ''}
+        onSelectQuery={handleSelectQuery}
+        onCreateNew={handleCreateNewQuery}
       />
     </div>
   );

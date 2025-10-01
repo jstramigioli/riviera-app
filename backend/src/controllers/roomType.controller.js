@@ -31,18 +31,45 @@ exports.getRoomTypeById = async (req, res) => {
 // Crear un nuevo tipo de habitación
 exports.createRoomType = async (req, res) => {
   const { name, description, maxPeople } = req.body;
+  
+  // Validar que el nombre esté presente
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'El nombre del tipo de habitación es requerido' });
+  }
+  
   try {
+    // Verificar si ya existe un tipo de habitación con ese nombre
+    const existingRoomType = await prisma.roomType.findUnique({
+      where: { name: name.trim() }
+    });
+    
+    if (existingRoomType) {
+      return res.status(409).json({ error: 'Ya existe un tipo de habitación con ese nombre' });
+    }
+    
     const roomType = await prisma.roomType.create({
       data: {
-        name,
-        description,
-        maxPeople: maxPeople || 1
+        name: name.trim(),
+        description: description?.trim() || null,
+        maxPeople: maxPeople || 1,
+        orderIndex: 0
       }
     });
     res.status(201).json(roomType);
   } catch (error) {
     console.error('Error creating room type:', error);
-    res.status(500).json({ error: `Error creating room type: ${error.message}` });
+    console.error('Error details:', {
+      code: error.code,
+      meta: error.meta,
+      message: error.message
+    });
+    
+    // Manejar error de unicidad
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Ya existe un tipo de habitación con ese nombre' });
+    }
+    
+    res.status(500).json({ error: `Error al crear tipo de habitación: ${error.message}` });
   }
 };
 

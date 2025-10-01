@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { getStatusLabel } from "../utils/reservationStatusUtils";
+import ConfirmationModal from './ConfirmationModal';
 import styles from '../styles/QueriesTable.module.css';
 
-function QueriesTable({ queries, rooms, clients }) {
+function QueriesTable({ queries, onDeleteQuery }) {
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [queryToDelete, setQueryToDelete] = useState(null);
   const navigate = useNavigate();
 
   const handleSort = (field) => {
@@ -41,6 +43,10 @@ function QueriesTable({ queries, rooms, clients }) {
           aValue = a.checkOut ? new Date(a.checkOut) : new Date(0);
           bValue = b.checkOut ? new Date(b.checkOut) : new Date(0);
           break;
+        case 'nights':
+          aValue = calculateNights(a.checkIn, a.checkOut);
+          bValue = calculateNights(b.checkIn, b.checkOut);
+          break;
         case 'room':
           aValue = a.room ? a.room.name : '';
           bValue = b.room ? b.room.name : '';
@@ -48,10 +54,6 @@ function QueriesTable({ queries, rooms, clients }) {
         case 'guests':
           aValue = a.requiredGuests || 1;
           bValue = b.requiredGuests || 1;
-          break;
-        case 'status':
-          aValue = a.status || 'pendiente';
-          bValue = b.status || 'pendiente';
           break;
         case 'type':
           aValue = a.reservationType || '';
@@ -76,6 +78,14 @@ function QueriesTable({ queries, rooms, clients }) {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  const calculateNights = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return 0;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diffTime = Math.abs(end - start);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const handleQueryClick = (query) => {
     // Navegar a la página de consulta con los datos precargados
     navigate('/consulta', { 
@@ -84,6 +94,24 @@ function QueriesTable({ queries, rooms, clients }) {
         isEditing: true 
       } 
     });
+  };
+
+  const handleDeleteQuery = (query) => {
+    setQueryToDelete(query);
+    setModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (queryToDelete) {
+      onDeleteQuery(queryToDelete.id);
+      setModalOpen(false);
+      setQueryToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setModalOpen(false);
+    setQueryToDelete(null);
   };
 
   if (!queries || queries.length === 0) {
@@ -125,6 +153,12 @@ function QueriesTable({ queries, rooms, clients }) {
             </th>
             <th 
               className={styles.sortableHeader}
+              onClick={() => handleSort('nights')}
+            >
+              Noches {getSortIcon('nights')}
+            </th>
+            <th 
+              className={styles.sortableHeader}
               onClick={() => handleSort('room')}
             >
               Habitación {getSortIcon('room')}
@@ -137,12 +171,6 @@ function QueriesTable({ queries, rooms, clients }) {
             </th>
             <th 
               className={styles.sortableHeader}
-              onClick={() => handleSort('status')}
-            >
-              Estado {getSortIcon('status')}
-            </th>
-            <th 
-              className={styles.sortableHeader}
               onClick={() => handleSort('type')}
             >
               Tipo {getSortIcon('type')}
@@ -152,6 +180,9 @@ function QueriesTable({ queries, rooms, clients }) {
               onClick={() => handleSort('updatedAt')}
             >
               Última Modificación {getSortIcon('updatedAt')}
+            </th>
+            <th className={styles.actionHeader}>
+              Acciones
             </th>
           </tr>
         </thead>
@@ -175,16 +206,14 @@ function QueriesTable({ queries, rooms, clients }) {
               <td className={styles.dateCell}>
                 {query.checkOut ? format(new Date(query.checkOut), 'dd/MM/yyyy') : 'Sin fecha'}
               </td>
+              <td className={styles.nightsCell}>
+                {calculateNights(query.checkIn, query.checkOut)}
+              </td>
               <td className={styles.roomCell}>
                 {query.room ? query.room.name : 'No especificada'}
               </td>
               <td className={styles.guestsCell}>
                 {query.requiredGuests || 1}
-              </td>
-              <td className={styles.statusCell}>
-                <span className={`${styles.statusBadge} ${styles[query.status || 'pendiente']}`}>
-                  {getStatusLabel(query.status || 'pendiente')}
-                </span>
               </td>
               <td className={styles.typeCell}>
                 {query.reservationType === 'con_desayuno' ? 'Con desayuno' :
@@ -193,13 +222,44 @@ function QueriesTable({ queries, rooms, clients }) {
                  query.reservationType === 'solo_alojamiento' ? 'Solo alojamiento' :
                  query.reservationType || 'No especificado'}
               </td>
-              <td className={styles.dateCell}>
+              <td className={styles.updatedAtCell}>
                 {query.updatedAt ? format(new Date(query.updatedAt), 'dd/MM/yyyy HH:mm') : 'Sin fecha'}
+              </td>
+              <td className={styles.actionCell}>
+                <button 
+                  className={styles.deleteButton}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Evitar que se active el clic de la fila
+                    handleDeleteQuery(query);
+                  }}
+                  title="Eliminar consulta"
+                >
+                  ✕
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      
+      <ConfirmationModal
+        isOpen={modalOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar Consulta"
+        message={
+          queryToDelete ? 
+            `¿Estás seguro de que quieres eliminar la consulta #${queryToDelete.id} de ${
+              queryToDelete.mainClient ? 
+                `${queryToDelete.mainClient.firstName} ${queryToDelete.mainClient.lastName}` : 
+                'Sin cliente'
+            }?` : 
+            ''
+        }
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmButtonClass="confirm"
+      />
     </div>
   );
 }

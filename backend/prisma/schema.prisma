@@ -207,7 +207,6 @@ model Query {
   checkIn           DateTime?
   checkOut          DateTime?
   totalAmount       Float?
-  status            String?                @default("pendiente")
   reservationType   String?                @default("con_desayuno")
   notes             String?
   fixed             Boolean?               @default(false)

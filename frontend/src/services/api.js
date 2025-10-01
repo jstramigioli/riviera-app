@@ -285,7 +285,10 @@ export async function createRoomType(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creando tipo de habitación');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
+    throw new Error(errorData.error || 'Error creando tipo de habitación');
+  }
   return res.json();
 }
 
@@ -603,12 +606,9 @@ export async function fetchQuery(id) {
 export async function fetchQueryByClient(clientId) {
   const res = await fetch(`${API_URL}/queries/client/${clientId}`);
   if (!res.ok) {
-    if (res.status === 404) {
-      return null; // No hay consulta para este cliente
-    }
-    throw new Error('Error fetching query by client');
+    throw new Error('Error fetching queries by client');
   }
-  return res.json();
+  return res.json(); // Retorna array de consultas (puede estar vacío)
 }
 
 export async function createQuery(data) {

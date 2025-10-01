@@ -75,7 +75,6 @@ const createQuery = async (req, res) => {
       checkIn,
       checkOut,
       totalAmount,
-      status = 'pendiente',
       reservationType = 'con_desayuno',
       notes,
       fixed = false,
@@ -94,7 +93,6 @@ const createQuery = async (req, res) => {
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
         totalAmount: totalAmount ? parseFloat(totalAmount) : null,
-        status,
         reservationType,
         notes,
         fixed,
@@ -167,7 +165,6 @@ const updateQuery = async (req, res) => {
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
         totalAmount: totalAmount ? parseFloat(totalAmount) : null,
-        status,
         reservationType,
         notes,
         fixed,
@@ -204,8 +201,19 @@ const updateQuery = async (req, res) => {
 const deleteQuery = async (req, res) => {
   try {
     const { id } = req.params;
+    const queryId = parseInt(id);
+    
+    // Verificar si la consulta existe antes de eliminar
+    const existingQuery = await prisma.query.findUnique({
+      where: { id: queryId }
+    });
+    
+    if (!existingQuery) {
+      return res.status(404).json({ error: 'Consulta no encontrada' });
+    }
+    
     await prisma.query.delete({
-      where: { id: parseInt(id) }
+      where: { id: queryId }
     });
 
     res.json({ message: 'Consulta eliminada exitosamente' });
@@ -261,7 +269,7 @@ const convertQueryToReservation = async (req, res) => {
         checkIn: query.checkIn,
         checkOut: query.checkOut,
         totalAmount: query.totalAmount,
-        status: query.status || 'confirmada',
+        status: 'confirmada',
         reservationType: query.reservationType || 'con_desayuno',
         notes: query.notes,
         fixed: query.fixed || false,
@@ -396,15 +404,21 @@ const deleteQueryGuest = async (req, res) => {
   }
 };
 
-// Obtener consulta por cliente
+// Obtener consultas recientes por cliente (últimos 60 días)
 const getQueryByClient = async (req, res) => {
   try {
     const { clientId } = req.params;
     
-    const query = await prisma.query.findFirst({
+    // Calcular fecha hace 60 días
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    
+    const queries = await prisma.query.findMany({
       where: { 
         mainClientId: parseInt(clientId),
-        status: { not: 'converted' } // Excluir consultas ya convertidas
+        updatedAt: {
+          gte: sixtyDaysAgo
+        }
       },
       include: {
         guests: {
@@ -422,17 +436,14 @@ const getQueryByClient = async (req, res) => {
         nightRates: true
       },
       orderBy: {
-        updatedAt: 'desc' // Obtener la más reciente
+        updatedAt: 'desc' // Más recientes primero
       }
     });
 
-    if (!query) {
-      return res.status(404).json({ error: 'No se encontró consulta para este cliente' });
-    }
-
-    res.json(query);
+    // Retornar array vacío si no hay consultas (no es error)
+    res.json(queries);
   } catch (error) {
-    console.error('Error al obtener consulta por cliente:', error);
+    console.error('Error al obtener consultas por cliente:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

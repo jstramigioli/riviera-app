@@ -4,7 +4,7 @@ import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
 import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
-import { deleteReservation } from '../services/api';
+import { deleteReservation, deleteQuery } from '../services/api';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationsTable from './ReservationsTable';
 import QueriesTable from './QueriesTable';
@@ -25,6 +25,7 @@ function ConsultasReservasView() {
     reservations,
     setReservations,
     queries,
+    setQueries,
     loading,
     error
   } = useAppData();
@@ -109,6 +110,28 @@ function ConsultasReservasView() {
     }
   };
 
+  const handleDeleteQuery = async (queryId) => {
+    try {
+      await deleteQuery(queryId);
+      setQueries(prev => prev.filter(q => q.id !== queryId));
+    } catch (error) {
+      console.error('Error deleting query:', error);
+      
+      // Manejar diferentes tipos de errores
+      let errorMessage = 'Error al eliminar la consulta';
+      
+      if (error.message.includes('404')) {
+        errorMessage = 'La consulta no existe o ya fue eliminada';
+      } else if (error.message.includes('500')) {
+        errorMessage = 'Error del servidor. Intenta nuevamente';
+      } else {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    }
+  };
+
 
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
@@ -166,8 +189,7 @@ function ConsultasReservasView() {
               <h2>Consultas</h2>
               <QueriesTable 
                 queries={queries}
-                rooms={rooms}
-                clients={clients}
+                onDeleteQuery={handleDeleteQuery}
               />
             </div>
           )}

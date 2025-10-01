@@ -6,7 +6,7 @@ import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './SeasonBlockBarV2.module.css';
 
-const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel' }) => {
+const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened }) => {
   console.log('SeasonBlockBarV2 - Component mounted/rendered with block:', block?.id);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +57,19 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   console.log('SeasonBlockBarV2 - formData.serviceAdjustmentMode:', formData.serviceAdjustmentMode, 'at', new Date().toISOString());
   console.log('SeasonBlockBarV2 - block received:', block);
   console.log('SeasonBlockBarV2 - block.blockServiceSelections:', block?.blockServiceSelections);
+
+  // Abrir automáticamente en modo edición si autoOpenEdit es true
+  useEffect(() => {
+    if (autoOpenEdit && !isExpanded && !isEditing) {
+      console.log('Auto-opening block in edit mode:', block?.id);
+      setIsExpanded(true);
+      setIsEditing(true);
+      // Notificar al padre que se abrió el modo edición
+      if (onEditOpened) {
+        onEditOpened();
+      }
+    }
+  }, [autoOpenEdit, isExpanded, isEditing, block?.id, onEditOpened]);
 
   // Cargar porcentajes de ajuste desde el backend
   useEffect(() => {

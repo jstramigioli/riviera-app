@@ -17,6 +17,9 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   // Estados para notificaciones
   const [notification, setNotification] = useState(null);
 
+  // Estado para rastrear el bloque recién creado
+  const [newlyCreatedBlockId, setNewlyCreatedBlockId] = useState(null);
+
   // Estados para visualización de tarifas por fecha
   const [pricesByDate, setPricesByDate] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -153,8 +156,10 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
       });
 
       if (response.ok) {
-        await response.json();
+        const createdBlock = await response.json();
         showNotification('Bloque creado exitosamente en modo borrador', 'success');
+        // Guardar el ID del bloque recién creado para abrirlo automáticamente
+        setNewlyCreatedBlockId(createdBlock.data.id);
         loadSeasonBlocks(); // Recargar la lista
       } else {
         const errorData = await response.json();
@@ -315,6 +320,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                       onBlockUpdated={loadSeasonBlocks}
                       onResetBlock={() => resetBlock(block.id)}
                       hotelId={hotelId}
+                      autoOpenEdit={block.id === newlyCreatedBlockId}
+                      onEditOpened={() => setNewlyCreatedBlockId(null)}
                     />
                   ))}
                 </div>
