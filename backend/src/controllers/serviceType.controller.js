@@ -189,6 +189,23 @@ exports.deleteServiceType = async (req, res) => {
       });
     }
     
+    // 🚨 VALIDACIÓN CRÍTICA: Verificar que no sea el último tipo de servicio
+    const totalServiceTypes = await prisma.serviceType.count({
+      where: { hotelId: existingServiceType.hotelId }
+    });
+    
+    console.log('🔍 DEBUG - Total de servicios en el hotel:', totalServiceTypes);
+    console.log('🔍 DEBUG - Hotel ID:', existingServiceType.hotelId);
+    console.log('🔍 DEBUG - Servicio a eliminar:', existingServiceType.name);
+    
+    if (totalServiceTypes <= 1) {
+      console.log('🚨 VALIDACIÓN ACTIVADA: No se puede eliminar el último servicio');
+      return res.status(400).json({ 
+        data: null, 
+        errors: ['No se puede eliminar el último tipo de servicio. Debe existir al menos un tipo de servicio.'] 
+      });
+    }
+    
     // Verificar que no esté en uso activamente
     // Solo bloquear si hay selecciones activas (isEnabled = true y isDraft = false)
     const activeSelections = existingServiceType.blockServiceSelections.filter(

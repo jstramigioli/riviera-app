@@ -1,22 +1,29 @@
-nohup: ignoring input
-🚀 Servidor corriendo en puerto 3001
-📊 API disponible en http://localhost:3001/api
-🏥 Health check en http://localhost:3001/api/health
-Conexión a la base de datos exitosa
-2025-08-21T20:31:34.982Z - GET /api/queries
-2025-08-21T20:32:39.216Z - POST /api/queries
-2025-08-21T20:32:42.813Z - GET /api/queries/5
-2025-08-21T20:32:50.907Z - PUT /api/queries/5
-2025-08-21T20:33:33.245Z - GET /api/clients
-2025-08-21T20:39:55.367Z - GET /api/clients
-2025-08-21T20:40:36.093Z - GET /api/clients
-2025-08-21T20:40:36.144Z - GET /api/rooms
-2025-08-21T20:40:36.146Z - GET /api/clients
-2025-08-21T20:40:36.152Z - GET /api/tags
-2025-08-21T20:40:36.297Z - GET /api/reservations
-2025-08-21T20:40:36.369Z - GET /api/rooms
-2025-08-21T20:40:36.439Z - GET /api/reservations
-2025-08-21T20:40:37.511Z - GET /api/tags
-2025-08-21T20:40:38.142Z - GET /api/dynamic-pricing/config/default-hotel
-2025-08-21T20:40:38.243Z - GET /api/dynamic-pricing/config/default-hotel
-2025-08-21T20:40:40.962Z - GET /api/clients
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:ne2025-10-02T22:17:55.422Z - DELETE /api/service-types/cmg9z7nly0001nwtry1tq5nge
+🔍 DEBUG - Total de servicios en el hotel: 2
+🔍 DEBUG - Hotel ID: default-hotel
+🔍 DEBUG - Servicio a eliminar: Con desayuno
+2025-10-02T22:18:09.413Z - DELETE /api/service-types/cmg9z7nm40003nwtr7cdw8bzq
+🔍 DEBUG - Total de servicios en el hotel: 1
+🔍 DEBUG - Hotel ID: default-hotel
+🔍 DEBUG - Servicio a eliminar: Media pensión
+🚨 VALIDACIÓN ACTIVADA: No se puede eliminar el último servicio
+2025-10-02T22:18:51.888Z - GET /api/hotel
+2025-10-02T22:18:51.907Z - GET /api/service-types
+2025-10-02T22:18:51.917Z - GET /api/tags
+2025-10-02T22:18:51.938Z - GET /api/service-types
+2025-10-02T22:18:53.170Z - GET /api/hotel
+2025-10-02T22:18:53.175Z - GET /api/tags
+ions (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.17.0

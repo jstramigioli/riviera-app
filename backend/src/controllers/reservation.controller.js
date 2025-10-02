@@ -374,6 +374,15 @@ exports.findAvailableRooms = async (req, res) => {
     excludeReservationId 
   } = req.query;
 
+  console.log('🔍 findAvailableRooms - Parámetros recibidos:', {
+    checkIn,
+    checkOut,
+    requiredGuests,
+    requiredRoomId,
+    requiredTags,
+    excludeReservationId
+  });
+
   // Asegurar que requiredTags sea siempre un array
   let tagsArray = [];
   if (Array.isArray(requiredTags)) {
@@ -383,6 +392,7 @@ exports.findAvailableRooms = async (req, res) => {
   }
 
   if (!checkIn || !checkOut || !requiredGuests) {
+    console.log('❌ Parámetros requeridos faltantes');
     return res.status(400).json({ error: 'Check-in, check-out dates and required guests are required' });
   }
 
@@ -496,6 +506,10 @@ exports.findAvailableRooms = async (req, res) => {
       }
     });
 
+    console.log('🏨 Habitaciones físicas encontradas:', allAvailableRooms.length);
+    console.log('🏨 Habitaciones ocupadas:', occupiedRoomIds.length);
+    console.log('🏨 IDs de habitaciones ocupadas:', occupiedRoomIds);
+
     // Obtener habitaciones virtuales disponibles
     const virtualRooms = await prisma.virtualRoom.findMany({
       where: {
@@ -537,16 +551,31 @@ exports.findAvailableRooms = async (req, res) => {
 
     // Filtrar por etiquetas requeridas si se especifican
     let filteredRooms = allRooms;
+    console.log('🏷️ Etiquetas requeridas:', tagsArray);
     if (tagsArray.length > 0) {
       filteredRooms = allRooms.filter(room => {
         const roomTagIds = room.tags.map(tag => tag.id.toString());
-        // Al menos una etiqueta debe coincidir (más flexible)
-        return tagsArray.some(requiredTagId => roomTagIds.includes(requiredTagId));
+        
+        // Si la habitación no tiene etiquetas, incluirla (para dar flexibilidad)
+        if (roomTagIds.length === 0) {
+          console.log(`🏷️ Habitación ${room.name} sin etiquetas - incluyendo por flexibilidad`);
+          return true;
+        }
+        
+        // Al menos una etiqueta debe coincidir
+        const hasMatchingTag = tagsArray.some(requiredTagId => roomTagIds.includes(requiredTagId));
+        if (hasMatchingTag) {
+          console.log(`🏷️ Habitación ${room.name} tiene etiqueta coincidente`);
+        }
+        return hasMatchingTag;
       });
+      console.log('🏷️ Habitaciones después del filtro de etiquetas:', filteredRooms.length);
     }
 
     // Obtener habitaciones que cumplan la capacidad mínima
     const availableRooms = filteredRooms.filter(room => room.maxPeople >= parseInt(requiredGuests));
+    console.log('👥 Habitaciones que cumplen capacidad mínima:', availableRooms.length);
+    console.log('👥 Capacidad requerida:', requiredGuests);
 
     // Categorizar habitaciones por capacidad
     const exactCapacityRooms = availableRooms.filter(room => room.maxPeople === parseInt(requiredGuests));
@@ -574,6 +603,13 @@ exports.findAvailableRooms = async (req, res) => {
     if (sortedRooms.length < 3) {
       alternativeCombinations = await findRoomCombinations(filteredRooms, parseInt(requiredGuests), occupiedRoomIds);
     }
+
+    console.log('✅ Resultado final:', {
+      totalFound: sortedRooms.length,
+      exactCapacityCount: exactCapacityRooms.length,
+      largerCapacityCount: largerCapacityRooms.length,
+      alternativeCombinations: alternativeCombinations.length
+    });
 
     res.json({
       availableRooms: sortedRooms,

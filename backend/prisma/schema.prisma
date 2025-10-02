@@ -208,6 +208,7 @@ model Query {
   checkOut          DateTime?
   totalAmount       Float?
   reservationType   String?                @default("con_desayuno")
+  serviceType       String?                @default("base")
   notes             String?
   fixed             Boolean?               @default(false)
   requiredGuests    Int?
@@ -400,14 +401,13 @@ model SeasonBlock {
   description            String?
   startDate              DateTime
   endDate                DateTime
-  isActive               Boolean                 @default(true)
   orderIndex             Int                     @default(0)
   useBlockServices       Boolean                 @default(false)
   basePrice              Float?
   useProportions         Boolean                 @default(false)
   referenceRoomTypeId    Int?
   serviceAdjustmentMode  String                  @default("PERCENTAGE")
-  isDraft                Boolean                 @default(false)
+  isDraft                Boolean                 @default(true)
   lastSavedAt            DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt

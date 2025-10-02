@@ -127,26 +127,69 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   };
 
   const handleCreateBlock = async () => {
+    console.log('🚀 handleCreateBlock iniciado');
     try {
       // Definir fechas por defecto
       const startDate = new Date().toISOString().split('T')[0];
       const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 días desde hoy
       
-      // Generar nombre por defecto basado en las fechas
-      const defaultName = generateDefaultBlockName(startDate, endDate);
+      console.log('📅 Fechas generadas:', { startDate, endDate });
+      
+      // Validar superposición de fechas
+      const checkDateOverlap = (startDate, endDate, otherBlocks) => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        return otherBlocks.some(otherBlock => {
+          // 🚨 VALIDACIÓN CRÍTICA: Solo verificar bloques activos (no borradores)
+          if (otherBlock.isDraft) {
+            return false;
+          }
+          
+          const otherStart = new Date(otherBlock.startDate);
+          const otherEnd = new Date(otherBlock.endDate);
+          
+          // Verificar si hay superposición
+          return (start <= otherEnd && end >= otherStart);
+        });
+      };
+      
+      const hasOverlap = checkDateOverlap(startDate, endDate, seasonBlocks);
+      if (hasOverlap) {
+        showNotification('No se puede crear el bloque: las fechas se superponen con otro bloque existente', 'error');
+        return;
+      }
+      
+      // Generar nombre por defecto basado en las fechas con número secuencial si hay repeticiones
+      const baseName = generateDefaultBlockName(startDate, endDate);
+      let defaultName = baseName;
+      let counter = 1;
+      
+      // Verificar si ya existe un bloque con ese nombre y agregar número secuencial
+      while (seasonBlocks.some(block => block.name === defaultName)) {
+        defaultName = `${baseName} (${counter})`;
+        counter++;
+      }
+      
+      console.log('📝 Nombre generado:', defaultName);
       
       // Crear un nuevo bloque automáticamente en modo borrador
       const newBlockData = {
         name: defaultName,
-        description: 'Bloque creado automáticamente',
+        description: '', // Sin descripción por defecto
         startDate: startDate,
         endDate: endDate,
+        hotelId: 'default-hotel', // Agregar hotelId requerido
         useProportions: true,
-        serviceAdjustmentMode: 'PERCENTAGE',
+        serviceAdjustmentMode: 'FIXED', // Cambiar a FIXED ya que eliminamos porcentajes
         useBlockServices: false,
         isDraft: true // Siempre crear en modo borrador
       };
+      
+      console.log('📦 Datos del bloque:', newBlockData);
 
+      console.log('🌐 Enviando request a:', `${API_URL}/season-blocks`);
+      
       const response = await fetch(`${API_URL}/season-blocks`, {
         method: 'POST',
         headers: {
@@ -155,15 +198,21 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
         body: JSON.stringify(newBlockData)
       });
 
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
       if (response.ok) {
         const createdBlock = await response.json();
+        console.log('✅ Bloque creado exitosamente:', createdBlock);
         showNotification('Bloque creado exitosamente en modo borrador', 'success');
         // Guardar el ID del bloque recién creado para abrirlo automáticamente
         setNewlyCreatedBlockId(createdBlock.data.id);
         loadSeasonBlocks(); // Recargar la lista
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al crear el bloque');
+        console.error('❌ Error response:', errorData);
+        console.error('❌ Error details:', errorData.errors);
+        throw new Error(errorData.errors?.[0] || errorData.message || 'Error al crear el bloque');
       }
     } catch (error) {
       console.error('Error creating season block:', error);
@@ -322,6 +371,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                       hotelId={hotelId}
                       autoOpenEdit={block.id === newlyCreatedBlockId}
                       onEditOpened={() => setNewlyCreatedBlockId(null)}
+                      seasonBlocks={seasonBlocks}
                     />
                   ))}
                 </div>

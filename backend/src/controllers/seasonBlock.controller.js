@@ -260,6 +260,40 @@ exports.createSeasonBlock = async (req, res) => {
         errors: [`Ya existe un bloque ${blockType} con ese nombre`] 
       });
     }
+    
+    // Validar superposición de fechas solo con bloques activos
+    if (startDate && endDate) {
+      const overlappingBlocks = await prisma.seasonBlock.findMany({
+        where: {
+          hotelId: finalHotelId,
+          isDraft: false, // Solo verificar bloques activos
+          OR: [
+            // Bloque nuevo empieza dentro de un bloque existente
+            {
+              startDate: { lte: new Date(startDate) },
+              endDate: { gte: new Date(startDate) }
+            },
+            // Bloque nuevo termina dentro de un bloque existente
+            {
+              startDate: { lte: new Date(endDate) },
+              endDate: { gte: new Date(endDate) }
+            },
+            // Bloque nuevo contiene completamente un bloque existente
+            {
+              startDate: { gte: new Date(startDate) },
+              endDate: { lte: new Date(endDate) }
+            }
+          ]
+        }
+      });
+      
+      if (overlappingBlocks.length > 0) {
+        return res.status(400).json({ 
+          data: null, 
+          errors: ['Las fechas se superponen con otro bloque existente'] 
+        });
+      }
+    }
 
     // Obtener el campo isDraft del body
     const isDraft = req.body.isDraft || false;
@@ -303,7 +337,7 @@ exports.createSeasonBlock = async (req, res) => {
         if (overlappingBlock) {
           return res.status(409).json({
             data: null,
-            errors: [`Existe superposición con el bloque confirmado "${overlappingBlock.name}" (${new Date(overlappingBlock.startDate).toLocaleDateString('es-AR')} - ${new Date(overlappingBlock.endDate).toLocaleDateString('es-AR')})`],
+            errors: [`Existe superposición con el bloque ${overlappingBlock.isDraft ? 'borrador' : 'confirmado'} "${overlappingBlock.name}" (${new Date(overlappingBlock.startDate).toLocaleDateString('es-AR')} - ${new Date(overlappingBlock.endDate).toLocaleDateString('es-AR')})`],
             conflictData: {
               overlappingBlock: {
                 id: overlappingBlock.id,
@@ -445,6 +479,53 @@ exports.updateSeasonBlock = async (req, res) => {
       });
     }
     
+    // 🚨 VALIDACIÓN CRÍTICA: Si se está intentando activar un bloque (isDraft: false), verificar superposición
+    if (isDraft === false) {
+      console.log('🔍 Validando superposición al activar bloque...');
+      console.log('📅 Fechas del bloque a activar:', { startDate: existingBlock.startDate, endDate: existingBlock.endDate });
+      
+      const overlappingBlock = await prisma.seasonBlock.findFirst({
+        where: {
+          hotelId: existingBlock.hotelId,
+          id: { not: id }, // Excluir el bloque actual
+          isDraft: false, // Solo verificar contra bloques activos
+          OR: [
+            // Caso 1: El bloque a activar empieza durante un bloque activo
+            {
+              startDate: { lte: new Date(existingBlock.startDate) },
+              endDate: { gte: new Date(existingBlock.startDate) }
+            },
+            // Caso 2: El bloque a activar termina durante un bloque activo
+            {
+              startDate: { lte: new Date(existingBlock.endDate) },
+              endDate: { gte: new Date(existingBlock.endDate) }
+            },
+            // Caso 3: El bloque a activar contiene completamente un bloque activo
+            {
+              startDate: { gte: new Date(existingBlock.startDate) },
+              endDate: { lte: new Date(existingBlock.endDate) }
+            }
+          ]
+        }
+      });
+
+      if (overlappingBlock) {
+        console.log('🚨 Superposición detectada al activar:', overlappingBlock.name);
+        return res.status(409).json({
+          data: null,
+          errors: [`No se puede activar: las fechas se superponen con el bloque activo "${overlappingBlock.name}" (${new Date(overlappingBlock.startDate).toLocaleDateString('es-AR')} - ${new Date(overlappingBlock.endDate).toLocaleDateString('es-AR')})`],
+          conflictData: {
+            overlappingBlock: {
+              id: overlappingBlock.id,
+              name: overlappingBlock.name,
+              startDate: overlappingBlock.startDate,
+              endDate: overlappingBlock.endDate
+            }
+          }
+        });
+      }
+    }
+    
     // Solo validar fechas si se proporcionan fechas completas
     if (startDate && endDate) {
       const dateValidation = validateDates(startDate, endDate);
@@ -455,49 +536,45 @@ exports.updateSeasonBlock = async (req, res) => {
         });
       }
 
-      // Solo verificar superposición si el bloque NO es un borrador
-      // Los borradores pueden superponerse con cualquier bloque
-      if (!existingBlock.isDraft) {
-        // Verificar superposición de fechas solo con bloques confirmados (excluyendo el bloque actual)
-        const overlappingBlock = await prisma.seasonBlock.findFirst({
-          where: {
-            hotelId: existingBlock.hotelId,
-            id: { not: id }, // Excluir el bloque actual
-            isDraft: false, // Solo verificar superposición con bloques confirmados
-            OR: [
-              // Caso 1: El bloque actualizado empieza durante un bloque existente
-              {
-                startDate: { lte: new Date(startDate) },
-                endDate: { gte: new Date(startDate) }
-              },
-              // Caso 2: El bloque actualizado termina durante un bloque existente
-              {
-                startDate: { lte: new Date(endDate) },
-                endDate: { gte: new Date(endDate) }
-              },
-              // Caso 3: El bloque actualizado contiene completamente un bloque existente
-              {
-                startDate: { gte: new Date(startDate) },
-                endDate: { lte: new Date(endDate) }
-              }
-            ]
+      // Verificar superposición de fechas solo con bloques activos (no borradores)
+      const overlappingBlock = await prisma.seasonBlock.findFirst({
+        where: {
+          hotelId: existingBlock.hotelId,
+          id: { not: id }, // Excluir el bloque actual
+          isDraft: false, // Solo verificar bloques activos
+          OR: [
+            // Caso 1: El bloque actualizado empieza durante un bloque existente
+            {
+              startDate: { lte: new Date(startDate) },
+              endDate: { gte: new Date(startDate) }
+            },
+            // Caso 2: El bloque actualizado termina durante un bloque existente
+            {
+              startDate: { lte: new Date(endDate) },
+              endDate: { gte: new Date(endDate) }
+            },
+            // Caso 3: El bloque actualizado contiene completamente un bloque existente
+            {
+              startDate: { gte: new Date(startDate) },
+              endDate: { lte: new Date(endDate) }
+            }
+          ]
+        }
+      });
+
+      if (overlappingBlock) {
+        return res.status(409).json({
+          data: null,
+          errors: [`Existe superposición con el bloque ${overlappingBlock.isDraft ? 'borrador' : 'confirmado'} "${overlappingBlock.name}" (${new Date(overlappingBlock.startDate).toLocaleDateString('es-AR')} - ${new Date(overlappingBlock.endDate).toLocaleDateString('es-AR')})`],
+          conflictData: {
+            overlappingBlock: {
+              id: overlappingBlock.id,
+              name: overlappingBlock.name,
+              startDate: overlappingBlock.startDate,
+              endDate: overlappingBlock.endDate
+            }
           }
         });
-
-        if (overlappingBlock) {
-          return res.status(409).json({
-            data: null,
-            errors: [`Existe superposición con el bloque confirmado "${overlappingBlock.name}" (${new Date(overlappingBlock.startDate).toLocaleDateString('es-AR')} - ${new Date(overlappingBlock.endDate).toLocaleDateString('es-AR')})`],
-            conflictData: {
-              overlappingBlock: {
-                id: overlappingBlock.id,
-                name: overlappingBlock.name,
-                startDate: overlappingBlock.startDate,
-                endDate: overlappingBlock.endDate
-              }
-            }
-          });
-        }
       }
     }
     

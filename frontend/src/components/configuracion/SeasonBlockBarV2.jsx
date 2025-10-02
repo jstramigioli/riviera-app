@@ -6,7 +6,7 @@ import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './SeasonBlockBarV2.module.css';
 
-const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened }) => {
+const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened, seasonBlocks = [] }) => {
   console.log('SeasonBlockBarV2 - Component mounted/rendered with block:', block?.id);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -181,6 +181,26 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   }, [hasTariffChanges, isEditing]);
 
+  // Auto-borrador: Si todos los servicios están desactivados, pasar a modo borrador
+  useEffect(() => {
+    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
+    if (activeServices.length === 0 && !formData.isDraft) {
+      console.log('🚨 Todos los servicios desactivados - pasando a modo borrador');
+      updateFormData({ isDraft: true });
+      showNotification('Bloque pasado a modo borrador: todos los servicios están desactivados', 'warning');
+    }
+  }, [blockServiceSelections, formData.isDraft]);
+
+  // Validación adicional: Si el bloque está activo pero no tiene servicios habilitados, desactivarlo
+  useEffect(() => {
+    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
+    if (activeServices.length === 0 && !formData.isDraft && block && !block.isDraft) {
+      console.log('🚨 Bloque activo sin servicios - desactivando automáticamente');
+      updateFormData({ isDraft: true });
+      showNotification('Bloque desactivado automáticamente: no tiene servicios habilitados', 'warning');
+    }
+  }, [blockServiceSelections, formData.isDraft, block]);
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     
@@ -271,8 +291,63 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   };
 
+  // Función para verificar superposición de fechas
+  const checkDateOverlap = (startDate, endDate, otherBlocks) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    console.log('🔍 checkDateOverlap - Fechas a verificar:', { start, end });
+    console.log('🔍 checkDateOverlap - Bloques a comparar:', otherBlocks.length);
+    
+    return otherBlocks.some(otherBlock => {
+      if (otherBlock.id === block?.id) {
+        console.log('🔍 Excluyendo bloque actual:', otherBlock.id);
+        return false; // Excluir el bloque actual
+      }
+      
+      // 🚨 VALIDACIÓN CRÍTICA: Solo verificar bloques activos (no borradores)
+      if (otherBlock.isDraft) {
+        console.log('🔍 Excluyendo bloque borrador:', otherBlock.id);
+        return false;
+      }
+      
+      const otherStart = new Date(otherBlock.startDate);
+      const otherEnd = new Date(otherBlock.endDate);
+      
+      console.log('🔍 Comparando con bloque activo:', {
+        id: otherBlock.id,
+        name: otherBlock.name,
+        otherStart,
+        otherEnd,
+        isDraft: otherBlock.isDraft
+      });
+      
+      // Verificar si hay superposición
+      const hasOverlap = (start <= otherEnd && end >= otherStart);
+      console.log('🔍 ¿Hay superposición con este bloque activo?', hasOverlap);
+      
+      return hasOverlap;
+    });
+  };
+
   const handleConfirm = async () => {
     try {
+      // Validar superposición de fechas antes de guardar
+      if (formData.startDate && formData.endDate) {
+        console.log('🔍 Validando superposición de fechas...');
+        console.log('📅 Fechas del bloque actual:', { startDate: formData.startDate, endDate: formData.endDate });
+        console.log('📋 Bloques existentes:', seasonBlocks?.length || 0);
+        
+        const hasOverlap = checkDateOverlap(formData.startDate, formData.endDate, seasonBlocks || []);
+        console.log('🔍 ¿Hay superposición?', hasOverlap);
+        
+        if (hasOverlap) {
+          console.log('🚨 Superposición detectada - bloqueando guardado');
+          showNotification('No se puede guardar: las fechas se superponen con otro bloque existente', 'error');
+          return;
+        }
+      }
+      
       // Primero sincronizar los porcentajes de ajuste con el estado del hook
       console.log('=== SAVING CHANGES - STEP 0: SYNC PERCENTAGES ===');
       console.log('Current percentageAdjustments:', percentageAdjustments);
@@ -324,10 +399,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     updateFormData('useProportions', enabled);
   };
 
-  const handlePercentageToggle = (enabled) => {
-    const newMode = enabled ? 'PERCENTAGE' : 'FIXED';
-    updateFormData('serviceAdjustmentMode', newMode);
-  };
 
   // Funciones para manejar la edición individual de campos
   const handleFieldClick = (fieldName) => {
@@ -426,25 +497,26 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   };
 
   // Función para manejar el toggle de servicios (solo localmente)
-  const handleServiceToggle = async (serviceTypeId, isEnabled) => {
+  const handleServiceToggle = async (serviceTypeId, currentState) => {
     try {
       console.log('=== TOGGLING SERVICE LOCALLY ===');
       console.log('serviceTypeId:', serviceTypeId);
-      console.log('isEnabled:', isEnabled);
+      console.log('currentState:', currentState);
       
       // Buscar la selección del servicio
       const selection = getActiveServiceTypes().find(s => s.serviceTypeId === serviceTypeId || s.id === serviceTypeId);
       if (selection) {
+        const newState = !currentState;
         // Solo actualizar el estado local (NO guardar en el backend)
         setBlockServiceSelections(prev => 
           prev.map(s => 
             s.id === selection.id 
-              ? { ...s, isEnabled: !isEnabled }
+              ? { ...s, isEnabled: newState }
               : s
           )
         );
         
-        showNotification(`Servicio ${isEnabled ? 'deshabilitado' : 'habilitado'} (se guardará al confirmar)`, 'info');
+        showNotification(`Servicio ${newState ? 'habilitado' : 'deshabilitado'} (se guardará al confirmar)`, 'info');
         console.log('=== SERVICE TOGGLED LOCALLY - WILL BE SAVED ON CONFIRM ===');
       }
     } catch (error) {
@@ -453,73 +525,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   };
 
-  // Función para manejar cambios en porcentajes de ajuste
-  const handlePercentageChange = (serviceTypeId, value) => {
-    const numericValue = parseFloat(value) || 0;
-    
-    // Actualizar percentageAdjustments
-    const newAdjustments = {
-      ...percentageAdjustments,
-      [serviceTypeId]: numericValue
-    };
-    setPercentageAdjustments(newAdjustments);
-    
-    // También actualizar blockServiceSelections para que se recalculen los precios
-    setBlockServiceSelections(prev => 
-      prev.map(selection => 
-        selection.id === serviceTypeId 
-          ? { ...selection, percentageAdjustment: numericValue }
-          : selection
-      )
-    );
-  };
-
-  // Función para guardar el porcentaje de ajuste (solo localmente)
-  const handlePercentageSave = async (serviceTypeId, value) => {
-    const numericValue = parseFloat(value) || 0;
-    
-    try {
-      console.log('=== UPDATING PERCENTAGE LOCALLY ===');
-      console.log('serviceTypeId:', serviceTypeId);
-      console.log('percentageAdjustment:', numericValue);
-      
-      // Solo actualizar el estado local (NO guardar en el backend)
-        setPercentageAdjustments(prev => ({
-          ...prev,
-          [serviceTypeId]: numericValue
-        }));
-        
-      // También actualizar el estado blockServiceSelections localmente
-        setBlockServiceSelections(prev => 
-          prev.map(selection => 
-          selection.id === serviceTypeId 
-              ? { ...selection, percentageAdjustment: numericValue }
-              : selection
-          )
-        );
-        
-      showNotification(`Porcentaje actualizado: ${numericValue}% (se guardará al confirmar)`, 'info');
-      
-      console.log('=== PERCENTAGE UPDATED LOCALLY - WILL BE SAVED ON CONFIRM ===');
-    } catch (error) {
-      console.error('Error updating percentage locally:', error);
-      showNotification('Error al actualizar el porcentaje', 'error');
-    }
-  };
-
-  // Función para manejar el evento onKeyPress del input de porcentaje
-  const handlePercentageKeyPress = async (e, serviceTypeId) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      await handlePercentageSave(serviceTypeId, e.target.value);
-      e.target.blur();
-    }
-  };
-
-  // Función para manejar el evento onBlur del input de porcentaje
-  const handlePercentageBlur = async (e, serviceTypeId) => {
-    await handlePercentageSave(serviceTypeId, e.target.value);
-  };
 
   // Función para manejar el toggle de borrador/activo
   const handleDraftToggle = async () => {
@@ -527,6 +532,29 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       if (!block) return;
       
       const newDraftStatus = !block.isDraft;
+      
+      // Validación: No permitir activar un bloque si todos los servicios están deshabilitados
+      if (!newDraftStatus) { // Si se está intentando activar (newDraftStatus = false)
+        const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
+        if (activeServices.length === 0) {
+          showNotification('No se puede activar un bloque sin servicios habilitados', 'error');
+          return;
+        }
+        
+        // 🚨 VALIDACIÓN CRÍTICA: Verificar superposición de fechas al activar
+        console.log('🔍 Validando superposición al activar bloque...');
+        console.log('📅 Fechas del bloque a activar:', { startDate: block.startDate, endDate: block.endDate });
+        console.log('📋 Bloques existentes:', seasonBlocks?.length || 0);
+        
+        const hasOverlap = checkDateOverlap(block.startDate, block.endDate, seasonBlocks || []);
+        console.log('🔍 ¿Hay superposición al activar?', hasOverlap);
+        
+        if (hasOverlap) {
+          console.log('🚨 Superposición detectada al activar - bloqueando activación');
+          showNotification('No se puede activar: las fechas se superponen con otro bloque activo', 'error');
+          return;
+        }
+      }
       
       // Llamar a la API para actualizar solo el campo isDraft
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/season-blocks/${block.id}`, {
@@ -650,30 +678,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   // Función para determinar si una celda debe ser editable
   const isCellEditable = (serviceType) => {
-    // El servicio "Tarifa base" siempre es editable (es la tarifa base)
-    if (serviceType.serviceType?.name === 'Tarifa base' || 
-        serviceType.name === 'Tarifa base') {
-      return true;
-    }
-    
-    // Si el modo de ajuste global es FIXED, todos los servicios habilitados son editables
-    if (formData.serviceAdjustmentMode === 'FIXED') {
-      // Verificar si el servicio está habilitado
-      const isEnabled = getActiveServiceTypes().some(s => 
-        (s.serviceTypeId === serviceType.serviceTypeId || s.id === serviceType.serviceTypeId) && s.isEnabled
-      );
-      return isEnabled;
-    }
-    
-    // Si el modo de ajuste es PERCENTAGE, solo el servicio base es editable
-    if (formData.serviceAdjustmentMode === 'PERCENTAGE') {
-      // Solo el servicio "Tarifa base" es editable en modo PERCENTAGE
-      // Los demás servicios se calculan automáticamente como porcentajes del base
-      return false;
-    }
-    
-    // Por defecto, no editable
-    return false;
+    // Todos los servicios habilitados son editables (sistema simplificado)
+    const isEnabled = getActiveServiceTypes().some(s => 
+      (s.serviceTypeId === serviceType.serviceTypeId || s.id === serviceType.serviceTypeId) && s.isEnabled
+    );
+    return isEnabled;
   };
 
   const getPriceDisplayInfo = (roomTypeId, serviceTypeId) => {
@@ -681,92 +690,14 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
     );
     
-    // Buscar el ajuste de porcentaje para este servicio
-    // Primero buscar por serviceTypeId directo
-    let percentageAdjustment = percentageAdjustments[serviceTypeId];
-    
-    // Si no se encuentra, buscar en las selecciones de servicios
-    if (percentageAdjustment === undefined) {
-      const serviceSelection = getActiveServiceTypes().find(s => 
-        s.serviceTypeId === serviceTypeId || s.id === serviceTypeId
-      );
-      if (serviceSelection && serviceSelection.id) {
-        percentageAdjustment = percentageAdjustments[serviceSelection.id];
-      }
-    }
-    
-    let basePrice = currentPrice?.basePrice || 0;
-    let adjustedPrice = basePrice;
-    
-    // Verificar si este servicio es el servicio base
-    const isBaseService = getActiveServiceTypes().some(s => 
-      (s.serviceTypeId === serviceTypeId || s.id === serviceTypeId) && 
-      (s.serviceType?.name === 'Tarifa base' || s.name === 'Tarifa base')
-    );
-
-    if (formData.serviceAdjustmentMode === 'PERCENTAGE') {
-      if (isBaseService) {
-        // El servicio base siempre usa su precio directo
-        adjustedPrice = basePrice;
-        console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - BASE SERVICE) ===');
-        console.log('roomTypeId:', roomTypeId);
-        console.log('serviceTypeId:', serviceTypeId);
-        console.log('basePrice (direct):', basePrice);
-        console.log('adjustedPrice (base service, no calculation):', adjustedPrice);
-      } else {
-        // Los demás servicios se calculan como porcentaje del servicio base
-        const baseService = getActiveServiceTypes().find(s => 
-          s.serviceType?.name === 'Tarifa base' || s.name === 'Tarifa base'
-        );
-      
-        if (baseService && percentageAdjustment !== undefined && percentageAdjustment !== 0) {
-          const baseServicePrice = prices.find(p => 
-            p.roomTypeId === roomTypeId && p.serviceTypeId === baseService.serviceTypeId
-          );
-          
-          if (baseServicePrice) {
-            basePrice = baseServicePrice.basePrice;
-            const adjustmentMultiplier = 1 + (percentageAdjustment / 100);
-            adjustedPrice = Math.round(basePrice * adjustmentMultiplier);
-            
-            console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - CALCULATED SERVICE) ===');
-            console.log('roomTypeId:', roomTypeId);
-            console.log('serviceTypeId:', serviceTypeId);
-            console.log('baseServicePrice.basePrice:', baseServicePrice.basePrice);
-            console.log('percentageAdjustment:', percentageAdjustment);
-            console.log('adjustmentMultiplier:', adjustmentMultiplier);
-            console.log('adjustedPrice:', adjustedPrice);
-          }
-        } else {
-          // Si no hay porcentaje definido, usar el precio directo
-          adjustedPrice = currentPrice?.basePrice || 0;
-          console.log('=== PRICE CALCULATION DEBUG (PERCENTAGE MODE - NO PERCENTAGE) ===');
-          console.log('roomTypeId:', roomTypeId);
-          console.log('serviceTypeId:', serviceTypeId);
-          console.log('basePrice (direct, no percentage set):', adjustedPrice);
-          console.log('adjustedPrice:', adjustedPrice);
-        }
-      }
-    } else if (formData.serviceAdjustmentMode === 'FIXED') {
-      // En modo FIXED, usar el precio directo sin aplicar porcentajes
-      adjustedPrice = basePrice;
-      console.log('=== PRICE CALCULATION DEBUG (FIXED MODE) ===');
-      console.log('roomTypeId:', roomTypeId);
-      console.log('serviceTypeId:', serviceTypeId);
-      console.log('basePrice (direct):', basePrice);
-      console.log('adjustedPrice (no percentage applied):', adjustedPrice);
-    }
-    
-    const roundedPrice = adjustedPrice; // Por ahora sin redondeo adicional
+    const basePrice = currentPrice?.basePrice || 0;
+    const adjustedPrice = basePrice; // Sistema simplificado: precio directo
     
     return {
       adjustedPrice: adjustedPrice,
-      roundedPrice: roundedPrice,
+      roundedPrice: adjustedPrice,
       wasRounded: false,
-      adjustment: (formData.serviceAdjustmentMode === 'PERCENTAGE' && percentageAdjustment) ? {
-        mode: 'PERCENTAGE',
-        value: percentageAdjustment
-      } : null
+      adjustment: null // Ya no se usan ajustes de porcentaje
     };
   };
 
@@ -963,7 +894,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 <th className={styles.roomTypeHeader}>Habitación</th>
                 {getActiveServiceTypes().map(serviceType => {
                   const isServiceEnabled = serviceType.isEnabled;
-                  const isBaseService = serviceType.serviceType?.name === 'Tarifa base';
                   return (
                     <th 
                       key={serviceType.id} 
@@ -975,7 +905,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         <span>{serviceType.serviceType?.name || serviceType.name}</span>
-                        {!isBaseService && isEditing && (
+                        {isEditing && (
                           <div className={styles.serviceToggle}>
                             <Switch
                               checked={isServiceEnabled}
@@ -994,58 +924,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   );
                 })}
               </tr>
-              {formData.serviceAdjustmentMode === 'PERCENTAGE' && (
-                <tr>
-                  <th className={styles.roomTypeHeader} style={{ background: '#f8f9fa' }}>Porcentaje de Ajuste</th>
-                  {getActiveServiceTypes().map(serviceType => {
-                    const isServiceEnabled = serviceType.isEnabled;
-                    const isBaseService = serviceType.serviceType?.name === 'Tarifa base';
-                    const currentPercentage = percentageAdjustments[serviceType.id] || '';
-                    
-                    return (
-                      <th 
-                        key={`percentage-${serviceType.id}`} 
-                        style={{ 
-                          textAlign: 'center',
-                          background: '#f8f9fa',
-                          opacity: isServiceEnabled ? 1 : 0.6
-                        }}
-                      >
-                        {!isBaseService ? (
-                          isEditing ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
-                              <input
-                                type="number"
-                                placeholder="0"
-                                value={currentPercentage}
-                                onChange={(e) => handlePercentageChange(serviceType.id, e.target.value)}
-                                onKeyPress={(e) => handlePercentageKeyPress(e, serviceType.id)}
-                                onBlur={(e) => handlePercentageBlur(e, serviceType.id)}
-                                style={{
-                                  width: '60px',
-                                  textAlign: 'center',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '4px',
-                                  padding: '6px',
-                                  fontSize: '16px'
-                                }}
-                                disabled={!isServiceEnabled}
-                              />
-                              <span style={{ fontSize: '16px', color: '#6c757d' }}>%</span>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '16px', color: '#6c757d' }}>
-                              {currentPercentage ? `${currentPercentage}%` : '-'}
-                            </span>
-                          )
-                        ) : (
-                          <span style={{ color: '#6c757d', fontSize: '16px' }}>-</span>
-                        )}
-                      </th>
-                    );
-                  })}
-                </tr>
-              )}
             </thead>
             <tbody>
               {roomTypes.map(roomType => (
@@ -1126,24 +1004,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               <span className={styles.toggleText}>Mantener proporciones</span>
             </label>
             
-            <label 
-              className={styles.toggleLabel}
-              title="Usar porcentajes: Cuando está activado, los ajustes de servicios se aplican como porcentajes sobre el precio base. Cuando está desactivado, se usan montos fijos. Por ejemplo: +15% vs +$500."
-            >
-              <Switch
-                checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
-                onChange={handlePercentageToggle}
-                onColor="#3b82f6"
-                offColor="#d1d5db"
-                checkedIcon={false}
-                uncheckedIcon={false}
-                width={44}
-                height={24}
-                handleDiameter={18}
-                disabled={!isEditing}
-              />
-              <span className={styles.toggleText}>Usar porcentajes</span>
-            </label>
           </div>
           
           <div className={styles.actionButtonsRight}>
@@ -1221,25 +1081,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 <span className={styles.toggleText}>Mantener proporciones</span>
               </label>
               
-              <label 
-                className={styles.toggleLabel}
-                title="Usar porcentajes: Cuando está activado, los ajustes de servicios se aplican como porcentajes sobre el precio base. Cuando está desactivado, se usan montos fijos. Por ejemplo: +15% vs +$500."
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Switch
-                  checked={formData.serviceAdjustmentMode === 'PERCENTAGE'}
-                  onChange={handlePercentageToggle}
-                  onColor="#3b82f6"
-                  offColor="#d1d5db"
-                  checkedIcon={false}
-                  uncheckedIcon={false}
-                  width={44}
-                  height={24}
-                  handleDiameter={18}
-                  disabled={!isEditing}
-                />
-                <span className={styles.toggleText}>Usar porcentajes</span>
-              </label>
             </div>
           )}
           
