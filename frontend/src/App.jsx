@@ -32,6 +32,7 @@ import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
+import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -499,6 +500,7 @@ function App() {
             <Route path="/rooms/:roomId" element={<RoomDetails />} />
             <Route path="/tarifas" element={<TarifasView />} />
             <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
+            <Route path="/precios-inteligentes" element={<PreciosInteligentesView />} />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />

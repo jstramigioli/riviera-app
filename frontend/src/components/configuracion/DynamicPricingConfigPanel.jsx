@@ -296,14 +296,14 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
         <h3 style={{ 
           color: '#2c3e50', 
           margin: 0,
-          fontSize: 'var(--font-size-xxlarge)',
+          fontSize: '1.5rem',
           fontWeight: '600'
         }}>Configuración de Tarifas Dinámicas</h3>
         
         {/* Toggle switch para activar/desactivar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ 
-            fontSize: 'var(--font-size-large)', 
+            fontSize: '1.2rem', 
             color: config.enabled ? '#27ae60' : '#e74c3c',
             fontWeight: '500'
           }}>
@@ -352,7 +352,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           color: '#856404',
           fontSize: 'var(--font-size-large)'
         }}>
-          <strong style={{ fontSize: 'var(--font-size-xlarge)' }}>⚠️ Precios dinámicos desactivados</strong>
+          <strong style={{ fontSize: '1.2rem' }}>⚠️ Precios dinámicos desactivados</strong>
           <br />
           Los precios se calcularán usando solo la curva estacional sin ajustes dinámicos por ocupación, anticipación, etc.
         </div>
@@ -517,7 +517,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
               <h4 style={{ 
                 margin: '0 0 16px 0', 
                 color: 'var(--color-text-dark)',
-                fontSize: 'var(--font-size-xxlarge)',
+                fontSize: '1.3rem',
                 fontWeight: '600'
               }}>
                 📊 Resumen de Ajustes Máximos
@@ -535,7 +535,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
                     dangerouslySetInnerHTML={{ __html: generateDiscountDescription() }}
                   />
                   <div style={{ 
-                    fontSize: 'var(--font-size-xxlarge)', 
+                    fontSize: '1.5rem', 
                     fontWeight: 'bold', 
                     color: '#e74c3c',
                     marginBottom: '8px'
@@ -543,7 +543,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
                     -{maxAdjustments.maxDiscountPercentage.toFixed(1)}%
                   </div>
                   <div style={{ 
-                    fontSize: 'var(--font-size-large)', 
+                    fontSize: '1rem', 
                     color: '#666'
                   }}>
                     Máximo descuento posible
@@ -561,7 +561,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
                     dangerouslySetInnerHTML={{ __html: generateIncreaseDescription() }}
                   />
                   <div style={{ 
-                    fontSize: 'var(--font-size-xxlarge)', 
+                    fontSize: '1.5rem', 
                     fontWeight: 'bold', 
                     color: '#27ae60',
                     marginBottom: '8px'
@@ -569,7 +569,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
                     +{maxAdjustments.maxIncreasePercentage.toFixed(1)}%
                   </div>
                   <div style={{ 
-                    fontSize: 'var(--font-size-large)', 
+                    fontSize: '1rem', 
                     color: '#666'
                   }}>
                     Máximo recargo posible

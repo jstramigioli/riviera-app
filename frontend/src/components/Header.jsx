@@ -34,6 +34,12 @@ function Header() {
             Tarifas
           </Link>
           <Link 
+            to="/precios-inteligentes" 
+            className={`${styles.navLink} ${location.pathname === '/precios-inteligentes' ? styles.active : ''}`}
+          >
+            Precios Inteligentes
+          </Link>
+          <Link 
             to="/cobros-pagos" 
             className={`${styles.navLink} ${location.pathname === '/cobros-pagos' ? styles.active : ''}`}
           >

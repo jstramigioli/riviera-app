@@ -203,11 +203,16 @@ class DynamicPricingController {
     try {
       const { hotelId } = req.params;
 
-      const rules = await prisma.mealPricingRule.findUnique({
-        where: { hotelId }
-      });
+      // Por ahora, devolver configuración por defecto ya que la tabla no existe
+      const defaultRules = {
+        hotelId,
+        breakfastMode: "PERCENTAGE",
+        breakfastValue: 15,
+        dinnerMode: "PERCENTAGE", 
+        dinnerValue: 20
+      };
 
-      res.json(rules);
+      res.json(defaultRules);
     } catch (error) {
       console.error('Error al obtener reglas de comidas:', error);
       res.status(500).json({ message: 'Error interno del servidor' });
@@ -870,12 +875,34 @@ class DynamicPricingController {
     try {
       const { hotelId } = req.params;
 
-      const config = await prisma.dynamicPricingConfig.findUnique({
+      let config = await prisma.dynamicPricingConfig.findUnique({
         where: { hotelId }
       });
 
       if (!config) {
-        return res.status(404).json({ message: 'Configuración no encontrada' });
+        // Crear configuración por defecto si no existe
+        config = await prisma.dynamicPricingConfig.create({
+          data: {
+            hotelId,
+            enabled: false,
+            anticipationThresholds: [7, 14, 30],
+            anticipationWeight: 0.3,
+            globalOccupancyWeight: 0.4,
+            isWeekendWeight: 0.2,
+            weekendDays: [0, 6], // Domingo y Sábado
+            isHolidayWeight: 0.1,
+            weatherScoreWeight: 0.0,
+            eventImpactWeight: 0.0,
+            maxAdjustmentPercentage: 50.0,
+            enableGapPromos: true,
+            enableWeatherApi: false,
+            enableRecentDemand: false,
+            anticipationMode: "ESCALONADO",
+            anticipationMaxDays: 30,
+            standardRate: 50000,
+            idealOccupancy: 80.0
+          }
+        });
       }
 
       res.json(config);

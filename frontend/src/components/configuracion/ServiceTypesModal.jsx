@@ -21,6 +21,12 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
     }
   }, [isOpen, serviceTypes]);
 
+  // Debug effect para monitorear cambios en el número de servicios
+  useEffect(() => {
+    console.log('🔍 useEffect - localServiceTypes cambió:', localServiceTypes.length);
+    console.log('🔍 useEffect - Servicios:', localServiceTypes.map(st => st.name));
+  }, [localServiceTypes]);
+
   if (!isOpen) return null;
 
   const handleStartCreate = () => {
@@ -124,6 +130,12 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
   };
 
   const handleDelete = async (serviceType) => {
+    // 🚨 VALIDACIÓN ADICIONAL: No permitir eliminar si solo queda 1 servicio
+    if (localServiceTypes.length <= 1) {
+      setError('No se puede eliminar el último tipo de servicio. Debe existir al menos un tipo de servicio.');
+      return;
+    }
+
     if (!confirm(`¿Estás seguro de que deseas eliminar "${serviceType.name}"?`)) {
       return;
     }
@@ -152,6 +164,10 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
     onSave();
     onClose();
   };
+
+  // Debug log
+  console.log('🔍 ServiceTypesModal render - Total servicios:', localServiceTypes.length);
+  console.log('🔍 ServiceTypesModal render - Servicios:', localServiceTypes.map(st => st.name));
 
   return (
     <div className={styles.modalOverlay}>
@@ -233,7 +249,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
           {/* Service Types List */}
           <div className={styles.serviceTypesList}>
             {localServiceTypes.map(serviceType => (
-              <div key={serviceType.id} className={styles.serviceTypeItem}>
+              <div key={`${serviceType.id}-${localServiceTypes.length}`} className={styles.serviceTypeItem}>
                 {editingId === serviceType.id ? (
                   // Edit Form
                   <div className={styles.editForm}>
@@ -297,14 +313,21 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
                       >
                         <FiEdit2 />
                       </button>
-                      <button
-                        className={styles.deleteButton}
-                        onClick={() => handleDelete(serviceType)}
-                        disabled={loading}
-                        title="Eliminar"
-                      >
-                        <FiTrash2 />
-                      </button>
+                      {/* 🚨 VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
+                      {(() => {
+                        const shouldShowDelete = localServiceTypes.length > 1;
+                        console.log(`🔍 Botón eliminar para "${serviceType.name}": ${shouldShowDelete ? 'VISIBLE' : 'OCULTO'} (total: ${localServiceTypes.length})`);
+                        return shouldShowDelete;
+                      })() && (
+                        <button
+                          className={styles.deleteButton}
+                          onClick={() => handleDelete(serviceType)}
+                          disabled={loading}
+                          title="Eliminar"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

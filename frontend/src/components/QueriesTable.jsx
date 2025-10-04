@@ -56,8 +56,8 @@ function QueriesTable({ queries, onDeleteQuery }) {
           bValue = b.requiredGuests || 1;
           break;
         case 'type':
-          aValue = a.reservationType || '';
-          bValue = b.reservationType || '';
+          aValue = a.serviceType || '';
+          bValue = b.serviceType || '';
           break;
         case 'updatedAt':
           aValue = a.updatedAt ? new Date(a.updatedAt) : new Date(0);
@@ -216,11 +216,11 @@ function QueriesTable({ queries, onDeleteQuery }) {
                 {query.requiredGuests || 1}
               </td>
               <td className={styles.typeCell}>
-                {query.reservationType === 'con_desayuno' ? 'Con desayuno' :
-                 query.reservationType === 'media_pension' ? 'Media pensión' :
-                 query.reservationType === 'pension_completa' ? 'Pensión completa' :
-                 query.reservationType === 'solo_alojamiento' ? 'Solo alojamiento' :
-                 query.reservationType || 'No especificado'}
+                {query.serviceType === 'breakfast' ? 'Con desayuno' :
+                 query.serviceType === 'half_board' ? 'Media pensión' :
+                 query.serviceType === 'full_board' ? 'Pensión completa' :
+                 query.serviceType === 'base' ? 'Solo alojamiento' :
+                 query.serviceType || 'No especificado'}
               </td>
               <td className={styles.updatedAtCell}>
                 {query.updatedAt ? format(new Date(query.updatedAt), 'dd/MM/yyyy HH:mm') : 'Sin fecha'}

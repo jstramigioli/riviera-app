@@ -47,21 +47,16 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
 
   // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
-    // Si no hay selecciones, crear un servicio base por defecto
+    // Si no hay selecciones, usar los servicios disponibles desde la API
     if (blockServiceSelections.length === 0) {
-      const baseService = {
-        id: 'base-service',
-        serviceTypeId: 'base-service',
-        isEnabled: true,
+      return serviceTypes.map(serviceType => ({
+        id: serviceType.id,
+        serviceTypeId: serviceType.id,
+        isEnabled: true, // Por defecto habilitados
         pricingMode: 'PERCENTAGE',
         value: 0,
-        serviceType: {
-          id: 'base-service',
-          name: 'Tarifa Base',
-          description: 'Tarifa base sin servicios adicionales'
-        }
-      };
-      return [baseService];
+        serviceType: serviceType
+      }));
     }
     
     // Retornar todos los servicios con su información completa
@@ -79,18 +74,14 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const getActiveServiceAdjustments = () => {
     const enabledSelections = blockServiceSelections.filter(selection => selection.isEnabled);
     
-    // Si no hay servicios habilitados, retornar ajuste base vacío
+    // Si no hay servicios habilitados, usar los servicios disponibles desde la API
     if (enabledSelections.length === 0) {
-      return [{
-        serviceTypeId: 'base-service',
+      return serviceTypes.map(serviceType => ({
+        serviceTypeId: serviceType.id,
         mode: 'PERCENTAGE',
         value: 0,
-        serviceType: {
-          id: 'base-service',
-          name: 'Tarifa Base',
-          description: 'Tarifa base sin servicios adicionales'
-        }
-      }];
+        serviceType: serviceType
+      }));
     }
     
     // Usar la configuración del bloque para todos los servicios
@@ -379,10 +370,10 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     const defaultPrices = [];
     const basePrice = 50000; // $500 por defecto
     
-    // Si no hay servicios, crear al menos un servicio base
+    // Usar solo los servicios reales disponibles
     const servicesToUse = serviceTypesData && serviceTypesData.length > 0 
       ? serviceTypesData 
-      : [{ id: 'base-service', name: 'Tarifa Base', description: 'Tarifa base sin servicios adicionales' }];
+      : [];
     
     roomTypesData.forEach(roomType => {
       servicesToUse.forEach(serviceType => {
@@ -402,22 +393,9 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   };
 
   const initializeDefaultServiceSelections = (serviceTypesData) => {
-    // Si no hay tipos de servicio, crear al menos un servicio base
+    // Si no hay tipos de servicio, no crear selecciones
     if (!serviceTypesData || serviceTypesData.length === 0) {
-      const baseService = {
-        serviceTypeId: 'base-service',
-        isEnabled: true,
-        pricingMode: 'PERCENTAGE',
-        fixedPrice: null,
-        percentage: 0,
-        orderIndex: 0,
-        serviceType: {
-          id: 'base-service',
-          name: 'Tarifa Base',
-          description: 'Tarifa base sin servicios adicionales'
-        }
-      };
-      setBlockServiceSelections([baseService]);
+      setBlockServiceSelections([]);
       return;
     }
 

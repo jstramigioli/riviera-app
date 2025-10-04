@@ -129,22 +129,13 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const handleCreateBlock = async () => {
     console.log('🚀 handleCreateBlock iniciado');
     try {
-      // Definir fechas por defecto
-      const startDate = new Date().toISOString().split('T')[0];
-      const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 días desde hoy
-      
-      console.log('📅 Fechas generadas:', { startDate, endDate });
-      
-      // Validar superposición de fechas
+      // Función para verificar si hay superposición con cualquier bloque (activo o borrador)
       const checkDateOverlap = (startDate, endDate, otherBlocks) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
         
         return otherBlocks.some(otherBlock => {
-          // 🚨 VALIDACIÓN CRÍTICA: Solo verificar bloques activos (no borradores)
-          if (otherBlock.isDraft) {
-            return false;
-          }
+          if (otherBlock.id === undefined) return false; // Excluir el bloque actual si existe
           
           const otherStart = new Date(otherBlock.startDate);
           const otherEnd = new Date(otherBlock.endDate);
@@ -153,15 +144,59 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           return (start <= otherEnd && end >= otherStart);
         });
       };
+
+      // Función para encontrar la primera fecha disponible
+      const findFirstAvailableDate = (existingBlocks) => {
+        const today = new Date();
+        const maxSearchDays = 365; // Buscar hasta 1 año en el futuro
+        
+        for (let daysFromToday = 0; daysFromToday < maxSearchDays; daysFromToday++) {
+          const candidateStart = new Date(today);
+          candidateStart.setDate(today.getDate() + daysFromToday);
+          const candidateStartStr = candidateStart.toISOString().split('T')[0];
+          
+          // Probar diferentes duraciones: 10 días, 7 días, 5 días, 3 días, 1 día
+          const durations = [10, 7, 5, 3, 1];
+          
+          for (const duration of durations) {
+            const candidateEnd = new Date(candidateStart);
+            candidateEnd.setDate(candidateStart.getDate() + duration);
+            const candidateEndStr = candidateEnd.toISOString().split('T')[0];
+            
+            // Verificar si este rango está disponible
+            if (!checkDateOverlap(candidateStartStr, candidateEndStr, existingBlocks)) {
+              console.log(`✅ Fecha disponible encontrada: ${candidateStartStr} a ${candidateEndStr} (${duration} días)`);
+              return {
+                startDate: candidateStartStr,
+                endDate: candidateEndStr,
+                duration: duration
+              };
+            }
+          }
+        }
+        
+        // Si no se encuentra ninguna fecha disponible, usar una fecha muy lejana
+        const fallbackStart = new Date(today);
+        fallbackStart.setDate(today.getDate() + 365);
+        const fallbackEnd = new Date(fallbackStart);
+        fallbackEnd.setDate(fallbackStart.getDate() + 1);
+        
+        console.log(`⚠️ No se encontró fecha disponible, usando fecha de respaldo: ${fallbackStart.toISOString().split('T')[0]}`);
+        return {
+          startDate: fallbackStart.toISOString().split('T')[0],
+          endDate: fallbackEnd.toISOString().split('T')[0],
+          duration: 1
+        };
+      };
+
+      // Encontrar la primera fecha disponible
+      console.log('🔍 Buscando primera fecha disponible...');
+      const availableDates = findFirstAvailableDate(seasonBlocks);
       
-      const hasOverlap = checkDateOverlap(startDate, endDate, seasonBlocks);
-      if (hasOverlap) {
-        showNotification('No se puede crear el bloque: las fechas se superponen con otro bloque existente', 'error');
-        return;
-      }
+      console.log('📅 Fechas encontradas:', availableDates);
       
       // Generar nombre por defecto basado en las fechas con número secuencial si hay repeticiones
-      const baseName = generateDefaultBlockName(startDate, endDate);
+      const baseName = generateDefaultBlockName(availableDates.startDate, availableDates.endDate);
       let defaultName = baseName;
       let counter = 1;
       
@@ -177,8 +212,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
       const newBlockData = {
         name: defaultName,
         description: '', // Sin descripción por defecto
-        startDate: startDate,
-        endDate: endDate,
+        startDate: availableDates.startDate,
+        endDate: availableDates.endDate,
         hotelId: 'default-hotel', // Agregar hotelId requerido
         useProportions: true,
         serviceAdjustmentMode: 'FIXED', // Cambiar a FIXED ya que eliminamos porcentajes
@@ -204,7 +239,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
       if (response.ok) {
         const createdBlock = await response.json();
         console.log('✅ Bloque creado exitosamente:', createdBlock);
-        showNotification('Bloque creado exitosamente en modo borrador', 'success');
+        showNotification(`Bloque creado exitosamente en modo borrador (${availableDates.duration} días)`, 'success');
         // Guardar el ID del bloque recién creado para abrirlo automáticamente
         setNewlyCreatedBlockId(createdBlock.data.id);
         loadSeasonBlocks(); // Recargar la lista

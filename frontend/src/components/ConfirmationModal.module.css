@@ -1,4 +1,4 @@
-.modal {
+.modalBackdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,7 +11,7 @@
   z-index: 1000;
 }
 
-.modalContent {
+.modalContainer {
   background: white;
   border-radius: 12px;
   padding: 0;
@@ -32,7 +32,7 @@
   }
 }
 
-.header {
+.modalHeader {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -51,11 +51,27 @@
   background: #fef3c7;
 }
 
-.title {
+.modalTitle {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
   flex: 1;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .dangerTitle {
@@ -74,18 +90,18 @@
   color: #1f2937;
 }
 
-.body {
+.modalBody {
   padding: 20px 24px;
 }
 
-.message {
+.modalMessage {
   margin: 0;
   color: #6b7280;
   font-size: 1rem;
   line-height: 1.5;
 }
 
-.footer {
+.modalFooter {
   display: flex;
   gap: 12px;
   padding: 16px 24px 24px 24px;
@@ -109,7 +125,7 @@
   border-color: #9ca3af;
 }
 
-.confirmButton {
+.modalButton {
   padding: 10px 20px;
   border: none;
   border-radius: 6px;
@@ -117,15 +133,35 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.dangerButton {
-  background: #dc2626;
+  background: #667eea;
   color: white;
 }
 
+.modalButton:hover {
+  background: #5a6fd8;
+}
+
+.dangerButton {
+  background: #dc2626 !important;
+  color: white !important;
+  border: none !important;
+}
+
 .dangerButton:hover {
-  background: #b91c1c;
+  background: #b91c1c !important;
+  color: white !important;
+}
+
+/* Estilo más específico para asegurar que se aplique */
+.modalFooter .modalButton.dangerButton {
+  background: #dc2626 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.modalFooter .modalButton.dangerButton:hover {
+  background: #b91c1c !important;
+  color: white !important;
 }
 
 .warningButton {

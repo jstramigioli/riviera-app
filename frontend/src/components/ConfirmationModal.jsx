@@ -47,6 +47,11 @@ const ConfirmationModal = ({
           <button 
             className={`${styles.modalButton} ${styles[confirmButtonClass]}`}
             onClick={onConfirm}
+            style={confirmButtonClass === 'danger' ? {
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none'
+            } : {}}
           >
             {confirmText}
           </button>

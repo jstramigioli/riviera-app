@@ -24,6 +24,11 @@ const HotelConfigPanel = () => {
   const [loadingServices, setLoadingServices] = useState(false);
   const [serviceError, setServiceError] = useState(null);
   
+  // Estados para drag and drop
+  const [draggedService, setDraggedService] = useState(null);
+  const [dragOverService, setDragOverService] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
   // Estado para modal de confirmación
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
@@ -235,6 +240,12 @@ const HotelConfigPanel = () => {
   };
 
   const handleDeleteService = (serviceType) => {
+    // 🚨 VALIDACIÓN ADICIONAL: No permitir eliminar si solo queda 1 servicio
+    if (serviceTypes.length <= 1) {
+      setServiceError('No se puede eliminar el último tipo de servicio. Debe existir al menos un tipo de servicio.');
+      return;
+    }
+    
     setServiceToDelete(serviceType);
     setShowDeleteConfirmation(true);
   };
@@ -276,6 +287,100 @@ const HotelConfigPanel = () => {
       setLoadingServices(false);
       setServiceToDelete(null);
       setShowDeleteConfirmation(false);
+    }
+  };
+
+  // Funciones de drag and drop
+  const handleDragStart = (e, serviceType) => {
+    setDraggedService(serviceType);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+  };
+
+  const handleDragOver = (e, serviceType) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverService(serviceType);
+  };
+
+  const handleDragEnter = (e, serviceType) => {
+    e.preventDefault();
+    setDragOverService(serviceType);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverService(null);
+  };
+
+  const handleDrop = async (e, targetServiceType) => {
+    e.preventDefault();
+    
+    if (!draggedService || draggedService.id === targetServiceType.id) {
+      setDraggedService(null);
+      setDragOverService(null);
+      setIsDragging(false);
+      return;
+    }
+
+    try {
+      setLoadingServices(true);
+      
+      // Crear nueva lista con el orden actualizado
+      const newServiceTypes = [...serviceTypes];
+      const draggedIndex = newServiceTypes.findIndex(s => s.id === draggedService.id);
+      const targetIndex = newServiceTypes.findIndex(s => s.id === targetServiceType.id);
+      
+      // Remover el elemento arrastrado
+      const [draggedItem] = newServiceTypes.splice(draggedIndex, 1);
+      
+      // Insertar en la nueva posición
+      newServiceTypes.splice(targetIndex, 0, draggedItem);
+      
+      // Actualizar el orderIndex para cada servicio
+      const updatedServices = newServiceTypes.map((service, index) => ({
+        ...service,
+        orderIndex: index + 1
+      }));
+      
+      // Actualizar el estado local primero
+      setServiceTypes(updatedServices);
+      
+      // Actualizar en el backend
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const updatePromises = updatedServices.map(service => 
+        fetch(`${API_URL}/service-types/${service.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            orderIndex: service.orderIndex
+          })
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      setMessage({
+        type: 'success',
+        text: 'Orden de servicios actualizado correctamente'
+      });
+      
+    } catch (error) {
+      console.error('Error updating service order:', error);
+      setMessage({
+        type: 'error',
+        text: 'Error al actualizar el orden de los servicios'
+      });
+      
+      // Recargar los servicios para restaurar el estado original
+      loadServiceTypes();
+    } finally {
+      setLoadingServices(false);
+      setDraggedService(null);
+      setDragOverService(null);
+      setIsDragging(false);
     }
   };
 
@@ -586,25 +691,59 @@ const HotelConfigPanel = () => {
         {/* Lista de servicios */}
         <div style={{ marginBottom: '20px' }}>
           {serviceTypes.map(serviceType => (
-            <div key={serviceType.id} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              border: '1px solid #e9ecef',
-              borderRadius: '8px',
-              marginBottom: '8px',
-              backgroundColor: 'white'
-            }}>
-              <div>
-                <div style={{ fontWeight: '600', color: '#2c3e50' }}>
-                  {serviceType.name}
-                </div>
-                {serviceType.description && (
-                  <div style={{ fontSize: '0.9rem', color: '#6c757d', marginTop: '4px' }}>
-                    {serviceType.description}
+            <div 
+              key={serviceType.id} 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                border: '1px solid #e9ecef',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                backgroundColor: 'white',
+                cursor: isDragging && draggedService?.id === serviceType.id ? 'grabbing' : 'grab',
+                opacity: isDragging && draggedService?.id === serviceType.id ? 0.5 : 1,
+                transform: isDragging && draggedService?.id === serviceType.id ? 'rotate(5deg)' : 'none',
+                borderColor: dragOverService?.id === serviceType.id ? '#667eea' : '#e9ecef',
+                borderWidth: dragOverService?.id === serviceType.id ? '2px' : '1px',
+                transition: 'all 0.2s ease'
+              }}
+              draggable={editingServiceId !== serviceType.id && !isCreatingService}
+              onDragStart={editingServiceId !== serviceType.id && !isCreatingService ? (e) => handleDragStart(e, serviceType) : undefined}
+              onDragOver={editingServiceId !== serviceType.id && !isCreatingService ? (e) => handleDragOver(e, serviceType) : undefined}
+              onDragEnter={editingServiceId !== serviceType.id && !isCreatingService ? (e) => handleDragEnter(e, serviceType) : undefined}
+              onDragLeave={editingServiceId !== serviceType.id && !isCreatingService ? handleDragLeave : undefined}
+              onDrop={editingServiceId !== serviceType.id && !isCreatingService ? (e) => handleDrop(e, serviceType) : undefined}
+              onDragEnd={editingServiceId !== serviceType.id && !isCreatingService ? () => {
+                setIsDragging(false);
+                setDraggedService(null);
+                setDragOverService(null);
+              } : undefined}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Indicador de arrastre */}
+                {editingServiceId !== serviceType.id && !isCreatingService && (
+                  <div style={{
+                    color: '#6c757d',
+                    fontSize: '1.2rem',
+                    cursor: 'grab',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    ⋮⋮
                   </div>
                 )}
+                <div>
+                  <div style={{ fontWeight: '600', color: '#2c3e50' }}>
+                    {serviceType.name}
+                  </div>
+                  {serviceType.description && (
+                    <div style={{ fontSize: '0.9rem', color: '#6c757d', marginTop: '4px' }}>
+                      {serviceType.description}
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -621,20 +760,23 @@ const HotelConfigPanel = () => {
                 >
                   <FiEdit2 />
                 </button>
-                <button
-                  onClick={() => handleDeleteService(serviceType)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #dc3545',
-                    color: '#dc3545',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  <FiTrash2 />
-                </button>
+                {/* 🚨 VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
+                {serviceTypes.length > 1 && (
+                  <button
+                    onClick={() => handleDeleteService(serviceType)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #dc3545',
+                      color: '#dc3545',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    <FiTrash2 />
+                  </button>
+                )}
               </div>
             </div>
           ))}

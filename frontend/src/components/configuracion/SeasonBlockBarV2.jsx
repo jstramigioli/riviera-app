@@ -814,7 +814,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 onBlur={() => handleFieldBlur('description')}
                 onKeyPress={(e) => handleFieldKeyPress(e, 'description')}
                 className={styles.descriptionInput}
-                placeholder="Descripción del bloque"
+                placeholder="Escribe una descripción para este bloque de temporada..."
                 onClick={(e) => e.stopPropagation()}
                 rows={2}
                 autoFocus
@@ -826,8 +826,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   handleFieldClick('description');
                 }}
                 className={isEditing ? styles.editableField : ''}
+                style={{
+                  color: (formData.description || block?.description) ? '#374151' : '#9ca3af',
+                  fontStyle: (formData.description || block?.description) ? 'normal' : 'italic',
+                  minHeight: '24px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
               >
-                {formData.description || block?.description}
+                {(formData.description || block?.description) || (isEditing ? 'Haz clic aquí para agregar una descripción...' : 'Sin descripción')}
               </p>
             )}
           </div>

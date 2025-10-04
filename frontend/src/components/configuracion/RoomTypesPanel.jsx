@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRoomTypes, createRoomType, updateRoomType, deleteRoomType, updateRoomTypesOrder } from '../../services/api';
+import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
 
 const RoomTypesPanel = () => {
   const [roomTypes, setRoomTypes] = useState([]);
@@ -155,42 +156,6 @@ const RoomTypesPanel = () => {
     }
   };
 
-  const getRoomTypeCapacity = (roomType) => {
-    // Si roomType es un objeto, usar maxPeople directamente
-    if (typeof roomType === 'object' && roomType.maxPeople) {
-      return roomType.maxPeople;
-    }
-    // Fallback para compatibilidad si roomType es solo el nombre
-    const capacityMap = {
-      'single': 1,
-      'doble': 2,
-      'triple': 3,
-      'cuadruple': 4,
-      'quintuple': 5,
-      'sextuple': 6,
-      'departamento El Romerito': 4,
-      'departamento El Tilo': 4,
-      'departamento Via 1': 4,
-      'departamento La Esquinita': 4
-    };
-    return capacityMap[roomType] || 1;
-  };
-
-  const getRoomTypeLabel = (name) => {
-    const labelMap = {
-      'single': 'Individual',
-      'doble': 'Doble',
-      'triple': 'Triple',
-      'cuadruple': 'Cuádruple',
-      'quintuple': 'Quíntuple',
-      'sextuple': 'Séxtuple',
-      'departamento El Romerito': 'Departamento El Romerito',
-      'departamento El Tilo': 'Departamento El Tilo',
-      'departamento Via 1': 'Departamento Via 1',
-      'departamento La Esquinita': 'Departamento La Esquinita'
-    };
-    return labelMap[name] || name;
-  };
 
   // Funciones de drag and drop
   const handleDragStart = (e, roomType) => {

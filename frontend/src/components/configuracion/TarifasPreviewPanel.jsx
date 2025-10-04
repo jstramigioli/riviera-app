@@ -1,45 +1,9 @@
 import React, { useState, useEffect } from 'react';
-
-const roomTypeNames = {
-  'single': 'Individual',
-  'doble': 'Doble',
-  'triple': 'Triple',
-  'cuadruple': 'Cuádruple',
-  'quintuple': 'Quíntuple',
-  'departamento El Romerito': 'Departamento El Romerito',
-  'departamento El Tilo': 'Departamento El Tilo',
-  'departamento Via 1': 'Departamento Via 1',
-  'departamento La Esquinita': 'Departamento La Esquinita'
-};
-
-// Orden de tipos de habitación para mostrar en la tabla (se cargará dinámicamente)
-// const defaultRoomTypeOrder = [
-//   'single',
-//   'doble', 
-//   'triple',
-//   'cuadruple',
-//   'quintuple',
-//   'departamento El Romerito',
-//   'departamento El Tilo',
-//   'departamento Via 1',
-//   'departamento La Esquinita'
-// ];
-
-const defaultRoomTypeCoefficients = {
-  'single': 0.62,
-  'doble': 1.00,
-  'triple': 1.25,
-  'cuadruple': 1.50,
-  'quintuple': 1.75,
-  'departamento El Romerito': 1.50,
-  'departamento El Tilo': 1.50,
-  'departamento Via 1': 1.50,
-  'departamento La Esquinita': 1.50
-};
+import { getRoomTypeLabel } from '../../utils/roomTypeUtils';
 
 export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   const [previewDate, setPreviewDate] = useState(new Date().toISOString().slice(0, 10));
-  const [roomTypeCoefficients, setRoomTypeCoefficients] = useState(defaultRoomTypeCoefficients);
+  const [roomTypeCoefficients, setRoomTypeCoefficients] = useState({});
   const [basePrice, setBasePrice] = useState(0); // Se calculará automáticamente
   const [mealRules, setMealRules] = useState({
     breakfastMode: "PERCENTAGE",
@@ -51,6 +15,33 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   const [roomTypes, setRoomTypes] = useState([]); // Nuevo estado para tipos de habitación dinámicos
   const [editablePrices, setEditablePrices] = useState({}); // Estado para precios editables
 
+  // Función para inicializar coeficientes por defecto
+  const initializeDefaultCoefficients = (roomTypesData) => {
+    const defaultCoefficients = {
+      'single': 0.62,
+      'doble': 1.00,
+      'triple': 1.25,
+      'cuadruple': 1.50,
+      'quintuple': 1.75,
+      'departamento El Romerito': 1.50,
+      'departamento El Tilo': 1.50,
+      'departamento Via 1': 1.50,
+      'departamento La Esquinita': 1.50
+    };
+
+    // Inicializar coeficientes para tipos que no tienen valor
+    const newCoefficients = { ...roomTypeCoefficients };
+    roomTypesData.forEach(type => {
+      if (!newCoefficients[type.name] && defaultCoefficients[type.name]) {
+        newCoefficients[type.name] = defaultCoefficients[type.name];
+      }
+    });
+    
+    if (Object.keys(newCoefficients).length > Object.keys(roomTypeCoefficients).length) {
+      setRoomTypeCoefficients(newCoefficients);
+    }
+  };
+
   // Cargar tipos de habitación desde el backend
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -59,6 +50,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setRoomTypes(data);
+          initializeDefaultCoefficients(data);
         }
       })
       .catch((error) => {
@@ -76,6 +68,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) {
             setRoomTypes(data);
+            initializeDefaultCoefficients(data);
           }
         })
         .catch((error) => {
@@ -445,7 +438,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
                           color: '#495057',
                           fontSize: 'var(--font-size-medium)'
                         }}>
-                          {roomTypeNames[roomType.name] || roomType.name}
+                          {getRoomTypeLabel(roomType)}
                         </td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
                           <input

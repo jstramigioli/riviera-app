@@ -54,21 +54,8 @@ exports.createRoom = async (req, res) => {
       return res.status(400).json({ error: 'Invalid roomTypeId' });
     }
     
-    // Mapeo de tipos de habitación a capacidades
-    const capacityMap = {
-      'single': 1,
-      'doble': 2,
-      'triple': 3,
-      'cuadruple': 4,
-      'quintuple': 5,
-      'sextuple': 6,
-      'departamento El Romerito': 4,
-      'departamento El Tilo': 4,
-      'departamento Via 1': 4,
-      'departamento La Esquinita': 4
-    };
-    
-    const maxPeople = capacityMap[roomType.name] || 1;
+    // Usar maxPeople del tipo de habitación directamente
+    const maxPeople = roomType.maxPeople || 1;
     
     const room = await prisma.room.create({
       data: {
@@ -110,21 +97,8 @@ exports.updateRoom = async (req, res) => {
       });
       
       if (roomType) {
-        // Mapeo de tipos de habitación a capacidades
-        const capacityMap = {
-          'single': 1,
-          'doble': 2,
-          'triple': 3,
-          'cuadruple': 4,
-          'quintuple': 5,
-          'sextuple': 6,
-          'departamento El Romerito': 4,
-          'departamento El Tilo': 4,
-          'departamento Via 1': 4,
-          'departamento La Esquinita': 4
-        };
-        
-        maxPeople = capacityMap[roomType.name] || 1;
+        // Usar maxPeople del tipo de habitación directamente
+        maxPeople = roomType.maxPeople || 1;
       }
     }
     

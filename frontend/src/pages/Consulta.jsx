@@ -528,6 +528,7 @@ export default function Consulta() {
         requiredGuests: activeSegment.requiredGuests,
         requiredRoomId: activeSegment.requiredRoomId,
         requiredTags: activeSegment.requiredTags || [],
+        serviceType: activeSegment.serviceType || '',
         requirementsNotes: activeSegment.requirementsNotes || '',
         notes: notes
       };
@@ -1994,13 +1995,24 @@ export default function Consulta() {
               null
             ) : (
               <div className={styles.clientSelector}>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onBlur={() => setTimeout(() => setSearchTerm(''), 200)}
-                  placeholder="Buscar por nombre, email o teléfono..."
-                />
+                <div className={styles.searchInputContainer}>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onBlur={() => setTimeout(() => setSearchTerm(''), 200)}
+                    placeholder="Buscar por nombre, email o teléfono..."
+                    className={styles.searchInput}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowNewClientForm(true)}
+                    className={styles.newClientButton}
+                    title="Crear nuevo cliente"
+                  >
+                    + Nuevo Cliente
+                  </button>
+                </div>
                 {searchTerm && (
                   <div className={styles.clientResults}>
                     {filteredClients.map(client => (
@@ -2020,15 +2032,6 @@ export default function Consulta() {
                       </button>
                     </div>
                   </div>
-                )}
-                {!searchTerm && (
-                  <button 
-                    type="button" 
-                    onClick={() => setShowNewClientForm(true)}
-                    className={styles.addNewClientButton}
-                  >
-                    + Nuevo Cliente
-                  </button>
                 )}
               </div>
             )}
