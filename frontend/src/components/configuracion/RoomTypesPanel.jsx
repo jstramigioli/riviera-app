@@ -315,17 +315,6 @@ const RoomTypesPanel = () => {
                 Acciones
               </th>
             </tr>
-            <tr style={{ backgroundColor: 'var(--color-bg-light)' }}>
-              <td colSpan="4" style={{ 
-                padding: '8px 16px', 
-                textAlign: 'center',
-                fontSize: 'var(--font-size-small)',
-                color: 'var(--color-text-muted)',
-                fontStyle: 'italic'
-              }}>
-                💡 Arrastra las filas para reordenar los tipos de habitación
-              </td>
-            </tr>
           </thead>
           <tbody>
             {roomTypes.map(roomType => (

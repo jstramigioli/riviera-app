@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,23 @@ const ReservationConfirmationModal = ({
   isLoading = false
 }) => {
   const navigate = useNavigate();
+  const [serviceTypes, setServiceTypes] = useState([]);
+  
+  // Cargar tipos de servicio
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        if (response.ok) {
+          const data = await response.json();
+          setServiceTypes(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading service types:', error);
+      }
+    };
+    loadServiceTypes();
+  }, []);
   
   if (!isOpen) return null;
 
@@ -26,14 +43,10 @@ const ReservationConfirmationModal = ({
 
 
 
-  const getServiceTypeLabel = (serviceType) => {
-    const serviceMap = {
-      'con_desayuno': 'Con Desayuno',
-      'sin_desayuno': 'Sin Desayuno',
-      'media_pension': 'Media Pensión',
-      'pension_completa': 'Pensión Completa'
-    };
-    return serviceMap[serviceType] || serviceType;
+  const getServiceTypeLabel = (serviceTypeId) => {
+    if (!serviceTypeId) return 'No especificado';
+    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+    return serviceType ? serviceType.name : serviceTypeId;
   };
 
   const getChangeDescription = (currentSegment, nextSegment) => {

@@ -14,7 +14,7 @@ export default function OccupancyFactorConfig({
           marginBottom: '12px', 
           fontWeight: '500', 
           color: '#495057', 
-          fontSize: 'var(--font-size-medium)'
+          fontSize: 'var(--font-size-small)'
         }}>
           Ocupación ideal (%):
         </div>
@@ -26,10 +26,10 @@ export default function OccupancyFactorConfig({
           onChange={(e) => onIdealOccupancyChange(parseFloat(e.target.value))}
           style={{
             width: 'calc(100% - 28px)',
-            padding: '14px',
+            padding: '12px',
             border: '1px solid #ddd',
             borderRadius: '8px',
-            fontSize: 'var(--font-size-medium)',
+            fontSize: 'var(--font-size-small)',
             boxSizing: 'border-box'
           }}
         />

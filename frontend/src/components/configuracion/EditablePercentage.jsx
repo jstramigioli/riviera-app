@@ -41,7 +41,7 @@ export default function EditablePercentage({
           marginBottom: '12px', 
           fontWeight: '500', 
           color: color,
-          fontSize: 'var(--font-size-medium)',
+          fontSize: 'var(--font-size-small)',
           textAlign: 'center'
         }}>
           {label}
@@ -59,11 +59,11 @@ export default function EditablePercentage({
           autoFocus
           style={{
             width: '100%',
-            padding: '14px',
+            padding: '12px',
             border: '2px solid',
             borderColor: color,
             borderRadius: '8px',
-            fontSize: 'calc(var(--font-size-xxlarge) * 2)',
+            fontSize: 'var(--font-size-xlarge)',
             fontWeight: 'bold',
             color: color,
             textAlign: 'center',
@@ -77,11 +77,11 @@ export default function EditablePercentage({
         <div
           onClick={handleClick}
           style={{
-            fontSize: 'calc(var(--font-size-xxlarge) * 2)',
+            fontSize: 'var(--font-size-xlarge)',
             fontWeight: 'bold',
             color: color,
             cursor: 'pointer',
-            padding: '14px',
+            padding: '12px',
             borderRadius: '8px',
             transition: 'all 0.2s ease',
             textAlign: 'center',
@@ -104,7 +104,7 @@ export default function EditablePercentage({
             position: 'absolute',
             top: '4px',
             right: '8px',
-            fontSize: 'var(--font-size-small)',
+            fontSize: '0.85rem',
             color: color,
             opacity: 0.6,
             fontWeight: 'normal'

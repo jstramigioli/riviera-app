@@ -75,7 +75,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
           marginBottom: '12px', 
           fontWeight: '500', 
           color: '#495057', 
-          fontSize: 'var(--font-size-medium)'
+          fontSize: 'var(--font-size-small)'
         }}>
           Modo de cálculo:
         </div>
@@ -88,7 +88,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'ESCALONADO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: 'var(--font-size-medium)' }}>Escalonado</span>
+            <span style={{ fontSize: 'var(--font-size-small)' }}>Escalonado</span>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
@@ -98,7 +98,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'CONTINUO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: 'var(--font-size-medium)' }}>Continuo</span>
+            <span style={{ fontSize: 'var(--font-size-small)' }}>Continuo</span>
           </label>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
             <span style={{ 
               fontWeight: '500', 
               color: '#495057', 
-              fontSize: 'var(--font-size-medium)'
+              fontSize: 'var(--font-size-small)'
             }}>Días máximos:</span>
             <input
               type="number"
@@ -122,7 +122,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                 padding: '8px 10px',
                 border: '1px solid #ced4da',
                 borderRadius: '4px',
-                fontSize: 'var(--font-size-medium)'
+                fontSize: 'var(--font-size-small)'
               }}
             />
           </label>
@@ -142,7 +142,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
             marginBottom: '12px', 
             fontWeight: '500', 
             color: '#495057', 
-            fontSize: 'var(--font-size-medium)'
+            fontSize: 'var(--font-size-small)'
           }}>
             Pasos de anticipación:
           </div>
@@ -212,7 +212,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      fontSize: 'var(--font-size-medium)',
+                      fontSize: 'var(--font-size-small)',
                       fontWeight: 'bold',
                       marginLeft: 'auto'
                     }}

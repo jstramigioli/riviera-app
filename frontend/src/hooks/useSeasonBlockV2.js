@@ -2,6 +2,59 @@ import { useState, useEffect, useCallback } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+// Función para formatear fechas en español para nombres de bloques
+const formatDateForBlockName = (date) => {
+  const months = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  
+  // Crear la fecha correctamente para evitar problemas de zona horaria
+  const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const monthName = months[month - 1]; // Los meses en el array son 0-indexed
+  
+  return { day, month: monthName, year };
+};
+
+// Función para generar el nombre por defecto del bloque basado en las fechas
+const generateDefaultBlockName = (startDate, endDate) => {
+  const start = formatDateForBlockName(startDate);
+  const end = formatDateForBlockName(endDate);
+  
+  // Si es el mismo año
+  if (start.year === end.year) {
+    // Si es el mismo mes
+    if (start.month === end.month) {
+      return `${start.day} al ${end.day} de ${start.month} (${start.year})`;
+    } else {
+      return `${start.day} de ${start.month} al ${end.day} de ${end.month} (${start.year})`;
+    }
+  } else {
+    // Diferentes años
+    return `${start.day} de ${start.month} (${start.year}) al ${end.day} de ${end.month} (${end.year})`;
+  }
+};
+
+// Función para verificar si un nombre sigue la estructura por defecto
+const isDefaultBlockName = (name, startDate, endDate) => {
+  if (!name || !startDate || !endDate) return false;
+  
+  // Generar el nombre por defecto para estas fechas
+  const defaultName = generateDefaultBlockName(startDate, endDate);
+  
+  // Verificar si el nombre coincide exactamente con el patrón por defecto
+  // o si coincide con el patrón con número secuencial (ej: "1 al 10 de Enero (2024) (1)")
+  if (name === defaultName) return true;
+  
+  // Verificar si tiene el formato con número secuencial al final
+  const sequentialPattern = /^(.+)\s\(\d+\)$/;
+  const match = name.match(sequentialPattern);
+  if (match && match[1] === defaultName) return true;
+  
+  return false;
+};
+
 export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -13,7 +66,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     description: '',
     startDate: '',
     endDate: '',
-    useProportions: true, // Activado por defecto para nuevos bloques
+    useProportions: false, // Desactivado por defecto para nuevos bloques
     serviceAdjustmentMode: 'PERCENTAGE',
     useBlockServices: false // Nuevo: usar servicios específicos del bloque
   });
@@ -274,9 +327,20 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           useProportions: block.useProportions
         });
         
+        // Limpiar la descripción de textos automáticos no deseados
+        const cleanDescription = (desc) => {
+          if (!desc) return '';
+          // Si contiene textos de sistema, tratarla como vacía
+          if (desc.toLowerCase().includes('creado automáticamente') || 
+              desc.toLowerCase().includes('bloque creado automáticamente')) {
+            return '';
+          }
+          return desc;
+        };
+        
         setFormData({
           name: block.name,
-          description: block.description || '',
+          description: cleanDescription(block.description),
           startDate: new Date(block.startDate).toISOString().split('T')[0],
           endDate: new Date(block.endDate).toISOString().split('T')[0],
           useProportions: block.useProportions,
@@ -508,7 +572,10 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           percentage: selection.percentage,
           orderIndex: selection.orderIndex,
           percentageAdjustment: selection.percentageAdjustment
-        }))
+        })),
+        // 🔧 FIX: Mantener el estado isDraft actual del bloque al guardar
+        // Si no se incluye, el backend lo fuerza a true (borrador)
+        isDraft: dataToSave.isDraft
       };
       
       console.log('Saving payload:', payload);
@@ -634,7 +701,79 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     console.log('updateFormData called:', { field, value, blockId });
     
     // Crear el nuevo formData con el cambio
-    const newFormData = { ...formData, [field]: value };
+    let newFormData = { ...formData, [field]: value };
+    
+    // Si se cambió la fecha de inicio, verificar si es posterior a la fecha final
+    if (field === 'startDate' && value) {
+      const startDate = new Date(value);
+      const endDate = newFormData.endDate ? new Date(newFormData.endDate) : null;
+      
+      // Si la fecha de inicio es >= a la fecha final, ajustar automáticamente la fecha final
+      if (endDate && startDate >= endDate) {
+        // Ajustar fecha final a un día después de la fecha de inicio
+        const newEndDate = new Date(startDate);
+        newEndDate.setDate(newEndDate.getDate() + 1);
+        const newEndDateStr = newEndDate.toISOString().split('T')[0];
+        
+        console.log('Auto-ajustando fecha final:', {
+          startDate: value,
+          oldEndDate: newFormData.endDate,
+          newEndDate: newEndDateStr
+        });
+        
+        newFormData.endDate = newEndDateStr;
+      }
+    }
+    
+    // Si se cambió la fecha final, verificar si es anterior a la fecha de inicio
+    if (field === 'endDate' && value) {
+      const endDate = new Date(value);
+      const startDate = newFormData.startDate ? new Date(newFormData.startDate) : null;
+      
+      // Si la fecha final es <= a la fecha de inicio, ajustar automáticamente la fecha de inicio
+      if (startDate && endDate <= startDate) {
+        // Ajustar fecha de inicio a un día antes de la fecha final
+        const newStartDate = new Date(endDate);
+        newStartDate.setDate(newStartDate.getDate() - 1);
+        const newStartDateStr = newStartDate.toISOString().split('T')[0];
+        
+        console.log('Auto-ajustando fecha de inicio:', {
+          endDate: value,
+          oldStartDate: newFormData.startDate,
+          newStartDate: newStartDateStr
+        });
+        
+        newFormData.startDate = newStartDateStr;
+      }
+    }
+    
+    // Si se cambió una fecha Y el nombre sigue la estructura por defecto, actualizar el nombre automáticamente
+    if ((field === 'startDate' || field === 'endDate') && formData.startDate && formData.endDate) {
+      // Verificar si el nombre actual sigue la estructura por defecto usando las fechas ORIGINALES (antes del cambio)
+      const oldStartDate = formData.startDate;
+      const oldEndDate = formData.endDate;
+      
+      if (isDefaultBlockName(formData.name, oldStartDate, oldEndDate)) {
+        // El nombre sigue la estructura por defecto, actualizarlo con las nuevas fechas
+        const newName = generateDefaultBlockName(newFormData.startDate, newFormData.endDate);
+        
+        console.log('Auto-actualizando nombre del bloque:', {
+          oldName: formData.name,
+          newName: newName,
+          oldDates: { start: oldStartDate, end: oldEndDate },
+          newDates: { start: newFormData.startDate, end: newFormData.endDate },
+          reason: 'Nombre sigue estructura por defecto'
+        });
+        
+        newFormData.name = newName;
+      } else {
+        console.log('No se actualiza el nombre del bloque:', {
+          name: formData.name,
+          reason: 'Nombre personalizado detectado'
+        });
+      }
+    }
+    
     setFormData(newFormData);
     
     // Limpiar errores de validación
@@ -1141,9 +1280,19 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         console.log('Resetting all data with original block:', block);
         
         // Resetear formData
+        // Limpiar la descripción de textos automáticos no deseados
+        const cleanDescription = (desc) => {
+          if (!desc) return '';
+          if (desc.toLowerCase().includes('creado automáticamente') || 
+              desc.toLowerCase().includes('bloque creado automáticamente')) {
+            return '';
+          }
+          return desc;
+        };
+        
         setFormData({
           name: block.name,
-          description: block.description || '',
+          description: cleanDescription(block.description),
           startDate: new Date(block.startDate).toISOString().split('T')[0],
           endDate: new Date(block.endDate).toISOString().split('T')[0],
           useProportions: block.useProportions,

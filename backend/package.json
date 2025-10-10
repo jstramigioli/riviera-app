@@ -12,7 +12,8 @@
     "export-db": "node scripts/export-database.js",
     "import-db": "node scripts/import-database.js",
     "generate-test-reservations": "node scripts/generate-test-reservations.js",
-    "cleanup-test-reservations": "node scripts/generate-test-reservations.js --cleanup"
+    "cleanup-test-reservations": "node scripts/generate-test-reservations.js --cleanup",
+    "db:fix-sequences": "npx prisma db execute --schema=./prisma/schema.prisma --file=./scripts/fix-sequences.sql"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

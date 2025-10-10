@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import ConfirmationModal from './ConfirmationModal';
@@ -9,7 +9,31 @@ function QueriesTable({ queries, onDeleteQuery }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [modalOpen, setModalOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState(null);
+  const [serviceTypes, setServiceTypes] = useState([]);
   const navigate = useNavigate();
+
+  // Cargar tipos de servicio al montar el componente
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        if (response.ok) {
+          const data = await response.json();
+          setServiceTypes(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading service types:', error);
+      }
+    };
+    loadServiceTypes();
+  }, []);
+
+  // Función para obtener el nombre del tipo de servicio
+  const getServiceTypeName = useCallback((serviceTypeId) => {
+    if (!serviceTypeId) return 'No especificado';
+    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+    return serviceType ? serviceType.name : serviceTypeId;
+  }, [serviceTypes]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -56,8 +80,8 @@ function QueriesTable({ queries, onDeleteQuery }) {
           bValue = b.requiredGuests || 1;
           break;
         case 'type':
-          aValue = a.serviceType || '';
-          bValue = b.serviceType || '';
+          aValue = getServiceTypeName(a.serviceType);
+          bValue = getServiceTypeName(b.serviceType);
           break;
         case 'updatedAt':
           aValue = a.updatedAt ? new Date(a.updatedAt) : new Date(0);
@@ -71,7 +95,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [queries, sortField, sortDirection]);
+  }, [queries, sortField, sortDirection, getServiceTypeName]);
 
   const getSortIcon = (field) => {
     if (sortField !== field) return '↕️';
@@ -216,11 +240,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
                 {query.requiredGuests || 1}
               </td>
               <td className={styles.typeCell}>
-                {query.serviceType === 'breakfast' ? 'Con desayuno' :
-                 query.serviceType === 'half_board' ? 'Media pensión' :
-                 query.serviceType === 'full_board' ? 'Pensión completa' :
-                 query.serviceType === 'base' ? 'Solo alojamiento' :
-                 query.serviceType || 'No especificado'}
+                {getServiceTypeName(query.serviceType)}
               </td>
               <td className={styles.updatedAtCell}>
                 {query.updatedAt ? format(new Date(query.updatedAt), 'dd/MM/yyyy HH:mm') : 'Sin fecha'}

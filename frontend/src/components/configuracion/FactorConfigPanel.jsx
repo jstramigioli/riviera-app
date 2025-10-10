@@ -32,14 +32,14 @@ export default function FactorConfigPanel({
           <h4 style={{ 
             margin: '0 0 4px 0', 
             color: color,
-            fontSize: 'var(--font-size-large)',
+            fontSize: 'var(--font-size-small)',
             fontWeight: '600'
           }}>
             {name}
           </h4>
           <p style={{ 
             margin: 0, 
-            fontSize: 'var(--font-size-small)', 
+            fontSize: '0.85rem', 
             color: '#666',
             fontStyle: 'italic'
           }}>

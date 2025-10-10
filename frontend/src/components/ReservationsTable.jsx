@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
@@ -17,6 +17,7 @@ export default function ReservationsTable({
   const [sortDirection, setSortDirection] = useState('asc');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [serviceTypes, setServiceTypes] = useState([]);
 
   // Función para determinar si un día está en un período cerrado
   const isDayClosed = (day) => {
@@ -71,6 +72,10 @@ export default function ReservationsTable({
           aValue = a.status || '';
           bValue = b.status || '';
           break;
+        case 'reservationType':
+          aValue = getReservationTypeText(a);
+          bValue = getReservationTypeText(b);
+          break;
         default:
           aValue = a[sortField] || '';
           bValue = b[sortField] || '';
@@ -123,18 +128,40 @@ export default function ReservationsTable({
     }
   };
 
+  // Cargar tipos de servicio al montar el componente
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        if (response.ok) {
+          const data = await response.json();
+          setServiceTypes(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading service types:', error);
+      }
+    };
+    loadServiceTypes();
+  }, []);
+
+  // Función para obtener el nombre del tipo de servicio
+  const getServiceTypeName = useCallback((serviceTypeId) => {
+    if (!serviceTypeId) return 'No especificado';
+    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+    return serviceType ? serviceType.name : serviceTypeId;
+  }, [serviceTypes]);
+
   // Función para obtener el estado en español
   const getStatusText = (status) => getStatusLabel(status);
 
-  // Función para obtener el tipo de reserva en español
-  const getReservationTypeText = (type) => {
-    switch (type) {
-      case 'con_desayuno': return 'Con desayuno';
-      case 'media_pension': return 'Media pensión';
-      case 'pension_completa': return 'Pensión completa';
-      case 'solo_alojamiento': return 'Solo alojamiento';
-      default: return type;
+  // Función para obtener el tipo de reserva en español (desde segments)
+  const getReservationTypeText = (reservation) => {
+    if (!reservation.segments || reservation.segments.length === 0) {
+      return 'No especificado';
     }
+    // Obtener el primer servicio del primer segmento
+    const firstService = reservation.segments[0].services?.[0];
+    return getServiceTypeName(firstService);
   };
 
   // Función para obtener la clase de estado
@@ -321,7 +348,7 @@ export default function ReservationsTable({
                   </td>
                   <td className={styles.cell}>
                     <span className={styles.reservationType}>
-                      {getReservationTypeText(reservation.reservationType)}
+                      {getReservationTypeText(reservation)}
                     </span>
                   </td>
                   <td className={styles.cell}>

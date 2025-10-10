@@ -54,7 +54,7 @@ export default function WeekendFactorConfig({ config, onConfigChange }) {
         marginBottom: '12px', 
         fontWeight: '500', 
         color: '#495057', 
-        fontSize: 'var(--font-size-medium)'
+        fontSize: 'var(--font-size-small)'
       }}>
         Días de fin de semana:
       </div>
@@ -73,13 +73,13 @@ export default function WeekendFactorConfig({ config, onConfigChange }) {
               key={dayNum}
               onClick={() => handleDayToggle(dayNum)}
               style={{
-                padding: '14px 24px',
+                padding: '12px 20px',
                 border: `2px solid ${dayColors[dayNum]}`,
                 borderRadius: '8px',
                 backgroundColor: isSelected ? dayColors[dayNum] : '#fdf2f2',
                 color: isSelected ? 'white' : '#e74c3c',
                 cursor: 'pointer',
-                fontSize: 'var(--font-size-medium)',
+                fontSize: 'var(--font-size-small)',
                 fontWeight: '500',
                 transition: 'all 0.2s ease',
                 minWidth: '90px'

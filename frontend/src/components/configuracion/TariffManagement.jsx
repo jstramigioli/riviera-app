@@ -215,7 +215,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
         startDate: availableDates.startDate,
         endDate: availableDates.endDate,
         hotelId: 'default-hotel', // Agregar hotelId requerido
-        useProportions: true,
+        useProportions: false, // Desactivado por defecto para nuevos bloques
         serviceAdjustmentMode: 'FIXED', // Cambiar a FIXED ya que eliminamos porcentajes
         useBlockServices: false,
         isDraft: true // Siempre crear en modo borrador

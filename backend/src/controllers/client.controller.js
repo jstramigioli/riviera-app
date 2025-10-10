@@ -43,20 +43,25 @@ exports.createClient = async (req, res) => {
       data: { 
         firstName, 
         lastName, 
-        email, 
-        phone, 
+        email: email || null, 
+        phone: phone || null, 
         documentType: documentType || 'DNI',
-        documentNumber,
-        country,
-        province,
-        city,
-        notes,
+        documentNumber: documentNumber || null,
+        country: country || null,
+        province: province || null,
+        city: city || null,
+        notes: notes || null,
         wantsPromotions: wantsPromotions || false
       }
     });
     res.status(201).json(newClient);
   } catch (error) {
-    res.status(500).json({ error: 'Error creating client' });
+    console.error('Error creating client:', error);
+    console.error('Request body:', req.body);
+    res.status(500).json({ 
+      error: 'Error creating client',
+      details: process.env.NODE_ENV !== 'production' ? error.message : undefined
+    });
   }
 };
 

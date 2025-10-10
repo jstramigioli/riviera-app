@@ -757,10 +757,12 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 />
               ) : (
                 <h3 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleFieldClick('name');
-                  }}
+                  {...(isEditing && {
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      handleFieldClick('name');
+                    }
+                  })}
                   className={isEditing ? styles.editableField : ''}
                 >
                   {formData.name || block?.name}
@@ -793,11 +795,13 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 </div>
               ) : (
                 <span 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleFieldClick('startDate');
-                    handleFieldClick('endDate');
-                  }}
+                  {...(isEditing && {
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      handleFieldClick('startDate');
+                      handleFieldClick('endDate');
+                    }
+                  })}
                   className={isEditing ? styles.editableField : ''}
                 >
                   {formatDate(getDisplayDate(formData.startDate || block?.startDate))} - {formatDate(getDisplayDate(formData.endDate || block?.endDate))}
@@ -821,10 +825,12 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               />
             ) : (
               <p 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFieldClick('description');
-                }}
+                {...(isEditing && {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    handleFieldClick('description');
+                  }
+                })}
                 className={isEditing ? styles.editableField : ''}
                 style={{
                   color: (formData.description || block?.description) ? '#374151' : '#9ca3af',

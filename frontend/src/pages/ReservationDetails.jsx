@@ -26,6 +26,7 @@ const ReservationDetails = () => {
   const [showPricingTable, setShowPricingTable] = useState(false);
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [serviceTypes, setServiceTypes] = useState([]);
 
   useEffect(() => {
     const loadReservationData = async () => {
@@ -33,9 +34,10 @@ const ReservationDetails = () => {
         setLoading(true);
         
         // Cargar datos necesarios
-        const [reservationsData, roomsData] = await Promise.all([
+        const [reservationsData, roomsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
-          fetchRooms()
+          fetchRooms(),
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
         // Buscar la reserva específica
@@ -50,6 +52,7 @@ const ReservationDetails = () => {
         setReservation(foundReservation);
         setEditData(foundReservation);
         setRooms(roomsData);
+        setServiceTypes(serviceTypesResponse.data || []);
         
         // Cargar detalles de precios si están disponibles
         try {
@@ -82,14 +85,10 @@ const ReservationDetails = () => {
     }
   };
 
-  const getServiceTypeLabel = (serviceType) => {
-    const serviceMap = {
-      'con_desayuno': 'Con Desayuno',
-      'sin_desayuno': 'Sin Desayuno',
-      'media_pension': 'Media Pensión',
-      'pension_completa': 'Pensión Completa'
-    };
-    return serviceMap[serviceType] || serviceType;
+  const getServiceTypeLabel = (serviceTypeId) => {
+    if (!serviceTypeId) return 'No especificado';
+    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+    return serviceType ? serviceType.name : serviceTypeId;
   };
 
   const handleBackClick = () => {

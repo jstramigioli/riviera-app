@@ -361,10 +361,11 @@ exports.createSeasonBlock = async (req, res) => {
     // Crear el bloque y inicializar datos por defecto en una transacción
     const completeBlock = await prisma.$transaction(async (tx) => {
       // Crear el bloque
+      const trimmedDesc = description?.trim();
       const block = await tx.seasonBlock.create({
         data: {
           name: name.trim(),
-          description: description?.trim() || null,
+          description: trimmedDesc && trimmedDesc.length > 0 ? trimmedDesc : null,
           startDate: new Date(startDate),
           endDate: new Date(endDate),
           hotelId: finalHotelId,
@@ -583,17 +584,25 @@ exports.updateSeasonBlock = async (req, res) => {
       // Actualizar el bloque
       const updateData = {};
       if (name !== undefined) updateData.name = name.trim();
-      if (description !== undefined) updateData.description = description?.trim() || null;
+      if (description !== undefined) {
+        // Limpiar y normalizar la descripción
+        const trimmedDesc = description?.trim();
+        // Si está vacío o es null, guardar como null
+        updateData.description = trimmedDesc && trimmedDesc.length > 0 ? trimmedDesc : null;
+      }
       if (startDate !== undefined) updateData.startDate = new Date(startDate);
       if (endDate !== undefined) updateData.endDate = new Date(endDate);
       if (useProportions !== undefined) updateData.useProportions = useProportions;
       if (serviceAdjustmentMode !== undefined) updateData.serviceAdjustmentMode = serviceAdjustmentMode;
       if (useBlockServices !== undefined) updateData.useBlockServices = useBlockServices;
-      if (isDraft !== undefined) updateData.isDraft = isDraft;
       
-      // Solo marcar como borrador si no se especifica explícitamente el estado
-      if (isDraft === undefined) {
-        updateData.isDraft = true;
+      // 🔧 FIX: Mantener el estado isDraft actual si no se especifica
+      // Solo forzar a borrador si es un bloque nuevo o si explícitamente no se envía el campo
+      if (isDraft !== undefined) {
+        updateData.isDraft = isDraft;
+      } else {
+        // Si no se especifica isDraft, mantener el estado actual del bloque
+        updateData.isDraft = existingBlock.isDraft;
       }
       
       console.log('Update data to be applied:', updateData);

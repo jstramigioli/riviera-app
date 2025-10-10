@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
@@ -17,6 +17,7 @@ import styles from './ConsultasReservasView.module.css';
 function ConsultasReservasView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeSection, setActiveSection] = useState('consultas');
+  const [serviceTypes, setServiceTypes] = useState([]);
   
   const {
     rooms,
@@ -48,6 +49,29 @@ function ConsultasReservasView() {
     setIsEditing,
     setEditData
   } = useSidePanel();
+
+  // Cargar tipos de servicio
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        if (response.ok) {
+          const data = await response.json();
+          setServiceTypes(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading service types:', error);
+      }
+    };
+    loadServiceTypes();
+  }, []);
+
+  // Función para obtener el nombre del tipo de servicio
+  const getServiceTypeName = (serviceTypeId) => {
+    if (!serviceTypeId) return 'No especificado';
+    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+    return serviceType ? serviceType.name : serviceTypeId;
+  };
 
   async function handleEditSave() {
     try {
@@ -342,25 +366,27 @@ function ConsultasReservasView() {
               )}
             </div>
 
-            {/* Tipo de reserva */}
+            {/* Tipo de servicio */}
             <div style={{ marginBottom: 8 }}>
-              <b>Tipo de reserva:</b> {isEditing ? (
+              <b>Tipo de servicio:</b> {isEditing ? (
                 <select
-                  value={editData.reservationType || selectedReservation.reservationType}
-                  onChange={e => handleEditChange('reservationType', e.target.value)}
+                  value={editData.segments?.[0]?.services?.[0] || selectedReservation.segments?.[0]?.services?.[0] || ''}
+                  onChange={e => {
+                    // Actualizar el primer servicio del primer segmento
+                    const newSegments = [...(editData.segments || selectedReservation.segments || [])];
+                    if (newSegments[0]) {
+                      newSegments[0].services = [e.target.value];
+                      handleEditChange('segments', newSegments);
+                    }
+                  }}
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 >
-                  <option value="con_desayuno">Con desayuno</option>
-                  <option value="media_pension">Media pensión</option>
-                  <option value="pension_completa">Pensión completa</option>
-                  <option value="solo_alojamiento">Solo alojamiento</option>
+                  {serviceTypes.map(st => (
+                    <option key={st.id} value={st.id}>{st.name}</option>
+                  ))}
                 </select>
               ) : (
-                selectedReservation.reservationType === 'con_desayuno' ? 'Con desayuno' :
-                selectedReservation.reservationType === 'media_pension' ? 'Media pensión' :
-                selectedReservation.reservationType === 'pension_completa' ? 'Pensión completa' :
-                selectedReservation.reservationType === 'solo_alojamiento' ? 'Solo alojamiento' :
-                selectedReservation.reservationType
+                getServiceTypeName(selectedReservation.segments?.[0]?.services?.[0])
               )}
             </div>
 
