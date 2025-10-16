@@ -52,3 +52,5 @@ SELECT setval('"OpenDay_id_seq"', COALESCE((SELECT MAX(id) FROM "OpenDay"), 1), 
 -- ReservationSegment
 SELECT setval('"ReservationSegment_id_seq"', COALESCE((SELECT MAX(id) FROM "ReservationSegment"), 1), true);
 
+
+

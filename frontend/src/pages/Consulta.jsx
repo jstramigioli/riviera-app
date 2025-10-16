@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, createQuery, updateQuery, deleteQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
+import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -237,9 +238,13 @@ export default function Consulta() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
 
+  // Estados para el modal de eliminación de segmentos
+  const [showDeleteSegmentsModal, setShowDeleteSegmentsModal] = useState(false);
+  const [segmentsToDelete, setSegmentsToDelete] = useState([]);
+  const [pendingSegmentChange, setPendingSegmentChange] = useState(null);
+
   // Estados para las secciones colapsables del nuevo diseño
   const [showSegments, setShowSegments] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   
   // Estado para mostrar detalles de habitaciones
   const [showRoomDetails, setShowRoomDetails] = useState({});
@@ -251,6 +256,7 @@ export default function Consulta() {
 
   // Estados para gestión de consultas
   const [currentQueryId, setCurrentQueryId] = useState(null);
+  const [currentQueryGroupId, setCurrentQueryGroupId] = useState(null);
   const [showLoadQueryModal, setShowLoadQueryModal] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
   const [lastClientId, setLastClientId] = useState(null);
@@ -506,61 +512,97 @@ export default function Consulta() {
       ...prev,
       [blockIndex]: room
     }));
+    // NO actualizamos roomId en el segmento porque no queremos guardarlo
   };
 
 
 
 
+  // Usar useRef para evitar loops infinitos con el queryGroupId
+  const queryGroupIdRef = useRef(null);
+  const isSavingRef = useRef(false);
+
   // Función para guardar/actualizar consulta automáticamente
   const saveQueryAutomatically = useCallback(async () => {
     const clientId = formData.mainClient.id;
     
+    // Evitar guardados concurrentes
+    if (isSavingRef.current) {
+      console.log('⏭️ Ya hay un guardado en progreso, saltando...');
+      return;
+    }
+    
     console.log('🔍 saveQueryAutomatically ejecutándose');
-    console.log('🔍 currentQueryId:', currentQueryId);
+    console.log('🔍 currentQueryGroupId:', queryGroupIdRef.current);
     console.log('🔍 clientId:', clientId);
+    console.log('🔍 Número de segmentos:', segments.length);
     
     // Solo guardar si hay un cliente seleccionado
     if (!clientId) return;
 
-    // Usar datos del segmento activo
-    const activeSegment = segments[activeBlockIndex] || segments[0];
-    if (!activeSegment) {
-      console.log('⚠️ No hay segmento activo para guardar');
+    // Validar que haya segmentos
+    if (!segments || segments.length === 0) {
+      console.log('⚠️ No hay segmentos para guardar');
       return;
     }
 
+    // Validar que al menos un segmento tenga fechas
+    const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
+    if (!hasValidSegment) {
+      console.log('⚠️ No hay segmentos con fechas válidas para guardar');
+      return;
+    }
+
+    isSavingRef.current = true;
+
     try {
+      // Preparar todos los segmentos para guardar (solo requerimientos, NO resultados como roomId)
+      const segmentsData = segments.map(segment => ({
+        checkIn: segment.checkIn ? new Date(segment.checkIn + 'T00:00:00') : null,
+        checkOut: segment.checkOut ? new Date(segment.checkOut + 'T00:00:00') : null,
+        requiredGuests: segment.requiredGuests || 1,
+        requiredRoomId: segment.requiredRoomId || null,
+        requiredTags: segment.requiredTags || [],
+        serviceType: segment.serviceType || '',
+        requirementsNotes: segment.requirementsNotes || '',
+        // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
+        totalAmount: segment.totalAmount || null,
+        reservationType: segment.reservationType || 'con_desayuno',
+        fixed: segment.fixed || false
+      }));
+
       const queryData = {
         mainClientId: clientId,
-        checkIn: activeSegment.checkIn ? new Date(activeSegment.checkIn + 'T00:00:00') : null,
-        checkOut: activeSegment.checkOut ? new Date(activeSegment.checkOut + 'T00:00:00') : null,
-        requiredGuests: activeSegment.requiredGuests,
-        requiredRoomId: activeSegment.requiredRoomId,
-        requiredTags: activeSegment.requiredTags || [],
-        serviceType: activeSegment.serviceType || '',
-        requirementsNotes: activeSegment.requirementsNotes || '',
+        segments: segmentsData,
         notes: notes
       };
 
-      console.log('🔍 Datos del segmento activo a guardar:', queryData);
-
-      if (currentQueryId) {
+      if (queryGroupIdRef.current) {
         // Actualizar consulta existente
-        console.log('🔍 Actualizando consulta existente:', currentQueryId);
-        await updateQuery(currentQueryId, queryData);
-        console.log('✅ Consulta actualizada exitosamente');
+        console.log('🔄 Actualizando consulta existente:', queryGroupIdRef.current);
+        const result = await updateMultiSegmentQuery(queryGroupIdRef.current, queryData);
+        console.log('✅ Consulta multi-segmento actualizada:', result.queryGroupId);
+        console.log('✅ Segmentos actualizados:', result.segmentCount);
       } else {
-        // Crear consulta
-        console.log('🔍 Creando nueva consulta');
-        const newQuery = await createQuery(queryData);
-        setCurrentQueryId(newQuery.id);
-        console.log('✅ Nueva consulta creada:', newQuery.id);
+        // Crear nueva consulta multi-segmento
+        console.log('➕ Creando nueva consulta multi-segmento');
+        const result = await createMultiSegmentQuery(queryData);
+        
+        // Guardar el queryGroupId para futuras actualizaciones
+        if (result.queryGroupId) {
+          queryGroupIdRef.current = result.queryGroupId;
+          setCurrentQueryId(result.segments[0].id); // Solo para referencia en UI
+          console.log('✅ Consulta multi-segmento creada:', result.queryGroupId);
+          console.log('✅ Segmentos creados:', result.segmentCount);
+        }
       }
     } catch (error) {
       console.error('Error guardando consulta automáticamente:', error);
       // No mostrar error al usuario, es guardado automático
+    } finally {
+      isSavingRef.current = false;
     }
-  }, [formData.mainClient.id, segments, activeBlockIndex, notes, currentQueryId]);
+  }, [formData.mainClient.id, segments, notes]);
 
   // Función para cargar clientes
   const loadClients = useCallback(async () => {
@@ -816,70 +858,134 @@ export default function Consulta() {
       console.log('🔍 queryData recibido:', queryData);
       console.log('🔍 isEditing:', location.state.isEditing);
       
-      // Si es una consulta existente (tiene ID), cargar todos los datos
+      // Si es una consulta existente (tiene ID), hacer fetch completo para obtener todos los segmentos
       if (location.state.isEditing && queryData.id) {
-        setCurrentQueryId(queryData.id);
+        console.log('🔄 Haciendo fetch completo de la query ID:', queryData.id);
         
-        // Si mainClient es null pero mainClientId existe, buscar el cliente en la lista de clientes
-        let clientData = queryData.mainClient;
-        if (!clientData && queryData.mainClientId) {
-          // Buscar el cliente en la lista de clientes cargados
-          const foundClient = clients.find(client => client.id === queryData.mainClientId);
-          if (foundClient) {
-            clientData = foundClient;
-          } else {
-            clientData = {
-              id: queryData.mainClientId,
-              firstName: '',
-              lastName: '',
-              email: '',
-              phone: ''
-            };
-          }
-        }
-        
-        const formDataToSet = {
-          checkIn: queryData.checkIn ? format(new Date(queryData.checkIn), 'yyyy-MM-dd') : '',
-          checkOut: queryData.checkOut ? format(new Date(queryData.checkOut), 'yyyy-MM-dd') : '',
-          mainClient: {
-            id: queryData.mainClientId || null,
-            firstName: clientData?.firstName || '',
-            lastName: clientData?.lastName || '',
-            email: clientData?.email || '',
-            phone: clientData?.phone || ''
-          }
-        };
-        const requirementsToSet = {
-          requiredGuests: queryData.requiredGuests || 1,
-          requiredTags: queryData.requiredTags || [],
-          requiredRoomId: queryData.requiredRoomId || null,
-          requirementsNotes: queryData.requirementsNotes || ''
-        };
-        
-        console.log('🔍 FormData a setear:', formDataToSet);
-        console.log('🔍 Requirements a setear:', requirementsToSet);
-        
-        // Establecer todos los estados de una vez
-        setFormData(formDataToSet);
-        setRequirements(requirementsToSet);
-        // Si la consulta tiene una habitación asignada, establecer su tipo
-        if (queryData.room?.roomType) {
-          setSelectedRoomType(queryData.room.roomType);
-        }
-        setNotes(queryData.notes || '');
-        
-        // Sincronizar los segmentos con los datos de la consulta
-        if (formDataToSet.checkIn && formDataToSet.checkOut) {
-          setSegments([{
-            id: 1,
-            checkIn: formDataToSet.checkIn,
-            checkOut: formDataToSet.checkOut,
-            requiredGuests: requirementsToSet.requiredGuests,
-            requiredTags: requirementsToSet.requiredTags,
-            requiredRoomId: requirementsToSet.requiredRoomId,
-            requirementsNotes: requirementsToSet.requirementsNotes
-          }]);
-        }
+        fetchQuery(queryData.id)
+          .then(fullQueryData => {
+            console.log('📦 Query completa recibida:', fullQueryData);
+            console.log('📦 Tiene segmentos?', fullQueryData.isMultiSegment, 'Cantidad:', fullQueryData.segments?.length);
+            
+            // Cargar datos del cliente en el formulario
+            if (fullQueryData.mainClient) {
+              setFormData(prev => ({
+                ...prev,
+                mainClient: {
+                  id: fullQueryData.mainClient.id,
+                  firstName: fullQueryData.mainClient.firstName || '',
+                  lastName: fullQueryData.mainClient.lastName || '',
+                  email: fullQueryData.mainClient.email || '',
+                  phone: fullQueryData.mainClient.phone || ''
+                }
+              }));
+            }
+            
+            // Si es multi-segmento, cargar TODOS los segmentos
+            if (fullQueryData.isMultiSegment && fullQueryData.segments && fullQueryData.segments.length > 0) {
+              console.log('✅ Cargando', fullQueryData.segments.length, 'segmentos');
+              
+              // Guardar el queryGroupId para futuras actualizaciones
+              if (fullQueryData.queryGroupId) {
+                queryGroupIdRef.current = fullQueryData.queryGroupId;
+                console.log('📌 QueryGroupId guardado:', fullQueryData.queryGroupId);
+              }
+              
+              const loadedSegments = fullQueryData.segments.map((seg, index) => ({
+                id: seg.id || Date.now() + index,
+                checkIn: seg.checkIn ? seg.checkIn.split('T')[0] : '',
+                checkOut: seg.checkOut ? seg.checkOut.split('T')[0] : '',
+                requiredGuests: seg.requiredGuests || 1,
+                requiredTags: seg.requiredTags || [],
+                requiredRoomId: seg.requiredRoomId || null,
+                requirementsNotes: seg.requirementsNotes || '',
+                serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
+                totalAmount: seg.totalAmount || null,
+                reservationType: seg.reservationType || 'con_desayuno',
+                fixed: seg.fixed || false
+                // NO cargamos roomId porque no lo guardamos
+              }));
+              
+              setSegments(loadedSegments);
+              
+              // NO sincronizamos roomId porque no lo guardamos
+              // El usuario deberá buscar habitaciones manualmente si lo desea
+              
+              // Cargar notas globales
+              setNotes(fullQueryData.notes || '');
+              
+              // Establecer el primer segmento como activo
+              setActiveBlockIndex(0);
+              
+              // Cargar datos del primer segmento en formData
+              const firstSegment = fullQueryData.segments[0];
+              setFormData(prev => ({
+                ...prev,
+                checkIn: firstSegment.checkIn ? firstSegment.checkIn.split('T')[0] : '',
+                checkOut: firstSegment.checkOut ? firstSegment.checkOut.split('T')[0] : ''
+              }));
+              
+              setRequirements({
+                requiredGuests: firstSegment.requiredGuests || 1,
+                requiredTags: firstSegment.requiredTags || [],
+                requiredRoomId: firstSegment.requiredRoomId || null,
+                requirementsNotes: firstSegment.requirementsNotes || ''
+              });
+              
+            } else {
+              // Query antigua (single segment) - retrocompatibilidad
+              console.log('📄 Cargando consulta de segmento único');
+              
+              if (fullQueryData.checkIn && fullQueryData.checkOut) {
+                setFormData(prev => ({
+                  ...prev,
+                  checkIn: fullQueryData.checkIn.split('T')[0],
+                  checkOut: fullQueryData.checkOut.split('T')[0]
+                }));
+              }
+              
+              setRequirements({
+                requiredGuests: fullQueryData.requiredGuests || 1,
+                requiredTags: fullQueryData.requiredTags || [],
+                requiredRoomId: fullQueryData.requiredRoomId || null,
+                requirementsNotes: fullQueryData.requirementsNotes || ''
+              });
+              
+              // Crear segmento único
+              if (fullQueryData.checkIn && fullQueryData.checkOut) {
+                const singleSegment = {
+                  id: fullQueryData.id || Date.now(),
+                  checkIn: fullQueryData.checkIn.split('T')[0],
+                  checkOut: fullQueryData.checkOut.split('T')[0],
+                  requiredGuests: fullQueryData.requiredGuests || 1,
+                  requiredTags: fullQueryData.requiredTags || [],
+                  requiredRoomId: fullQueryData.requiredRoomId || null,
+                  requirementsNotes: fullQueryData.requirementsNotes || '',
+                  serviceType: fullQueryData.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+                  // NO cargamos roomId porque no lo guardamos
+                };
+                
+                setSegments([singleSegment]);
+                // NO sincronizamos roomId porque no lo guardamos
+              }
+              
+              setNotes(fullQueryData.notes || '');
+            }
+            
+            setCurrentQueryId(fullQueryData.id);
+            
+            // Marcar como cargado
+            dataLoadedRef.current = true;
+            window.history.replaceState({}, document.title);
+          })
+          .catch(error => {
+            console.error('❌ Error cargando query completa:', error);
+            alert('Error al cargar la consulta. Por favor, intenta de nuevo.');
+            
+            // Marcar como cargado para evitar loops
+            dataLoadedRef.current = true;
+            window.history.replaceState({}, document.title);
+          });
         
       } else {
         // Si es una nueva consulta desde el modal
@@ -896,11 +1002,11 @@ export default function Consulta() {
           requiredGuests,
           requiredTags
         }));
+        
+        // Marcar como cargado y limpiar el state para evitar que se recargue en futuras navegaciones
+        dataLoadedRef.current = true;
+        window.history.replaceState({}, document.title);
       }
-      
-      // Marcar como cargado y limpiar el state para evitar que se recargue en futuras navegaciones
-      dataLoadedRef.current = true;
-      window.history.replaceState({}, document.title);
     }
   }, [location.state?.queryData?.id, location.state?.isEditing]);
 
@@ -910,7 +1016,35 @@ export default function Consulta() {
     console.trace('🔍 Stack trace del cambio de formData');
   }, [formData]);
 
-  // Auto-guardado removido - ahora se guarda solo al buscar habitaciones
+  // Auto-guardado con debounce para evitar requests excesivos
+  useEffect(() => {
+    // Solo auto-guardar si hay un cliente seleccionado y hay segmentos válidos
+    if (!formData.mainClient.id || segments.length === 0) {
+      console.log('⏭️ Saltando auto-guardado: no hay cliente o segmentos');
+      return;
+    }
+
+    // Validar que al menos un segmento tenga fechas
+    const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
+    if (!hasValidSegment) {
+      console.log('⏭️ Saltando auto-guardado: ningún segmento tiene fechas válidas');
+      return;
+    }
+
+    console.log('⏱️ Auto-guardado programado en 2 segundos...');
+    
+    // Debounce: esperar 2 segundos después del último cambio
+    const timer = setTimeout(() => {
+      console.log('💾 Ejecutando auto-guardado...');
+      saveQueryAutomatically();
+    }, 2000);
+
+    // Cleanup: cancelar el timer si hay un nuevo cambio antes de 2 segundos
+    return () => {
+      console.log('🔄 Cancelando auto-guardado anterior (nuevo cambio detectado)');
+      clearTimeout(timer);
+    };
+  }, [segments, formData.mainClient.id, notes, saveQueryAutomatically]);
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -991,6 +1125,8 @@ export default function Consulta() {
     }
   }, [loadClients, loadAllRooms, loadDefaultDates]);
 
+  // NO sincronizamos roomId porque ya no lo guardamos en consultas
+  // El usuario deberá buscar habitaciones manualmente cuando cargue una consulta
 
   // Buscar habitaciones disponibles cuando cambien las fechas, huéspedes o etiquetas
   // COMENTADO: No debe ejecutarse automáticamente, solo al presionar el botón de búsqueda
@@ -1013,22 +1149,26 @@ export default function Consulta() {
   //   }
   // }, [formData.checkIn, formData.checkOut]);
 
-  // Sincronizar segmentos con formData para la búsqueda de habitaciones (solo para nuevas consultas)
+  // Sincronizar segmentos con formData para la búsqueda de habitaciones (solo para nuevas consultas con 1 segmento)
   useEffect(() => {
     console.log('🔍 useEffect de sincronización ejecutándose');
     console.log('🔍 isEditing en sincronización:', location.state?.isEditing);
+    console.log('🔍 Número de segmentos:', segments.length);
+    
     // No sincronizar si estamos cargando datos de una consulta existente
     if (location.state?.isEditing) {
       console.log('🔍 NO sincronizando (editando)');
       return;
     }
     
-    if (segments.length > 0 && segments[activeBlockIndex] && segments[activeBlockIndex].checkIn && segments[activeBlockIndex].checkOut) {
-      console.log('🔍 Sincronizando segmentos con formData');
+    // Solo sincronizar si hay un único segmento (consulta simple)
+    // Con múltiples segmentos, cada uno tiene sus propias fechas independientes
+    if (segments.length === 1 && segments[0] && segments[0].checkIn && segments[0].checkOut) {
+      console.log('🔍 Sincronizando segmento único con formData');
       setFormData(prev => ({
         ...prev,
-        checkIn: segments[activeBlockIndex].checkIn,
-        checkOut: segments[activeBlockIndex].checkOut
+        checkIn: segments[0].checkIn,
+        checkOut: segments[0].checkOut
       }));
     }
 
@@ -1041,36 +1181,37 @@ export default function Consulta() {
   }, [segments, activeBlockIndex, location.state?.isEditing]);
 
   // Sincronizar segments con formData cuando estamos editando (sincronización bidireccional)
+  // DESACTIVADO: Con múltiples segmentos, cada uno mantiene sus propias fechas independientes
+  // La sincronización se maneja exclusivamente a través de handleSegmentChange
   useEffect(() => {
     console.log('🔍 useEffect de sincronización bidireccional ejecutándose');
     console.log('🔍 isEditing:', location.state?.isEditing);
+    console.log('🔍 Número de segmentos:', segments.length);
     
-    if (location.state?.isEditing) {
-      console.log('🔍 Sincronizando segments con formData (editando)');
+    // Solo sincronizar si es edición Y hay un único segmento
+    // Con múltiples segmentos, handleSegmentChange maneja todo
+    if (location.state?.isEditing && segments.length === 1) {
+      console.log('🔍 Sincronizando segmento único con formData (editando)');
       console.log('🔍 formData actual:', formData);
       
       setSegments(prev => {
-        if (prev.length > 0 && prev[activeBlockIndex]) {
-          return prev.map((segment, index) => 
-            index === activeBlockIndex 
-              ? {
-                  ...segment,
-                  checkIn: formData.checkIn,
-                  checkOut: formData.checkOut,
-                  requiredGuests: requirements.requiredGuests,
-                  requiredTags: requirements.requiredTags,
-                  requiredRoomId: requirements.requiredRoomId,
-                  requirementsNotes: requirements.requirementsNotes
-                }
-              : segment
-          );
+        if (prev.length > 0 && prev[0]) {
+          return [{
+            ...prev[0],
+            checkIn: formData.checkIn,
+            checkOut: formData.checkOut,
+            requiredGuests: requirements.requiredGuests,
+            requiredTags: requirements.requiredTags,
+            requiredRoomId: requirements.requiredRoomId,
+            requirementsNotes: requirements.requirementsNotes
+          }];
         }
         return prev;
       });
     } else {
-      console.log('🔍 NO sincronizando bidireccional - no está editando');
+      console.log('🔍 NO sincronizando bidireccional - múltiples segmentos o no editando');
     }
-  }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags, requirements.requiredRoomId, requirements.requirementsNotes, location.state?.isEditing, activeBlockIndex]);
+  }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags, requirements.requiredRoomId, requirements.requirementsNotes, location.state?.isEditing, segments.length]);
 
   // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada para el bloque activo
   useEffect(() => {
@@ -1087,6 +1228,7 @@ export default function Consulta() {
           [activeBlockIndex]: exactCapacityRoom
         }));
         setSelectedRoomType(exactCapacityRoom.roomType);
+        // NO actualizamos roomId en el segmento
       } else {
         // Si no hay capacidad exacta, seleccionar la primera disponible
         setSelectedRoomsPerBlock(prev => ({
@@ -1094,6 +1236,7 @@ export default function Consulta() {
           [activeBlockIndex]: availableRooms[0]
         }));
         setSelectedRoomType(availableRooms[0].roomType);
+        // NO actualizamos roomId en el segmento
       }
     }
   }, [availableRoomsPerBlock, activeBlockIndex, requirements.requiredGuests, selectedRoomsPerBlock]);
@@ -1191,6 +1334,7 @@ export default function Consulta() {
             delete newSelected[index];
             return newSelected;
           });
+          // NO limpiamos roomId porque ya no lo usamos
         }
       }
     });
@@ -1499,6 +1643,8 @@ export default function Consulta() {
     }));
     // Limpiar consulta actual
     setCurrentQueryId(null);
+    setCurrentQueryGroupId(null);
+    queryGroupIdRef.current = null;
     setLastClientId(null);
   };
 
@@ -1528,34 +1674,88 @@ export default function Consulta() {
 
   // Función para cargar la consulta existente
   const handleLoadExistingQuery = (query) => {
-    // Cargar datos de la consulta en el formulario
-    if (query.checkIn && query.checkOut) {
+    console.log('📥 Cargando consulta:', query);
+    
+    // Cargar datos del cliente en el formulario
+    if (query.mainClient) {
       setFormData(prev => ({
         ...prev,
-        checkIn: query.checkIn.split('T')[0], // Convertir a formato YYYY-MM-DD
-        checkOut: query.checkOut.split('T')[0]
+        mainClient: {
+          id: query.mainClient.id,
+          firstName: query.mainClient.firstName || '',
+          lastName: query.mainClient.lastName || '',
+          email: query.mainClient.email || '',
+          phone: query.mainClient.phone || ''
+        }
       }));
     }
 
-    // Cargar requisitos
-    setRequirements({
-      requiredGuests: query.requiredGuests || 1,
-      requiredTags: query.requiredTags || [],
-      requiredRoomId: query.requiredRoomId || null,
-      requirementsNotes: query.requirementsNotes || ''
-    });
+    // Si es multi-segmento, cargar TODOS los segmentos
+    if (query.isMultiSegment && query.segments && query.segments.length > 0) {
+      console.log('📦 Cargando', query.segments.length, 'segmentos');
+      
+      // Guardar el queryGroupId para futuras actualizaciones
+      if (query.queryGroupId) {
+        queryGroupIdRef.current = query.queryGroupId;
+        console.log('📌 QueryGroupId guardado:', query.queryGroupId);
+      }
+      
+      setSegments(query.segments.map((seg, index) => ({
+        id: seg.id || Date.now() + index,
+        checkIn: seg.checkIn ? seg.checkIn.split('T')[0] : '',
+        checkOut: seg.checkOut ? seg.checkOut.split('T')[0] : '',
+        requiredGuests: seg.requiredGuests || 1,
+        requiredTags: seg.requiredTags || [],
+        requiredRoomId: seg.requiredRoomId || null,
+        requirementsNotes: seg.requirementsNotes || '',
+        serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
+        roomId: seg.roomId || null,
+        totalAmount: seg.totalAmount || null,
+        reservationType: seg.reservationType || 'con_desayuno',
+        fixed: seg.fixed || false
+      })));
+      
+      // Cargar notas globales
+      setNotes(query.notes || '');
+      
+      // Establecer el primer segmento como activo
+      setActiveBlockIndex(0);
+    } else {
+      // Query antigua (single segment) - retrocompatibilidad
+      console.log('📄 Cargando consulta de segmento único (legacy)');
+      
+      if (query.checkIn && query.checkOut) {
+        setFormData(prev => ({
+          ...prev,
+          checkIn: query.checkIn.split('T')[0],
+          checkOut: query.checkOut.split('T')[0]
+        }));
+      }
 
-    // Cargar segmentos (si existen)
-    if (query.checkIn && query.checkOut) {
-      setSegments([{
-        checkIn: query.checkIn.split('T')[0],
-        checkOut: query.checkOut.split('T')[0],
+      // Cargar requisitos
+      setRequirements({
         requiredGuests: query.requiredGuests || 1,
         requiredTags: query.requiredTags || [],
         requiredRoomId: query.requiredRoomId || null,
-        requirementsNotes: query.requirementsNotes || '',
-        serviceType: query.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
-      }]);
+        requirementsNotes: query.requirementsNotes || ''
+      });
+
+      // Crear segmento único
+      if (query.checkIn && query.checkOut) {
+        setSegments([{
+          id: query.id || Date.now(),
+          checkIn: query.checkIn.split('T')[0],
+          checkOut: query.checkOut.split('T')[0],
+          requiredGuests: query.requiredGuests || 1,
+          requiredTags: query.requiredTags || [],
+          requiredRoomId: query.requiredRoomId || null,
+          requirementsNotes: query.requirementsNotes || '',
+          serviceType: query.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
+          roomId: query.roomId || null
+        }]);
+      }
+      
+      setNotes(query.notes || '');
     }
 
     setCurrentQueryId(query.id);
@@ -1565,6 +1765,8 @@ export default function Consulta() {
   // Función para continuar sin cargar la consulta existente
   const handleContinueWithoutLoading = () => {
     setCurrentQueryId(null);
+    setCurrentQueryGroupId(null);
+    queryGroupIdRef.current = null;
     setExistingQuery(null);
   };
 
@@ -1579,6 +1781,8 @@ export default function Consulta() {
   const handleCreateNewQuery = () => {
     // Crear nueva consulta para el cliente
     setCurrentQueryId(null);
+    setCurrentQueryGroupId(null);
+    queryGroupIdRef.current = null;
     setShowSelectQueryModal(false);
     setRecentQueries([]);
   };
@@ -1723,86 +1927,165 @@ export default function Consulta() {
 
   // Funciones para manejar segmentos
   const handleSegmentChange = (segmentId, field, value) => {
-    console.log('🔍 handleSegmentChange ejecutándose:', { segmentId, field, value, isEditing: location.state?.isEditing });
+    console.log('🔍 handleSegmentChange ejecutándose:', { segmentId, field, value });
     
-    setSegments(prev => prev.map(segment => {
-      if (segment.id === segmentId) {
-        const updatedSegment = { ...segment, [field]: value };
-        
-        // Lógica especial para fechas
-        if (field === 'checkIn') {
-          // Comparar fechas como strings para evitar problemas de zona horaria
-          const checkInString = value; // formato: YYYY-MM-DD
-          const checkOutString = segment.checkOut; // formato: YYYY-MM-DD
-          
-          // console.log('📅 Modificando check-in:', { nuevoCheckIn: checkInString, checkOutActual: checkOutString, esAnteriorOIgual: checkOutString <= checkInString });
-          
-          if (checkOutString <= checkInString) {
-            // Si el check-out es anterior o igual al check-in, ajustarlo al día siguiente
-            // Crear fecha local para evitar problemas de zona horaria
-            const checkInDateLocal = new Date(checkInString + 'T00:00:00');
-            const nextDay = addDays(checkInDateLocal, 1);
-            const nextDayString = format(nextDay, 'yyyy-MM-dd');
-            updatedSegment.checkOut = nextDayString;
-            // console.log('🔄 Check-out ajustado al día siguiente del check-in:', { checkIn: checkInString, checkOutAnterior: checkOutString, checkOutNuevo: nextDayString });
-          }
-        } else if (field === 'checkOut') {
-          // Comparar fechas como strings para evitar problemas de zona horaria
-          const checkInString = segment.checkIn; // formato: YYYY-MM-DD
-          const checkOutString = value; // formato: YYYY-MM-DD
-          
-          // console.log('📅 Modificando check-out:', { checkInActual: checkInString, nuevoCheckOut: checkOutString, esAnteriorOIgual: checkOutString <= checkInString });
-          
-          if (checkOutString <= checkInString) {
-            // Si el check-out es anterior o igual al check-in, ajustarlo al día siguiente
-            // Crear fecha local para evitar problemas de zona horaria
-            const checkInDateLocal = new Date(checkInString + 'T00:00:00');
-            const nextDay = addDays(checkInDateLocal, 1);
-            const nextDayString = format(nextDay, 'yyyy-MM-dd');
-            updatedSegment.checkOut = nextDayString;
-            // console.log('🔄 Check-out ajustado al día siguiente del check-in:', { checkIn: checkInString, checkOutAnterior: checkOutString, checkOutNuevo: nextDayString });
-          }
-        }
-        
-        // Validación final: asegurar que check-out siempre sea al menos un día después de check-in
-        if (updatedSegment.checkIn && updatedSegment.checkOut) {
-          const finalCheckInString = updatedSegment.checkIn;
-          const finalCheckOutString = updatedSegment.checkOut;
-          
-          if (finalCheckOutString <= finalCheckInString) {
-            // Ajustar check-out al día siguiente del check-in
-            const checkInDateLocal = new Date(finalCheckInString + 'T00:00:00');
-            const nextDay = addDays(checkInDateLocal, 1);
-            const nextDayString = format(nextDay, 'yyyy-MM-dd');
-            updatedSegment.checkOut = nextDayString;
-            console.log('🔒 Validación final: Check-out ajustado:', {
-              checkIn: finalCheckInString,
-              checkOutNuevo: nextDayString
-            });
-          }
-        }
-        
-        // Si estamos editando, también actualizar formData para que se dispare el guardado automático
-        if (location.state?.isEditing && (field === 'checkIn' || field === 'checkOut' || field === 'requiredGuests')) {
-          console.log('🔍 Actualizando formData desde handleSegmentChange');
-          setFormData(prev => ({
-            ...prev,
-            checkIn: updatedSegment.checkIn,
-            checkOut: updatedSegment.checkOut
-          }));
-          
-          if (field === 'requiredGuests') {
-            setRequirements(prev => ({
-              ...prev,
-              requiredGuests: value
-            }));
-          }
-        }
-        
-        return updatedSegment;
+    // Si no es un cambio de fecha, aplicar directamente
+    if (field !== 'checkIn' && field !== 'checkOut') {
+      setSegments(prev => prev.map(seg => 
+        seg.id === segmentId ? { ...seg, [field]: value } : seg
+      ));
+      
+      // Actualizar formData si es segmento único
+      if (segments.length === 1 && field === 'requiredGuests') {
+        setRequirements(prev => ({ ...prev, requiredGuests: value }));
       }
-      return segment;
-    }));
+      return;
+    }
+    
+    // Para cambios de fecha, necesitamos detectar superposiciones
+    const currentIndex = segments.findIndex(seg => seg.id === segmentId);
+    if (currentIndex === -1) return;
+    
+    const updatedSegments = [...segments];
+    const currentSegment = { ...updatedSegments[currentIndex] };
+    currentSegment[field] = value;
+    
+    // Validar que checkOut > checkIn del segmento actual
+    if (currentSegment.checkOut <= currentSegment.checkIn) {
+      const checkInDate = new Date(currentSegment.checkIn + 'T00:00:00');
+      currentSegment.checkOut = format(addDays(checkInDate, 1), 'yyyy-MM-dd');
+    }
+    
+    updatedSegments[currentIndex] = currentSegment;
+    
+    // Detectar segmentos que se eliminarían
+    const toDelete = [];
+    
+    if (field === 'checkOut') {
+      // Hacia adelante: chequear segmentos siguientes
+      if (currentIndex < updatedSegments.length - 1) {
+        const nextSeg = updatedSegments[currentIndex + 1];
+        
+        if (currentSegment.checkOut >= nextSeg.checkOut) {
+          // Superposición TOTAL: el siguiente segmento quedaría eliminado
+          // Buscar todos los que quedarían eliminados
+          for (let i = currentIndex + 1; i < updatedSegments.length; i++) {
+            const seg = updatedSegments[i];
+            if (currentSegment.checkOut >= seg.checkOut) {
+              toDelete.push({ index: i, ...seg });
+            } else {
+              break;
+            }
+          }
+        } else {
+          // NO hay eliminación total, ajustar para mantener consecutividad
+          // SIEMPRE ajustar el checkIn del siguiente para que sea = al checkOut actual
+          updatedSegments[currentIndex + 1] = {
+            ...nextSeg,
+            checkIn: currentSegment.checkOut
+          };
+          
+          // Verificar si el ajuste deja duración válida
+          if (updatedSegments[currentIndex + 1].checkOut <= updatedSegments[currentIndex + 1].checkIn) {
+            const newCheckOut = format(addDays(new Date(updatedSegments[currentIndex + 1].checkIn + 'T00:00:00'), 1), 'yyyy-MM-dd');
+            updatedSegments[currentIndex + 1].checkOut = newCheckOut;
+          }
+        }
+      }
+    } else if (field === 'checkIn') {
+      // Hacia atrás: chequear segmentos anteriores
+      if (currentIndex > 0) {
+        const prevSeg = updatedSegments[currentIndex - 1];
+        
+        if (currentSegment.checkIn <= prevSeg.checkIn) {
+          // Superposición TOTAL: el anterior segmento quedaría eliminado
+          // Buscar todos los que quedarían eliminados
+          for (let i = currentIndex - 1; i >= 0; i--) {
+            const seg = updatedSegments[i];
+            if (currentSegment.checkIn <= seg.checkIn) {
+              toDelete.push({ index: i, ...seg });
+            } else {
+              break;
+            }
+          }
+        } else {
+          // NO hay eliminación total, ajustar para mantener consecutividad
+          // SIEMPRE ajustar el checkOut del anterior para que sea = al checkIn actual
+          updatedSegments[currentIndex - 1] = {
+            ...prevSeg,
+            checkOut: currentSegment.checkIn
+          };
+          
+          // Verificar si el ajuste deja duración válida
+          if (updatedSegments[currentIndex - 1].checkIn >= updatedSegments[currentIndex - 1].checkOut) {
+            const newCheckIn = format(addDays(new Date(updatedSegments[currentIndex - 1].checkOut + 'T00:00:00'), -1), 'yyyy-MM-dd');
+            updatedSegments[currentIndex - 1].checkIn = newCheckIn;
+          }
+        }
+      }
+    }
+    
+    // Si hay segmentos a eliminar, mostrar modal
+    if (toDelete.length > 0) {
+      console.log('⚠️ Superposición total detectada. Segmentos a eliminar:', toDelete);
+      setSegmentsToDelete(toDelete);
+      setPendingSegmentChange({
+        segmentId,
+        field,
+        value,
+        updatedSegments: updatedSegments.filter((_, i) => !toDelete.some(d => d.index === i))
+      });
+      setShowDeleteSegmentsModal(true);
+    } else {
+      // No hay eliminaciones, aplicar cambios directamente
+      console.log('✅ Superposición parcial o sin superposición. Aplicando cambios.');
+      setSegments(updatedSegments);
+      
+      // Actualizar formData si es segmento único
+      if (updatedSegments.length === 1 && location.state?.isEditing) {
+        setFormData(prev => ({
+          ...prev,
+          checkIn: currentSegment.checkIn,
+          checkOut: currentSegment.checkOut
+        }));
+      }
+    }
+  };
+
+  // Handlers para el modal de eliminación de segmentos
+  const handleConfirmDeleteSegments = () => {
+    if (pendingSegmentChange) {
+      console.log('✅ Usuario confirmó eliminación de segmentos');
+      setSegments(pendingSegmentChange.updatedSegments);
+      
+      // Ajustar activeBlockIndex si es necesario
+      if (activeBlockIndex >= pendingSegmentChange.updatedSegments.length) {
+        setActiveBlockIndex(pendingSegmentChange.updatedSegments.length - 1);
+      }
+      
+      // Actualizar formData si es segmento único
+      if (pendingSegmentChange.updatedSegments.length === 1 && location.state?.isEditing) {
+        const seg = pendingSegmentChange.updatedSegments[0];
+        setFormData(prev => ({
+          ...prev,
+          checkIn: seg.checkIn,
+          checkOut: seg.checkOut
+        }));
+      }
+    }
+    
+    // Cerrar modal y limpiar estados
+    setShowDeleteSegmentsModal(false);
+    setSegmentsToDelete([]);
+    setPendingSegmentChange(null);
+  };
+  
+  const handleCancelDeleteSegments = () => {
+    console.log('❌ Usuario canceló eliminación de segmentos');
+    // Cerrar modal y limpiar estados sin aplicar cambios
+    setShowDeleteSegmentsModal(false);
+    setSegmentsToDelete([]);
+    setPendingSegmentChange(null);
   };
 
   const handleSegmentTagToggle = (segmentId, tagId) => {
@@ -2063,41 +2346,15 @@ export default function Consulta() {
     <div className={styles.newLayout}>
       {/* Contenedor unificado: Cliente + Pestañas */}
       <div className={styles.unifiedContainer}>
-        {/* 1. Sección de Cliente */}
+        {/* 1. Título de la consulta */}
         <div className={styles.sectionHeader}>
           <h2>
             {!formData.mainClient.id ? (
               'Consulta rápida'
             ) : (
-              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'} - ${formData.mainClient.firstName} ${formData.mainClient.lastName}`
+              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`
             )}
           </h2>
-          {formData.mainClient.id && (
-            <button 
-              type="button" 
-              onClick={() => {
-                // Eliminar el cliente de la consulta (mantener consulta original intacta)
-                setFormData(prev => ({
-                  ...prev,
-                  mainClient: {
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    phone: '',
-                    id: null
-                  }
-                }));
-                setSearchTerm('');
-                setFilteredClients([]);
-                // Limpiar el ID de la consulta actual para crear una nueva consulta temporal
-                setCurrentQueryId(null);
-              }}
-              className={styles.deleteClientButton}
-              title="Eliminar cliente de la consulta"
-            >
-              ✕
-            </button>
-          )}
         </div>
         
         {/* Barra de búsqueda de cliente y cantidad de huéspedes lado a lado */}
@@ -2215,10 +2472,46 @@ export default function Consulta() {
           </div>
         )}
         
-        {/* Campo de huéspedes cuando hay cliente seleccionado */}
+        {/* Fila con Cliente, Huéspedes y Notas cuando hay cliente seleccionado */}
         {formData.mainClient.id && (
           <div className={styles.topFieldsRow}>
-            <div className={styles.guestsFieldContainer} style={{ flex: '0 0 200px', marginLeft: 'auto' }}>
+            {/* Cliente seleccionado */}
+            <div className={styles.selectedClientContainer}>
+              <div className={styles.formGroup}>
+                <label>Cliente</label>
+                <div className={styles.selectedClientDisplay}>
+                  <span className={styles.clientName}>
+                    {formData.mainClient.firstName} {formData.mainClient.lastName}
+                  </span>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      // Eliminar el cliente de la consulta
+                      setFormData(prev => ({
+                        ...prev,
+                        mainClient: {
+                          firstName: '',
+                          lastName: '',
+                          email: '',
+                          phone: '',
+                          id: null
+                        }
+                      }));
+                      setSearchTerm('');
+                      setFilteredClients([]);
+                      setCurrentQueryId(null);
+                    }}
+                    className={styles.removeClientButton}
+                    title="Eliminar cliente de la consulta"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Cantidad de huéspedes */}
+            <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
                 <label>Huéspedes</label>
                 <input
@@ -2228,17 +2521,29 @@ export default function Consulta() {
                   value={requirements.requiredGuests}
                   onChange={(e) => {
                     const newGuests = parseInt(e.target.value);
-                    // Actualizar el estado global
                     setRequirements(prev => ({
                       ...prev,
                       requiredGuests: newGuests
                     }));
-                    // Actualizar todos los segmentos
                     setSegments(prev => prev.map(segment => ({
                       ...segment,
                       requiredGuests: newGuests
                     })));
                   }}
+                />
+              </div>
+            </div>
+
+            {/* Notas globales */}
+            <div className={styles.notesFieldContainer}>
+              <div className={styles.formGroup}>
+                <label>Notas</label>
+                <textarea
+                  className={styles.notesTextarea}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notas"
+                  rows={1}
                 />
               </div>
             </div>
@@ -2301,22 +2606,28 @@ export default function Consulta() {
               {/* Fechas */}
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Check-in</label>
+                  <label>
+                    {activeBlockIndex === 0 ? 'Check-in' : 'Inicio del segmento'}
+                  </label>
                   <input
                     type="date"
                     value={segments[activeBlockIndex]?.checkIn || ''}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'checkIn', e.target.value)}
                     required
+                    title={activeBlockIndex > 0 ? 'Al cambiar esta fecha, se actualizará automáticamente el fin del segmento anterior' : ''}
                   />
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Check-out</label>
+                  <label>
+                    {activeBlockIndex === segments.length - 1 ? 'Check-out' : 'Fin del segmento'}
+                  </label>
                   <input
                     type="date"
                     value={segments[activeBlockIndex]?.checkOut || ''}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'checkOut', e.target.value)}
                     required
+                    title={activeBlockIndex < segments.length - 1 ? 'Al cambiar esta fecha, se actualizará automáticamente el inicio del siguiente segmento' : ''}
                   />
                 </div>
               </div>
@@ -2338,21 +2649,19 @@ export default function Consulta() {
                 </div>
               </div>
 
-              {/* Contenedor para Requisitos y Notas lado a lado */}
-              <div className={styles.sideBySideContainer}>
-                {/* Requisitos Especiales (expandible) */}
-                <div className={styles.expandableSection}>
-                  <button
-                    type="button"
-                    className={styles.expandableHeader}
-                    onClick={() => setShowSegments(!showSegments)}
-                  >
-                    <label>Requisitos Especiales</label>
-                    <span className={styles.expandIcon}>{showSegments ? '▼' : '▶'}</span>
-                  </button>
-                  
-                  {showSegments && (
-                    <div className={styles.expandableContent}>
+              {/* Requisitos Especiales (expandible) */}
+              <div className={styles.expandableSection}>
+                <button
+                  type="button"
+                  className={styles.expandableHeader}
+                  onClick={() => setShowSegments(!showSegments)}
+                >
+                  <label>Requisitos Especiales</label>
+                  <span className={styles.expandIcon}>{showSegments ? '▼' : '▶'}</span>
+                </button>
+                
+                {showSegments && (
+                  <div className={styles.expandableContent}>
                       {/* Habitación Específica */}
                       <div className={styles.formGroup}>
                         <label>Habitación Específica:</label>
@@ -2411,29 +2720,6 @@ export default function Consulta() {
                     </div>
                   )}
                 </div>
-
-                {/* Notas (expandible) */}
-                <div className={styles.expandableSection}>
-                  <button
-                    type="button"
-                    className={styles.expandableHeader}
-                    onClick={() => setShowNotes(!showNotes)}
-                  >
-                    <label>Notas</label>
-                    <span className={styles.expandIcon}>{showNotes ? '▼' : '▶'}</span>
-                  </button>
-                  
-                  {showNotes && (
-                    <textarea
-                      className={styles.notesTextareaExpanded}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Agregar notas, comentarios especiales, solicitudes del cliente, etc..."
-                      rows={4}
-                    />
-                  )}
-                </div>
-              </div>
 
               {/* Botón de búsqueda - Solo mostrar si NO se ha buscado */}
               {hasSearchedPerBlock[activeBlockIndex] !== true && (
@@ -2780,6 +3066,14 @@ export default function Consulta() {
         clientName={formData.mainClient.firstName ? `${formData.mainClient.firstName} ${formData.mainClient.lastName}` : ''}
         onSelectQuery={handleSelectQuery}
         onCreateNew={handleCreateNewQuery}
+      />
+
+      {/* Modal de confirmación para eliminar segmentos */}
+      <DeleteSegmentsModal
+        isOpen={showDeleteSegmentsModal}
+        segmentsToDelete={segmentsToDelete}
+        onConfirm={handleConfirmDeleteSegments}
+        onCancel={handleCancelDeleteSegments}
       />
     </div>
   );

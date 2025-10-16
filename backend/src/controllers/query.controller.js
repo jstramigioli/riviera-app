@@ -1,22 +1,17 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Obtener todas las consultas
+// Obtener todas las consultas (agrupando multi-segmentos)
 const getAllQueries = async (req, res) => {
   try {
-    const queries = await prisma.query.findMany({
+    const allQueries = await prisma.query.findMany({
       include: {
         guests: {
           include: {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       },
@@ -25,14 +20,58 @@ const getAllQueries = async (req, res) => {
       }
     });
 
-    res.json(queries);
+    // Agrupar queries por queryGroupId
+    const groupedQueries = {};
+    const standaloneQueries = [];
+    
+    allQueries.forEach(query => {
+      if (query.queryGroupId) {
+        if (!groupedQueries[query.queryGroupId]) {
+          groupedQueries[query.queryGroupId] = [];
+        }
+        groupedQueries[query.queryGroupId].push(query);
+      } else {
+        // Queries antiguas sin grupo (single segment)
+        standaloneQueries.push(query);
+      }
+    });
+    
+    // Crear una query "resumida" por cada grupo
+    const displayQueries = [
+      ...standaloneQueries,
+      ...Object.values(groupedQueries).map(segments => {
+        // Ordenar por segmentIndex
+        const sorted = segments.sort((a, b) => (a.segmentIndex || 0) - (b.segmentIndex || 0));
+        
+        // Ya no verificamos habitaciones porque no las guardamos
+        
+        return {
+          ...sorted[0], // Usar primer segmento como base
+          id: sorted[0].id, // ID del primer segmento para el link
+          queryGroupId: sorted[0].queryGroupId,
+          checkIn: sorted[0].checkIn, // Inicio del PRIMER segmento
+          checkOut: sorted[sorted.length - 1].checkOut, // Fin del ÚLTIMO segmento
+          segmentCount: sorted.length, // Para mostrar "3 segmentos"
+          isMultiSegment: true // Flag para el frontend
+        };
+      })
+    ];
+    
+    // Re-ordenar por fecha de creación
+    displayQueries.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return dateB - dateA; // Más reciente primero
+    });
+
+    res.json(displayQueries);
   } catch (error) {
     console.error('Error al obtener consultas:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-// Obtener una consulta por ID
+// Obtener una consulta por ID (con todos sus segmentos si es multi-segmento)
 const getQueryById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -44,12 +83,7 @@ const getQueryById = async (req, res) => {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       }
@@ -59,7 +93,38 @@ const getQueryById = async (req, res) => {
       return res.status(404).json({ error: 'Consulta no encontrada' });
     }
 
-    res.json(query);
+    // Si tiene queryGroupId, traer TODOS los segmentos del grupo y las notas
+    if (query.queryGroupId) {
+      const [allSegments, queryGroup] = await Promise.all([
+        prisma.query.findMany({
+          where: { queryGroupId: query.queryGroupId },
+          include: {
+            guests: {
+              include: {
+                payments: true
+              }
+            },
+            // room eliminado - ya no existe la relación
+            mainClient: true,
+            nightRates: true
+          },
+          orderBy: { segmentIndex: 'asc' }
+        }),
+        prisma.queryGroup.findUnique({
+          where: { id: query.queryGroupId }
+        })
+      ]);
+      
+      return res.json({
+        ...query,
+        notes: queryGroup?.notes || null, // Notas desde QueryGroup
+        segments: allSegments,
+        isMultiSegment: true
+      });
+    }
+    
+    // Query antigua sin grupo - retornar como está (sin notas)
+    res.json({ ...query, notes: null, isMultiSegment: false });
   } catch (error) {
     console.error('Error al obtener consulta:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -70,7 +135,7 @@ const getQueryById = async (req, res) => {
 const createQuery = async (req, res) => {
   try {
     const {
-      roomId,
+      // roomId eliminado - ya no se guarda
       mainClientId,
       checkIn,
       checkOut,
@@ -89,7 +154,7 @@ const createQuery = async (req, res) => {
     // Crear la consulta
     const query = await prisma.query.create({
       data: {
-        roomId: roomId ? parseInt(roomId) : null,
+        // roomId eliminado del schema
         mainClientId: mainClientId ? parseInt(mainClientId) : null,
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
@@ -121,12 +186,7 @@ const createQuery = async (req, res) => {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       }
@@ -139,12 +199,281 @@ const createQuery = async (req, res) => {
   }
 };
 
+// Crear una consulta multi-segmento
+const createMultiSegmentQuery = async (req, res) => {
+  try {
+    const {
+      mainClientId,
+      segments = [],
+      notes
+    } = req.body;
+
+    if (!mainClientId) {
+      return res.status(400).json({ error: 'mainClientId es requerido' });
+    }
+
+    if (!Array.isArray(segments) || segments.length === 0) {
+      return res.status(400).json({ error: 'Se requiere al menos un segmento' });
+    }
+
+    // Generar un ID de grupo único
+    const queryGroupId = `query-${mainClientId}-${Date.now()}`;
+    
+    // Crear el QueryGroup con las notas
+    await prisma.queryGroup.create({
+      data: {
+        id: queryGroupId,
+        mainClientId: parseInt(mainClientId),
+        notes: notes || null
+      }
+    });
+    
+    // Crear todas las queries del grupo
+    const createdQueries = [];
+    
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      
+      const query = await prisma.query.create({
+        data: {
+          queryGroupId,
+          segmentIndex: i,
+          mainClientId: parseInt(mainClientId),
+          // roomId eliminado del schema - solo guardamos requerimientos
+          checkIn: segment.checkIn ? new Date(segment.checkIn) : null,
+          checkOut: segment.checkOut ? new Date(segment.checkOut) : null,
+          totalAmount: segment.totalAmount ? parseFloat(segment.totalAmount) : null,
+          reservationType: segment.reservationType || 'con_desayuno',
+          serviceType: segment.serviceType || 'base',
+          // notes eliminado - ahora está en QueryGroup
+          fixed: segment.fixed || false,
+          requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
+          requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
+          requiredTags: segment.requiredTags || [],
+          requirementsNotes: segment.requirementsNotes || null,
+          guests: {
+            create: (segment.guests || []).map(guest => ({
+              firstName: guest.firstName || null,
+              lastName: guest.lastName || null,
+              documentType: guest.documentType || 'DNI',
+              documentNumber: guest.documentNumber || null,
+              phone: guest.phone || null,
+              email: guest.email || null,
+              address: guest.address || null,
+              city: guest.city || null
+            }))
+          }
+        },
+        include: {
+          guests: {
+            include: {
+              payments: true
+            }
+          },
+          // room eliminado - ya no existe la relación
+          mainClient: true,
+          nightRates: true
+        }
+      });
+      
+      createdQueries.push(query);
+    }
+
+    res.status(201).json({
+      message: 'Consulta multi-segmento creada exitosamente',
+      queryGroupId,
+      segments: createdQueries,
+      segmentCount: createdQueries.length
+    });
+  } catch (error) {
+    console.error('Error al crear consulta multi-segmento:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};
+
+// Actualizar una consulta multi-segmento
+const updateMultiSegmentQuery = async (req, res) => {
+  try {
+    const { queryGroupId } = req.params;
+    const {
+      mainClientId,
+      segments = [],
+      notes
+    } = req.body;
+
+    if (!queryGroupId) {
+      return res.status(400).json({ error: 'queryGroupId es requerido' });
+    }
+
+    if (!mainClientId) {
+      return res.status(400).json({ error: 'mainClientId es requerido' });
+    }
+
+    if (!Array.isArray(segments) || segments.length === 0) {
+      return res.status(400).json({ error: 'Se requiere al menos un segmento' });
+    }
+
+    // Actualizar o crear el QueryGroup con las notas
+    const existingGroup = await prisma.queryGroup.findUnique({
+      where: { id: queryGroupId }
+    });
+    
+    if (existingGroup) {
+      await prisma.queryGroup.update({
+        where: { id: queryGroupId },
+        data: {
+          notes: notes || null,
+          mainClientId: parseInt(mainClientId)
+        }
+      });
+    } else {
+      await prisma.queryGroup.create({
+        data: {
+          id: queryGroupId,
+          mainClientId: parseInt(mainClientId),
+          notes: notes || null
+        }
+      });
+    }
+    
+    // Obtener las queries existentes del grupo
+    const existingQueries = await prisma.query.findMany({
+      where: { queryGroupId },
+      orderBy: { segmentIndex: 'asc' },
+      include: {
+        guests: {
+          include: {
+            payments: true
+          }
+        }
+      }
+    });
+
+    const updatedQueries = [];
+    
+    // Actualizar o crear cada segmento
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const existingQuery = existingQueries[i];
+      
+      const queryData = {
+        queryGroupId,
+        segmentIndex: i,
+        mainClientId: parseInt(mainClientId),
+        // roomId eliminado del schema - solo guardamos requerimientos
+        checkIn: segment.checkIn ? new Date(segment.checkIn) : null,
+        checkOut: segment.checkOut ? new Date(segment.checkOut) : null,
+        totalAmount: segment.totalAmount ? parseFloat(segment.totalAmount) : null,
+        reservationType: segment.reservationType || 'con_desayuno',
+        serviceType: segment.serviceType || 'base',
+        // notes eliminado - ahora está en QueryGroup
+        fixed: segment.fixed || false,
+        requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
+        requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
+        requiredTags: segment.requiredTags || [],
+        requirementsNotes: segment.requirementsNotes || null
+      };
+      
+      let query;
+      
+      if (existingQuery) {
+        // Actualizar query existente
+        // Primero eliminar huéspedes antiguos
+        await prisma.queryGuest.deleteMany({
+          where: { queryId: existingQuery.id }
+        });
+        
+        // Actualizar la query
+        query = await prisma.query.update({
+          where: { id: existingQuery.id },
+          data: {
+            ...queryData,
+            guests: {
+              create: (segment.guests || []).map(guest => ({
+                firstName: guest.firstName || null,
+                lastName: guest.lastName || null,
+                documentType: guest.documentType || 'DNI',
+                documentNumber: guest.documentNumber || null,
+                phone: guest.phone || null,
+                email: guest.email || null,
+                address: guest.address || null,
+                city: guest.city || null
+              }))
+            }
+          },
+          include: {
+            guests: {
+              include: {
+                payments: true
+              }
+            },
+            // room eliminado - ya no existe la relación
+            mainClient: true,
+            nightRates: true
+          }
+        });
+      } else {
+        // Crear nueva query si no existe
+        query = await prisma.query.create({
+          data: {
+            ...queryData,
+            guests: {
+              create: (segment.guests || []).map(guest => ({
+                firstName: guest.firstName || null,
+                lastName: guest.lastName || null,
+                documentType: guest.documentType || 'DNI',
+                documentNumber: guest.documentNumber || null,
+                phone: guest.phone || null,
+                email: guest.email || null,
+                address: guest.address || null,
+                city: guest.city || null
+              }))
+            }
+          },
+          include: {
+            guests: {
+              include: {
+                payments: true
+              }
+            },
+            // room eliminado - ya no existe la relación
+            mainClient: true,
+            nightRates: true
+          }
+        });
+      }
+      
+      updatedQueries.push(query);
+    }
+    
+    // Eliminar queries sobrantes si se eliminaron segmentos
+    if (existingQueries.length > segments.length) {
+      const queriesToDelete = existingQueries.slice(segments.length);
+      for (const query of queriesToDelete) {
+        await prisma.query.delete({
+          where: { id: query.id }
+        });
+      }
+    }
+
+    res.status(200).json({
+      message: 'Consulta multi-segmento actualizada exitosamente',
+      queryGroupId,
+      segments: updatedQueries,
+      segmentCount: updatedQueries.length
+    });
+  } catch (error) {
+    console.error('Error al actualizar consulta multi-segmento:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};
+
 // Actualizar una consulta
 const updateQuery = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      roomId,
+      // roomId eliminado - ya no se guarda
       mainClientId,
       checkIn,
       checkOut,
@@ -163,7 +492,7 @@ const updateQuery = async (req, res) => {
     const query = await prisma.query.update({
       where: { id: parseInt(id) },
       data: {
-        roomId: roomId ? parseInt(roomId) : null,
+        // roomId eliminado del schema
         mainClientId: mainClientId ? parseInt(mainClientId) : null,
         checkIn: checkIn ? new Date(checkIn) : null,
         checkOut: checkOut ? new Date(checkOut) : null,
@@ -183,12 +512,7 @@ const updateQuery = async (req, res) => {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       }
@@ -323,12 +647,7 @@ const convertQueryToReservation = async (req, res) => {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       }
@@ -430,12 +749,7 @@ const getQueryByClient = async (req, res) => {
             payments: true
           }
         },
-        room: {
-          include: {
-            tags: true,
-            roomType: true
-          }
-        },
+        // room eliminado - ya no existe la relación
         mainClient: true,
         nightRates: true
       },
@@ -456,6 +770,8 @@ module.exports = {
   getAllQueries,
   getQueryById,
   createQuery,
+  createMultiSegmentQuery,
+  updateMultiSegmentQuery,
   updateQuery,
   deleteQuery,
   convertQueryToReservation,

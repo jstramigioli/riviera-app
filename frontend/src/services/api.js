@@ -621,6 +621,44 @@ export async function createQuery(data) {
   return res.json();
 }
 
+export async function createMultiSegmentQuery(data) {
+  const res = await fetch(`${API_URL}/queries/multi-segment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    let errorMessage = 'Error creating multi-segment query';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      errorMessage = `Error creating multi-segment query: ${res.status} ${res.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
+export async function updateMultiSegmentQuery(queryGroupId, data) {
+  const res = await fetch(`${API_URL}/queries/multi-segment/${queryGroupId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    let errorMessage = 'Error updating multi-segment query';
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      errorMessage = `Error updating multi-segment query: ${res.status} ${res.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+  return res.json();
+}
+
 export async function updateQuery(id, data) {
   const res = await fetch(`${API_URL}/queries/${id}`, {
     method: 'PUT',

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import ConfirmationModal from './ConfirmationModal';
@@ -9,31 +9,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [modalOpen, setModalOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState(null);
-  const [serviceTypes, setServiceTypes] = useState([]);
   const navigate = useNavigate();
-
-  // Cargar tipos de servicio al montar el componente
-  useEffect(() => {
-    const loadServiceTypes = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
-        if (response.ok) {
-          const data = await response.json();
-          setServiceTypes(data.data || []);
-        }
-      } catch (error) {
-        console.error('Error loading service types:', error);
-      }
-    };
-    loadServiceTypes();
-  }, []);
-
-  // Función para obtener el nombre del tipo de servicio
-  const getServiceTypeName = useCallback((serviceTypeId) => {
-    if (!serviceTypeId) return 'No especificado';
-    const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-    return serviceType ? serviceType.name : serviceTypeId;
-  }, [serviceTypes]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -71,17 +47,9 @@ function QueriesTable({ queries, onDeleteQuery }) {
           aValue = calculateNights(a.checkIn, a.checkOut);
           bValue = calculateNights(b.checkIn, b.checkOut);
           break;
-        case 'room':
-          aValue = a.room ? a.room.name : '';
-          bValue = b.room ? b.room.name : '';
-          break;
         case 'guests':
           aValue = a.requiredGuests || 1;
           bValue = b.requiredGuests || 1;
-          break;
-        case 'type':
-          aValue = getServiceTypeName(a.serviceType);
-          bValue = getServiceTypeName(b.serviceType);
           break;
         case 'updatedAt':
           aValue = a.updatedAt ? new Date(a.updatedAt) : new Date(0);
@@ -95,12 +63,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [queries, sortField, sortDirection, getServiceTypeName]);
-
-  const getSortIcon = (field) => {
-    if (sortField !== field) return '↕️';
-    return sortDirection === 'asc' ? '↑' : '↓';
-  };
+  }, [queries, sortField, sortDirection]);
 
   const calculateNights = (checkIn, checkOut) => {
     if (!checkIn || !checkOut) return 0;
@@ -155,55 +118,43 @@ function QueriesTable({ queries, onDeleteQuery }) {
               className={styles.sortableHeader}
               onClick={() => handleSort('id')}
             >
-              ID {getSortIcon('id')}
+              ID
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('client')}
             >
-              Cliente {getSortIcon('client')}
+              Cliente
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('checkIn')}
             >
-              Check-in {getSortIcon('checkIn')}
+              Check-in
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('checkOut')}
             >
-              Check-out {getSortIcon('checkOut')}
+              Check-out
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('nights')}
             >
-              Noches {getSortIcon('nights')}
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('room')}
-            >
-              Habitación {getSortIcon('room')}
+              Noches
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('guests')}
             >
-              Huéspedes {getSortIcon('guests')}
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('type')}
-            >
-              Tipo {getSortIcon('type')}
+              Huéspedes
             </th>
             <th 
               className={styles.sortableHeader}
               onClick={() => handleSort('updatedAt')}
             >
-              Última Modificación {getSortIcon('updatedAt')}
+              Última Modificación
             </th>
             <th className={styles.actionHeader}>
               Acciones
@@ -233,14 +184,8 @@ function QueriesTable({ queries, onDeleteQuery }) {
               <td className={styles.nightsCell}>
                 {calculateNights(query.checkIn, query.checkOut)}
               </td>
-              <td className={styles.roomCell}>
-                {query.room ? query.room.name : 'No especificada'}
-              </td>
               <td className={styles.guestsCell}>
                 {query.requiredGuests || 1}
-              </td>
-              <td className={styles.typeCell}>
-                {getServiceTypeName(query.serviceType)}
               </td>
               <td className={styles.updatedAtCell}>
                 {query.updatedAt ? format(new Date(query.updatedAt), 'dd/MM/yyyy HH:mm') : 'Sin fecha'}

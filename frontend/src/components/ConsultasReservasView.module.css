@@ -117,16 +117,17 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 24px;
+  padding: 0; /* Sin padding para aprovechar más espacio */
+  overflow: hidden; /* Para el border-radius */
 }
 
 .section h2 {
-  margin: 0 0 24px 0;
+  margin: 0;
+  padding: 20px 24px;
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-text-dark);
   border-bottom: 2px solid var(--color-primary);
-  padding-bottom: 12px;
 }
 
 /* Estados de carga y error */
@@ -154,7 +155,11 @@
   }
   
   .section {
-    padding: 16px;
+    padding: 0;
+  }
+  
+  .section h2 {
+    padding: 16px 20px;
   }
   
   .sectionButton {
@@ -185,6 +190,7 @@
   
   .section h2 {
     font-size: 1.25rem;
+    padding: 16px 20px;
   }
   
   .statItem {

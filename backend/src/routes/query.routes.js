@@ -4,6 +4,8 @@ const {
   getAllQueries,
   getQueryById,
   createQuery,
+  createMultiSegmentQuery,
+  updateMultiSegmentQuery,
   updateQuery,
   deleteQuery,
   convertQueryToReservation,
@@ -18,6 +20,8 @@ router.get('/', getAllQueries);
 router.get('/client/:clientId', getQueryByClient);
 router.get('/:id', getQueryById);
 router.post('/', createQuery);
+router.post('/multi-segment', createMultiSegmentQuery);
+router.put('/multi-segment/:queryGroupId', updateMultiSegmentQuery);
 router.put('/:id', updateQuery);
 router.delete('/:id', deleteQuery);
 

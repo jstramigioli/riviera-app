@@ -65,7 +65,7 @@ model Room {
   status        String
   orderIndex    Int                @default(0)
   roomTypeId    Int
-  queries       Query[]            @relation("RoomQueries")
+  // queries eliminado - las consultas ya no guardan roomId
   segments      ReservationSegment[]
   roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
   gapPromotions RoomGapPromotion[]
@@ -147,6 +147,7 @@ model Client {
   esFicticio      Boolean       @default(false)
   reservations    Reservation[]
   queries         Query[]       @relation("ClientQueries")
+  queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
 }
 
 model Guest {
@@ -200,16 +201,29 @@ model Reservation {
   segments          ReservationSegment[]
 }
 
+model QueryGroup {
+  id           String   @id // El queryGroupId
+  mainClientId Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  mainClient   Client?  @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
+  // queries sin relación FK - se maneja manualmente
+}
+
 model Query {
   id                Int                    @id @default(autoincrement())
-  roomId            Int?
+  queryGroupId      String?                // Para agrupar consultas multi-segmento (sin FK constraint)
+  segmentIndex      Int?                   // Orden del segmento en el grupo
+  // roomId eliminado - las consultas solo guardan requerimientos, no resultados
   mainClientId      Int?
   checkIn           DateTime?
   checkOut          DateTime?
   totalAmount       Float?
   reservationType   String?                @default("con_desayuno")
   serviceType       String?                @default("base")
-  notes             String?
+  // notes eliminado - ahora está en QueryGroup a nivel global
   fixed             Boolean?               @default(false)
   requiredGuests    Int?
   requiredRoomId    Int?
@@ -219,8 +233,11 @@ model Query {
   updatedAt         DateTime               @updatedAt
   guests            QueryGuest[]
   mainClient        Client?                @relation("ClientQueries", fields: [mainClientId], references: [id])
-  room              Room?                  @relation("RoomQueries", fields: [roomId], references: [id])
+  // queryGroup sin relación FK por ahora - se maneja manualmente
+  // Relación 'room' eliminada porque ya no guardamos roomId
   nightRates        QueryNightRate[]
+  
+  @@index([queryGroupId])
 }
 
 model QueryGuest {
