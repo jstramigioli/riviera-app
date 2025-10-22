@@ -1,14 +1,14 @@
 {
-  "timestamp": "2025-10-08T00:22:52.077Z",
-  "backupDir": "/home/julian/repos/riviera prueba/riviera-app/backend/backups/2025-10-08T00-22-50-754Z",
+  "timestamp": "2025-10-21T20:22:26.462Z",
+  "backupDir": "/home/julian/repos/riviera prueba/riviera-app/backend/backups/2025-10-21T20-22-25-477Z",
   "counts": {
-    "clients": 1203,
+    "clients": 1205,
     "rooms": 38,
     "roomTypes": 9,
     "tags": 10,
     "seasonBlocks": 2,
     "reservations": 0,
-    "queries": 0,
+    "queries": 3,
     "hotel": 1,
     "dynamicPricing": 1,
     "openDays": 0,

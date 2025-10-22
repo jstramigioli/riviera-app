@@ -93,31 +93,22 @@
   text-decoration: underline;
 }
 
-.requirementsSection {
+.infoSection {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e9ecef;
 }
 
-.requirementsTitle {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
-  padding-bottom: 8px;
-}
-
-.requirementsTable {
+.infoTable {
   width: 100%;
   border-collapse: collapse;
 }
 
-.requirementsTable tbody tr {
+.infoTable tbody tr {
   border-bottom: 1px solid #f1f3f4;
 }
 
-.requirementsTable tbody tr:last-child {
+.infoTable tbody tr:last-child {
   border-bottom: none;
 }
 
@@ -223,7 +214,51 @@
   border-bottom: none;
 }
 
+.segmentsSection {
+  margin-top: 20px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
 
+.segmentDetail {
+  margin-left: 30px; /* Margen como tab en Word */
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-left: 3px solid #667eea;
+  border-radius: 4px;
+}
+
+.segmentDetail:last-child {
+  margin-bottom: 0;
+}
+
+.segmentTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #495057;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.segmentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.segmentInfo div {
+  line-height: 1.5;
+}
+
+.segmentInfo strong {
+  color: #495057;
+  margin-right: 6px;
+}
 
 .changeIndicator {
   margin-top: 12px;
@@ -241,15 +276,9 @@
 
 .totalSection {
   padding-top: 16px;
-}
-
-.totalTitle {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
-  padding-bottom: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .totalTable {
@@ -263,6 +292,66 @@
 
 .totalTable tbody tr:last-child {
   border-bottom: none;
+}
+
+.notesSection {
+  padding-top: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.notesTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.notesTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.notesTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.statusSection {
+  padding-top: 16px;
+}
+
+.statusTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.statusTable tbody tr {
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.statusTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.statusSelect {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #212529;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.statusSelect:hover {
+  border-color: #9ca3af;
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .footer {
@@ -365,5 +454,18 @@
 
   .roomName {
     font-size: 1.1rem;
+  }
+
+  .segmentDetail {
+    margin-left: 15px; /* Reducir margen en móvil */
+    padding: 10px;
+  }
+
+  .segmentTitle {
+    font-size: 0.9rem;
+  }
+
+  .segmentInfo {
+    font-size: 0.85rem;
   }
 } 

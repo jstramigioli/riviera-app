@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
@@ -237,6 +238,8 @@ export default function Consulta() {
   // Estado para el modal de confirmación
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
+  const [showPastDateWarning, setShowPastDateWarning] = useState(false);
+  const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
 
   // Estados para el modal de eliminación de segmentos
   const [showDeleteSegmentsModal, setShowDeleteSegmentsModal] = useState(false);
@@ -557,19 +560,24 @@ export default function Consulta() {
 
     try {
       // Preparar todos los segmentos para guardar (solo requerimientos, NO resultados como roomId)
-      const segmentsData = segments.map(segment => ({
-        checkIn: segment.checkIn ? new Date(segment.checkIn + 'T00:00:00') : null,
-        checkOut: segment.checkOut ? new Date(segment.checkOut + 'T00:00:00') : null,
-        requiredGuests: segment.requiredGuests || 1,
-        requiredRoomId: segment.requiredRoomId || null,
-        requiredTags: segment.requiredTags || [],
-        serviceType: segment.serviceType || '',
-        requirementsNotes: segment.requirementsNotes || '',
-        // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
-        totalAmount: segment.totalAmount || null,
-        reservationType: segment.reservationType || 'con_desayuno',
-        fixed: segment.fixed || false
-      }));
+      const segmentsData = segments.map(segment => {
+        console.log('🔍 Preparando segmento para guardar:', segment);
+        return {
+          checkIn: segment.checkIn || null, // Enviar como string, el backend lo convertirá a Date
+          checkOut: segment.checkOut || null, // Enviar como string, el backend lo convertirá a Date
+          requiredGuests: segment.requiredGuests || 1,
+          requiredRoomId: segment.requiredRoomId || null,
+          requiredTags: segment.requiredTags || [],
+          serviceType: segment.serviceType || '',
+          requirementsNotes: segment.requirementsNotes || '',
+          // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
+          totalAmount: segment.totalAmount || null,
+          reservationType: segment.reservationType || 'con_desayuno',
+          fixed: segment.fixed || false
+        };
+      });
+      
+      console.log('🔍 SegmentsData a enviar al backend:', segmentsData);
 
       const queryData = {
         mainClientId: clientId,
@@ -627,6 +635,18 @@ export default function Consulta() {
       setLoadingAllRooms(false);
     }
   }, []);
+
+  // Calcular la capacidad máxima de huéspedes basada en los tipos de habitación existentes
+  const maxGuestCapacity = React.useMemo(() => {
+    if (!allRooms || allRooms.length === 0) return 10; // Valor por defecto
+    
+    // Obtener la capacidad máxima de todos los tipos de habitación
+    const maxCapacity = Math.max(
+      ...allRooms.map(room => room.roomType?.maxPeople || room.maxPeople || 1)
+    );
+    
+    return maxCapacity;
+  }, [allRooms]);
 
   // Función para cargar las fechas por defecto
   const loadDefaultDates = useCallback(async () => {
@@ -1126,15 +1146,7 @@ export default function Consulta() {
   }, [loadClients, loadAllRooms, loadDefaultDates]);
 
   // NO sincronizamos roomId porque ya no lo guardamos en consultas
-  // El usuario deberá buscar habitaciones manualmente cuando cargue una consulta
-
-  // Buscar habitaciones disponibles cuando cambien las fechas, huéspedes o etiquetas
-  // COMENTADO: No debe ejecutarse automáticamente, solo al presionar el botón de búsqueda
-  // useEffect(() => {
-  //   if (formData.checkIn && formData.checkOut && requirements.requiredGuests) {
-  //     searchAvailableRooms();
-  //   }
-  // }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags]);
+  // Las habitaciones se buscarán automáticamente con debouncing cuando se cumplan las condiciones
 
   // COMENTADO: Sincronización automática que causaba que todos los segmentos tuvieran las mismas fechas
   // useEffect(() => {
@@ -1172,13 +1184,7 @@ export default function Consulta() {
       }));
     }
 
-    if (segments.length > 0 && segments[activeBlockIndex] && segments[activeBlockIndex].requiredGuests) {
-      setRequirements(prev => ({
-        ...prev,
-        requiredGuests: segments[activeBlockIndex].requiredGuests
-      }));
-    }
-  }, [segments, activeBlockIndex, location.state?.isEditing]);
+  }, [activeBlockIndex, location.state?.isEditing]);
 
   // Sincronizar segments con formData cuando estamos editando (sincronización bidireccional)
   // DESACTIVADO: Con múltiples segmentos, cada uno mantiene sus propias fechas independientes
@@ -1346,11 +1352,23 @@ export default function Consulta() {
     const blocksToReset = Object.keys(hasSearchedPerBlock).filter(index => hasSearchedPerBlock[index]);
     
     if (blocksToReset.length > 0) {
+      console.log('🔄 Reseteando búsqueda por cambio de huéspedes');
       setHasSearchedPerBlock({});
       setAvailableRoomsPerBlock({});
       setSelectedRoomsPerBlock({});
-      // También limpiar el ref de valores previos para que no haya inconsistencias
-      previousSegmentsRef.current = {};
+      
+      // Actualizar el ref para reflejar el nuevo valor de huéspedes sin perder otros datos
+      Object.keys(previousSegmentsRef.current).forEach(index => {
+        if (segments[index]) {
+          previousSegmentsRef.current[index] = {
+            checkIn: segments[index].checkIn,
+            checkOut: segments[index].checkOut,
+            requiredTags: JSON.stringify(segments[index].requiredTags),
+            requiredRoomId: segments[index].requiredRoomId,
+            serviceType: segments[index].serviceType
+          };
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requirements.requiredGuests]);
@@ -1594,6 +1612,55 @@ export default function Consulta() {
       }));
     }
   };
+
+  // Búsqueda automática de habitaciones con debouncing
+  useEffect(() => {
+    const activeSegment = segments[activeBlockIndex];
+    
+    // Validaciones: debe haber segmento activo y datos válidos
+    if (!activeSegment || !activeSegment.checkIn || !activeSegment.checkOut) {
+      console.log('⏭️ Saltando búsqueda automática: segmento sin fechas válidas');
+      return;
+    }
+    
+    // Validar que checkIn < checkOut
+    if (activeSegment.checkIn >= activeSegment.checkOut) {
+      console.log('⏭️ Saltando búsqueda automática: fechas inválidas');
+      return;
+    }
+    
+    // Validar que haya cantidad de huéspedes
+    if (!activeSegment.requiredGuests) {
+      console.log('⏭️ Saltando búsqueda automática: sin cantidad de huéspedes');
+      return;
+    }
+    
+    // Si ya se buscó para este bloque, no buscar de nuevo automáticamente
+    // (el usuario puede cambiar parámetros y buscar manualmente si quiere)
+    if (hasSearchedPerBlock[activeBlockIndex]) {
+      console.log('⏭️ Saltando búsqueda automática: ya se buscó para este bloque');
+      return;
+    }
+    
+    console.log('⏱️ Búsqueda automática programada en 600ms...');
+    
+    // Debounce: esperar 600ms después del último cambio (más rápido que guardado)
+    const timer = setTimeout(() => {
+      console.log('🔍 Ejecutando búsqueda automática de habitaciones...');
+      searchAvailableRooms();
+    }, 600);
+    
+    // Cleanup: cancelar el timer si hay un nuevo cambio antes de 600ms
+    return () => {
+      console.log('🔄 Cancelando búsqueda automática anterior (nuevo cambio detectado)');
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    segments, 
+    activeBlockIndex, 
+    hasSearchedPerBlock
+  ]);
 
 
 
@@ -2089,19 +2156,27 @@ export default function Consulta() {
   };
 
   const handleSegmentTagToggle = (segmentId, tagId) => {
-    setSegments(prev => prev.map(segment => {
-      if (segment.id === segmentId) {
-        const newTags = segment.requiredTags.includes(tagId)
-          ? segment.requiredTags.filter(id => id !== tagId)
-          : [...segment.requiredTags, tagId];
-        return { 
-          ...segment, 
-          requiredTags: newTags,
-          requiredRoomId: null // Reset habitación específica al cambiar etiquetas
-        };
-      }
-      return segment;
-    }));
+    console.log('🏷️ Toggle etiqueta:', { segmentId, tagId });
+    setSegments(prev => {
+      console.log('🏷️ Segments prev:', prev);
+      const updated = prev.map(segment => {
+        if (segment.id === segmentId) {
+          const newTags = segment.requiredTags.includes(tagId)
+            ? segment.requiredTags.filter(id => id !== tagId)
+            : [...segment.requiredTags, tagId];
+          console.log('🏷️ Tags anteriores:', segment.requiredTags);
+          console.log('🏷️ Tags nuevos:', newTags);
+          return { 
+            ...segment, 
+            requiredTags: newTags,
+            requiredRoomId: null // Reset habitación específica al cambiar etiquetas
+          };
+        }
+        return segment;
+      });
+      console.log('🏷️ Segments updated:', updated);
+      return updated;
+    });
   };
 
   const handleSegmentRoomChange = (segmentId, roomId) => {
@@ -2182,8 +2257,130 @@ export default function Consulta() {
 
 
 
+  // Función para copiar datos de la consulta al portapapeles
+  const handleCopyReservationData = async () => {
+    try {
+      const formatDate = (dateString) => {
+        if (!dateString) return 'No especificada';
+        const date = new Date(dateString);
+        return format(date, 'dd/MM/yyyy', { locale: es });
+      };
+
+      const getServiceTypeName = (serviceTypeId) => {
+        const service = serviceTypes.find(st => st.id === serviceTypeId);
+        return service ? service.name : 'No especificado';
+      };
+
+      const getRoomName = (index) => {
+        return selectedRoomsPerBlock[index]?.name || 'No seleccionada';
+      };
+
+      const getTotalAmount = (index) => {
+        return selectedRoomsPerBlock[index]?.ratesData?.totalAmount || 0;
+      };
+
+      // Formatear datos para copiar
+      let texto = '🏨 CONSULTA DE RESERVA\n';
+      texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+
+      // Cliente (si existe)
+      if (formData.mainClient.firstName || formData.mainClient.lastName) {
+        texto += '👤 CLIENTE\n';
+        texto += `${formData.mainClient.firstName || ''} ${formData.mainClient.lastName || ''}`.trim() + '\n';
+        if (formData.mainClient.email) texto += `📧 ${formData.mainClient.email}\n`;
+        if (formData.mainClient.phone) texto += `📱 ${formData.mainClient.phone}\n`;
+        texto += '\n';
+      }
+
+      // Información general
+      const firstCheckIn = segments[0]?.checkIn;
+      const lastCheckOut = segments[segments.length - 1]?.checkOut;
+      const totalNights = firstCheckIn && lastCheckOut 
+        ? Math.ceil((new Date(lastCheckOut) - new Date(firstCheckIn)) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      texto += '📅 ESTANCIA\n';
+      texto += `Check-in: ${formatDate(firstCheckIn)}\n`;
+      texto += `Check-out: ${formatDate(lastCheckOut)}\n`;
+      texto += `Noches: ${totalNights}\n`;
+      texto += `Huéspedes: ${segments[0]?.requiredGuests || 1}\n\n`;
+
+      // Segmentos
+      if (segments.length === 1) {
+        // Un solo segmento
+        texto += '🏨 HABITACIÓN\n';
+        texto += `${getRoomName(0)}\n`;
+        texto += `Servicio: ${getServiceTypeName(segments[0].serviceType)}\n`;
+        const total = getTotalAmount(0);
+        if (total > 0) {
+          texto += `Tarifa: $${total.toLocaleString('es-AR')}\n`;
+        }
+      } else {
+        // Múltiples segmentos
+        texto += '📦 SEGMENTOS DE ESTANCIA\n\n';
+        segments.forEach((segment, index) => {
+          texto += `  ${index + 1}. ${formatDate(segment.checkIn)} - ${formatDate(segment.checkOut)}\n`;
+          texto += `     Habitación: ${getRoomName(index)}\n`;
+          texto += `     Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
+          const total = getTotalAmount(index);
+          if (total > 0) {
+            texto += `     Tarifa: $${total.toLocaleString('es-AR')}\n`;
+          }
+          texto += '\n';
+        });
+      }
+
+      // Requerimientos especiales
+      const hasRequirements = segments.some(seg => 
+        (seg.requiredTags && seg.requiredTags.length > 0) || seg.requiredRoomId
+      );
+
+      if (hasRequirements) {
+        texto += '✨ REQUERIMIENTOS ESPECIALES\n';
+        segments.forEach((segment, index) => {
+          if (segment.requiredTags && segment.requiredTags.length > 0) {
+            const tagNames = segment.requiredTags
+              .map(tagId => tags.find(t => t.id === tagId)?.name)
+              .filter(Boolean)
+              .join(', ');
+            if (tagNames) {
+              texto += `${segments.length > 1 ? `Segmento ${index + 1}: ` : ''}${tagNames}\n`;
+            }
+          }
+        });
+        texto += '\n';
+      }
+
+      // Notas
+      if (notes && notes.trim()) {
+        texto += '📝 NOTAS\n';
+        texto += notes + '\n\n';
+      }
+
+      // Total general
+      const totalGeneral = Object.values(selectedRoomsPerBlock).reduce((sum, room) => 
+        sum + (room.ratesData?.totalAmount || 0), 0
+      );
+
+      if (totalGeneral > 0) {
+        texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+        texto += `💰 TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
+      }
+
+      // Copiar al portapapeles
+      await navigator.clipboard.writeText(texto);
+      
+      // Mostrar confirmación visual
+      alert('✅ Datos copiados al portapapeles');
+      
+    } catch (error) {
+      console.error('Error al copiar datos:', error);
+      alert('❌ Error al copiar datos al portapapeles');
+    }
+  };
+
   // Función para crear la reserva
-  const handleCreateReservation = async () => {
+  const handleCreateReservation = async (status = 'PENDIENTE', skipPastDateWarning = false) => {
     setIsCreatingReservation(true);
     
     try {
@@ -2204,6 +2401,25 @@ export default function Consulta() {
       for (let i = 0; i < segments.length; i++) {
         if (!selectedRoomsPerBlock[i]) {
           throw new Error(`Falta seleccionar habitación para el segmento ${i + 1}`);
+        }
+      }
+      
+      // Verificar si hay fechas pasadas y mostrar advertencia (solo si no se está saltando la advertencia)
+      if (!skipPastDateWarning) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const hasPastDates = segments.some(segment => {
+          const checkIn = new Date(segment.checkIn);
+          checkIn.setHours(0, 0, 0, 0);
+          return checkIn < today;
+        });
+        
+        if (hasPastDates) {
+          setPendingReservationStatus(status);
+          setShowPastDateWarning(true);
+          setIsCreatingReservation(false);
+          return; // Detener la ejecución para mostrar el modal
         }
       }
       
@@ -2247,18 +2463,58 @@ export default function Consulta() {
       // Preparar datos de la reserva
       const reservationData = {
         mainClientId: clientId,
-        segments: segments.map((segment, index) => ({
-          roomId: selectedRoomsPerBlock[index].id,
-          startDate: segment.checkIn, // El backend espera startDate
-          endDate: segment.checkOut,  // El backend espera endDate
-          requiredGuests: segment.requiredGuests,
-          serviceType: segment.serviceType,
-          requiredTags: segment.requiredTags || [],
-          requiredRoomId: segment.requiredRoomId,
-          baseRate: selectedRoomsPerBlock[index].ratesData?.totalAmount || selectedRoomsPerBlock[index].baseRate || 100,
-          guestCount: segment.requiredGuests
-        })),
-        status: 'pendiente',
+        segments: segments.map((segment, index) => {
+          // Validar serviceType
+          if (!segment.serviceType || segment.serviceType === '') {
+            throw new Error(`El segmento ${index + 1} no tiene un tipo de servicio seleccionado. Por favor, selecciona un tipo de servicio.`);
+          }
+          
+          // Validar fechas
+          if (!segment.checkIn || !segment.checkOut) {
+            throw new Error(`El segmento ${index + 1} no tiene fechas válidas.`);
+          }
+          
+          const checkIn = new Date(segment.checkIn);
+          const checkOut = new Date(segment.checkOut);
+          const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+          
+          if (nights <= 0) {
+            throw new Error(`El segmento ${index + 1} tiene fechas inválidas (check-out debe ser después de check-in).`);
+          }
+          
+          // Calcular baseRate - debe existir y ser válida
+          const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
+          const roomBaseRate = selectedRoomsPerBlock[index].baseRate;
+          
+          let baseRate = null;
+          if (totalAmount && totalAmount > 0) {
+            baseRate = totalAmount / nights;
+          } else if (roomBaseRate && roomBaseRate > 0) {
+            baseRate = roomBaseRate;
+          }
+          
+          if (!baseRate || baseRate <= 0) {
+            throw new Error(`No se pudo calcular la tarifa para el segmento ${index + 1}. La habitación debe tener una tarifa válida.`);
+          }
+          
+          // Validar requiredGuests
+          if (!segment.requiredGuests || segment.requiredGuests <= 0) {
+            throw new Error(`El segmento ${index + 1} debe tener al menos 1 huésped.`);
+          }
+          
+          return {
+            roomId: selectedRoomsPerBlock[index].id,
+            startDate: segment.checkIn,
+            endDate: segment.checkOut,
+            requiredGuests: segment.requiredGuests,
+            services: [segment.serviceType],
+            requiredTags: segment.requiredTags || [],
+            requiredRoomId: segment.requiredRoomId || null,
+            baseRate: baseRate,
+            guestCount: segment.requiredGuests
+          };
+        }),
+        status: status,
         notes: notes,
         isMultiRoom: false
       };
@@ -2274,10 +2530,16 @@ export default function Consulta() {
       console.log('Reserva creada:', newReservation);
       
       // Eliminar la consulta si existe (ya se convirtió en reserva)
-      if (currentQueryId) {
+      if (queryGroupIdRef.current) {
         try {
-          await deleteQuery(currentQueryId);
-          console.log('✅ Consulta eliminada después de crear reserva:', currentQueryId);
+          const response = await fetch(`http://localhost:3001/api/queries/multi-segment/${queryGroupIdRef.current}`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            console.log('✅ Consulta eliminada después de crear reserva:', queryGroupIdRef.current);
+            queryGroupIdRef.current = null;
+            setCurrentQueryId(null);
+          }
         } catch (deleteError) {
           console.error('Error al eliminar la consulta:', deleteError);
           // No mostrar error al usuario, la reserva ya se creó exitosamente
@@ -2369,27 +2631,27 @@ export default function Consulta() {
                     <div className={styles.newClientGrid}>
                       <input
                         type="text"
-                        value={formData.mainClient.firstName}
+                        value={formData.mainClient.firstName || ''}
                         onChange={(e) => handleClientInputChange('firstName', e.target.value)}
                         placeholder="Nombre"
                         required
                       />
                       <input
                         type="text"
-                        value={formData.mainClient.lastName}
+                        value={formData.mainClient.lastName || ''}
                         onChange={(e) => handleClientInputChange('lastName', e.target.value)}
                         placeholder="Apellido"
                         required
                       />
                       <input
                         type="email"
-                        value={formData.mainClient.email}
+                        value={formData.mainClient.email || ''}
                         onChange={(e) => handleClientInputChange('email', e.target.value)}
                         placeholder="Email"
                       />
                       <input
                         type="tel"
-                        value={formData.mainClient.phone}
+                        value={formData.mainClient.phone || ''}
                         onChange={(e) => handleClientInputChange('phone', e.target.value)}
                         placeholder="Teléfono"
                       />
@@ -2447,26 +2709,36 @@ export default function Consulta() {
             {/* Campo global de cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Huéspedes</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={requirements.requiredGuests}
+                <label>Cantidad de huéspedes</label>
+                <select
+                  value={requirements.requiredGuests || 1}
                   onChange={(e) => {
                     const newGuests = parseInt(e.target.value);
-                    // Actualizar el estado global
+                    console.log('👥 Cambiando huéspedes de', requirements.requiredGuests, 'a', newGuests);
+                    console.log('👥 Etiquetas actuales en requirements:', requirements.requiredTags);
+                    console.log('👥 Etiquetas en segments[0]:', segments[0]?.requiredTags);
+                    
+                    // Actualizar el estado global (preservando etiquetas)
                     setRequirements(prev => ({
                       ...prev,
                       requiredGuests: newGuests
                     }));
-                    // Actualizar todos los segmentos
+                    
+                    // Actualizar todos los segmentos (preservando sus etiquetas)
                     setSegments(prev => prev.map(segment => ({
                       ...segment,
                       requiredGuests: newGuests
                     })));
+                    
+                    console.log('👥 Después del cambio - requirements debe tener etiquetas');
                   }}
-                />
+                >
+                  {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
+                    <option key={num} value={num}>
+                      {num}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -2513,24 +2785,36 @@ export default function Consulta() {
             {/* Cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Huéspedes</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={requirements.requiredGuests}
+                <label>Cantidad de huéspedes</label>
+                <select
+                  value={requirements.requiredGuests || 1}
                   onChange={(e) => {
                     const newGuests = parseInt(e.target.value);
+                    console.log('👥 Cambiando huéspedes de', requirements.requiredGuests, 'a', newGuests);
+                    console.log('👥 Etiquetas actuales en requirements:', requirements.requiredTags);
+                    console.log('👥 Etiquetas en segments[0]:', segments[0]?.requiredTags);
+                    
+                    // Actualizar el estado global (preservando etiquetas)
                     setRequirements(prev => ({
                       ...prev,
                       requiredGuests: newGuests
                     }));
+                    
+                    // Actualizar todos los segmentos (preservando sus etiquetas)
                     setSegments(prev => prev.map(segment => ({
                       ...segment,
                       requiredGuests: newGuests
                     })));
+                    
+                    console.log('👥 Después del cambio - requirements debe tener etiquetas');
                   }}
-                />
+                >
+                  {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
+                    <option key={num} value={num}>
+                      {num}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -2662,6 +2946,7 @@ export default function Consulta() {
                 
                 {showSegments && (
                   <div className={styles.expandableContent}>
+                    <div className={styles.requirementsFlexContainer}>
                       {/* Habitación Específica */}
                       <div className={styles.formGroup}>
                         <label>Habitación Específica:</label>
@@ -2692,7 +2977,7 @@ export default function Consulta() {
                       </div>
 
                       {/* Requerimientos */}
-                      <div className={styles.formGroup}>
+                      <div className={styles.formGroup} style={{ flex: 2 }}>
                         <label style={{
                           opacity: segments[activeBlockIndex]?.requiredRoomId ? 0.5 : 1
                         }}>
@@ -2718,48 +3003,29 @@ export default function Consulta() {
                         </div>
                       </div>
                     </div>
+                  </div>
                   )}
                 </div>
 
-              {/* Botón de búsqueda - Solo mostrar si NO se ha buscado */}
-              {hasSearchedPerBlock[activeBlockIndex] !== true && (
-                <div className={styles.formGroup}>
-                  <button 
-                    type="button" 
-                    className={styles.searchButton}
-                    onClick={() => searchAvailableRooms()}
-                    disabled={!segments[activeBlockIndex]?.checkIn || !segments[activeBlockIndex]?.checkOut || isHotelClosed}
-                  >
-                    Buscar Habitaciones
-                  </button>
-                  
-                  {/* Mensaje cuando el hotel está cerrado */}
-                  {isHotelClosed && (
-                    <div className={styles.errorMessage} style={{ 
-                      marginTop: '10px', 
-                      padding: '12px', 
-                      backgroundColor: '#fee', 
-                      border: '1px solid #fcc', 
-                      borderRadius: '6px',
-                      color: '#c33'
-                    }}>
-                      ⚠️ El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
-                    </div>
-                  )}
+              {/* Mensaje cuando el hotel está cerrado */}
+              {isHotelClosed && (
+                <div className={styles.errorMessage} style={{ 
+                  marginTop: '10px', 
+                  padding: '12px', 
+                  backgroundColor: '#fee', 
+                  border: '1px solid #fcc', 
+                  borderRadius: '6px',
+                  color: '#c33'
+                }}>
+                  ⚠️ El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
                 </div>
               )}
             </div>
 
-            {/* Habitaciones Disponibles dentro de la pestaña - Solo mostrar si YA se buscó */}
+            {/* Habitaciones Disponibles - Se muestran cuando hay resultados de búsqueda */}
             {hasSearchedPerBlock[activeBlockIndex] === true && (
-              <div className={styles.roomsSection}>
-              <div className={styles.sectionHeader}>
-                <h3>Habitaciones Disponibles</h3>
-              </div>
-              
-              {/* Alerta si hay problemas con las tarifas */}
-              {/* Mensaje de precios no configurados eliminado - redundante con el mensaje principal */}
-              
+              <>
+              <h3 className={styles.roomsSectionTitle}>Habitaciones Disponibles</h3>
               
               {loadingRooms ? (
                 <div className={styles.loading}>
@@ -2799,26 +3065,50 @@ export default function Consulta() {
                 </div>
               ) : (
                 <div className={styles.roomsList}>
-                  {(availableRoomsPerBlock[activeBlockIndex] || [])
-                    .map((room) => {
-                      const compliance = checkRequirementsCompliance(room);
-                      return { room, compliance };
-                    })
-                    .sort((a, b) => {
+                  {(() => {
+                    const roomsWithCompliance = (availableRoomsPerBlock[activeBlockIndex] || [])
+                      .map((room) => {
+                        const compliance = checkRequirementsCompliance(room);
+                        const requiredGuests = segments[activeBlockIndex]?.requiredGuests || 1;
+                        const isExactCapacity = room.maxPeople === requiredGuests;
+                        return { room, compliance, isExactCapacity };
+                      });
+                    
+                    // Categorizar habitaciones según prioridades
+                    const category1 = roomsWithCompliance.filter(r => r.isExactCapacity && r.compliance.complies);
+                    const category2 = roomsWithCompliance.filter(r => r.isExactCapacity && !r.compliance.complies);
+                    const category3 = roomsWithCompliance.filter(r => !r.isExactCapacity && r.compliance.complies);
+                    const category4 = roomsWithCompliance.filter(r => !r.isExactCapacity && !r.compliance.complies);
+                    
+                    // Aplicar lógica de filtrado según prioridades
+                    let roomsToShow = [];
+                    
+                    if (category1.length > 0) {
+                      // Si existe categoría 1, solo mostrar esas
+                      roomsToShow = category1;
+                    } else if (category2.length > 0 || category3.length > 0) {
+                      // Si existe categoría 2 o 3, mostrar ambas (pero no 4)
+                      roomsToShow = [...category2, ...category3];
+                    } else {
+                      // Si no hay 1, 2 o 3, mostrar 4
+                      roomsToShow = category4;
+                    }
+                    
+                    // Ordenar: primero las que cumplen, luego por capacidad
+                    roomsToShow.sort((a, b) => {
                       // Primero las que cumplen completamente
                       if (a.compliance.complies && !b.compliance.complies) return -1;
                       if (!a.compliance.complies && b.compliance.complies) return 1;
                       
                       // Luego por capacidad exacta vs mayor capacidad
-                      const aExactCapacity = a.room.capacity === segments[activeBlockIndex]?.requiredGuests;
-                      const bExactCapacity = b.room.capacity === segments[activeBlockIndex]?.requiredGuests;
-                      
-                      if (aExactCapacity && !bExactCapacity) return -1;
-                      if (!aExactCapacity && bExactCapacity) return 1;
+                      if (a.isExactCapacity && !b.isExactCapacity) return -1;
+                      if (!a.isExactCapacity && b.isExactCapacity) return 1;
                       
                       return 0;
-                    })
-                    .map(({ room, compliance }) => {
+                    });
+                    
+                    return roomsToShow;
+                  })().map(({ room, compliance }) => {
                       const isSelected = selectedRoomsPerBlock[activeBlockIndex] && selectedRoomsPerBlock[activeBlockIndex].id === room.id;
                       const showDetails = showRoomDetails[room.id] || false;
                       
@@ -2918,117 +3208,38 @@ export default function Consulta() {
                     })}
                 </div>
               )}
-            </div>
+              </>
             )}
           </div>
         )}
       </div>
 
 
-      {/* 5. Resumen Global (sección fija abajo) */}
-      {/* Solo mostrar si TODOS los segmentos tienen habitación seleccionada */}
-      {segments.length > 0 && segments.every((_, index) => selectedRoomsPerBlock[index]) && (
-        <div className={styles.summarySection}>
-          <div className={styles.sectionHeader}>
-            <h2>Resumen</h2>
-          </div>
-          
-          <div className={styles.summaryContent}>
-            <div className={styles.summaryHeader}>
-              <div className={styles.summaryItem}>
-                <label>Cliente:</label>
-                <span>{formData.mainClient.firstName} {formData.mainClient.lastName}</span>
-              </div>
-            </div>
-            
-            <div className={styles.blocksSummary}>
-              {segments.map((block, index) => {
-                const selectedRoom = selectedRoomsPerBlock[index];
-                if (!selectedRoom) return null;
-                
-                // Obtener el nombre del tipo de servicio
-                const serviceTypeName = serviceTypes.find(st => st.id === block.serviceType)?.name || block.serviceType;
-                
-                return (
-                  <div key={block.id} className={styles.blockSummaryItem}>
-                    <h4 className={styles.blockSummaryTitle}>
-                      {block.checkIn && block.checkOut 
-                        ? `${format(new Date(block.checkIn + 'T00:00:00'), 'dd/MM/yyyy')} – ${format(new Date(block.checkOut + 'T00:00:00'), 'dd/MM/yyyy')}`
-                        : 'Sin fechas'
-                      }
-                    </h4>
-                    <div className={styles.blockSummaryDetails}>
-                      <div><strong>Habitación:</strong> {selectedRoom.name}</div>
-                      <div><strong>Tipo de servicio:</strong> {serviceTypeName}</div>
-                      <div><strong>Precio total:</strong> ${new Intl.NumberFormat('es-AR').format(selectedRoom.ratesData?.totalAmount || selectedRoom.baseRate || 0)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              <div className={styles.totalSection}>
-                <div className={styles.totalSeparator}></div>
-                <div className={styles.summaryItem}>
-                  <label>Total:</label>
-                  <span className={styles.totalAmount}>
-                    ${new Intl.NumberFormat('es-AR').format(
-                      Object.values(selectedRoomsPerBlock).reduce((total, room) => total + (room.ratesData?.totalAmount || room.baseRate || 0), 0)
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <div className={styles.summaryActions}>
-              {formData.mainClient.firstName && formData.mainClient.lastName && (
-                <button 
-                  type="button" 
-                  className={styles.confirmButton}
-                  onClick={() => setShowConfirmationModal(true)}
-                  disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
-                >
-                  ✅ Confirmar Reserva
-                </button>
-              )}
-              <button 
-                type="button" 
-                className={styles.copyButton}
-                onClick={() => {
-                  // Generar texto del resumen
-                  let summaryText = `📋 RESUMEN DE CONSULTA\n\n`;
-                  summaryText += `👤 Cliente: ${formData.mainClient.firstName} ${formData.mainClient.lastName}\n\n`;
-                  
-                  segments.forEach((block, index) => {
-                    const selectedRoom = selectedRoomsPerBlock[index];
-                    if (selectedRoom) {
-                      const serviceTypeName = serviceTypes.find(st => st.id === block.serviceType)?.name || block.serviceType;
-                      const checkInDate = block.checkIn ? format(new Date(block.checkIn + 'T00:00:00'), 'dd/MM/yyyy') : '';
-                      const checkOutDate = block.checkOut ? format(new Date(block.checkOut + 'T00:00:00'), 'dd/MM/yyyy') : '';
-                      
-                      summaryText += `📅 ${checkInDate} – ${checkOutDate}\n`;
-                      summaryText += `🏠 Habitación: ${selectedRoom.name}\n`;
-                      summaryText += `🍽️ Tipo de servicio: ${serviceTypeName}\n`;
-                      summaryText += `💰 Precio: $${new Intl.NumberFormat('es-AR').format(selectedRoom.ratesData?.totalAmount || selectedRoom.baseRate || 0)}\n\n`;
-                    }
-                  });
-                  
-                  const total = Object.values(selectedRoomsPerBlock).reduce((total, room) => total + (room.ratesData?.totalAmount || room.baseRate || 0), 0);
-                  summaryText += `━━━━━━━━━━━━━━━━━━━━\n`;
-                  summaryText += `💵 TOTAL: $${new Intl.NumberFormat('es-AR').format(total)}`;
-                  
-                  // Copiar al portapapeles
-                  navigator.clipboard.writeText(summaryText).then(() => {
-                    alert('✅ Datos copiados al portapapeles');
-                  }).catch(err => {
-                    console.error('Error al copiar:', err);
-                    alert('❌ Error al copiar al portapapeles');
-                  });
-                }}
-              >
-                📋 Copiar datos de consulta
-              </button>
-            </div>
-          </div>
+      {/* Botones de acción */}
+      {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (
+        <div className={styles.createReservationButtonContainer}>
+          {/* Botón de copiar datos - Siempre visible si hay segmentos con fechas */}
+          <button 
+            type="button" 
+            className={styles.copyButton}
+            onClick={handleCopyReservationData}
+            title="Copiar datos de la consulta al portapapeles"
+          >
+            📋 Copiar Datos
+          </button>
+
+          {/* Botón de crear reserva - Solo si hay cliente */}
+          {formData.mainClient.firstName && formData.mainClient.lastName && (
+            <button 
+              type="button" 
+              className={styles.confirmButton}
+              onClick={() => setShowConfirmationModal(true)}
+              disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
+              title={!segments.every((_, index) => selectedRoomsPerBlock[index]) ? 'Selecciona una habitación para cada segmento' : 'Crear la reserva'}
+            >
+              ✅ Crear Reserva
+            </button>
+          )}
         </div>
       )}
 
@@ -3040,12 +3251,87 @@ export default function Consulta() {
         reservationData={{
           mainClient: formData.mainClient,
           selectedRoomsPerBlock: selectedRoomsPerBlock,
+          selectedRoom: selectedRoomsPerBlock[activeBlockIndex],
           segments: segments,
           dailyRates: dailyRates,
-          tags: tags
+          tags: tags,
+          allRooms: allRooms,
+          notes: notes
         }}
         isLoading={isCreatingReservation}
       />
+
+      {/* Modal de advertencia de fecha pasada */}
+      {showPastDateWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '32px' }}>⚠️</div>
+              <h2 style={{ margin: 0, color: '#dc2626' }}>Advertencia: Fecha Pasada</h2>
+            </div>
+            <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '16px' }}>
+              La reserva que estás creando incluye fechas anteriores a hoy. Esto normalmente indica un error.
+            </p>
+            <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '24px' }}>
+              ¿Estás seguro de que quieres continuar y crear esta reserva con fechas pasadas?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowPastDateWarning(false);
+                  setIsCreatingReservation(false);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  background: '#f3f4f6',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowPastDateWarning(false);
+                  handleCreateReservation(pendingReservationStatus, true); // skipPastDateWarning = true
+                }}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: '#dc2626',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Sí, Crear Reserva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <LoadExistingQueryModal
         isOpen={showLoadQueryModal}

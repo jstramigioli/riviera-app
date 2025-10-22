@@ -227,7 +227,7 @@ model Query {
   fixed             Boolean?               @default(false)
   requiredGuests    Int?
   requiredRoomId    Int?
-  requiredTags      String[]
+  requiredTags      Int[]
   requirementsNotes String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
@@ -523,6 +523,10 @@ model ReservationSegment {
   
   // Ocupación
   guestCount        Int         // Número de huéspedes (obligatorio)
+  
+  // Requerimientos
+  requiredTags      Int[]       @default([]) // Etiquetas/tags requeridos para este segmento
+  requiredRoomId    Int?        // Habitación específica requerida (opcional)
   
   // Metadatos
   reason            String?     // Razón del cambio (mantenimiento, disponibilidad, etc.)

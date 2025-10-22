@@ -81,9 +81,8 @@ async function validateReservationSegments(segments, excludeReservationId = null
       errors.push(`Fecha de inicio debe ser anterior a fecha de fin en segmento de habitación ${segment.roomId}`);
     }
     
-    if (startDate < new Date()) {
-      errors.push(`No se pueden crear reservas en fechas pasadas`);
-    }
+    // No validar fechas pasadas - el frontend mostrará advertencia pero permitirá crear
+    // Esto es útil para casos de error donde se necesita crear una reserva que ya inició
   }
   
   // Verificar que los campos obligatorios estén presentes

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,33 @@ const ReservationConfirmationModal = ({
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [reservationStatus, setReservationStatus] = useState('PENDIENTE');
+  
+  // Determinar estados de reserva disponibles según la fecha de check-in (memoizado)
+  const reservationStatuses = useMemo(() => {
+    const statuses = [
+      { value: 'PENDIENTE', label: 'Pendiente' },
+      { value: 'CONFIRMADA', label: 'Confirmada' }
+    ];
+    
+    // Solo permitir "Ingresada" si el check-in es hoy o anterior
+    if (reservationData?.segments && reservationData.segments.length > 0) {
+      const firstCheckIn = reservationData.segments[0].checkIn;
+      if (firstCheckIn) {
+        const checkInDate = new Date(firstCheckIn);
+        const today = new Date();
+        // Normalizar fechas a medianoche para comparar solo días
+        checkInDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        
+        if (checkInDate <= today) {
+          statuses.push({ value: 'INGRESADA', label: 'Ingresada' });
+        }
+      }
+    }
+    
+    return statuses;
+  }, [reservationData]);
   
   // Cargar tipos de servicio
   useEffect(() => {
@@ -29,6 +56,14 @@ const ReservationConfirmationModal = ({
     };
     loadServiceTypes();
   }, []);
+
+  // Verificar que el estado seleccionado sea válido cuando cambien las opciones disponibles
+  useEffect(() => {
+    const availableValues = reservationStatuses.map(s => s.value);
+    if (!availableValues.includes(reservationStatus)) {
+      setReservationStatus('PENDIENTE');
+    }
+  }, [reservationData, reservationStatus, reservationStatuses]);
   
   if (!isOpen) return null;
 
@@ -45,8 +80,17 @@ const ReservationConfirmationModal = ({
 
   const getServiceTypeLabel = (serviceTypeId) => {
     if (!serviceTypeId) return 'No especificado';
+    
+    // Buscar por ID
     const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-    return serviceType ? serviceType.name : serviceTypeId;
+    
+    // Si no se encuentra, mostrar error visible para detectar problemas
+    if (!serviceType) {
+      console.error('⚠️ ServiceType no encontrado:', serviceTypeId, 'Available:', serviceTypes);
+      return `⚠️ Servicio inválido (ID: ${serviceTypeId})`;
+    }
+    
+    return serviceType.name;
   };
 
   const getChangeDescription = (currentSegment, nextSegment) => {
@@ -73,7 +117,7 @@ const ReservationConfirmationModal = ({
   };
 
   const handleConfirm = () => {
-    onConfirm();
+    onConfirm(reservationStatus);
   };
 
   const handleCancel = () => {
@@ -96,11 +140,10 @@ const ReservationConfirmationModal = ({
             </span>
           </div>
 
-          {/* Información de Huéspedes y Servicio */}
+          {/* Información General */}
           {reservationData?.segments && reservationData.segments.length > 0 && (
-            <div className={styles.requirementsSection}>
-              <h3 className={styles.requirementsTitle}>Requerimientos</h3>
-              <table className={styles.requirementsTable}>
+            <div className={styles.infoSection}>
+              <table className={styles.infoTable}>
                 <tbody>
                   <tr>
                     <td className={styles.tableLabel}>Huéspedes:</td>
@@ -114,13 +157,123 @@ const ReservationConfirmationModal = ({
                       {getServiceTypeLabel(reservationData.segments[0].serviceType)}
                     </td>
                   </tr>
+                  {reservationData?.selectedRoom && (
+                    <tr>
+                      <td className={styles.tableLabel}>Habitación asignada:</td>
+                      <td className={styles.tableValue}>
+                        {reservationData.selectedRoom.name}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Fechas globales de estancia */}
+          {reservationData?.segments && reservationData.segments.length > 0 && (
+            <div className={styles.staySection}>
+              <table className={styles.stayTable}>
+                <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Etiquetas:</td>
+                    <td className={styles.tableLabel}>Check-in:</td>
+                    <td className={styles.tableValue}>{formatDate(reservationData.segments[0].checkIn)}</td>
+                  </tr>
+                  <tr>
+                    <td className={styles.tableLabel}>Check-out:</td>
+                    <td className={styles.tableValue}>{formatDate(reservationData.segments[reservationData.segments.length - 1].checkOut)}</td>
+                  </tr>
+                  <tr>
+                    <td className={styles.tableLabel}>Noches:</td>
                     <td className={styles.tableValue}>
-                      {reservationData.segments[0].requiredGuests && reservationData.segments[0].requiredTags && reservationData.segments[0].requiredTags.length > 0 ? (
+                      {(() => {
+                        const firstCheckIn = new Date(reservationData.segments[0].checkIn);
+                        const lastCheckOut = new Date(reservationData.segments[reservationData.segments.length - 1].checkOut);
+                        return Math.ceil((lastCheckOut - firstCheckIn) / (1000 * 60 * 60 * 24));
+                      })()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Segmentos detallados (si hay múltiples) */}
+          {reservationData?.segments && reservationData.segments.length > 1 && (
+            <div className={styles.segmentsSection}>
+              {reservationData.segments.map((segment, index) => {
+                const selectedRoom = reservationData.selectedRoomsPerBlock?.[index];
+                const serviceTypeName = getServiceTypeLabel(segment.serviceType);
+                const requiredRoom = segment.requiredRoomId 
+                  ? reservationData.allRooms?.find(r => r.id === segment.requiredRoomId)
+                  : null;
+                
+                return (
+                  <div key={segment.id} className={styles.segmentDetail}>
+                    <div className={styles.segmentTitle}>
+                      {formatDate(segment.checkIn)} – {formatDate(segment.checkOut)}
+                    </div>
+                    <div className={styles.segmentInfo}>
+                      <div><strong>Servicio:</strong> {serviceTypeName}</div>
+                      <div><strong>Habitación:</strong> {selectedRoom?.name || 'No especificada'}</div>
+                      
+                      {requiredRoom && (
+                        <div><strong>Habitación requerida:</strong> {requiredRoom.name}</div>
+                      )}
+                      
+                      {segment.requiredTags && segment.requiredTags.length > 0 && (
+                        <div>
+                          <strong>Requerimientos especiales:</strong>
+                          <div className={styles.tagsContainer} style={{ marginTop: '4px' }}>
+                            {segment.requiredTags.map(tagId => {
+                              const tag = reservationData.tags?.find(t => t.id === tagId);
+                              return tag ? (
+                                <span key={tagId} className={styles.tag}>
+                                  {tag.name}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Habitación y requerimientos (solo si es segmento único) */}
+          {reservationData?.segments && reservationData.segments.length === 1 && (
+            <div className={styles.roomSection}>
+              <table className={styles.roomTable}>
+                <tbody>
+                  {reservationData?.selectedRoom && (
+                    <>
+                      <tr>
+                        <td className={styles.tableLabel}>Tipo de habitación:</td>
+                        <td className={styles.tableValue}>{reservationData.selectedRoom.roomType?.name}</td>
+                      </tr>
+                      <tr>
+                        <td className={styles.tableLabel}>Capacidad:</td>
+                        <td className={styles.tableValue}>{reservationData.selectedRoom.maxPeople} personas</td>
+                      </tr>
+                    </>
+                  )}
+                  {reservationData.segments[0].requiredRoomId && (
+                    <tr>
+                      <td className={styles.tableLabel}>Habitación requerida:</td>
+                      <td className={styles.tableValue}>
+                        {reservationData.allRooms?.find(r => r.id === reservationData.segments[0].requiredRoomId)?.name || 'No especificada'}
+                      </td>
+                    </tr>
+                  )}
+                  {reservationData.segments[0].requiredTags && reservationData.segments[0].requiredTags.length > 0 && (
+                    <tr>
+                      <td className={styles.tableLabel}>Requerimientos especiales:</td>
+                      <td className={styles.tableValue}>
                         <div className={styles.tagsContainer}>
                           {reservationData.segments[0].requiredTags.map(tagId => {
-                            // Buscar el nombre de la etiqueta por ID
                             const tag = reservationData.tags?.find(t => t.id === tagId);
                             return tag ? (
                               <span key={tagId} className={styles.tag}>
@@ -129,70 +282,9 @@ const ReservationConfirmationModal = ({
                             ) : null;
                           })}
                         </div>
-                      ) : (
-                        <span className={styles.noTags}>Sin etiquetas requeridas</span>
-                      )}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Estancia */}
-          {reservationData?.segments && reservationData.segments.length > 0 && (
-            <div className={styles.staySection}>
-              <h3 className={styles.stayTitle}>Estancia</h3>
-              {reservationData.segments.map((segment, index) => (
-                <div key={segment.id} className={styles.stayPeriod}>
-                  <table className={styles.stayTable}>
-                    <tbody>
-                      <tr>
-                        <td className={styles.tableLabel}>Check-in:</td>
-                        <td className={styles.tableValue}>{formatDate(segment.checkIn)}</td>
-                      </tr>
-                      <tr>
-                        <td className={styles.tableLabel}>Check-out:</td>
-                        <td className={styles.tableValue}>{formatDate(segment.checkOut)}</td>
-                      </tr>
-                      <tr>
-                        <td className={styles.tableLabel}>Noches:</td>
-                        <td className={styles.tableValue}>
-                          {Math.ceil((new Date(segment.checkOut) - new Date(segment.checkIn)) / (1000 * 60 * 60 * 24))}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  
-                  {/* Mostrar cambio entre segmentos si hay más de uno */}
-                  {index < reservationData.segments.length - 1 && (
-                    <div className={styles.changeIndicator}>
-                      {getChangeDescription(reservationData.segments[index], reservationData.segments[index + 1])}
-                    </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Habitación */}
-          {reservationData?.selectedRoom && (
-            <div className={styles.roomSection}>
-              <h3 className={styles.roomTitle}>Habitación</h3>
-              <table className={styles.roomTable}>
-                <tbody>
-                  <tr>
-                    <td className={styles.tableLabel}>Nombre:</td>
-                    <td className={styles.tableValue}>{reservationData.selectedRoom.name}</td>
-                  </tr>
-                  <tr>
-                    <td className={styles.tableLabel}>Tipo:</td>
-                    <td className={styles.tableValue}>{reservationData.selectedRoom.roomType?.name}</td>
-                  </tr>
-                  <tr>
-                    <td className={styles.tableLabel}>Capacidad:</td>
-                    <td className={styles.tableValue}>{reservationData.selectedRoom.maxPeople} personas</td>
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -201,11 +293,10 @@ const ReservationConfirmationModal = ({
           {/* Total */}
           {reservationData?.dailyRates && reservationData.dailyRates.length > 0 && (
             <div className={styles.totalSection}>
-              <h3 className={styles.totalTitle}>Tarifa Total</h3>
               <table className={styles.totalTable}>
                 <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Monto:</td>
+                    <td className={styles.tableLabel}>Monto total:</td>
                     <td className={styles.tableValue}>
                       ${reservationData.dailyRates.reduce((sum, rate) => 
                         sum + (rate.price || 0), 0).toLocaleString('es-AR')}
@@ -215,6 +306,46 @@ const ReservationConfirmationModal = ({
               </table>
             </div>
           )}
+
+          {/* Notas */}
+          {reservationData?.notes && reservationData.notes.trim() !== '' && (
+            <div className={styles.notesSection}>
+              <table className={styles.notesTable}>
+                <tbody>
+                  <tr>
+                    <td className={styles.tableLabel}>Notas:</td>
+                    <td className={styles.tableValue}>
+                      {reservationData.notes}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Estado de la reserva */}
+          <div className={styles.statusSection}>
+            <table className={styles.statusTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Estado inicial:</td>
+                  <td className={styles.tableValue}>
+                    <select 
+                      value={reservationStatus} 
+                      onChange={(e) => setReservationStatus(e.target.value)}
+                      className={styles.statusSelect}
+                    >
+                      {reservationStatuses.map(status => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         
         <div className={styles.footer}>
@@ -230,7 +361,7 @@ const ReservationConfirmationModal = ({
             className={styles.confirmButton}
             disabled={isLoading}
           >
-            {isLoading ? 'Creando...' : 'Confirmar Reserva'}
+            {isLoading ? 'Creando...' : 'Crear Reserva'}
           </button>
         </div>
       </div>

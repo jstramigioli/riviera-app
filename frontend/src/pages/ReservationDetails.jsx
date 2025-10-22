@@ -27,6 +27,7 @@ const ReservationDetails = () => {
   const [sidePanelOpen, setSidePanelOpen] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [tags, setTags] = useState([]);
 
   useEffect(() => {
     const loadReservationData = async () => {
@@ -34,10 +35,11 @@ const ReservationDetails = () => {
         setLoading(true);
         
         // Cargar datos necesarios
-        const [reservationsData, roomsData, serviceTypesResponse] = await Promise.all([
+        const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
+          fetch('http://localhost:3001/api/tags').then(res => res.json())
         ]);
         
         // Buscar la reserva específica
@@ -53,6 +55,7 @@ const ReservationDetails = () => {
         setEditData(foundReservation);
         setRooms(roomsData);
         setServiceTypes(serviceTypesResponse.data || []);
+        setTags(tagsResponse || []);
         
         // Cargar detalles de precios si están disponibles
         try {
@@ -87,8 +90,17 @@ const ReservationDetails = () => {
 
   const getServiceTypeLabel = (serviceTypeId) => {
     if (!serviceTypeId) return 'No especificado';
+    
+    // Buscar por ID
     const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-    return serviceType ? serviceType.name : serviceTypeId;
+    
+    // Si no se encuentra, mostrar error visible para detectar problemas
+    if (!serviceType) {
+      console.error('⚠️ ServiceType no encontrado:', serviceTypeId, 'Available:', serviceTypes);
+      return `⚠️ Servicio inválido (ID: ${serviceTypeId})`;
+    }
+    
+    return serviceType.name;
   };
 
   const handleBackClick = () => {
@@ -328,164 +340,209 @@ const ReservationDetails = () => {
       <div className={styles.mainContent}>
         {/* Contenido principal */}
         <div className={styles.mainContentBody}>
-          {/* Sección de Información General */}
-          <div className={styles.section}>
-            <h2>Información General</h2>
-            
-            {/* Información del cliente */}
-            <div className={styles.infoCard}>
-              <h3>Cliente Principal</h3>
-              <div className={styles.infoGrid}>
-                <div className={styles.infoItem} onClick={handleClientClick} style={{ cursor: reservation.mainClient?.id ? 'pointer' : 'default' }}>
-                  <span className={styles.label}>Nombre:</span>
-                  <span className={styles.value}>
-                    {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
-                  </span>
-                </div>
-                {reservation.mainClient?.email && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Email:</span>
-                    <span className={styles.value}>{reservation.mainClient.email}</span>
-                  </div>
-                )}
-                {reservation.mainClient?.phone && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Teléfono:</span>
-                    <span className={styles.value}>{reservation.mainClient.phone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Cliente */}
+          <div className={styles.clientSection}>
+            <span className={styles.clientName} onClick={handleClientClick} style={{ cursor: reservation.mainClient?.id ? 'pointer' : 'default' }}>
+              {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
+            </span>
+          </div>
 
-            {/* Fechas de estancia */}
-            <div className={styles.infoCard}>
-              <h3>Fechas de Estancia</h3>
-              <div className={styles.infoGrid}>
+          {/* Información General */}
+          <div className={styles.infoSection}>
+            <table className={styles.infoTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Huéspedes:</td>
+                  <td className={styles.tableValue}>
+                    {reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1} persona{(reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={styles.tableLabel}>Servicio:</td>
+                  <td className={styles.tableValue}>
+                    {getServiceTypeLabel(reservation.segments?.[0]?.services?.[0] || reservation.reservationType)}
+                  </td>
+                </tr>
+                {reservation.room && (
+                  <>
+                    <tr>
+                      <td className={styles.tableLabel}>Habitación asignada:</td>
+                      <td className={styles.tableValue} onClick={() => navigate(`/rooms/${reservation.room.id}`)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+                        {reservation.room.name}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Tipo de habitación:</td>
+                      <td className={styles.tableValue}>{reservation.room.roomType?.name || 'No especificado'}</td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Capacidad:</td>
+                      <td className={styles.tableValue}>{reservation.room.maxPeople} personas</td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Fechas de estancia */}
+          <div className={styles.staySection}>
+            <table className={styles.stayTable}>
+              <tbody>
                 {isEditing ? (
                   <>
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Fecha de Entrada:</span>
-                      <input
-                        type="date"
-                        value={editData?.checkIn ? format(new Date(editData.checkIn), 'yyyy-MM-dd') : ''}
-                        onChange={(e) => handleEditChange('checkIn', e.target.value)}
-                        className={styles.editInput}
-                      />
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Fecha de Salida:</span>
-                      <input
-                        type="date"
-                        value={editData?.checkOut ? format(new Date(editData.checkOut), 'yyyy-MM-dd') : ''}
-                        onChange={(e) => handleEditChange('checkOut', e.target.value)}
-                        className={styles.editInput}
-                      />
-                    </div>
+                    <tr>
+                      <td className={styles.tableLabel}>Fecha de Entrada:</td>
+                      <td className={styles.tableValue}>
+                        <input
+                          type="date"
+                          value={editData?.checkIn ? format(new Date(editData.checkIn), 'yyyy-MM-dd') : ''}
+                          onChange={(e) => handleEditChange('checkIn', e.target.value)}
+                          className={styles.editInput}
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Fecha de Salida:</td>
+                      <td className={styles.tableValue}>
+                        <input
+                          type="date"
+                          value={editData?.checkOut ? format(new Date(editData.checkOut), 'yyyy-MM-dd') : ''}
+                          onChange={(e) => handleEditChange('checkOut', e.target.value)}
+                          className={styles.editInput}
+                        />
+                      </td>
+                    </tr>
                   </>
                 ) : (
                   <>
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Check-in:</span>
-                      <span className={styles.value}>{formatDate(reservation.checkIn)}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Check-out:</span>
-                      <span className={styles.value}>{formatDate(reservation.checkOut)}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Noches:</span>
-                      <span className={styles.value}>
+                    <tr>
+                      <td className={styles.tableLabel}>Check-in:</td>
+                      <td className={styles.tableValue}>{formatDate(reservation.checkIn)}</td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Check-out:</td>
+                      <td className={styles.tableValue}>{formatDate(reservation.checkOut)}</td>
+                    </tr>
+                    <tr>
+                      <td className={styles.tableLabel}>Noches:</td>
+                      <td className={styles.tableValue}>
                         {Math.ceil((new Date(reservation.checkOut) - new Date(reservation.checkIn)) / (1000 * 60 * 60 * 24))}
-                      </span>
-                    </div>
+                      </td>
+                    </tr>
                   </>
                 )}
-              </div>
-            </div>
-
-            {/* Requerimientos */}
-            {reservation.segments && reservation.segments.length > 0 && (
-              <div className={styles.infoCard}>
-                <h3>Requerimientos</h3>
-                <div className={styles.infoGrid}>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Huéspedes:</span>
-                    <span className={styles.value}>
-                      {reservation.segments[0].guestCount || reservation.requiredGuests || 1} persona{(reservation.segments[0].guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className={styles.infoItem}>
-                    <span className={styles.label}>Servicio:</span>
-                    <span className={styles.value}>
-                      {getServiceTypeLabel(reservation.segments[0].services?.[0] || reservation.reservationType || 'con_desayuno')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Habitación asignada */}
-            {reservation.room && (
-              <div className={styles.infoCard}>
-                <h3>Habitación Asignada</h3>
-                <div className={styles.infoGrid}>
-                  {isEditing ? (
-                    <div className={styles.infoItem}>
-                      <span className={styles.label}>Cambiar Habitación:</span>
-                      <select
-                        value={editData?.roomId || reservation.roomId}
-                        onChange={(e) => handleEditChange('roomId', parseInt(e.target.value))}
-                        className={styles.editSelect}
-                      >
-                        {rooms.map(room => (
-                          <option key={room.id} value={room.id}>
-                            {room.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <>
-                      <div className={styles.infoItem} onClick={() => navigate(`/rooms/${reservation.room.id}`)} style={{ cursor: 'pointer' }}>
-                        <span className={styles.label}>Habitación:</span>
-                        <span className={styles.value}>{reservation.room.name}</span>
-                      </div>
-                      <div className={styles.infoItem}>
-                        <span className={styles.label}>Tipo:</span>
-                        <span className={styles.value}>{reservation.room.roomType?.name}</span>
-                      </div>
-                      <div className={styles.infoItem}>
-                        <span className={styles.label}>Capacidad:</span>
-                        <span className={styles.value}>{reservation.room.maxPeople} personas</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Notas */}
-            {reservation.notes && (
-              <div className={styles.infoCard}>
-                <h3>Notas</h3>
-                <div className={styles.notesContent}>
-                  {reservation.notes}
-                </div>
-              </div>
-            )}
-
-            {/* Botón de guardar cuando está editando */}
-            {isEditing && (
-              <div className={styles.saveSection}>
-                <button 
-                  onClick={handleEditSave}
-                  className={styles.saveButton}
-                >
-                  <FaSave /> Guardar Cambios
-                </button>
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
+
+          {/* Segmentos detallados (si hay múltiples) */}
+          {reservation.segments && reservation.segments.length > 1 && (
+            <div className={styles.segmentsSection}>
+              {reservation.segments.map((segment, index) => {
+                const serviceTypeName = getServiceTypeLabel(segment.services?.[0]);
+                const requiredRoom = segment.requiredRoomId 
+                  ? rooms.find(r => r.id === segment.requiredRoomId)
+                  : null;
+                
+                return (
+                  <div key={segment.id || index} className={styles.segmentDetail}>
+                    <div className={styles.segmentTitle}>
+                      {formatDate(segment.startDate)} – {formatDate(segment.endDate)}
+                    </div>
+                    <div className={styles.segmentInfo}>
+                      <div><strong>Servicio:</strong> {serviceTypeName}</div>
+                      <div><strong>Habitación:</strong> {segment.room?.name || reservation.room?.name || 'No especificada'}</div>
+                      
+                      {requiredRoom && (
+                        <div><strong>Habitación requerida:</strong> {requiredRoom.name}</div>
+                      )}
+                      
+                      {segment.requiredTags && segment.requiredTags.length > 0 && (
+                        <div>
+                          <strong>Requerimientos especiales:</strong>
+                          <div className={styles.tagsContainer} style={{ marginTop: '4px' }}>
+                            {segment.requiredTags.map(tagId => {
+                              const tag = tags.find(t => t.id === tagId);
+                              return tag ? (
+                                <span key={tagId} className={styles.tag}>
+                                  {tag.name}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Requerimientos (solo si es segmento único y tiene requerimientos) */}
+          {reservation.segments && reservation.segments.length === 1 && 
+           (reservation.segments[0].requiredRoomId || (reservation.segments[0].requiredTags && reservation.segments[0].requiredTags.length > 0)) && (
+            <div className={styles.infoSection}>
+              <table className={styles.infoTable}>
+                <tbody>
+                  {reservation.segments[0].requiredRoomId && (
+                    <tr>
+                      <td className={styles.tableLabel}>Habitación requerida:</td>
+                      <td className={styles.tableValue}>
+                        {rooms.find(r => r.id === reservation.segments[0].requiredRoomId)?.name || 'No especificada'}
+                      </td>
+                    </tr>
+                  )}
+                  {reservation.segments[0].requiredTags && reservation.segments[0].requiredTags.length > 0 && (
+                    <tr>
+                      <td className={styles.tableLabel}>Requerimientos especiales:</td>
+                      <td className={styles.tableValue}>
+                        <div className={styles.tagsContainer}>
+                          {reservation.segments[0].requiredTags.map(tagId => {
+                            const tag = tags.find(t => t.id === tagId);
+                            return tag ? (
+                              <span key={tagId} className={styles.tag}>
+                                {tag.name}
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Notas */}
+          {reservation.notes && reservation.notes.trim() !== '' && (
+            <div className={styles.notesSection}>
+              <table className={styles.notesTable}>
+                <tbody>
+                  <tr>
+                    <td className={styles.tableLabel}>Notas:</td>
+                    <td className={styles.tableValue}>
+                      {reservation.notes}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Botón de guardar cuando está editando */}
+          {isEditing && (
+            <div className={styles.saveSection}>
+              <button 
+                onClick={handleEditSave}
+                className={styles.saveButton}
+              >
+                <FaSave /> Guardar Cambios
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer del main content */}

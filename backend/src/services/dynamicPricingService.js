@@ -133,9 +133,9 @@ class DynamicPricingService {
       eventImpact = 0.5
     } = params;
 
-    console.log('=== DEBUG calculateExpectedOccupancyScore (DEPRECATED) ===');
-    console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
-    console.log('Valores por defecto:', { weatherScore, eventImpact });
+    // console.log('=== DEBUG calculateExpectedOccupancyScore (DEPRECATED) ===');
+    // console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
+    // console.log('Valores por defecto:', { weatherScore, eventImpact });
 
     // Obtener configuración de precios dinámicos
     const config = await this.prisma.dynamicPricingConfig.findUnique({
@@ -147,20 +147,20 @@ class DynamicPricingService {
       return 0.5; // Valor por defecto
     }
 
-    console.log('Configuración encontrada:', {
-      anticipationMode: config.anticipationMode,
-      anticipationMaxDays: config.anticipationMaxDays,
-      anticipationWeight: config.anticipationWeight
-    });
+    // console.log('Configuración encontrada:', {
+    //   anticipationMode: config.anticipationMode,
+    //   anticipationMaxDays: config.anticipationMaxDays,
+    //   anticipationWeight: config.anticipationWeight
+    // });
 
     // Factor de anticipación (más lejos de la fecha = mayor impacto)
-    const anticipationFactor = this.calculateAnticipationFactor(daysUntilDate, config);
+    const anticipationFactor = await this.calculateAnticipationFactor(daysUntilDate, config);
     
-    console.log('Factor de anticipación calculado:', anticipationFactor);
+    // console.log('Factor de anticipación calculado:', anticipationFactor);
     
     // Si el factor de anticipación es 0 (ya pasó la fecha), retornar 0
     if (anticipationFactor === 0) {
-      console.log('Factor de anticipación es 0, retornando 0');
+      // console.log('Factor de anticipación es 0, retornando 0');
       return 0;
     }
     
@@ -177,23 +177,23 @@ class DynamicPricingService {
     const isLongWeekendOrHoliday = await this.isLongWeekendOrHoliday(date, hotelId);
     const holidayFactor = isLongWeekendOrHoliday ? 1 : 0;
 
-    console.log('Factores calculados:', {
-      anticipationFactor,
-      occupancyFactor,
-      weekendFactor,
-      holidayFactor,
-      weatherScore,
-      eventImpact
-    });
+    // console.log('Factores calculados:', {
+    //   anticipationFactor,
+    //   occupancyFactor,
+    //   weekendFactor,
+    //   holidayFactor,
+    //   weatherScore,
+    //   eventImpact
+    // });
 
-    console.log('Pesos de configuración:', {
-      anticipationWeight: config.anticipationWeight,
-      globalOccupancyWeight: config.globalOccupancyWeight,
-      isWeekendWeight: config.isWeekendWeight,
-      isHolidayWeight: config.isHolidayWeight,
-      weatherScoreWeight: config.weatherScoreWeight,
-      eventImpactWeight: config.eventImpactWeight
-    });
+    // console.log('Pesos de configuración:', {
+    //   anticipationWeight: config.anticipationWeight,
+    //   globalOccupancyWeight: config.globalOccupancyWeight,
+    //   isWeekendWeight: config.isWeekendWeight,
+    //   isHolidayWeight: config.isHolidayWeight,
+    //   weatherScoreWeight: config.weatherScoreWeight,
+    //   eventImpactWeight: config.eventImpactWeight
+    // });
 
     // Cálculo del score ponderado
     const score = (
@@ -205,9 +205,9 @@ class DynamicPricingService {
       eventImpact * config.eventImpactWeight
     );
 
-    console.log('Score calculado:', score);
-    console.log('Score normalizado:', Math.max(0, Math.min(1, score)));
-    console.log('=== FIN DEBUG ===\n');
+    // console.log('Score calculado:', score);
+    // console.log('Score normalizado:', Math.max(0, Math.min(1, score)));
+    // console.log('=== FIN DEBUG ===\n');
 
     // Normalizar entre 0 y 1
     return Math.max(0, Math.min(1, score));
@@ -230,8 +230,8 @@ class DynamicPricingService {
       eventImpact = 0.5
     } = params;
 
-    console.log('=== DEBUG calculateIndividualAdjustmentPercentages ===');
-    console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
+    // console.log('=== DEBUG calculateIndividualAdjustmentPercentages ===');
+    // console.log('Params recibidos:', { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday });
 
     // Obtener configuración de precios dinámicos
     const config = await this.prisma.dynamicPricingConfig.findUnique({
@@ -249,14 +249,14 @@ class DynamicPricingService {
       };
     }
 
-    console.log('Configuración encontrada:', {
-      standardRate: config.standardRate,
-      idealOccupancy: config.idealOccupancy,
-      occupancyAdjustmentPercentage: config.occupancyAdjustmentPercentage,
-      anticipationAdjustmentPercentage: config.anticipationAdjustmentPercentage,
-      weekendAdjustmentPercentage: config.weekendAdjustmentPercentage,
-      holidayAdjustmentPercentage: config.holidayAdjustmentPercentage
-    });
+    // console.log('Configuración encontrada:', {
+    //   standardRate: config.standardRate,
+    //   idealOccupancy: config.idealOccupancy,
+    //   occupancyAdjustmentPercentage: config.occupancyAdjustmentPercentage,
+    //   anticipationAdjustmentPercentage: config.anticipationAdjustmentPercentage,
+    //   weekendAdjustmentPercentage: config.weekendAdjustmentPercentage,
+    //   holidayAdjustmentPercentage: config.holidayAdjustmentPercentage
+    // });
 
     // 1. Cálculo del ajuste por ocupación
     const occupancyAdjustment = this.calculateOccupancyAdjustment(
@@ -290,15 +290,15 @@ class DynamicPricingService {
     // 5. Cálculo del ajuste total
     const totalAdjustment = occupancyAdjustment + anticipationAdjustment + weekendAdjustment + holidayAdjustment;
 
-    console.log('Ajustes calculados:', {
-      occupancyAdjustment,
-      anticipationAdjustment,
-      weekendAdjustment,
-      holidayAdjustment,
-      totalAdjustment
-    });
+    // console.log('Ajustes calculados:', {
+    //   occupancyAdjustment,
+    //   anticipationAdjustment,
+    //   weekendAdjustment,
+    //   holidayAdjustment,
+    //   totalAdjustment
+    // });
 
-    console.log('=== FIN DEBUG calculateIndividualAdjustmentPercentages ===\n');
+    // console.log('=== FIN DEBUG calculateIndividualAdjustmentPercentages ===\n');
 
     return {
       occupancyAdjustment,
@@ -322,13 +322,13 @@ class DynamicPricingService {
     // Aplicar el porcentaje máximo de ajuste
     const adjustment = delta * (maxAdjustmentPercentage / 100);
     
-    console.log('Cálculo ocupación:', {
-      occupancyPercent,
-      idealOccupancy,
-      delta,
-      maxAdjustmentPercentage,
-      adjustment
-    });
+    // console.log('Cálculo ocupación:', {
+    //   occupancyPercent,
+    //   idealOccupancy,
+    //   delta,
+    //   maxAdjustmentPercentage,
+    //   adjustment
+    // });
     
     return adjustment;
   }
@@ -346,11 +346,11 @@ class DynamicPricingService {
     // Convertirlo a un ajuste que puede ser positivo o negativo
     const adjustment = (factor - 0.5) * 2 * (maxAdjustmentPercentage / 100);
     
-    console.log('Cálculo anticipación:', {
-      anticipationFactor: factor,
-      maxAdjustmentPercentage,
-      adjustment
-    });
+    // console.log('Cálculo anticipación:', {
+    //   anticipationFactor: factor,
+    //   maxAdjustmentPercentage,
+    //   adjustment
+    // });
     
     return adjustment;
   }
@@ -362,11 +362,11 @@ class DynamicPricingService {
     // Si es fin de semana, aplicar el ajuste máximo positivo
     const adjustment = isWeekend ? (maxAdjustmentPercentage / 100) : 0;
     
-    console.log('Cálculo fin de semana:', {
-      isWeekend,
-      maxAdjustmentPercentage,
-      adjustment
-    });
+    // console.log('Cálculo fin de semana:', {
+    //   isWeekend,
+    //   maxAdjustmentPercentage,
+    //   adjustment
+    // });
     
     return adjustment;
   }
@@ -378,11 +378,11 @@ class DynamicPricingService {
     // Si es feriado, aplicar el ajuste máximo positivo
     const adjustment = isHoliday ? (maxAdjustmentPercentage / 100) : 0;
     
-    console.log('Cálculo feriado:', {
-      isHoliday,
-      maxAdjustmentPercentage,
-      adjustment
-    });
+    // console.log('Cálculo feriado:', {
+    //   isHoliday,
+    //   maxAdjustmentPercentage,
+    //   adjustment
+    // });
     
     return adjustment;
   }
@@ -397,40 +397,40 @@ class DynamicPricingService {
     // Los límites se pueden aplicar en el frontend si es necesario
     const finalPrice = basePrice * (1 + totalAdjustment);
     
-    console.log('Aplicando ajuste dinámico:', {
-      basePrice,
-      totalAdjustment,
-      finalPrice
-    });
+    // console.log('Aplicando ajuste dinámico:', {
+    //   basePrice,
+    //   totalAdjustment,
+    //   finalPrice
+    // });
     
     return finalPrice;
   }
 
   async calculateAnticipationFactor(daysUntilDate, config) {
-    console.log('=== DEBUG calculateAnticipationFactor ===');
-    console.log('daysUntilDate:', daysUntilDate);
-    console.log('config:', config);
+    // console.log('=== DEBUG calculateAnticipationFactor ===');
+    // console.log('daysUntilDate:', daysUntilDate);
+    // console.log('config:', config);
     
     // Si no hay configuración, usar valor por defecto
     if (!config) {
-      console.log('No hay configuración, retornando 0.5');
+      // console.log('No hay configuración, retornando 0.5');
       return 0.5;
     }
     
     const mode = config.anticipationMode || 'ESCALONADO';
-    console.log('Modo de anticipación:', mode);
+    // console.log('Modo de anticipación:', mode);
     
     let result;
     if (mode === 'CONTINUO') {
       result = this.calculateContinuousAnticipation(daysUntilDate, config.anticipationMaxDays);
-      console.log('Resultado modo continuo:', result);
+      // console.log('Resultado modo continuo:', result);
     } else {
       result = this.calculateSteppedAnticipation(daysUntilDate, config.anticipationSteps);
-      console.log('Resultado modo escalonado:', result);
+      // console.log('Resultado modo escalonado:', result);
     }
     
-    console.log('Factor de anticipación final:', result);
-    console.log('=== FIN DEBUG calculateAnticipationFactor ===\n');
+    // console.log('Factor de anticipación final:', result);
+    // console.log('=== FIN DEBUG calculateAnticipationFactor ===\n');
     return result;
   }
 

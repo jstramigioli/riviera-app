@@ -38,8 +38,7 @@ async function createBackup() {
       include: {
         tags: true,
         roomType: true,
-        segments: true,
-        queries: true
+        segments: true
       }
     });
     
@@ -116,14 +115,13 @@ async function createBackup() {
 
     // 7. Backup de CONSULTAS
     console.log('❓ Respaldando consultas...');
-    const queries = await prisma.query.findMany({
-      include: {
-        guests: true,
-        mainClient: true,
-        room: true,
-        nightRates: true
-      }
-    });
+  const queries = await prisma.query.findMany({
+    include: {
+      guests: true,
+      mainClient: true,
+      nightRates: true
+    }
+  });
     
     fs.writeFileSync(
       path.join(backupDir, 'queries.json'),

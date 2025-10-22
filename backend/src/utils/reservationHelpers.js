@@ -28,6 +28,12 @@ function getReservationData(reservation) {
   // Obtener datos del primer segmento activo (como referencia)
   const firstSegment = activeSegments[0];
   
+  // Construir el objeto room completo con roomType
+  const roomData = firstSegment.room ? {
+    ...firstSegment.room,
+    roomType: firstSegment.roomType || firstSegment.room.roomType
+  } : null;
+  
   return {
     id: reservation.id,
     mainClientId: reservation.mainClientId,
@@ -40,10 +46,11 @@ function getReservationData(reservation) {
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
+    // requiredTags eliminado - ahora es por segmento
     
     // Datos del primer segmento (como referencia)
     roomId: firstSegment.roomId,
-    reservationType: firstSegment.services[0] || 'con_desayuno',
+    reservationType: firstSegment.services[0], // Sin fallback - debe ser un ID válido de ServiceType
     requiredGuests: firstSegment.guestCount,
     
     // Datos calculados
@@ -56,8 +63,8 @@ function getReservationData(reservation) {
     segments: activeSegments,
     childReservations: reservation.childReservations,
     
-    // Incluir la información de la habitación desde el primer segmento
-    room: firstSegment.room
+    // Incluir la información de la habitación desde el primer segmento con roomType
+    room: roomData
   };
 }
 
@@ -164,6 +171,14 @@ async function createReservationWithSegments(reservationData) {
   // Crear todos los segmentos
   const createdSegments = [];
   for (const segmentData of segments) {
+    console.log('🔍 Procesando segmento:', JSON.stringify(segmentData, null, 2));
+    
+    // Validar que services sea un array con al menos un elemento
+    if (!segmentData.services || !Array.isArray(segmentData.services) || segmentData.services.length === 0) {
+      console.error('❌ Services inválido:', segmentData.services);
+      throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
+    }
+    
     const segment = await prisma.reservationSegment.create({
       data: {
         reservationId: reservation.id,
@@ -171,9 +186,11 @@ async function createReservationWithSegments(reservationData) {
         endDate: new Date(segmentData.endDate),
         roomId: parseInt(segmentData.roomId),
         roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
-        services: segmentData.services || ['con_desayuno'],
+        services: segmentData.services, // Sin fallback - debe venir del frontend
         baseRate: parseFloat(segmentData.baseRate),
         guestCount: parseInt(segmentData.guestCount),
+        requiredTags: segmentData.requiredTags || [],
+        requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
         reason: segmentData.reason || 'Segmento de reserva',
         notes: segmentData.notes || 'Segmento creado automáticamente',
         isActive: true

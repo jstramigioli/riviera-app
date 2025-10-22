@@ -165,7 +165,7 @@ const createQuery = async (req, res) => {
         fixed,
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
-        requiredTags,
+        requiredTags: requiredTags || [],
         requirementsNotes,
         guests: {
           create: guests.map(guest => ({
@@ -301,6 +301,9 @@ const updateMultiSegmentQuery = async (req, res) => {
       notes
     } = req.body;
 
+    // console.log('📝 updateMultiSegmentQuery - Params:', { queryGroupId, mainClientId, segmentCount: segments.length });
+    // console.log('📝 Segments recibidos:', JSON.stringify(segments, null, 2));
+
     if (!queryGroupId) {
       return res.status(400).json({ error: 'queryGroupId es requerido' });
     }
@@ -356,6 +359,8 @@ const updateMultiSegmentQuery = async (req, res) => {
       const segment = segments[i];
       const existingQuery = existingQueries[i];
       
+      // console.log(`📝 Procesando segmento ${i}:`, segment);
+      
       const queryData = {
         queryGroupId,
         segmentIndex: i,
@@ -374,14 +379,20 @@ const updateMultiSegmentQuery = async (req, res) => {
         requirementsNotes: segment.requirementsNotes || null
       };
       
+      // console.log(`📝 QueryData preparado para segmento ${i}:`, queryData);
+      
       let query;
       
       if (existingQuery) {
         // Actualizar query existente
+        // console.log(`📝 Actualizando query existente ID: ${existingQuery.id}`);
+        
         // Primero eliminar huéspedes antiguos
         await prisma.queryGuest.deleteMany({
           where: { queryId: existingQuery.id }
         });
+        
+        // console.log(`📝 Datos para actualizar:`, JSON.stringify(queryData, null, 2));
         
         // Actualizar la query
         query = await prisma.query.update({
@@ -412,8 +423,12 @@ const updateMultiSegmentQuery = async (req, res) => {
             nightRates: true
           }
         });
+        // console.log(`✅ Query ${existingQuery.id} actualizada exitosamente`);
       } else {
         // Crear nueva query si no existe
+        // console.log(`📝 Creando nueva query para segmento ${i}`);
+        // console.log(`📝 Datos para crear:`, JSON.stringify(queryData, null, 2));
+        
         query = await prisma.query.create({
           data: {
             ...queryData,
@@ -441,6 +456,7 @@ const updateMultiSegmentQuery = async (req, res) => {
             nightRates: true
           }
         });
+        // console.log(`✅ Query creada exitosamente con ID: ${query.id}`);
       }
       
       updatedQueries.push(query);
@@ -463,8 +479,10 @@ const updateMultiSegmentQuery = async (req, res) => {
       segmentCount: updatedQueries.length
     });
   } catch (error) {
-    console.error('Error al actualizar consulta multi-segmento:', error);
-    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+    console.error('❌ Error al actualizar consulta multi-segmento:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error message:', error.message);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message, stack: error.stack });
   }
 };
 
@@ -503,7 +521,7 @@ const updateQuery = async (req, res) => {
         fixed,
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
-        requiredTags,
+        requiredTags: requiredTags || [],
         requirementsNotes
       },
       include: {

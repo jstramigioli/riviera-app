@@ -130,8 +130,15 @@ const validateMultiSegmentReservation = (req, res, next) => {
       if (!segment.requiredGuests || segment.requiredGuests < 1) {
         errors.push(`Segmento ${index + 1}: El número de huéspedes debe ser al menos 1`);
       }
-      if (!segment.serviceType) {
-        errors.push(`Segmento ${index + 1}: El tipo de servicio es requerido`);
+      // Validar services (array de IDs) en lugar de serviceType (singular)
+      if (!segment.services || !Array.isArray(segment.services) || segment.services.length === 0) {
+        errors.push(`Segmento ${index + 1}: Debe especificar al menos un tipo de servicio (services como array de IDs)`);
+      }
+      if (!segment.baseRate || segment.baseRate <= 0) {
+        errors.push(`Segmento ${index + 1}: La tarifa base debe ser mayor a 0`);
+      }
+      if (!segment.guestCount || segment.guestCount < 1) {
+        errors.push(`Segmento ${index + 1}: El número de huéspedes (guestCount) debe ser al menos 1`);
       }
     });
   }

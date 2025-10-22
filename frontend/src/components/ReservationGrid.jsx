@@ -5,7 +5,7 @@ import ReservationBar from './ReservationBar';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
 
-import { createReservation, createClient, getDetailedOccupancyScore } from '../services/api';
+import { getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
 
@@ -56,19 +56,11 @@ function groupDaysByMonth(days) {
 }
 
 export default function ReservationGrid({ rooms, reservations, setReservations, updateReservation, onReservationClick, operationalPeriods = [] }) {
-  const today = new Date();
-  // Normalizar la fecha de inicio a medianoche en zona horaria local
-  const normalizedStartDate = new Date(addDays(today, -30));
-  normalizedStartDate.setHours(0, 0, 0, 0);
-  
-  const [startDate, setStartDate] = useState(normalizedStartDate);
-  // Normalizar la fecha de fin a medianoche en zona horaria local
-  const normalizedEndDate = new Date(addDays(today, 30));
-  normalizedEndDate.setHours(0, 0, 0, 0);
-  
-  const [endDate, setEndDate] = useState(normalizedEndDate);
-  const [days, setDays] = useState(getDaysArray(normalizedStartDate, normalizedEndDate));
-  const [months, setMonths] = useState(groupDaysByMonth(getDaysArray(normalizedStartDate, normalizedEndDate)));
+  // No inicializar con valores por defecto, sino con null para forzar cálculo inicial
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [days, setDays] = useState([]);
+  const [months, setMonths] = useState([]);
   const [cellWidth, setCellWidth] = useState(50); // Ancho inicial, se ajustará dinámicamente
   const [cellHeight, setCellHeight] = useState(30); // Alto inicial, se ajustará dinámicamente
   const [dragPreview, setDragPreview] = useState(null);
@@ -416,91 +408,189 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
   }
 
-  // Función para centrar la grilla en el día de hoy
-  function centerOnToday() {
-    if (containerRef.current) {
-      const todayIndex = days.findIndex(day => 
-        format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-      );
-      if (todayIndex !== -1) {
-        const scrollPosition = (todayIndex * cellWidth) - (containerRef.current.clientWidth / 2) + (cellWidth / 2);
-        containerRef.current.scrollLeft = Math.max(0, scrollPosition);
-      }
-    }
-  }
 
   // Función para posicionar la grilla en una fecha específica con 2/3 futuros y 1/3 pasados
-  function centerOnDate(targetDate) {
+  function centerOnDate(targetDate, daysArray = null) {
     if (containerRef.current) {
-      const targetIndex = days.findIndex(day => 
-        format(day, 'yyyy-MM-dd') === format(targetDate, 'yyyy-MM-dd')
+      // Usar el array proporcionado o el del state
+      const daysToUse = daysArray || days;
+      
+      const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+      console.log('📍 centerOnDate - Buscando fecha:', targetDateStr);
+      console.log('📍 Total días en array:', daysToUse.length);
+      console.log('📍 Primer día:', format(daysToUse[0], 'yyyy-MM-dd'));
+      console.log('📍 Último día:', format(daysToUse[daysToUse.length - 1], 'yyyy-MM-dd'));
+      
+      const targetIndex = daysToUse.findIndex(day => 
+        format(day, 'yyyy-MM-dd') === targetDateStr
       );
+      
+      console.log('📍 Índice encontrado:', targetIndex);
+      
       if (targetIndex !== -1) {
         // Calcular la posición para mostrar 2/3 futuros y 1/3 pasados
-        // En lugar de centrar exactamente, posicionamos para que la fecha objetivo
-        // esté a 1/3 del ancho del contenedor desde la izquierda
+        // La fecha objetivo debe estar a 1/3 del ancho del contenedor desde la izquierda
         const containerWidth = containerRef.current.clientWidth;
-        const targetPosition = (targetIndex * cellWidth) + (cellWidth / 2);
-        const desiredScrollPosition = targetPosition - (containerWidth / 3);
         
-        containerRef.current.scrollLeft = Math.max(0, desiredScrollPosition);
+        // Posición en píxeles del inicio de la celda objetivo (borde izquierdo)
+        const targetCellLeftEdge = targetIndex * cellWidth;
+        
+        // Para que la celda objetivo aparezca a 1/3 desde la izquierda:
+        // scrollLeft debe ser: posición de la celda - (1/3 del contenedor)
+        const desiredScrollPosition = targetCellLeftEdge - (containerWidth / 3);
+        
+        console.log('📍 Container width:', containerWidth);
+        console.log('📍 Cell width:', cellWidth);
+        console.log('📍 Target index:', targetIndex);
+        console.log('📍 Target cell left edge (px):', targetCellLeftEdge);
+        console.log('📍 1/3 del container:', containerWidth / 3);
+        console.log('📍 Desired scroll position:', desiredScrollPosition);
+        console.log('📍 Aplicando scroll a:', Math.max(0, desiredScrollPosition));
+        
+        const finalScroll = Math.max(0, desiredScrollPosition);
+        containerRef.current.scrollLeft = finalScroll;
+        
+        console.log('✅ Scroll aplicado. Verificar: la celda del día', targetDateStr, 'debería estar a', containerWidth / 3, 'px desde el borde izquierdo visible');
+      } else {
+        console.log('⚠️ Fecha objetivo no encontrada en el array de días');
       }
     }
   }
 
   // Función para determinar la fecha de centrado automático
-  function getAutoCenterDate() {
+  async function getAutoCenterDate() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    console.log('🎯 getAutoCenterDate - Hoy:', format(today, 'yyyy-MM-dd'));
+    console.log('🎯 Total reservas:', reservations.length);
 
     // Verificar si hay reservas actuales (que incluyen el día de hoy)
     const currentReservations = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      const checkOut = new Date(reservation.checkOut);
-      checkIn.setHours(0, 0, 0, 0);
-      checkOut.setHours(0, 0, 0, 0);
+      // Normalizar fechas a medianoche en zona local
+      const checkInStr = reservation.checkIn.split('T')[0];
+      const checkOutStr = reservation.checkOut.split('T')[0];
+      const checkIn = new Date(checkInStr + 'T00:00:00');
+      const checkOut = new Date(checkOutStr + 'T00:00:00');
       
       // Una reserva es actual si el día de hoy está entre checkIn y checkOut (inclusive)
       return checkIn <= today && today < checkOut;
     });
 
+    console.log('🎯 Reservas actuales (incluyen hoy):', currentReservations.length);
+
     // Si hay reservas actuales, centrar en el día de hoy
     if (currentReservations.length > 0) {
+      console.log('✅ Centrando en HOY (hay reservas actuales)');
       return today;
     }
 
     // Si no hay reservas actuales, buscar la primera reserva futura
     const futureReservations = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      checkIn.setHours(0, 0, 0, 0);
+      const checkInStr = reservation.checkIn.split('T')[0];
+      const checkIn = new Date(checkInStr + 'T00:00:00');
       return checkIn > today;
     });
 
+    console.log('🎯 Reservas futuras:', futureReservations.length);
+
     if (futureReservations.length > 0) {
       // Ordenar por fecha de check-in y tomar la primera
-      const sortedFutureReservations = futureReservations.sort((a, b) => 
-        new Date(a.checkIn) - new Date(b.checkIn)
-      );
+      const sortedFutureReservations = futureReservations.sort((a, b) => {
+        const aCheckIn = new Date(a.checkIn.split('T')[0] + 'T00:00:00');
+        const bCheckIn = new Date(b.checkIn.split('T')[0] + 'T00:00:00');
+        return aCheckIn - bCheckIn;
+      });
       const firstFutureReservation = sortedFutureReservations[0];
-      const firstCheckIn = new Date(firstFutureReservation.checkIn);
-      firstCheckIn.setHours(0, 0, 0, 0);
+      const checkInStr = firstFutureReservation.checkIn.split('T')[0];
+      const firstCheckIn = new Date(checkInStr + 'T00:00:00');
+      console.log('✅ Centrando en primera reserva futura:', format(firstCheckIn, 'yyyy-MM-dd'));
       return firstCheckIn;
     }
 
-    // Si no hay reservas futuras, centrar en el día de hoy por defecto
+    // Si no hay reservas futuras, buscar el primer bloque de temporada activo futuro
+    try {
+      const response = await fetch('http://localhost:3001/api/season-blocks?hotelId=default-hotel');
+      if (response.ok) {
+        const data = await response.json();
+        const seasonBlocks = data.data || [];
+        
+        // Buscar bloques activos (no draft) que empiecen hoy o en el futuro
+        const futureBlocks = seasonBlocks
+          .filter(block => {
+            if (block.isDraft) return false;
+            const blockStart = new Date(block.startDate.split('T')[0]);
+            blockStart.setHours(0, 0, 0, 0);
+            return blockStart >= today;
+          })
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        
+        if (futureBlocks.length > 0) {
+          const firstBlock = futureBlocks[0];
+          const blockStartDate = new Date(firstBlock.startDate.split('T')[0]);
+          blockStartDate.setHours(0, 0, 0, 0);
+          console.log('✅ Centrando en primer bloque de temporada futuro:', firstBlock.name, format(blockStartDate, 'yyyy-MM-dd'));
+          return blockStartDate;
+        }
+      }
+    } catch (error) {
+      console.error('Error obteniendo bloques de temporada:', error);
+    }
+
+    // Si no hay bloques de temporada, centrar en el día de hoy
+    console.log('✅ Centrando en HOY (sin reservas ni bloques futuros)');
     return today;
   }
 
-  // Posicionar la grilla después de que se carguen los datos (2/3 futuros, 1/3 pasados)
+  // Calcular e inicializar el rango de días basado en la fecha objetivo ANTES de renderizar
   useEffect(() => {
-    if (rooms.length > 0 && reservations.length > 0 && containerRef.current && isInitialLoad) {
+    // Solo ejecutar si aún no se han calculado los días
+    if (days.length === 0 && rooms.length > 0) {
+      console.log('🎯 Primera carga: calculando rango óptimo de días...');
+      
+      const initializeGridRange = async () => {
+        const targetDate = await getAutoCenterDate();
+        console.log('🎯 Fecha objetivo calculada:', format(targetDate, 'yyyy-MM-dd'));
+        
+        // Calcular rango óptimo basado en la fecha objetivo
+        const newStartDate = new Date(addDays(targetDate, -30));
+        newStartDate.setHours(0, 0, 0, 0);
+        const newEndDate = new Date(addDays(targetDate, 90)); // Más días hacia adelante
+        newEndDate.setHours(0, 0, 0, 0);
+        
+        console.log('📅 Rango calculado:', format(newStartDate, 'yyyy-MM-dd'), 'a', format(newEndDate, 'yyyy-MM-dd'));
+        
+        // Calcular el array de días
+        const newDays = getDaysArray(newStartDate, newEndDate);
+        console.log('📅 Array de días calculado, longitud:', newDays.length);
+        
+        // Calcular el índice de la fecha objetivo en el nuevo array
+        const targetIndex = newDays.findIndex(day => 
+          format(day, 'yyyy-MM-dd') === format(targetDate, 'yyyy-MM-dd')
+        );
+        
+        console.log('📅 Índice de la fecha objetivo en el nuevo array:', targetIndex);
+        
+        // Actualizar todos los estados de una vez
+        setStartDate(newStartDate);
+        setEndDate(newEndDate);
+        setDays(newDays);
+        setMonths(groupDaysByMonth(newDays));
+        
+        // Esperar a que se renderice el DOM con los nuevos días y luego centrar
       setTimeout(() => {
-        const targetDate = getAutoCenterDate();
-        centerOnDate(targetDate);
-        setIsInitialLoad(false); // Marcar que ya no es la carga inicial
-      }, 100);
+          if (containerRef.current) {
+            console.log('🎯 DOM renderizado, aplicando centrado...');
+            centerOnDate(targetDate, newDays);
+            setIsInitialLoad(false);
+          }
+        }, 300);
+      };
+      
+      initializeGridRange();
     }
-  }, [rooms, reservations, isInitialLoad]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms.length, reservations.length, days.length]);
 
   // Función para obtener las posiciones reales de las celdas de la tabla
   function getCellPosition(roomIndex, dayIndex) {
@@ -716,59 +806,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
 
 
-
-  async function handleCreateReservation(newReservation) {
-    try {
-      let mainClientId = newReservation.mainClient.id;
-      
-      // Si el cliente no tiene ID, significa que es un cliente nuevo
-      if (!mainClientId) {
-        // Crear el cliente primero
-        const clientData = {
-          firstName: newReservation.mainClient.firstName,
-          lastName: newReservation.mainClient.lastName,
-          email: newReservation.mainClient.email,
-          phone: newReservation.mainClient.phone,
-          documentType: newReservation.mainClient.documentType,
-          documentNumber: newReservation.mainClient.documentNumber
-        };
-        
-        const createdClient = await createClient(clientData);
-        mainClientId = createdClient.id;
-        console.log('Nuevo cliente creado:', createdClient);
-      }
-
-      // Preparar los datos para la reserva
-      const reservationData = {
-        roomId: parseInt(newReservation.roomId),
-        mainClientId: parseInt(mainClientId),
-        checkIn: newReservation.checkIn,
-        checkOut: newReservation.checkOut,
-        notes: newReservation.notes,
-        status: 'active',
-        reservationType: newReservation.reservationType || 'con_desayuno',
-        totalAmount: newReservation.totalAmount || 0, // Usar el monto calculado al crear la reserva
-        requiredGuests: newReservation.requiredGuests,
-        requiredRoomId: newReservation.requiredRoomId,
-        requiredTags: newReservation.requiredTags,
-        requirementsNotes: newReservation.requirementsNotes
-      };
-
-      // Crear la reserva en el backend
-      const createdReservation = await createReservation(reservationData);
-      
-      // Agregar la nueva reserva al estado local
-      setReservations(prev => [...prev, createdReservation]);
-      
-      console.log('Nueva reserva creada exitosamente:', createdReservation);
-      
-      
-    } catch (error) {
-      console.error('Error al crear la reserva:', error);
-      // Aquí podrías mostrar un mensaje de error al usuario
-      alert('Error al crear la reserva. Por favor, inténtalo de nuevo.');
-    }
-  }
 
   // Función optimizada para manejar hover sin re-renders
   const handleCellHover = (roomIndex, colIndex) => {
@@ -1018,6 +1055,22 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setSelectedOccupancyData(null);
     setSelectedOccupancyDate(null);
   };
+
+  // No renderizar el grid hasta que los días estén calculados
+  if (days.length === 0) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '400px',
+        fontSize: '16px',
+        color: '#6c757d'
+      }}>
+        <div>🔄 Cargando calendario...</div>
+      </div>
+    );
+  }
 
   return (
     <>

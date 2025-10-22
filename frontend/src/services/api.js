@@ -109,9 +109,19 @@ export async function createReservation(data) {
   
   if (!res.ok) {
     let errorMessage = 'Error creating reservation';
+    let errorDetails = [];
     try {
       const errorData = await res.json();
       errorMessage = errorData.error || errorData.message || errorMessage;
+      errorDetails = errorData.details || [];
+      
+      // Log detallado para debugging
+      console.error('❌ Error del backend:', errorData);
+      
+      // Si hay detalles, agregarlos al mensaje
+      if (errorDetails.length > 0) {
+        errorMessage += ':\n' + errorDetails.join('\n');
+      }
     } catch {
       // Si no se puede parsear el error, usar el status
       errorMessage = `Error creating reservation: ${res.status} ${res.statusText}`;
@@ -641,6 +651,7 @@ export async function createMultiSegmentQuery(data) {
 }
 
 export async function updateMultiSegmentQuery(queryGroupId, data) {
+  console.log('📤 Enviando actualización de consulta:', { queryGroupId, data });
   const res = await fetch(`${API_URL}/queries/multi-segment/${queryGroupId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -648,12 +659,16 @@ export async function updateMultiSegmentQuery(queryGroupId, data) {
   });
   if (!res.ok) {
     let errorMessage = 'Error updating multi-segment query';
+    let errorDetails = null;
     try {
       const errorData = await res.json();
+      console.error('❌ Error del servidor:', errorData);
       errorMessage = errorData.error || errorData.message || errorMessage;
+      errorDetails = errorData.details || errorData.stack;
     } catch {
       errorMessage = `Error updating multi-segment query: ${res.status} ${res.statusText}`;
     }
+    console.error('❌ Error completo:', { errorMessage, errorDetails });
     throw new Error(errorMessage);
   }
   return res.json();

@@ -149,9 +149,12 @@ exports.createMultiSegmentReservation = async (req, res) => {
       isMultiRoom
     };
 
+    console.log('📦 Datos recibidos para crear reserva:', JSON.stringify(reservationData, null, 2));
+
     // Validar la reserva completa antes de crearla
     const validation = await validateReservationCreation(reservationData);
     if (!validation.isValid) {
+      console.error('❌ Error de validación en la reserva:', validation.errors);
       return res.status(400).json({ 
         error: 'Error de validación en la reserva',
         details: validation.errors
@@ -549,31 +552,13 @@ exports.findAvailableRooms = async (req, res) => {
     // Combinar habitaciones físicas y virtuales
     const allRooms = [...allAvailableRooms, ...virtualRoomsFormatted];
 
-    // Filtrar por etiquetas requeridas si se especifican
-    let filteredRooms = allRooms;
+    // NO filtrar por etiquetas - el frontend se encargará de mostrar todas las habitaciones
+    // y marcar visualmente cuáles cumplen o no con los requerimientos
     console.log('🏷️ Etiquetas requeridas:', tagsArray);
-    if (tagsArray.length > 0) {
-      filteredRooms = allRooms.filter(room => {
-        const roomTagIds = room.tags.map(tag => tag.id.toString());
-        
-        // Si la habitación no tiene etiquetas, incluirla (para dar flexibilidad)
-        if (roomTagIds.length === 0) {
-          console.log(`🏷️ Habitación ${room.name} sin etiquetas - incluyendo por flexibilidad`);
-          return true;
-        }
-        
-        // Al menos una etiqueta debe coincidir
-        const hasMatchingTag = tagsArray.some(requiredTagId => roomTagIds.includes(requiredTagId));
-        if (hasMatchingTag) {
-          console.log(`🏷️ Habitación ${room.name} tiene etiqueta coincidente`);
-        }
-        return hasMatchingTag;
-      });
-      console.log('🏷️ Habitaciones después del filtro de etiquetas:', filteredRooms.length);
-    }
+    console.log('🏷️ Total de habitaciones disponibles (sin filtrar por etiquetas):', allRooms.length);
 
     // Obtener habitaciones que cumplan la capacidad mínima
-    const availableRooms = filteredRooms.filter(room => room.maxPeople >= parseInt(requiredGuests));
+    const availableRooms = allRooms.filter(room => room.maxPeople >= parseInt(requiredGuests));
     console.log('👥 Habitaciones que cumplen capacidad mínima:', availableRooms.length);
     console.log('👥 Capacidad requerida:', requiredGuests);
 
@@ -601,7 +586,7 @@ exports.findAvailableRooms = async (req, res) => {
     // Buscar combinaciones de habitaciones menores si no hay suficientes opciones
     let alternativeCombinations = [];
     if (sortedRooms.length < 3) {
-      alternativeCombinations = await findRoomCombinations(filteredRooms, parseInt(requiredGuests), occupiedRoomIds);
+      alternativeCombinations = await findRoomCombinations(allRooms, parseInt(requiredGuests), occupiedRoomIds);
     }
 
     console.log('✅ Resultado final:', {
