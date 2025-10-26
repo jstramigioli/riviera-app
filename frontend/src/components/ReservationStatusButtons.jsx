@@ -25,13 +25,13 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
               className={`${styles.actionButton} ${styles.confirm}`}
               onClick={() => handleStatusChange('CONFIRMADA', 'confirm')}
             >
-              ✅ Confirmar reserva
+              Confirmar reserva
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
               onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
-              ❌ Cancelar reserva
+              Cancelar reserva
             </button>
           </>
         );
@@ -43,20 +43,20 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
               className={`${styles.actionButton} ${styles.checkIn}`}
               onClick={() => handleStatusChange('INGRESADA', 'check-in')}
             >
-              ✅ Registrar check-in
+              Registrar check-in
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
               onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
-              ❌ Cancelar reserva
+              Cancelar reserva
             </button>
             {checkInPassed && (
               <button 
                 className={`${styles.actionButton} ${styles.noShow}`}
                 onClick={() => handleStatusChange('NO_PRESENTADA', 'no-show')}
               >
-                ⚠️ Marcar como no presentada
+                Marcar como no presentada
               </button>
             )}
           </>
@@ -68,7 +68,7 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
             className={`${styles.actionButton} ${styles.checkOut}`}
             onClick={() => handleStatusChange('FINALIZADA', 'check-out')}
           >
-            ✅ Registrar check-out
+            Registrar check-out
           </button>
         );
 
@@ -78,7 +78,7 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
             className={`${styles.actionButton} ${styles.reopen}`}
             onClick={() => handleStatusChange('INGRESADA', 'reopen')}
           >
-            🔄 Reabrir estadía
+            Reabrir estadía
           </button>
         );
 
@@ -88,7 +88,7 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
             className={`${styles.actionButton} ${styles.reactivate}`}
             onClick={() => handleStatusChange('CONFIRMADA', 'reactivate')}
           >
-            🔄 Reactivar
+            Reactivar
           </button>
         );
 
@@ -98,7 +98,7 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
             className={`${styles.actionButton} ${styles.reactivate}`}
             onClick={() => handleStatusChange('CONFIRMADA', 'reactivate')}
           >
-            🔄 Reactivar
+            Reactivar
           </button>
         );
 

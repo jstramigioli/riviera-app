@@ -7,16 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enum para estados de reserva
-enum ReservationStatus {
-  PENDIENTE
-  CONFIRMADA
-  INGRESADA
-  FINALIZADA
-  CANCELADA
-  NO_PRESENTADA
-}
-
 model Hotel {
   id                   String                @id @default(cuid())
   name                 String
@@ -51,83 +41,71 @@ model RoomType {
   orderIndex             Int                     @default(0)
   dailyRoomRates         DailyRoomRate[]
   proportionCoefficients ProportionCoefficient[]
-  rooms                  Room[]
-  virtualRooms           VirtualRoom[]           // Nueva relación
   segments               ReservationSegment[]
+  rooms                  Room[]
   seasonPrices           SeasonPrice[]
+  virtualRooms           VirtualRoom[]
 }
 
 model Room {
-  id            Int                @id @default(autoincrement())
-  name          String
-  description   String?
-  maxPeople     Int
-  status        String
-  orderIndex    Int                @default(0)
-  roomTypeId    Int
-  // queries eliminado - las consultas ya no guardan roomId
-  segments      ReservationSegment[]
-  roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
-  gapPromotions RoomGapPromotion[]
-  tags          Tag[]              @relation("RoomToTag")
-  
-  // Nuevas relaciones para inventario
+  id                    Int                    @id @default(autoincrement())
+  name                  String
+  description           String?
+  maxPeople             Int
+  status                String
+  orderIndex            Int                    @default(0)
+  roomTypeId            Int
+  segments              ReservationSegment[]
+  roomType              RoomType               @relation(fields: [roomTypeId], references: [id])
+  gapPromotions         RoomGapPromotion[]
+  inventory             RoomInventory[]
   virtualRoomComponents VirtualRoomComponent[] @relation("VirtualRoomComponents")
-  virtualRooms          VirtualRoom[]         @relation("VirtualRoomRooms")
-  inventory             RoomInventory[]       // Nueva relación
+  tags                  Tag[]                  @relation("RoomToTag")
+  virtualRooms          VirtualRoom[]          @relation("VirtualRoomRooms")
 }
 
-// Nuevo modelo para habitaciones virtuales
 model VirtualRoom {
-  id            Int                @id @default(autoincrement())
-  name          String             // Ej: "Suite Conectable 8-9"
-  description   String?
-  maxPeople     Int                // Capacidad total de la habitación virtual
-  roomTypeId    Int
-  isActive      Boolean            @default(true)
-  orderIndex    Int                @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  
-  // Relaciones
-  roomType      RoomType           @relation(fields: [roomTypeId], references: [id])
-  components    VirtualRoomComponent[]
-  segments      ReservationSegment[]
-  inventory     RoomInventory[]    // Nueva relación
-  rooms         Room[]             @relation("VirtualRoomRooms") // Nueva relación
+  id          Int                    @id @default(autoincrement())
+  name        String
+  description String?
+  maxPeople   Int
+  roomTypeId  Int
+  isActive    Boolean                @default(true)
+  orderIndex  Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  segments    ReservationSegment[]
+  inventory   RoomInventory[]
+  roomType    RoomType               @relation(fields: [roomTypeId], references: [id])
+  components  VirtualRoomComponent[]
+  rooms       Room[]                 @relation("VirtualRoomRooms")
 }
 
-// Modelo para conectar habitaciones físicas con virtuales
 model VirtualRoomComponent {
   id            Int         @id @default(autoincrement())
   virtualRoomId Int
   roomId        Int
-  isRequired    Boolean     @default(true) // Si es requerida para que funcione la virtual
+  isRequired    Boolean     @default(true)
   orderIndex    Int         @default(0)
-  
-  // Relaciones
-  virtualRoom   VirtualRoom @relation(fields: [virtualRoomId], references: [id], onDelete: Cascade)
   room          Room        @relation("VirtualRoomComponents", fields: [roomId], references: [id], onDelete: Cascade)
-  
+  virtualRoom   VirtualRoom @relation(fields: [virtualRoomId], references: [id], onDelete: Cascade)
+
   @@unique([virtualRoomId, roomId])
 }
 
-// Modelo para el inventario diario
 model RoomInventory {
-  id            Int      @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   roomId        Int
-  virtualRoomId Int?     // Null si es habitación física individual
+  virtualRoomId Int?
   date          DateTime
-  isAvailable   Boolean  @default(true)
-  isBlocked     Boolean  @default(false)
+  isAvailable   Boolean      @default(true)
+  isBlocked     Boolean      @default(false)
   blockedReason String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relaciones
-  room          Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  room          Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
   virtualRoom   VirtualRoom? @relation(fields: [virtualRoomId], references: [id], onDelete: Cascade)
-  
+
   @@unique([roomId, virtualRoomId, date])
 }
 
@@ -145,9 +123,9 @@ model Client {
   notes           String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
-  reservations    Reservation[]
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
+  reservations    Reservation[]
 }
 
 model Guest {
@@ -164,113 +142,91 @@ model Guest {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
-  payments       Payment[]
-}
-
-model Payment {
-  id          Int      @id @default(autoincrement())
-  guestId     Int
-  amount      Float
-  type        String
-  description String
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  guest       Guest    @relation(fields: [guestId], references: [id])
 }
 
 model Reservation {
-  id                Int                    @id @default(autoincrement())
-  mainClientId      Int
-  status            ReservationStatus      @default(PENDIENTE)
-  notes             String?
-  
-  // Campos para reservas multi-habitación
-  isMultiRoom       Boolean                @default(false)
-  parentReservationId Int?                 // Para agrupar reservas familiares
-  parentReservation  Reservation?          @relation("MultiRoomReservations", fields: [parentReservationId], references: [id])
-  childReservations  Reservation[]         @relation("MultiRoomReservations")
-  
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  
-  // Relaciones
-  guests            Guest[]
-  mainClient        Client                 @relation(fields: [mainClientId], references: [id])
-  nightRates        ReservationNightRate[]
-  segments          ReservationSegment[]
+  id                  Int                    @id @default(autoincrement())
+  mainClientId        Int
+  status              ReservationStatus      @default(PENDIENTE)
+  notes               String?
+  isMultiRoom         Boolean                @default(false)
+  parentReservationId Int?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  guests              Guest[]
+  mainClient          Client                 @relation(fields: [mainClientId], references: [id])
+  parentReservation   Reservation?           @relation("MultiRoomReservations", fields: [parentReservationId], references: [id])
+  childReservations   Reservation[]          @relation("MultiRoomReservations")
+  nightRates          ReservationNightRate[]
+  segments            ReservationSegment[]
+  pagos               Pago[]
+  cargos              Cargo[]
 }
 
 model QueryGroup {
-  id           String   @id // El queryGroupId
+  id           String   @id
   mainClientId Int?
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
   mainClient   Client?  @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
-  // queries sin relación FK - se maneja manualmente
 }
 
 model Query {
-  id                Int                    @id @default(autoincrement())
-  queryGroupId      String?                // Para agrupar consultas multi-segmento (sin FK constraint)
-  segmentIndex      Int?                   // Orden del segmento en el grupo
-  // roomId eliminado - las consultas solo guardan requerimientos, no resultados
+  id                Int              @id @default(autoincrement())
   mainClientId      Int?
   checkIn           DateTime?
   checkOut          DateTime?
   totalAmount       Float?
-  reservationType   String?                @default("con_desayuno")
-  serviceType       String?                @default("base")
-  // notes eliminado - ahora está en QueryGroup a nivel global
-  fixed             Boolean?               @default(false)
+  reservationType   String?          @default("con_desayuno")
+  serviceType       String?          @default("base")
+  fixed             Boolean?         @default(false)
   requiredGuests    Int?
   requiredRoomId    Int?
-  requiredTags      Int[]
   requirementsNotes String?
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  queryGroupId      String?
+  segmentIndex      Int?
+  requiredTags      Int[]
+  mainClient        Client?          @relation("ClientQueries", fields: [mainClientId], references: [id])
   guests            QueryGuest[]
-  mainClient        Client?                @relation("ClientQueries", fields: [mainClientId], references: [id])
-  // queryGroup sin relación FK por ahora - se maneja manualmente
-  // Relación 'room' eliminada porque ya no guardamos roomId
   nightRates        QueryNightRate[]
-  
+
   @@index([queryGroupId])
 }
 
 model QueryGuest {
-  id             Int          @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   firstName      String?
   lastName       String?
-  documentType   String?      @default("DNI")
+  documentType   String?        @default("DNI")
   documentNumber String?
   phone          String?
   email          String?
   address        String?
   city           String?
   queryId        Int?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  query          Query?       @relation(fields: [queryId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  query          Query?         @relation(fields: [queryId], references: [id])
   payments       QueryPayment[]
 }
 
 model QueryPayment {
-  id          Int         @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   queryGuestId Int
-  amount      Float?
-  type        String?
-  description String?
-  date        DateTime?   @default(now())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  queryGuest  QueryGuest  @relation(fields: [queryGuestId], references: [id])
+  amount       Float?
+  type         String?
+  description  String?
+  date         DateTime?  @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  queryGuest   QueryGuest @relation(fields: [queryGuestId], references: [id])
 }
 
 model QueryNightRate {
-  id                     String      @id @default(cuid())
+  id                     String    @id @default(cuid())
   queryId                Int
   date                   DateTime?
   baseRate               Float?
@@ -279,21 +235,20 @@ model QueryNightRate {
   serviceType            String?
   serviceRate            Float?
   occupancyScore         Float?
-  isWeekend              Boolean?    @default(false)
-  isHoliday              Boolean?    @default(false)
-  gapPromotionApplied    Boolean?    @default(false)
+  isWeekend              Boolean?  @default(false)
+  isHoliday              Boolean?  @default(false)
+  gapPromotionApplied    Boolean?  @default(false)
   gapPromotionRate       Float?
-  manualOverride         Boolean?    @default(false)
-  basePrice              Float?
+  manualOverride         Boolean?  @default(false)
   occupancyAdjustment    Float?
   anticipationAdjustment Float?
   weekendAdjustment      Float?
   holidayAdjustment      Float?
   gapPromotionAmount     Float?
   serviceAdjustment      Float?
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
-  query                  Query       @relation(fields: [queryId], references: [id])
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  query                  Query     @relation(fields: [queryId], references: [id])
 
   @@unique([queryId, date])
 }
@@ -387,7 +342,6 @@ model ReservationNightRate {
   gapPromotionApplied    Boolean     @default(false)
   gapPromotionRate       Float?
   manualOverride         Boolean     @default(false)
-  basePrice              Float
   occupancyAdjustment    Float?
   anticipationAdjustment Float?
   weekendAdjustment      Float?
@@ -420,7 +374,6 @@ model SeasonBlock {
   endDate                DateTime
   orderIndex             Int                     @default(0)
   useBlockServices       Boolean                 @default(false)
-  basePrice              Float?
   useProportions         Boolean                 @default(false)
   referenceRoomTypeId    Int?
   serviceAdjustmentMode  String                  @default("PERCENTAGE")
@@ -497,48 +450,83 @@ model BlockServiceSelection {
   @@unique([seasonBlockId, serviceTypeId])
 }
 
+model ReservationSegment {
+  id                 Int          @id @default(autoincrement())
+  reservationId      Int
+  startDate          DateTime
+  endDate            DateTime
+  roomId             Int
+  roomTypeId         Int?
+  virtualRoomId      Int?
+  services           String[]
+  serviceAdjustments Json?
+  baseRate           Float
+  rateAdjustments    Json?
+  guestCount         Int
+  reason             String?
+  notes              String?
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  requiredRoomId     Int?
+  requiredTags       Int[]        @default([])
+  reservation        Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room               Room         @relation(fields: [roomId], references: [id])
+  roomType           RoomType?    @relation(fields: [roomTypeId], references: [id])
+  virtualRoom        VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
+}
+
+model Pago {
+  id         Int         @id @default(autoincrement())
+  reservaId  Int
+  reserva    Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  fecha      DateTime    @default(now())
+  monto      Decimal     @db.Decimal(10, 2)
+  moneda     String      @default("ARS") // ARS o USD
+  tipoCambio Decimal?    @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
+  montoARS   Decimal     @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
+  metodo     String      // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
+  numeroTarjeta String?  // Número de tarjeta (solo para métodos de tarjeta)
+  empresa    String?     // Empresa de la tarjeta (solo para métodos de tarjeta)
+  referencia String?     // Número de comprobante, referencia bancaria, etc.
+  notas      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Cargo {
+  id          Int         @id @default(autoincrement())
+  reservaId   Int
+  reserva     Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  descripcion String
+  monto       Decimal     @db.Decimal(10, 2)
+  fecha       DateTime    @default(now())
+  tipo        String      @default("ALOJAMIENTO") // ALOJAMIENTO, SERVICIO, CONSUMO, OTRO
+  notas       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum ReservationStatus {
+  PENDIENTE
+  CONFIRMADA
+  INGRESADA
+  FINALIZADA
+  CANCELADA
+  NO_PRESENTADA
+}
+
+model Configuracion {
+  id          String   @id @default(cuid())
+  clave       String   @unique // Ej: "tipo_cambio_usd"
+  valor       String   // Valor como string para flexibilidad
+  descripcion String?  // Descripción de la configuración
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 enum ServiceAdjustmentMode {
   FIXED
   PERCENTAGE
-}
-
-model ReservationSegment {
-  id                Int         @id @default(autoincrement())
-  reservationId     Int
-  startDate         DateTime
-  endDate           DateTime
-  
-  // Habitación (ahora obligatoria)
-  roomId            Int         // Habitación para este segmento
-  roomTypeId        Int?        // Tipo de habitación
-  virtualRoomId     Int?        // Habitación virtual (opcional)
-  
-  // Servicios
-  services          String[]    // Servicios disponibles
-  serviceAdjustments Json?      // Ajustes específicos por servicio
-  
-  // Tarifas
-  baseRate          Float       // Tarifa base (obligatoria)
-  rateAdjustments   Json?       // Ajustes de tarifa (descuentos, recargos)
-  
-  // Ocupación
-  guestCount        Int         // Número de huéspedes (obligatorio)
-  
-  // Requerimientos
-  requiredTags      Int[]       @default([]) // Etiquetas/tags requeridos para este segmento
-  requiredRoomId    Int?        // Habitación específica requerida (opcional)
-  
-  // Metadatos
-  reason            String?     // Razón del cambio (mantenimiento, disponibilidad, etc.)
-  notes             String?     // Notas adicionales
-  isActive          Boolean     @default(true)
-  
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  // Relaciones
-  reservation       Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  room              Room        @relation(fields: [roomId], references: [id])
-  roomType          RoomType?   @relation(fields: [roomTypeId], references: [id])
-  virtualRoom       VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
 }

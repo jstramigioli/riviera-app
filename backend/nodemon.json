@@ -1,0 +1,32 @@
+{
+  "watch": [
+    "src/**/*.js",
+    "prisma/**/*.prisma",
+    "prisma/**/*.js"
+  ],
+  "ignore": [
+    "node_modules/**/*",
+    "backups/**/*",
+    "data/**/*",
+    "scripts/**/*",
+    "tests/**/*",
+    "*.log",
+    "*.tmp",
+    "*.cache",
+    "*.pid",
+    "*.lock",
+    ".DS_Store",
+    "*.sql",
+    "*.xlsx",
+    "*.json",
+    "!package.json",
+    "!package-lock.json",
+    "!nodemon.json",
+    "!jest.config.js"
+  ],
+  "ext": "js,prisma",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}

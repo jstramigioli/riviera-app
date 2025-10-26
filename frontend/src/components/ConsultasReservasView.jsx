@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
@@ -15,6 +16,7 @@ import ErrorDisplay from './ErrorDisplay';
 import styles from './ConsultasReservasView.module.css';
 
 function ConsultasReservasView() {
+  const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeSection, setActiveSection] = useState('consultas');
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -210,7 +212,16 @@ function ConsultasReservasView() {
           {/* Sección de Consultas */}
           {activeSection === 'consultas' && (
             <div className={styles.section}>
-              <h2>Consultas</h2>
+              <div className={styles.sectionHeader}>
+                <h2>Consultas</h2>
+                <button 
+                  className={styles.createButton}
+                  onClick={() => navigate('/consulta')}
+                  title="Crear nueva consulta"
+                >
+                  + Nueva Consulta
+                </button>
+              </div>
               <QueriesTable 
                 queries={queries}
                 onDeleteQuery={handleDeleteQuery}

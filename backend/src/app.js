@@ -6,7 +6,7 @@ const tagRoutes = require('./routes/tag.routes');
 const clientRoutes = require('./routes/client.routes');
 const reservationRoutes = require('./routes/reservation.routes');
 const guestRoutes = require('./routes/guest.routes');
-const paymentRoutes = require('./routes/payment.routes');
+const reservationPaymentsRoutes = require('./routes/reservationPayments.routes');
 const rateRoutes = require('./routes/rate.routes');
 const openDayRoutes = require('./routes/openDay.routes');
 const operationalPeriodRoutes = require('./routes/operationalPeriod.routes');
@@ -23,6 +23,7 @@ const queryRoutes = require('./routes/query.routes');
 const reservationSegmentRoutes = require('./routes/reservationSegment.routes');
 const multiRoomReservationRoutes = require('./routes/multiRoomReservation.routes');
 const virtualRoomRoutes = require('./routes/virtualRoom.routes');
+const configuracionRoutes = require('./routes/configuracion.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -45,7 +46,7 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/guests', guestRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/reservation-payments', reservationPaymentsRoutes);
 app.use('/api/rates', rateRoutes);
 app.use('/api/open-days', openDayRoutes);
 app.use('/api/operational-periods', operationalPeriodRoutes);
@@ -62,6 +63,7 @@ app.use('/api/queries', queryRoutes);
 app.use('/api/reservation-segments', reservationSegmentRoutes);
 app.use('/api/multi-room-reservations', multiRoomReservationRoutes);
 app.use('/api/virtual-rooms', virtualRoomRoutes);
+app.use('/api/configuracion', configuracionRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

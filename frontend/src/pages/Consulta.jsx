@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
@@ -21,6 +21,7 @@ const RoomAvailabilityStatus = {
 
 export default function Consulta() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { tags } = useTags();
 
   // Función para validar si el hotel está cerrado en el período solicitado
@@ -741,7 +742,7 @@ export default function Consulta() {
             );
             
             if (roomTypePrices.length > 0) {
-              const basePrice = roomTypePrices[0];
+              const defaultPrice = roomTypePrices[0];
               
               // Buscar precio específico para el servicio seleccionado
               const servicePrice = activeBlockForDate.seasonPrices.find(
@@ -758,10 +759,10 @@ export default function Consulta() {
                 if (servicePrice) {
                 const adjustment = serviceAdjustment?.percentageAdjustment || 0;
                 finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
-              } else if (basePrice) {
-                  // Si no hay precio específico para el servicio, usar precio base
+              } else if (defaultPrice) {
+                  // Si no hay precio específico para el servicio, usar precio por defecto
                 const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                finalPrice = basePrice.basePrice * (1 + adjustment / 100);
+                finalPrice = defaultPrice.basePrice * (1 + adjustment / 100);
                 }
               
               rates.push({
@@ -794,7 +795,7 @@ export default function Consulta() {
                   );
                   
                   if (roomTypePrices.length > 0) {
-                    const basePrice = roomTypePrices[0];
+                    const defaultPrice = roomTypePrices[0];
                     
                     const servicePrice = draftBlockData.data.seasonPrices.find(
                       price => price.roomTypeId === selectedRoomType.id && price.serviceTypeId === selectedServiceType
@@ -809,9 +810,9 @@ export default function Consulta() {
                     if (servicePrice) {
                       const adjustment = serviceAdjustment?.percentageAdjustment || 0;
                       finalPrice = servicePrice.basePrice * (1 + adjustment / 100);
-                    } else if (basePrice) {
+                    } else if (defaultPrice) {
                       const adjustment = serviceAdjustment?.percentageAdjustment || 0;
-                      finalPrice = basePrice.basePrice * (1 + adjustment / 100);
+                      finalPrice = defaultPrice.basePrice * (1 + adjustment / 100);
                     }
                     
                     rates.push({
@@ -1501,14 +1502,14 @@ export default function Consulta() {
             
             return {
               ...room,
-              baseRate: Math.round(totalRate),
+              price: Math.round(totalRate),
               ratesData: ratesResult // Guardar los datos completos de tarifas
             };
           })
         );
         
         // Verificar si TODAS las habitaciones tienen tarifa $0 (precios no configurados)
-        const allZeroRates = roomsWithRates.length > 0 && roomsWithRates.every(room => room.baseRate === 0);
+        const allZeroRates = roomsWithRates.length > 0 && roomsWithRates.every(room => room.price === 0);
         const roomsWithAvailabilityErrors = roomsWithRates.filter(room => room.availabilityError);
         const roomsWithServiceAvailabilityErrors = roomsWithRates.filter(room => room.serviceAvailabilityError);
         
@@ -2484,13 +2485,13 @@ export default function Consulta() {
           
           // Calcular baseRate - debe existir y ser válida
           const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
-          const roomBaseRate = selectedRoomsPerBlock[index].baseRate;
+          const roomPrice = selectedRoomsPerBlock[index].price;
           
           let baseRate = null;
           if (totalAmount && totalAmount > 0) {
             baseRate = totalAmount / nights;
-          } else if (roomBaseRate && roomBaseRate > 0) {
-            baseRate = roomBaseRate;
+          } else if (roomPrice && roomPrice > 0) {
+            baseRate = roomPrice;
           }
           
           if (!baseRate || baseRate <= 0) {
@@ -2552,6 +2553,9 @@ export default function Consulta() {
       // Cerrar modal y limpiar formulario
       setShowConfirmationModal(false);
       resetForm();
+      
+      // Navegar a los detalles de la reserva creada
+      navigate(`/reservations/${newReservation.id}`);
       
     } catch (error) {
       console.error('Error al crear la reserva:', error);
@@ -3159,7 +3163,7 @@ export default function Consulta() {
                               
                               <div className={styles.roomRate}>
                                 <span className={styles.rateAmount}>
-                                  ${new Intl.NumberFormat('es-AR').format(room.baseRate || 0)}
+                                  ${new Intl.NumberFormat('es-AR').format(room.price || 0)}
                                 </span>
                               </div>
                               

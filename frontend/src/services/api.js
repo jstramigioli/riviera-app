@@ -701,6 +701,216 @@ export async function convertQueryToReservation(id) {
   return res.json();
 }
 
+// ============================================
+// API para Pagos y Cargos de Reservas
+// ============================================
+
+// Obtener resumen financiero de una reserva
+export async function getReservationFinancialSummary(reservaId) {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/resumen`);
+  if (!res.ok) throw new Error('Error fetching financial summary');
+  return res.json();
+}
+
+// Obtener todas las reservas con saldos
+export async function getReservationsWithBalances() {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`);
+  if (!res.ok) throw new Error('Error fetching reservations with balances');
+  return res.json();
+}
+
+// Pagos - Obtener todos los pagos de una reserva
+export async function getPagosByReserva(reservaId) {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`);
+  if (!res.ok) throw new Error('Error fetching pagos');
+  return res.json();
+}
+
+// Pagos - Crear un nuevo pago (con soporte multimoneda)
+export async function createPago(reservaId, data) {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error creating pago');
+  }
+  return res.json();
+}
+
+// Pagos - Actualizar un pago
+export async function updatePago(pagoId, data) {
+  const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error updating pago');
+  }
+  return res.json();
+}
+
+// Pagos - Eliminar un pago
+export async function deletePago(pagoId) {
+  const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error deleting pago');
+  }
+  return res.json();
+}
+
+// Cargos - Obtener todos los cargos de una reserva
+export async function getCargosByReserva(reservaId) {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`);
+  if (!res.ok) throw new Error('Error fetching cargos');
+  return res.json();
+}
+
+// Cargos - Crear un nuevo cargo
+export async function createCargo(reservaId, data) {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error creating cargo');
+  }
+  return res.json();
+}
+
+// Cargos - Actualizar un cargo
+export async function updateCargo(cargoId, data) {
+  const res = await fetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error updating cargo');
+  }
+  return res.json();
+}
+
+// Cargos - Eliminar un cargo
+export async function deleteCargo(cargoId) {
+  const res = await fetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error deleting cargo');
+  }
+  return res.json();
+}
+
+// ============================================
+// FUNCIONES DE CONFIGURACIÓN
+// ============================================
+
+// Obtener todas las configuraciones
+export async function getConfiguraciones() {
+  const res = await fetch(`${API_URL}/configuracion`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error fetching configuraciones');
+  }
+  return res.json();
+}
+
+// Obtener una configuración específica
+export async function getConfiguracion(clave) {
+  const res = await fetch(`${API_URL}/configuracion/${clave}`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error fetching configuracion');
+  }
+  return res.json();
+}
+
+// Crear o actualizar una configuración
+export async function upsertConfiguracion(data) {
+  const res = await fetch(`${API_URL}/configuracion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error saving configuracion');
+  }
+  return res.json();
+}
+
+// Actualizar una configuración
+export async function updateConfiguracion(clave, data) {
+  const res = await fetch(`${API_URL}/configuracion/${clave}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error updating configuracion');
+  }
+  return res.json();
+}
+
+// Eliminar una configuración
+export async function deleteConfiguracion(clave) {
+  const res = await fetch(`${API_URL}/configuracion/${clave}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error deleting configuracion');
+  }
+  return res.json();
+}
+
+// Obtener el tipo de cambio actual del dólar
+export async function getTipoCambioUSD() {
+  const res = await fetch(`${API_URL}/configuracion/tipo-cambio/usd`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error fetching tipo de cambio');
+  }
+  return res.json();
+}
+
+// Establecer el tipo de cambio del dólar
+export async function setTipoCambioUSD(tipoCambio, descripcion) {
+  const res = await fetch(`${API_URL}/configuracion/tipo-cambio/usd`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tipoCambio, descripcion })
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error setting tipo de cambio');
+  }
+  return res.json();
+}
+
+// Obtener el tipo de cambio actual para nuevos pagos
+export async function getTipoCambioActual() {
+  const res = await fetch(`${API_URL}/reservation-payments/tipo-cambio-actual`);
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'Error fetching tipo de cambio actual');
+  }
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -751,5 +961,15 @@ export default {
   createQuery,
   updateQuery,
   deleteQuery,
-  convertQueryToReservation
+  convertQueryToReservation,
+  getReservationFinancialSummary,
+  getReservationsWithBalances,
+  getPagosByReserva,
+  createPago,
+  updatePago,
+  deletePago,
+  getCargosByReserva,
+  createCargo,
+  updateCargo,
+  deleteCargo
 };

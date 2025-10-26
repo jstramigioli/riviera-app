@@ -2,6 +2,7 @@
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+
 }
 
 .header {
@@ -28,7 +29,8 @@
   gap: 24px;
 }
 
-.clientsList h2 {
+.clientsList h2,
+.reservationsList h2 {
   margin: 0 0 20px 0;
   color: #1f2937;
   font-size: 1.5rem;
@@ -44,7 +46,8 @@
   border: 1px solid #e5e7eb;
 }
 
-.clientsGrid {
+.clientsGrid,
+.reservationsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 20px;
@@ -371,5 +374,134 @@
 
   .clientDetailsHeader h1 {
     font-size: 1.5rem;
+  }
+}
+
+/* Estilos para tarjetas de reservas */
+.reservationCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reservationCard:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-color: #d1d5db;
+}
+
+.reservationInfo h3 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.clientName {
+  margin: 0 0 4px 0;
+  color: #374151;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.clientEmail {
+  margin: 0 0 4px 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.guestsCount {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.totalsInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.totalsInfo small {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.paymentButton {
+  background-color: #3b82f6;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.paymentButton:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.paymentButton:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.detailsButton {
+  background: none;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.detailsButton:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Responsive para tarjetas de reservas */
+@media (max-width: 640px) {
+  .reservationsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .paymentButton,
+  .detailsButton {
+    width: 100%;
   }
 } 

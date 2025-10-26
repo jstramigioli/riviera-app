@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchClients, fetchReservations } from '../services/api';
+import { fetchClients, fetchReservations, getReservationsWithBalances } from '../services/api';
+import PaymentForm from '../components/PaymentForm';
 import styles from './CobrosPagos.module.css';
 
 const CobrosPagos = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [reservationsWithBalances, setReservationsWithBalances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -19,13 +23,15 @@ const CobrosPagos = () => {
       setLoading(true);
       setError(null);
       
-      const [clientsData, reservationsData] = await Promise.all([
+      const [clientsData, reservationsData, balancesData] = await Promise.all([
         fetchClients(),
-        fetchReservations()
+        fetchReservations(),
+        getReservationsWithBalances()
       ]);
 
       setClients(clientsData);
       setReservations(reservationsData);
+      setReservationsWithBalances(balancesData);
     } catch (err) {
       console.error('Error cargando datos:', err);
       setError('Error al cargar los datos');
@@ -56,6 +62,20 @@ const CobrosPagos = () => {
     navigate(`/clients/${client.id}`);
   };
 
+  const handleAddPayment = (reservation) => {
+    setSelectedReservation(reservation);
+    setShowPaymentForm(true);
+  };
+
+  const handleClosePaymentForm = () => {
+    setShowPaymentForm(false);
+    setSelectedReservation(null);
+  };
+
+  const handlePaymentSuccess = () => {
+    loadData(); // Recargar datos después de crear un pago
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -75,50 +95,83 @@ const CobrosPagos = () => {
     );
   }
 
-  // Vista principal de lista de clientes
+  // Vista principal de reservas con saldos
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>Cobros y Pagos</h1>
-        <p>Gestiona las cuentas pendientes de los clientes</p>
+        <p>Gestiona los pagos y saldos de las reservas</p>
       </div>
 
       <div className={styles.content}>
-        <div className={styles.clientsList}>
-          <h2>Clientes con Cuentas Pendientes</h2>
+        <div className={styles.reservationsList}>
+          <h2>Reservas con Saldos</h2>
           
-          {clients.length === 0 ? (
+          {reservationsWithBalances.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No hay clientes registrados</p>
+              <p>No hay reservas registradas</p>
             </div>
           ) : (
-            <div className={styles.clientsGrid}>
-              {clients.map(client => {
-                const balance = calculateClientBalance(client.id);
-                const clientReservations = getClientReservations(client.id);
-                
-                if (clientReservations.length === 0) return null;
+            <div className={styles.reservationsGrid}>
+              {reservationsWithBalances.map(reservation => {
+                const getStatusColor = (estado) => {
+                  switch (estado) {
+                    case 'PENDIENTE': return '#dc2626';
+                    case 'PAGADO': return '#059669';
+                    case 'A_FAVOR': return '#d97706';
+                    default: return '#6b7280';
+                  }
+                };
 
                 return (
                   <div 
-                    key={client.id} 
-                    className={styles.clientCard}
-                    onClick={() => handleClientClick(client)}
+                    key={reservation.id} 
+                    className={styles.reservationCard}
                   >
-                    <div className={styles.clientInfo}>
-                      <h3>{client.firstName} {client.lastName}</h3>
-                      <p className={styles.clientEmail}>{client.email}</p>
-                      <p className={styles.clientPhone}>{client.phone}</p>
+                    <div className={styles.reservationInfo}>
+                      <h3>Reserva #{reservation.id}</h3>
+                      <p className={styles.clientName}>
+                        {reservation.mainClient.firstName} {reservation.mainClient.lastName}
+                      </p>
+                      <p className={styles.clientEmail}>{reservation.mainClient.email}</p>
+                      <p className={styles.guestsCount}>
+                        {reservation.cantidadHuespedes} huésped{reservation.cantidadHuespedes !== 1 ? 'es' : ''}
+                      </p>
                     </div>
                     
                     <div className={styles.balanceInfo}>
                       <div className={styles.balanceAmount}>
-                        <span className={styles.label}>Total pendiente:</span>
-                        <span className={styles.amount}>{formatPrice(balance)}</span>
+                        <span className={styles.label}>Saldo:</span>
+                        <span 
+                          className={styles.amount}
+                          style={{ color: getStatusColor(reservation.estadoPago) }}
+                        >
+                          {formatPrice(reservation.saldo)}
+                        </span>
                       </div>
-                      <div className={styles.reservationsCount}>
-                        <span>{clientReservations.length} reserva{clientReservations.length !== 1 ? 's' : ''}</span>
+                      <div className={styles.statusBadge} style={{ backgroundColor: getStatusColor(reservation.estadoPago) }}>
+                        {reservation.estadoPago}
                       </div>
+                      <div className={styles.totalsInfo}>
+                        <small>Cargos: {formatPrice(reservation.totalCargos)}</small>
+                        <small>Pagos: {formatPrice(reservation.totalPagos)}</small>
+                      </div>
+                    </div>
+
+                    <div className={styles.actions}>
+                      <button
+                        className={styles.paymentButton}
+                        onClick={() => handleAddPayment(reservation)}
+                        disabled={reservation.estadoPago === 'PAGADO'}
+                      >
+                        + Agregar Pago
+                      </button>
+                      <button
+                        className={styles.detailsButton}
+                        onClick={() => handleClientClick(reservation.mainClient)}
+                      >
+                        Ver Detalles
+                      </button>
                     </div>
                   </div>
                 );
@@ -127,6 +180,15 @@ const CobrosPagos = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de formulario de pagos */}
+      {showPaymentForm && selectedReservation && (
+        <PaymentForm
+          reservaId={selectedReservation.id}
+          onClose={handleClosePaymentForm}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };

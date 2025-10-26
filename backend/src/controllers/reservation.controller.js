@@ -583,6 +583,15 @@ exports.findAvailableRooms = async (req, res) => {
     // Combinar resultados: primero exactas, luego mayores
     const sortedRooms = [...exactCapacityRooms, ...largerCapacityRooms];
 
+    // Calcular precios para cada habitación usando bloques de temporada
+    const roomsWithPrices = await Promise.all(sortedRooms.map(async (room) => {
+      const price = await calculateRoomPrice(room, checkInDate, tariffStatus.activeBlock);
+      return {
+        ...room,
+        price: price
+      };
+    }));
+
     // Buscar combinaciones de habitaciones menores si no hay suficientes opciones
     let alternativeCombinations = [];
     if (sortedRooms.length < 3) {
@@ -590,16 +599,16 @@ exports.findAvailableRooms = async (req, res) => {
     }
 
     console.log('✅ Resultado final:', {
-      totalFound: sortedRooms.length,
+      totalFound: roomsWithPrices.length,
       exactCapacityCount: exactCapacityRooms.length,
       largerCapacityCount: largerCapacityRooms.length,
       alternativeCombinations: alternativeCombinations.length
     });
 
     res.json({
-      availableRooms: sortedRooms,
+      availableRooms: roomsWithPrices,
       alternativeCombinations,
-      totalFound: sortedRooms.length,
+      totalFound: roomsWithPrices.length,
       exactCapacityCount: exactCapacityRooms.length,
       largerCapacityCount: largerCapacityRooms.length,
       requirements: {
@@ -704,4 +713,37 @@ async function findRoomCombinations(availableRooms, requiredGuests, occupiedRoom
   combinations.sort((a, b) => a.excessCapacity - b.excessCapacity);
   
   return combinations.slice(0, 3); // Limitar a 3 combinaciones
+}
+
+// Función para calcular el precio de una habitación usando bloques de temporada
+async function calculateRoomPrice(room, checkInDate, activeBlock) {
+  try {
+    // Si no hay bloque activo, retornar 0
+    if (!activeBlock) {
+      return 0;
+    }
+
+    // Obtener el precio base para el tipo de habitación y servicio por defecto
+    const seasonPrice = await prisma.seasonPrice.findFirst({
+      where: {
+        seasonBlockId: activeBlock.id,
+        roomTypeId: room.roomType.id,
+        isDraft: false
+      },
+      orderBy: {
+        basePrice: 'asc' // Tomar el precio más bajo como base
+      }
+    });
+
+    if (!seasonPrice) {
+      console.log(`No se encontró precio para habitación ${room.name} (tipo ${room.roomType.name}) en bloque ${activeBlock.name}`);
+      return 0;
+    }
+
+    console.log(`Precio encontrado para habitación ${room.name}: $${seasonPrice.basePrice}`);
+    return seasonPrice.basePrice;
+  } catch (error) {
+    console.error('Error calculando precio de habitación:', error);
+    return 0;
+  }
 }

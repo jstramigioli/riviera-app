@@ -5,88 +5,15 @@ const dynamicPricingService = require('../services/dynamicPricingService');
 class DynamicPricingController {
 
   // Crear keyframes operacionales para un período
+  // TODO: Implementar cuando el modelo SeasonalKeyframe esté disponible
   async createOperationalKeyframes(req, res) {
-    try {
-      const { hotelId } = req.params;
-      const { periodId, startDate, endDate, basePrice = 0 } = req.body;
-
-      // Crear keyframe de apertura
-      const openingKeyframe = await prisma.seasonalKeyframe.create({
-        data: {
-          hotelId,
-          date: new Date(startDate),
-          basePrice: parseFloat(basePrice),
-          isOperational: true,
-          operationalType: 'opening',
-          periodId
-        }
-      });
-
-      // Crear keyframe de cierre
-      const closingKeyframe = await prisma.seasonalKeyframe.create({
-        data: {
-          hotelId,
-          date: new Date(endDate),
-          basePrice: parseFloat(basePrice),
-          isOperational: true,
-          operationalType: 'closing',
-          periodId
-        }
-      });
-
-      res.status(201).json({
-        opening: openingKeyframe,
-        closing: closingKeyframe
-      });
-    } catch (error) {
-      console.error('Error al crear keyframes operacionales:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
+    res.status(501).json({ message: 'Funcionalidad no implementada - modelo SeasonalKeyframe no disponible' });
   }
 
   // Actualizar keyframes operacionales cuando cambia un período
+  // TODO: Implementar cuando el modelo SeasonalKeyframe esté disponible
   async updateOperationalKeyframes(req, res) {
-    try {
-      const { periodId } = req.params;
-      const { startDate, endDate, basePrice } = req.body;
-
-      // Buscar keyframes existentes para este período
-      const existingKeyframes = await prisma.seasonalKeyframe.findMany({
-        where: {
-          periodId,
-          isOperational: true
-        }
-      });
-
-      // Actualizar keyframe de apertura
-      const openingKeyframe = existingKeyframes.find(k => k.operationalType === 'opening');
-      if (openingKeyframe) {
-        await prisma.seasonalKeyframe.update({
-          where: { id: openingKeyframe.id },
-          data: {
-            date: new Date(startDate),
-            basePrice: parseFloat(basePrice || openingKeyframe.basePrice)
-          }
-        });
-      }
-
-      // Actualizar keyframe de cierre
-      const closingKeyframe = existingKeyframes.find(k => k.operationalType === 'closing');
-      if (closingKeyframe) {
-        await prisma.seasonalKeyframe.update({
-          where: { id: closingKeyframe.id },
-          data: {
-            date: new Date(endDate),
-            basePrice: parseFloat(basePrice || closingKeyframe.basePrice)
-          }
-        });
-      }
-
-      res.json({ message: 'Keyframes operacionales actualizados' });
-    } catch (error) {
-      console.error('Error al actualizar keyframes operacionales:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
+    res.status(501).json({ message: 'Funcionalidad no implementada - modelo SeasonalKeyframe no disponible' });
   }
 
   // Eliminar keyframes operacionales cuando se elimina un período
@@ -288,7 +215,7 @@ class DynamicPricingController {
    */
   async getOccupancyScore(req, res) {
     try {
-      const { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday } = req.body;
+      const { date, hotelId, daysUntilDate, currentOccupancy, isWeekend, isHoliday } = req.query;
 
       if (!date || !hotelId) {
         return res.status(400).json({ 
@@ -299,10 +226,10 @@ class DynamicPricingController {
       const score = await dynamicPricingService.calculateExpectedOccupancyScore({
         date: new Date(date),
         hotelId,
-        daysUntilDate: daysUntilDate || 0,
-        currentOccupancy: currentOccupancy || 0.5,
-        isWeekend: isWeekend || false,
-        isHoliday: isHoliday || false
+        daysUntilDate: parseInt(daysUntilDate) || 0,
+        currentOccupancy: parseFloat(currentOccupancy) || 0.5,
+        isWeekend: isWeekend === 'true',
+        isHoliday: isHoliday === 'true'
       });
 
       res.json({ occupancyScore: score });
@@ -841,7 +768,7 @@ class DynamicPricingController {
    */
   async checkLongWeekendOrHoliday(req, res) {
     try {
-      const { date, hotelId } = req.body;
+      const { date, hotelId } = req.query;
 
       if (!date || !hotelId) {
         return res.status(400).json({ 

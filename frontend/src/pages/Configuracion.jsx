@@ -8,6 +8,7 @@ import TarifasPreviewPanelV3 from '../components/configuracion/TarifasPreviewPan
 import TariffManagement from '../components/configuracion/TariffManagement';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
+import TipoCambioConfig from '../components/TipoCambioConfig';
 
 function ConfiguracionView() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -25,6 +26,7 @@ function ConfiguracionView() {
     { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
     { id: 'tarifas', label: 'Tarifas', icon: '💰' },
     { id: 'calendario', label: 'Calendario', icon: '📅' },
+    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'sistema', label: 'Sistema', icon: '⚙️' }
   ];
@@ -60,6 +62,12 @@ function ConfiguracionView() {
         return <TariffManagement />;
       case 'calendario':
         return <CalendarioTab />;
+      case 'tipo-cambio':
+        return (
+          <div style={{ padding: '16px' }}>
+            <TipoCambioConfig />
+          </div>
+        );
       case 'usuarios':
         return (
           <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>

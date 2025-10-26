@@ -3,6 +3,7 @@
   display: flex;
   min-height: 100vh;
   background: var(--color-bg);
+  margin-top: 80px; /* Espacio para la barra de navegación fija */
 }
 
 /* Sidebar izquierdo */
@@ -121,13 +122,45 @@
   overflow: hidden; /* Para el border-radius */
 }
 
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--color-primary);
+  background: white;
+}
+
 .section h2 {
   margin: 0;
-  padding: 20px 24px;
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-text-dark);
-  border-bottom: 2px solid var(--color-primary);
+}
+
+.createButton {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.createButton:hover {
+  background: var(--color-primary-dark, #1a4d80);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.createButton:active {
+  transform: translateY(0);
 }
 
 /* Estados de carga y error */

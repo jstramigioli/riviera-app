@@ -4,6 +4,25 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Iniciando seed...');
 
+  // Primero crear o obtener tipos de habitación
+  let roomType = await prisma.roomType.findFirst({
+    where: { name: 'Estándar' }
+  });
+
+  if (!roomType) {
+    roomType = await prisma.roomType.create({
+      data: {
+        name: 'Estándar',
+        description: 'Habitación estándar',
+        maxPeople: 2,
+        orderIndex: 0
+      }
+    });
+    console.log('Tipo de habitación creado:', roomType);
+  } else {
+    console.log('Tipo de habitación existente:', roomType);
+  }
+
   // Crear habitaciones del 1 al 36 (excluyendo 4 y 20) en orden
   const roomPromises = [];
   
@@ -22,10 +41,10 @@ async function main() {
         data: {
           name: numero.toString(),
           description: `Habitación ${numero}`,
-          tags: ['estándar'],
           maxPeople: 2,
           status: 'available',
-          orderIndex: index
+          orderIndex: index,
+          roomTypeId: roomType.id
         }
       })
     );
@@ -36,34 +55,34 @@ async function main() {
     {
       name: 'El Romerito',
       description: 'Departamento para 2 personas',
-      tags: ['departamento', '2-personas'],
       maxPeople: 2,
       status: 'available',
-      orderIndex: 34
+      orderIndex: 34,
+      roomTypeId: roomType.id
     },
     {
       name: 'El Tilo',
       description: 'Departamento para 5 personas',
-      tags: ['departamento', '5-personas'],
       maxPeople: 5,
       status: 'available',
-      orderIndex: 35
+      orderIndex: 35,
+      roomTypeId: roomType.id
     },
     {
       name: 'Via 1',
       description: 'Departamento para 4 personas',
-      tags: ['departamento', '4-personas'],
       maxPeople: 4,
       status: 'available',
-      orderIndex: 36
+      orderIndex: 36,
+      roomTypeId: roomType.id
     },
     {
       name: 'La Esquinita',
       description: 'Departamento para 4 personas',
-      tags: ['departamento', '4-personas'],
       maxPeople: 4,
       status: 'available',
-      orderIndex: 37
+      orderIndex: 37,
+      roomTypeId: roomType.id
     }
   ];
 
@@ -78,90 +97,30 @@ async function main() {
   const rooms = await Promise.all(roomPromises);
   console.log('Habitaciones creadas:', rooms.length);
 
-  // Crear clientes con notas
-  const clients = await Promise.all([
-    prisma.client.create({
-      data: {
-        firstName: 'Juan',
-        lastName: 'Pérez',
-        email: 'juan.perez@email.com',
-        phone: '+54 11 1234-5678',
-        documentType: 'DNI',
-        documentNumber: '12345678',
-        notes: 'Cliente frecuente, prefiere habitaciones con vista al mar'
-      }
-    }),
-    prisma.client.create({
-      data: {
-        firstName: 'María',
-        lastName: 'González',
-        email: 'maria.gonzalez@email.com',
-        phone: '+54 11 8765-4321',
-        documentType: 'DNI',
-        documentNumber: '87654321',
-        notes: 'Cliente VIP, solicita servicio de limpieza diario'
-      }
-    }),
-    prisma.client.create({
-      data: {
-        firstName: 'Carlos',
-        lastName: 'Rodríguez',
-        email: 'carlos.rodriguez@email.com',
-        phone: '+54 11 5555-1234',
-        documentType: 'CUIT',
-        documentNumber: '20-55551234-5',
-        notes: 'Viaja por trabajo, necesita facturación empresarial'
-      }
-    })
-  ]);
+  // Los clientes ya existen, no los creamos
+  console.log('Clientes ya existen en la base de datos');
 
-  console.log('Clientes creados:', clients.length);
-
-  // Crear reservas con notas
-  const today = new Date();
-  const addDays = (date, days) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
-  };
+  // Crear reservas básicas usando clientes existentes
   const reservations = await Promise.all([
     prisma.reservation.create({
       data: {
-        roomId: rooms[0].id, // Habitación 1
-        mainClientId: clients[0].id,
-        checkIn: today,
-        checkOut: addDays(today, 2),
-        totalAmount: 45000,
-        status: 'active',
-        reservationType: 'con_desayuno',
-        notes: 'Cliente solicita cama king size si es posible',
-        fixed: false
+        mainClientId: 68, // Hector Campagna
+        status: 'CONFIRMADA',
+        notes: 'Cliente solicita cama king size si es posible'
       }
     }),
     prisma.reservation.create({
       data: {
-        roomId: rooms[34].id, // El Romerito
-        mainClientId: clients[1].id,
-        checkIn: addDays(today, 1),
-        checkOut: addDays(today, 3),
-        totalAmount: 75000,
-        status: 'active',
-        reservationType: 'media_pension',
-        notes: 'Departamento para luna de miel, decoración especial',
-        fixed: false
+        mainClientId: 6, // Dora Casarino
+        status: 'CONFIRMADA',
+        notes: 'Departamento para luna de miel, decoración especial'
       }
     }),
     prisma.reservation.create({
       data: {
-        roomId: rooms[35].id, // El Tilo
-        mainClientId: clients[2].id,
-        checkIn: addDays(today, 2),
-        checkOut: addDays(today, 4),
-        totalAmount: 120000,
-        status: 'finished',
-        reservationType: 'con_desayuno',
-        notes: 'Familia con niños, solicita cuna adicional',
-        fixed: true
+        mainClientId: 7, // Pablo Alexis Cano Meza
+        status: 'FINALIZADA',
+        notes: 'Familia con niños, solicita cuna adicional'
       }
     })
   ]);
@@ -226,61 +185,54 @@ async function main() {
 
   console.log('Huéspedes creados:', guests.length);
 
-  // Crear algunos pagos y cargos de ejemplo
-  const payments = await Promise.all([
-    // Cargo por reserva
-    prisma.payment.create({
+  // Crear algunos cargos y pagos de ejemplo usando el nuevo sistema
+  const cargos = await Promise.all([
+    prisma.cargo.create({
       data: {
-        guestId: guests[0].id,
-        amount: 45000,
-        type: 'charge',
-        description: 'Cargo por reserva #1',
-        date: new Date('2024-01-15')
+        reservaId: reservations[0].id,
+        descripcion: 'Alojamiento 2 noches',
+        monto: 45000,
+        tipo: 'ALOJAMIENTO',
+        fecha: new Date('2025-10-26')
       }
     }),
-    // Pago parcial
-    prisma.payment.create({
+    prisma.cargo.create({
       data: {
-        guestId: guests[0].id,
-        amount: 30000,
-        type: 'payment',
-        description: 'Pago parcial en efectivo',
-        date: new Date('2024-01-15')
-      }
-    }),
-    // Cargo por consumo
-    prisma.payment.create({
-      data: {
-        guestId: guests[0].id,
-        amount: 5000,
-        type: 'charge',
-        description: 'Cargo por minibar y servicios',
-        date: new Date('2024-01-16')
-      }
-    }),
-    // Cargo por reserva
-    prisma.payment.create({
-      data: {
-        guestId: guests[2].id,
-        amount: 75000,
-        type: 'charge',
-        description: 'Cargo por reserva #2',
-        date: new Date('2024-01-20')
-      }
-    }),
-    // Pago completo
-    prisma.payment.create({
-      data: {
-        guestId: guests[2].id,
-        amount: 75000,
-        type: 'payment',
-        description: 'Pago completo con tarjeta',
-        date: new Date('2024-01-20')
+        reservaId: reservations[1].id,
+        descripcion: 'Departamento 2 noches',
+        monto: 75000,
+        tipo: 'ALOJAMIENTO',
+        fecha: new Date('2025-10-27')
       }
     })
   ]);
 
-  console.log('Pagos creados:', payments.length);
+  const pagos = await Promise.all([
+    prisma.pago.create({
+      data: {
+        reservaId: reservations[0].id,
+        monto: 20000,
+        moneda: 'ARS',
+        montoARS: 20000,
+        metodo: 'Transferencia',
+        fecha: new Date('2025-10-26')
+      }
+    }),
+    prisma.pago.create({
+      data: {
+        reservaId: reservations[1].id,
+        monto: 100,
+        moneda: 'USD',
+        tipoCambio: 1000,
+        montoARS: 100000,
+        metodo: 'Tarjeta',
+        fecha: new Date('2025-10-27')
+      }
+    })
+  ]);
+
+  console.log('Cargos creados:', cargos.length);
+  console.log('Pagos creados:', pagos.length);
 
   console.log('Seed completado exitosamente!');
 }

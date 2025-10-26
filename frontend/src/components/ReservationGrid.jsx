@@ -146,16 +146,17 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       
-      // Llamar al endpoint del backend que maneja la nueva lógica
-      const response = await fetch(`${API_URL}/dynamic-pricing/long-weekend-check`, {
-        method: 'POST',
+      // Usar GET con parámetros de query en lugar de POST
+      const params = new URLSearchParams({
+        date: date.toISOString(),
+        hotelId: 'default-hotel'
+      });
+      
+      const response = await fetch(`${API_URL}/dynamic-pricing/long-weekend-check?${params}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: date.toISOString(),
-          hotelId: 'default-hotel'
-        })
+        }
       });
       
       if (response.ok) {
@@ -184,35 +185,30 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       
       const daysUntilDate = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
       
-
-      
       // Usar configuración de días de fin de semana desde el backend
       const weekendDays = dynamicPricingConfig?.weekendDays || [0, 6]; // Por defecto: domingo y sábado
       const isWeekend = weekendDays.includes(getDay(date));
       const isLongWeekendOrHoliday = await checkIfLongWeekendOrHoliday(date); // Consultar si es feriado/fin de semana largo
       
-      const requestBody = {
+      // Usar GET con parámetros de query en lugar de POST
+      const params = new URLSearchParams({
         date: date.toISOString(),
         hotelId: 'default-hotel',
-        daysUntilDate,
-        currentOccupancy: 50, // Por ahora hardcodeado
-        isWeekend,
-        isHoliday: isLongWeekendOrHoliday // Usar la nueva lógica
-      };
+        daysUntilDate: daysUntilDate.toString(),
+        currentOccupancy: '50', // Por ahora hardcodeado
+        isWeekend: isWeekend.toString(),
+        isHoliday: isLongWeekendOrHoliday.toString()
+      });
       
-
-      
-      const response = await fetch(`${API_URL}/dynamic-pricing/occupancy-score`, {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/dynamic-pricing/occupancy-score?${params}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+        }
       });
       
       if (response.ok) {
         const data = await response.json();
-
         return data.occupancyScore;
       }
     } catch (error) {

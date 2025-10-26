@@ -1,0 +1,1069 @@
+/* Tab Content */
+.tabContent {
+  padding: 24px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Section Header */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* Financial Alert */
+.financialAlert {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.financialAlertHeader {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.financialAlertBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.financialRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.saldoRow {
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 1.1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.saldoRow.PENDIENTE {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: #ffc107;
+}
+
+.saldoRow.PAGADO {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.saldoRow.A_FAVOR {
+  background: rgba(33, 150, 243, 0.2);
+  border-color: #2196f3;
+}
+
+.estadoPagoTag {
+  text-align: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Info Grid */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.infoLabel {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.infoValue {
+  font-size: 1rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.infoValue.highlight {
+  font-size: 1.2rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusBadge.PENDIENTE {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.statusBadge.CONFIRMADA {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.statusBadge.INGRESADA {
+  background: #d4edda;
+  color: #155724;
+}
+
+.statusBadge.FINALIZADA {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.statusBadge.CANCELADA {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Notes Box */
+.notesBox {
+  background: #fff9e6;
+  border-left: 4px solid #ffc107;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.notesBox h4 {
+  margin: 0 0 12px 0;
+  color: #856404;
+  font-size: 1rem;
+}
+
+.notesBox p {
+  margin: 0;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Summary Cards */
+.summaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summaryCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.summaryLabel {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.summaryValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.summaryValue.saldo {
+  color: #ffc107;
+}
+
+/* Buttons */
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addButton:hover {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.primaryButton {
+  padding: 12px 24px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primaryButton:hover {
+  background: #5568d3;
+  transform: translateY(-2px);
+}
+
+/* Table */
+.tableContainer {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dataTable thead {
+  background: #f8f9fa;
+}
+
+.dataTable th {
+  padding: 16px;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dataTable td {
+  padding: 16px;
+  border-top: 1px solid #f0f0f0;
+  color: #333;
+}
+
+.dataTable tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.montoCell {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.05rem;
+}
+
+.notasCell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tipoBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tipoBadge.ALOJAMIENTO {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.tipoBadge.SERVICIO {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.tipoBadge.CONSUMO {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.tipoBadge.OTRO {
+  background: #f5f5f5;
+  color: #616161;
+}
+
+.deleteIconButton {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.deleteIconButton:hover {
+  background: #ffe5e5;
+  transform: scale(1.1);
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.emptyState p {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.emptySubtext {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #1a1a1a;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #999;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.closeButton:hover {
+  color: #333;
+}
+
+.modalForm {
+  padding: 24px;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroup textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.formGroup input:focus,
+.formGroup select:focus,
+.formGroup textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.formGroup textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #f8f9fa;
+}
+
+.cancelButton {
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelButton:hover {
+  background: #5a6268;
+}
+
+.submitButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submitButton:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+}
+
+/* Huéspedes Tab */
+.clientePrincipalBox {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.clientePrincipalBox h4 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.clienteInfo {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clienteInfo:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.clienteName {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.clienteDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.guestsBox {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.guestsBox h4 {
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+}
+
+.guestsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.guestCard {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  position: relative;
+}
+
+.guestCard .guestName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+.guestCard .guestInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.deleteGuestButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.deleteGuestButton:hover {
+  opacity: 1;
+  background: #ffe5e5;
+}
+
+/* Grid de Huéspedes */
+.guestsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.guestCardMain {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  position: relative;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.guestCardMain .guestBadge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.guestCardMain .guestIcon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+.guestCardMain .guestNameMain {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  color: white;
+}
+
+.guestCardMain .guestDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+  opacity: 0.95;
+  width: 100%;
+}
+
+.guestCardMain .guestDetail {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.guestCard {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 2px solid #e9ecef;
+  position: relative;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.guestCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.guestCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.guestBadgeSecundary {
+  background: #f0f0f0;
+  color: #667eea;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.guestActions {
+  display: flex;
+  gap: 4px;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.iconButton:hover {
+  background: #f0f0f0;
+  color: #667eea;
+}
+
+.iconButton:first-child:hover {
+  color: #28a745;
+}
+
+.iconButton:last-child:hover {
+  color: #dc3545;
+}
+
+.guestIcon {
+  font-size: 2.5rem;
+  color: #667eea;
+  margin-bottom: 12px;
+}
+
+.guestCard .guestName {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+}
+
+.guestCard .guestDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #666;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.guestCard .guestDetail {
+  width: 100%;
+  padding: 6px 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.emptyGuestSlot {
+  background: white;
+  border: 2px dashed #d0d0d0;
+  border-radius: 16px;
+  padding: 40px 20px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.emptyGuestSlot:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+}
+
+.emptyGuestSlot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(102, 126, 234, 0.05) 10px,
+    rgba(102, 126, 234, 0.05) 20px
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.emptyGuestSlot:hover::before {
+  opacity: 1;
+}
+
+.emptySlotIcon {
+  font-size: 3rem;
+  color: #999;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.emptyGuestSlot:hover .emptySlotIcon {
+  color: #667eea;
+  transform: scale(1.2);
+}
+
+.emptySlotText {
+  color: #999;
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+.emptyGuestSlot:hover .emptySlotText {
+  color: #667eea;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .guestsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Charges Groups */
+.chargesGroupsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chargeGroup {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.groupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: #f8f9fa;
+  border-left: 4px solid #4caf50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.groupHeader:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.groupHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.groupIcon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.groupInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.groupSubtitle {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.groupHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.groupTotal {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.expandIcon {
+  font-size: 1rem;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.groupHeader:hover .expandIcon {
+  color: #333;
+}
+
+.groupDetails {
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+.groupDetails .tableContainer {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.groupDetails .dataTable {
+  margin: 0;
+}
+
+.groupDetails .dataTable thead {
+  background: #f1f3f4;
+}
+
+.groupDetails .dataTable th {
+  font-size: 0.8rem;
+  padding: 12px 16px;
+}
+
+.groupDetails .dataTable td {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Estilos para pagos multimoneda */
+.arsEquivalent {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.cardDetails {
+  font-size: 0.9rem;
+}
+
+.cardDetails > div {
+  margin-bottom: 2px;
+}
+
+.cardNumber {
+  font-family: monospace;
+  color: #666;
+  font-size: 0.8rem;
+}
+
+/* Estilos para la sección de agregar pago */
+.addPaymentSection {
+  margin-top: 24px;
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.addPaymentButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.addPaymentButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.addPaymentButton:active {
+  transform: translateY(0);
+}
+
+

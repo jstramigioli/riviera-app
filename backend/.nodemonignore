@@ -1,0 +1,35 @@
+# Archivos de log
+*.log
+server.log
+backend.log
+
+# Archivos de cache y temporales
+*.tmp
+*.cache
+*.pid
+*.lock
+.DS_Store
+
+# Directorios de backup y datos
+backups/
+data/
+node_modules/
+
+# Archivos de base de datos y scripts
+*.sql
+*.xlsx
+
+# Archivos de configuración que no necesitan reinicio
+*.json
+!package.json
+!package-lock.json
+!nodemon.json
+!jest.config.js
+
+# Directorios de pruebas y scripts
+tests/
+scripts/
+
+# Archivos de documentación
+*.md
+README.md

@@ -33,10 +33,10 @@ router.post('/gap-promotions/:roomId/:date', dynamicPricingController.applyGapPr
 
 // Cálculo de scores
 router.post('/calculate-score/:hotelId/:date', dynamicPricingController.calculateOccupancyScore);
-router.post('/occupancy-score', dynamicPricingController.getOccupancyScore);
+router.get('/occupancy-score', dynamicPricingController.getOccupancyScore);
 router.post('/detailed-occupancy-score', dynamicPricingController.getDetailedOccupancyScore);
 
 // Verificación de feriados/fines de semana largos
-router.post('/long-weekend-check', dynamicPricingController.checkLongWeekendOrHoliday);
+router.get('/long-weekend-check', dynamicPricingController.checkLongWeekendOrHoliday);
 
 module.exports = router; 
