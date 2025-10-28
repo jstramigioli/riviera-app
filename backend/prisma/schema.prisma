@@ -45,6 +45,7 @@ model RoomType {
   rooms                  Room[]
   seasonPrices           SeasonPrice[]
   virtualRooms           VirtualRoom[]
+  cargos                 Cargo[]                 // Relación con cargos de alojamiento
 }
 
 model Room {
@@ -429,6 +430,7 @@ model ServiceType {
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
   seasonPrices           SeasonPrice[]
+  cargos                 Cargo[]                 // Relación con cargos de alojamiento
   hotel                  Hotel                   @relation(fields: [hotelId], references: [id])
 
   @@unique([hotelId, name])
@@ -494,17 +496,49 @@ model Pago {
   updatedAt  DateTime    @updatedAt
 }
 
+model SubcategoriaCargo {
+  id             Int       @id @default(autoincrement())
+  tipo           String    // Tipo hardcoded: "SERVICIO", "CONSUMO", "OTRO" (sin ALOJAMIENTO)
+  codigo         String    // Código único dentro del tipo (ej: "BEBIDAS", "SPA", "LAVANDERIA")
+  nombre         String    // Nombre display (ej: "Bebidas", "Spa", "Lavandería")
+  descripcion    String?   // Descripción opcional
+  color          String    @default("#9e9e9e") // Color para la interfaz
+  esActivo       Boolean   @default(true) // Permite desactivar sin eliminar
+  ordenIndex     Int       @default(0) // Para ordenar en la interfaz
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relaciones
+  cargos         Cargo[]
+  
+  // Índices únicos
+  @@unique([tipo, codigo])
+}
+
 model Cargo {
-  id          Int         @id @default(autoincrement())
-  reservaId   Int
-  reserva     Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
-  descripcion String
-  monto       Decimal     @db.Decimal(10, 2)
-  fecha       DateTime    @default(now())
-  tipo        String      @default("ALOJAMIENTO") // ALOJAMIENTO, SERVICIO, CONSUMO, OTRO
-  notas       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                  Int                @id @default(autoincrement())
+  reservaId           Int
+  
+  // Para cargos de alojamiento (campos directos - dinámicos)
+  roomTypeId          Int?               // Tipo de habitación para cargos de alojamiento
+  serviceTypeId       String?            // Tipo de servicio para cargos de alojamiento
+  
+  // Para otros tipos de cargo (subcategorías personalizables)
+  subcategoriaCargoId Int?               // Servicios, Consumos, Otros
+  
+  // Relaciones
+  reserva             Reservation        @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  subcategoriaCargo   SubcategoriaCargo? @relation(fields: [subcategoriaCargoId], references: [id], onDelete: Restrict)
+  roomType            RoomType?          @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  serviceType         ServiceType?       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  
+  // Campos básicos
+  descripcion         String
+  monto               Decimal            @db.Decimal(10, 2)
+  fecha               DateTime           @default(now())
+  notas               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 }
 
 enum ReservationStatus {

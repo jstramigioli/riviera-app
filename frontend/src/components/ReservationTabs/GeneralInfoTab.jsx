@@ -17,12 +17,12 @@ const GeneralInfoTab = ({
 
   return (
     <div className={styles.tabContent}>
-      <h3 className={styles.sectionTitle}>📋 Información General</h3>
+      <h3 className={styles.sectionTitle}>Información General</h3>
       
       {/* Resumen Financiero */}
       {financialSummary && (
         <div className={styles.financialAlert}>
-          <div className={styles.financialAlertHeader}>💰 Estado Financiero</div>
+          <div className={styles.financialAlertHeader}>Estado Financiero</div>
           <div className={styles.financialAlertBody}>
             <div className={styles.financialRow}>
               <span>Total Cargos:</span>
@@ -37,9 +37,9 @@ const GeneralInfoTab = ({
               <strong>{formatCurrency(financialSummary.resumen.saldo)}</strong>
             </div>
             <div className={styles.estadoPagoTag}>
-              {financialSummary.resumen.estadoPago === 'PENDIENTE' && '⚠️ Pendiente de pago'}
-              {financialSummary.resumen.estadoPago === 'PAGADO' && '✅ Pagado completamente'}
-              {financialSummary.resumen.estadoPago === 'A_FAVOR' && '💵 Saldo a favor'}
+              {financialSummary.resumen.estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
+              {financialSummary.resumen.estadoPago === 'PAGADO' && 'Pagado completamente'}
+              {financialSummary.resumen.estadoPago === 'A_FAVOR' && 'Saldo a favor'}
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricin
 import TarifasPreviewPanelV2 from '../components/configuracion/TarifasPreviewPanelV2';
 import TarifasPreviewPanelV3 from '../components/configuracion/TarifasPreviewPanelV3';
 import TariffManagement from '../components/configuracion/TariffManagement';
+import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
@@ -24,7 +25,7 @@ function ConfiguracionView() {
   const tabs = [
     { id: 'hotel', label: 'Hotel', icon: '🏨' },
     { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'tarifas', label: 'Tarifas', icon: '💰' },
+    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
     { id: 'calendario', label: 'Calendario', icon: '📅' },
     { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
@@ -58,8 +59,8 @@ function ConfiguracionView() {
             <HabitacionesTab />
           </div>
         );
-      case 'tarifas':
-        return <TariffManagement />;
+      case 'cargos-tarifas':
+        return <CargosTarifasTab />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':

@@ -357,6 +357,22 @@
   transform: scale(1.1);
 }
 
+.editIconButton {
+  background: none;
+  border: none;
+  color: #007bff;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.editIconButton:hover {
+  background: #e3f2fd;
+  transform: scale(1.1);
+}
+
 /* Empty State */
 .emptyState {
   text-align: center;

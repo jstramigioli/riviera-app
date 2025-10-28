@@ -1,0 +1,138 @@
+/* Contenedor principal */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f8f9fa;
+}
+
+/* Header */
+.header {
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.headerContent h2 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.headerContent p {
+  margin: 4px 0 0 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Sub-pestañas */
+.subTabsContainer {
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  overflow-x: auto;
+}
+
+.subTabs {
+  display: flex;
+  min-width: max-content;
+  padding: 0 20px;
+}
+
+.subTab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+  min-width: 200px;
+  text-align: left;
+  position: relative;
+}
+
+.subTab:hover {
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.subTab.active {
+  border-bottom-color: #007bff;
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.subTabIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.subTabContent {
+  flex: 1;
+}
+
+.subTabLabel {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.subTabDescription {
+  font-size: 0.8rem;
+  color: #6c757d;
+  line-height: 1.3;
+}
+
+.subTab.active .subTabLabel {
+  color: #007bff;
+}
+
+.subTab.active .subTabDescription {
+  color: #495057;
+}
+
+/* Contenido de sub-pestaña */
+.subTabContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .subTabs {
+    padding: 0 12px;
+  }
+  
+  .subTab {
+    min-width: 160px;
+    padding: 12px 16px;
+  }
+  
+  .subTabIcon {
+    font-size: 1.25rem;
+  }
+  
+  .subTabLabel {
+    font-size: 0.9rem;
+  }
+  
+  .subTabDescription {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .subTab {
+    min-width: 140px;
+    gap: 8px;
+  }
+  
+  .subTabDescription {
+    display: none; /* Ocultar descripción en pantallas muy pequeñas */
+  }
+}

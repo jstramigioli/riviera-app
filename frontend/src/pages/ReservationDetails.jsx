@@ -12,6 +12,7 @@ import {
   deletePago,
   getCargosByReserva,
   createCargo,
+  updateCargo,
   deleteCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
@@ -156,6 +157,18 @@ const ReservationDetails = () => {
     }
   };
 
+  const handleUpdateCargo = async (cargoId, cargoData) => {
+    try {
+      await updateCargo(cargoId, cargoData);
+      await loadFinancialData();
+      alert('Cargo actualizado exitosamente');
+    } catch (error) {
+      console.error('Error actualizando cargo:', error);
+      alert(`Error: ${error.message}`);
+      throw error;
+    }
+  };
+
   const handleDeleteCargo = async (cargoId) => {
     if (!confirm('¿Estás seguro de eliminar este cargo?')) return;
     
@@ -285,6 +298,7 @@ const ReservationDetails = () => {
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             onAddCargo={handleAddCargo}
+            onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
           />
         );

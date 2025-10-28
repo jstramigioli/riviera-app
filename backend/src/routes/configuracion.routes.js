@@ -32,3 +32,4 @@ router.get('/tipo-cambio/usd', controller.getTipoCambioUSD);
 router.post('/tipo-cambio/usd', controller.setTipoCambioUSD);
 
 module.exports = router;
+

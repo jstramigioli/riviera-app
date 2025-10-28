@@ -224,3 +224,4 @@ const TipoCambioConfig = () => {
 };
 
 export default TipoCambioConfig;
+

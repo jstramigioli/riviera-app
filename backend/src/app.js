@@ -24,6 +24,9 @@ const reservationSegmentRoutes = require('./routes/reservationSegment.routes');
 const multiRoomReservationRoutes = require('./routes/multiRoomReservation.routes');
 const virtualRoomRoutes = require('./routes/virtualRoom.routes');
 const configuracionRoutes = require('./routes/configuracion.routes');
+const tipoCargoRoutes = require('./routes/tipoCargoRoutes');
+const subcategoriaCargoRoutes = require('./routes/subcategoriaCargoRoutes');
+const alojamientoRoutes = require('./routes/alojamientoRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -64,6 +67,9 @@ app.use('/api/reservation-segments', reservationSegmentRoutes);
 app.use('/api/multi-room-reservations', multiRoomReservationRoutes);
 app.use('/api/virtual-rooms', virtualRoomRoutes);
 app.use('/api/configuracion', configuracionRoutes);
+app.use('/api/tipo-cargo', tipoCargoRoutes);
+app.use('/api/subcategoria-cargo', subcategoriaCargoRoutes);
+app.use('/api/alojamiento', alojamientoRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

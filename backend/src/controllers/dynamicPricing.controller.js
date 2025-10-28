@@ -400,43 +400,75 @@ class DynamicPricingController {
       // Variables que necesitan estar disponibles en todo el scope
       let requestedServiceName = null;
       let allServices = new Set();
+      let allBlocksServices = [];
       
       if (seasonBlocks.length > 0) {
-        // Obtener servicios habilitados del primer bloque
-        const firstBlockServices = seasonBlocks[0].blockServiceSelections
-          .filter(selection => selection.isEnabled)
-          .map(selection => ({
-            id: selection.serviceType.id,
-            name: selection.serviceType.name,
-            orderIndex: selection.orderIndex
-          }));
+        // Función helper para obtener servicios de un bloque
+        const getBlockServices = async (block) => {
+          if (block.useBlockServices && block.blockServiceSelections.length > 0) {
+            // Usar servicios explícitamente habilitados
+            return block.blockServiceSelections
+              .filter(selection => selection.isEnabled)
+              .map(selection => ({
+                id: selection.serviceType.id,
+                name: selection.serviceType.name,
+                orderIndex: selection.orderIndex
+              }));
+          } else {
+            // Extraer servicios de los precios configurados
+            const serviceIds = [...new Set(block.seasonPrices.map(price => price.serviceTypeId))];
+            const services = [];
+            
+            for (const serviceId of serviceIds) {
+              try {
+                const serviceType = await prisma.serviceType.findUnique({
+                  where: { id: serviceId }
+                });
+                if (serviceType) {
+                  services.push({
+                    id: serviceType.id,
+                    name: serviceType.name,
+                    orderIndex: serviceType.orderIndex || 1
+                  });
+                }
+              } catch (error) {
+                console.log('Error obteniendo tipo de servicio:', serviceId, error);
+              }
+            }
+            
+            return services.sort((a, b) => a.orderIndex - b.orderIndex);
+          }
+        };
 
-        // Verificar qué servicios están habilitados en todos los bloques
+        // Obtener servicios del primer bloque
+        const firstBlockServices = await getBlockServices(seasonBlocks[0]);
+
+        // Verificar qué servicios están disponibles en todos los bloques
+        allBlocksServices = await Promise.all(
+          seasonBlocks.map(block => getBlockServices(block))
+        );
+
+        // Encontrar servicios comunes (intersección)
         commonServices = firstBlockServices.filter(service => {
-          return seasonBlocks.every(block => {
-            return block.blockServiceSelections.some(selection => 
-              selection.isEnabled && selection.serviceType.id === service.id
-            );
-          });
+          return allBlocksServices.every(blockServices => 
+            blockServices.some(blockService => blockService.id === service.id)
+          );
         });
 
         // Generar mensajes informativos sobre servicios no disponibles
-        seasonBlocks.forEach(block => {
-          block.blockServiceSelections.forEach(selection => {
-            if (selection.isEnabled) {
-              allServices.add(selection.serviceType.name);
-            }
+        for (const blockServices of allBlocksServices) {
+          blockServices.forEach(service => {
+            allServices.add(service.name);
           });
-        });
+        }
         
         // Detectar si el servicio solicitado está disponible en algunos bloques pero no en todos
         // Buscar el nombre del servicio solicitado en los servicios de los bloques
-        for (const block of seasonBlocks) {
-          const serviceInBlock = block.blockServiceSelections.find(selection => 
-            selection.serviceType.id === serviceType && selection.isEnabled
-          );
+        for (let i = 0; i < seasonBlocks.length; i++) {
+          const blockServices = allBlocksServices[i];
+          const serviceInBlock = blockServices.find(service => service.id === serviceType);
           if (serviceInBlock) {
-            requestedServiceName = serviceInBlock.serviceType.name;
+            requestedServiceName = serviceInBlock.name;
             break;
           }
         }
@@ -493,11 +525,9 @@ class DynamicPricingController {
       const isPartiallyAvailable = requestedServiceName && 
         Array.from(allServices).includes(requestedServiceName) && 
         !commonServices.some(service => service.name === requestedServiceName) &&
-        seasonBlocks.some(block => 
-          block.blockServiceSelections.some(selection => 
-            selection.serviceType.id === serviceType && selection.isEnabled
-          )
-        );
+        (allBlocksServices && allBlocksServices.some(blockServices => 
+          blockServices.some(service => service.id === serviceType)
+        ));
         
       console.log('🔍 Final isPartiallyAvailable calculation:', {
         requestedServiceName,
@@ -529,10 +559,8 @@ class DynamicPricingController {
       const requestedService = commonServices.find(service => service.id === serviceType);
       
       // Si el servicio no está en los servicios comunes, verificar si está disponible en algún bloque
-      const serviceExistsInAnyBlock = seasonBlocks.some(block => 
-        block.blockServiceSelections.some(selection => 
-          selection.serviceType.id === serviceType && selection.isEnabled
-        )
+      const serviceExistsInAnyBlock = allBlocksServices && allBlocksServices.some(blockServices => 
+        blockServices.some(service => service.id === serviceType)
       );
       
       console.log('🔍 Debug requestedService:', {
@@ -550,11 +578,13 @@ class DynamicPricingController {
         const endDate = new Date(end);
         
         // Encontrar bloques que tienen el servicio solicitado
-        const blocksWithService = seasonBlocks.filter(block => 
-          block.blockServiceSelections.some(selection => 
-            selection.serviceType.id === serviceType && selection.isEnabled
-          )
-        );
+        const blocksWithService = [];
+        for (let i = 0; i < seasonBlocks.length; i++) {
+          const blockServices = allBlocksServices[i];
+          if (blockServices.some(service => service.id === serviceType)) {
+            blocksWithService.push(seasonBlocks[i]);
+          }
+        }
         
         // Calcular períodos disponibles
         for (const block of blocksWithService) {
@@ -599,11 +629,13 @@ class DynamicPricingController {
           const endDate = new Date(end);
           
           // Encontrar bloques que tienen el servicio solicitado
-          const blocksWithService = seasonBlocks.filter(block => 
-            block.blockServiceSelections.some(selection => 
-              selection.serviceType.id === serviceType && selection.isEnabled
-            )
-          );
+          const blocksWithService = [];
+          for (let i = 0; i < seasonBlocks.length; i++) {
+            const blockServices = allBlocksServices[i];
+            if (blockServices.some(service => service.id === serviceType)) {
+              blocksWithService.push(seasonBlocks[i]);
+            }
+          }
           
           // Calcular períodos disponibles
           for (const block of blocksWithService) {

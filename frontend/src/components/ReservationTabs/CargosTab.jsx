@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
 
 const CargosTab = ({ 
@@ -9,32 +9,137 @@ const CargosTab = ({
   formatDate,
   formatCurrency,
   onAddCargo,
+  onUpdateCargo,
   onDeleteCargo
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [subcategorias, setSubcategorias] = useState([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(false);
+  const [editingCargo, setEditingCargo] = useState(null); // Cargo siendo editado
   const [newCargo, setNewCargo] = useState({ 
     descripcion: '', 
     monto: '', 
-    tipo: 'CONSUMO', 
+    subcategoriaCargoId: null,
     notas: '' 
   });
   const [expandedGroups, setExpandedGroups] = useState({});
 
-  // Agrupar cargos por tipo y ordenar por fecha (más antiguos primero)
+  // Cargar categorías híbridas al montar el componente
+  useEffect(() => {
+    loadCategoriasHibridas();
+  }, []);
+
+  const loadCategoriasHibridas = async () => {
+    try {
+      setLoadingCategorias(true);
+      
+      // Cargar solo subcategorías personalizables (SERVICIO, CONSUMO, OTRO)
+      const subcategoriasRes = await fetch('http://localhost:3001/api/subcategoria-cargo');
+      
+      if (!subcategoriasRes.ok) throw new Error('Error al cargar subcategorías');
+      
+      const subcategoriasResult = await subcategoriasRes.json();
+      
+      // Procesar subcategorías personalizables (solo SERVICIO, CONSUMO, OTRO)
+      const todasSubcategorias = [];
+      for (const [tipo, subcats] of Object.entries(subcategoriasResult.data || {})) {
+        for (const subcat of subcats) {
+          todasSubcategorias.push({
+            ...subcat,
+            tipoNombre: {
+              'SERVICIO': 'Servicios', 
+              'CONSUMO': 'Consumos',
+              'OTRO': 'Otros'
+            }[tipo] || tipo
+          });
+        }
+      }
+      
+      setSubcategorias(todasSubcategorias);
+      
+      // Establecer default si hay subcategorías disponibles
+      if (todasSubcategorias.length > 0) {
+        setNewCargo(prev => ({ 
+          ...prev, 
+          subcategoriaCargoId: todasSubcategorias[0].id 
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+    } finally {
+      setLoadingCategorias(false);
+    }
+  };
+
+  // Agrupar cargos híbridamente
   const groupedCharges = cargos
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha)) // Ordenar por fecha ascendente
     .reduce((groups, cargo) => {
-      const tipo = cargo.tipo || 'OTRO';
-      if (!groups[tipo]) {
-        groups[tipo] = {
+      let tipoPrincipal, subcategoriaNombre, subcategoriaColor;
+      
+      // ENFOQUE HÍBRIDO: Detectar si es alojamiento o subcategoría
+      if (cargo.roomTypeId && cargo.serviceTypeId) {
+        // Es alojamiento (campos directos)
+        tipoPrincipal = 'ALOJAMIENTO';
+        const roomName = cargo.roomType?.name || 'Habitación';
+        const serviceName = cargo.serviceType?.name || 'Servicio';
+        subcategoriaNombre = `${roomName} - ${serviceName}`;
+        subcategoriaColor = '#4caf50'; // Color fijo para alojamiento
+      } else if (cargo.subcategoriaCargo) {
+        // Es otro tipo (subcategoría personalizable)
+        tipoPrincipal = cargo.subcategoriaCargo.tipo;
+        subcategoriaNombre = cargo.subcategoriaCargo.nombre;
+        subcategoriaColor = cargo.subcategoriaCargo.color;
+      } else {
+        // Cargo sin categoría
+        tipoPrincipal = 'OTRO';
+        subcategoriaNombre = 'Sin categoría';
+        subcategoriaColor = '#9e9e9e';
+      }
+      
+      // Información de tipos principales hardcoded
+      const tiposInfo = {
+        'ALOJAMIENTO': { nombre: 'Alojamiento', color: '#4caf50' },
+        'SERVICIO': { nombre: 'Servicios', color: '#2196f3' },
+        'CONSUMO': { nombre: 'Consumos', color: '#ff9800' },
+        'OTRO': { nombre: 'Otros', color: '#9e9e9e' }
+      };
+      
+      const tipoInfo = tiposInfo[tipoPrincipal] || tiposInfo['OTRO'];
+      
+      if (!groups[tipoPrincipal]) {
+        groups[tipoPrincipal] = {
+          nombre: tipoInfo.nombre,
+          codigo: tipoPrincipal,
+          color: tipoInfo.color,
+          subcategorias: {},
           cargos: [],
           total: 0,
           count: 0
         };
       }
-      groups[tipo].cargos.push(cargo);
-      groups[tipo].total += parseFloat(cargo.monto);
-      groups[tipo].count += 1;
+      
+      // Agrupar por subcategoría dentro del tipo
+      if (!groups[tipoPrincipal].subcategorias[subcategoriaNombre]) {
+        groups[tipoPrincipal].subcategorias[subcategoriaNombre] = {
+          nombre: subcategoriaNombre,
+          color: subcategoriaColor,
+          cargos: [],
+          total: 0,
+          count: 0
+        };
+      }
+      
+      // Agregar cargo al tipo principal
+      groups[tipoPrincipal].cargos.push(cargo);
+      groups[tipoPrincipal].total += parseFloat(cargo.monto);
+      groups[tipoPrincipal].count += 1;
+      
+      // Agregar cargo a la subcategoría
+      groups[tipoPrincipal].subcategorias[subcategoriaNombre].cargos.push(cargo);
+      groups[tipoPrincipal].subcategorias[subcategoriaNombre].total += parseFloat(cargo.monto);
+      groups[tipoPrincipal].subcategorias[subcategoriaNombre].count += 1;
+      
       return groups;
     }, {});
 
@@ -46,27 +151,78 @@ const CargosTab = ({
     }));
   };
 
-  // Función para obtener el color del tipo de cargo
-  const getTipoInfo = (tipo) => {
-    const tiposInfo = {
-      'ALOJAMIENTO': { color: '#4caf50', label: 'Alojamiento' },
-      'SERVICIO': { color: '#2196f3', label: 'Servicios' },
-      'CONSUMO': { color: '#ff9800', label: 'Consumos' },
-      'OTRO': { color: '#9e9e9e', label: 'Otros' }
-    };
-    return tiposInfo[tipo] || tiposInfo['OTRO'];
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onAddCargo({
+    
+    if (!newCargo.subcategoriaCargoId) {
+      alert('Debe seleccionar una subcategoría');
+      return;
+    }
+    
+    let cargoData = {
       descripcion: newCargo.descripcion,
       monto: parseFloat(newCargo.monto),
-      tipo: newCargo.tipo,
-      notas: newCargo.notas || null
+      notas: newCargo.notas || null,
+      subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId)
+    };
+    
+    // Determinar si es crear o editar
+    if (editingCargo) {
+      // Es edición
+      await onUpdateCargo(editingCargo.id, cargoData);
+      resetForm();
+    } else {
+      // Es creación nueva
+      await onAddCargo(cargoData);
+      
+      // Reset form pero mantener la subcategoría seleccionada para facilitar múltiples entradas
+      const subcategoriaActual = newCargo.subcategoriaCargoId;
+      
+      setNewCargo({ 
+        descripcion: '', 
+        monto: '', 
+        subcategoriaCargoId: subcategoriaActual,
+        notas: '' 
+      });
+    }
+    
+    setShowAddModal(false);
+  };
+
+  // Función para resetear el formulario
+  const resetForm = () => {
+    setNewCargo({ 
+      descripcion: '', 
+      monto: '', 
+      subcategoriaCargoId: subcategorias.length > 0 ? subcategorias[0].id : null,
+      notas: '' 
+    });
+    setEditingCargo(null);
+  };
+
+  // Función para iniciar la edición de un cargo
+  const handleEditCargo = (cargo) => {
+    // Solo permitir editar cargos que tengan subcategoriaCargoId
+    if (!cargo.subcategoriaCargoId) {
+      alert('Los cargos de alojamiento no se pueden editar manualmente. Se generan automáticamente con las reservas.');
+      return;
+    }
+
+    setEditingCargo(cargo);
+
+    setNewCargo({
+      descripcion: cargo.descripcion,
+      monto: cargo.monto.toString(),
+      subcategoriaCargoId: cargo.subcategoriaCargoId,
+      notas: cargo.notas || ''
     });
     
-    setNewCargo({ descripcion: '', monto: '', tipo: 'CONSUMO', notas: '' });
+    setShowAddModal(true);
+  };
+
+  // Función para cancelar la edición
+  const handleCancelEdit = () => {
+    resetForm();
     setShowAddModal(false);
   };
 
@@ -76,7 +232,10 @@ const CargosTab = ({
         <h3 className={styles.sectionTitle}>Cargos / Consumos</h3>
         <button 
           className={styles.addButton}
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            resetForm();
+            setShowAddModal(true);
+          }}
         >
           <FaPlus /> Agregar Cargo
         </button>
@@ -100,30 +259,32 @@ const CargosTab = ({
               <p>No hay cargos registrados</p>
               <button 
                 className={styles.primaryButton}
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
               >
                 Agregar primer cargo
               </button>
             </div>
           ) : (
             <div className={styles.chargesGroupsContainer}>
-              {Object.entries(groupedCharges).map(([tipo, group]) => {
-                const tipoInfo = getTipoInfo(tipo);
-                const isExpanded = expandedGroups[tipo];
+              {Object.entries(groupedCharges).map(([tipoCodigo, group]) => {
+                const isExpanded = expandedGroups[tipoCodigo];
                 
                 return (
-                  <div key={tipo} className={styles.chargeGroup}>
+                  <div key={tipoCodigo} className={styles.chargeGroup}>
                     {/* Header del grupo */}
                     <div 
                       className={styles.groupHeader}
-                      onClick={() => toggleGroup(tipo)}
-                      style={{ borderLeftColor: tipoInfo.color }}
+                      onClick={() => toggleGroup(tipoCodigo)}
+                      style={{ borderLeftColor: group.color }}
                     >
                       <div className={styles.groupHeaderLeft}>
                         <div className={styles.groupInfo}>
-                          <h4 className={styles.groupTitle}>{tipoInfo.label}</h4>
+                          <h4 className={styles.groupTitle}>{group.nombre}</h4>
                           <span className={styles.groupSubtitle}>
-                            Mostrar detalles
+                            {group.count} {group.count === 1 ? 'cargo' : 'cargos'}
                           </span>
                         </div>
                       </div>
@@ -163,13 +324,47 @@ const CargosTab = ({
                                     {cargo.notas || '-'}
                                   </td>
                                   <td>
-                                    <button
-                                      className={styles.deleteIconButton}
-                                      onClick={() => onDeleteCargo(cargo.id)}
-                                      title="Eliminar cargo"
-                                    >
-                                      <FaTrash />
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      {cargo.subcategoriaCargoId ? (
+                                        // Cargo editable (tiene subcategoría)
+                                        <>
+                                          <button
+                                            className={styles.editIconButton}
+                                            onClick={() => handleEditCargo(cargo)}
+                                            title="Editar cargo"
+                                          >
+                                            <FaEdit />
+                                          </button>
+                                          <button
+                                            className={styles.deleteIconButton}
+                                            onClick={() => onDeleteCargo(cargo.id)}
+                                            title="Eliminar cargo"
+                                          >
+                                            <FaTrash />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        // Cargo de alojamiento (no editable)
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span 
+                                            style={{ 
+                                              fontSize: '0.8rem', 
+                                              color: '#6c757d', 
+                                              fontStyle: 'italic' 
+                                            }}
+                                          >
+                                            Automático
+                                          </span>
+                                          <button
+                                            className={styles.deleteIconButton}
+                                            onClick={() => onDeleteCargo(cargo.id)}
+                                            title="Eliminar cargo"
+                                          >
+                                            <FaTrash />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -186,15 +381,15 @@ const CargosTab = ({
         </>
       )}
 
-      {/* Modal Agregar Cargo */}
+      {/* Modal Agregar/Editar Cargo */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+        <div className={styles.modalOverlay} onClick={handleCancelEdit}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>Agregar Cargo</h3>
+              <h3>{editingCargo ? 'Editar Cargo' : 'Agregar Cargo'}</h3>
               <button 
                 className={styles.closeButton}
-                onClick={() => setShowAddModal(false)}
+                onClick={handleCancelEdit}
               >
                 <FaTimes />
               </button>
@@ -221,18 +416,41 @@ const CargosTab = ({
                   placeholder="0.00"
                 />
               </div>
+              {/* Selector de categoría de cargo */}
               <div className={styles.formGroup}>
-                <label>Tipo de Cargo *</label>
+                <label>Categoría *</label>
                 <select
-                  value={newCargo.tipo}
-                  onChange={(e) => setNewCargo({ ...newCargo, tipo: e.target.value })}
+                  value={newCargo.subcategoriaCargoId || ''}
+                  onChange={(e) => setNewCargo({ 
+                    ...newCargo, 
+                    subcategoriaCargoId: e.target.value ? parseInt(e.target.value) : null
+                  })}
                   required
                 >
-                  <option value="ALOJAMIENTO">Alojamiento</option>
-                  <option value="SERVICIO">Servicio</option>
-                  <option value="CONSUMO">Consumo</option>
-                  <option value="OTRO">Otro</option>
+                  <option value="">Seleccionar categoría</option>
+                  {['SERVICIO', 'CONSUMO', 'OTRO'].map(tipoPrincipal => {
+                    const subcatsDelTipo = subcategorias.filter(sub => sub.tipo === tipoPrincipal);
+                    if (subcatsDelTipo.length === 0) return null;
+                    
+                    return (
+                      <optgroup key={tipoPrincipal} label={subcatsDelTipo[0].tipoNombre}>
+                        {subcatsDelTipo.map(subcat => (
+                          <option key={subcat.id} value={subcat.id}>
+                            {subcat.nombre}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
+
+                {loadingCategorias && (
+                  <small style={{ color: '#6c757d' }}>Cargando opciones...</small>
+                )}
+                
+                <small style={{ color: '#6c757d', marginTop: '4px', display: 'block' }}>
+                  Los cargos de alojamiento se generan automáticamente con las reservas
+                </small>
               </div>
               <div className={styles.formGroup}>
                 <label>Notas</label>
@@ -244,11 +462,11 @@ const CargosTab = ({
                 />
               </div>
               <div className={styles.modalActions}>
-                <button type="button" className={styles.cancelButton} onClick={() => setShowAddModal(false)}>
+                <button type="button" className={styles.cancelButton} onClick={handleCancelEdit}>
                   Cancelar
                 </button>
                 <button type="submit" className={styles.submitButton}>
-                  <FaCheck /> Guardar Cargo
+                  <FaCheck /> {editingCargo ? 'Actualizar Cargo' : 'Guardar Cargo'}
                 </button>
               </div>
             </form>

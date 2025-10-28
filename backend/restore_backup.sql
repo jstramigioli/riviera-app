@@ -14,3 +14,4 @@ WHERE "moneda" IS NULL OR "montoARS" IS NULL;
 SELECT COUNT(*) as total_pagos FROM "Pago";
 SELECT COUNT(*) as pagos_con_moneda FROM "Pago" WHERE "moneda" IS NOT NULL;
 SELECT COUNT(*) as pagos_con_monto_ars FROM "Pago" WHERE "montoARS" IS NOT NULL;
+

@@ -172,3 +172,4 @@ exports.setTipoCambioUSD = async (req, res) => {
     res.status(500).json({ error: 'Error al establecer el tipo de cambio', details: error.message });
   }
 };
+
