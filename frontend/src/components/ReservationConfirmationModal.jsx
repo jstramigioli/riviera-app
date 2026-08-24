@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import styles from './ReservationConfirmationModal.module.css';
+import { API_URL } from '../services/api.js';
 
 const ReservationConfirmationModal = ({ 
   isOpen, 
@@ -45,7 +46,7 @@ const ReservationConfirmationModal = ({
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);

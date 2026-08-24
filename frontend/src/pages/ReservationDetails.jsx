@@ -60,8 +60,8 @@ const ReservationDetails = () => {
         const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetch(`${API_URL}/service-types?hotelId=default-hotel`).then(res => res.json()),
+          fetch(`${API_URL}/tags`).then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -285,7 +285,7 @@ const ReservationDetails = () => {
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
+            onPaymentSuccess={loadFinancialData}
             onDeletePago={handleDeletePago}
           />
         );

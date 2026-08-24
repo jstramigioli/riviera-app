@@ -127,7 +127,8 @@ const validateMultiSegmentReservation = (req, res, next) => {
       if (segment.startDate && segment.endDate && new Date(segment.startDate) >= new Date(segment.endDate)) {
         errors.push(`Segmento ${index + 1}: La fecha de fin debe ser posterior a la fecha de inicio`);
       }
-      if (!segment.requiredGuests || segment.requiredGuests < 1) {
+      const guestCount = segment.guestCount ?? segment.requiredGuests;
+      if (!guestCount || guestCount < 1) {
         errors.push(`Segmento ${index + 1}: El número de huéspedes debe ser al menos 1`);
       }
       // Validar services (array de IDs) en lugar de serviceType (singular)
@@ -137,8 +138,12 @@ const validateMultiSegmentReservation = (req, res, next) => {
       if (!segment.baseRate || segment.baseRate <= 0) {
         errors.push(`Segmento ${index + 1}: La tarifa base debe ser mayor a 0`);
       }
-      if (!segment.guestCount || segment.guestCount < 1) {
-        errors.push(`Segmento ${index + 1}: El número de huéspedes (guestCount) debe ser al menos 1`);
+      // Normalizar guestCount para el resto del pipeline
+      if (guestCount && !segment.guestCount) {
+        segment.guestCount = guestCount;
+      }
+      if (guestCount && !segment.requiredGuests) {
+        segment.requiredGuests = guestCount;
       }
     });
   }

@@ -77,49 +77,22 @@ exports.createReservation = async (req, res) => {
     // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
 
-    // Calcular y almacenar tarifas detalladas por noche
+    // Intentar calcular tarifas por noche sin bloquear la creación
     try {
-      const serviceType = reservationType === 'con_desayuno' ? 'breakfast' : 
-                         reservationType === 'media_pension' ? 'halfBoard' : 'base';
-      
-      const pricingResult = await reservationPricingService.calculateAndStoreNightRates(
+      const firstSegment = segments[0];
+      const serviceTypeId = Array.isArray(firstSegment.services) ? firstSegment.services[0] : null;
+      await reservationPricingService.calculateAndStoreNightRates(
         newReservation.id,
-        roomId,
-        checkIn,
-        checkOut,
-        serviceType
+        firstSegment.roomId,
+        firstSegment.startDate || firstSegment.checkIn,
+        firstSegment.endDate || firstSegment.checkOut,
+        serviceTypeId || 'base'
       );
-
-      // Actualizar la reserva con el total calculado
-      const updatedReservation = await prisma.reservation.update({
-        where: { id: newReservation.id },
-        data: { totalAmount: pricingResult.totalAmount },
-        include: {
-          room: {
-            include: {
-              roomType: true,
-              tags: true
-            }
-          },
-          mainClient: true,
-          guests: true,
-          nightRates: true
-        }
-      });
-
-      res.status(201).json({
-        ...updatedReservation,
-        pricingSummary: {
-          totalAmount: pricingResult.totalAmount,
-          numberOfNights: pricingResult.numberOfNights,
-          averageRatePerNight: pricingResult.totalAmount / pricingResult.numberOfNights
-        }
-      });
     } catch (pricingError) {
       console.error('Error calculando tarifas detalladas:', pricingError);
-      // Si falla el cálculo de tarifas, devolver la reserva sin tarifas detalladas
-      res.status(201).json(newReservation);
     }
+
+    res.status(201).json(newReservation);
   } catch (error) {
     res.status(500).json({ error: 'Error creating reservation', details: error.message });
   }

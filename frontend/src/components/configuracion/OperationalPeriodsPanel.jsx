@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_URL } from '../../services/api.js';
 
 export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
   const [periods, setPeriods] = useState([]);
@@ -18,7 +19,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
       setLoading(true);
       setError(null);
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       console.log('🔍 Cargando períodos operacionales desde:', `${API_URL}/operational-periods/${hotelId}`);
       
       const response = await fetch(`${API_URL}/operational-periods/${hotelId}`);
@@ -58,7 +59,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
 
   const handleAddPeriod = async (periodData) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/operational-periods/${hotelId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,7 +87,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
 
   const handleUpdatePeriod = async (id, data) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/operational-periods/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -115,7 +116,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
   const handleDeletePeriod = async (id) => {
     try {
       // Primero verificar si el período tiene reservas
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Obtener el período para conocer sus fechas
       const periodResponse = await fetch(`${API_URL}/operational-periods/${id}`);
@@ -182,7 +183,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
   // Función auxiliar para cargar datos de períodos
   const loadPeriodsData = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/operational-periods/${hotelId}`);
       if (response.ok) {
         return await response.json();

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { API_URL } from '../../services/api.js';
 
 const defaultRules = {
   breakfastMode: "PERCENTAGE",
@@ -13,7 +14,7 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    
     fetch(`${API_URL}/dynamic-pricing/meals/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -48,7 +49,7 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Convertir porcentajes a decimales para el backend
       const dataToSend = {

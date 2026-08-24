@@ -66,8 +66,13 @@ function Estadisticas() {
   }
 
   const clientsWithPromotions = clients.filter(c => c.wantsPromotions).length;
-  const argentineClients = clients.filter(c => c.country === 'AR').length;
+  const argentineClients = clients.filter(c => {
+    const country = (c.country || '').toString().trim().toLowerCase();
+    return country === 'ar' || country === 'argentina' || country === 'arg';
+  }).length;
   const clientsWithAddress = clients.filter(c => {
+    const hasStructuredAddress = [c.city, c.province, c.country].some(Boolean);
+    if (hasStructuredAddress) return true;
     if (!c.notes) return false;
     const addressMatch = c.notes.match(/Domicilio:\s*(.+)/);
     return addressMatch && addressMatch[1].trim();

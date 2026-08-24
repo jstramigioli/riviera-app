@@ -4,6 +4,7 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationsTable.module.css';
+import { API_URL } from '../services/api.js';
 
 export default function ReservationsTable({ 
   reservations, 
@@ -132,7 +133,7 @@ export default function ReservationsTable({
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);

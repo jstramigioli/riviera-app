@@ -5,14 +5,21 @@ const usePageTitle = () => {
   const location = useLocation();
 
   const getPageTitle = (pathname) => {
+    if (pathname.startsWith('/reservations/')) return 'Detalle de Reserva';
+    if (pathname.startsWith('/clients/')) return 'Detalle de Cliente';
+    if (pathname.startsWith('/rooms/')) return 'Detalle de Habitación';
+    if (pathname.startsWith('/tarifas')) return 'Tarifas';
+
     const routes = {
       '/': 'Libro de Reservas',
       '/libro-de-reservas': 'Libro de Reservas',
       '/consultas-reservas': 'Consultas y Reservas',
+      '/consulta': 'Nueva Consulta',
       '/tarifas': 'Tarifas',
       '/cobros-pagos': 'Cobros y Pagos',
-      '/estadisticas': 'Estadísticas',
-      '/configuracion': 'Configuración'
+      '/estadisticas': 'Clientes',
+      '/configuracion': 'Configuración',
+      '/precios-inteligentes': 'Precios Inteligentes'
     };
 
     return routes[pathname] || 'Hotel Riviera';
@@ -26,4 +33,4 @@ const usePageTitle = () => {
   return getPageTitle(location.pathname);
 };
 
-export default usePageTitle; 
+export default usePageTitle;

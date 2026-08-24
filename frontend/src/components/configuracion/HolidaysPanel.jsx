@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_URL } from '../../services/api.js';
 
 export default function HolidaysPanel({ hotelId = "default-hotel" }) {
   const [holidays, setHolidays] = useState([]);
@@ -23,7 +24,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
       setLoading(true);
       setError(null);
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       console.log('🔍 Cargando feriados desde:', `${API_URL}/open-days/${hotelId}`);
       
       const response = await fetch(`${API_URL}/open-days/${hotelId}`);
@@ -68,7 +69,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
     }
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/open-days/${hotelId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,7 +97,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
 
   const handleUpdateHoliday = async (id, data) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/open-days/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -124,7 +125,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
   const handleDeleteHoliday = async (id) => {
     try {
       if (window.confirm('¿Estás seguro de que quieres eliminar este feriado?')) {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        
         const response = await fetch(`${API_URL}/open-days/${id}`, {
           method: 'DELETE'
         });
@@ -142,8 +143,6 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
       showNotification('Error al eliminar feriado', 'error');
     }
   };
-
-
 
   const formatDateShort = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
@@ -197,7 +196,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
           }
 
           try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            
             const response = await fetch(`${API_URL}/open-days/${hotelId}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

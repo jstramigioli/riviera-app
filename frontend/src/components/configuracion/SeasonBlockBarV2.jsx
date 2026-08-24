@@ -5,6 +5,7 @@ import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './SeasonBlockBarV2.module.css';
+import { API_URL } from '../../services/api.js';
 
 const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened, seasonBlocks = [] }) => {
   console.log('SeasonBlockBarV2 - Component mounted/rendered with block:', block?.id);
@@ -26,7 +27,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   const [hasAnyChanges, setHasAnyChanges] = useState(false);
   const [originalFormData, setOriginalFormData] = useState({});
   const [originalBlockServiceSelections, setOriginalBlockServiceSelections] = useState([]);
-
 
   const {
     loading,
@@ -84,7 +84,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
         // Solo cargar desde el endpoint si el bloque no es un borrador
         if (!block.isDraft) {
           console.log('Loading from API endpoint (block is confirmed)');
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/block-service-selections/block/${block.id}`);
+        const response = await fetch(`${API_URL}/block-service-selections/block/${block.id}`);
         if (response.ok) {
           const data = await response.json();
             console.log('Selecciones cargadas desde API:', data);
@@ -252,7 +252,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }).format(amount || 0);
   };
 
-
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: '', type: 'success' }), 3000);
@@ -399,7 +398,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     updateFormData('useProportions', enabled);
   };
 
-
   // Funciones para manejar la edición individual de campos
   const handleFieldClick = (fieldName) => {
     if (!isEditing) return;
@@ -438,7 +436,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
       
       // Intentar recargar directamente desde la API
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/season-blocks/${block?.id}`);
       
       if (response.ok) {
@@ -525,7 +523,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   };
 
-
   // Función para manejar el toggle de borrador/activo
   const handleDraftToggle = async () => {
     try {
@@ -557,7 +554,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       }
       
       // Llamar a la API para actualizar solo el campo isDraft
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/season-blocks/${block.id}`, {
+      const response = await fetch(`${API_URL}/season-blocks/${block.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -586,12 +583,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   };
 
   // Funciones para manejar deshacer/rehacer
-
-
-
-
-
-
 
   // Manejar inicio de edición de precio
   const handlePriceInputFocus = (roomTypeId, serviceTypeId) => {
@@ -633,8 +624,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       setHasTariffChanges(true);
     }
   };
-
-
 
   // Confirmar cambio de precio (aplicar proporciones)
   const handlePriceInputConfirm = (e) => {
@@ -700,8 +689,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       adjustment: null // Ya no se usan ajustes de porcentaje
     };
   };
-
-
 
   if (loading) {
     return (

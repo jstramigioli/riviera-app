@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2, FiTrash2, FiSave } from 'react-icons/fi';
 import styles from './ServiceTypesModal.module.css';
+import { API_URL } from '../../services/api.js';
 
 export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceTypes, hotelId }) {
   const [localServiceTypes, setLocalServiceTypes] = useState([]);
@@ -10,7 +11,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  
 
   useEffect(() => {
     if (isOpen) {

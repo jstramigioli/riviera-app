@@ -64,17 +64,16 @@ const ClientDetails = () => {
 
   const handleEmailClick = () => {
     if (client.email) {
-      alert(`Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`);
-    } else {
-      alert('Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.');
+      window.location.href = `mailto:${client.email}`;
     }
   };
 
   const handleWhatsAppClick = () => {
     if (client.phone) {
-      alert(`Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`);
-    } else {
-      alert('Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.');
+      const digits = String(client.phone).replace(/\D/g, '');
+      if (digits) {
+        window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+      }
     }
   };
 
