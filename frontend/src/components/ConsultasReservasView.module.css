@@ -150,9 +150,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
 }
 
 .createButton:hover {

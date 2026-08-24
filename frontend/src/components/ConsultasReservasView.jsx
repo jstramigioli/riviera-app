@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
@@ -215,13 +215,13 @@ function ConsultasReservasView() {
             <div className={styles.section}>
               <div className={styles.sectionHeader}>
                 <h2>Consultas</h2>
-                <button 
+                <Link
+                  to="/consulta"
                   className={styles.createButton}
-                  onClick={() => navigate('/consulta')}
                   title="Crear nueva consulta"
                 >
                   + Nueva Consulta
-                </button>
+                </Link>
               </div>
               <QueriesTable 
                 queries={queries}
