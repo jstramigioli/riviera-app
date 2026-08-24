@@ -81,7 +81,9 @@ function ReservationRequirements({
 
       {/* Cantidad de Huéspedes */}
       <div style={{ marginBottom: '20px' }}>
-        <label style={{
+        <label
+          htmlFor="required-guests"
+          style={{
           display: 'block',
           marginBottom: '8px',
           fontWeight: '500',
@@ -91,6 +93,7 @@ function ReservationRequirements({
           Cantidad de Huéspedes *:
         </label>
         <select
+          id="required-guests"
           value={requirements.requiredGuests || 1}
           onChange={(e) => handleGuestsChange(e.target.value)}
           style={{
@@ -115,7 +118,9 @@ function ReservationRequirements({
 
       {/* Habitación Específica */}
       <div style={{ marginBottom: '20px' }}>
-        <label style={{
+        <label
+          htmlFor="required-room"
+          style={{
           display: 'block',
           marginBottom: '8px',
           fontWeight: '500',
@@ -125,6 +130,7 @@ function ReservationRequirements({
           Habitación Específica:
         </label>
         <select
+          id="required-room"
           value={requirements.requiredRoomId || ''}
           onChange={(e) => handleRoomChange(e.target.value)}
           style={{

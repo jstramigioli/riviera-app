@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
+import { API_URL } from '../../services/api.js';
 
 const CargosTab = ({ 
   cargos,
@@ -34,7 +35,7 @@ const CargosTab = ({
       setLoadingCategorias(true);
       
       // Cargar solo subcategorías personalizables (SERVICIO, CONSUMO, OTRO)
-      const subcategoriasRes = await fetch('http://localhost:3001/api/subcategoria-cargo');
+      const subcategoriasRes = await fetch(`${API_URL}/subcategoria-cargo`);
       
       if (!subcategoriasRes.ok) throw new Error('Error al cargar subcategorías');
       

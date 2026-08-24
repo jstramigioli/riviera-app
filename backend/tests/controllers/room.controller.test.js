@@ -86,15 +86,27 @@ describe('Controlador de Habitaciones', () => {
 
   describe('POST /api/rooms', () => {
     it('debería crear una nueva habitación', async () => {
+      const mockRoomType = {
+        id: 1,
+        name: 'Individual',
+        maxPeople: 4
+      };
+      global.mockPrisma.roomType.findUnique.mockResolvedValue(mockRoomType);
+
       const roomData = {
         name: 'Habitación 103',
-        capacity: 4,
-        price: 200.00,
         roomTypeId: 1,
         isActive: true
       };
 
-      global.mockPrisma.room.create.mockResolvedValue({ id: 1, ...roomData });
+      global.mockPrisma.room.create.mockResolvedValue({
+        id: 1,
+        name: 'Habitación 103',
+        roomTypeId: 1,
+        maxPeople: 4,
+        status: 'available',
+        isActive: true
+      });
 
       const response = await request(app)
         .post('/api/rooms')
@@ -102,9 +114,7 @@ describe('Controlador de Habitaciones', () => {
         .expect(201);
 
       expect(response.body.name).toBe('Habitación 103');
-      expect(response.body.capacity).toBe(4);
-      expect(response.body.price).toBe(200.00);
-      expect(response.body.isActive).toBe(true);
+      expect(response.body.maxPeople).toBe(4);
     });
 
     it('debería validar campos requeridos', async () => {

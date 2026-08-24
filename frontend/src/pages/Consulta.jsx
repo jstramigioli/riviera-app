@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { API_URL, fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
@@ -49,7 +49,7 @@ export default function Consulta() {
       }
 
       // Obtener bloques de temporada para el período
-      const response = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+      const response = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
       
       if (response.ok) {
         const data = await response.json();
@@ -113,7 +113,7 @@ export default function Consulta() {
       
       // Obtener todos los bloques de temporada
       // console.log('🔍 Buscando bloques de temporada...');
-      const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+      const seasonBlocksResponse = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
       
       if (seasonBlocksResponse.ok) {
         const seasonBlocksData = await seasonBlocksResponse.json();
@@ -519,9 +519,6 @@ export default function Consulta() {
     // NO actualizamos roomId en el segmento porque no queremos guardarlo
   };
 
-
-
-
   // Usar useRef para evitar loops infinitos con el queryGroupId
   const queryGroupIdRef = useRef(null);
   const isSavingRef = useRef(false);
@@ -721,7 +718,7 @@ export default function Consulta() {
         const dateStr = day.toISOString().split('T')[0];
         
         // Obtener bloque activo para esta fecha (simulamos la lógica del endpoint)
-        const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+        const seasonBlocksResponse = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
         
         if (seasonBlocksResponse.ok) {
           const seasonBlocksData = await seasonBlocksResponse.json();
@@ -1071,7 +1068,7 @@ export default function Consulta() {
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);
@@ -1374,11 +1371,6 @@ export default function Consulta() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requirements.requiredGuests]);
 
-
-
-
-
-
   const searchAvailableRooms = async (customParams = null) => {
     // Guardar/actualizar consulta antes de buscar habitaciones
     if (formData.mainClient.id) {
@@ -1663,11 +1655,6 @@ export default function Consulta() {
     hasSearchedPerBlock
   ]);
 
-
-
-
-
-
   const handleClientInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -1916,7 +1903,6 @@ export default function Consulta() {
     }
   };
 
-
   // Función de submit del formulario (no utilizada actualmente)
   // const handleSubmit = (e) => {
   //   e.preventDefault();
@@ -1947,10 +1933,6 @@ export default function Consulta() {
   //   // Abrir modal de confirmación
   //   setShowConfirmationModal(true);
   // };
-
-
-
-
 
   const checkRequirementsCompliance = (room) => {
     // Obtener las etiquetas requeridas del bloque activo
@@ -2256,8 +2238,6 @@ export default function Consulta() {
   //   return 'Huésped';
   // };
 
-
-
   // Función para copiar datos de la consulta al portapapeles
   const handleCopyReservationData = async () => {
     try {
@@ -2523,7 +2503,7 @@ export default function Consulta() {
       console.log('Datos de reserva a enviar:', reservationData);
 
       // Crear la reserva en el backend
-      console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
+      console.log('Enviando reserva a:', `${API_URL}/reservations/multi-segment`);
       console.log('Datos completos de la reserva:', JSON.stringify(reservationData, null, 2));
       
       const newReservation = await createReservation(reservationData);
@@ -2533,7 +2513,7 @@ export default function Consulta() {
       // Eliminar la consulta si existe (ya se convirtió en reserva)
       if (queryGroupIdRef.current) {
         try {
-          const response = await fetch(`http://localhost:3001/api/queries/multi-segment/${queryGroupIdRef.current}`, {
+          const response = await fetch(`${API_URL}/queries/multi-segment/${queryGroupIdRef.current}`, {
             method: 'DELETE'
           });
           if (response.ok) {
@@ -3217,7 +3197,6 @@ export default function Consulta() {
           </div>
         )}
       </div>
-
 
       {/* Botones de acción */}
       {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (

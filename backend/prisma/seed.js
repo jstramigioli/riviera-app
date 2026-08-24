@@ -2,13 +2,59 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Iniciando seed...');
+  console.log('Iniciando seed MVP...');
 
-  // Primero crear o obtener tipos de habitación
-  let roomType = await prisma.roomType.findFirst({
-    where: { name: 'Estándar' }
+  const hotel = await prisma.hotel.upsert({
+    where: { id: 'default-hotel' },
+    update: { name: 'Hotel Riviera', isActive: true },
+    create: {
+      id: 'default-hotel',
+      name: 'Hotel Riviera',
+      description: 'Hotel principal',
+      address: 'Av. Costanera 123',
+      phone: '+54 11 1234-5678',
+      email: 'info@hotelriviera.com',
+      website: 'https://hotelriviera.com',
+      isActive: true
+    }
+  });
+  console.log('Hotel:', hotel.id);
+
+  await prisma.roundingConfig.upsert({
+    where: { hotelId: hotel.id },
+    update: {},
+    create: { hotelId: hotel.id, multiple: 100, mode: 'nearest' }
   });
 
+  await prisma.dynamicPricingConfig.upsert({
+    where: { hotelId: hotel.id },
+    update: {},
+    create: {
+      hotelId: hotel.id,
+      enabled: false,
+      anticipationThresholds: [7, 14, 30],
+      anticipationWeight: 0.2,
+      globalOccupancyWeight: 0.3,
+      isWeekendWeight: 0.15,
+      isHolidayWeight: 0.25,
+      weatherScoreWeight: 0.05,
+      eventImpactWeight: 0.05,
+      maxAdjustmentPercentage: 30
+    }
+  });
+
+  await prisma.configuracion.upsert({
+    where: { clave: 'tipo_cambio_usd' },
+    update: { valor: '1200', descripcion: 'Tipo de cambio USD' },
+    create: {
+      clave: 'tipo_cambio_usd',
+      valor: '1200',
+      descripcion: 'Tipo de cambio USD',
+      activo: true
+    }
+  });
+
+  let roomType = await prisma.roomType.findFirst({ where: { name: 'Estándar' } });
   if (!roomType) {
     roomType = await prisma.roomType.create({
       data: {
@@ -18,223 +64,209 @@ async function main() {
         orderIndex: 0
       }
     });
-    console.log('Tipo de habitación creado:', roomType);
+    console.log('Tipo de habitación creado');
+  }
+
+  const existingRooms = await prisma.room.count();
+  if (existingRooms === 0) {
+    const roomPromises = [];
+    for (let i = 1; i <= 36; i++) {
+      if (i === 4 || i === 20) continue;
+      roomPromises.push(
+        prisma.room.create({
+          data: {
+            name: String(i),
+            description: `Habitación ${i}`,
+            maxPeople: 2,
+            status: 'available',
+            orderIndex: i,
+            roomTypeId: roomType.id
+          }
+        })
+      );
+    }
+    const departamentos = [
+      { name: 'El Romerito', maxPeople: 2, orderIndex: 34 },
+      { name: 'El Tilo', maxPeople: 5, orderIndex: 35 },
+      { name: 'Via 1', maxPeople: 4, orderIndex: 36 },
+      { name: 'La Esquinita', maxPeople: 4, orderIndex: 37 }
+    ];
+    departamentos.forEach((d) => {
+      roomPromises.push(
+        prisma.room.create({
+          data: {
+            name: d.name,
+            description: `Departamento ${d.name}`,
+            maxPeople: d.maxPeople,
+            status: 'available',
+            orderIndex: d.orderIndex,
+            roomTypeId: roomType.id
+          }
+        })
+      );
+    });
+    await Promise.all(roomPromises);
+    console.log('Habitaciones creadas:', roomPromises.length);
   } else {
-    console.log('Tipo de habitación existente:', roomType);
+    console.log('Habitaciones existentes:', existingRooms);
   }
 
-  // Crear habitaciones del 1 al 36 (excluyendo 4 y 20) en orden
-  const roomPromises = [];
-  
-  // Habitaciones del 1 al 36 (excluyendo 4 y 20) en orden numérico
-  const habitacionesNumericas = [];
-  for (let i = 1; i <= 36; i++) {
-    if (i !== 4 && i !== 20) { // Excluir habitaciones 4 y 20
-      habitacionesNumericas.push(i);
-    }
+  let serviceTypes = await prisma.serviceType.findMany({ where: { hotelId: hotel.id } });
+  if (serviceTypes.length === 0) {
+    serviceTypes = await Promise.all([
+      prisma.serviceType.create({
+        data: { hotelId: hotel.id, name: 'Solo Alojamiento', description: 'Sin servicios', orderIndex: 1 }
+      }),
+      prisma.serviceType.create({
+        data: { hotelId: hotel.id, name: 'Con Desayuno', description: 'Incluye desayuno', orderIndex: 2 }
+      }),
+      prisma.serviceType.create({
+        data: { hotelId: hotel.id, name: 'Media Pensión', description: 'Desayuno y cena', orderIndex: 3 }
+      })
+    ]);
+    console.log('Tipos de servicio creados');
   }
-  
-  // Crear habitaciones en orden
-  habitacionesNumericas.forEach((numero, index) => {
-    roomPromises.push(
-      prisma.room.create({
-        data: {
-          name: numero.toString(),
-          description: `Habitación ${numero}`,
-          maxPeople: 2,
-          status: 'available',
-          orderIndex: index,
-          roomTypeId: roomType.id
+
+  if ((await prisma.subcategoriaCargo.count()) === 0) {
+    await prisma.subcategoriaCargo.createMany({
+      data: [
+        { tipo: 'SERVICIO', codigo: 'SPA', nombre: 'Spa', color: '#4caf50', ordenIndex: 1 },
+        { tipo: 'CONSUMO', codigo: 'BEBIDAS', nombre: 'Bebidas', color: '#2196f3', ordenIndex: 1 },
+        { tipo: 'CONSUMO', codigo: 'MINIBAR', nombre: 'Minibar', color: '#03a9f4', ordenIndex: 2 },
+        { tipo: 'OTRO', codigo: 'EXTRA', nombre: 'Extra', color: '#9e9e9e', ordenIndex: 1 }
+      ]
+    });
+    console.log('Subcategorías de cargo creadas');
+  }
+
+  if ((await prisma.client.count()) === 0) {
+    await prisma.client.createMany({
+      data: [
+        {
+          firstName: 'María',
+          lastName: 'García',
+          email: 'maria@example.com',
+          phone: '+54 11 5555-0001',
+          documentType: 'DNI',
+          documentNumber: '30111222',
+          country: 'Argentina',
+          province: 'Buenos Aires',
+          city: 'CABA'
+        },
+        {
+          firstName: 'Juan',
+          lastName: 'Pérez',
+          email: 'juan@example.com',
+          phone: '+54 11 5555-0002',
+          documentType: 'DNI',
+          documentNumber: '28999888',
+          country: 'Argentina',
+          province: 'Buenos Aires',
+          city: 'La Plata'
+        },
+        {
+          firstName: 'Ana',
+          lastName: 'López',
+          email: 'ana@example.com',
+          phone: '+54 11 5555-0003',
+          documentType: 'DNI',
+          documentNumber: '33444555',
+          country: 'Argentina',
+          province: 'Córdoba',
+          city: 'Córdoba'
         }
-      })
-    );
+      ]
+    });
+    console.log('Clientes de ejemplo creados');
+  }
+
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setFullYear(end.getFullYear() + 1);
+
+  let block = await prisma.seasonBlock.findFirst({
+    where: { hotelId: hotel.id, name: 'Temporada MVP' }
   });
 
-  // Departamentos al final
-  const departamentos = [
-    {
-      name: 'El Romerito',
-      description: 'Departamento para 2 personas',
-      maxPeople: 2,
-      status: 'available',
-      orderIndex: 34,
-      roomTypeId: roomType.id
-    },
-    {
-      name: 'El Tilo',
-      description: 'Departamento para 5 personas',
-      maxPeople: 5,
-      status: 'available',
-      orderIndex: 35,
-      roomTypeId: roomType.id
-    },
-    {
-      name: 'Via 1',
-      description: 'Departamento para 4 personas',
-      maxPeople: 4,
-      status: 'available',
-      orderIndex: 36,
-      roomTypeId: roomType.id
-    },
-    {
-      name: 'La Esquinita',
-      description: 'Departamento para 4 personas',
-      maxPeople: 4,
-      status: 'available',
-      orderIndex: 37,
-      roomTypeId: roomType.id
+  if (!block) {
+    block = await prisma.seasonBlock.create({
+      data: {
+        hotelId: hotel.id,
+        name: 'Temporada MVP',
+        description: 'Bloque base para desarrollo',
+        startDate: start,
+        endDate: end,
+        orderIndex: 0,
+        useProportions: false,
+        serviceAdjustmentMode: 'PERCENTAGE',
+        isDraft: false
+      }
+    });
+
+    const roomTypes = await prisma.roomType.findMany();
+    for (const rt of roomTypes) {
+      for (const st of serviceTypes) {
+        const base = st.orderIndex === 1 ? 50000 : st.orderIndex === 2 ? 60000 : 75000;
+        await prisma.seasonPrice.create({
+          data: {
+            seasonBlockId: block.id,
+            roomTypeId: rt.id,
+            serviceTypeId: st.id,
+            basePrice: base,
+            isDraft: false
+          }
+        });
+      }
     }
-  ];
 
-  departamentos.forEach(depto => {
-    roomPromises.push(
-      prisma.room.create({
-        data: depto
-      })
-    );
-  });
+    await prisma.blockServiceSelection.createMany({
+      data: serviceTypes.map((st, idx) => ({
+        seasonBlockId: block.id,
+        serviceTypeId: st.id,
+        orderIndex: idx,
+        isEnabled: true,
+        isDraft: false
+      })),
+      skipDuplicates: true
+    });
+    console.log('Bloque de temporada MVP creado');
+  }
 
-  const rooms = await Promise.all(roomPromises);
-  console.log('Habitaciones creadas:', rooms.length);
+  if ((await prisma.reservation.count()) === 0) {
+    const clients = await prisma.client.findMany({ take: 1 });
+    const rooms = await prisma.room.findMany({ take: 1, orderBy: { orderIndex: 'asc' } });
+    const breakfast = serviceTypes.find((s) => s.orderIndex === 2) || serviceTypes[0];
 
-  // Los clientes ya existen, no los creamos
-  console.log('Clientes ya existen en la base de datos');
+    if (clients.length && rooms.length) {
+      const checkIn = new Date(start);
+      checkIn.setDate(checkIn.getDate() + 2);
+      const checkOut = new Date(checkIn);
+      checkOut.setDate(checkOut.getDate() + 3);
 
-  // Crear reservas básicas usando clientes existentes
-  const reservations = await Promise.all([
-    prisma.reservation.create({
-      data: {
-        mainClientId: 68, // Hector Campagna
-        status: 'CONFIRMADA',
-        notes: 'Cliente solicita cama king size si es posible'
-      }
-    }),
-    prisma.reservation.create({
-      data: {
-        mainClientId: 6, // Dora Casarino
-        status: 'CONFIRMADA',
-        notes: 'Departamento para luna de miel, decoración especial'
-      }
-    }),
-    prisma.reservation.create({
-      data: {
-        mainClientId: 7, // Pablo Alexis Cano Meza
-        status: 'FINALIZADA',
-        notes: 'Familia con niños, solicita cuna adicional'
-      }
-    })
-  ]);
+      await prisma.reservation.create({
+        data: {
+          mainClientId: clients[0].id,
+          status: 'CONFIRMADA',
+          notes: 'Reserva de ejemplo MVP',
+          segments: {
+            create: [{
+              roomId: rooms[0].id,
+              roomTypeId: rooms[0].roomTypeId,
+              startDate: checkIn,
+              endDate: checkOut,
+              services: [breakfast.id],
+              guestCount: 2,
+              baseRate: 60000
+            }]
+          }
+        }
+      });
+      console.log('Reserva de ejemplo creada');
+    }
+  }
 
-  console.log('Reservas creadas:', reservations.length);
-
-  // Crear huéspedes con los nuevos campos
-  const guests = await Promise.all([
-    prisma.guest.create({
-      data: {
-        firstName: 'Ana',
-        lastName: 'López',
-        documentType: 'DNI',
-        documentNumber: 'DNI 11111111',
-        phone: '+54 11 1111-1111',
-        email: 'ana.lopez@email.com',
-        address: 'Av. Corrientes 1234',
-        city: 'Buenos Aires',
-        reservationId: reservations[0].id
-      }
-    }),
-    prisma.guest.create({
-      data: {
-        firstName: 'Pedro',
-        lastName: 'Martínez',
-        documentType: 'DNI',
-        documentNumber: 'DNI 22222222',
-        phone: '+54 11 2222-2222',
-        email: 'pedro.martinez@email.com',
-        address: 'Calle Florida 567',
-        city: 'Buenos Aires',
-        reservationId: reservations[0].id
-      }
-    }),
-    prisma.guest.create({
-      data: {
-        firstName: 'Laura',
-        lastName: 'Fernández',
-        documentType: 'DNI',
-        documentNumber: 'DNI 33333333',
-        phone: '+54 11 3333-3333',
-        email: 'laura.fernandez@email.com',
-        address: 'Av. Santa Fe 890',
-        city: 'Buenos Aires',
-        reservationId: reservations[1].id
-      }
-    }),
-    prisma.guest.create({
-      data: {
-        firstName: 'Roberto',
-        lastName: 'Silva',
-        documentType: 'DNI',
-        documentNumber: 'DNI 44444444',
-        phone: '+54 11 4444-4444',
-        email: 'roberto.silva@email.com',
-        address: 'Calle San Martín 456',
-        city: 'Córdoba',
-        reservationId: reservations[2].id
-      }
-    })
-  ]);
-
-  console.log('Huéspedes creados:', guests.length);
-
-  // Crear algunos cargos y pagos de ejemplo usando el nuevo sistema
-  const cargos = await Promise.all([
-    prisma.cargo.create({
-      data: {
-        reservaId: reservations[0].id,
-        descripcion: 'Alojamiento 2 noches',
-        monto: 45000,
-        tipo: 'ALOJAMIENTO',
-        fecha: new Date('2025-10-26')
-      }
-    }),
-    prisma.cargo.create({
-      data: {
-        reservaId: reservations[1].id,
-        descripcion: 'Departamento 2 noches',
-        monto: 75000,
-        tipo: 'ALOJAMIENTO',
-        fecha: new Date('2025-10-27')
-      }
-    })
-  ]);
-
-  const pagos = await Promise.all([
-    prisma.pago.create({
-      data: {
-        reservaId: reservations[0].id,
-        monto: 20000,
-        moneda: 'ARS',
-        montoARS: 20000,
-        metodo: 'Transferencia',
-        fecha: new Date('2025-10-26')
-      }
-    }),
-    prisma.pago.create({
-      data: {
-        reservaId: reservations[1].id,
-        monto: 100,
-        moneda: 'USD',
-        tipoCambio: 1000,
-        montoARS: 100000,
-        metodo: 'Tarjeta',
-        fecha: new Date('2025-10-27')
-      }
-    })
-  ]);
-
-  console.log('Cargos creados:', cargos.length);
-  console.log('Pagos creados:', pagos.length);
-
-  console.log('Seed completado exitosamente!');
+  console.log('Seed MVP completado.');
 }
 
 main()
@@ -244,4 +276,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });

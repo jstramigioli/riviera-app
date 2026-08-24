@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { API_URL } from '../services/api.js';
 
 function getMonthDays(year, month) {
   const start = new Date(year, month, 1);
@@ -11,7 +12,7 @@ function getMonthDays(year, month) {
 }
 
 export default function RatesCalendar() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [rates, setRates] = useState({});

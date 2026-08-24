@@ -27,9 +27,11 @@ const RoomDetails = () => {
         throw new Error('Habitación no encontrada');
       }
       
-      // Filtrar reservas que involucren esta habitación
-      const roomReservations = reservationsData.filter(r => 
-        r.roomId === parseInt(roomId)
+      // Filtrar reservas que involucren esta habitación (vía segmentos)
+      const roomIdNum = parseInt(roomId, 10);
+      const roomReservations = reservationsData.filter(r =>
+        r.roomId === roomIdNum ||
+        r.segments?.some(segment => segment.roomId === roomIdNum)
       );
 
       setRoom(foundRoom);
@@ -49,7 +51,7 @@ const RoomDetails = () => {
   }, [roomId, loadRoomData]);
 
   const handleBackClick = () => {
-    navigate('/reservations');
+    navigate('/libro-de-reservas');
   };
 
   // Funciones auxiliares

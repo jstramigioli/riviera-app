@@ -2,6 +2,16 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// Compatibilidad con tests que aún usan `jest.*` (Vitest)
+globalThis.jest = vi
+
+if (!import.meta.env) {
+  import.meta.env = {}
+}
+if (import.meta.env.VITE_API_URL === undefined) {
+  import.meta.env.VITE_API_URL = ''
+}
+
 // Mock de fetch global
 global.fetch = vi.fn()
 

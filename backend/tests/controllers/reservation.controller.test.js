@@ -2,45 +2,78 @@ const request = require('supertest');
 const app = require('../../src/app');
 
 describe('Controlador de Reservas', () => {
-  let testRoom;
-  let testClient;
+  const segment = {
+    isActive: true,
+    startDate: '2024-01-01T00:00:00.000Z',
+    endDate: '2024-01-03T00:00:00.000Z',
+    roomId: 1,
+    guestCount: 2,
+    baseRate: 1000,
+    services: ['svc-desayuno'],
+    room: { id: 1, name: 'Habitación 1' }
+  };
+
+  const reservationWithSegments = (overrides = {}) => ({
+    id: 1,
+    mainClientId: 1,
+    status: 'PENDIENTE',
+    notes: null,
+    isMultiRoom: false,
+    parentReservationId: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    mainClient: { id: 1, firstName: 'Juan', lastName: 'Pérez' },
+    guests: [],
+    segments: [segment],
+    childReservations: [],
+    ...overrides
+  });
 
   beforeEach(() => {
-    // Limpiar todos los mocks antes de cada test
     jest.clearAllMocks();
-    
-    // Configurar mocks específicos para este test
+
     global.mockPrisma.room.findMany.mockResolvedValue([]);
     global.mockPrisma.room.findUnique.mockResolvedValue(null);
-    global.mockPrisma.room.create.mockImplementation((data) => 
-      Promise.resolve({ id: 1, ...data.data })
-    );
-    
     global.mockPrisma.client.findMany.mockResolvedValue([]);
     global.mockPrisma.client.findUnique.mockResolvedValue(null);
-    global.mockPrisma.client.create.mockImplementation((data) => 
-      Promise.resolve({ id: 1, ...data.data })
-    );
-    
     global.mockPrisma.reservation.findMany.mockResolvedValue([]);
     global.mockPrisma.reservation.findUnique.mockResolvedValue(null);
-    global.mockPrisma.reservation.create.mockImplementation((data) => 
+    global.mockPrisma.reservation.create.mockImplementation((data) =>
       Promise.resolve({ id: 1, ...data.data })
     );
-    global.mockPrisma.reservation.update.mockImplementation((data) => 
+    global.mockPrisma.reservation.update.mockImplementation((data) =>
       Promise.resolve({ id: data.where.id, ...data.data })
     );
     global.mockPrisma.reservation.delete.mockResolvedValue({ id: 1 });
-    global.mockPrisma.reservation.deleteMany.mockResolvedValue({ count: 1 });
+    global.mockPrisma.reservationSegment.findMany.mockResolvedValue([]);
+    global.mockPrisma.reservationSegment.create.mockImplementation((args) =>
+      Promise.resolve({
+        id: 1,
+        isActive: true,
+        ...args.data,
+        room: { id: args.data?.roomId || 1 },
+        roomType: null
+      })
+    );
   });
 
   describe('GET /api/reservations', () => {
     it('debería devolver todas las reservas', async () => {
       const mockReservations = [
-        { id: 1, roomId: 1, mainClientId: 1, checkIn: '2024-01-01', checkOut: '2024-01-03' },
-        { id: 2, roomId: 2, mainClientId: 2, checkIn: '2024-01-05', checkOut: '2024-01-07' }
+        reservationWithSegments({ id: 1 }),
+        reservationWithSegments({
+          id: 2,
+          mainClientId: 2,
+          segments: [{
+            ...segment,
+            roomId: 2,
+            startDate: '2024-01-05T00:00:00.000Z',
+            endDate: '2024-01-07T00:00:00.000Z',
+            room: { id: 2, name: 'Habitación 2' }
+          }]
+        })
       ];
-      
+
       global.mockPrisma.reservation.findMany.mockResolvedValue(mockReservations);
 
       const response = await request(app)
@@ -53,25 +86,35 @@ describe('Controlador de Reservas', () => {
   });
 
   describe('POST /api/reservations', () => {
-    it('debería crear una nueva reserva', async () => {
+    it('debería crear una nueva reserva con segmentos', async () => {
       const reservationData = {
-        roomId: 1,
         mainClientId: 1,
-        checkIn: '2024-01-01',
-        checkOut: '2024-01-03',
-        requiredGuests: 2,
-        status: 'active',
-        totalAmount: 1000
+        status: 'PENDIENTE',
+        segments: [{
+          startDate: '2024-01-01',
+          endDate: '2024-01-03',
+          roomId: 1,
+          guestCount: 2,
+          baseRate: 1000,
+          services: ['svc-desayuno']
+        }]
       };
 
-      global.mockPrisma.reservation.create.mockResolvedValue({ id: 1, ...reservationData });
+      global.mockPrisma.reservation.create.mockResolvedValue({
+        id: 1,
+        mainClientId: 1,
+        status: 'active'
+      });
+      global.mockPrisma.reservation.findUnique.mockResolvedValue(
+        reservationWithSegments()
+      );
 
       const response = await request(app)
         .post('/api/reservations')
         .send(reservationData)
         .expect(201);
 
-      expect(response.body.roomId).toBe(1);
+      expect(response.body.id).toBe(1);
       expect(response.body.mainClientId).toBe(1);
     });
 
@@ -86,31 +129,30 @@ describe('Controlador de Reservas', () => {
   });
 
   describe('PUT /api/reservations/:id', () => {
-    it('debería manejar actualizaciones de drag and drop', async () => {
-      const dragDropData = {
-        roomId: 1,
-        checkIn: '2024-01-05',
-        checkOut: '2024-01-07'
-      };
-
-      const updatedReservation = {
+    it('debería actualizar una reserva existente', async () => {
+      global.mockPrisma.reservation.findUnique.mockResolvedValue(
+        reservationWithSegments()
+      );
+      global.mockPrisma.reservation.update.mockResolvedValue({
         id: 1,
-        roomId: 1,
-        checkIn: '2024-01-05T00:00:00.000Z',
-        checkOut: '2024-01-07T00:00:00.000Z',
-        requiredGuests: 2
-      };
-
-      global.mockPrisma.reservation.update.mockResolvedValue(updatedReservation);
+        status: 'CONFIRMADA'
+      });
 
       const response = await request(app)
         .put('/api/reservations/1')
-        .send(dragDropData)
+        .send({ status: 'CONFIRMADA' })
         .expect(200);
 
-      expect(response.body.checkIn).toContain('2024-01-05');
-      expect(response.body.checkOut).toContain('2024-01-07');
-      expect(response.body.requiredGuests).toBe(2);
+      expect(response.body.id).toBe(1);
+    });
+
+    it('debería devolver 404 si la reserva no existe', async () => {
+      global.mockPrisma.reservation.findUnique.mockResolvedValue(null);
+
+      await request(app)
+        .put('/api/reservations/999')
+        .send({ notes: 'actualizada' })
+        .expect(404);
     });
   });
-}); 
+});

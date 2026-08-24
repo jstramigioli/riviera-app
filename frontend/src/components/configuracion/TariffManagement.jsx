@@ -5,6 +5,7 @@ import RoundingConfigPanel from './RoundingConfigPanel';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
 import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiPercent, FiChevronDown } from 'react-icons/fi';
+import { API_URL } from '../../services/api.js';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   // Estados para manejo de bloques concluidos
   const [showConcludedBlocks, setShowConcludedBlocks] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  
 
   // Función para formatear fechas en español para nombres de bloques
   const formatDateForBlockName = (date) => {
@@ -100,8 +101,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
       showNotification('Error al cargar los bloques de temporada', 'error');
     }
   };
-
-
 
   const loadPricesByDate = async (date) => {
     setLoadingPrices(true);
@@ -255,12 +254,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     }
   };
 
-
-
-
-
-
-
   const handleBlockSaved = (updatedBlock) => {
     showNotification('Bloque guardado exitosamente', 'success');
     loadSeasonBlocks();
@@ -313,7 +306,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     
     return sortedActiveBlocks;
   };
-
 
   if (loading) {
     return (
@@ -465,8 +457,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           </div>
         )}
 
-
-
         {activeSection === 'prices' && (
           <div className={styles.pricesSection}>
             <div className={styles.sectionHeader}>
@@ -571,8 +561,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           </div>
         )}
       </div>
-
-
 
       {/* Notificación */}
       {notification && (

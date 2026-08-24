@@ -1,14 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { format } from 'date-fns'
 import RateEditor from './RateEditor'
 
-// Mock de las funciones de API
 vi.mock('../services/api', () => ({
-  default: {
-    createRates: vi.fn(),
-    updateRate: vi.fn(),
-    deleteRate: vi.fn()
-  }
+  createRates: vi.fn(),
+  updateRate: vi.fn(),
+  deleteRate: vi.fn(),
+  API_URL: '/api'
 }))
 
 describe('RateEditor', () => {
@@ -48,7 +47,7 @@ describe('RateEditor', () => {
   it('displays existing rates in view mode', () => {
     render(<RateEditor rates={mockRates} roomTypes={mockRoomTypes} />)
     
-    expect(screen.getByText('14/01/2024')).toBeInTheDocument()
+    expect(screen.getByText(format(new Date('2024-01-15'), 'dd/MM/yyyy'))).toBeInTheDocument()
     expect(screen.getByText('Habitación Simple')).toBeInTheDocument()
     expect(screen.getByDisplayValue('100')).toBeInTheDocument()
   })
@@ -81,14 +80,15 @@ describe('RateEditor', () => {
   })
 
   it('displays loading state during API calls', async () => {
-    const { default: api } = await import('../services/api')
-    api.createRates.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
+    const { createRates } = await import('../services/api')
+    createRates.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
     
     render(<RateEditor rates={mockRates} roomTypes={mockRoomTypes} />)
     
-    // Llenar el formulario
-    const startDateInput = screen.getByDisplayValue('2025-07-28')
-    const endDateInput = screen.getByDisplayValue('2025-08-04')
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const nextWeek = format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
+    const startDateInput = screen.getByDisplayValue(today)
+    const endDateInput = screen.getByDisplayValue(nextWeek)
     const roomTypeSelect = screen.getByRole('combobox')
     const priceInput = screen.getByPlaceholderText('0.00')
     
@@ -97,10 +97,9 @@ describe('RateEditor', () => {
     fireEvent.change(roomTypeSelect, { target: { value: '1' } })
     fireEvent.change(priceInput, { target: { value: '200' } })
     
-    // Crear tarifas
     const submitButton = screen.getByText('Crear Tarifas')
     fireEvent.click(submitButton)
     
     expect(screen.getByText('Editor de Tarifas')).toBeInTheDocument()
   })
-}) 
+})

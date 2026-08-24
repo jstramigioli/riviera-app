@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiLock, FiUnlock } from 'react-icons/fi';
+import { API_URL } from '../../services/api.js';
 
 export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
   console.log('TarifasPreviewPanelV3 - Componente iniciado con hotelId:', hotelId);
@@ -39,7 +40,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Cargar tipos de habitación
       try {
@@ -92,7 +93,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
 
   const loadBasePriceFromSeasonBlocks = async (date) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/dynamic-pricing/seasonal-curve/${hotelId}?date=${date}`);
       
       if (response.ok) {
@@ -237,7 +238,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
   // Funciones para gestión de tipos de tarifa
   const addRateType = async (rateType) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/rate-types/${hotelId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -259,7 +260,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
 
   const updateRateType = async (id, updatedRateType) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/rate-types/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -283,7 +284,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
 
   const deleteRateType = async (id) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/rate-types/${id}`, {
         method: 'DELETE'
       });
@@ -306,8 +307,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
       return Math.round(basePrice * (1 + rateType.value / 100));
     }
   };
-
-
 
   if (loading) {
     return (
@@ -379,8 +378,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
           {lockedMode ? 'Proporciones Bloqueadas' : 'Proporciones Libres'}
         </button>
       </div>
-
-
 
       {/* Gestión de tipos de tarifa */}
       <div style={{ 

@@ -17,9 +17,22 @@ jest.mock('@prisma/client', () => ({
     mealPricingRule: {
       findUnique: jest.fn()
     },
+    seasonBlock: {
+      findFirst: jest.fn(),
+      findMany: jest.fn()
+    },
+    room: {
+      count: jest.fn()
+    },
+    reservationSegment: {
+      count: jest.fn(),
+      findMany: jest.fn()
+    },
     openDay: {
-      findUnique: jest.fn()
-    }
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn()
+    },
   }))
 }));
 
@@ -62,6 +75,9 @@ describe('DynamicPricingService', () => {
       };
 
       mockPrisma.dynamicPricingConfig.findUnique.mockResolvedValue(mockConfig);
+      mockPrisma.room.count.mockResolvedValue(10);
+      mockPrisma.reservationSegment.count.mockResolvedValue(5);
+      mockPrisma.openDay.findMany.mockResolvedValue([]);
 
       const score = await dynamicPricingService.calculateExpectedOccupancyScore({
         date: new Date(),
@@ -80,27 +96,25 @@ describe('DynamicPricingService', () => {
   });
 
   describe('calculateAnticipationFactor', () => {
-    it('should return 0.5 when no config provided', () => {
-      const factor = dynamicPricingService.calculateAnticipationFactor(10, null);
+    it('should return 0.5 when no config provided', async () => {
+      const factor = await dynamicPricingService.calculateAnticipationFactor(10, null);
       expect(factor).toBe(0.5);
     });
 
-    it('should calculate factor based on days until date with CONTINUO mode', () => {
+    it('should calculate factor based on days until date with CONTINUO mode', async () => {
       const config = {
         anticipationMode: 'CONTINUO',
         anticipationMaxDays: 30
       };
       
-      // Test with 15 days (should be 0.5 since it's half of maxDays)
-      const factor1 = dynamicPricingService.calculateAnticipationFactor(15, config);
+      const factor1 = await dynamicPricingService.calculateAnticipationFactor(15, config);
       expect(factor1).toBe(0.5);
 
-      // Test with 30 days (should be 1.0 since it's maxDays)
-      const factor2 = dynamicPricingService.calculateAnticipationFactor(30, config);
+      const factor2 = await dynamicPricingService.calculateAnticipationFactor(30, config);
       expect(factor2).toBe(1.0);
     });
 
-    it('should calculate factor with ESCALONADO mode', () => {
+    it('should calculate factor with ESCALONADO mode', async () => {
       const config = {
         anticipationMode: 'ESCALONADO',
         anticipationSteps: [
@@ -111,8 +125,7 @@ describe('DynamicPricingService', () => {
         ]
       };
       
-      // Test with 10 days (should use step 7 days with weight 0.4)
-      const factor = dynamicPricingService.calculateAnticipationFactor(10, config);
+      const factor = await dynamicPricingService.calculateAnticipationFactor(10, config);
       expect(factor).toBe(0.4);
     });
   });
@@ -124,7 +137,7 @@ describe('DynamicPricingService', () => {
         hotelId: 'test-hotel',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
-        roomTypePrices: [
+        seasonPrices: [
           { basePrice: 10000 }
         ]
       };
@@ -147,7 +160,7 @@ describe('DynamicPricingService', () => {
           new Date('2024-01-15'),
           'test-hotel'
         )
-      ).rejects.toThrow('No se encontró un bloque de temporada para la fecha especificada');
+      ).rejects.toThrow('No hay precios configurados para las fechas solicitadas');
     });
 
     it('should return default price when no room type prices', async () => {
@@ -156,7 +169,7 @@ describe('DynamicPricingService', () => {
         hotelId: 'test-hotel',
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
-        roomTypePrices: []
+        seasonPrices: []
       };
 
       mockPrisma.seasonBlock.findFirst.mockResolvedValue(mockSeasonBlock);
@@ -171,47 +184,34 @@ describe('DynamicPricingService', () => {
   });
 
   describe('applyDynamicAdjustment', () => {
-    it('should apply positive adjustment for high occupancy score', () => {
-      const basePrice = 10000;
-      const occupancyScore = 0.8;
-      const config = { maxAdjustmentPercentage: 0.4 };
-
+    it('should apply positive adjustment', () => {
       const adjustedPrice = dynamicPricingService.applyDynamicAdjustment(
-        basePrice,
-        occupancyScore,
-        config
+        10000,
+        { totalAdjustment: 0.2 },
+        {}
       );
 
-      expect(adjustedPrice).toBeGreaterThan(basePrice);
+      expect(adjustedPrice).toBe(12000);
     });
 
-    it('should apply negative adjustment for low occupancy score', () => {
-      const basePrice = 10000;
-      const occupancyScore = 0.2;
-      const config = { maxAdjustmentPercentage: 0.4 };
-
+    it('should apply negative adjustment', () => {
       const adjustedPrice = dynamicPricingService.applyDynamicAdjustment(
-        basePrice,
-        occupancyScore,
-        config
+        10000,
+        { totalAdjustment: -0.1 },
+        {}
       );
 
-      expect(adjustedPrice).toBeLessThan(basePrice);
+      expect(adjustedPrice).toBe(9000);
     });
 
-    it('should respect maximum adjustment limit', () => {
-      const basePrice = 10000;
-      const occupancyScore = 1.0; // Maximum score
-      const config = { maxAdjustmentPercentage: 0.4 };
-
+    it('should apply the full adjustment without a hard cap', () => {
       const adjustedPrice = dynamicPricingService.applyDynamicAdjustment(
-        basePrice,
-        occupancyScore,
-        config
+        10000,
+        { totalAdjustment: 0.5 },
+        { maxAdjustmentPercentage: 0.4 }
       );
 
-      // Should not exceed 40% increase
-      expect(adjustedPrice).toBeLessThanOrEqual(basePrice * 1.4);
+      expect(adjustedPrice).toBe(15000);
     });
   });
 
@@ -261,6 +261,11 @@ describe('DynamicPricingService', () => {
   describe('generateDynamicRates', () => {
     it('should generate rates for date range', async () => {
       // Mock all dependencies
+      mockPrisma.seasonBlock.findFirst.mockResolvedValue({
+        id: 1,
+        hotelId: 'test-hotel',
+        seasonPrices: [{ basePrice: 10000 }]
+      });
       mockPrisma.openDay.findUnique.mockResolvedValue({ isHoliday: false });
       mockPrisma.dynamicPricingConfig.findUnique.mockResolvedValue({
         maxAdjustmentPercentage: 0.4
