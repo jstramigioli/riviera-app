@@ -7,6 +7,7 @@ vi.mock('../services/api', () => ({
   fetchClients: vi.fn(),
   fetchRooms: vi.fn(),
   fetchReservations: vi.fn(),
+  fetchQueries: vi.fn(),
 }))
 
 // Mock de roomUtils
@@ -33,11 +34,12 @@ describe('useAppData', () => {
       reservations: []
     }
 
-    const { fetchClients, fetchRooms, fetchReservations } = await import('../services/api')
+    const { fetchClients, fetchRooms, fetchReservations, fetchQueries } = await import('../services/api')
     
     fetchClients.mockResolvedValue(mockData.clients)
     fetchRooms.mockResolvedValue(mockData.rooms)
     fetchReservations.mockResolvedValue(mockData.reservations)
+    fetchQueries.mockResolvedValue([])
 
     const { result } = renderHook(() => useAppData())
 

@@ -257,6 +257,7 @@ describe('Validation Middlewares', () => {
     it('should pass validation with valid room data', async () => {
       const validData = {
         name: 'Room 101',
+        roomTypeId: 1,
         capacity: 2,
         price: 100.50
       };

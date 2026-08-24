@@ -307,6 +307,7 @@ describe('DayInfoSidePanel', () => {
     );
 
     // Debería contar como habitación ocupada
-    expect(screen.getAllByText('1')).toHaveLength(1); // 1 habitación ocupada
+    const occupiedCard = screen.getByText('Habitaciones Ocupadas').parentElement;
+    expect(occupiedCard).toHaveTextContent('1');
   });
 }); 

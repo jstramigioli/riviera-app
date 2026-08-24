@@ -12,8 +12,10 @@ describe('Header', () => {
   it('renders navigation links', () => {
     render(<Header />)
     expect(screen.getByText('Libro de Reservas')).toBeInTheDocument()
+    expect(screen.getByText('Consultas y Reservas')).toBeInTheDocument()
     expect(screen.getByText('Tarifas')).toBeInTheDocument()
-    expect(screen.getByText('Estadísticas')).toBeInTheDocument()
+    expect(screen.getByText('Cobros y Pagos')).toBeInTheDocument()
+    expect(screen.getByText('Clientes')).toBeInTheDocument()
   })
 
   it('has correct navigation structure', () => {

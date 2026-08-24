@@ -39,16 +39,29 @@ const validateClient = (req, res, next) => {
 };
 
 const validateReservation = (req, res, next) => {
-  const { checkIn, checkOut, totalAmount, roomId, mainClientId } = req.body;
+  const { checkIn, checkOut, totalAmount, roomId, mainClientId, segments } = req.body;
   const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
+  const hasSegments = Array.isArray(segments) && segments.length > 0;
   const errors = [];
 
-  if (!checkIn) {
-    errors.push('La fecha de check-in es requerida');
-  }
+  if (!isUpdate && !hasSegments) {
+    if (!checkIn) {
+      errors.push('La fecha de check-in es requerida');
+    }
 
-  if (!checkOut) {
-    errors.push('La fecha de check-out es requerida');
+    if (!checkOut) {
+      errors.push('La fecha de check-out es requerida');
+    }
+
+    if (!roomId) {
+      errors.push('El ID de la habitación es requerido');
+    }
+
+    if (!mainClientId) {
+      errors.push('El ID del cliente principal es requerido');
+    }
+  } else if (!isUpdate && hasSegments && !mainClientId) {
+    errors.push('El ID del cliente principal es requerido');
   }
 
   if (checkIn && checkOut && new Date(checkIn) >= new Date(checkOut)) {
@@ -57,16 +70,6 @@ const validateReservation = (req, res, next) => {
 
   if (totalAmount && (isNaN(totalAmount) || totalAmount <= 0)) {
     errors.push('El monto total debe ser un número positivo');
-  }
-
-  // roomId es requerido solo en creación, no en actualización
-  if (!isUpdate && !roomId) {
-    errors.push('El ID de la habitación es requerido');
-  }
-
-  // mainClientId es requerido solo en creación, no en actualización
-  if (!isUpdate && !mainClientId) {
-    errors.push('El ID del cliente principal es requerido');
   }
 
   if (errors.length > 0) {
@@ -81,13 +84,18 @@ const validateReservation = (req, res, next) => {
 
 const validateRoom = (req, res, next) => {
   const { name, roomTypeId } = req.body;
+  const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
   const errors = [];
 
-  if (!name || name.trim().length === 0) {
+  if (!isUpdate && (!name || name.trim().length === 0)) {
     errors.push('El nombre de la habitación es requerido');
   }
 
-  if (!roomTypeId) {
+  if (isUpdate && name !== undefined && name.trim().length === 0) {
+    errors.push('El nombre de la habitación es requerido');
+  }
+
+  if (!isUpdate && !roomTypeId) {
     errors.push('El tipo de habitación es requerido');
   }
 
