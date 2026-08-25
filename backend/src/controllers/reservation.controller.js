@@ -48,7 +48,11 @@ exports.createReservation = async (req, res) => {
     segments,
     status, 
     notes,
-    isMultiRoom = false
+    isMultiRoom = false,
+    discountType = null,
+    discountValue = null,
+    discountReason = null,
+    discount = null
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
@@ -56,16 +60,18 @@ exports.createReservation = async (req, res) => {
   }
   
   try {
-    // Preparar datos de la reserva para validación
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
-      isMultiRoom
+      isMultiRoom,
+      discountType,
+      discountValue,
+      discountReason,
+      discount
     };
 
-    // Validar la reserva completa antes de crearla
     const validation = await validateReservationCreation(reservationData);
     if (!validation.isValid) {
       return res.status(400).json({ 
@@ -74,23 +80,7 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
-
-    // Intentar calcular tarifas por noche sin bloquear la creación
-    try {
-      const firstSegment = segments[0];
-      const serviceTypeId = Array.isArray(firstSegment.services) ? firstSegment.services[0] : null;
-      await reservationPricingService.calculateAndStoreNightRates(
-        newReservation.id,
-        firstSegment.roomId,
-        firstSegment.startDate || firstSegment.checkIn,
-        firstSegment.endDate || firstSegment.checkOut,
-        serviceTypeId || 'base'
-      );
-    } catch (pricingError) {
-      console.error('Error calculando tarifas detalladas:', pricingError);
-    }
 
     res.status(201).json(newReservation);
   } catch (error) {
@@ -105,7 +95,11 @@ exports.createMultiSegmentReservation = async (req, res) => {
     segments,
     status, 
     notes,
-    isMultiRoom = false
+    isMultiRoom = false,
+    discountType = null,
+    discountValue = null,
+    discountReason = null,
+    discount = null
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
@@ -113,18 +107,20 @@ exports.createMultiSegmentReservation = async (req, res) => {
   }
   
   try {
-    // Preparar datos de la reserva para validación
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
-      isMultiRoom
+      isMultiRoom,
+      discountType,
+      discountValue,
+      discountReason,
+      discount
     };
 
     console.log('📦 Datos recibidos para crear reserva:', JSON.stringify(reservationData, null, 2));
 
-    // Validar la reserva completa antes de crearla
     const validation = await validateReservationCreation(reservationData);
     if (!validation.isValid) {
       console.error('❌ Error de validación en la reserva:', validation.errors);
@@ -134,12 +130,12 @@ exports.createMultiSegmentReservation = async (req, res) => {
       });
     }
 
-    // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
 
     res.status(201).json({
       message: 'Reserva creada exitosamente',
-      reservation: newReservation
+      reservation: newReservation,
+      id: newReservation?.id
     });
   } catch (error) {
     console.error('Error creating multi-segment reservation:', error);

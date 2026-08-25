@@ -152,6 +152,10 @@ model Reservation {
   notes               String?
   isMultiRoom         Boolean                @default(false)
   parentReservationId Int?
+  /// PERCENT | FIXED | null
+  discountType        String?
+  discountValue       Float?
+  discountReason      String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   guests              Guest[]
@@ -335,8 +339,11 @@ model ReservationNightRate {
   baseRate               Float
   dynamicRate            Float
   finalRate              Float
+  /// Precio de lista de referencia al momento de reservar
+  listRate               Float?
   serviceType            String
   serviceRate            Float
+  seasonBlockId          String?
   occupancyScore         Float?
   isWeekend              Boolean     @default(false)
   isHoliday              Boolean     @default(false)
@@ -462,7 +469,14 @@ model ReservationSegment {
   virtualRoomId      Int?
   services           String[]
   serviceAdjustments Json?
+  /// Precio acordado por noche (lista u override)
   baseRate           Float
+  /// Precio de lista de referencia al confirmar
+  listRate           Float?
+  isManualRate       Boolean      @default(false)
+  pricingNotes       String?
+  /// Desglose opcional por noche: [{date, listRate, finalRate, seasonBlockId}]
+  nightRates         Json?
   rateAdjustments    Json?
   guestCount         Int
   reason             String?

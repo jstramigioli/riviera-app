@@ -507,12 +507,24 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
     const error = new Error(responseData.message || 'Service availability issue');
     error.availabilityStatus = responseData.availability;
     
-    // Propagar información adicional para disponibilidad parcial
+    // Propagar información adicional para disponibilidad parcial / cerrado
     if (responseData.isPartiallyAvailable) {
       error.isPartiallyAvailable = responseData.isPartiallyAvailable;
     }
     if (responseData.availablePeriods) {
       error.availablePeriods = responseData.availablePeriods;
+    }
+    if (responseData.suggestedSegments) {
+      error.suggestedSegments = responseData.suggestedSegments;
+    }
+    if (responseData.proposedSegments) {
+      error.proposedSegments = responseData.proposedSegments;
+    }
+    if (responseData.closedDates) {
+      error.closedDates = responseData.closedDates;
+    }
+    if (responseData.nightAnalyses) {
+      error.nightAnalyses = responseData.nightAnalyses;
     }
     if (responseData.serviceName) {
       error.serviceName = responseData.serviceName;
