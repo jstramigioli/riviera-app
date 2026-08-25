@@ -67,7 +67,7 @@ describe('PriceService', () => {
       const date = new Date('2024-07-15'); // Julio (temporada baja)
       const price = priceService.calculateDynamicPrice(date);
       
-      expect(price).toBe(5500); // Precio base con multiplicador de fin de semana
+      expect(price).toBe(5000); // Precio base temporada baja (lunes)
     });
 
     it('calculates higher price for high season', () => {

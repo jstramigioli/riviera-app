@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { API_URL, fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
@@ -16,6 +16,7 @@ const RoomAvailabilityStatus = {
   PARTIAL_AVAILABILITY: 'partial_availability', 
   NO_AVAILABILITY: 'no_availability',
   SERVICE_NOT_AVAILABLE: 'service_not_available',
+  CLOSED: 'closed',
   ERROR: 'error'
 };
 
@@ -49,7 +50,7 @@ export default function Consulta() {
       }
 
       // Obtener bloques de temporada para el período
-      const response = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+      const response = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
       
       if (response.ok) {
         const data = await response.json();
@@ -113,7 +114,7 @@ export default function Consulta() {
       
       // Obtener todos los bloques de temporada
       // console.log('🔍 Buscando bloques de temporada...');
-      const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+      const seasonBlocksResponse = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
       
       if (seasonBlocksResponse.ok) {
         const seasonBlocksData = await seasonBlocksResponse.json();
@@ -191,6 +192,8 @@ export default function Consulta() {
   // Estados para manejo de disponibilidad parcial de servicios
   const [isPartiallyAvailable, setIsPartiallyAvailable] = useState(false);
   const [availablePeriods, setAvailablePeriods] = useState([]);
+  const [suggestedSegments, setSuggestedSegments] = useState([]);
+  const [closedDatesInfo, setClosedDatesInfo] = useState([]);
   const [serviceName, setServiceName] = useState('');
 
   // Estado para manejar cuando el hotel está cerrado
@@ -241,6 +244,7 @@ export default function Consulta() {
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
+  const [pendingPricingOptions, setPendingPricingOptions] = useState(null);
 
   // Estados para el modal de eliminación de segmentos
   const [showDeleteSegmentsModal, setShowDeleteSegmentsModal] = useState(false);
@@ -344,157 +348,104 @@ export default function Consulta() {
     return serviceTypes[0].id;
   };
 
-  // Función para crear segmentos automáticamente basados en períodos disponibles
+  // Función para crear segmentos automáticamente basados en períodos / sugerencias del backend
   const createSegmentsFromAvailablePeriods = () => {
-    if (availablePeriods.length === 0) return;
-    
     const currentSegment = segments[activeBlockIndex];
     if (!currentSegment) return;
-    
-    // console.log('🔍 Debug createSegmentsFromAvailablePeriods:', { currentSegment, availablePeriods, serviceTypes });
-    
-    const originalStart = new Date(currentSegment.checkIn);
-    const originalEnd = new Date(currentSegment.checkOut);
-    
-    // console.log('📅 Fechas originales:', { originalStart: originalStart.toISOString().split('T')[0], originalEnd: originalEnd.toISOString().split('T')[0] });
-    
-    // Ordenar períodos disponibles por fecha de inicio
-    const sortedPeriods = [...availablePeriods].sort((a, b) => 
-      new Date(a.startDate) - new Date(b.startDate)
-    );
-    
-    // console.log('📅 Períodos ordenados:', sortedPeriods.map(p => ({ startDate: p.startDate, endDate: p.endDate, blockName: p.blockName })));
-    
-    const allSegments = [];
+
+    let allSegments = [];
     let currentId = Math.max(...segments.map(s => s.id)) + 1;
-    let currentDate = originalStart;
-    
-    // Procesar cada período disponible
-    for (const period of sortedPeriods) {
-      const periodStart = new Date(period.startDate);
-      const periodEnd = new Date(period.endDate);
-      
-      // console.log('🔄 Procesando período:', { periodStart: periodStart.toISOString().split('T')[0], periodEnd: periodEnd.toISOString().split('T')[0], currentDate: currentDate.toISOString().split('T')[0] });
-      
-      // Si hay un gap antes de este período, crear segmento con servicio base
-      if (currentDate < periodStart) {
-        // El gap termina el mismo día que empieza el siguiente período (cambio de servicio)
-        const gapSegment = {
+
+    const usableSuggestions = (suggestedSegments || []).filter(
+      (s) => s.serviceTypeId && s.status !== 'closed' && s.status !== 'no_price'
+    );
+
+    if (usableSuggestions.length > 0) {
+      allSegments = usableSuggestions.map((s) => ({
+        id: currentId++,
+        checkIn: s.checkIn || s.startDate,
+        checkOut: s.checkOut || s.endDate,
+        requiredGuests: currentSegment.requiredGuests || 1,
+        requiredTags: currentSegment.requiredTags || [],
+        requiredRoomId: currentSegment.requiredRoomId || null,
+        serviceType: s.serviceTypeId || currentSegment.serviceType || (serviceTypes[0]?.id || '')
+      }));
+    } else if (availablePeriods.length > 0) {
+      const originalStart = new Date(currentSegment.checkIn);
+      const originalEnd = new Date(currentSegment.checkOut);
+      const sortedPeriods = [...availablePeriods].sort(
+        (a, b) => new Date(a.startDate) - new Date(b.startDate)
+      );
+      let currentDate = originalStart;
+
+      for (const period of sortedPeriods) {
+        const periodStart = new Date(period.startDate);
+        const periodEnd = new Date(period.endDate);
+
+        if (currentDate < periodStart) {
+          allSegments.push({
+            id: currentId++,
+            checkIn: currentDate.toISOString().split('T')[0],
+            checkOut: periodStart.toISOString().split('T')[0],
+            requiredGuests: currentSegment.requiredGuests || 1,
+            requiredTags: currentSegment.requiredTags || [],
+            requiredRoomId: currentSegment.requiredRoomId || null,
+            serviceType: period.serviceTypeId || getAlternativeServiceType(currentSegment.serviceType)
+          });
+          currentDate = new Date(periodStart);
+        }
+
+        allSegments.push({
           id: currentId++,
-          checkIn: currentDate.toISOString().split('T')[0],
-          checkOut: periodStart.toISOString().split('T')[0],
+          checkIn: period.startDate,
+          checkOut: period.endDate,
           requiredGuests: currentSegment.requiredGuests || 1,
           requiredTags: currentSegment.requiredTags || [],
           requiredRoomId: currentSegment.requiredRoomId || null,
-          serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
-        };
-        allSegments.push(gapSegment);
-        // console.log('➕ Segmento de gap creado:', gapSegment);
-        
-        // Actualizar currentDate al inicio del período disponible
-        currentDate = new Date(periodStart);
+          serviceType: period.serviceTypeId || currentSegment.serviceType || (serviceTypes[0]?.id || '')
+        });
+        currentDate = new Date(periodEnd);
       }
-      
-      // Crear segmento para el período disponible (con el servicio solicitado)
-      const availableSegment = {
-        id: currentId++,
-        checkIn: period.startDate,
-        checkOut: period.endDate,
-        requiredGuests: currentSegment.requiredGuests || 1,
-        requiredTags: currentSegment.requiredTags || [],
-        requiredRoomId: currentSegment.requiredRoomId || null,
-        serviceType: currentSegment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
-      };
-      allSegments.push(availableSegment);
-      // console.log('➕ Segmento disponible creado:', availableSegment);
-      
-      // Actualizar la fecha actual al final del período (el siguiente segmento empezará en esta fecha)
-      currentDate = new Date(periodEnd);
-      // console.log('📅 Fecha actualizada a:', currentDate.toISOString().split('T')[0]);
-    }
-    
-    // Si hay un gap después del último período, crear segmento con servicio base
-    if (currentDate < originalEnd) {
-      const finalSegment = {
-        id: currentId++,
-        checkIn: currentDate.toISOString().split('T')[0],
-        checkOut: originalEnd.toISOString().split('T')[0],
-        requiredGuests: currentSegment.requiredGuests || 1,
-        requiredTags: currentSegment.requiredTags || [],
-        requiredRoomId: currentSegment.requiredRoomId || null,
-        serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
-      };
-      allSegments.push(finalSegment);
-      // console.log('➕ Segmento final creado:', finalSegment);
-    }
-    
-    console.log('📋 Segmentos creados:', allSegments.length);
-    
-    // Verificar si hay solapamientos (check-out == check-in es válido para cambio de servicio)
-    for (let i = 0; i < allSegments.length - 1; i++) {
-      const current = allSegments[i];
-      const next = allSegments[i + 1];
-      const currentEnd = new Date(current.checkOut);
-      const nextStart = new Date(next.checkIn);
-      
-      // Solo es solapamiento si el check-out es DESPUÉS del check-in del siguiente
-      if (currentEnd > nextStart) {
-        console.error('❌ SOLAPAMIENTO DETECTADO:', {
-          segmento1: `${current.checkIn} → ${current.checkOut}`,
-          segmento2: `${next.checkIn} → ${next.checkOut}`,
-          problema: `El segmento ${i+1} termina en ${current.checkOut} y el segmento ${i+2} empieza en ${next.checkIn}`
+
+      if (currentDate < originalEnd) {
+        allSegments.push({
+          id: currentId++,
+          checkIn: currentDate.toISOString().split('T')[0],
+          checkOut: originalEnd.toISOString().split('T')[0],
+          requiredGuests: currentSegment.requiredGuests || 1,
+          requiredTags: currentSegment.requiredTags || [],
+          requiredRoomId: currentSegment.requiredRoomId || null,
+          serviceType: getAlternativeServiceType(currentSegment.serviceType)
         });
       }
+    } else {
+      return;
     }
-    
-    // Reemplazar el segmento actual con todos los nuevos segmentos
+
+    if (allSegments.length === 0) return;
+
     const updatedSegments = [...segments];
     updatedSegments.splice(activeBlockIndex, 1, ...allSegments);
-    
     setSegments(updatedSegments);
-    setActiveBlockIndex(activeBlockIndex); // Mantener el índice activo
-    
-    // NO actualizar formData global - cada segmento tiene sus propias fechas
-    // console.log('🔄 Segmentos actualizados correctamente - cada uno mantiene sus fechas individuales');
-    
-    // Limpiar estados de error
+    setActiveBlockIndex(activeBlockIndex);
     setAvailablePeriods([]);
-    
-    console.log('✅ Segmentos creados automáticamente');
-    
-    // Buscar habitaciones disponibles automáticamente después de que se actualicen los segmentos
-    if (allSegments.length > 0) {
-      // console.log('🔍 Programando búsqueda automática de habitaciones para después de actualizar segmentos...');
-      
-      // Usar setTimeout para asegurar que la búsqueda se ejecute después de que React actualice el estado
-      setTimeout(() => {
-        // console.log('🔍 Ejecutando búsqueda automática de habitaciones...');
-        
-        // Buscar para el primer segmento (que ahora es el activo)
-        const activeSegment = allSegments[0];
-        // console.log('🔍 Segmento activo para búsqueda:', { id: activeSegment.id, checkIn: activeSegment.checkIn, checkOut: activeSegment.checkOut, serviceType: activeSegment.serviceType });
-        
-        if (activeSegment.checkIn && activeSegment.checkOut) {
-          const params = {
-            checkIn: activeSegment.checkIn,
-            checkOut: activeSegment.checkOut,
-            requiredGuests: activeSegment.requiredGuests,
-            requiredTags: activeSegment.requiredTags,
-            requiredRoomId: activeSegment.requiredRoomId
-          };
-          
-          // console.log('🔍 Parámetros de búsqueda (después de actualizar segmentos):', params);
-          
-          // Verificar que no sea el servicio original que causó el problema
-          // if (activeSegment.serviceType && serviceTypes.length > 0) {
-          //   const serviceTypeName = serviceTypes.find(st => st.id === activeSegment.serviceType)?.name || 'Desconocido';
-          //   console.log('🔍 Tipo de servicio del segmento:', serviceTypeName);
-          // }
-          
-          searchAvailableRooms(params);
-        }
-      }, 100); // Pequeño delay para asegurar que el estado se haya actualizado
-    }
+    setSuggestedSegments([]);
+    setIsPartiallyAvailable(false);
+    setClosedDatesInfo([]);
+
+    setTimeout(() => {
+      const activeSegment = allSegments[0];
+      if (activeSegment?.checkIn && activeSegment?.checkOut) {
+        searchAvailableRooms({
+          checkIn: activeSegment.checkIn,
+          checkOut: activeSegment.checkOut,
+          requiredGuests: activeSegment.requiredGuests,
+          requiredTags: activeSegment.requiredTags,
+          requiredRoomId: activeSegment.requiredRoomId,
+          serviceType: activeSegment.serviceType
+        });
+      }
+    }, 100);
   };
 
   const removeBlock = (blockId) => {
@@ -518,9 +469,6 @@ export default function Consulta() {
     }));
     // NO actualizamos roomId en el segmento porque no queremos guardarlo
   };
-
-
-
 
   // Usar useRef para evitar loops infinitos con el queryGroupId
   const queryGroupIdRef = useRef(null);
@@ -721,7 +669,7 @@ export default function Consulta() {
         const dateStr = day.toISOString().split('T')[0];
         
         // Obtener bloque activo para esta fecha (simulamos la lógica del endpoint)
-        const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
+        const seasonBlocksResponse = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
         
         if (seasonBlocksResponse.ok) {
           const seasonBlocksData = await seasonBlocksResponse.json();
@@ -1071,7 +1019,7 @@ export default function Consulta() {
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);
@@ -1374,11 +1322,6 @@ export default function Consulta() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requirements.requiredGuests]);
 
-
-
-
-
-
   const searchAvailableRooms = async (customParams = null) => {
     // Guardar/actualizar consulta antes de buscar habitaciones
     if (formData.mainClient.id) {
@@ -1466,13 +1409,23 @@ export default function Consulta() {
                 totalRate = 0;
                 room.serviceAvailabilityError = error.message;
                   room.availabilityStatus = availabilityStatus;
-                  // Capturar información adicional para disponibilidad parcial
                   if (error.availableServices) room.availableServices = error.availableServices;
                   if (error.serviceAvailabilityMessages) room.serviceAvailabilityMessages = error.serviceAvailabilityMessages;
                   if (error.isPartiallyAvailable !== undefined) room.isPartiallyAvailable = error.isPartiallyAvailable;
                   if (error.suggestedAction) room.suggestedAction = error.suggestedAction;
                   if (error.availablePeriods) room.availablePeriods = error.availablePeriods;
+                  if (error.suggestedSegments) room.suggestedSegments = error.suggestedSegments;
                   if (error.serviceName) room.serviceName = error.serviceName;
+                  break;
+
+                case RoomAvailabilityStatus.CLOSED:
+                  console.debug(`🔍 Período con noches cerradas para ${room.name}`);
+                  totalRate = 0;
+                  room.serviceAvailabilityError = error.message;
+                  room.availabilityStatus = availabilityStatus;
+                  if (error.closedDates) room.closedDates = error.closedDates;
+                  if (error.suggestedSegments) room.suggestedSegments = error.suggestedSegments;
+                  if (error.availablePeriods) room.availablePeriods = error.availablePeriods;
                   break;
                   
                 case RoomAvailabilityStatus.SERVICE_NOT_AVAILABLE:
@@ -1480,8 +1433,8 @@ export default function Consulta() {
                 totalRate = 0;
                   room.serviceAvailabilityError = error.message;
                   room.availabilityStatus = availabilityStatus;
-                  // Capturar servicios alternativos
                   if (error.availableServices) room.availableServices = error.availableServices;
+                  if (error.suggestedSegments) room.suggestedSegments = error.suggestedSegments;
                   if (error.serviceName) room.serviceName = error.serviceName;
                   break;
                   
@@ -1492,7 +1445,6 @@ export default function Consulta() {
                   break;
                   
                 default:
-                  // Errores inesperados - mostrar en consola
                   console.error(`❌ Error inesperado para ${room.name}:`, error.message);
                 totalRate = 0;
                   room.availabilityStatus = RoomAvailabilityStatus.ERROR;
@@ -1516,19 +1468,33 @@ export default function Consulta() {
         // Limpiar errores previos
         setIsPartiallyAvailable(false);
         setAvailablePeriods([]);
+        setSuggestedSegments([]);
+        setClosedDatesInfo([]);
         setServiceName('');
         
         if (allZeroRates) {
           if (roomsWithServiceAvailabilityErrors.length > 0) {
-            // Verificar si hay disponibilidad parcial
+            // Verificar si hay disponibilidad parcial / cerrado
             const firstServiceError = roomsWithServiceAvailabilityErrors[0];
-            
-            if (firstServiceError.isPartiallyAvailable && firstServiceError.availablePeriods) {
+
+            if (firstServiceError.availabilityStatus === RoomAvailabilityStatus.CLOSED) {
+              setIsHotelClosed(true);
+              setClosedDatesInfo(firstServiceError.closedDates || []);
+              if (firstServiceError.suggestedSegments) {
+                setSuggestedSegments(firstServiceError.suggestedSegments);
+              }
+            } else if (firstServiceError.isPartiallyAvailable && firstServiceError.availablePeriods) {
               // Servicio parcialmente disponible - mostrar opción de segmentación
               setIsPartiallyAvailable(true);
               setAvailablePeriods(firstServiceError.availablePeriods);
+              setSuggestedSegments(firstServiceError.suggestedSegments || []);
               setServiceName(firstServiceError.serviceName || 'el servicio solicitado');
               // setPricingError(null); // No mostrar error de precios si es parcialmente disponible
+            } else if (firstServiceError.suggestedSegments?.length) {
+              setIsPartiallyAvailable(true);
+              setSuggestedSegments(firstServiceError.suggestedSegments);
+              setAvailablePeriods(firstServiceError.availablePeriods || []);
+              setServiceName(firstServiceError.serviceName || 'el servicio solicitado');
             } else {
               // Servicio no disponible en ninguna parte - solo mostrar error simple
               // setPricingError('No se encontraron habitaciones disponibles para los criterios especificados. Intenta con otras fechas o una cantidad diferente de huéspedes.');
@@ -1662,11 +1628,6 @@ export default function Consulta() {
     activeBlockIndex, 
     hasSearchedPerBlock
   ]);
-
-
-
-
-
 
   const handleClientInputChange = (field, value) => {
     setFormData(prev => ({
@@ -1916,7 +1877,6 @@ export default function Consulta() {
     }
   };
 
-
   // Función de submit del formulario (no utilizada actualmente)
   // const handleSubmit = (e) => {
   //   e.preventDefault();
@@ -1947,10 +1907,6 @@ export default function Consulta() {
   //   // Abrir modal de confirmación
   //   setShowConfirmationModal(true);
   // };
-
-
-
-
 
   const checkRequirementsCompliance = (room) => {
     // Obtener las etiquetas requeridas del bloque activo
@@ -2256,8 +2212,6 @@ export default function Consulta() {
   //   return 'Huésped';
   // };
 
-
-
   // Función para copiar datos de la consulta al portapapeles
   const handleCopyReservationData = async () => {
     try {
@@ -2381,8 +2335,15 @@ export default function Consulta() {
   };
 
   // Función para crear la reserva
-  const handleCreateReservation = async (status = 'PENDIENTE', skipPastDateWarning = false) => {
+  const handleCreateReservation = async (statusOrOptions = 'PENDIENTE', skipPastDateWarning = false) => {
     setIsCreatingReservation(true);
+
+    const pricingOptions = typeof statusOrOptions === 'object' && statusOrOptions !== null
+      ? statusOrOptions
+      : { status: statusOrOptions };
+    const status = pricingOptions.status || 'PENDIENTE';
+    const segmentPricing = pricingOptions.segmentPricing || {};
+    const discount = pricingOptions.discount || null;
     
     try {
       // Validaciones básicas
@@ -2418,6 +2379,11 @@ export default function Consulta() {
         
         if (hasPastDates) {
           setPendingReservationStatus(status);
+          setPendingPricingOptions({
+            status,
+            segmentPricing,
+            discount
+          });
           setShowPastDateWarning(true);
           setIsCreatingReservation(false);
           return; // Detener la ejecución para mostrar el modal
@@ -2465,12 +2431,10 @@ export default function Consulta() {
       const reservationData = {
         mainClientId: clientId,
         segments: segments.map((segment, index) => {
-          // Validar serviceType
           if (!segment.serviceType || segment.serviceType === '') {
             throw new Error(`El segmento ${index + 1} no tiene un tipo de servicio seleccionado. Por favor, selecciona un tipo de servicio.`);
           }
           
-          // Validar fechas
           if (!segment.checkIn || !segment.checkOut) {
             throw new Error(`El segmento ${index + 1} no tiene fechas válidas.`);
           }
@@ -2482,29 +2446,47 @@ export default function Consulta() {
           if (nights <= 0) {
             throw new Error(`El segmento ${index + 1} tiene fechas inválidas (check-out debe ser después de check-in).`);
           }
-          
-          // Calcular baseRate - debe existir y ser válida
-          const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
-          const roomPrice = selectedRoomsPerBlock[index].price;
-          
-          let baseRate = null;
-          if (totalAmount && totalAmount > 0) {
-            baseRate = totalAmount / nights;
+
+          const room = selectedRoomsPerBlock[index];
+          const rates = room?.ratesData?.rates || [];
+          const totalAmount = room?.ratesData?.totalAmount;
+          const roomPrice = room?.price;
+          const pricing = segmentPricing[index] || segmentPricing[String(index)] || {};
+
+          let listRate = null;
+          if (rates.length > 0) {
+            listRate = rates.reduce((sum, r) => sum + (r.listRate || r.serviceRate || r.baseRate || 0), 0) / rates.length;
+          } else if (totalAmount && totalAmount > 0) {
+            listRate = totalAmount / nights;
           } else if (roomPrice && roomPrice > 0) {
-            baseRate = roomPrice;
+            listRate = roomPrice;
           }
-          
+
+          const isManualRate = pricing.manualRate != null && pricing.manualRate !== '' && Number(pricing.manualRate) > 0;
+          let baseRate = isManualRate ? Number(pricing.manualRate) : listRate;
+
           if (!baseRate || baseRate <= 0) {
             throw new Error(`No se pudo calcular la tarifa para el segmento ${index + 1}. La habitación debe tener una tarifa válida.`);
           }
-          
-          // Validar requiredGuests
+
           if (!segment.requiredGuests || segment.requiredGuests <= 0) {
             throw new Error(`El segmento ${index + 1} debe tener al menos 1 huésped.`);
           }
+
+          const nightRates = rates.length > 0
+            ? rates.map((r) => ({
+                date: typeof r.date === 'string' ? r.date.slice(0, 10) : new Date(r.date).toISOString().slice(0, 10),
+                listRate: r.listRate || r.serviceRate || r.baseRate,
+                finalRate: isManualRate ? Number(pricing.manualRate) : (r.serviceRate || r.baseRate || r.listRate),
+                seasonBlockId: r.seasonBlockId || null,
+                serviceTypeId: segment.serviceType,
+                manualOverride: isManualRate
+              }))
+            : undefined;
           
           return {
-            roomId: selectedRoomsPerBlock[index].id,
+            roomId: room.id,
+            roomTypeId: room.roomType?.id || room.roomTypeId || null,
             startDate: segment.checkIn,
             endDate: segment.checkOut,
             requiredGuests: segment.requiredGuests,
@@ -2512,18 +2494,28 @@ export default function Consulta() {
             requiredTags: segment.requiredTags || [],
             requiredRoomId: segment.requiredRoomId || null,
             baseRate: baseRate,
+            listRate: listRate,
+            isManualRate,
+            pricingNotes: pricing.notes || null,
+            nightRates,
             guestCount: segment.requiredGuests
           };
         }),
         status: status,
         notes: notes,
-        isMultiRoom: false
+        isMultiRoom: false,
+        discount: discount?.type && discount?.value
+          ? { type: discount.type, value: Number(discount.value), reason: discount.reason || '' }
+          : null,
+        discountType: discount?.type || null,
+        discountValue: discount?.value != null ? Number(discount.value) : null,
+        discountReason: discount?.reason || null
       };
 
       console.log('Datos de reserva a enviar:', reservationData);
 
       // Crear la reserva en el backend
-      console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
+      console.log('Enviando reserva a:', `${API_URL}/reservations/multi-segment`);
       console.log('Datos completos de la reserva:', JSON.stringify(reservationData, null, 2));
       
       const newReservation = await createReservation(reservationData);
@@ -2533,7 +2525,7 @@ export default function Consulta() {
       // Eliminar la consulta si existe (ya se convirtió en reserva)
       if (queryGroupIdRef.current) {
         try {
-          const response = await fetch(`http://localhost:3001/api/queries/multi-segment/${queryGroupIdRef.current}`, {
+          const response = await fetch(`${API_URL}/queries/multi-segment/${queryGroupIdRef.current}`, {
             method: 'DELETE'
           });
           if (response.ok) {
@@ -2555,7 +2547,8 @@ export default function Consulta() {
       resetForm();
       
       // Navegar a los detalles de la reserva creada
-      navigate(`/reservations/${newReservation.id}`);
+      const createdId = newReservation?.reservation?.id || newReservation?.id;
+      navigate(`/reservations/${createdId}`);
       
     } catch (error) {
       console.error('Error al crear la reserva:', error);
@@ -3038,7 +3031,7 @@ export default function Consulta() {
               ) : (availableRoomsPerBlock[activeBlockIndex] || []).length === 0 ? (
                 <div className={styles.noRooms}>
                   {/* Mostrar mensaje específico si hay disponibilidad parcial, sino mensaje genérico */}
-                  {isPartiallyAvailable && availablePeriods.length > 0 ? (
+                  {isPartiallyAvailable && (availablePeriods.length > 0 || suggestedSegments.length > 0) ? (
                     <>
                       <p>El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
                         
@@ -3056,11 +3049,11 @@ export default function Consulta() {
                           marginTop: '15px'
                           }}
                         >
-                        🔄 Dividir la reserva en tramos
+                        Dividir la reserva en tramos
                         </button>
                         
                         <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
-                          Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
+                          Se crearán segmentos con el servicio disponible en cada tramo de fechas.
                         </p>
                     </>
                   ) : (
@@ -3218,7 +3211,6 @@ export default function Consulta() {
         )}
       </div>
 
-
       {/* Botones de acción */}
       {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (
         <div className={styles.createReservationButtonContainer}>
@@ -3318,7 +3310,7 @@ export default function Consulta() {
               <button
                 onClick={() => {
                   setShowPastDateWarning(false);
-                  handleCreateReservation(pendingReservationStatus, true); // skipPastDateWarning = true
+                  handleCreateReservation(pendingPricingOptions || { status: pendingReservationStatus }, true); // skipPastDateWarning = true
                 }}
                 style={{
                   padding: '10px 20px',

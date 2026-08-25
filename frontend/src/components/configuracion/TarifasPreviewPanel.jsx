@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getRoomTypeLabel } from '../../utils/roomTypeUtils';
+import { API_URL } from '../../services/api.js';
 
 export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   const [previewDate, setPreviewDate] = useState(new Date().toISOString().slice(0, 10));
@@ -44,7 +45,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
 
   // Cargar tipos de habitación desde el backend
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    
     fetch(`${API_URL}/room-types`)
       .then((res) => res.json())
       .then((data) => {
@@ -62,7 +63,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   useEffect(() => {
     const handleRoomTypesUpdate = (event) => {
       console.log('🔄 Actualizando tipos de habitación en previsualización:', event.detail);
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       fetch(`${API_URL}/room-types`)
         .then((res) => res.json())
         .then((data) => {
@@ -85,7 +86,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   // Cargar precio base desde bloques de temporada
   const loadBasePriceFromSeasonBlocks = async (date) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       // Usar un rango de fechas válido (mismo día + 1 día siguiente)
       const nextDay = new Date(date);
       nextDay.setDate(nextDay.getDate() + 1);
@@ -123,7 +124,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
 
   // Cargar coeficientes desde el backend
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    
     fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -138,7 +139,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
 
   // Cargar reglas de comidas desde el backend
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    
     fetch(`${API_URL}/dynamic-pricing/meals/${hotelId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -297,7 +298,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
   const saveCoefficients = async (coefficients) => {
     setSaving(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       await fetch(`${API_URL}/dynamic-pricing/coefficients/${hotelId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -315,9 +316,6 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
       setSaving(false);
     }
   };
-
-
-
 
   return (
     <div style={{ 

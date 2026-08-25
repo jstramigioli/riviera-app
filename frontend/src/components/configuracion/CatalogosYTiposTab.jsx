@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff, FaPalette } from 'react-icons/fa';
 import styles from './CatalogosYTiposTab.module.css';
+import { API_URL } from '../../services/api.js';
 
 const CatalogosYTiposTab = () => {
   const [tiposCargo, setTiposCargo] = useState([]);
@@ -23,7 +24,7 @@ const CatalogosYTiposTab = () => {
   const loadTiposCargo = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/tipo-cargo');
+      const response = await fetch(`${API_URL}/tipo-cargo`);
       if (!response.ok) throw new Error('Error al cargar tipos de cargo');
       
       const result = await response.json();
@@ -78,8 +79,8 @@ const CatalogosYTiposTab = () => {
 
     try {
       const url = editingTipo 
-        ? `http://localhost:3001/api/tipo-cargo/${editingTipo.id}`
-        : 'http://localhost:3001/api/tipo-cargo';
+        ? `${API_URL}/tipo-cargo/${editingTipo.id}`
+        : `${API_URL}/tipo-cargo`;
       
       const method = editingTipo ? 'PUT' : 'POST';
       
@@ -114,7 +115,7 @@ const CatalogosYTiposTab = () => {
 
   const handleToggle = async (tipo) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/tipo-cargo/${tipo.id}/toggle`, {
+      const response = await fetch(`${API_URL}/tipo-cargo/${tipo.id}/toggle`, {
         method: 'PUT',
       });
 
@@ -142,7 +143,7 @@ const CatalogosYTiposTab = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/tipo-cargo/${tipo.id}`, {
+      const response = await fetch(`${API_URL}/tipo-cargo/${tipo.id}`, {
         method: 'DELETE',
       });
 

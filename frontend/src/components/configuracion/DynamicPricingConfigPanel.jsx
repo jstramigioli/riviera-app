@@ -4,6 +4,7 @@ import OccupancyFactorConfig from "./OccupancyFactorConfig";
 import AnticipationFactorConfig from "./AnticipationFactorConfig";
 import WeekendFactorConfig from "./WeekendFactorConfig";
 import EditablePercentage from "./EditablePercentage";
+import { API_URL } from '../../services/api.js';
 
 const defaultConfig = {
   enabled: false,
@@ -65,7 +66,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
   });
 
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    
     console.log('DynamicPricingConfigPanel - Loading config from API...');
     fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`)
       .then((res) => {
@@ -123,7 +124,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
   // Cargar los porcentajes máximos calculados dinámicamente
   useEffect(() => {
     if (config.enabled) {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       fetch(`${API_URL}/dynamic-pricing/max-adjustments/${hotelId}`)
         .then((res) => res.json())
         .then((data) => {
@@ -138,7 +139,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
   const saveConfig = async (newConfig, skipReload = false) => {
     try {
       console.log('DynamicPricingConfigPanel - saveConfig called with:', newConfig);
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/dynamic-pricing/config/${hotelId}`, {
         method: 'PUT',
         headers: {

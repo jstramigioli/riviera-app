@@ -1,21 +1,15 @@
 /* eslint-env jest */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as api from './api';
 
 // Mock de fetch global
 global.fetch = vi.fn();
 
 describe('api service', () => {
-  const mockApiUrl = 'http://localhost:3001/api';
+  const mockApiUrl = api.API_URL;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock de las variables de entorno
-    vi.stubEnv('VITE_API_URL', mockApiUrl);
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   describe('fetchReservations', () => {
@@ -115,7 +109,7 @@ describe('api service', () => {
 
       const result = await api.createReservation(mockReservation);
 
-      expect(global.fetch).toHaveBeenCalledWith(`${mockApiUrl}/reservations`, {
+      expect(global.fetch).toHaveBeenCalledWith(`${mockApiUrl}/reservations/multi-segment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mockReservation)

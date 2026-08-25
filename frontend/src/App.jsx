@@ -3,14 +3,10 @@ import { getStatusLabel } from "./utils/reservationStatusUtils";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
-import ReservationBar from './components/ReservationBar';
 import ReservationGrid from './components/ReservationGrid';
-import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
 import ConfirmationModal from './components/ConfirmationModal';
-import CalendarioGestion from './pages/CalendarioGestion';
-import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import RatesCalendar from './components/RatesCalendar';
@@ -408,27 +404,22 @@ function ReservationsView() {
               </div>
             )}
 
-            {/* Balance clickeable - solo en visualización, debajo de reservas */}
+            {/* Balance del cliente (solo lectura en MVP) */}
             {!isEditing && (
               <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
-                <div 
-                  style={{ 
-                    cursor: 'pointer', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px',
-                    borderRadius: '4px',
-                    transition: 'background-color 0.2s'
+                    borderRadius: '4px'
                   }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  onClick={() => alert('Panel de balance será implementado próximamente')}
-                  title="Ver detalles del balance"
+                  title="Resumen de saldo del cliente"
                 >
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Balance:</span>
-                  <span style={{ 
-                    fontWeight: 'bold', 
+                  <span style={{
+                    fontWeight: 'bold',
                     fontSize: '1.2rem',
                     color: clientBalance?.balance > 0 ? '#dc3545' : clientBalance?.balance < 0 ? '#28a745' : '#6c757d'
                   }}>
@@ -462,10 +453,6 @@ function ReservationsView() {
       />
     </div>
   );
-}
-
-function CalendarioGestionView() {
-  return <CalendarioGestion />;
 }
 
 function ConsultasReservasViewWrapper() {

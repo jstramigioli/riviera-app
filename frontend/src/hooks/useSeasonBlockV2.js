@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { API_URL } from '../services/api.js';
 
 // Función para formatear fechas en español para nombres de bloques
 const formatDateForBlockName = (date) => {
@@ -276,14 +275,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   };
 
-
   // Cargar datos iniciales
   useEffect(() => {
     console.log('useSeasonBlockV2 - useEffect triggered with blockId:', blockId, 'hotelId:', hotelId);
     loadInitialData();
   }, [blockId, hotelId]);
-
-
 
   const loadInitialData = async () => {
     console.log('loadInitialData called with blockId:', blockId);
@@ -532,7 +528,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const saveSeasonBlock = useCallback(async (currentFormData = null) => {
     const dataToSave = currentFormData || formData; // Prioritize passed formData
     const pricesToSave = prices; // Use current prices state
-
 
     
     // Validar formulario (no requerir fechas para guardar en borrador)
@@ -926,7 +921,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
     
 
-
     // 2. Obtener el precio base anterior del tipo de habitación editado
     const baseServiceType = serviceTypes.find(st => 
       st.name.toLowerCase().includes('base') || 
@@ -1029,8 +1023,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     // No auto-guardado - los cambios se guardarán manualmente
     console.log('Service adjustment updated - manual save required');
   };
-
-
 
   // Actualizar ajuste de servicio con guardado automático
   const updateServiceAdjustment = (serviceTypeId, field, value) => {

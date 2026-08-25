@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import styles from './SubcategoriasCargosTab.module.css';
+import { API_URL } from '../../services/api.js';
 
 const SubcategoriasCargosTab = ({ tipo }) => {
   const [subcategorias, setSubcategorias] = useState([]);
@@ -46,7 +47,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   const loadSubcategorias = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3001/api/subcategoria-cargo?tipo=${tipo}`);
+      const response = await fetch(`${API_URL}/subcategoria-cargo?tipo=${tipo}`);
       if (!response.ok) throw new Error('Error al cargar subcategorías');
       
       const result = await response.json();
@@ -96,8 +97,8 @@ const SubcategoriasCargosTab = ({ tipo }) => {
 
     try {
       const url = editingSubcategoria 
-        ? `http://localhost:3001/api/subcategoria-cargo/${editingSubcategoria.id}`
-        : `http://localhost:3001/api/subcategoria-cargo/${tipo}`;
+        ? `${API_URL}/subcategoria-cargo/${editingSubcategoria.id}`
+        : `${API_URL}/subcategoria-cargo/${tipo}`;
       
       const method = editingSubcategoria ? 'PUT' : 'POST';
       
@@ -132,7 +133,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
 
   const handleToggle = async (subcategoria) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/subcategoria-cargo/${subcategoria.id}/toggle`, {
+      const response = await fetch(`${API_URL}/subcategoria-cargo/${subcategoria.id}/toggle`, {
         method: 'PUT',
       });
 
@@ -155,7 +156,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/subcategoria-cargo/${subcategoria.id}`, {
+      const response = await fetch(`${API_URL}/subcategoria-cargo/${subcategoria.id}`, {
         method: 'DELETE',
       });
 

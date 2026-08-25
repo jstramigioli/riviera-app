@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiSettings, FiSave, FiInfo } from 'react-icons/fi';
 import styles from './RoundingConfigPanel.module.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { API_URL } from '../../services/api.js';
 
 const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
   const [config, setConfig] = useState({

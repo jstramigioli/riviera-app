@@ -48,7 +48,11 @@ exports.createReservation = async (req, res) => {
     segments,
     status, 
     notes,
-    isMultiRoom = false
+    isMultiRoom = false,
+    discountType = null,
+    discountValue = null,
+    discountReason = null,
+    discount = null
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
@@ -56,16 +60,18 @@ exports.createReservation = async (req, res) => {
   }
   
   try {
-    // Preparar datos de la reserva para validación
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
-      isMultiRoom
+      isMultiRoom,
+      discountType,
+      discountValue,
+      discountReason,
+      discount
     };
 
-    // Validar la reserva completa antes de crearla
     const validation = await validateReservationCreation(reservationData);
     if (!validation.isValid) {
       return res.status(400).json({ 
@@ -74,52 +80,9 @@ exports.createReservation = async (req, res) => {
       });
     }
 
-    // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
 
-    // Calcular y almacenar tarifas detalladas por noche
-    try {
-      const serviceType = reservationType === 'con_desayuno' ? 'breakfast' : 
-                         reservationType === 'media_pension' ? 'halfBoard' : 'base';
-      
-      const pricingResult = await reservationPricingService.calculateAndStoreNightRates(
-        newReservation.id,
-        roomId,
-        checkIn,
-        checkOut,
-        serviceType
-      );
-
-      // Actualizar la reserva con el total calculado
-      const updatedReservation = await prisma.reservation.update({
-        where: { id: newReservation.id },
-        data: { totalAmount: pricingResult.totalAmount },
-        include: {
-          room: {
-            include: {
-              roomType: true,
-              tags: true
-            }
-          },
-          mainClient: true,
-          guests: true,
-          nightRates: true
-        }
-      });
-
-      res.status(201).json({
-        ...updatedReservation,
-        pricingSummary: {
-          totalAmount: pricingResult.totalAmount,
-          numberOfNights: pricingResult.numberOfNights,
-          averageRatePerNight: pricingResult.totalAmount / pricingResult.numberOfNights
-        }
-      });
-    } catch (pricingError) {
-      console.error('Error calculando tarifas detalladas:', pricingError);
-      // Si falla el cálculo de tarifas, devolver la reserva sin tarifas detalladas
-      res.status(201).json(newReservation);
-    }
+    res.status(201).json(newReservation);
   } catch (error) {
     res.status(500).json({ error: 'Error creating reservation', details: error.message });
   }
@@ -132,7 +95,11 @@ exports.createMultiSegmentReservation = async (req, res) => {
     segments,
     status, 
     notes,
-    isMultiRoom = false
+    isMultiRoom = false,
+    discountType = null,
+    discountValue = null,
+    discountReason = null,
+    discount = null
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
@@ -140,18 +107,20 @@ exports.createMultiSegmentReservation = async (req, res) => {
   }
   
   try {
-    // Preparar datos de la reserva para validación
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
-      isMultiRoom
+      isMultiRoom,
+      discountType,
+      discountValue,
+      discountReason,
+      discount
     };
 
     console.log('📦 Datos recibidos para crear reserva:', JSON.stringify(reservationData, null, 2));
 
-    // Validar la reserva completa antes de crearla
     const validation = await validateReservationCreation(reservationData);
     if (!validation.isValid) {
       console.error('❌ Error de validación en la reserva:', validation.errors);
@@ -161,12 +130,12 @@ exports.createMultiSegmentReservation = async (req, res) => {
       });
     }
 
-    // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
 
     res.status(201).json({
       message: 'Reserva creada exitosamente',
-      reservation: newReservation
+      reservation: newReservation,
+      id: newReservation?.id
     });
   } catch (error) {
     console.error('Error creating multi-segment reservation:', error);

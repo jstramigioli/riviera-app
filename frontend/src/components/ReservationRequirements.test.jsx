@@ -3,7 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ReservationRequirements from './ReservationRequirements';
 
-// Mock del hook useTags
 vi.mock('../hooks/useTags', () => ({
   useTags: () => ({
     tags: [
@@ -13,6 +12,13 @@ vi.mock('../hooks/useTags', () => ({
     ]
   })
 }));
+
+vi.mock('../services/api', () => ({
+  fetchRooms: vi.fn().mockResolvedValue([]),
+  API_URL: '/api'
+}));
+
+const getGuestSelect = () => screen.getByLabelText(/Cantidad de Huéspedes/i);
 
 describe('ReservationRequirements', () => {
   const mockRequirements = {
@@ -47,7 +53,7 @@ describe('ReservationRequirements', () => {
     );
 
     expect(screen.getByText('Cantidad de Huéspedes *:')).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(getGuestSelect()).toBeInTheDocument();
   });
 
   it('should render tags section', () => {
@@ -58,7 +64,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    expect(screen.getByText('Etiquetas Requeridas:')).toBeInTheDocument();
+    expect(screen.getByText('Requerimientos:')).toBeInTheDocument();
     expect(screen.getByText('WiFi')).toBeInTheDocument();
     expect(screen.getByText('Aire Acondicionado')).toBeInTheDocument();
     expect(screen.getByText('Balcón')).toBeInTheDocument();
@@ -72,7 +78,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    const guestSelect = screen.getByRole('combobox');
+    const guestSelect = getGuestSelect();
     fireEvent.change(guestSelect, { target: { value: '4' } });
 
     expect(mockOnRequirementsChange).toHaveBeenCalledWith({
@@ -131,7 +137,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    const guestSelect = screen.getByRole('combobox');
+    const guestSelect = getGuestSelect();
     fireEvent.change(guestSelect, { target: { value: 'invalid' } });
 
     expect(mockOnRequirementsChange).toHaveBeenCalledWith({
@@ -149,7 +155,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    const guestSelect = screen.getByRole('combobox');
+    const guestSelect = getGuestSelect();
     fireEvent.change(guestSelect, { target: { value: '' } });
 
     expect(mockOnRequirementsChange).toHaveBeenCalledWith({
@@ -167,7 +173,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    const guestSelect = screen.getByRole('combobox');
+    const guestSelect = getGuestSelect();
     const options = guestSelect.querySelectorAll('option');
 
     expect(options).toHaveLength(8); // 1-8 guests
@@ -230,7 +236,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(getGuestSelect()).toBeInTheDocument();
     expect(screen.getByText('WiFi')).toBeInTheDocument();
   });
 
@@ -247,7 +253,7 @@ describe('ReservationRequirements', () => {
       />
     );
 
-    const guestSelect = screen.getByRole('combobox');
+    const guestSelect = getGuestSelect();
     fireEvent.change(guestSelect, { target: { value: '3' } });
 
     expect(mockOnRequirementsChange).toHaveBeenCalledWith({
@@ -258,6 +264,24 @@ describe('ReservationRequirements', () => {
   });
 
   it('should reset requiredRoomId when tags change', () => {
+    render(
+      <ReservationRequirements 
+        requirements={mockRequirements} 
+        onRequirementsChange={mockOnRequirementsChange} 
+      />
+    );
+
+    const tagButton = screen.getByText('Aire Acondicionado');
+    fireEvent.click(tagButton);
+
+    expect(mockOnRequirementsChange).toHaveBeenCalledWith({
+      ...mockRequirements,
+      requiredTags: ['1', '2'],
+      requiredRoomId: null
+    });
+  });
+
+  it('should disable tags when a specific room is selected', () => {
     const requirementsWithRoom = {
       ...mockRequirements,
       requiredRoomId: 5
@@ -271,12 +295,8 @@ describe('ReservationRequirements', () => {
     );
 
     const tagButton = screen.getByText('Aire Acondicionado');
+    expect(tagButton).toBeDisabled();
     fireEvent.click(tagButton);
-
-    expect(mockOnRequirementsChange).toHaveBeenCalledWith({
-      ...requirementsWithRoom,
-      requiredTags: ['1', '2'],
-      requiredRoomId: null
-    });
+    expect(mockOnRequirementsChange).not.toHaveBeenCalled();
   });
 }); 

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SeasonBlockModal from './SeasonBlockModal';
+import { useSeasonBlock } from '../../hooks/useSeasonBlock';
 
-// Mock del hook useSeasonBlock
 vi.mock('../../hooks/useSeasonBlock', () => ({
   useSeasonBlock: vi.fn()
 }));
@@ -19,7 +19,8 @@ vi.mock('react-icons/fi', () => ({
   FiCopy: () => <span data-testid="copy-icon">📋</span>,
   FiCalendar: () => <span data-testid="calendar-icon">📅</span>,
   FiDollarSign: () => <span data-testid="dollar-icon">💲</span>,
-  FiSettings: () => <span data-testid="settings-icon">⚙️</span>
+  FiSettings: () => <span data-testid="settings-icon">⚙️</span>,
+  FiPercent: () => <span data-testid="percent-icon">%</span>
 }));
 
 // Mock del componente ConfirmationModal
@@ -64,7 +65,7 @@ describe('SeasonBlockModal', () => {
       { roomTypeId: 2, basePrice: '' }
     ],
     serviceAdjustments: [
-      { roomTypeId: 1, serviceTypeId: 'service-1', mode: 'PERCENTAGE', value: '' },
+      { roomTypeId: 1, serviceTypeId: 'service-1', mode: 'PERCENTAGE', value: 10 },
       { roomTypeId: 1, serviceTypeId: 'service-2', mode: 'PERCENTAGE', value: '' },
       { roomTypeId: 2, serviceTypeId: 'service-1', mode: 'PERCENTAGE', value: '' },
       { roomTypeId: 2, serviceTypeId: 'service-2', mode: 'PERCENTAGE', value: '' }
@@ -86,14 +87,20 @@ describe('SeasonBlockModal', () => {
     copyValueToColumn: vi.fn(),
     copyValueToAll: vi.fn(),
     saveSeasonBlock: vi.fn(),
+    confirmSeasonBlock: vi.fn(),
     deleteSeasonBlock: vi.fn(),
     cloneSeasonBlock: vi.fn(),
-    setError: vi.fn()
+    setError: vi.fn(),
+    updateServiceSelection: vi.fn(),
+    getEnabledServiceTypes: vi.fn(() => mockServiceTypes),
+    getCombinedPrice: vi.fn(() => 50000),
+    updateCombinedPrice: vi.fn(),
+    getSeasonPrice: vi.fn(() => 50000),
+    getServiceAdjustment: vi.fn(() => ({ mode: 'PERCENTAGE', value: '' }))
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue(mockUseSeasonBlock);
   });
 
@@ -121,7 +128,6 @@ describe('SeasonBlockModal', () => {
   });
 
   it('should display loading state', () => {
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue({
       ...mockUseSeasonBlock,
       loading: true
@@ -133,7 +139,6 @@ describe('SeasonBlockModal', () => {
   });
 
   it('should display error state', () => {
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue({
       ...mockUseSeasonBlock,
       error: 'Error de prueba'
@@ -157,45 +162,40 @@ describe('SeasonBlockModal', () => {
   it('should render room types and service types tables', () => {
     render(<SeasonBlockModal {...defaultProps} />);
     
-    // Tabla de tarifas base
-    expect(screen.getByText('Tarifas Base por Habitación')).toBeInTheDocument();
+    expect(screen.getByText('Establecer Tarifas')).toBeInTheDocument();
     expect(screen.getByText('Habitación Simple')).toBeInTheDocument();
     expect(screen.getByText('Habitación Doble')).toBeInTheDocument();
     
-    // Tabla de ajustes por servicio
-    expect(screen.getByText('Ajustes por Servicio')).toBeInTheDocument();
-    expect(screen.getByText('Desayuno')).toBeInTheDocument();
-    expect(screen.getByText('Media Pensión')).toBeInTheDocument();
+    expect(screen.getByText('Servicios Incluidos')).toBeInTheDocument();
+    expect(screen.getAllByText('Desayuno').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Media Pensión').length).toBeGreaterThan(0);
   });
 
-  it('should call updateFormData when form fields change', async () => {
-    const user = userEvent.setup();
+  it('should call updateFormData when form fields change', () => {
     render(<SeasonBlockModal {...defaultProps} />);
     
     const nameInput = screen.getByLabelText('Nombre del Bloque');
-    await user.type(nameInput, 'Temporada Alta');
+    fireEvent.change(nameInput, { target: { value: 'Temporada Alta' } });
     
     expect(mockUseSeasonBlock.updateFormData).toHaveBeenCalledWith('name', 'Temporada Alta');
   });
 
-  it('should call updateSeasonPrice when price input changes', async () => {
-    const user = userEvent.setup();
+  it('should call updateCombinedPrice when price input changes', () => {
     render(<SeasonBlockModal {...defaultProps} />);
     
-    const priceInput = screen.getByLabelText('Tarifa base para Habitación Simple');
-    await user.type(priceInput, '50000');
+    const priceInput = screen.getByLabelText('Precio para Habitación Simple - Desayuno');
+    fireEvent.change(priceInput, { target: { value: '50000' } });
     
-    expect(mockUseSeasonBlock.updateSeasonPrice).toHaveBeenCalledWith(1, '50000');
+    expect(mockUseSeasonBlock.updateCombinedPrice).toHaveBeenCalled();
   });
 
-  it('should call updateServiceAdjustment when adjustment input changes', async () => {
-    const user = userEvent.setup();
+  it('should call updateServiceSelection when a service is toggled', () => {
     render(<SeasonBlockModal {...defaultProps} />);
     
-    const adjustmentInputs = screen.getAllByLabelText(/Valor de ajuste para/);
-    await user.type(adjustmentInputs[0], '10');
+    const breakfastToggle = screen.getByRole('checkbox', { name: /Desayuno/i });
+    fireEvent.click(breakfastToggle);
     
-    expect(mockUseSeasonBlock.updateServiceAdjustment).toHaveBeenCalledWith(1, 'service-1', 'value', '10');
+    expect(mockUseSeasonBlock.updateServiceSelection).toHaveBeenCalledWith('service-1', false);
   });
 
   it('should handle save action', async () => {
@@ -293,7 +293,6 @@ describe('SeasonBlockModal', () => {
   });
 
   it('should show validation errors', () => {
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue({
       ...mockUseSeasonBlock,
       validationErrors: {
@@ -309,7 +308,6 @@ describe('SeasonBlockModal', () => {
   });
 
   it('should disable save button when saving', () => {
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue({
       ...mockUseSeasonBlock,
       saving: true
@@ -322,7 +320,6 @@ describe('SeasonBlockModal', () => {
   });
 
   it('should show saving state in button', () => {
-    const { useSeasonBlock } = require('../../hooks/useSeasonBlock');
     useSeasonBlock.mockReturnValue({
       ...mockUseSeasonBlock,
       saving: true

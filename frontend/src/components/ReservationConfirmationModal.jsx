@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import styles from './ReservationConfirmationModal.module.css';
+import { API_URL } from '../services/api.js';
 
 const ReservationConfirmationModal = ({ 
   isOpen, 
@@ -14,21 +15,22 @@ const ReservationConfirmationModal = ({
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
   const [reservationStatus, setReservationStatus] = useState('PENDIENTE');
+  const [segmentPricing, setSegmentPricing] = useState({});
+  const [discountType, setDiscountType] = useState(''); // '' | PERCENT | FIXED
+  const [discountValue, setDiscountValue] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
   
-  // Determinar estados de reserva disponibles según la fecha de check-in (memoizado)
   const reservationStatuses = useMemo(() => {
     const statuses = [
       { value: 'PENDIENTE', label: 'Pendiente' },
       { value: 'CONFIRMADA', label: 'Confirmada' }
     ];
     
-    // Solo permitir "Ingresada" si el check-in es hoy o anterior
     if (reservationData?.segments && reservationData.segments.length > 0) {
       const firstCheckIn = reservationData.segments[0].checkIn;
       if (firstCheckIn) {
         const checkInDate = new Date(firstCheckIn);
         const today = new Date();
-        // Normalizar fechas a medianoche para comparar solo días
         checkInDate.setHours(0, 0, 0, 0);
         today.setHours(0, 0, 0, 0);
         
@@ -40,12 +42,44 @@ const ReservationConfirmationModal = ({
     
     return statuses;
   }, [reservationData]);
+
+  useEffect(() => {
+    if (!isOpen || !reservationData?.segments) return;
+
+    const initial = {};
+    reservationData.segments.forEach((segment, index) => {
+      const room = reservationData.selectedRoomsPerBlock?.[index];
+      const rates = room?.ratesData?.rates || [];
+      const nights = (() => {
+        if (!segment.checkIn || !segment.checkOut) return 0;
+        return Math.ceil(
+          (new Date(segment.checkOut) - new Date(segment.checkIn)) / (1000 * 60 * 60 * 24)
+        );
+      })();
+      let listRate = null;
+      if (rates.length > 0) {
+        listRate = rates.reduce((sum, r) => sum + (r.listRate || r.serviceRate || r.baseRate || 0), 0) / rates.length;
+      } else if (room?.ratesData?.totalAmount && nights > 0) {
+        listRate = room.ratesData.totalAmount / nights;
+      } else if (room?.price && nights > 0) {
+        listRate = room.price;
+      }
+      initial[index] = {
+        listRate: listRate || 0,
+        manualRate: '',
+        notes: ''
+      };
+    });
+    setSegmentPricing(initial);
+    setDiscountType('');
+    setDiscountValue('');
+    setDiscountReason('');
+  }, [isOpen, reservationData]);
   
-  // Cargar tipos de servicio
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);
@@ -57,7 +91,6 @@ const ReservationConfirmationModal = ({
     loadServiceTypes();
   }, []);
 
-  // Verificar que el estado seleccionado sea válido cuando cambien las opciones disponibles
   useEffect(() => {
     const availableValues = reservationStatuses.map(s => s.value);
     if (!availableValues.includes(reservationStatus)) {
@@ -76,52 +109,71 @@ const ReservationConfirmationModal = ({
     }
   };
 
-
-
   const getServiceTypeLabel = (serviceTypeId) => {
     if (!serviceTypeId) return 'No especificado';
-    
-    // Buscar por ID
     const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-    
-    // Si no se encuentra, mostrar error visible para detectar problemas
     if (!serviceType) {
-      console.error('⚠️ ServiceType no encontrado:', serviceTypeId, 'Available:', serviceTypes);
-      return `⚠️ Servicio inválido (ID: ${serviceTypeId})`;
+      return `Servicio (ID: ${serviceTypeId})`;
     }
-    
     return serviceType.name;
   };
 
-  const getChangeDescription = (currentSegment, nextSegment) => {
-    const changes = [];
-    
-    // Detectar cambio de servicio
-    if (currentSegment.serviceType !== nextSegment.serviceType) {
-      changes.push(`A partir de ${formatDate(nextSegment.checkIn)}, ${getServiceTypeLabel(nextSegment.serviceType)}`);
-    }
-    
-    // Detectar cambio de huéspedes
-    if (currentSegment.requiredGuests !== nextSegment.requiredGuests) {
-      changes.push(`A partir de ${formatDate(nextSegment.checkIn)}, ${nextSegment.requiredGuests} huéspedes`);
-    }
-    
-    // Detectar cambio de etiquetas
-    const currentTags = currentSegment.requiredTags || [];
-    const nextTags = nextSegment.requiredTags || [];
-    if (JSON.stringify(currentTags.sort()) !== JSON.stringify(nextTags.sort())) {
-      changes.push(`A partir de ${formatDate(nextSegment.checkIn)}, cambio de requerimientos`);
-    }
-    
-    return changes.length > 0 ? changes.join(' • ') : `A partir de ${formatDate(nextSegment.checkIn)}`;
+  const getSegmentNights = (segment) => {
+    if (!segment?.checkIn || !segment?.checkOut) return 0;
+    return Math.ceil(
+      (new Date(segment.checkOut) - new Date(segment.checkIn)) / (1000 * 60 * 60 * 24)
+    );
   };
 
+  const getSegmentAgreedRate = (index) => {
+    const pricing = segmentPricing[index];
+    if (!pricing) return 0;
+    if (pricing.manualRate !== '' && Number(pricing.manualRate) > 0) {
+      return Number(pricing.manualRate);
+    }
+    return Number(pricing.listRate) || 0;
+  };
+
+  const lodgingSubtotal = useMemo(() => {
+    if (!reservationData?.segments) return 0;
+    return reservationData.segments.reduce((sum, segment, index) => {
+      const nights = getSegmentNights(segment);
+      return sum + nights * getSegmentAgreedRate(index);
+    }, 0);
+  }, [reservationData, segmentPricing]);
+
+  const discountAmount = useMemo(() => {
+    const value = Number(discountValue);
+    if (!discountType || !value || value <= 0) return 0;
+    if (discountType === 'PERCENT') return lodgingSubtotal * (value / 100);
+    return value;
+  }, [discountType, discountValue, lodgingSubtotal]);
+
+  const finalTotal = Math.max(0, lodgingSubtotal - discountAmount);
+
   const handleConfirm = () => {
-    onConfirm(reservationStatus);
+    onConfirm({
+      status: reservationStatus,
+      segmentPricing,
+      discount: discountType
+        ? {
+            type: discountType,
+            value: Number(discountValue) || 0,
+            reason: discountReason
+          }
+        : null
+    });
   };
 
   const handleCancel = () => {
     onClose();
+  };
+
+  const updateSegmentPricing = (index, patch) => {
+    setSegmentPricing((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], ...patch }
+    }));
   };
 
   return (
@@ -133,44 +185,12 @@ const ReservationConfirmationModal = ({
         </div>
         
         <div className={styles.body}>
-          {/* Cliente */}
           <div className={styles.clientSection}>
             <span className={styles.clientName} onClick={() => navigate(`/clients/${reservationData?.mainClient?.id || 'new'}`)}>
               {reservationData?.mainClient?.firstName} {reservationData?.mainClient?.lastName}
             </span>
           </div>
 
-          {/* Información General */}
-          {reservationData?.segments && reservationData.segments.length > 0 && (
-            <div className={styles.infoSection}>
-              <table className={styles.infoTable}>
-                <tbody>
-                  <tr>
-                    <td className={styles.tableLabel}>Huéspedes:</td>
-                    <td className={styles.tableValue}>
-                      {reservationData.segments[0].requiredGuests} persona{reservationData.segments[0].requiredGuests > 1 ? 's' : ''}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className={styles.tableLabel}>Servicio:</td>
-                    <td className={styles.tableValue}>
-                      {getServiceTypeLabel(reservationData.segments[0].serviceType)}
-                    </td>
-                  </tr>
-                  {reservationData?.selectedRoom && (
-                    <tr>
-                      <td className={styles.tableLabel}>Habitación asignada:</td>
-                      <td className={styles.tableValue}>
-                        {reservationData.selectedRoom.name}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Fechas globales de estancia */}
           {reservationData?.segments && reservationData.segments.length > 0 && (
             <div className={styles.staySection}>
               <table className={styles.stayTable}>
@@ -198,147 +218,119 @@ const ReservationConfirmationModal = ({
             </div>
           )}
 
-          {/* Segmentos detallados (si hay múltiples) */}
-          {reservationData?.segments && reservationData.segments.length > 1 && (
-            <div className={styles.segmentsSection}>
-              {reservationData.segments.map((segment, index) => {
-                const selectedRoom = reservationData.selectedRoomsPerBlock?.[index];
-                const serviceTypeName = getServiceTypeLabel(segment.serviceType);
-                const requiredRoom = segment.requiredRoomId 
-                  ? reservationData.allRooms?.find(r => r.id === segment.requiredRoomId)
-                  : null;
-                
-                return (
-                  <div key={segment.id} className={styles.segmentDetail}>
-                    <div className={styles.segmentTitle}>
-                      {formatDate(segment.checkIn)} – {formatDate(segment.checkOut)}
-                    </div>
-                    <div className={styles.segmentInfo}>
-                      <div><strong>Servicio:</strong> {serviceTypeName}</div>
-                      <div><strong>Habitación:</strong> {selectedRoom?.name || 'No especificada'}</div>
-                      
-                      {requiredRoom && (
-                        <div><strong>Habitación requerida:</strong> {requiredRoom.name}</div>
-                      )}
-                      
-                      {segment.requiredTags && segment.requiredTags.length > 0 && (
-                        <div>
-                          <strong>Requerimientos especiales:</strong>
-                          <div className={styles.tagsContainer} style={{ marginTop: '4px' }}>
-                            {segment.requiredTags.map(tagId => {
-                              const tag = reservationData.tags?.find(t => t.id === tagId);
-                              return tag ? (
-                                <span key={tagId} className={styles.tag}>
-                                  {tag.name}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {reservationData?.segments?.map((segment, index) => {
+            const selectedRoom = reservationData.selectedRoomsPerBlock?.[index];
+            const nights = getSegmentNights(segment);
+            const pricing = segmentPricing[index] || { listRate: 0, manualRate: '' };
+            const agreed = getSegmentAgreedRate(index);
 
-          {/* Habitación y requerimientos (solo si es segmento único) */}
-          {reservationData?.segments && reservationData.segments.length === 1 && (
-            <div className={styles.roomSection}>
-              <table className={styles.roomTable}>
-                <tbody>
-                  {reservationData?.selectedRoom && (
-                    <>
-                      <tr>
-                        <td className={styles.tableLabel}>Tipo de habitación:</td>
-                        <td className={styles.tableValue}>{reservationData.selectedRoom.roomType?.name}</td>
-                      </tr>
-                      <tr>
-                        <td className={styles.tableLabel}>Capacidad:</td>
-                        <td className={styles.tableValue}>{reservationData.selectedRoom.maxPeople} personas</td>
-                      </tr>
-                    </>
-                  )}
-                  {reservationData.segments[0].requiredRoomId && (
-                    <tr>
-                      <td className={styles.tableLabel}>Habitación requerida:</td>
-                      <td className={styles.tableValue}>
-                        {reservationData.allRooms?.find(r => r.id === reservationData.segments[0].requiredRoomId)?.name || 'No especificada'}
-                      </td>
-                    </tr>
-                  )}
-                  {reservationData.segments[0].requiredTags && reservationData.segments[0].requiredTags.length > 0 && (
-                    <tr>
-                      <td className={styles.tableLabel}>Requerimientos especiales:</td>
-                      <td className={styles.tableValue}>
-                        <div className={styles.tagsContainer}>
-                          {reservationData.segments[0].requiredTags.map(tagId => {
-                            const tag = reservationData.tags?.find(t => t.id === tagId);
-                            return tag ? (
-                              <span key={tagId} className={styles.tag}>
-                                {tag.name}
-                              </span>
-                            ) : null;
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+            return (
+              <div key={segment.id || index} className={styles.segmentDetail}>
+                <div className={styles.segmentTitle}>
+                  Tramo {index + 1}: {formatDate(segment.checkIn)} – {formatDate(segment.checkOut)}
+                </div>
+                <div className={styles.segmentInfo}>
+                  <div><strong>Servicio:</strong> {getServiceTypeLabel(segment.serviceType)}</div>
+                  <div><strong>Habitación:</strong> {selectedRoom?.name || 'No especificada'}</div>
+                  <div><strong>Noches:</strong> {nights}</div>
+                  <div><strong>Tarifa de lista:</strong> ${Number(pricing.listRate || 0).toLocaleString('es-AR')}/noche</div>
+                  <label className={styles.pricingField}>
+                    <span>Precio especial /noche (opcional)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder={String(Math.round(pricing.listRate || 0))}
+                      value={pricing.manualRate}
+                      onChange={(e) => updateSegmentPricing(index, { manualRate: e.target.value })}
+                    />
+                  </label>
+                  <div><strong>Subtotal tramo:</strong> ${Math.round(agreed * nights).toLocaleString('es-AR')}</div>
+                </div>
+              </div>
+            );
+          })}
 
-          {/* Total */}
-          {reservationData?.dailyRates && reservationData.dailyRates.length > 0 && (
-            <div className={styles.totalSection}>
-              <table className={styles.totalTable}>
-                <tbody>
+          <div className={styles.discountSection}>
+            <h3 className={styles.sectionHeading}>Descuento (opcional)</h3>
+            <div className={styles.discountRow}>
+              <select
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value)}
+              >
+                <option value="">Sin descuento</option>
+                <option value="PERCENT">Porcentaje %</option>
+                <option value="FIXED">Monto fijo $</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                disabled={!discountType}
+                placeholder={discountType === 'PERCENT' ? '%' : '$'}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+              />
+            </div>
+            <input
+              className={styles.discountReason}
+              type="text"
+              disabled={!discountType}
+              placeholder="Motivo del descuento"
+              value={discountReason}
+              onChange={(e) => setDiscountReason(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.totalSection}>
+            <table className={styles.totalTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Subtotal alojamiento:</td>
+                  <td className={styles.tableValue}>${Math.round(lodgingSubtotal).toLocaleString('es-AR')}</td>
+                </tr>
+                {discountAmount > 0 && (
                   <tr>
-                    <td className={styles.tableLabel}>Monto total:</td>
-                    <td className={styles.tableValue}>
-                      ${reservationData.dailyRates.reduce((sum, rate) => 
-                        sum + (rate.price || 0), 0).toLocaleString('es-AR')}
-                    </td>
+                    <td className={styles.tableLabel}>Descuento:</td>
+                    <td className={styles.tableValue}>-${Math.round(discountAmount).toLocaleString('es-AR')}</td>
                   </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
+                )}
+                <tr>
+                  <td className={styles.tableLabel}>Total:</td>
+                  <td className={styles.tableValue}>
+                    <strong>${Math.round(finalTotal).toLocaleString('es-AR')}</strong>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-          {/* Notas */}
           {reservationData?.notes && reservationData.notes.trim() !== '' && (
             <div className={styles.notesSection}>
               <table className={styles.notesTable}>
                 <tbody>
                   <tr>
                     <td className={styles.tableLabel}>Notas:</td>
-                    <td className={styles.tableValue}>
-                      {reservationData.notes}
-                    </td>
+                    <td className={styles.tableValue}>{reservationData.notes}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           )}
 
-          {/* Estado de la reserva */}
           <div className={styles.statusSection}>
             <table className={styles.statusTable}>
               <tbody>
                 <tr>
-                  <td className={styles.tableLabel}>Estado inicial:</td>
+                  <td className={styles.tableLabel}>Estado:</td>
                   <td className={styles.tableValue}>
-                    <select 
-                      value={reservationStatus} 
+                    <select
+                      value={reservationStatus}
                       onChange={(e) => setReservationStatus(e.target.value)}
                       className={styles.statusSelect}
                     >
-                      {reservationStatuses.map(status => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
+                      {reservationStatuses.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
                   </td>
@@ -347,21 +339,13 @@ const ReservationConfirmationModal = ({
             </table>
           </div>
         </div>
-        
+
         <div className={styles.footer}>
-          <button 
-            onClick={handleCancel} 
-            className={styles.cancelButton}
-            disabled={isLoading}
-          >
+          <button type="button" className={styles.cancelButton} onClick={handleCancel} disabled={isLoading}>
             Cancelar
           </button>
-          <button 
-            onClick={handleConfirm} 
-            className={styles.confirmButton}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creando...' : 'Crear Reserva'}
+          <button type="button" className={styles.confirmButton} onClick={handleConfirm} disabled={isLoading}>
+            {isLoading ? 'Creando...' : 'Confirmar reserva'}
           </button>
         </div>
       </div>
@@ -369,4 +353,4 @@ const ReservationConfirmationModal = ({
   );
 };
 
-export default ReservationConfirmationModal; 
+export default ReservationConfirmationModal;

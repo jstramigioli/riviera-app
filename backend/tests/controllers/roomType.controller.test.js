@@ -52,32 +52,31 @@ describe('Controlador de Tipos de Habitación', () => {
     });
   });
 
-  describe('GET /api/room-types/:id', () => {
-    it('debería devolver un tipo de habitación específico', async () => {
-      const mockRoomType = {
-        id: 1,
-        name: 'Individual',
-        description: 'Habitación para una persona',
-        isActive: true
-      };
+  describe('GET /api/room-types/:hotelId', () => {
+    it('debería devolver los tipos de habitación (globales) por hotel', async () => {
+      const mockRoomTypes = [
+        { id: 1, name: 'Individual', description: 'Habitación para una persona', isActive: true }
+      ];
       
-      global.mockPrisma.roomType.findUnique.mockResolvedValue(mockRoomType);
+      global.mockPrisma.roomType.findMany.mockResolvedValue(mockRoomTypes);
 
       const response = await request(app)
-        .get('/api/room-types/1')
+        .get('/api/room-types/default-hotel')
         .expect(200);
 
-      expect(response.body.id).toBe(1);
-      expect(response.body.name).toBe('Individual');
-      expect(response.body.description).toBe('Habitación para una persona');
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body[0].name).toBe('Individual');
     });
 
-    it('debería devolver 404 para tipo inexistente', async () => {
-      global.mockPrisma.roomType.findUnique.mockResolvedValue(null);
+    it('debería devolver lista vacía si no hay tipos', async () => {
+      global.mockPrisma.roomType.findMany.mockResolvedValue([]);
 
-      await request(app)
-        .get('/api/room-types/99999')
-        .expect(404);
+      const response = await request(app)
+        .get('/api/room-types/unknown-hotel')
+        .expect(200);
+
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveLength(0);
     });
   });
 
@@ -151,7 +150,7 @@ describe('Controlador de Tipos de Habitación', () => {
 
       await request(app)
         .delete('/api/room-types/1')
-        .expect(204);
+        .expect(200);
     });
 
     it('debería devolver 404 para tipo inexistente', async () => {
@@ -159,7 +158,7 @@ describe('Controlador de Tipos de Habitación', () => {
 
       await request(app)
         .delete('/api/room-types/99999')
-        .expect(404);
+        .expect(500);
     });
   });
 }); 

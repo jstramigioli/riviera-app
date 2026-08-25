@@ -10,15 +10,16 @@ const PagosTab = ({
   loadingFinancial,
   formatDate,
   formatCurrency,
-  onAddPago,
+  onPaymentSuccess,
   onDeletePago
 }) => {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async () => {
     setShowPaymentForm(false);
-    // Recargar datos financieros
-    window.location.reload(); // Simple reload para actualizar los datos
+    if (typeof onPaymentSuccess === 'function') {
+      await onPaymentSuccess();
+    }
   };
 
   return (

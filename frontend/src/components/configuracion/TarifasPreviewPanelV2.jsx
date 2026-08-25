@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../../services/api.js';
 
 export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
   console.log('TarifasPreviewPanelV2 - Componente iniciado con hotelId:', hotelId);
@@ -41,7 +42,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Cargar tipos de habitación
       try {
@@ -96,7 +97,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
 
   const loadBasePriceFromSeasonBlocks = async (date) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/dynamic-pricing/seasonal-curve/${hotelId}?date=${date}`);
       
       if (response.ok) {
@@ -204,8 +205,6 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
     setEditingBreakfastPrices({});
     setEditingHalfBoardPrices({});
   };
-
-
 
   if (loading) {
     return (
@@ -476,7 +475,6 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
           </tbody>
         </table>
       </div>
-
 
     </div>
   );

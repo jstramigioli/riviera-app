@@ -1,9 +1,9 @@
 /* Layout principal similar a ClientDetails */
 .newLayout {
   display: flex;
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
   background: var(--color-bg);
-  margin-top: 80px; /* Espacio para la barra de navegación fija */
+  margin-top: 0;
 }
 
 /* Sidebar izquierdo */
@@ -13,12 +13,13 @@
   color: white;
   padding: 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  position: fixed;
-  height: calc(100vh - 80px);
-  left: 0;
-  top: 80px;
+  position: sticky;
+  top: 64px;
+  align-self: flex-start;
+  max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .sidebarHeader {
@@ -103,10 +104,11 @@
 /* Contenido principal */
 .mainContent {
   flex: 1;
-  margin-left: 350px;
+  margin-left: 0;
   padding: 24px;
   background: var(--color-bg);
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 64px);
+  min-width: 0;
 }
 
 .mainContentBody {
@@ -148,9 +150,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
 }
 
 .createButton:hover {
