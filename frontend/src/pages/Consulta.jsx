@@ -1787,6 +1787,15 @@ export default function Consulta() {
       if (lastClientId === clientId) return;
       
       setLastClientId(clientId);
+
+      // MVP tarifas manuales: no interrumpir con borradores de "consulta"
+      if (FEATURE_FLAGS.MANUAL_RATES && !FEATURE_FLAGS.AUTO_RATES) {
+        setCurrentQueryId(null);
+        setCurrentQueryGroupId(null);
+        queryGroupIdRef.current = null;
+        return;
+      }
+
       const existingQueries = await fetchQueryByClient(clientId);
       
       if (existingQueries && existingQueries.length > 0) {
