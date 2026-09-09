@@ -179,13 +179,20 @@ async function createReservationWithSegments(reservationData) {
       throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
     }
     
+    // Asegurar roomTypeId (desde payload o desde la habitación)
+    let roomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null;
+    if (!roomTypeId) {
+      const room = await prisma.room.findUnique({ where: { id: parseInt(segmentData.roomId) } });
+      roomTypeId = room?.roomTypeId || null;
+    }
+
     const segment = await prisma.reservationSegment.create({
       data: {
         reservationId: reservation.id,
         startDate: new Date(segmentData.startDate),
         endDate: new Date(segmentData.endDate),
         roomId: parseInt(segmentData.roomId),
-        roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+        roomTypeId,
         services: segmentData.services, // Sin fallback - debe venir del frontend
         baseRate: parseFloat(segmentData.baseRate),
         guestCount: parseInt(segmentData.guestCount),
@@ -224,40 +231,69 @@ async function createReservationWithSegments(reservationData) {
         
         // Obtener el tipo de servicio del segmento
         const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
-        let serviceTypeLabel = 'Desayuno'; // Valor por defecto
-        
+        let serviceTypeLabel = 'Servicio';
+        let resolvedServiceTypeId = serviceTypeId;
+
+        // Resolver roomTypeId (segmento o habitación)
+        let roomTypeId = segment.roomTypeId || segment.room?.roomTypeId || null;
+        if (!roomTypeId && segment.roomId) {
+          const room = await prisma.room.findUnique({ where: { id: segment.roomId } });
+          roomTypeId = room?.roomTypeId || null;
+        }
+
         if (serviceTypeId) {
           try {
-            // Buscar el tipo de servicio en la base de datos
             const serviceType = await prisma.serviceType.findUnique({
               where: { id: serviceTypeId }
             });
-            
+
             if (serviceType) {
               serviceTypeLabel = serviceType.name;
+              resolvedServiceTypeId = serviceType.id;
             } else {
-              // Fallback a nombres conocidos si no se encuentra en la BD
-              serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                                serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                                serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
+              serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
+                                serviceTypeId === 'media_pension' ? 'Media Pensión' :
+                                serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
                                 serviceTypeId;
             }
           } catch (error) {
             console.error('Error obteniendo tipo de servicio:', error);
-            // Usar fallback en caso de error
-            serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                              serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                              serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
+            serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
+                              serviceTypeId === 'media_pension' ? 'Media Pensión' :
+                              serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
                               serviceTypeId;
           }
         }
-        
+
+        // Si no hay serviceTypeId válido, usar el primero activo del hotel
+        if (!resolvedServiceTypeId || !(await prisma.serviceType.findUnique({ where: { id: resolvedServiceTypeId } }))) {
+          const fallbackService = await prisma.serviceType.findFirst({
+            where: { isActive: true },
+            orderBy: { orderIndex: 'asc' }
+          });
+          if (fallbackService) {
+            resolvedServiceTypeId = fallbackService.id;
+            serviceTypeLabel = fallbackService.name;
+          }
+        }
+
+        if (!roomTypeId || !resolvedServiceTypeId) {
+          console.error('❌ No se pudo resolver roomTypeId/serviceTypeId para cargo de alojamiento', {
+            roomTypeId,
+            resolvedServiceTypeId,
+            segmentId: segment.id
+          });
+          continue;
+        }
+
+        // Schema híbrido: cargos de alojamiento usan roomTypeId + serviceTypeId (NO campo tipo)
         await prisma.cargo.create({
           data: {
             reservaId: reservation.id,
             descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
             monto: segment.baseRate,
-            tipo: 'ALOJAMIENTO',
+            roomTypeId: parseInt(roomTypeId),
+            serviceTypeId: resolvedServiceTypeId,
             notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
             fecha: currentDate
           }
@@ -349,18 +385,45 @@ async function createReservationWithSegment(reservationData) {
         month: 'short'
       });
       
-      // Obtener el tipo de servicio
-      const serviceTypeLabel = reservationType === 'con_desayuno' ? 'Desayuno' : 
-                              reservationType === 'media_pension' ? 'Media Pensión' : 
-                              reservationType === 'pension_completa' ? 'Pensión Completa' : 
+      // Resolver roomType + serviceType para el schema híbrido de cargos
+      const room = await prisma.room.findUnique({ where: { id: parseInt(roomId) } });
+      let roomTypeId = room?.roomTypeId || null;
+      let resolvedServiceTypeId = reservationType;
+      let serviceTypeLabel = reservationType === 'con_desayuno' ? 'Desayuno' :
+                              reservationType === 'media_pension' ? 'Media Pensión' :
+                              reservationType === 'pension_completa' ? 'Pensión Completa' :
                               reservationType;
-      
+
+      const serviceType = await prisma.serviceType.findUnique({ where: { id: reservationType } });
+      if (serviceType) {
+        resolvedServiceTypeId = serviceType.id;
+        serviceTypeLabel = serviceType.name;
+      } else {
+        const fallbackService = await prisma.serviceType.findFirst({
+          where: { isActive: true },
+          orderBy: { orderIndex: 'asc' }
+        });
+        if (fallbackService) {
+          resolvedServiceTypeId = fallbackService.id;
+          serviceTypeLabel = fallbackService.name;
+        }
+      }
+
+      if (!roomTypeId || !resolvedServiceTypeId) {
+        console.error('❌ No se pudo resolver roomTypeId/serviceTypeId para cargo legacy', {
+          roomTypeId,
+          resolvedServiceTypeId
+        });
+        continue;
+      }
+
       await prisma.cargo.create({
         data: {
           reservaId: reservation.id,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
           monto: baseRate,
-          tipo: 'ALOJAMIENTO',
+          roomTypeId: parseInt(roomTypeId),
+          serviceTypeId: resolvedServiceTypeId,
           notas: `Noche ${i + 1} de ${days}`,
           fecha: currentDate
         }

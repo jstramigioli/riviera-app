@@ -8,6 +8,7 @@ import ReservationConfirmationModal from '../components/ReservationConfirmationM
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
 import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
+import FEATURE_FLAGS from '../config/featureFlags';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -26,6 +27,12 @@ export default function Consulta() {
 
   // Función para validar si el hotel está cerrado en el período solicitado
   const validateHotelAvailability = useCallback(async (checkIn, checkOut) => {
+    // MVP manual: no depender de SeasonBlocks para operar
+    if (!FEATURE_FLAGS.SEASON_BLOCK_AVAILABILITY) {
+      setIsHotelClosed(false);
+      return false;
+    }
+
     try {
       // Validar que las fechas sean válidas
       if (!checkIn || !checkOut) {
@@ -512,11 +519,68 @@ export default function Consulta() {
   };
 
   const selectRoomForBlock = (blockIndex, room) => {
-    setSelectedRoomsPerBlock(prev => ({
-      ...prev,
-      [blockIndex]: room
-    }));
+    setSelectedRoomsPerBlock(prev => {
+      const previous = prev[blockIndex];
+      // Conservar tarifa manual si se re-selecciona la misma habitación
+      const preservedManual =
+        previous && previous.id === room.id
+          ? {
+              manualNightlyRate: previous.manualNightlyRate,
+              manualTotalAmount: previous.manualTotalAmount,
+              price: previous.price,
+              ratesData: previous.ratesData
+            }
+          : {};
+      return {
+        ...prev,
+        [blockIndex]: {
+          ...room,
+          ...preservedManual,
+          // En modo manual, price inicia vacío hasta que el usuario lo cargue
+          price: preservedManual.price ?? (FEATURE_FLAGS.AUTO_RATES ? room.price : room.price || 0),
+          ratesData: preservedManual.ratesData ?? room.ratesData ?? null
+        }
+      };
+    });
     // NO actualizamos roomId en el segmento porque no queremos guardarlo
+  };
+
+  const updateManualRateForBlock = (blockIndex, nightlyRate) => {
+    const parsed = parseFloat(nightlyRate);
+    const safeRate = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const segment = segments[blockIndex];
+    let nights = 1;
+    if (segment?.checkIn && segment?.checkOut) {
+      nights = Math.max(
+        1,
+        Math.ceil((new Date(segment.checkOut) - new Date(segment.checkIn)) / (1000 * 60 * 60 * 24))
+      );
+    }
+    const total = safeRate * nights;
+
+    setSelectedRoomsPerBlock(prev => {
+      const current = prev[blockIndex];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [blockIndex]: {
+          ...current,
+          manualNightlyRate: safeRate || '',
+          manualTotalAmount: total || '',
+          price: safeRate,
+          ratesData: {
+            totalAmount: total,
+            rates: Array.from({ length: nights }, (_, i) => ({
+              date: new Date(new Date(segment.checkIn).getTime() + i * 86400000).toISOString(),
+              serviceRate: safeRate,
+              baseRate: safeRate,
+              source: 'manual'
+            })),
+            source: 'manual'
+          }
+        }
+      };
+    });
   };
 
   // Usar useRef para evitar loops infinitos con el queryGroupId
@@ -1412,9 +1476,19 @@ export default function Consulta() {
       
       if (result && result.availableRooms) {
         
-        // Calcular tarifas para cada habitación usando el endpoint correcto
+        // Calcular tarifas para cada habitación (auto) o dejar tarifa manual
         const roomsWithRates = await Promise.all(
           result.availableRooms.map(async (room) => {
+            // MVP: tarifas ingresadas a mano — no llamar a getCalculatedRates
+            if (!FEATURE_FLAGS.AUTO_RATES) {
+              return {
+                ...room,
+                price: 0,
+                ratesData: null,
+                requiresManualRate: true
+              };
+            }
+
             let totalRate = 0;
             let ratesResult = null; // Declarar ratesResult fuera del try-catch
             
@@ -1501,7 +1575,10 @@ export default function Consulta() {
         );
         
         // Verificar si TODAS las habitaciones tienen tarifa $0 (precios no configurados)
-        const allZeroRates = roomsWithRates.length > 0 && roomsWithRates.every(room => room.price === 0);
+        // En modo manual esto es esperado: el usuario carga el monto después de elegir habitación
+        const allZeroRates = FEATURE_FLAGS.AUTO_RATES
+          && roomsWithRates.length > 0
+          && roomsWithRates.every(room => room.price === 0);
         const roomsWithAvailabilityErrors = roomsWithRates.filter(room => room.availabilityError);
         const roomsWithServiceAvailabilityErrors = roomsWithRates.filter(room => room.serviceAvailabilityError);
         
@@ -2463,19 +2540,27 @@ export default function Consulta() {
             throw new Error(`El segmento ${index + 1} tiene fechas inválidas (check-out debe ser después de check-in).`);
           }
           
-          // Calcular baseRate - debe existir y ser válida
-          const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
-          const roomPrice = selectedRoomsPerBlock[index].price;
-          
+          // Calcular baseRate - modo manual o auto
+          const selectedRoom = selectedRoomsPerBlock[index];
+          const totalAmount = selectedRoom?.ratesData?.totalAmount;
+          const roomPrice = selectedRoom?.price;
+          const manualNightly = selectedRoom?.manualNightlyRate;
+
           let baseRate = null;
-          if (totalAmount && totalAmount > 0) {
+          if (manualNightly && Number(manualNightly) > 0) {
+            baseRate = Number(manualNightly);
+          } else if (totalAmount && totalAmount > 0) {
             baseRate = totalAmount / nights;
           } else if (roomPrice && roomPrice > 0) {
             baseRate = roomPrice;
           }
-          
+
           if (!baseRate || baseRate <= 0) {
-            throw new Error(`No se pudo calcular la tarifa para el segmento ${index + 1}. La habitación debe tener una tarifa válida.`);
+            throw new Error(
+              FEATURE_FLAGS.MANUAL_RATES
+                ? `Ingresá la tarifa por noche del segmento ${index + 1} antes de crear la reserva.`
+                : `No se pudo calcular la tarifa para el segmento ${index + 1}. La habitación debe tener una tarifa válida.`
+            );
           }
           
           // Validar requiredGuests
@@ -2485,6 +2570,9 @@ export default function Consulta() {
           
           return {
             roomId: selectedRoomsPerBlock[index].id,
+            roomTypeId: selectedRoomsPerBlock[index].roomType?.id
+              || selectedRoomsPerBlock[index].roomTypeId
+              || null,
             startDate: segment.checkIn,
             endDate: segment.checkOut,
             requiredGuests: segment.requiredGuests,
@@ -2592,15 +2680,22 @@ export default function Consulta() {
     <div className={styles.newLayout}>
       {/* Contenedor unificado: Cliente + Pestañas */}
       <div className={styles.unifiedContainer}>
-        {/* 1. Título de la consulta */}
+        {/* 1. Título de la consulta / nueva reserva */}
         <div className={styles.sectionHeader}>
           <h2>
             {!formData.mainClient.id ? (
-              'Consulta rápida'
+              FEATURE_FLAGS.MANUAL_RATES ? 'Nueva reserva' : 'Consulta rápida'
             ) : (
-              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`
+              FEATURE_FLAGS.MANUAL_RATES
+                ? `Reserva — ${formData.mainClient.firstName} ${formData.mainClient.lastName}`
+                : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`
             )}
           </h2>
+          {FEATURE_FLAGS.MANUAL_RATES && (
+            <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: '0.95rem' }}>
+              Elegí habitación e ingresá la tarifa por noche manualmente. No se usa cotización automática.
+            </p>
+          )}
         </div>
         
         {/* Barra de búsqueda de cliente y cantidad de huéspedes lado a lado */}
@@ -3142,9 +3237,48 @@ export default function Consulta() {
                               </div>
                               
                               <div className={styles.roomRate}>
-                                <span className={styles.rateAmount}>
-                                  ${new Intl.NumberFormat('es-AR').format(room.price || 0)}
-                                </span>
+                                {!FEATURE_FLAGS.AUTO_RATES ? (
+                                  isSelected ? (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }}
+                                    >
+                                      <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                        Tarifa / noche (ARS)
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={selectedRoomsPerBlock[activeBlockIndex]?.manualNightlyRate ?? ''}
+                                        onChange={(e) => updateManualRateForBlock(activeBlockIndex, e.target.value)}
+                                        placeholder="0.00"
+                                        style={{
+                                          padding: '6px 8px',
+                                          border: '1px solid #d1d5db',
+                                          borderRadius: 6,
+                                          width: '100%',
+                                          fontSize: '0.95rem'
+                                        }}
+                                      />
+                                      {selectedRoomsPerBlock[activeBlockIndex]?.manualTotalAmount > 0 && (
+                                        <span style={{ fontSize: '0.8rem', color: '#374151' }}>
+                                          Total: ${new Intl.NumberFormat('es-AR').format(
+                                            selectedRoomsPerBlock[activeBlockIndex].manualTotalAmount
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className={styles.rateAmount} style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                                      Tarifa manual
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className={styles.rateAmount}>
+                                    ${new Intl.NumberFormat('es-AR').format(room.price || 0)}
+                                  </span>
+                                )}
                               </div>
                               
                               <button 
@@ -3161,7 +3295,7 @@ export default function Consulta() {
                           
                           {showDetails && (
                             <div className={styles.roomDetailsExpanded}>
-                              <h4>Detalle Tarifario por Día</h4>
+                              <h4>{FEATURE_FLAGS.AUTO_RATES ? 'Detalle Tarifario por Día' : 'Detalle de tarifa'}</h4>
                               <div className={styles.dailyRatesTable}>
                                 {room.ratesData && room.ratesData.rates ? (
                                   room.ratesData.rates.map((rate, index) => (
@@ -3172,7 +3306,9 @@ export default function Consulta() {
                                   ))
                                 ) : (
                                   <div className={styles.noRatesMessage}>
-                                    No hay datos de tarifas disponibles para esta habitación
+                                    {FEATURE_FLAGS.AUTO_RATES
+                                      ? 'No hay datos de tarifas disponibles para esta habitación'
+                                      : 'Seleccioná la habitación e ingresá la tarifa por noche'}
                                   </div>
                                 )}
                               </div>
@@ -3217,8 +3353,25 @@ export default function Consulta() {
               type="button" 
               className={styles.confirmButton}
               onClick={() => setShowConfirmationModal(true)}
-              disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
-              title={!segments.every((_, index) => selectedRoomsPerBlock[index]) ? 'Selecciona una habitación para cada segmento' : 'Crear la reserva'}
+              disabled={
+                !segments.every((_, index) => {
+                  const selected = selectedRoomsPerBlock[index];
+                  if (!selected) return false;
+                  if (FEATURE_FLAGS.MANUAL_RATES && !FEATURE_FLAGS.AUTO_RATES) {
+                    const rate = Number(selected.manualNightlyRate || selected.price || 0);
+                    return rate > 0;
+                  }
+                  return true;
+                })
+              }
+              title={
+                !segments.every((_, index) => selectedRoomsPerBlock[index])
+                  ? 'Selecciona una habitación para cada segmento'
+                  : (FEATURE_FLAGS.MANUAL_RATES && !FEATURE_FLAGS.AUTO_RATES &&
+                     !segments.every((_, index) => Number(selectedRoomsPerBlock[index]?.manualNightlyRate || selectedRoomsPerBlock[index]?.price || 0) > 0))
+                    ? 'Ingresá la tarifa manual por noche en cada segmento'
+                    : 'Crear la reserva'
+              }
             >
               ✅ Crear Reserva
             </button>

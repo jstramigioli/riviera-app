@@ -450,7 +450,8 @@ const CargosTab = ({
                 )}
                 
                 <small style={{ color: '#6c757d', marginTop: '4px', display: 'block' }}>
-                  Los cargos de alojamiento se generan automáticamente con las reservas
+                  Los cargos de alojamiento se generan al crear la reserva (tarifa manual por noche).
+                  Acá agregás consumos, servicios u otros.
                 </small>
               </div>
               <div className={styles.formGroup}>

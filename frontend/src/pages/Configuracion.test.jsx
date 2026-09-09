@@ -46,7 +46,7 @@ describe('Configuracion', () => {
     render(<Configuracion />)
     expect(screen.getByText('Hotel')).toBeInTheDocument()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
-    expect(screen.getByText('Cargos y Tarifas')).toBeInTheDocument()
+    expect(screen.getByText('Categorías de Cargos')).toBeInTheDocument()
     expect(screen.getByText('Calendario')).toBeInTheDocument()
     expect(screen.getByText('Tipo de Cambio')).toBeInTheDocument()
   })

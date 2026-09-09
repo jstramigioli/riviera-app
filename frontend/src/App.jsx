@@ -29,6 +29,7 @@ import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
 import PreciosInteligentesView from './pages/PreciosInteligentes';
+import FeatureGuard from './components/FeatureGuard';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -485,9 +486,30 @@ function App() {
             <Route path="/reservations/:reservationId" element={<ReservationDetails />} />
             <Route path="/clients/:clientId" element={<ClientDetails />} />
             <Route path="/rooms/:roomId" element={<RoomDetails />} />
-            <Route path="/tarifas" element={<TarifasView />} />
-            <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
-            <Route path="/precios-inteligentes" element={<PreciosInteligentesView />} />
+            <Route
+              path="/tarifas"
+              element={
+                <FeatureGuard flag="DYNAMIC_PRICING_UI">
+                  <TarifasView />
+                </FeatureGuard>
+              }
+            />
+            <Route
+              path="/tarifas/calendario"
+              element={
+                <FeatureGuard flag="DYNAMIC_PRICING_UI">
+                  <TarifasCalendarioView />
+                </FeatureGuard>
+              }
+            />
+            <Route
+              path="/precios-inteligentes"
+              element={
+                <FeatureGuard flag="SMART_PRICING_UI">
+                  <PreciosInteligentesView />
+                </FeatureGuard>
+              }
+            />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />

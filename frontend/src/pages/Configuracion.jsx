@@ -5,8 +5,17 @@ import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
+import FEATURE_FLAGS from '../config/featureFlags';
 
-const VALID_TABS = ['hotel', 'habitaciones', 'cargos-tarifas', 'calendario', 'tipo-cambio'];
+const ALL_TABS = [
+  { id: 'hotel', label: 'Hotel', icon: '🏨' },
+  { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
+  { id: 'cargos-tarifas', label: 'Categorías de Cargos', icon: '💰' },
+  { id: 'calendario', label: 'Calendario', icon: '📅' },
+  { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' }
+];
+
+const VALID_TABS = ALL_TABS.map((t) => t.id);
 
 function ConfiguracionView() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -18,13 +27,7 @@ function ConfiguracionView() {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);
 
-  const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: '🏨' },
-    { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
-    { id: 'calendario', label: 'Calendario', icon: '📅' },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' }
-  ];
+  const tabs = ALL_TABS;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -49,7 +52,7 @@ function ConfiguracionView() {
           </div>
         );
       case 'cargos-tarifas':
-        return <CargosTarifasTab />;
+        return <CargosTarifasTab hideTariffConfig={!FEATURE_FLAGS.DYNAMIC_PRICING_UI} />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':
@@ -67,7 +70,10 @@ function ConfiguracionView() {
     <div className={styles.appContainer}>
       <div className={styles.header}>
         <h1 className={styles.title}>Configuración</h1>
-        <p className={styles.subtitle}>Hotel, habitaciones, tarifas operativas y tipo de cambio</p>
+        <p className={styles.subtitle}>
+          Hotel, habitaciones, categorías de cargos y tipo de cambio
+          {!FEATURE_FLAGS.DYNAMIC_PRICING_UI && ' (tarifas automáticas deshabilitadas en este MVP)'}
+        </p>
       </div>
 
       <div className={styles.configShell}>

@@ -196,7 +196,7 @@ function ConsultasReservasView() {
             className={`${styles.sectionButton} ${activeSection === 'consultas' ? styles.active : ''}`}
             onClick={() => setActiveSection('consultas')}
           >
-            📋 Consultas
+            📋 Borradores
           </button>
           <button 
             className={`${styles.sectionButton} ${activeSection === 'reservas' ? styles.active : ''}`}
@@ -210,17 +210,17 @@ function ConsultasReservasView() {
       {/* Contenido Principal Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
-          {/* Sección de Consultas */}
+          {/* Sección de Consultas / Nueva reserva */}
           {activeSection === 'consultas' && (
             <div className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2>Consultas</h2>
+                <h2>Nueva reserva / borradores</h2>
                 <Link
                   to="/consulta"
                   className={styles.createButton}
-                  title="Crear nueva consulta"
+                  title="Crear nueva reserva con tarifa manual"
                 >
-                  + Nueva Consulta
+                  + Nueva Reserva
                 </Link>
               </div>
               <QueriesTable 

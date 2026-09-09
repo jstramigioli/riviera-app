@@ -1,6 +1,6 @@
 # Hotel Riviera — PMS
 
-Sistema interno de gestión hotelera: libro de reservas, consultas, tarifas, cobros/pagos y configuración.
+Sistema interno de gestión hotelera (MVP operativo): libro de reservas, reservas con tarifa manual, clientes, cargos y cobros/pagos.
 
 ## Stack
 
@@ -52,12 +52,33 @@ npm run dev
 
 El frontend proxy `/api` → backend en desarrollo.
 
-## Flujo MVP
+## Flujo MVP (producción reducida)
 
-1. **Configuración** — hotel, habitaciones, tipo de cambio, bloques de temporada
-2. **Consultas** — cotizar y crear reserva
-3. **Libro de reservas** — visualizar y gestionar
-4. **Cobros y pagos** — registrar pagos y ver saldos
+**Habilitado**
+
+1. **Libro de reservas** — grilla/calendario usable
+2. **Reservas** — crear/ver/editar con **tarifa manual** por noche (sin cotización automática)
+3. **Clientes** — alta, búsqueda y asociación a reserva
+4. **Cargos** — alojamiento generado al crear la reserva + consumos/servicios/otros manuales
+5. **Cobros y pagos** — saldo y pagos por reserva
+6. **Configuración** — hotel, habitaciones, categorías de cargos, calendario operativo, tipo de cambio
+
+**Deshabilitado temporalmente (UI ocultada / redirect)**
+
+- Tarifas automáticas / SeasonBlocks / `getCalculatedRates`
+- Precios inteligentes
+- Config de tarifas dinámicas (subpestaña Alojamiento en Cargos)
+
+Flags: `frontend/src/config/featureFlags.js`
+
+### Cómo crear una reserva en producción
+
+1. Ir a **Reservas** → **+ Nueva Reserva**
+2. Buscar o crear cliente
+3. Fechas, huéspedes, tipo de servicio → buscar habitaciones
+4. Elegir habitación e ingresar **tarifa por noche**
+5. **Crear Reserva** → se generan cargos de alojamiento por noche
+6. En el detalle: agregar cargos de consumo y registrar pagos
 
 ## Scripts útiles
 
@@ -66,7 +87,7 @@ El frontend proxy `/api` → backend en desarrollo.
 | `npm run dev` | Backend + frontend en paralelo |
 | `npm run build` | Build del frontend |
 | `npm run test:frontend` | Tests Vitest del frontend |
-| `cd backend && npm test` | Tests Jest del backend (si existen) |
+| `cd backend && npm test` | Tests Jest del backend |
 
 ## Notas
 

@@ -191,6 +191,7 @@ const mockPrismaClient = {
   serviceType: {
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue(null),
+    findFirst: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
     update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
     delete: jest.fn().mockResolvedValue({ id: 1 }),

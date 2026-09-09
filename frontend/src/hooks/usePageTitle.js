@@ -14,7 +14,7 @@ const usePageTitle = () => {
       '/': 'Libro de Reservas',
       '/libro-de-reservas': 'Libro de Reservas',
       '/consultas-reservas': 'Consultas y Reservas',
-      '/consulta': 'Nueva Consulta',
+      '/consulta': 'Nueva Reserva',
       '/tarifas': 'Tarifas',
       '/cobros-pagos': 'Cobros y Pagos',
       '/estadisticas': 'Clientes',

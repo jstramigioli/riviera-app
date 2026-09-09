@@ -3,15 +3,20 @@ import { Link, useLocation } from 'react-router-dom';
 import usePageTitle from '../hooks/usePageTitle';
 import logoHotel from '../assets/logo-hotel.png';
 import styles from '../styles/App.module.css';
+import FEATURE_FLAGS from '../config/featureFlags';
 
-const PRIMARY_LINKS = [
+const ALL_PRIMARY_LINKS = [
   { to: '/libro-de-reservas', label: 'Libro de Reservas', match: ['/', '/libro-de-reservas'] },
-  { to: '/consultas-reservas', label: 'Consultas y Reservas', match: ['/consultas-reservas', '/consulta'] },
-  { to: '/tarifas', label: 'Tarifas', match: ['/tarifas', '/tarifas/calendario'] },
+  { to: '/consultas-reservas', label: 'Reservas', match: ['/consultas-reservas', '/consulta'], always: true },
+  { to: '/tarifas', label: 'Tarifas', match: ['/tarifas', '/tarifas/calendario'], flag: 'DYNAMIC_PRICING_UI' },
   { to: '/cobros-pagos', label: 'Cobros y Pagos', match: ['/cobros-pagos'] },
   { to: '/estadisticas', label: 'Clientes', match: ['/estadisticas'] },
-  { to: '/precios-inteligentes', label: 'Precios', match: ['/precios-inteligentes'] },
+  { to: '/precios-inteligentes', label: 'Precios', match: ['/precios-inteligentes'], flag: 'SMART_PRICING_UI' },
 ];
+
+const PRIMARY_LINKS = ALL_PRIMARY_LINKS.filter(
+  (link) => !link.flag || FEATURE_FLAGS[link.flag]
+);
 
 function Header() {
   const location = useLocation();

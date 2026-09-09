@@ -100,6 +100,15 @@ describe('Controlador de Reservas', () => {
         }]
       };
 
+      global.mockPrisma.room.findUnique.mockResolvedValue({
+        id: 1,
+        name: 'Habitación 1',
+        roomTypeId: 1
+      });
+      global.mockPrisma.serviceType.findUnique.mockResolvedValue({
+        id: 'svc-desayuno',
+        name: 'Con Desayuno'
+      });
       global.mockPrisma.reservation.create.mockResolvedValue({
         id: 1,
         mainClientId: 1,
@@ -116,6 +125,11 @@ describe('Controlador de Reservas', () => {
 
       expect(response.body.id).toBe(1);
       expect(response.body.mainClientId).toBe(1);
+      expect(global.mockPrisma.cargo.create).toHaveBeenCalled();
+      const cargoData = global.mockPrisma.cargo.create.mock.calls[0][0].data;
+      expect(cargoData.roomTypeId).toBe(1);
+      expect(cargoData.serviceTypeId).toBe('svc-desayuno');
+      expect(cargoData.tipo).toBeUndefined();
     });
 
     it('debería validar campos requeridos', async () => {
