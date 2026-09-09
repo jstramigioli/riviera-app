@@ -1,6 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+/** Estados que ocupan habitación (bloquean disponibilidad). */
+const BLOCKING_RESERVATION_STATUSES = ['PENDIENTE', 'CONFIRMADA', 'INGRESADA', 'FINALIZADA'];
+
+/** Estados que liberan la habitación. */
+const NON_BLOCKING_RESERVATION_STATUSES = ['CANCELADA', 'NO_PRESENTADA'];
+
 /**
  * Obtiene los datos calculados de una reserva desde sus segmentos
  */
@@ -151,7 +157,7 @@ async function createReservationWithSegments(reservationData) {
   const {
     mainClientId,
     segments,
-    status = 'active',
+    status = 'PENDIENTE',
     notes,
     isMultiRoom = false,
     parentReservationId = null
@@ -326,7 +332,7 @@ async function createReservationWithSegment(reservationData) {
     checkIn,
     checkOut,
     totalAmount,
-    status = 'active',
+    status = 'PENDIENTE',
     reservationType = 'con_desayuno',
     notes,
     requiredGuests = 1,
@@ -502,7 +508,7 @@ async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservati
       roomId: parseInt(roomId),
       isActive: true,
       reservation: {
-        status: { in: ['active', 'confirmed'] },
+        status: { in: BLOCKING_RESERVATION_STATUSES },
         id: excludeReservationId ? { not: parseInt(excludeReservationId) } : undefined
       },
       OR: [
@@ -542,6 +548,8 @@ async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservati
 }
 
 module.exports = {
+  BLOCKING_RESERVATION_STATUSES,
+  NON_BLOCKING_RESERVATION_STATUSES,
   getReservationData,
   getReservationWithData,
   getAllReservationsWithData,

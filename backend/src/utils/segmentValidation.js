@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { BLOCKING_RESERVATION_STATUSES } = require('./reservationHelpers');
 const prisma = new PrismaClient();
 
 /**
@@ -11,9 +12,12 @@ async function hasSegmentOverlap(roomId, startDate, endDate, excludeReservationI
       isActive: true,
       startDate: { lt: new Date(endDate) },
       endDate: { gt: new Date(startDate) },
-      ...(excludeReservationId && { 
-        reservationId: { not: parseInt(excludeReservationId) } 
-      })
+      reservation: {
+        status: { in: BLOCKING_RESERVATION_STATUSES },
+        ...(excludeReservationId && {
+          id: { not: parseInt(excludeReservationId) }
+        })
+      }
     }
   });
   

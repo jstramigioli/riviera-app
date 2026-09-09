@@ -1205,6 +1205,10 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           {rooms.map((room, roomIndex) => {
             // Filtrar reservas que tengan segmentos en esta habitación
             const roomReservations = reservations.filter(reservation => {
+              // No mostrar canceladas / no presentadas en el libro (liberan habitación)
+              if (['CANCELADA', 'NO_PRESENTADA'].includes(reservation.status)) {
+                return false;
+              }
               // Verificar si la reserva tiene segmentos activos en esta habitación
               return reservation.segments && reservation.segments.some(segment => 
                 segment.roomId === room.id && segment.isActive

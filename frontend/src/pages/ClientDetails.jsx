@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchClients, fetchReservations } from '../services/api';
+import { getStatusLabel, RESERVATION_STATUSES } from '../utils/reservationStatusUtils';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
 import styles from './ClientDetails.module.css';
+
+const ACTIVE_STATUSES = [
+  RESERVATION_STATUSES.PENDIENTE,
+  RESERVATION_STATUSES.CONFIRMADA,
+  RESERVATION_STATUSES.INGRESADA
+];
+
+const COMPLETED_STATUSES = [RESERVATION_STATUSES.FINALIZADA];
 
 const ClientDetails = () => {
   const { clientId } = useParams();
@@ -92,17 +101,6 @@ const ClientDetails = () => {
     });
   };
 
-  const getStatusLabel = (status) => {
-    const statusLabels = {
-      'pending': 'Pendiente',
-      'confirmed': 'Confirmada',
-      'ingresada': 'Ingresada',
-      'checked_out': 'Check-out',
-      'cancelled': 'Cancelada'
-    };
-    return statusLabels[status] || status;
-  };
-
   const calculateTotalBalance = () => {
     return reservations.reduce((total, reservation) => {
       return total + (reservation.totalAmount || 0);
@@ -110,11 +108,11 @@ const ClientDetails = () => {
   };
 
   const getActiveReservations = () => {
-    return reservations.filter(r => !['checked_out', 'cancelled'].includes(r.status));
+    return reservations.filter(r => ACTIVE_STATUSES.includes(r.status));
   };
 
   const getCompletedReservations = () => {
-    return reservations.filter(r => ['checked_out'].includes(r.status));
+    return reservations.filter(r => COMPLETED_STATUSES.includes(r.status));
   };
 
   const getCurrentStatus = () => {
@@ -128,7 +126,7 @@ const ClientDetails = () => {
     const currentReservation = activeReservations.find(r => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut;
+      return now >= checkIn && now <= checkOut && r.status === RESERVATION_STATUSES.INGRESADA;
     });
     
     if (currentReservation) {
@@ -162,7 +160,7 @@ const ClientDetails = () => {
       }
     }
     
-    return 'Sin reservas';
+    return 'Sin reservas activas';
   };
 
 
@@ -463,19 +461,19 @@ const ClientDetails = () => {
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Pendientes:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'pending').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.PENDIENTE).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Confirmadas:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'confirmed').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.CONFIRMADA).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Ingresadas:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'ingresada').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.INGRESADA).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
@@ -496,39 +494,8 @@ const ClientDetails = () => {
             <div className={styles.section}>
               <h2>Documentación Asociada</h2>
               <div className={styles.documentsContainer}>
-                <div className={styles.documentsGrid}>
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>🆔</div>
-                    <div className={styles.documentInfo}>
-                      <h3>Documento de Identidad</h3>
-                      <p>Foto del DNI o documento de identidad del cliente</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          📤 Subir Foto
-                        </button>
-                        <button className={styles.viewButton}>
-                          👁️ Ver Documento
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>💰</div>
-                    <div className={styles.documentInfo}>
-                      <h3>Comprobantes de Pago</h3>
-                      <p>Recibos y comprobantes de pago</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          📤 Subir Comprobante
-                        </button>
-                        <button className={styles.viewButton}>
-                          👁️ Ver Comprobantes
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <p>El archivo de documentos (DNI, comprobantes) no está incluido en este MVP.</p>
+                <p>Por ahora registrá referencias en las notas del cliente o de la reserva.</p>
               </div>
             </div>
           )}

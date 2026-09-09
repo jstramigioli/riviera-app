@@ -19,9 +19,11 @@ const VALID_RESERVATION_STATUSES = [
 const validateReservationStatus = (req, res, next) => {
   const { status } = req.body;
   
-  // Si no se proporciona status, usar el valor por defecto
+  // Si no se envía status: en creación usar default; en update no tocar
   if (!status) {
-    req.body.status = 'PENDIENTE';
+    if (!req.params.id) {
+      req.body.status = 'PENDIENTE';
+    }
     return next();
   }
   
@@ -45,8 +47,8 @@ const validateStatusTransition = async (req, res, next) => {
   const { id } = req.params;
   const { status: newStatus } = req.body;
   
-  // Si es una creación nueva, no hay transición que validar
-  if (!id) {
+  // Si es una creación nueva o no se está cambiando el estado, no hay transición que validar
+  if (!id || !newStatus) {
     return next();
   }
   

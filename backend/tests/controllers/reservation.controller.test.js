@@ -112,7 +112,7 @@ describe('Controlador de Reservas', () => {
       global.mockPrisma.reservation.create.mockResolvedValue({
         id: 1,
         mainClientId: 1,
-        status: 'active'
+        status: 'PENDIENTE'
       });
       global.mockPrisma.reservation.findUnique.mockResolvedValue(
         reservationWithSegments()

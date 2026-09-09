@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchRooms, fetchReservations } from '../services/api';
+import { getStatusLabel, RESERVATION_STATUSES } from '../utils/reservationStatusUtils';
 import styles from './RoomDetails.module.css';
+
+const OCCUPYING_STATUSES = [
+  RESERVATION_STATUSES.PENDIENTE,
+  RESERVATION_STATUSES.CONFIRMADA,
+  RESERVATION_STATUSES.INGRESADA
+];
 
 const RoomDetails = () => {
   const { roomId } = useParams();
@@ -60,7 +67,7 @@ const RoomDetails = () => {
     const currentReservation = reservations.find(r => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut && !['cancelled', 'checked_out'].includes(r.status);
+      return now >= checkIn && now <= checkOut && OCCUPYING_STATUSES.includes(r.status);
     });
     
     if (currentReservation) {
@@ -70,7 +77,7 @@ const RoomDetails = () => {
     // Verificar si hay reservas próximas
     const upcomingReservations = reservations.filter(r => {
       const checkIn = new Date(r.checkIn);
-      return checkIn > now && !['cancelled'].includes(r.status);
+      return checkIn > now && OCCUPYING_STATUSES.includes(r.status);
     });
     
     if (upcomingReservations.length > 0) {
@@ -94,7 +101,7 @@ const RoomDetails = () => {
     const currentReservation = reservations.find(r => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut && !['cancelled', 'checked_out'].includes(r.status);
+      return now >= checkIn && now <= checkOut && OCCUPYING_STATUSES.includes(r.status);
     });
     
     return currentReservation?.mainClient || null;
@@ -104,7 +111,7 @@ const RoomDetails = () => {
     const now = new Date();
     return reservations.filter(r => {
       const checkIn = new Date(r.checkIn);
-      return checkIn > now && !['cancelled'].includes(r.status);
+      return checkIn > now && OCCUPYING_STATUSES.includes(r.status);
     }).sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn)).slice(0, 3);
   };
 
@@ -121,16 +128,6 @@ const RoomDetails = () => {
       style: 'currency',
       currency: 'ARS'
     }).format(amount);
-  };
-
-  const getStatusLabel = (status) => {
-    const statusLabels = {
-      'confirmed': 'Confirmada',
-      'checked_in': 'Check-in',
-      'checked_out': 'Check-out',
-      'cancelled': 'Cancelada'
-    };
-    return statusLabels[status] || status;
   };
 
   if (loading) {

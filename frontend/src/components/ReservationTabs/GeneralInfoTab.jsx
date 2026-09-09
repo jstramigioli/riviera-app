@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './ReservationTabs.module.css';
 
 const GeneralInfoTab = ({ 
@@ -7,13 +7,37 @@ const GeneralInfoTab = ({
   formatDate, 
   formatCurrency, 
   getServiceTypeLabel,
-  getStatusLabel 
+  getStatusLabel,
+  onSaveNotes
 }) => {
+  const [notesDraft, setNotesDraft] = useState(reservation?.notes || '');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesMessage, setNotesMessage] = useState(null);
+
+  useEffect(() => {
+    setNotesDraft(reservation?.notes || '');
+    setNotesMessage(null);
+  }, [reservation?.id, reservation?.notes]);
+
   if (!reservation) return null;
 
   const nights = Math.ceil(
     (new Date(reservation.checkOut) - new Date(reservation.checkIn)) / (1000 * 60 * 60 * 24)
   );
+
+  const handleSaveNotes = async () => {
+    if (typeof onSaveNotes !== 'function') return;
+    try {
+      setSavingNotes(true);
+      setNotesMessage(null);
+      await onSaveNotes(notesDraft);
+      setNotesMessage({ type: 'success', text: 'Notas guardadas' });
+    } catch (error) {
+      setNotesMessage({ type: 'error', text: error.message || 'No se pudieron guardar las notas' });
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   return (
     <div className={styles.tabContent}>
@@ -100,9 +124,9 @@ const GeneralInfoTab = ({
           </span>
         </div>
         
-        {reservation.totalAmount && (
+        {reservation.totalAmount != null && (
           <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Tarifa Base:</span>
+            <span className={styles.infoLabel}>Tarifa base (total):</span>
             <span className={`${styles.infoValue} ${styles.highlight}`}>
               {formatCurrency(reservation.totalAmount)}
             </span>
@@ -110,16 +134,33 @@ const GeneralInfoTab = ({
         )}
       </div>
 
-      {reservation.notes && (
-        <div className={styles.notesBox}>
-          <h4>📝 Notas:</h4>
-          <p>{reservation.notes}</p>
+      <div className={styles.notesBox}>
+        <h4>Notas</h4>
+        <textarea
+          className={styles.notesTextarea}
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          rows={4}
+          placeholder="Observaciones operativas de la reserva..."
+        />
+        <div className={styles.notesActions}>
+          <button
+            type="button"
+            className={styles.saveNotesButton}
+            onClick={handleSaveNotes}
+            disabled={savingNotes || notesDraft === (reservation.notes || '')}
+          >
+            {savingNotes ? 'Guardando...' : 'Guardar notas'}
+          </button>
+          {notesMessage && (
+            <span className={notesMessage.type === 'error' ? styles.notesError : styles.notesSuccess}>
+              {notesMessage.text}
+            </span>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
 export default GeneralInfoTab;
-
-

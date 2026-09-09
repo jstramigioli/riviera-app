@@ -248,18 +248,45 @@ const ReservationDetails = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar el estado de la reserva');
+        throw new Error(errorData.message || errorData.error || 'Error al actualizar el estado de la reserva');
       }
 
       const updatedReservation = await response.json();
       console.log('Reserva actualizada:', updatedReservation);
       
-      // Actualizar el estado local
+      // Actualizar el estado local (respuesta enriquecida con checkIn/checkOut/room)
       setReservation(updatedReservation);
+
+      const actionMessages = {
+        confirm: 'Reserva confirmada',
+        cancel: 'Reserva cancelada — la habitación queda libre',
+        'check-in': 'Check-in registrado',
+        'check-out': 'Check-out registrado',
+        'no-show': 'Marcada como no presentada — habitación liberada',
+        reopen: 'Estadía reabierta',
+        reactivate: 'Reserva reactivada'
+      };
+      alert(actionMessages[actionType] || 'Estado actualizado');
     } catch (error) {
       console.error('Error actualizando estado de la reserva:', error);
       alert(`Error: ${error.message}`);
     }
+  };
+
+  const handleSaveNotes = async (notes) => {
+    const response = await fetch(`${API_URL}/reservations/${reservation.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || 'Error al guardar notas');
+    }
+
+    const updated = await response.json();
+    setReservation(prev => ({ ...prev, ...updated, notes }));
   };
 
   // Renderizar contenido de cada pestaña
@@ -274,6 +301,7 @@ const ReservationDetails = () => {
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
+            onSaveNotes={handleSaveNotes}
           />
         );
       case 'pagos':

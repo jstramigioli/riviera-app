@@ -6,7 +6,8 @@ const {
   getAllReservationsWithData,
   createReservationWithSegments,
   updateReservationWithSegments,
-  checkRoomAvailability
+  checkRoomAvailability,
+  BLOCKING_RESERVATION_STATUSES
 } = require('../utils/reservationHelpers');
 const {
   validateReservationCreation,
@@ -60,7 +61,7 @@ exports.createReservation = async (req, res) => {
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
       isMultiRoom
     };
@@ -117,7 +118,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
       isMultiRoom
     };
@@ -291,21 +292,13 @@ exports.updateReservationStatus = async (req, res) => {
       });
     }
 
-    // Actualizar solo el estado
-    const updatedReservation = await prisma.reservation.update({
+    // Actualizar solo el estado y devolver la forma enriquecida (checkIn/checkOut/room)
+    await prisma.reservation.update({
       where: { id: parseInt(id) },
-      data: { status },
-      include: {
-        mainClient: true,
-        segments: {
-          include: {
-            room: true,
-            roomType: true
-          }
-        }
-      }
+      data: { status }
     });
 
+    const updatedReservation = await getReservationWithData(parseInt(id));
     res.json(updatedReservation);
   } catch (error) {
     console.error('Error updating reservation status:', error);
@@ -443,6 +436,7 @@ exports.findAvailableRooms = async (req, res) => {
     }
 
     // Obtener habitaciones ocupadas en el período usando segmentos de reserva
+    // (excluye CANCELADA / NO_PRESENTADA para liberar la habitación)
     const occupiedRooms = await prisma.reservationSegment.findMany({
       where: {
         AND: [
@@ -457,11 +451,14 @@ exports.findAvailableRooms = async (req, res) => {
           {
             isActive: true
           },
-          ...(excludeReservationId ? [{ 
-            reservation: { 
-              id: { not: parseInt(excludeReservationId) } 
-            } 
-          }] : [])
+          {
+            reservation: {
+              status: { in: BLOCKING_RESERVATION_STATUSES },
+              ...(excludeReservationId ? {
+                id: { not: parseInt(excludeReservationId) }
+              } : {})
+            }
+          }
         ]
       },
       select: { roomId: true }

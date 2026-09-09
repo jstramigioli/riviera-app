@@ -78,7 +78,9 @@ Flags: `frontend/src/config/featureFlags.js`
 3. Fechas, huéspedes, tipo de servicio → buscar habitaciones
 4. Elegir habitación e ingresar **tarifa por noche**
 5. **Crear Reserva** → se generan cargos de alojamiento por noche
-6. En el detalle: agregar cargos de consumo y registrar pagos
+6. En el detalle: confirmar/cancelar, agregar cargos de consumo y registrar pagos
+
+**Cancelación:** al cancelar o marcar no-presentada, la habitación se libera para nuevas reservas (y deja de verse en el libro).
 
 ## Scripts útiles
 
