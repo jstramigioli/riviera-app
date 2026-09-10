@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Preferir proxy de Vite (`/api`) en desarrollo; override con VITE_API_URL si hace falta.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export { API_URL };
 
@@ -85,7 +86,11 @@ export async function updateReservation(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating reservation');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const details = Array.isArray(errorData.details) ? errorData.details.join('; ') : '';
+    throw new Error(details || errorData.message || errorData.error || 'Error updating reservation');
+  }
   return res.json();
 }
 

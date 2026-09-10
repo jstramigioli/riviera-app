@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_URL } from '../../services/api.js';
 
 export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
   const [openDays, setOpenDays] = useState([]);
@@ -18,7 +19,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
       setLoading(true);
       setError(null);
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       console.log('🔍 Cargando días de apertura desde:', `${API_URL}/open-days/${hotelId}`);
       console.log('🏨 Hotel ID:', hotelId);
       console.log('🌐 API_URL:', API_URL);
@@ -65,7 +66,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
 
   const handleAddPeriod = async (periodData) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/open-days/${hotelId}/period`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,7 +90,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
 
   const handleUpdateOpenDay = async (id, data) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/open-days/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +117,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
     }
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/open-days/${id}`, {
         method: 'DELETE'
       });

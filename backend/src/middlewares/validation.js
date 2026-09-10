@@ -39,34 +39,41 @@ const validateClient = (req, res, next) => {
 };
 
 const validateReservation = (req, res, next) => {
-  const { checkIn, checkOut, totalAmount, roomId, mainClientId } = req.body;
+  const { checkIn, checkOut, totalAmount, roomId, mainClientId, segments, baseRate } = req.body;
   const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
+  const hasSegments = Array.isArray(segments) && segments.length > 0;
   const errors = [];
 
-  if (!checkIn) {
-    errors.push('La fecha de check-in es requerida');
-  }
+  if (!isUpdate && !hasSegments) {
+    if (!checkIn) {
+      errors.push('La fecha de check-in es requerida');
+    }
 
-  if (!checkOut) {
-    errors.push('La fecha de check-out es requerida');
+    if (!checkOut) {
+      errors.push('La fecha de check-out es requerida');
+    }
+
+    if (!roomId) {
+      errors.push('El ID de la habitación es requerido');
+    }
+
+    if (!mainClientId) {
+      errors.push('El ID del cliente principal es requerido');
+    }
+  } else if (!isUpdate && hasSegments && !mainClientId) {
+    errors.push('El ID del cliente principal es requerido');
   }
 
   if (checkIn && checkOut && new Date(checkIn) >= new Date(checkOut)) {
     errors.push('La fecha de check-out debe ser posterior al check-in');
   }
 
-  if (totalAmount && (isNaN(totalAmount) || totalAmount <= 0)) {
+  if (totalAmount != null && totalAmount !== '' && (isNaN(totalAmount) || totalAmount <= 0)) {
     errors.push('El monto total debe ser un número positivo');
   }
 
-  // roomId es requerido solo en creación, no en actualización
-  if (!isUpdate && !roomId) {
-    errors.push('El ID de la habitación es requerido');
-  }
-
-  // mainClientId es requerido solo en creación, no en actualización
-  if (!isUpdate && !mainClientId) {
-    errors.push('El ID del cliente principal es requerido');
+  if (baseRate != null && baseRate !== '' && (isNaN(baseRate) || parseFloat(baseRate) <= 0)) {
+    errors.push('La tarifa por noche debe ser mayor a 0');
   }
 
   if (errors.length > 0) {
@@ -81,13 +88,18 @@ const validateReservation = (req, res, next) => {
 
 const validateRoom = (req, res, next) => {
   const { name, roomTypeId } = req.body;
+  const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
   const errors = [];
 
-  if (!name || name.trim().length === 0) {
+  if (!isUpdate && (!name || name.trim().length === 0)) {
     errors.push('El nombre de la habitación es requerido');
   }
 
-  if (!roomTypeId) {
+  if (isUpdate && name !== undefined && name.trim().length === 0) {
+    errors.push('El nombre de la habitación es requerido');
+  }
+
+  if (!isUpdate && !roomTypeId) {
     errors.push('El tipo de habitación es requerido');
   }
 
@@ -127,7 +139,8 @@ const validateMultiSegmentReservation = (req, res, next) => {
       if (segment.startDate && segment.endDate && new Date(segment.startDate) >= new Date(segment.endDate)) {
         errors.push(`Segmento ${index + 1}: La fecha de fin debe ser posterior a la fecha de inicio`);
       }
-      if (!segment.requiredGuests || segment.requiredGuests < 1) {
+      const guestCount = segment.guestCount ?? segment.requiredGuests;
+      if (!guestCount || guestCount < 1) {
         errors.push(`Segmento ${index + 1}: El número de huéspedes debe ser al menos 1`);
       }
       // Validar services (array de IDs) en lugar de serviceType (singular)
@@ -137,8 +150,12 @@ const validateMultiSegmentReservation = (req, res, next) => {
       if (!segment.baseRate || segment.baseRate <= 0) {
         errors.push(`Segmento ${index + 1}: La tarifa base debe ser mayor a 0`);
       }
-      if (!segment.guestCount || segment.guestCount < 1) {
-        errors.push(`Segmento ${index + 1}: El número de huéspedes (guestCount) debe ser al menos 1`);
+      // Normalizar guestCount para el resto del pipeline
+      if (guestCount && !segment.guestCount) {
+        segment.guestCount = guestCount;
+      }
+      if (guestCount && !segment.requiredGuests) {
+        segment.requiredGuests = guestCount;
       }
     });
   }

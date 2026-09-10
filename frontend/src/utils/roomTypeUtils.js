@@ -2,7 +2,7 @@
 // Ahora usa maxPeople del objeto roomType en lugar de valores hardcodeados
 export function getRoomTypeCapacity(roomType) {
   // Si roomType es un objeto con maxPeople, usarlo directamente
-  if (typeof roomType === 'object' && roomType.maxPeople) {
+  if (roomType && typeof roomType === 'object' && roomType.maxPeople) {
     return roomType.maxPeople;
   }
   // Si roomType es solo el nombre, intentar obtenerlo de la base de datos
@@ -41,6 +41,7 @@ export function getRoomTypeColor(roomTypeName) {
 
 // Función para obtener el nombre legible de un tipo de habitación
 export function getRoomTypeLabel(roomType) {
+  if (roomType == null) return roomType;
   // Si roomType es un objeto con name, usar el name directamente
   if (typeof roomType === 'object' && roomType.name) {
     return formatRoomTypeName(roomType.name);

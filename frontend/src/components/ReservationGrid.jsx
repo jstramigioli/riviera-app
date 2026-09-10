@@ -8,6 +8,7 @@ import FloatingActionButton from './FloatingActionButton';
 import { getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
+import { API_URL } from '../services/api.js';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -129,7 +130,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   useEffect(() => {
     const loadDynamicPricingConfig = async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+        
         const response = await fetch(`${API_URL}/dynamic-pricing/config/default-hotel`);
         const config = await response.json();
         setDynamicPricingConfig(config);
@@ -144,7 +145,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
   // Función para verificar si una fecha es parte de un feriado/fin de semana largo
   const checkIfLongWeekendOrHoliday = async (date) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Usar GET con parámetros de query en lugar de POST
       const params = new URLSearchParams({
@@ -174,7 +175,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     if (!dynamicPricingConfig?.enabled) return null;
     
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Normalizar fechas a medianoche para evitar problemas de hora
       const today = new Date();
@@ -404,7 +405,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     }
   }
 
-
   // Función para posicionar la grilla en una fecha específica con 2/3 futuros y 1/3 pasados
   function centerOnDate(targetDate, daysArray = null) {
     if (containerRef.current) {
@@ -506,7 +506,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
     // Si no hay reservas futuras, buscar el primer bloque de temporada activo futuro
     try {
-      const response = await fetch('http://localhost:3001/api/season-blocks?hotelId=default-hotel');
+      const response = await fetch(`${API_URL}/season-blocks?hotelId=default-hotel`);
       if (response.ok) {
         const data = await response.json();
         const seasonBlocks = data.data || [];
@@ -782,7 +782,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     resizeDataRef.current = resizeData;
   }, [resizeData]);
 
-
   function handleDayClick(day) {
     setSelectedDate(day);
     setIsDayInfoPanelOpen(true);
@@ -793,15 +792,10 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
     setSelectedDate(null);
   }
 
-
   function handleCreateQueryClick() {
     // Navegar directamente a la página de consulta sin pasar por el modal
     window.location.href = '/consulta';
   }
-
-
-
-
 
   // Función optimizada para manejar hover sin re-renders
   const handleCellHover = (roomIndex, colIndex) => {
@@ -1211,6 +1205,10 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
           {rooms.map((room, roomIndex) => {
             // Filtrar reservas que tengan segmentos en esta habitación
             const roomReservations = reservations.filter(reservation => {
+              // No mostrar canceladas / no presentadas en el libro (liberan habitación)
+              if (['CANCELADA', 'NO_PRESENTADA'].includes(reservation.status)) {
+                return false;
+              }
               // Verificar si la reserva tiene segmentos activos en esta habitación
               return reservation.segments && reservation.segments.some(segment => 
                 segment.roomId === room.id && segment.isActive
@@ -1315,9 +1313,6 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       <FloatingActionButton 
         onCreateQuery={handleCreateQueryClick}
       />
-
-
-
 
       {/* Modal de detalles del score de ocupación */}
       <OccupancyScoreModal

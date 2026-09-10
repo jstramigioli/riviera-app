@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
@@ -14,6 +14,7 @@ import EditPanel from './EditPanel';
 import ConfirmationModal from './ConfirmationModal';
 import ErrorDisplay from './ErrorDisplay';
 import styles from './ConsultasReservasView.module.css';
+import { API_URL } from '../services/api.js';
 
 function ConsultasReservasView() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ function ConsultasReservasView() {
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);
@@ -195,7 +196,7 @@ function ConsultasReservasView() {
             className={`${styles.sectionButton} ${activeSection === 'consultas' ? styles.active : ''}`}
             onClick={() => setActiveSection('consultas')}
           >
-            📋 Consultas
+            📋 Borradores
           </button>
           <button 
             className={`${styles.sectionButton} ${activeSection === 'reservas' ? styles.active : ''}`}
@@ -209,18 +210,18 @@ function ConsultasReservasView() {
       {/* Contenido Principal Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
-          {/* Sección de Consultas */}
+          {/* Sección de Consultas / Nueva reserva */}
           {activeSection === 'consultas' && (
             <div className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2>Consultas</h2>
-                <button 
+                <h2>Nueva reserva / borradores</h2>
+                <Link
+                  to="/consulta"
                   className={styles.createButton}
-                  onClick={() => navigate('/consulta')}
-                  title="Crear nueva consulta"
+                  title="Crear nueva reserva con tarifa manual"
                 >
-                  + Nueva Consulta
-                </button>
+                  + Nueva Reserva
+                </Link>
               </div>
               <QueriesTable 
                 queries={queries}
@@ -611,27 +612,22 @@ function ConsultasReservasView() {
               </div>
             </div>
 
-            {/* Balance clickeable - solo en visualización, debajo de reservas */}
+            {/* Balance del cliente (solo lectura en MVP) */}
             {!isEditing && (
               <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
-                <div 
-                  style={{ 
-                    cursor: 'pointer', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px',
-                    borderRadius: '4px',
-                    transition: 'background-color 0.2s'
+                    borderRadius: '4px'
                   }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  onClick={() => alert('Panel de balance será implementado próximamente')}
-                  title="Ver detalles del balance"
+                  title="Resumen de saldo del cliente"
                 >
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Balance:</span>
-                  <span style={{ 
-                    fontWeight: 'bold', 
+                  <span style={{
+                    fontWeight: 'bold',
                     fontSize: '1.2rem',
                     color: clientBalance?.balance > 0 ? '#dc3545' : clientBalance?.balance < 0 ? '#28a745' : '#6c757d'
                   }}>

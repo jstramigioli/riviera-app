@@ -3,14 +3,10 @@ import { getStatusLabel } from "./utils/reservationStatusUtils";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
-import ReservationBar from './components/ReservationBar';
 import ReservationGrid from './components/ReservationGrid';
-import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
 import ConfirmationModal from './components/ConfirmationModal';
-import CalendarioGestion from './pages/CalendarioGestion';
-import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import RatesCalendar from './components/RatesCalendar';
@@ -33,6 +29,7 @@ import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
 import PreciosInteligentesView from './pages/PreciosInteligentes';
+import FeatureGuard from './components/FeatureGuard';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -408,27 +405,22 @@ function ReservationsView() {
               </div>
             )}
 
-            {/* Balance clickeable - solo en visualización, debajo de reservas */}
+            {/* Balance del cliente (solo lectura en MVP) */}
             {!isEditing && (
               <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
-                <div 
-                  style={{ 
-                    cursor: 'pointer', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px',
-                    borderRadius: '4px',
-                    transition: 'background-color 0.2s'
+                    borderRadius: '4px'
                   }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  onClick={() => alert('Panel de balance será implementado próximamente')}
-                  title="Ver detalles del balance"
+                  title="Resumen de saldo del cliente"
                 >
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Balance:</span>
-                  <span style={{ 
-                    fontWeight: 'bold', 
+                  <span style={{
+                    fontWeight: 'bold',
                     fontSize: '1.2rem',
                     color: clientBalance?.balance > 0 ? '#dc3545' : clientBalance?.balance < 0 ? '#28a745' : '#6c757d'
                   }}>
@@ -464,10 +456,6 @@ function ReservationsView() {
   );
 }
 
-function CalendarioGestionView() {
-  return <CalendarioGestion />;
-}
-
 function ConsultasReservasViewWrapper() {
   return <ConsultasReservasView />;
 }
@@ -498,9 +486,30 @@ function App() {
             <Route path="/reservations/:reservationId" element={<ReservationDetails />} />
             <Route path="/clients/:clientId" element={<ClientDetails />} />
             <Route path="/rooms/:roomId" element={<RoomDetails />} />
-            <Route path="/tarifas" element={<TarifasView />} />
-            <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
-            <Route path="/precios-inteligentes" element={<PreciosInteligentesView />} />
+            <Route
+              path="/tarifas"
+              element={
+                <FeatureGuard flag="DYNAMIC_PRICING_UI">
+                  <TarifasView />
+                </FeatureGuard>
+              }
+            />
+            <Route
+              path="/tarifas/calendario"
+              element={
+                <FeatureGuard flag="DYNAMIC_PRICING_UI">
+                  <TarifasCalendarioView />
+                </FeatureGuard>
+              }
+            />
+            <Route
+              path="/precios-inteligentes"
+              element={
+                <FeatureGuard flag="SMART_PRICING_UI">
+                  <PreciosInteligentesView />
+                </FeatureGuard>
+              }
+            />
             <Route path="/cobros-pagos" element={<CobrosPagosView />} />
             <Route path="/estadisticas" element={<EstadisticasView />} />
             <Route path="/configuracion" element={<ConfiguracionView />} />

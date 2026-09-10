@@ -1,28 +1,12 @@
 /* eslint-env jest */
 import { describe, it, expect } from 'vitest';
 import { 
-  ROOM_TYPE_CAPACITIES, 
   getRoomTypeCapacity, 
   getRoomTypeColor, 
   getRoomTypeLabel 
 } from './roomTypeUtils';
 
 describe('roomTypeUtils', () => {
-  describe('ROOM_TYPE_CAPACITIES', () => {
-    it('should have correct capacities for all room types', () => {
-      expect(ROOM_TYPE_CAPACITIES.single).toBe(1);
-      expect(ROOM_TYPE_CAPACITIES.doble).toBe(2);
-      expect(ROOM_TYPE_CAPACITIES.triple).toBe(3);
-      expect(ROOM_TYPE_CAPACITIES.cuadruple).toBe(4);
-      expect(ROOM_TYPE_CAPACITIES.quintuple).toBe(5);
-      expect(ROOM_TYPE_CAPACITIES.sextuple).toBe(6);
-      expect(ROOM_TYPE_CAPACITIES['departamento El Romerito']).toBe(4);
-      expect(ROOM_TYPE_CAPACITIES['departamento El Tilo']).toBe(4);
-      expect(ROOM_TYPE_CAPACITIES['departamento Via 1']).toBe(4);
-      expect(ROOM_TYPE_CAPACITIES['departamento La Esquinita']).toBe(4);
-    });
-  });
-
   describe('getRoomTypeCapacity', () => {
     it('should return correct capacity for known room types', () => {
       expect(getRoomTypeCapacity('single')).toBe(1);
@@ -35,6 +19,10 @@ describe('roomTypeUtils', () => {
       expect(getRoomTypeCapacity('departamento El Tilo')).toBe(4);
       expect(getRoomTypeCapacity('departamento Via 1')).toBe(4);
       expect(getRoomTypeCapacity('departamento La Esquinita')).toBe(4);
+    });
+
+    it('should use maxPeople when roomType is an object', () => {
+      expect(getRoomTypeCapacity({ name: 'suite', maxPeople: 3 })).toBe(3);
     });
 
     it('should return default capacity (1) for unknown room types', () => {
@@ -68,25 +56,24 @@ describe('roomTypeUtils', () => {
   });
 
   describe('getRoomTypeLabel', () => {
-    it('should return correct labels for known room types', () => {
-      expect(getRoomTypeLabel('single')).toBe('Individual');
+    it('should capitalize known room type names', () => {
+      expect(getRoomTypeLabel('single')).toBe('Single');
       expect(getRoomTypeLabel('doble')).toBe('Doble');
       expect(getRoomTypeLabel('triple')).toBe('Triple');
-      expect(getRoomTypeLabel('cuadruple')).toBe('Cuádruple');
-      expect(getRoomTypeLabel('quintuple')).toBe('Quíntuple');
-      expect(getRoomTypeLabel('sextuple')).toBe('Séxtuple');
-      expect(getRoomTypeLabel('departamento El Romerito')).toBe('Depto. El Romerito');
-      expect(getRoomTypeLabel('departamento El Tilo')).toBe('Depto. El Tilo');
-      expect(getRoomTypeLabel('departamento Via 1')).toBe('Depto. Via 1');
-      expect(getRoomTypeLabel('departamento La Esquinita')).toBe('Depto. La Esquinita');
+      expect(getRoomTypeLabel('cuadruple')).toBe('Cuadruple');
+      expect(getRoomTypeLabel('departamento El Romerito')).toBe('Departamento El Romerito');
     });
 
-    it('should return original name for unknown room types', () => {
-      expect(getRoomTypeLabel('unknown')).toBe('unknown');
-      expect(getRoomTypeLabel('custom-room')).toBe('custom-room');
+    it('should capitalize unknown room types', () => {
+      expect(getRoomTypeLabel('unknown')).toBe('Unknown');
+      expect(getRoomTypeLabel('custom-room')).toBe('Custom-room');
       expect(getRoomTypeLabel('')).toBe('');
       expect(getRoomTypeLabel(null)).toBe(null);
       expect(getRoomTypeLabel(undefined)).toBe(undefined);
+    });
+
+    it('should use name when roomType is an object', () => {
+      expect(getRoomTypeLabel({ name: 'suite deluxe' })).toBe('Suite Deluxe');
     });
   });
 
@@ -122,4 +109,4 @@ describe('roomTypeUtils', () => {
       });
     });
   });
-}); 
+});

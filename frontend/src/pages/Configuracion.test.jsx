@@ -1,35 +1,27 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Configuracion from './Configuracion'
 
-// Mock de los componentes de configuración
 vi.mock('../components/configuracion/HabitacionesTab', () => ({
   default: () => <div data-testid="habitaciones-tab">Habitaciones Tab</div>
 }))
 
-vi.mock('../components/configuracion/EtiquetasTab', () => ({
-  default: () => <div data-testid="etiquetas-tab">Etiquetas Tab</div>
+vi.mock('../components/configuracion/CargosTarifasTab', () => ({
+  default: () => <div data-testid="cargos-tarifas-tab">Cargos y Tarifas Tab</div>
 }))
 
-vi.mock('../components/configuracion/DynamicPricingConfigPanel', () => ({
-  default: () => <div data-testid="dynamic-pricing-tab">Dynamic Pricing Tab</div>
+vi.mock('../components/configuracion/HotelConfigPanel', () => ({
+  default: () => <div data-testid="hotel-tab">Hotel Tab</div>
 }))
 
-
-
-vi.mock('../components/configuracion/MealPricingEditor', () => ({
-  default: () => <div data-testid="meal-pricing-tab">Meal Pricing Tab</div>
+vi.mock('../components/configuracion/CalendarioTab', () => ({
+  default: () => <div data-testid="calendario-tab">Calendario Tab</div>
 }))
 
-vi.mock('../components/configuracion/OperationalPeriodsPanel', () => ({
-  default: () => <div data-testid="operational-periods-tab">Operational Periods Tab</div>
+vi.mock('../components/TipoCambioConfig', () => ({
+  default: () => <div data-testid="tipo-cambio-tab">Tipo de Cambio Tab</div>
 }))
 
-vi.mock('../components/configuracion/TarifasPreviewPanel', () => ({
-  default: () => <div data-testid="tarifas-preview-tab">Tarifas Preview Tab</div>
-}))
-
-// Mock de localStorage
 const localStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
@@ -47,52 +39,45 @@ describe('Configuracion', () => {
 
   it('renders the configuration page title', () => {
     render(<Configuracion />)
-    expect(screen.getByText('Hotel Riviera - Configuración')).toBeInTheDocument()
+    expect(screen.getByText('Configuración')).toBeInTheDocument()
   })
 
   it('renders navigation tabs', () => {
     render(<Configuracion />)
+    expect(screen.getByText('Hotel')).toBeInTheDocument()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
-    expect(screen.getByText('Tarifas')).toBeInTheDocument()
-    expect(screen.getByText('Usuarios')).toBeInTheDocument()
-    expect(screen.getByText('Sistema')).toBeInTheDocument()
+    expect(screen.getByText('Categorías de Cargos')).toBeInTheDocument()
+    expect(screen.getByText('Calendario')).toBeInTheDocument()
+    expect(screen.getByText('Tipo de Cambio')).toBeInTheDocument()
   })
 
   it('shows habitaciones tab by default', () => {
     render(<Configuracion />)
     expect(screen.getByTestId('habitaciones-tab')).toBeInTheDocument()
-    expect(screen.getByTestId('etiquetas-tab')).toBeInTheDocument()
   })
 
-  it('switches to tarifas tab when clicked', () => {
+  it('switches to hotel tab when clicked', () => {
     render(<Configuracion />)
-    
-    const tarifasTab = screen.getByText('Tarifas')
-    fireEvent.click(tarifasTab)
-    
-    expect(screen.getByTestId('dynamic-pricing-tab')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Hotel'))
+
+    expect(screen.getByTestId('hotel-tab')).toBeInTheDocument()
   })
 
   it('switches back to habitaciones tab', () => {
     render(<Configuracion />)
-    
-    // Cambiar a tarifas
-    const tarifasTab = screen.getByText('Tarifas')
-    fireEvent.click(tarifasTab)
-    
-    // Cambiar de vuelta a habitaciones
-    const habitacionesTab = screen.getByText('Habitaciones')
-    fireEvent.click(habitacionesTab)
-    
+
+    fireEvent.click(screen.getByText('Calendario'))
+    fireEvent.click(screen.getByText('Habitaciones'))
+
     expect(screen.getByTestId('habitaciones-tab')).toBeInTheDocument()
   })
 
   it('saves active tab to localStorage', () => {
     render(<Configuracion />)
-    
-    const tarifasTab = screen.getByText('Tarifas')
-    fireEvent.click(tarifasTab)
-    
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('configActiveTab', 'tarifas')
+
+    fireEvent.click(screen.getByText('Tipo de Cambio'))
+
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('configActiveTab', 'tipo-cambio')
   })
-}) 
+})

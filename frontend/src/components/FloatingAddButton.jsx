@@ -6,8 +6,8 @@ export default function FloatingAddButton({ onClick }) {
     <button 
       className={styles.floatingButton}
       onClick={onClick}
-      aria-label="Consulta"
-      title="Consulta"
+      aria-label="Nueva reserva"
+      title="Nueva reserva"
     >
       <span className={styles.plusIcon}>+</span>
     </button>

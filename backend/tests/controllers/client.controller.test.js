@@ -217,4 +217,42 @@ describe('Controlador de Clientes', () => {
         .expect(404);
     });
   });
+
+  describe('GET /api/clients/:id/balance', () => {
+    it('debería calcular saldo real como cargos − pagos', async () => {
+      global.mockPrisma.client.findUnique.mockResolvedValue({
+        id: 1,
+        firstName: 'Ana',
+        lastName: 'Lopez',
+        reservations: [
+          {
+            id: 10,
+            status: 'CONFIRMADA',
+            segments: [{ startDate: '2024-03-01', endDate: '2024-03-03' }],
+            cargos: [{ monto: 1000 }, { monto: 500 }],
+            pagos: [{ montoARS: 400 }]
+          },
+          {
+            id: 11,
+            status: 'FINALIZADA',
+            segments: [{ startDate: '2024-01-01', endDate: '2024-01-02' }],
+            cargos: [{ monto: 200 }],
+            pagos: [{ montoARS: 200 }]
+          }
+        ]
+      });
+
+      const response = await request(app)
+        .get('/api/clients/1/balance')
+        .expect(200);
+
+      expect(response.body.totalCharges).toBe(1700);
+      expect(response.body.totalPayments).toBe(600);
+      expect(response.body.balance).toBe(1100);
+      expect(response.body.isDebtor).toBe(true);
+      expect(response.body.reservations).toHaveLength(2);
+      expect(response.body.reservations[0].saldo).toBe(1100);
+      expect(response.body.reservations[1].saldo).toBe(0);
+    });
+  });
 });

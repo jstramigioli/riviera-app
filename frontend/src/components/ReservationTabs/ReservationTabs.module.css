@@ -179,6 +179,7 @@
   border-left: 4px solid #ffc107;
   padding: 16px;
   border-radius: 8px;
+  margin-top: 24px;
 }
 
 .notesBox h4 {
@@ -191,6 +192,84 @@
   margin: 0;
   color: #666;
   line-height: 1.6;
+}
+
+.notesTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #e0c35a;
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+  min-height: 96px;
+  background: #fff;
+}
+
+.notesActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.saveNotesButton {
+  padding: 8px 14px;
+  background: #0d6efd;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.saveNotesButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notesSuccess {
+  color: #198754;
+  font-size: 0.9rem;
+}
+
+.editStayForm {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.editStayHint {
+  margin: 0 0 16px;
+  color: #495057;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.editStayGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.editStayPreview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  color: #343a40;
+}
+
+.notesError {
+  color: #dc3545;
+  font-size: 0.9rem;
 }
 
 /* Summary Cards */

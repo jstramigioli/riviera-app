@@ -118,14 +118,24 @@ exports.deleteClient = async (req, res) => {
   }
 };
 
-// Calcular balance de un cliente
+// Calcular balance real de un cliente (cargos − pagos, agregado por reserva)
 exports.getClientBalance = async (req, res) => {
   const { id } = req.params;
   try {
     const client = await prisma.client.findUnique({
       where: { id: parseInt(id) },
       include: {
-        reservations: true
+        reservations: {
+          include: {
+            cargos: true,
+            pagos: true,
+            segments: {
+              where: { isActive: true },
+              orderBy: { startDate: 'asc' }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
     
@@ -133,16 +143,32 @@ exports.getClientBalance = async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    // Calcular total de cargos (reservas)
-    const totalCharges = client.reservations
-      .filter(r => r.status !== 'cancelled')
-      .reduce((sum, r) => sum + r.totalAmount, 0);
+    const reservations = client.reservations.map((reservation) => {
+      const totalCargos = reservation.cargos.reduce(
+        (sum, cargo) => sum + parseFloat(cargo.monto),
+        0
+      );
+      const totalPagos = reservation.pagos.reduce(
+        (sum, pago) => sum + parseFloat(pago.montoARS),
+        0
+      );
+      const saldo = totalCargos - totalPagos;
+      const activeSegment = reservation.segments?.[0];
 
-    // Por ahora asumimos que no hay pagos registrados para clientes
-    // En el futuro esto se conectará con el sistema de pagos
-    const totalPayments = 0;
+      return {
+        reservationId: reservation.id,
+        status: reservation.status,
+        checkIn: activeSegment?.startDate || null,
+        checkOut: activeSegment?.endDate || null,
+        totalCargos,
+        totalPagos,
+        saldo,
+        estadoPago: saldo > 0 ? 'PENDIENTE' : (saldo < 0 ? 'A_FAVOR' : 'PAGADO')
+      };
+    });
 
-    // Balance = cargos - pagos
+    const totalCharges = reservations.reduce((sum, r) => sum + r.totalCargos, 0);
+    const totalPayments = reservations.reduce((sum, r) => sum + r.totalPagos, 0);
     const balance = totalCharges - totalPayments;
 
     res.json({
@@ -151,9 +177,12 @@ exports.getClientBalance = async (req, res) => {
       totalCharges,
       totalPayments,
       balance,
-      isDebtor: balance > 0
+      isDebtor: balance > 0,
+      estadoPago: balance > 0 ? 'PENDIENTE' : (balance < 0 ? 'A_FAVOR' : 'PAGADO'),
+      reservations
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error calculating client balance' });
+    console.error('Error calculating client balance:', error);
+    res.status(500).json({ error: 'Error calculating client balance', details: error.message });
   }
 }; 

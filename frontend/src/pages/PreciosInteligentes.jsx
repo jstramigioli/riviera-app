@@ -1,96 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
-import MealPricingEditor from '../components/configuracion/MealPricingEditor';
 import styles from '../styles/App.module.css';
 
 function PreciosInteligentesView() {
   const [activeTab, setActiveTab] = useState('config');
 
   const tabs = [
-    { id: 'config', label: 'Configuración General', icon: '⚙️' },
-    { id: 'meals', label: 'Precios de Comidas', icon: '🍽️' },
-    { id: 'preview', label: 'Vista Previa', icon: '👁️' }
+    { id: 'config', label: 'Configuración', icon: '⚙️' },
+    { id: 'info', label: 'Estado MVP', icon: 'ℹ️' }
   ];
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'config':
-        return <DynamicPricingConfigPanel hotelId="default-hotel" />;
-      case 'meals':
-        return <MealPricingEditor hotelId="default-hotel" />;
-      case 'preview':
-        return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Vista Previa de Precios Inteligentes</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
-          </div>
-        );
-      default:
-        return <DynamicPricingConfigPanel hotelId="default-hotel" />;
+    if (activeTab === 'info') {
+      return (
+        <div style={{ padding: '8px 4px', color: '#495057', maxWidth: 720 }}>
+          <h3 style={{ marginTop: 0 }}>Precios inteligentes (beta)</h3>
+          <p>
+            Podés ajustar pesos y factores de ocupación aquí. La cotización del MVP
+            usa los <strong>bloques de temporada</strong> (Tarifas / Configuración → Cargos y Tarifas).
+          </p>
+          <p style={{ color: '#6c757d' }}>
+            Reglas de comidas y curvas operacionales legacy no están disponibles en el esquema actual.
+          </p>
+        </div>
+      );
     }
+    return <DynamicPricingConfigPanel hotelId="default-hotel" />;
   };
 
   return (
     <div className={styles.appContainer}>
       <div className={styles.header}>
         <h1 className={styles.title}>Precios Inteligentes</h1>
-        <p className={styles.subtitle}>Configura el sistema de precios dinámicos</p>
+        <p className={styles.subtitle}>Ajustes dinámicos opcionales sobre la tarifa base</p>
       </div>
-      
-      <div style={{ 
-        width: '100%', 
-        padding: '16px',
-        height: 'calc(100vh - 180px)', // Altura ajustada
-        display: 'flex',
-        flexDirection: 'column',
-        marginRight: '16px', // Margin derecho reducido
-        boxSizing: 'border-box', // Incluir padding en el ancho
-        maxWidth: '100vw', // Máximo ancho de la ventana
-        overflow: 'hidden' // Evitar overflow horizontal
-      }}>
-        {/* Pestañas principales */}
-        <div style={{ 
-          display: 'flex', 
-          borderBottom: '2px solid #e9ecef',
-          marginBottom: '16px',
-          backgroundColor: 'white',
-          borderRadius: '12px 12px 0 0',
-          padding: '0 20px',
-          flexShrink: 0 // No se encoja
-        }}>
-          {tabs.map(tab => (
+
+      <div className={styles.configShell}>
+        <div className={styles.configTabs}>
+          {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '16px 24px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: '500',
-                color: activeTab === tab.id ? '#667eea' : '#6c757d',
-                borderBottom: activeTab === tab.id ? '3px solid #667eea' : '3px solid transparent',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
+              className={`${styles.configTab} ${activeTab === tab.id ? styles.configTabActive : ''}`}
             >
               <span>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
         </div>
-
-        {/* Contenido de la pestaña activa */}
-        <div style={{ 
-          flex: 1, 
-          overflow: 'auto',
-          backgroundColor: 'white',
-          borderRadius: '0 0 12px 12px',
-          padding: '20px'
-        }}>
+        <div className={styles.configPanel} style={{ padding: 20, overflow: 'auto' }}>
           {renderTabContent()}
         </div>
       </div>

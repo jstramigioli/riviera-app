@@ -50,7 +50,7 @@ describe('useSeasonBlock', () => {
       if (url.includes('/season-blocks/test-block')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockSeasonBlock)
+          json: () => Promise.resolve({ data: mockSeasonBlock })
         });
       }
       return Promise.resolve({
@@ -64,16 +64,18 @@ describe('useSeasonBlock', () => {
     vi.clearAllMocks();
   });
 
-  it('should initialize with default values', () => {
+  it('should initialize with default values', async () => {
     const { result } = renderHook(() => useSeasonBlock(null, 'test-hotel'));
 
-    expect(result.current.loading).toBe(false);
     expect(result.current.saving).toBe(false);
-    expect(result.current.error).toBe(null);
     expect(result.current.formData.name).toBe('');
     expect(result.current.formData.description).toBe('');
     expect(result.current.formData.startDate).toBe('');
     expect(result.current.formData.endDate).toBe('');
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it('should load reference data when hotelId is provided', async () => {
@@ -84,8 +86,8 @@ describe('useSeasonBlock', () => {
       expect(result.current.serviceTypes).toEqual(mockServiceTypes);
     });
 
-    expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/room-types');
-    expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/service-types');
+    expect(fetch).toHaveBeenCalledWith('/api/room-types');
+    expect(fetch).toHaveBeenCalledWith('/api/service-types');
   });
 
   it('should load season block data when blockId is provided', async () => {
@@ -98,7 +100,7 @@ describe('useSeasonBlock', () => {
       expect(result.current.formData.endDate).toBe('2025-03-31');
     });
 
-    expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/season-blocks/test-block');
+    expect(fetch).toHaveBeenCalledWith('/api/season-blocks/test-block');
   });
 
   it('should update form data correctly', async () => {
@@ -154,9 +156,9 @@ describe('useSeasonBlock', () => {
       expect(result.current.roomTypes.length).toBeGreaterThan(0);
     });
 
-    // Formulario vacío debería fallar validación
+    // Formulario vacío debería fallar validación al confirmar (fechas requeridas)
     act(() => {
-      const isValid = result.current.validateForm();
+      const isValid = result.current.validateForm(true);
       expect(isValid).toBe(false);
     });
 

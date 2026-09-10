@@ -1,45 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import TariffManagement from './TariffManagement'; // Componente actual de tarifas
+import TariffManagement from './TariffManagement';
 import SubcategoriasCargosTab from './SubcategoriasCargosTab';
 import styles from './CargosTarifasTab.module.css';
 
-const CargosTarifasTab = () => {
+const CargosTarifasTab = ({ hideTariffConfig = false }) => {
+  const defaultTab = hideTariffConfig ? 'servicios' : 'alojamiento';
   const [activeSubTab, setActiveSubTab] = useState(() => {
-    return localStorage.getItem('cargosTarifasActiveTab') || 'alojamiento';
+    const saved = localStorage.getItem('cargosTarifasActiveTab');
+    if (hideTariffConfig && saved === 'alojamiento') return 'servicios';
+    return saved || defaultTab;
   });
 
-  // Guardar sub-pestaña activa
   useEffect(() => {
     localStorage.setItem('cargosTarifasActiveTab', activeSubTab);
   }, [activeSubTab]);
 
   const subTabs = [
-    { 
-      id: 'alojamiento', 
-      label: 'Alojamiento', 
+    !hideTariffConfig && {
+      id: 'alojamiento',
+      label: 'Alojamiento',
       descripcion: 'Configurar tarifas por tipo de habitación y servicios'
     },
-    { 
-      id: 'servicios', 
-      label: 'Servicios', 
+    {
+      id: 'servicios',
+      label: 'Servicios',
       descripcion: 'Gestionar subcategorías de servicios adicionales'
     },
-    { 
-      id: 'consumos', 
-      label: 'Consumos', 
+    {
+      id: 'consumos',
+      label: 'Consumos',
       descripcion: 'Configurar categorías de consumos y minibar'
     },
-    { 
-      id: 'otros', 
-      label: 'Otros', 
+    {
+      id: 'otros',
+      label: 'Otros',
       descripcion: 'Otros tipos de cargos no clasificados'
     }
-  ];
+  ].filter(Boolean);
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
       case 'alojamiento':
-        return <TariffManagement />;
+        return hideTariffConfig ? <SubcategoriasCargosTab tipo="SERVICIO" /> : <TariffManagement />;
       case 'servicios':
         return <SubcategoriasCargosTab tipo="SERVICIO" />;
       case 'consumos':
@@ -47,21 +49,23 @@ const CargosTarifasTab = () => {
       case 'otros':
         return <SubcategoriasCargosTab tipo="OTRO" />;
       default:
-        return <TariffManagement />;
+        return <SubcategoriasCargosTab tipo="SERVICIO" />;
     }
   };
 
   return (
     <div className={styles.container}>
-      {/* Header principal */}
       <div className={styles.header}>
         <div className={styles.headerContent}>
-          <h2>Cargos y Tarifas</h2>
-          <p>Configuración de tipos de cargo y estructura de tarifas</p>
+          <h2>{hideTariffConfig ? 'Categorías de Cargos' : 'Cargos y Tarifas'}</h2>
+          <p>
+            {hideTariffConfig
+              ? 'Subcategorías para cargos manuales de servicios, consumos y otros'
+              : 'Configuración de tipos de cargo y estructura de tarifas'}
+          </p>
         </div>
       </div>
 
-      {/* Sub-pestañas */}
       <div className={styles.subTabsContainer}>
         <div className={styles.subTabs}>
           {subTabs.map(tab => (
@@ -80,7 +84,6 @@ const CargosTarifasTab = () => {
         </div>
       </div>
 
-      {/* Contenido de la sub-pestaña activa */}
       <div className={styles.subTabContent}>
         {renderSubTabContent()}
       </div>

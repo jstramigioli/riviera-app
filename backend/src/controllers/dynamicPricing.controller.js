@@ -18,21 +18,11 @@ class DynamicPricingController {
 
   // Eliminar keyframes operacionales cuando se elimina un período
   async deleteOperationalKeyframes(req, res) {
-    try {
-      const { periodId } = req.params;
-
-      await prisma.seasonalKeyframe.deleteMany({
-        where: {
-          periodId,
-          isOperational: true
-        }
-      });
-
-      res.json({ message: 'Keyframes operacionales eliminados' });
-    } catch (error) {
-      console.error('Error al eliminar keyframes operacionales:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
+    res.status(501).json({
+      success: false,
+      message: 'Funcionalidad no disponible - modelo SeasonalKeyframe no existe en el esquema actual',
+      code: 'SCHEMA_UNAVAILABLE'
+    });
   }
 
   /**
@@ -150,24 +140,11 @@ class DynamicPricingController {
    * Crear o actualizar reglas de precios de comidas
    */
   async upsertMealPricingRules(req, res) {
-    try {
-      const { hotelId } = req.params;
-      const rulesData = req.body;
-
-      const rules = await prisma.mealPricingRule.upsert({
-        where: { hotelId },
-        update: rulesData,
-        create: {
-          hotelId,
-          ...rulesData
-        }
-      });
-
-      res.json(rules);
-    } catch (error) {
-      console.error('Error al crear/actualizar reglas de comidas:', error);
-      res.status(500).json({ message: 'Error interno del servidor' });
-    }
+    res.status(501).json({
+      success: false,
+      message: 'Funcionalidad no disponible - modelo MealPricingRule no existe en el esquema actual',
+      code: 'SCHEMA_UNAVAILABLE'
+    });
   }
 
   /**

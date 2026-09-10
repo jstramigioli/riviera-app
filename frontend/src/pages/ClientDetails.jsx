@@ -1,15 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchClients, fetchReservations } from '../services/api';
+import { fetchClients, fetchReservations, getClientBalance } from '../services/api';
+import { getStatusLabel, RESERVATION_STATUSES } from '../utils/reservationStatusUtils';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
 import styles from './ClientDetails.module.css';
+
+const ACTIVE_STATUSES = [
+  RESERVATION_STATUSES.PENDIENTE,
+  RESERVATION_STATUSES.CONFIRMADA,
+  RESERVATION_STATUSES.INGRESADA
+];
+
+const COMPLETED_STATUSES = [RESERVATION_STATUSES.FINALIZADA];
 
 const ClientDetails = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [clientBalance, setClientBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('personal');
@@ -20,9 +30,10 @@ const ClientDetails = () => {
       setLoading(true);
       setError(null);
       
-      const [clientsData, reservationsData] = await Promise.all([
+      const [clientsData, reservationsData, balanceData] = await Promise.all([
         fetchClients(),
-        fetchReservations()
+        fetchReservations(),
+        getClientBalance(clientId).catch(() => null)
       ]);
 
       const foundClient = clientsData.find(c => c.id === parseInt(clientId));
@@ -35,6 +46,7 @@ const ClientDetails = () => {
 
       setClient(foundClient);
       setReservations(clientReservations);
+      setClientBalance(balanceData);
     } catch (err) {
       console.error('Error cargando datos del cliente:', err);
       setError('Error al cargar los datos del cliente');
@@ -64,17 +76,16 @@ const ClientDetails = () => {
 
   const handleEmailClick = () => {
     if (client.email) {
-      alert(`Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`);
-    } else {
-      alert('Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.');
+      window.location.href = `mailto:${client.email}`;
     }
   };
 
   const handleWhatsAppClick = () => {
     if (client.phone) {
-      alert(`Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`);
-    } else {
-      alert('Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.');
+      const digits = String(client.phone).replace(/\D/g, '');
+      if (digits) {
+        window.open(`https://wa.me/${digits}`, '_blank', 'noopener,noreferrer');
+      }
     }
   };
 
@@ -93,29 +104,16 @@ const ClientDetails = () => {
     });
   };
 
-  const getStatusLabel = (status) => {
-    const statusLabels = {
-      'pending': 'Pendiente',
-      'confirmed': 'Confirmada',
-      'ingresada': 'Ingresada',
-      'checked_out': 'Check-out',
-      'cancelled': 'Cancelada'
-    };
-    return statusLabels[status] || status;
-  };
-
-  const calculateTotalBalance = () => {
-    return reservations.reduce((total, reservation) => {
-      return total + (reservation.totalAmount || 0);
-    }, 0);
+  const getReservationBalance = (reservationId) => {
+    return clientBalance?.reservations?.find((r) => r.reservationId === reservationId) || null;
   };
 
   const getActiveReservations = () => {
-    return reservations.filter(r => !['checked_out', 'cancelled'].includes(r.status));
+    return reservations.filter(r => ACTIVE_STATUSES.includes(r.status));
   };
 
   const getCompletedReservations = () => {
-    return reservations.filter(r => ['checked_out'].includes(r.status));
+    return reservations.filter(r => COMPLETED_STATUSES.includes(r.status));
   };
 
   const getCurrentStatus = () => {
@@ -129,7 +127,7 @@ const ClientDetails = () => {
     const currentReservation = activeReservations.find(r => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut;
+      return now >= checkIn && now <= checkOut && r.status === RESERVATION_STATUSES.INGRESADA;
     });
     
     if (currentReservation) {
@@ -163,7 +161,7 @@ const ClientDetails = () => {
       }
     }
     
-    return 'Sin reservas';
+    return 'Sin reservas activas';
   };
 
 
@@ -203,7 +201,9 @@ const ClientDetails = () => {
     );
   }
 
-  const totalBalance = calculateTotalBalance();
+  const totalBalance = clientBalance?.balance ?? 0;
+  const totalCharges = clientBalance?.totalCharges ?? 0;
+  const totalPayments = clientBalance?.totalPayments ?? 0;
   const activeReservations = getActiveReservations();
   const completedReservations = getCompletedReservations();
   const currentStatus = getCurrentStatus();
@@ -388,12 +388,17 @@ const ClientDetails = () => {
                         <th>Check-in</th>
                         <th>Check-out</th>
                         <th>Estado</th>
-                        <th>Total</th>
+                        <th>Cargos</th>
+                        <th>Pagos</th>
+                        <th>Saldo</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody className={styles.tableBody}>
-                      {reservations.map(reservation => (
+                      {reservations.map(reservation => {
+                        const balanceRow = getReservationBalance(reservation.id);
+                        const saldo = balanceRow?.saldo ?? null;
+                        return (
                         <tr 
                           key={reservation.id} 
                           className={styles.reservationRow}
@@ -409,7 +414,13 @@ const ClientDetails = () => {
                             </span>
                           </td>
                           <td className={styles.totalAmount}>
-                            {formatPrice(reservation.totalAmount || 0)}
+                            {formatPrice(balanceRow?.totalCargos ?? 0)}
+                          </td>
+                          <td className={styles.totalAmount}>
+                            {formatPrice(balanceRow?.totalPagos ?? 0)}
+                          </td>
+                          <td className={`${styles.totalAmount} ${saldo > 0 ? styles.negative : styles.positive}`}>
+                            {formatPrice(saldo ?? 0)}
                           </td>
                           <td>
                             <button 
@@ -423,7 +434,7 @@ const ClientDetails = () => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -440,7 +451,15 @@ const ClientDetails = () => {
                   <h3>Resumen Financiero</h3>
                   <div className={styles.balanceDetails}>
                     <div className={styles.balanceItem}>
-                      <span className={styles.label}>Total Pendiente:</span>
+                      <span className={styles.label}>Total cargos:</span>
+                      <span className={styles.value}>{formatPrice(totalCharges)}</span>
+                    </div>
+                    <div className={styles.balanceItem}>
+                      <span className={styles.label}>Total pagos:</span>
+                      <span className={styles.value}>{formatPrice(totalPayments)}</span>
+                    </div>
+                    <div className={styles.balanceItem}>
+                      <span className={styles.label}>Saldo (cargos − pagos):</span>
                       <span className={`${styles.value} ${totalBalance > 0 ? styles.negative : styles.positive}`}>
                         {formatPrice(totalBalance)}
                       </span>
@@ -464,19 +483,19 @@ const ClientDetails = () => {
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Pendientes:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'pending').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.PENDIENTE).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Confirmadas:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'confirmed').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.CONFIRMADA).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
                       <span className={styles.label}>Ingresadas:</span>
                       <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'ingresada').length}
+                        {reservations.filter(r => r.status === RESERVATION_STATUSES.INGRESADA).length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
@@ -497,39 +516,8 @@ const ClientDetails = () => {
             <div className={styles.section}>
               <h2>Documentación Asociada</h2>
               <div className={styles.documentsContainer}>
-                <div className={styles.documentsGrid}>
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>🆔</div>
-                    <div className={styles.documentInfo}>
-                      <h3>Documento de Identidad</h3>
-                      <p>Foto del DNI o documento de identidad del cliente</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          📤 Subir Foto
-                        </button>
-                        <button className={styles.viewButton}>
-                          👁️ Ver Documento
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>💰</div>
-                    <div className={styles.documentInfo}>
-                      <h3>Comprobantes de Pago</h3>
-                      <p>Recibos y comprobantes de pago</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          📤 Subir Comprobante
-                        </button>
-                        <button className={styles.viewButton}>
-                          👁️ Ver Comprobantes
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <p>El archivo de documentos (DNI, comprobantes) no está incluido en este MVP.</p>
+                <p>Por ahora registrá referencias en las notas del cliente o de la reserva.</p>
               </div>
             </div>
           )}

@@ -4,6 +4,7 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationsTable.module.css';
+import { API_URL } from '../services/api.js';
 
 export default function ReservationsTable({ 
   reservations, 
@@ -132,7 +133,7 @@ export default function ReservationsTable({
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/service-types?hotelId=default-hotel');
+        const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
         if (response.ok) {
           const data = await response.json();
           setServiceTypes(data.data || []);
@@ -167,9 +168,12 @@ export default function ReservationsTable({
   // Función para obtener la clase de estado
   const getStatusClass = (status) => {
     switch (status) {
-      case 'active': return styles.statusActive;
-      case 'finished': return styles.statusFinished;
-      case 'cancelled': return styles.statusCancelled;
+      case 'PENDIENTE': return styles.statusPending;
+      case 'CONFIRMADA': return styles.statusConfirmed;
+      case 'INGRESADA': return styles.statusActive;
+      case 'FINALIZADA': return styles.statusFinished;
+      case 'CANCELADA': return styles.statusCancelled;
+      case 'NO_PRESENTADA': return styles.statusNoShow;
       default: return styles.statusDefault;
     }
   };
@@ -210,12 +214,12 @@ export default function ReservationsTable({
             className={styles.filterSelect}
           >
             <option value="all">Todos los estados</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="confirmada">Confirmadas</option>
-                <option value="ingresada">Ingresadas</option>
-                <option value="finalizada">Finalizadas</option>
-                <option value="cancelada">Canceladas</option>
-                <option value="no presentada">No presentadas</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="CONFIRMADA">Confirmadas</option>
+            <option value="INGRESADA">Ingresadas</option>
+            <option value="FINALIZADA">Finalizadas</option>
+            <option value="CANCELADA">Canceladas</option>
+            <option value="NO_PRESENTADA">No presentadas</option>
           </select>
         </div>
       </div>

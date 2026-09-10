@@ -60,8 +60,8 @@ const ReservationDetails = () => {
         const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetch(`${API_URL}/service-types?hotelId=default-hotel`).then(res => res.json()),
+          fetch(`${API_URL}/tags`).then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -248,18 +248,62 @@ const ReservationDetails = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar el estado de la reserva');
+        throw new Error(errorData.message || errorData.error || 'Error al actualizar el estado de la reserva');
       }
 
       const updatedReservation = await response.json();
       console.log('Reserva actualizada:', updatedReservation);
       
-      // Actualizar el estado local
+      // Actualizar el estado local (respuesta enriquecida con checkIn/checkOut/room)
       setReservation(updatedReservation);
+
+      const actionMessages = {
+        confirm: 'Reserva confirmada',
+        cancel: 'Reserva cancelada — la habitación queda libre',
+        'check-in': 'Check-in registrado',
+        'check-out': 'Check-out registrado',
+        'no-show': 'Marcada como no presentada — habitación liberada',
+        reopen: 'Estadía reabierta',
+        reactivate: 'Reserva reactivada'
+      };
+      alert(actionMessages[actionType] || 'Estado actualizado');
     } catch (error) {
       console.error('Error actualizando estado de la reserva:', error);
       alert(`Error: ${error.message}`);
     }
+  };
+
+  const handleSaveNotes = async (notes) => {
+    const response = await fetch(`${API_URL}/reservations/${reservation.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || 'Error al guardar notas');
+    }
+
+    const updated = await response.json();
+    setReservation(prev => ({ ...prev, ...updated, notes }));
+  };
+
+  const handleUpdateStay = async (stayData) => {
+    const response = await fetch(`${API_URL}/reservations/${reservation.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stayData)
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const details = Array.isArray(payload.details) ? payload.details.join('; ') : '';
+      throw new Error(details || payload.message || payload.error || 'Error al actualizar la estadía');
+    }
+
+    setReservation(payload);
+    await loadFinancialData();
   };
 
   // Renderizar contenido de cada pestaña
@@ -269,11 +313,14 @@ const ReservationDetails = () => {
         return (
           <GeneralInfoTab
             reservation={reservation}
+            rooms={rooms}
             financialSummary={financialSummary}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
+            onSaveNotes={handleSaveNotes}
+            onUpdateStay={handleUpdateStay}
           />
         );
       case 'pagos':
@@ -285,7 +332,7 @@ const ReservationDetails = () => {
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
+            onPaymentSuccess={loadFinancialData}
             onDeletePago={handleDeletePago}
           />
         );

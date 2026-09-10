@@ -6,7 +6,8 @@ const {
   getAllReservationsWithData,
   createReservationWithSegments,
   updateReservationWithSegments,
-  checkRoomAvailability
+  checkRoomAvailability,
+  BLOCKING_RESERVATION_STATUSES
 } = require('../utils/reservationHelpers');
 const {
   validateReservationCreation,
@@ -60,7 +61,7 @@ exports.createReservation = async (req, res) => {
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
       isMultiRoom
     };
@@ -77,49 +78,22 @@ exports.createReservation = async (req, res) => {
     // Crear la reserva con sus segmentos
     const newReservation = await createReservationWithSegments(reservationData);
 
-    // Calcular y almacenar tarifas detalladas por noche
+    // Intentar calcular tarifas por noche sin bloquear la creación
     try {
-      const serviceType = reservationType === 'con_desayuno' ? 'breakfast' : 
-                         reservationType === 'media_pension' ? 'halfBoard' : 'base';
-      
-      const pricingResult = await reservationPricingService.calculateAndStoreNightRates(
+      const firstSegment = segments[0];
+      const serviceTypeId = Array.isArray(firstSegment.services) ? firstSegment.services[0] : null;
+      await reservationPricingService.calculateAndStoreNightRates(
         newReservation.id,
-        roomId,
-        checkIn,
-        checkOut,
-        serviceType
+        firstSegment.roomId,
+        firstSegment.startDate || firstSegment.checkIn,
+        firstSegment.endDate || firstSegment.checkOut,
+        serviceTypeId || 'base'
       );
-
-      // Actualizar la reserva con el total calculado
-      const updatedReservation = await prisma.reservation.update({
-        where: { id: newReservation.id },
-        data: { totalAmount: pricingResult.totalAmount },
-        include: {
-          room: {
-            include: {
-              roomType: true,
-              tags: true
-            }
-          },
-          mainClient: true,
-          guests: true,
-          nightRates: true
-        }
-      });
-
-      res.status(201).json({
-        ...updatedReservation,
-        pricingSummary: {
-          totalAmount: pricingResult.totalAmount,
-          numberOfNights: pricingResult.numberOfNights,
-          averageRatePerNight: pricingResult.totalAmount / pricingResult.numberOfNights
-        }
-      });
     } catch (pricingError) {
       console.error('Error calculando tarifas detalladas:', pricingError);
-      // Si falla el cálculo de tarifas, devolver la reserva sin tarifas detalladas
-      res.status(201).json(newReservation);
     }
+
+    res.status(201).json(newReservation);
   } catch (error) {
     res.status(500).json({ error: 'Error creating reservation', details: error.message });
   }
@@ -144,7 +118,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
     const reservationData = {
       mainClientId,
       segments,
-      status: status || 'active',
+      status: status || 'PENDIENTE',
       notes,
       isMultiRoom
     };
@@ -318,21 +292,13 @@ exports.updateReservationStatus = async (req, res) => {
       });
     }
 
-    // Actualizar solo el estado
-    const updatedReservation = await prisma.reservation.update({
+    // Actualizar solo el estado y devolver la forma enriquecida (checkIn/checkOut/room)
+    await prisma.reservation.update({
       where: { id: parseInt(id) },
-      data: { status },
-      include: {
-        mainClient: true,
-        segments: {
-          include: {
-            room: true,
-            roomType: true
-          }
-        }
-      }
+      data: { status }
     });
 
+    const updatedReservation = await getReservationWithData(parseInt(id));
     res.json(updatedReservation);
   } catch (error) {
     console.error('Error updating reservation status:', error);
@@ -470,6 +436,7 @@ exports.findAvailableRooms = async (req, res) => {
     }
 
     // Obtener habitaciones ocupadas en el período usando segmentos de reserva
+    // (excluye CANCELADA / NO_PRESENTADA para liberar la habitación)
     const occupiedRooms = await prisma.reservationSegment.findMany({
       where: {
         AND: [
@@ -484,11 +451,14 @@ exports.findAvailableRooms = async (req, res) => {
           {
             isActive: true
           },
-          ...(excludeReservationId ? [{ 
-            reservation: { 
-              id: { not: parseInt(excludeReservationId) } 
-            } 
-          }] : [])
+          {
+            reservation: {
+              status: { in: BLOCKING_RESERVATION_STATUSES },
+              ...(excludeReservationId ? {
+                id: { not: parseInt(excludeReservationId) }
+              } : {})
+            }
+          }
         ]
       },
       select: { roomId: true }

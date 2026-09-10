@@ -12,7 +12,7 @@ const createMultiRoomReservation = async (req, res) => {
       totalAmount,
       notes,
       reservationType = 'con_desayuno',
-      status = 'active'
+      status = 'PENDIENTE'
     } = req.body;
 
     // Validar que el cliente existe
@@ -38,7 +38,7 @@ const createMultiRoomReservation = async (req, res) => {
       const conflictingReservations = await prisma.reservation.findMany({
         where: {
           roomId: parseInt(roomData.roomId),
-          status: { in: ['active', 'confirmed'] },
+          status: { in: ['PENDIENTE', 'CONFIRMADA', 'INGRESADA', 'FINALIZADA'] },
           OR: [
             {
               AND: [

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getHotel, updateHotel } from '../../services/api';
 import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX } from 'react-icons/fi';
 import ConfirmationModal from '../ConfirmationModal';
+import { API_URL } from '../../services/api.js';
 
 const HotelConfigPanel = () => {
   const [hotelData, setHotelData] = useState({
@@ -76,7 +77,7 @@ const HotelConfigPanel = () => {
 
   const loadServiceTypes = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/service-types?hotelId=default-hotel`);
       if (response.ok) {
         const result = await response.json();
@@ -160,7 +161,7 @@ const HotelConfigPanel = () => {
 
     setLoadingServices(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/service-types`, {
         method: 'POST',
         headers: {
@@ -203,7 +204,7 @@ const HotelConfigPanel = () => {
 
     setLoadingServices(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/service-types/${editingServiceId}`, {
         method: 'PUT',
         headers: {
@@ -255,7 +256,7 @@ const HotelConfigPanel = () => {
 
     setLoadingServices(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const response = await fetch(`${API_URL}/service-types/${serviceToDelete.id}`, {
         method: 'DELETE'
       });
@@ -347,7 +348,7 @@ const HotelConfigPanel = () => {
       setServiceTypes(updatedServices);
       
       // Actualizar en el backend
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       const updatePromises = updatedServices.map(service => 
         fetch(`${API_URL}/service-types/${service.id}`, {
           method: 'PUT',

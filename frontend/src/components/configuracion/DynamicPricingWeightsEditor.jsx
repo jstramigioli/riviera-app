@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FactorConfigPanel from './FactorConfigPanel';
 import AnticipationFactorConfig from './AnticipationFactorConfig';
 import WeekendFactorConfig from './WeekendFactorConfig';
+import { API_URL } from '../../services/api.js';
 
 const factorNames = {
   'occupancy': 'Ocupación',
@@ -188,7 +189,7 @@ export default function DynamicPricingWeightsEditor({ weights, onChange, config,
     
     setSaving(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      
       
       // Crear objeto con solo los factores activos, 0 para los inactivos
       const weightsToSend = {};
