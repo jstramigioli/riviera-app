@@ -233,6 +233,40 @@
   font-size: 0.9rem;
 }
 
+.editStayForm {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.editStayHint {
+  margin: 0 0 16px;
+  color: #495057;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.editStayGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.editStayPreview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  color: #343a40;
+}
+
 .notesError {
   color: #dc3545;
   font-size: 0.9rem;

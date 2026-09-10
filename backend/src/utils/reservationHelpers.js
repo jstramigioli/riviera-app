@@ -218,101 +218,7 @@ async function createReservationWithSegments(reservationData) {
 
   // Crear automáticamente un cargo por cada noche de la reserva
   try {
-    for (const segment of createdSegments) {
-      const startDate = new Date(segment.startDate);
-      const endDate = new Date(segment.endDate);
-      const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-      
-      // Crear un cargo por cada noche
-      for (let i = 0; i < days; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-        
-        // Formatear la fecha para la descripción
-        const dateStr = currentDate.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short'
-        });
-        
-        // Obtener el tipo de servicio del segmento
-        const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
-        let serviceTypeLabel = 'Servicio';
-        let resolvedServiceTypeId = serviceTypeId;
-
-        // Resolver roomTypeId (segmento o habitación)
-        let roomTypeId = segment.roomTypeId || segment.room?.roomTypeId || null;
-        if (!roomTypeId && segment.roomId) {
-          const room = await prisma.room.findUnique({ where: { id: segment.roomId } });
-          roomTypeId = room?.roomTypeId || null;
-        }
-
-        if (serviceTypeId) {
-          try {
-            const serviceType = await prisma.serviceType.findUnique({
-              where: { id: serviceTypeId }
-            });
-
-            if (serviceType) {
-              serviceTypeLabel = serviceType.name;
-              resolvedServiceTypeId = serviceType.id;
-            } else {
-              serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
-                                serviceTypeId === 'media_pension' ? 'Media Pensión' :
-                                serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
-                                serviceTypeId;
-            }
-          } catch (error) {
-            console.error('Error obteniendo tipo de servicio:', error);
-            serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
-                              serviceTypeId === 'media_pension' ? 'Media Pensión' :
-                              serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
-                              serviceTypeId;
-          }
-        }
-
-        // Si no hay serviceTypeId válido, usar el primero activo del hotel
-        if (!resolvedServiceTypeId || !(await prisma.serviceType.findUnique({ where: { id: resolvedServiceTypeId } }))) {
-          const fallbackService = await prisma.serviceType.findFirst({
-            where: { isActive: true },
-            orderBy: { orderIndex: 'asc' }
-          });
-          if (fallbackService) {
-            resolvedServiceTypeId = fallbackService.id;
-            serviceTypeLabel = fallbackService.name;
-          }
-        }
-
-        if (!roomTypeId || !resolvedServiceTypeId) {
-          console.error('❌ No se pudo resolver roomTypeId/serviceTypeId para cargo de alojamiento', {
-            roomTypeId,
-            resolvedServiceTypeId,
-            segmentId: segment.id
-          });
-          continue;
-        }
-
-        // Schema híbrido: cargos de alojamiento usan roomTypeId + serviceTypeId (NO campo tipo)
-        await prisma.cargo.create({
-          data: {
-            reservaId: reservation.id,
-            descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-            monto: segment.baseRate,
-            roomTypeId: parseInt(roomTypeId),
-            serviceTypeId: resolvedServiceTypeId,
-            notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
-            fecha: currentDate
-          }
-        });
-      }
-    }
-
-    const totalNights = createdSegments.reduce((totalDays, segment) => {
-      const days = Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24));
-      return totalDays + days;
-    }, 0);
-
-    console.log(`✅ ${totalNights} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    await createLodgingChargesForSegments(reservation.id, createdSegments);
   } catch (cargoError) {
     console.error('❌ Error creando cargos de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
@@ -320,6 +226,129 @@ async function createReservationWithSegments(reservationData) {
 
   // Retornar la reserva completa
   return getReservationWithData(reservation.id);
+}
+
+/**
+ * Resuelve roomTypeId + serviceTypeId para un cargo de alojamiento
+ */
+async function resolveLodgingChargeRefs(segment) {
+  const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
+  let serviceTypeLabel = 'Servicio';
+  let resolvedServiceTypeId = serviceTypeId;
+
+  let roomTypeId = segment.roomTypeId || segment.room?.roomTypeId || null;
+  if (!roomTypeId && segment.roomId) {
+    const room = await prisma.room.findUnique({ where: { id: parseInt(segment.roomId) } });
+    roomTypeId = room?.roomTypeId || null;
+  }
+
+  if (serviceTypeId) {
+    try {
+      const serviceType = await prisma.serviceType.findUnique({
+        where: { id: serviceTypeId }
+      });
+
+      if (serviceType) {
+        serviceTypeLabel = serviceType.name;
+        resolvedServiceTypeId = serviceType.id;
+      } else {
+        serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
+                          serviceTypeId === 'media_pension' ? 'Media Pensión' :
+                          serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
+                          serviceTypeId;
+      }
+    } catch (error) {
+      console.error('Error obteniendo tipo de servicio:', error);
+      serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' :
+                        serviceTypeId === 'media_pension' ? 'Media Pensión' :
+                        serviceTypeId === 'pension_completa' ? 'Pensión Completa' :
+                        serviceTypeId;
+    }
+  }
+
+  if (!resolvedServiceTypeId || !(await prisma.serviceType.findUnique({ where: { id: resolvedServiceTypeId } }))) {
+    const fallbackService = await prisma.serviceType.findFirst({
+      where: { isActive: true },
+      orderBy: { orderIndex: 'asc' }
+    });
+    if (fallbackService) {
+      resolvedServiceTypeId = fallbackService.id;
+      serviceTypeLabel = fallbackService.name;
+    }
+  }
+
+  return { roomTypeId, resolvedServiceTypeId, serviceTypeLabel };
+}
+
+/**
+ * Crea cargos de alojamiento (uno por noche) para los segmentos dados.
+ * No toca cargos de consumo/servicio ni pagos.
+ */
+async function createLodgingChargesForSegments(reservationId, segments) {
+  let totalNights = 0;
+
+  for (const segment of segments) {
+    const startDate = new Date(segment.startDate);
+    const endDate = new Date(segment.endDate);
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    if (days <= 0) continue;
+
+    const { roomTypeId, resolvedServiceTypeId, serviceTypeLabel } = await resolveLodgingChargeRefs(segment);
+
+    if (!roomTypeId || !resolvedServiceTypeId) {
+      console.error('❌ No se pudo resolver roomTypeId/serviceTypeId para cargo de alojamiento', {
+        roomTypeId,
+        resolvedServiceTypeId,
+        segmentId: segment.id
+      });
+      continue;
+    }
+
+    for (let i = 0; i < days; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + i);
+
+      const dateStr = currentDate.toLocaleDateString('es-ES', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      });
+
+      await prisma.cargo.create({
+        data: {
+          reservaId: parseInt(reservationId),
+          descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
+          monto: segment.baseRate,
+          roomTypeId: parseInt(roomTypeId),
+          serviceTypeId: resolvedServiceTypeId,
+          notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
+          fecha: currentDate
+        }
+      });
+    }
+
+    totalNights += days;
+  }
+
+  console.log(`✅ ${totalNights} cargos de alojamiento creados automáticamente para reserva #${reservationId}`);
+  return totalNights;
+}
+
+/**
+ * Regenera solo cargos de alojamiento (roomTypeId + serviceTypeId).
+ * Conserva consumos/servicios/otros y todos los pagos.
+ */
+async function regenerateLodgingCharges(reservationId, segments) {
+  const deleted = await prisma.cargo.deleteMany({
+    where: {
+      reservaId: parseInt(reservationId),
+      roomTypeId: { not: null },
+      serviceTypeId: { not: null }
+    }
+  });
+
+  const created = await createLodgingChargesForSegments(reservationId, segments);
+  return { deletedCount: deleted.count, createdCount: created };
 }
 
 /**
@@ -376,67 +405,7 @@ async function createReservationWithSegment(reservationData) {
 
   // Crear automáticamente un cargo por cada noche de la reserva
   try {
-    const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    
-    // Crear un cargo por cada noche
-    for (let i = 0; i < days; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
-      
-      // Formatear la fecha para la descripción
-      const dateStr = currentDate.toLocaleDateString('es-ES', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short'
-      });
-      
-      // Resolver roomType + serviceType para el schema híbrido de cargos
-      const room = await prisma.room.findUnique({ where: { id: parseInt(roomId) } });
-      let roomTypeId = room?.roomTypeId || null;
-      let resolvedServiceTypeId = reservationType;
-      let serviceTypeLabel = reservationType === 'con_desayuno' ? 'Desayuno' :
-                              reservationType === 'media_pension' ? 'Media Pensión' :
-                              reservationType === 'pension_completa' ? 'Pensión Completa' :
-                              reservationType;
-
-      const serviceType = await prisma.serviceType.findUnique({ where: { id: reservationType } });
-      if (serviceType) {
-        resolvedServiceTypeId = serviceType.id;
-        serviceTypeLabel = serviceType.name;
-      } else {
-        const fallbackService = await prisma.serviceType.findFirst({
-          where: { isActive: true },
-          orderBy: { orderIndex: 'asc' }
-        });
-        if (fallbackService) {
-          resolvedServiceTypeId = fallbackService.id;
-          serviceTypeLabel = fallbackService.name;
-        }
-      }
-
-      if (!roomTypeId || !resolvedServiceTypeId) {
-        console.error('❌ No se pudo resolver roomTypeId/serviceTypeId para cargo legacy', {
-          roomTypeId,
-          resolvedServiceTypeId
-        });
-        continue;
-      }
-
-      await prisma.cargo.create({
-        data: {
-          reservaId: reservation.id,
-          descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-          monto: baseRate,
-          roomTypeId: parseInt(roomTypeId),
-          serviceTypeId: resolvedServiceTypeId,
-          notas: `Noche ${i + 1} de ${days}`,
-          fecha: currentDate
-        }
-      });
-    }
-
-    console.log(`✅ ${days} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    await createLodgingChargesForSegments(reservation.id, [segment]);
   } catch (cargoError) {
     console.error('❌ Error creando cargos de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
@@ -447,56 +416,183 @@ async function createReservationWithSegment(reservationData) {
 }
 
 /**
- * Actualiza una reserva y sus segmentos
+ * Construye un segmento efectivo a partir de campos planos + segmento activo actual
+ */
+async function buildSegmentFromFlatUpdate(reservationId, updateData) {
+  const currentSegments = await prisma.reservationSegment.findMany({
+    where: {
+      reservationId: parseInt(reservationId),
+      isActive: true
+    },
+    include: { room: true, roomType: true },
+    orderBy: { startDate: 'asc' }
+  });
+
+  if (!currentSegments.length) {
+    throw new Error('La reserva no tiene un segmento activo para editar');
+  }
+
+  const primary = currentSegments[0];
+  const last = currentSegments[currentSegments.length - 1];
+
+  const startDate = updateData.checkIn ? new Date(updateData.checkIn) : new Date(primary.startDate);
+  const endDate = updateData.checkOut ? new Date(updateData.checkOut) : new Date(last.endDate);
+  const roomId = updateData.roomId != null ? parseInt(updateData.roomId) : primary.roomId;
+  const baseRate = updateData.baseRate != null ? parseFloat(updateData.baseRate) : parseFloat(primary.baseRate);
+  const guestCount = updateData.guestCount != null
+    ? parseInt(updateData.guestCount)
+    : parseInt(primary.guestCount);
+
+  let roomTypeId = primary.roomTypeId || primary.room?.roomTypeId || null;
+  if (updateData.roomId != null || !roomTypeId) {
+    const room = await prisma.room.findUnique({ where: { id: roomId } });
+    roomTypeId = room?.roomTypeId || roomTypeId;
+  }
+
+  return {
+    startDate,
+    endDate,
+    roomId,
+    roomTypeId,
+    services: primary.services && primary.services.length ? primary.services : ['con_desayuno'],
+    baseRate,
+    guestCount,
+    requiredTags: primary.requiredTags || [],
+    requiredRoomId: primary.requiredRoomId,
+    reason: primary.reason || 'Segmento actualizado',
+    notes: primary.notes || 'Segmento editado desde detalle de reserva'
+  };
+}
+
+/**
+ * Actualiza una reserva y sus segmentos (fechas / habitación / tarifa).
+ * Si cambian fechas, habitación o tarifa, regenera solo cargos de alojamiento.
  */
 async function updateReservationWithSegments(reservationId, updateData) {
   const {
     status,
     notes,
-    segments
+    segments,
+    checkIn,
+    checkOut,
+    roomId,
+    baseRate,
+    guestCount,
+    regenerateLodgingCharges: shouldRegenerateCharges = true
   } = updateData;
 
+  const reservationIdInt = parseInt(reservationId);
+
   // Actualizar datos básicos de la reserva
-  const updatedReservation = await prisma.reservation.update({
-    where: { id: parseInt(reservationId) },
+  await prisma.reservation.update({
+    where: { id: reservationIdInt },
     data: {
       status: status || undefined,
       notes: notes !== undefined ? notes : undefined
     }
   });
 
-  // Si se proporcionan nuevos segmentos, actualizarlos
+  const hasFlatStayUpdate =
+    checkIn != null ||
+    checkOut != null ||
+    roomId != null ||
+    baseRate != null ||
+    guestCount != null;
+
+  let lodgingChanged = false;
+  let createdSegments = [];
+
   if (segments && Array.isArray(segments)) {
-    // Desactivar segmentos existentes
     await prisma.reservationSegment.updateMany({
-      where: { 
-        reservationId: parseInt(reservationId),
+      where: {
+        reservationId: reservationIdInt,
         isActive: true
       },
       data: { isActive: false }
     });
 
-    // Crear nuevos segmentos
     for (const segmentData of segments) {
-      await prisma.reservationSegment.create({
+      let resolvedRoomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null;
+      if (!resolvedRoomTypeId && segmentData.roomId) {
+        const room = await prisma.room.findUnique({ where: { id: parseInt(segmentData.roomId) } });
+        resolvedRoomTypeId = room?.roomTypeId || null;
+      }
+
+      const segment = await prisma.reservationSegment.create({
         data: {
-          reservationId: parseInt(reservationId),
+          reservationId: reservationIdInt,
           startDate: new Date(segmentData.startDate),
           endDate: new Date(segmentData.endDate),
           roomId: parseInt(segmentData.roomId),
-          roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+          roomTypeId: resolvedRoomTypeId,
           services: segmentData.services || ['con_desayuno'],
           baseRate: parseFloat(segmentData.baseRate),
           guestCount: parseInt(segmentData.guestCount),
-          reason: segmentData.reason,
-          notes: segmentData.notes
-        }
+          requiredTags: segmentData.requiredTags || [],
+          requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
+          reason: segmentData.reason || 'Segmento actualizado',
+          notes: segmentData.notes || 'Segmento editado'
+        },
+        include: { room: true, roomType: true }
       });
+      createdSegments.push(segment);
+    }
+    lodgingChanged = true;
+  } else if (hasFlatStayUpdate) {
+    const effectiveSegment = await buildSegmentFromFlatUpdate(reservationIdInt, {
+      checkIn,
+      checkOut,
+      roomId,
+      baseRate,
+      guestCount
+    });
+
+    await prisma.reservationSegment.updateMany({
+      where: {
+        reservationId: reservationIdInt,
+        isActive: true
+      },
+      data: { isActive: false }
+    });
+
+    const segment = await prisma.reservationSegment.create({
+      data: {
+        reservationId: reservationIdInt,
+        startDate: effectiveSegment.startDate,
+        endDate: effectiveSegment.endDate,
+        roomId: effectiveSegment.roomId,
+        roomTypeId: effectiveSegment.roomTypeId,
+        services: effectiveSegment.services,
+        baseRate: effectiveSegment.baseRate,
+        guestCount: effectiveSegment.guestCount,
+        requiredTags: effectiveSegment.requiredTags,
+        requiredRoomId: effectiveSegment.requiredRoomId,
+        reason: effectiveSegment.reason,
+        notes: effectiveSegment.notes,
+        isActive: true
+      },
+      include: { room: true, roomType: true }
+    });
+    createdSegments = [segment];
+    lodgingChanged = true;
+  }
+
+  let lodgingChargesMeta = null;
+  if (lodgingChanged && shouldRegenerateCharges !== false) {
+    try {
+      lodgingChargesMeta = await regenerateLodgingCharges(reservationIdInt, createdSegments);
+    } catch (cargoError) {
+      console.error('❌ Error regenerando cargos de alojamiento:', cargoError);
+      throw new Error(`Reserva actualizada pero falló la regeneración de cargos de alojamiento: ${cargoError.message}`);
     }
   }
 
-  // Retornar la reserva actualizada
-  return getReservationWithData(reservationId);
+  const updated = await getReservationWithData(reservationIdInt);
+  if (lodgingChargesMeta) {
+    updated.lodgingChargesRegenerated = true;
+    updated.lodgingChargesMeta = lodgingChargesMeta;
+  }
+  return updated;
 }
 
 /**
@@ -556,5 +652,7 @@ module.exports = {
   createReservationWithSegment,
   createReservationWithSegments,
   updateReservationWithSegments,
-  checkRoomAvailability
+  checkRoomAvailability,
+  createLodgingChargesForSegments,
+  regenerateLodgingCharges
 }; 

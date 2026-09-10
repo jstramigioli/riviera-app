@@ -224,6 +224,16 @@ const mockPrismaClient = {
     delete: jest.fn().mockResolvedValue({ id: 1 }),
     deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
   },
+
+  // Modelo Pago
+  pago: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 1, ...data.data })),
+    update: jest.fn().mockImplementation((data) => Promise.resolve({ id: data.where.id, ...data.data })),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+  },
 };
 
 // Mock del módulo Prisma

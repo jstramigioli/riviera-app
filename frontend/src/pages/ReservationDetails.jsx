@@ -289,6 +289,23 @@ const ReservationDetails = () => {
     setReservation(prev => ({ ...prev, ...updated, notes }));
   };
 
+  const handleUpdateStay = async (stayData) => {
+    const response = await fetch(`${API_URL}/reservations/${reservation.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stayData)
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const details = Array.isArray(payload.details) ? payload.details.join('; ') : '';
+      throw new Error(details || payload.message || payload.error || 'Error al actualizar la estadía');
+    }
+
+    setReservation(payload);
+    await loadFinancialData();
+  };
+
   // Renderizar contenido de cada pestaña
   const renderTabContent = () => {
     switch (activeTab) {
@@ -296,12 +313,14 @@ const ReservationDetails = () => {
         return (
           <GeneralInfoTab
             reservation={reservation}
+            rooms={rooms}
             financialSummary={financialSummary}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
             onSaveNotes={handleSaveNotes}
+            onUpdateStay={handleUpdateStay}
           />
         );
       case 'pagos':

@@ -207,6 +207,13 @@ async function validateReservationCreation(reservationData) {
  */
 async function validateReservationUpdate(reservationId, updateData) {
   const errors = [];
+
+  const hasFlatStayUpdate =
+    updateData.checkIn != null ||
+    updateData.checkOut != null ||
+    updateData.roomId != null ||
+    updateData.baseRate != null ||
+    updateData.guestCount != null;
   
   // Si se están actualizando segmentos, validarlos
   if (updateData.segments && Array.isArray(updateData.segments)) {
@@ -223,6 +230,69 @@ async function validateReservationUpdate(reservationId, updateData) {
     const operationalValidation = await validateOperationalDays(updateData.segments);
     if (!operationalValidation.allDaysOpen) {
       errors.push('No se pueden crear reservas en días cerrados');
+    }
+  } else if (hasFlatStayUpdate) {
+    const currentSegments = await prisma.reservationSegment.findMany({
+      where: {
+        reservationId: parseInt(reservationId),
+        isActive: true
+      },
+      orderBy: { startDate: 'asc' }
+    });
+
+    if (!currentSegments.length) {
+      errors.push('La reserva no tiene un segmento activo para editar');
+      return { isValid: false, errors };
+    }
+
+    const primary = currentSegments[0];
+    const last = currentSegments[currentSegments.length - 1];
+    const startDate = updateData.checkIn ? new Date(updateData.checkIn) : new Date(primary.startDate);
+    const endDate = updateData.checkOut ? new Date(updateData.checkOut) : new Date(last.endDate);
+    const roomId = updateData.roomId != null ? parseInt(updateData.roomId) : primary.roomId;
+    const baseRate = updateData.baseRate != null ? parseFloat(updateData.baseRate) : parseFloat(primary.baseRate);
+    const guestCount = updateData.guestCount != null
+      ? parseInt(updateData.guestCount)
+      : parseInt(primary.guestCount);
+
+    if (!(startDate instanceof Date) || Number.isNaN(startDate.getTime())) {
+      errors.push('La fecha de check-in no es válida');
+    }
+    if (!(endDate instanceof Date) || Number.isNaN(endDate.getTime())) {
+      errors.push('La fecha de check-out no es válida');
+    }
+    if (startDate >= endDate) {
+      errors.push('La fecha de check-out debe ser posterior al check-in');
+    }
+    if (!roomId) {
+      errors.push('Debe indicar una habitación válida');
+    }
+    if (!baseRate || baseRate <= 0 || Number.isNaN(baseRate)) {
+      errors.push('La tarifa por noche debe ser mayor a 0');
+    }
+    if (!guestCount || guestCount <= 0 || Number.isNaN(guestCount)) {
+      errors.push('El número de huéspedes debe ser al menos 1');
+    }
+
+    if (errors.length === 0) {
+      const effectiveSegments = [{
+        roomId,
+        startDate,
+        endDate,
+        baseRate,
+        guestCount,
+        services: primary.services && primary.services.length ? primary.services : ['con_desayuno']
+      }];
+
+      const segmentValidation = await validateReservationSegments(effectiveSegments, reservationId);
+      if (!segmentValidation.isValid) {
+        errors.push(...segmentValidation.errors);
+      }
+
+      const availabilityValidation = await validateRoomAvailability(effectiveSegments, reservationId);
+      if (!availabilityValidation.allAvailable) {
+        errors.push('La habitación no está disponible en las fechas indicadas (cancelada/no presentada no bloquea)');
+      }
     }
   }
   

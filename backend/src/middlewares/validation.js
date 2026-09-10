@@ -39,7 +39,7 @@ const validateClient = (req, res, next) => {
 };
 
 const validateReservation = (req, res, next) => {
-  const { checkIn, checkOut, totalAmount, roomId, mainClientId, segments } = req.body;
+  const { checkIn, checkOut, totalAmount, roomId, mainClientId, segments, baseRate } = req.body;
   const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
   const hasSegments = Array.isArray(segments) && segments.length > 0;
   const errors = [];
@@ -68,8 +68,12 @@ const validateReservation = (req, res, next) => {
     errors.push('La fecha de check-out debe ser posterior al check-in');
   }
 
-  if (totalAmount && (isNaN(totalAmount) || totalAmount <= 0)) {
+  if (totalAmount != null && totalAmount !== '' && (isNaN(totalAmount) || totalAmount <= 0)) {
     errors.push('El monto total debe ser un número positivo');
+  }
+
+  if (baseRate != null && baseRate !== '' && (isNaN(baseRate) || parseFloat(baseRate) <= 0)) {
+    errors.push('La tarifa por noche debe ser mayor a 0');
   }
 
   if (errors.length > 0) {

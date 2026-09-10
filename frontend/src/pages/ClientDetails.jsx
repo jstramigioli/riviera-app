@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchClients, fetchReservations } from '../services/api';
+import { fetchClients, fetchReservations, getClientBalance } from '../services/api';
 import { getStatusLabel, RESERVATION_STATUSES } from '../utils/reservationStatusUtils';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
@@ -19,6 +19,7 @@ const ClientDetails = () => {
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [clientBalance, setClientBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('personal');
@@ -29,9 +30,10 @@ const ClientDetails = () => {
       setLoading(true);
       setError(null);
       
-      const [clientsData, reservationsData] = await Promise.all([
+      const [clientsData, reservationsData, balanceData] = await Promise.all([
         fetchClients(),
-        fetchReservations()
+        fetchReservations(),
+        getClientBalance(clientId).catch(() => null)
       ]);
 
       const foundClient = clientsData.find(c => c.id === parseInt(clientId));
@@ -44,6 +46,7 @@ const ClientDetails = () => {
 
       setClient(foundClient);
       setReservations(clientReservations);
+      setClientBalance(balanceData);
     } catch (err) {
       console.error('Error cargando datos del cliente:', err);
       setError('Error al cargar los datos del cliente');
@@ -101,10 +104,8 @@ const ClientDetails = () => {
     });
   };
 
-  const calculateTotalBalance = () => {
-    return reservations.reduce((total, reservation) => {
-      return total + (reservation.totalAmount || 0);
-    }, 0);
+  const getReservationBalance = (reservationId) => {
+    return clientBalance?.reservations?.find((r) => r.reservationId === reservationId) || null;
   };
 
   const getActiveReservations = () => {
@@ -200,7 +201,9 @@ const ClientDetails = () => {
     );
   }
 
-  const totalBalance = calculateTotalBalance();
+  const totalBalance = clientBalance?.balance ?? 0;
+  const totalCharges = clientBalance?.totalCharges ?? 0;
+  const totalPayments = clientBalance?.totalPayments ?? 0;
   const activeReservations = getActiveReservations();
   const completedReservations = getCompletedReservations();
   const currentStatus = getCurrentStatus();
@@ -385,12 +388,17 @@ const ClientDetails = () => {
                         <th>Check-in</th>
                         <th>Check-out</th>
                         <th>Estado</th>
-                        <th>Total</th>
+                        <th>Cargos</th>
+                        <th>Pagos</th>
+                        <th>Saldo</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody className={styles.tableBody}>
-                      {reservations.map(reservation => (
+                      {reservations.map(reservation => {
+                        const balanceRow = getReservationBalance(reservation.id);
+                        const saldo = balanceRow?.saldo ?? null;
+                        return (
                         <tr 
                           key={reservation.id} 
                           className={styles.reservationRow}
@@ -406,7 +414,13 @@ const ClientDetails = () => {
                             </span>
                           </td>
                           <td className={styles.totalAmount}>
-                            {formatPrice(reservation.totalAmount || 0)}
+                            {formatPrice(balanceRow?.totalCargos ?? 0)}
+                          </td>
+                          <td className={styles.totalAmount}>
+                            {formatPrice(balanceRow?.totalPagos ?? 0)}
+                          </td>
+                          <td className={`${styles.totalAmount} ${saldo > 0 ? styles.negative : styles.positive}`}>
+                            {formatPrice(saldo ?? 0)}
                           </td>
                           <td>
                             <button 
@@ -420,7 +434,7 @@ const ClientDetails = () => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -437,7 +451,15 @@ const ClientDetails = () => {
                   <h3>Resumen Financiero</h3>
                   <div className={styles.balanceDetails}>
                     <div className={styles.balanceItem}>
-                      <span className={styles.label}>Total Pendiente:</span>
+                      <span className={styles.label}>Total cargos:</span>
+                      <span className={styles.value}>{formatPrice(totalCharges)}</span>
+                    </div>
+                    <div className={styles.balanceItem}>
+                      <span className={styles.label}>Total pagos:</span>
+                      <span className={styles.value}>{formatPrice(totalPayments)}</span>
+                    </div>
+                    <div className={styles.balanceItem}>
+                      <span className={styles.label}>Saldo (cargos − pagos):</span>
                       <span className={`${styles.value} ${totalBalance > 0 ? styles.negative : styles.positive}`}>
                         {formatPrice(totalBalance)}
                       </span>

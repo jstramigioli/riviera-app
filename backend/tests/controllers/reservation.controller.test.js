@@ -160,6 +160,87 @@ describe('Controlador de Reservas', () => {
       expect(response.body.id).toBe(1);
     });
 
+    it('debería actualizar fechas/habitación/tarifa y regenerar cargos de alojamiento', async () => {
+      global.mockPrisma.reservation.findUnique
+        .mockResolvedValueOnce(reservationWithSegments()) // exists check in controller
+        .mockResolvedValue(reservationWithSegments({
+          segments: [{
+            ...segment,
+            startDate: '2024-02-01T00:00:00.000Z',
+            endDate: '2024-02-04T00:00:00.000Z',
+            roomId: 2,
+            baseRate: 1500,
+            room: { id: 2, name: 'Habitación 2', roomTypeId: 1 }
+          }]
+        }));
+
+      // findMany se usa para overlap (vacío) y para leer segmento activo actual
+      global.mockPrisma.reservationSegment.findMany.mockImplementation(async (args) => {
+        if (args?.where?.reservationId === 1 && args?.where?.isActive === true) {
+          return [segment];
+        }
+        return [];
+      });
+
+      global.mockPrisma.reservationSegment.updateMany.mockResolvedValue({ count: 1 });
+      global.mockPrisma.room.findUnique.mockResolvedValue({
+        id: 2,
+        name: 'Habitación 2',
+        roomTypeId: 1
+      });
+      global.mockPrisma.serviceType.findUnique.mockResolvedValue({
+        id: 'svc-desayuno',
+        name: 'Con Desayuno'
+      });
+      global.mockPrisma.cargo.deleteMany.mockResolvedValue({ count: 2 });
+      global.mockPrisma.cargo.create.mockResolvedValue({ id: 10 });
+      global.mockPrisma.reservationSegment.create.mockResolvedValue({
+        id: 99,
+        isActive: true,
+        startDate: new Date('2024-02-01'),
+        endDate: new Date('2024-02-04'),
+        roomId: 2,
+        roomTypeId: 1,
+        services: ['svc-desayuno'],
+        baseRate: 1500,
+        guestCount: 2,
+        room: { id: 2, name: 'Habitación 2', roomTypeId: 1 },
+        roomType: null
+      });
+
+      const response = await request(app)
+        .put('/api/reservations/1')
+        .send({
+          checkIn: '2024-02-01',
+          checkOut: '2024-02-04',
+          roomId: 2,
+          baseRate: 1500
+        })
+        .expect(200);
+
+      expect(response.body.id).toBe(1);
+      expect(global.mockPrisma.cargo.deleteMany).toHaveBeenCalled();
+      expect(global.mockPrisma.cargo.create).toHaveBeenCalled();
+      expect(response.body.lodgingChargesRegenerated).toBe(true);
+    });
+
+    it('debería rechazar tarifa inválida al editar estadía', async () => {
+      global.mockPrisma.reservation.findUnique.mockResolvedValue(reservationWithSegments());
+      global.mockPrisma.reservationSegment.findMany.mockResolvedValue([segment]);
+
+      const response = await request(app)
+        .put('/api/reservations/1')
+        .send({
+          checkIn: '2024-02-01',
+          checkOut: '2024-02-03',
+          roomId: 1,
+          baseRate: 0
+        })
+        .expect(400);
+
+      expect(response.body.details || response.body.message || response.body.error).toBeTruthy();
+    });
+
     it('debería devolver 404 si la reserva no existe', async () => {
       global.mockPrisma.reservation.findUnique.mockResolvedValue(null);
 
