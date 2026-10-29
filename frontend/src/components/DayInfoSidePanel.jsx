@@ -1,77 +1,94 @@
-import React from 'react';
-import { format } from 'date-fns';
+import React, { useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import SidePanel from './SidePanel';
 import styles from '../styles/DayInfoSidePanel.module.css';
+import { isoDate, toDateOnlyUtc } from '../utils/calendarDates';
 
-export default function DayInfoSidePanel({ 
-  selectedDate, 
-  rooms, 
-  reservations, 
-  isOpen, 
-  onClose 
+function civilOf(value) {
+  if (value == null) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  return isoDate(value);
+}
+
+export default function DayInfoSidePanel({
+  selectedDate,
+  rooms,
+  reservations,
+  isOpen,
+  onClose
 }) {
-  if (!selectedDate) return null;
+  const dayIso = useMemo(() => {
+    if (!selectedDate) return null;
+    if (typeof selectedDate === 'string') return selectedDate.slice(0, 10);
+    // Prefer local calendar day if Date came from UI click on civil iso via parseISO
+    try {
+      return isoDate(selectedDate);
+    } catch {
+      return format(selectedDate, 'yyyy-MM-dd');
+    }
+  }, [selectedDate]);
 
-  // Calcular estadísticas del día
-  const calculateDayStats = () => {
-    const dayStart = new Date(selectedDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(selectedDate);
-    dayEnd.setHours(23, 59, 59, 999);
+  const stats = useMemo(() => {
+    if (!dayIso) {
+      return {
+        checkIns: 0,
+        checkOuts: 0,
+        occupiedRooms: 0,
+        totalRooms: rooms?.length || 0,
+        roomOccupancyPercentage: 0,
+        totalGuests: 0,
+        guestOccupancyPercentage: 0
+      };
+    }
 
-    console.log('Calculando estadísticas para:', selectedDate.toISOString());
-    console.log('Día inicio:', dayStart.toISOString());
-    console.log('Día fin:', dayEnd.toISOString());
+    const totalRooms = rooms?.length || 0;
 
-    // Reservas que están activas en este día (ocupando habitación)
-    const activeReservations = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      const checkOut = new Date(reservation.checkOut);
-      // Una habitación está ocupada si:
-      // - El check-in es antes o igual al final del día Y
-      // - El check-out es DESPUÉS del final del día (no en el mismo día)
-      return checkIn <= dayEnd && checkOut > dayEnd;
-    });
+    // Half-open: ocupada si algún segmento activo cubre la noche dayIso
+    // (start <= day < end)
+    let occupiedRoomIds = new Set();
+    let checkIns = 0;
+    let checkOuts = 0;
+    let guestsOnDay = 0;
 
-    console.log('Reservas activas (excluyendo checkouts del día):', activeReservations.length);
+    for (const reservation of reservations || []) {
+      const segments =
+        reservation.segments?.filter((s) => s.isActive !== false) || [];
 
-    // Habitaciones ocupadas
-    const occupiedRooms = activeReservations.length;
-    const totalRooms = rooms.length;
-    const roomOccupancyPercentage = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
-
-    // Pasajeros alojados (asumiendo 1 pasajero por reserva por ahora)
-    const totalGuests = activeReservations.length;
-    const guestOccupancyPercentage = totalRooms > 0 ? (totalGuests / totalRooms) * 100 : 0;
-
-    // Ingresos (check-ins en este día)
-    const checkIns = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      return checkIn >= dayStart && checkIn <= dayEnd;
-    }).length;
-
-    console.log('Check-ins encontrados:', checkIns);
-
-    // Salidas (check-outs en este día) - CORREGIDO
-    // Una salida ocurre cuando la fecha de checkout es exactamente este día
-    const checkOuts = reservations.filter(reservation => {
-      const checkOut = new Date(reservation.checkOut);
-      // La reserva termina en este día (checkOut es igual al día actual)
-      const isCheckOutToday = checkOut >= dayStart && checkOut <= dayEnd;
-      
-      if (isCheckOutToday) {
-        console.log('Salida encontrada:', {
-          reservationId: reservation.id,
-          checkOut: checkOut.toISOString(),
-          client: reservation.mainClient?.firstName + ' ' + reservation.mainClient?.lastName
-        });
+      if (segments.length) {
+        for (const seg of segments) {
+          const start = civilOf(seg.startDate);
+          const end = civilOf(seg.endDate);
+          if (!start || !end) continue;
+          if (start === dayIso) checkIns += 1;
+          if (end === dayIso) checkOuts += 1;
+          if (start <= dayIso && dayIso < end) {
+            occupiedRoomIds.add(seg.roomId);
+            guestsOnDay += seg.guestCount || 1;
+          }
+        }
+      } else {
+        // Fallback legacy checkIn/checkOut civiles
+        const start = civilOf(reservation.checkIn);
+        const end = civilOf(reservation.checkOut);
+        if (!start || !end) continue;
+        if (start === dayIso) checkIns += 1;
+        if (end === dayIso) checkOuts += 1;
+        if (start <= dayIso && dayIso < end) {
+          occupiedRoomIds.add(reservation.roomId || reservation.id);
+          guestsOnDay += 1;
+        }
       }
-      
-      return isCheckOutToday;
-    }).length;
+    }
 
-    console.log('Check-outs encontrados:', checkOuts);
+    // Evitar doble conteo de check-ins/outs cuando hay multi-segmento el mismo día
+    // (arriba cuenta por segmento; para panel de día es aceptable como movimientos)
+
+    const occupiedRooms = occupiedRoomIds.size;
+    const roomOccupancyPercentage =
+      totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
+    const guestOccupancyPercentage =
+      totalRooms > 0 ? (guestsOnDay / totalRooms) * 100 : 0;
 
     return {
       checkIns,
@@ -79,19 +96,24 @@ export default function DayInfoSidePanel({
       occupiedRooms,
       totalRooms,
       roomOccupancyPercentage,
-      totalGuests,
+      totalGuests: guestsOnDay,
       guestOccupancyPercentage
     };
-  };
+  }, [dayIso, rooms, reservations]);
 
-  const stats = calculateDayStats();
-  const formattedDate = format(selectedDate, 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es });
+  if (!selectedDate || !dayIso) return null;
+
+  const dateForFormat = toDateOnlyUtc(dayIso);
+  const formattedDate = format(dateForFormat, "EEEE, d 'de' MMMM 'de' yyyy", {
+    locale: es
+  });
+  const shortDate = format(dateForFormat, "d 'de' MMMM", { locale: es });
 
   return (
     <SidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Información del ${format(selectedDate, 'd \'de\' MMMM', { locale: es })}`}
+      title={`Información del ${shortDate}`}
       width={450}
     >
       <div className={styles.content}>
@@ -127,7 +149,9 @@ export default function DayInfoSidePanel({
           <div className={styles.statCard}>
             <div className={styles.statIcon}>📊</div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</div>
+              <div className={styles.statValue}>
+                {stats.roomOccupancyPercentage.toFixed(1)}%
+              </div>
               <div className={styles.statLabel}>Ocupación (Habitaciones)</div>
             </div>
           </div>
@@ -135,7 +159,9 @@ export default function DayInfoSidePanel({
           <div className={styles.statCard}>
             <div className={styles.statIcon}>👥</div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.guestOccupancyPercentage.toFixed(1)}%</div>
+              <div className={styles.statValue}>
+                {stats.guestOccupancyPercentage.toFixed(1)}%
+              </div>
               <div className={styles.statLabel}>Ocupación (Pasajeros)</div>
             </div>
           </div>
@@ -152,10 +178,12 @@ export default function DayInfoSidePanel({
         <div className={styles.summary}>
           <h4>Resumen del Día</h4>
           <p>
-            El {format(selectedDate, 'd \'de\' MMMM', { locale: es })} se registraron{' '}
-            <strong>{stats.checkIns} ingresos</strong> y <strong>{stats.checkOuts} salidas</strong>.
-            La ocupación de habitaciones fue del <strong>{stats.roomOccupancyPercentage.toFixed(1)}%</strong> 
-            con <strong>{stats.totalGuests} pasajeros</strong> alojados.
+            El {shortDate} se registraron{' '}
+            <strong>{stats.checkIns} ingresos</strong> y{' '}
+            <strong>{stats.checkOuts} salidas</strong>. La ocupación de
+            habitaciones fue del{' '}
+            <strong>{stats.roomOccupancyPercentage.toFixed(1)}%</strong> con{' '}
+            <strong>{stats.totalGuests} pasajeros</strong> alojados.
           </p>
         </div>
 
@@ -167,14 +195,18 @@ export default function DayInfoSidePanel({
           </div>
           <div className={styles.detailItem}>
             <span className={styles.detailLabel}>Habitaciones disponibles:</span>
-            <span className={styles.detailValue}>{stats.totalRooms - stats.occupiedRooms}</span>
+            <span className={styles.detailValue}>
+              {stats.totalRooms - stats.occupiedRooms}
+            </span>
           </div>
           <div className={styles.detailItem}>
             <span className={styles.detailLabel}>Tasa de ocupación:</span>
-            <span className={styles.detailValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</span>
+            <span className={styles.detailValue}>
+              {stats.roomOccupancyPercentage.toFixed(1)}%
+            </span>
           </div>
         </div>
       </div>
     </SidePanel>
   );
-} 
+}

@@ -1,27 +1,45 @@
 const { PrismaClient } = require('@prisma/client');
+const { civilFromDb, daysBetweenCivil } = require('./calendarDates');
 const prisma = new PrismaClient();
 
+/** Normaliza un segmento con fechas civiles yyyy-MM-dd (sin Instant ambiguo). */
+function normalizeSegment(segment) {
+  if (!segment) return segment;
+  return {
+    ...segment,
+    startDate: civilFromDb(segment.startDate),
+    endDate: civilFromDb(segment.endDate)
+  };
+}
+
 /**
- * Obtiene los datos calculados de una reserva desde sus segmentos
+ * Obtiene los datos calculados de una reserva desde sus segmentos.
+ * checkIn / checkOut y fechas de segmento salen como yyyy-MM-dd.
  */
 function getReservationData(reservation) {
   if (!reservation.segments || reservation.segments.length === 0) {
     return null;
   }
 
-  const activeSegments = reservation.segments.filter(s => s.isActive);
+  const activeSegments = reservation.segments
+    .filter(s => s.isActive)
+    .map(normalizeSegment);
   
   if (activeSegments.length === 0) {
     return null;
   }
 
-  // Calcular fechas
-  const checkIn = new Date(Math.min(...activeSegments.map(s => new Date(s.startDate))));
-  const checkOut = new Date(Math.max(...activeSegments.map(s => new Date(s.endDate))));
+  const checkIn = activeSegments
+    .map((s) => s.startDate)
+    .sort()[0];
+  const checkOut = activeSegments
+    .map((s) => s.endDate)
+    .sort()
+    .at(-1);
   
-  // Calcular total
+  // Calcular total (noches half-open)
   const totalAmount = activeSegments.reduce((sum, segment) => {
-    const days = Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24));
+    const days = Math.max(1, daysBetweenCivil(segment.startDate, segment.endDate));
     return sum + (days * segment.baseRate);
   }, 0);
 
@@ -33,6 +51,8 @@ function getReservationData(reservation) {
     ...firstSegment.room,
     roomType: firstSegment.roomType || firstSegment.room.roomType
   } : null;
+
+  const nightCount = Math.max(1, daysBetweenCivil(checkIn, checkOut));
   
   return {
     id: reservation.id,
@@ -46,16 +66,15 @@ function getReservationData(reservation) {
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
-    // requiredTags eliminado - ahora es por segmento
     
     // Datos del primer segmento (como referencia)
     roomId: firstSegment.roomId,
-    reservationType: firstSegment.services[0], // Sin fallback - debe ser un ID válido de ServiceType
+    reservationType: firstSegment.services[0],
     requiredGuests: firstSegment.guestCount,
     
     // Datos calculados
-    days: Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)),
-    averageRate: totalAmount / Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)),
+    days: nightCount,
+    averageRate: totalAmount / nightCount,
     
     // Relaciones
     mainClient: reservation.mainClient,
@@ -63,7 +82,6 @@ function getReservationData(reservation) {
     segments: activeSegments,
     childReservations: reservation.childReservations,
     
-    // Incluir la información de la habitación desde el primer segmento con roomType
     room: roomData
   };
 }
