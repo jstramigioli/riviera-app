@@ -1,0 +1,311 @@
+/* Libro de Reservas — look v1, geometría v2 (CELL=42, LABEL_W=140) */
+
+.board {
+  width: calc(100% - 2rem);
+  margin: 1rem;
+  background: var(--color-bg-white);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 0;
+}
+
+.toolbarHint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.todayBtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-main);
+  border-radius: 8px;
+  padding: 0.35rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.todayBtn:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.loadingEdge {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.scroller {
+  overflow: auto;
+  max-height: calc(100vh - 80px - 144px - 44px - 48px);
+  border-radius: 0 0 12px 12px;
+  position: relative;
+  scrollbar-width: thin;
+}
+
+.gridInner {
+  /* min-width set inline: LABEL_W + days * CELL */
+}
+
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-bg-white);
+}
+
+.monthRow,
+.dayRow {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cornerCell {
+  position: sticky;
+  left: 0;
+  z-index: 30;
+  flex-shrink: 0;
+  width: 140px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  padding: 0.35rem 0.75rem;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.monthCell {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: var(--color-text-light);
+  font-weight: 600;
+  font-size: var(--font-size-small);
+  padding: 0.25rem 0;
+  height: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.monthLabel {
+  position: sticky;
+  left: 140px;
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 30px;
+}
+
+.dayCell {
+  flex-shrink: 0;
+  width: 42px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg);
+  text-align: center;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  height: 36px;
+}
+
+.dayCell:hover {
+  background: var(--color-bg-highlight);
+}
+
+.dayWeekday {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  line-height: 1.1;
+}
+
+.dayLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  line-height: 1.2;
+}
+
+.daySunday .dayLabel,
+.daySunday .dayWeekday {
+  color: var(--color-danger);
+}
+
+.dayToday {
+  background: var(--color-primary-light);
+}
+
+.dayToday .dayLabel {
+  color: var(--color-primary-dark);
+}
+
+.dayClosed {
+  background: #e9ecef;
+  cursor: default;
+}
+
+.dayClosed .dayLabel {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.roomRow {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  height: 30px;
+  position: relative;
+}
+
+.roomLabel {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  flex-shrink: 0;
+  width: 140px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-room);
+  padding: 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.roomName {
+  font-weight: 700;
+  font-size: var(--font-size-small);
+  color: var(--color-text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roomCap {
+  font-weight: 300;
+  color: var(--color-text-muted);
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+.cellsTrack {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.cellsBg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.cell {
+  flex-shrink: 0;
+  width: 42px;
+  height: 100%;
+  box-sizing: border-box;
+  border-right: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.cellClosed {
+  background: repeating-linear-gradient(
+    -45deg,
+    #e9ecef,
+    #e9ecef 4px,
+    #dee2e6 4px,
+    #dee2e6 8px
+  );
+}
+
+.cellHighlight {
+  background: var(--color-bg-highlight) !important;
+}
+
+.bar {
+  position: absolute;
+  border-radius: 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-reservation-border);
+  background-color: var(--color-reservation);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 4px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  z-index: 5;
+  text-decoration: none;
+  color: inherit;
+}
+
+.bar:hover,
+.barHovered {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  background-color: var(--color-reservation-hover) !important;
+  z-index: 6;
+}
+
+.barText {
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: var(--color-text-dark);
+}
+
+.emptyState {
+  padding: 3rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.errorBanner {
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--color-danger-light);
+  color: var(--color-danger-dark);
+  font-size: var(--font-size-small);
+}

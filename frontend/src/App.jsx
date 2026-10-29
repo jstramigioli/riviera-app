@@ -3,8 +3,7 @@ import { getStatusLabel } from "./utils/reservationStatusUtils";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
-import ReservationBar from './components/ReservationBar';
-import ReservationGrid from './components/ReservationGrid';
+import LibroReservasBoard from './components/LibroReservasBoard';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
@@ -200,12 +199,9 @@ function ReservationsView() {
         </div>
       </div>
       <div className={styles.gridWrapper}>
-        <ReservationGrid 
-          rooms={rooms} 
-          reservations={reservations}
-          setReservations={setReservations}
-          updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
+        <LibroReservasBoard
           onReservationClick={handleReservationClick}
+          reservationsForDayInfo={reservations}
         />
       </div>
       <SidePanel

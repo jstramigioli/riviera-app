@@ -55,6 +55,30 @@ export async function fetchReservations() {
   return res.json();
 }
 
+/** Calendario Libro de Reservas: ventana civil start + days. */
+export async function fetchCalendar(start, days) {
+  const params = new URLSearchParams({
+    start,
+    days: String(days)
+  });
+  const res = await fetch(`${API_URL}/calendar?${params}`);
+  if (!res.ok) {
+    let msg = 'Error fetching calendar';
+    try {
+      const body = await res.json();
+      msg = body.error || msg;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function fetchReservation(id) {
+  const res = await fetch(`${API_URL}/reservations/${id}`);
+  if (!res.ok) throw new Error('Error fetching reservation');
+  return res.json();
+}
+
 export async function fetchClients() {
   const res = await fetch(`${API_URL}/clients`);
   if (!res.ok) throw new Error('Error fetching clients');
