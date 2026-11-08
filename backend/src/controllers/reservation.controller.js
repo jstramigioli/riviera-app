@@ -12,6 +12,7 @@ const {
   validateReservationCreation,
   validateReservationUpdate
 } = require('../utils/segmentValidation');
+const { getCanonicalRoomTypePrice } = require('../services/canonicalPricingService');
 
 
 
@@ -204,55 +205,47 @@ exports.getReservationPricingDetails = async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
-    // Si no hay nightRates, generar las tarifas
+    // Path canónico: solo night rates persistidos al confirmar (snapshot).
+    // NO regenerar con DynamicPricing live — divergiría del monto cobrado/cotizado.
+    let pricingSource = 'stored-night-rates';
     if (!reservation.nightRates || reservation.nightRates.length === 0) {
-      console.log(`Generando nightRates para reserva ${id}`);
-      const roomId = reservation.segments && reservation.segments.length > 0 
-        ? reservation.segments[0].roomId 
-        : null;
-      
-      if (!roomId) {
-        return res.status(400).json({ error: 'No room found for reservation' });
-      }
-      
-      await reservationPricingService.calculateAndStoreNightRates(
-        parseInt(id),
-        roomId,
-        reservation.segments[0].startDate,
-        reservation.segments[0].endDate,
-        reservation.segments[0].services[0] || 'con_desayuno'
-      );
-      
-      // Recargar la reserva con las nightRates generadas
-      const updatedReservation = await prisma.reservation.findUnique({
-        where: { id: parseInt(id) },
-        include: {
-          mainClient: true,
-          guests: true,
-          nightRates: {
-            orderBy: { date: 'asc' }
-          },
-          segments: {
-            include: {
-              room: {
-                include: {
-                  roomType: true,
-                  tags: true
-                }
-              }
-            }
-          }
+      pricingSource = 'legacy-segment-average';
+      console.log(`Reserva ${id} sin nightRates snapshot; usando promedio de segmentos (legacy)`);
+      const synthetic = [];
+      for (const segment of reservation.segments || []) {
+        const start = new Date(segment.startDate);
+        const end = new Date(segment.endDate);
+        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+          synthetic.push({
+            id: `legacy-${segment.id}-${d.toISOString().slice(0, 10)}`,
+            reservationId: reservation.id,
+            date: new Date(d),
+            baseRate: segment.baseRate,
+            dynamicRate: segment.baseRate,
+            finalRate: segment.baseRate,
+            serviceType: segment.services?.[0] || 'base',
+            serviceRate: segment.baseRate,
+            manualOverride: false,
+            legacySynthetic: true
+          });
         }
-      });
-      
-      reservation.nightRates = updatedReservation.nightRates;
+      }
+      reservation.nightRates = synthetic;
     }
 
-    const pricingSummary = await reservationPricingService.getReservationPricingSummary(parseInt(id));
+    const totalAmount = reservation.nightRates.reduce((sum, n) => sum + Number(n.finalRate || 0), 0);
+    const numberOfNights = reservation.nightRates.length;
     
     res.json({
       reservation,
-      pricingSummary
+      pricingSummary: {
+        totalAmount,
+        numberOfNights,
+        averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0,
+        currency: 'ARS',
+        pricingSource,
+        pricingEngine: 'canonical-season-block-snapshot'
+      }
     });
   } catch (error) {
     console.error('Error obteniendo detalles de tarifas:', error);
@@ -715,33 +708,30 @@ async function findRoomCombinations(availableRooms, requiredGuests, occupiedRoom
   return combinations.slice(0, 3); // Limitar a 3 combinaciones
 }
 
-// Función para calcular el precio de una habitación usando bloques de temporada
+// Precio preliminar de disponibilidad — mismo motor canónico (%, redondeo)
 async function calculateRoomPrice(room, checkInDate, activeBlock) {
   try {
-    // Si no hay bloque activo, retornar 0
     if (!activeBlock) {
       return 0;
     }
 
-    // Obtener el precio base para el tipo de habitación y servicio por defecto
-    const seasonPrice = await prisma.seasonPrice.findFirst({
-      where: {
-        seasonBlockId: activeBlock.id,
-        roomTypeId: room.roomType.id,
-        isDraft: false
-      },
-      orderBy: {
-        basePrice: 'asc' // Tomar el precio más bajo como base
+    const blockWithRelations = await prisma.seasonBlock.findUnique({
+      where: { id: activeBlock.id },
+      include: {
+        seasonPrices: true,
+        blockServiceSelections: true
       }
     });
 
-    if (!seasonPrice) {
-      console.log(`No se encontró precio para habitación ${room.name} (tipo ${room.roomType.name}) en bloque ${activeBlock.name}`);
-      return 0;
-    }
+    const price = await getCanonicalRoomTypePrice({
+      hotelId: blockWithRelations?.hotelId || activeBlock.hotelId || 'default-hotel',
+      roomTypeId: room.roomType.id,
+      serviceTypeId: null,
+      block: blockWithRelations
+    });
 
-    console.log(`Precio encontrado para habitación ${room.name}: $${seasonPrice.basePrice}`);
-    return seasonPrice.basePrice;
+    console.log(`Precio canónico preliminar habitación ${room.name}: $${price}`);
+    return price;
   } catch (error) {
     console.error('Error calculando precio de habitación:', error);
     return 0;
