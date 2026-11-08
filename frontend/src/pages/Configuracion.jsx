@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styles from '../styles/App.module.css';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
@@ -11,13 +12,31 @@ import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
 
+const VALID_TABS = new Set([
+  'hotel',
+  'habitaciones',
+  'cargos-tarifas',
+  'calendario',
+  'tipo-cambio',
+  'usuarios',
+  'sistema'
+]);
+
 function ConfiguracionView() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
-    // Recuperar la pestaña activa del localStorage o usar 'habitaciones' por defecto
+    const fromUrl = new URLSearchParams(window.location.search).get('tab');
+    if (fromUrl && VALID_TABS.has(fromUrl)) return fromUrl;
     return localStorage.getItem('configActiveTab') || 'habitaciones';
   });
 
-  // Guardar la pestaña activa en localStorage cuando cambie
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && VALID_TABS.has(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);

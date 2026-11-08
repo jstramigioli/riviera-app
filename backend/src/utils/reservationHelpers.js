@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { toDateOnlyString } = require('../services/canonicalPricingService');
 
 /**
  * Obtiene los datos calculados de una reserva desde sus segmentos
@@ -179,13 +180,22 @@ async function createReservationWithSegments(reservationData) {
       throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
     }
     
+    let resolvedRoomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null;
+    if (!resolvedRoomTypeId && segmentData.roomId) {
+      const room = await prisma.room.findUnique({
+        where: { id: parseInt(segmentData.roomId) },
+        select: { roomTypeId: true }
+      });
+      resolvedRoomTypeId = room?.roomTypeId || null;
+    }
+
     const segment = await prisma.reservationSegment.create({
       data: {
         reservationId: reservation.id,
         startDate: new Date(segmentData.startDate),
         endDate: new Date(segmentData.endDate),
         roomId: parseInt(segmentData.roomId),
-        roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+        roomTypeId: resolvedRoomTypeId,
         services: segmentData.services, // Sin fallback - debe venir del frontend
         baseRate: parseFloat(segmentData.baseRate),
         guestCount: parseInt(segmentData.guestCount),
@@ -203,76 +213,81 @@ async function createReservationWithSegments(reservationData) {
     createdSegments.push(segment);
   }
 
-  // Crear automáticamente un cargo por cada noche de la reserva
+  // Cargos + night rates desde la cotización canónica (detalle por noche, no solo promedio)
   try {
-    for (const segment of createdSegments) {
+    let totalNights = 0;
+
+    for (let segmentIndex = 0; segmentIndex < createdSegments.length; segmentIndex++) {
+      const segment = createdSegments[segmentIndex];
+      const originalSegment = segments[segmentIndex] || {};
       const startDate = new Date(segment.startDate);
       const endDate = new Date(segment.endDate);
       const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-      
-      // Crear un cargo por cada noche
+      const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
+      const roomTypeId = segment.roomTypeId || segment.room?.roomTypeId || null;
+
+      let serviceTypeLabel = 'Alojamiento';
+      if (serviceTypeId) {
+        const serviceType = await prisma.serviceType.findUnique({ where: { id: serviceTypeId } });
+        serviceTypeLabel = serviceType?.name || serviceTypeId;
+      }
+
+      const quotedNightRates = Array.isArray(originalSegment.nightRates)
+        ? originalSegment.nightRates
+        : [];
+
       for (let i = 0; i < days; i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + i);
-        
-        // Formatear la fecha para la descripción
-        const dateStr = currentDate.toLocaleDateString('es-ES', {
+        const dateKey = toDateOnlyString(currentDate);
+
+        const quoted = quotedNightRates.find((nr) => {
+          const nrDate = toDateOnlyString(nr.date || nr.dateString);
+          return nrDate === dateKey;
+        });
+
+        const nightAmount = quoted
+          ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
+          : parseFloat(segment.baseRate);
+
+        const dateStr = currentDate.toLocaleDateString('es-AR', {
           weekday: 'short',
           day: 'numeric',
           month: 'short'
         });
-        
-        // Obtener el tipo de servicio del segmento
-        const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
-        let serviceTypeLabel = 'Desayuno'; // Valor por defecto
-        
-        if (serviceTypeId) {
-          try {
-            // Buscar el tipo de servicio en la base de datos
-            const serviceType = await prisma.serviceType.findUnique({
-              where: { id: serviceTypeId }
-            });
-            
-            if (serviceType) {
-              serviceTypeLabel = serviceType.name;
-            } else {
-              // Fallback a nombres conocidos si no se encuentra en la BD
-              serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                                serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                                serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
-                                serviceTypeId;
-            }
-          } catch (error) {
-            console.error('Error obteniendo tipo de servicio:', error);
-            // Usar fallback en caso de error
-            serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                              serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                              serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
-                              serviceTypeId;
-          }
-        }
-        
+
         await prisma.cargo.create({
           data: {
             reservaId: reservation.id,
+            roomTypeId: roomTypeId ? parseInt(roomTypeId) : null,
+            serviceTypeId: serviceTypeId || null,
             descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-            monto: segment.baseRate,
-            tipo: 'ALOJAMIENTO',
+            monto: nightAmount,
             notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
             fecha: currentDate
           }
         });
+
+        await prisma.reservationNightRate.create({
+          data: {
+            reservationId: reservation.id,
+            date: currentDate,
+            baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
+            dynamicRate: nightAmount,
+            finalRate: nightAmount,
+            serviceType: serviceTypeId || 'base',
+            serviceRate: nightAmount,
+            manualOverride: false
+          }
+        });
+
+        totalNights += 1;
       }
     }
 
-    const totalNights = createdSegments.reduce((totalDays, segment) => {
-      const days = Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24));
-      return totalDays + days;
-    }, 0);
-
-    console.log(`✅ ${totalNights} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    console.log(`✅ ${totalNights} cargos + night rates creados para reserva #${reservation.id}`);
   } catch (cargoError) {
-    console.error('❌ Error creando cargos de reserva:', cargoError);
+    console.error('❌ Error creando cargos/night rates de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
   }
 
@@ -332,42 +347,57 @@ async function createReservationWithSegment(reservationData) {
     }
   });
 
-  // Crear automáticamente un cargo por cada noche de la reserva
+  // Cargos de alojamiento (schema actual: roomTypeId + serviceTypeId, sin campo tipo)
   try {
     const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    
-    // Crear un cargo por cada noche
+    const room = await prisma.room.findUnique({
+      where: { id: parseInt(roomId) },
+      include: { roomType: true }
+    });
+    const serviceType = await prisma.serviceType.findUnique({ where: { id: reservationType } });
+    const serviceTypeLabel = serviceType?.name
+      || (reservationType === 'con_desayuno' ? 'Desayuno'
+        : reservationType === 'media_pension' ? 'Media Pensión'
+        : reservationType === 'pension_completa' ? 'Pensión Completa'
+        : reservationType);
+
     for (let i = 0; i < days; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
-      
-      // Formatear la fecha para la descripción
-      const dateStr = currentDate.toLocaleDateString('es-ES', {
+
+      const dateStr = currentDate.toLocaleDateString('es-AR', {
         weekday: 'short',
         day: 'numeric',
         month: 'short'
       });
-      
-      // Obtener el tipo de servicio
-      const serviceTypeLabel = reservationType === 'con_desayuno' ? 'Desayuno' : 
-                              reservationType === 'media_pension' ? 'Media Pensión' : 
-                              reservationType === 'pension_completa' ? 'Pensión Completa' : 
-                              reservationType;
-      
+
       await prisma.cargo.create({
         data: {
           reservaId: reservation.id,
+          roomTypeId: room?.roomTypeId || null,
+          serviceTypeId: serviceType?.id || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
           monto: baseRate,
-          tipo: 'ALOJAMIENTO',
           notas: `Noche ${i + 1} de ${days}`,
           fecha: currentDate
         }
       });
+
+      await prisma.reservationNightRate.create({
+        data: {
+          reservationId: reservation.id,
+          date: currentDate,
+          baseRate,
+          dynamicRate: baseRate,
+          finalRate: baseRate,
+          serviceType: reservationType,
+          serviceRate: baseRate,
+          manualOverride: false
+        }
+      });
     }
 
-    console.log(`✅ ${days} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    console.log(`✅ ${days} cargos + night rates creados para reserva #${reservation.id}`);
   } catch (cargoError) {
     console.error('❌ Error creando cargos de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo

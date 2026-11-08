@@ -477,7 +477,27 @@ function TarifasView() {
 }
 
 function TarifasCalendarioView() {
-  return <RatesCalendar />;
+  return (
+    <div style={{ padding: '16px' }}>
+      <div
+        role="status"
+        style={{
+          marginBottom: '16px',
+          padding: '12px 16px',
+          background: '#fff8e6',
+          border: '1px solid #f0d78c',
+          borderRadius: '8px',
+          color: '#5c4b1a',
+          maxWidth: '960px'
+        }}
+      >
+        Calendario paralelo (legacy). No es el path canónico de cotización ni de cargos.
+        Gestioná tarifas operativas en{' '}
+        <a href="/configuracion?tab=cargos-tarifas">Configuración → Cargos y Tarifas</a>.
+      </div>
+      <RatesCalendar />
+    </div>
+  );
 }
 
 function CobrosPagosView() {

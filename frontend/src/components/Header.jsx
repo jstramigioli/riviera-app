@@ -29,15 +29,9 @@ function Header() {
           </Link>
           <Link 
             to="/tarifas" 
-            className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
+            className={`${styles.navLink} ${location.pathname.startsWith('/tarifas') ? styles.active : ''}`}
           >
             Tarifas
-          </Link>
-          <Link 
-            to="/precios-inteligentes" 
-            className={`${styles.navLink} ${location.pathname === '/precios-inteligentes' ? styles.active : ''}`}
-          >
-            Precios Inteligentes
           </Link>
           <Link 
             to="/cobros-pagos" 

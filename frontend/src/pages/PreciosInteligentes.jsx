@@ -33,8 +33,26 @@ function PreciosInteligentesView() {
   return (
     <div className={styles.appContainer}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Precios Inteligentes</h1>
-        <p className={styles.subtitle}>Configura el sistema de precios dinámicos</p>
+        <h1 className={styles.title}>Precios inteligentes (experimental)</h1>
+        <p className={styles.subtitle}>
+          Laboratorio — no afecta Consulta, confirmación de reserva ni cargos.
+          El path canónico usa bloques de temporada + % de servicio + redondeo (ARS).
+        </p>
+        <div
+          role="status"
+          style={{
+            marginTop: '12px',
+            padding: '12px 16px',
+            background: '#fff8e6',
+            border: '1px solid #f0d78c',
+            borderRadius: '8px',
+            color: '#5c4b1a',
+            maxWidth: '720px'
+          }}
+        >
+          Activar o editar estos parámetros no cambia lo que cotiza recepción ni lo que se cobra.
+          Para tarifas operativas usá Configuración → Cargos y Tarifas.
+        </div>
       </div>
       
       <div style={{ 
