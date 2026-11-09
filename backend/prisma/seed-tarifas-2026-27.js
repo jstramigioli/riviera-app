@@ -115,44 +115,175 @@ async function ensureRounding(hotelId, rounding, dryRun) {
   return created;
 }
 
-async function ensureServiceTypes(hotelId, serviceTypes, dryRun) {
-  const byKey = {};
-  for (const st of serviceTypes) {
-    const existing = await prisma.serviceType.findFirst({
-      where: { hotelId, name: st.name },
-    });
-    if (existing) {
-      if (!dryRun) {
-        await prisma.serviceType.update({
-          where: { id: existing.id },
-          data: {
-            description: st.description,
-            orderIndex: st.orderIndex,
-            isActive: true,
-          },
-        });
-      }
-      byKey[st.key] = existing;
-      console.log(`✅ ServiceType: ${st.name}`);
-      continue;
-    }
-    if (dryRun) {
-      console.log(`🔎 [dry-run] crearía ServiceType ${st.name}`);
-      byKey[st.key] = { id: `dry-${st.key}`, name: st.name };
-      continue;
-    }
-    const created = await prisma.serviceType.create({
-      data: {
-        hotelId,
-        name: st.name,
-        description: st.description,
-        orderIndex: st.orderIndex,
-        isActive: true,
+/**
+ * Nombres legacy del hotel que equivalen a los del Excel/seed.
+ * El primer nombre de cada lista es el canónico del seed.
+ * Unificar: Solo Alojamiento↔Sin desayuno, Desayuno Riviera↔Con Desayuno,
+ * Desayuno y Media Pensión↔Media Pensión.
+ */
+const SERVICE_NAME_ALIASES = {
+  solo_alojamiento: ['Solo Alojamiento', 'Sin desayuno', 'Solo alojamiento'],
+  desayuno_riviera: ['Desayuno Riviera', 'Con Desayuno', 'Con desayuno'],
+  media_pension: ['Desayuno y Media Pensión', 'Media Pensión', 'Media pensión'],
+};
+
+function normalizeServiceName(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function aliasSetForKey(key, canonicalName) {
+  const names = new Set([canonicalName, ...(SERVICE_NAME_ALIASES[key] || [])]);
+  return new Set([...names].map(normalizeServiceName));
+}
+
+/**
+ * Reasigna FKs de un ServiceType legacy al canónico y elimina el legacy.
+ * SeasonPrices/selecciones que ya existen en el canónico se borran (no se duplican).
+ */
+async function mergeServiceTypeInto(keepId, dropId, dryRun) {
+  if (keepId === dropId) return;
+
+  const dropPrices = await prisma.seasonPrice.findMany({ where: { serviceTypeId: dropId } });
+  const dropSels = await prisma.blockServiceSelection.findMany({ where: { serviceTypeId: dropId } });
+  const dropCargos = await prisma.cargo.count({ where: { serviceTypeId: dropId } });
+  const segments = await prisma.reservationSegment.findMany({
+    where: { services: { has: dropId } },
+    select: { id: true, services: true },
+  });
+
+  console.log(
+    `   🔀 merge ${dropId} → ${keepId}: prices=${dropPrices.length} sels=${dropSels.length} cargos=${dropCargos} segments=${segments.length}`
+  );
+
+  if (dryRun) return;
+
+  for (const price of dropPrices) {
+    const collision = await prisma.seasonPrice.findFirst({
+      where: {
+        seasonBlockId: price.seasonBlockId,
+        roomTypeId: price.roomTypeId,
+        serviceTypeId: keepId,
       },
     });
-    byKey[st.key] = created;
-    console.log(`✅ ServiceType creado: ${st.name}`);
+    if (collision) {
+      await prisma.seasonPrice.delete({ where: { id: price.id } });
+    } else {
+      await prisma.seasonPrice.update({
+        where: { id: price.id },
+        data: { serviceTypeId: keepId },
+      });
+    }
   }
+
+  for (const sel of dropSels) {
+    const collision = await prisma.blockServiceSelection.findFirst({
+      where: {
+        seasonBlockId: sel.seasonBlockId,
+        serviceTypeId: keepId,
+      },
+    });
+    if (collision) {
+      await prisma.blockServiceSelection.delete({ where: { id: sel.id } });
+    } else {
+      await prisma.blockServiceSelection.update({
+        where: { id: sel.id },
+        data: { serviceTypeId: keepId },
+      });
+    }
+  }
+
+  if (dropCargos > 0) {
+    await prisma.cargo.updateMany({
+      where: { serviceTypeId: dropId },
+      data: { serviceTypeId: keepId },
+    });
+  }
+
+  for (const seg of segments) {
+    const next = [...new Set(seg.services.map((id) => (id === dropId ? keepId : id)))];
+    await prisma.reservationSegment.update({
+      where: { id: seg.id },
+      data: { services: next },
+    });
+  }
+
+  await prisma.serviceType.delete({ where: { id: dropId } });
+}
+
+async function ensureServiceTypes(hotelId, serviceTypes, dryRun) {
+  const all = await prisma.serviceType.findMany({ where: { hotelId } });
+  const byKey = {};
+
+  for (const st of serviceTypes) {
+    const aliases = aliasSetForKey(st.key, st.name);
+    const matches = all.filter((row) => aliases.has(normalizeServiceName(row.name)));
+
+    // Preferir el que ya tiene el nombre canónico; si no, el de más SeasonPrices.
+    let keep = matches.find((row) => row.name === st.name) || null;
+    if (!keep && matches.length > 0) {
+      const scored = await Promise.all(
+        matches.map(async (row) => ({
+          row,
+          n: await prisma.seasonPrice.count({ where: { serviceTypeId: row.id } }),
+        }))
+      );
+      scored.sort((a, b) => b.n - a.n);
+      keep = scored[0].row;
+    }
+
+    if (!keep) {
+      if (dryRun) {
+        console.log(`🔎 [dry-run] crearía ServiceType ${st.name}`);
+        byKey[st.key] = { id: `dry-${st.key}`, name: st.name };
+        continue;
+      }
+      const created = await prisma.serviceType.create({
+        data: {
+          hotelId,
+          name: st.name,
+          description: st.description,
+          orderIndex: st.orderIndex,
+          isActive: true,
+        },
+      });
+      all.push(created);
+      byKey[st.key] = created;
+      console.log(`✅ ServiceType creado: ${st.name}`);
+      continue;
+    }
+
+    const duplicates = matches.filter((row) => row.id !== keep.id);
+    for (const dup of duplicates) {
+      console.log(`🗑️  Unificando legacy "${dup.name}" → "${st.name}"`);
+      await mergeServiceTypeInto(keep.id, dup.id, dryRun);
+      const idx = all.findIndex((row) => row.id === dup.id);
+      if (idx >= 0) all.splice(idx, 1);
+    }
+
+    if (!dryRun) {
+      keep = await prisma.serviceType.update({
+        where: { id: keep.id },
+        data: {
+          name: st.name,
+          description: st.description,
+          orderIndex: st.orderIndex,
+          isActive: true,
+        },
+      });
+      const idx = all.findIndex((row) => row.id === keep.id);
+      if (idx >= 0) all[idx] = keep;
+    }
+
+    byKey[st.key] = { ...keep, name: st.name };
+    console.log(
+      `✅ ServiceType: ${st.name} (id=${keep.id}${duplicates.length ? `, fusionó ${duplicates.length} legacy` : ''})`
+    );
+  }
+
   return byKey;
 }
 
