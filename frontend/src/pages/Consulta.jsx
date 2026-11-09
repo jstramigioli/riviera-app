@@ -264,6 +264,7 @@ export default function Consulta() {
   const [showLoadQueryModal, setShowLoadQueryModal] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
   const [lastClientId, setLastClientId] = useState(null);
+  const [isSavingConsulta, setIsSavingConsulta] = useState(false);
   
   // Estados para selección de consultas múltiples
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
@@ -526,14 +527,14 @@ export default function Consulta() {
   const queryGroupIdRef = useRef(null);
   const isSavingRef = useRef(false);
 
-  // Función para guardar/actualizar consulta automáticamente
-  const saveQueryAutomatically = useCallback(async () => {
+  // Persiste Query/QueryGroup (no crea Reservation). Usado por auto-save y "Guardar consulta".
+  const saveQueryAutomatically = useCallback(async ({ silent = true } = {}) => {
     const clientId = formData.mainClient.id;
     
     // Evitar guardados concurrentes
     if (isSavingRef.current) {
       console.log('⏭️ Ya hay un guardado en progreso, saltando...');
-      return;
+      return { ok: false, reason: 'busy' };
     }
     
     console.log('🔍 saveQueryAutomatically ejecutándose');
@@ -542,19 +543,21 @@ export default function Consulta() {
     console.log('🔍 Número de segmentos:', segments.length);
     
     // Solo guardar si hay un cliente seleccionado
-    if (!clientId) return;
+    if (!clientId) {
+      return { ok: false, reason: 'no_client' };
+    }
 
     // Validar que haya segmentos
     if (!segments || segments.length === 0) {
       console.log('⚠️ No hay segmentos para guardar');
-      return;
+      return { ok: false, reason: 'no_segments' };
     }
 
     // Validar que al menos un segmento tenga fechas
     const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
     if (!hasValidSegment) {
       console.log('⚠️ No hay segmentos con fechas válidas para guardar');
-      return;
+      return { ok: false, reason: 'no_dates' };
     }
 
     isSavingRef.current = true;
@@ -586,32 +589,81 @@ export default function Consulta() {
         notes: notes
       };
 
+      let result;
       if (queryGroupIdRef.current) {
         // Actualizar consulta existente
         console.log('🔄 Actualizando consulta existente:', queryGroupIdRef.current);
-        const result = await updateMultiSegmentQuery(queryGroupIdRef.current, queryData);
+        result = await updateMultiSegmentQuery(queryGroupIdRef.current, queryData);
         console.log('✅ Consulta multi-segmento actualizada:', result.queryGroupId);
         console.log('✅ Segmentos actualizados:', result.segmentCount);
       } else {
         // Crear nueva consulta multi-segmento
         console.log('➕ Creando nueva consulta multi-segmento');
-        const result = await createMultiSegmentQuery(queryData);
+        result = await createMultiSegmentQuery(queryData);
         
         // Guardar el queryGroupId para futuras actualizaciones
         if (result.queryGroupId) {
           queryGroupIdRef.current = result.queryGroupId;
+          setCurrentQueryGroupId(result.queryGroupId);
           setCurrentQueryId(result.segments[0].id); // Solo para referencia en UI
           console.log('✅ Consulta multi-segmento creada:', result.queryGroupId);
           console.log('✅ Segmentos creados:', result.segmentCount);
         }
       }
+
+      return { ok: true, result };
     } catch (error) {
       console.error('Error guardando consulta automáticamente:', error);
-      // No mostrar error al usuario, es guardado automático
+      if (!silent) {
+        throw error;
+      }
+      return { ok: false, reason: 'error', error };
     } finally {
       isSavingRef.current = false;
     }
   }, [formData.mainClient.id, segments, notes]);
+
+  // Guardar consulta explícitamente (sin crear reserva pendiente)
+  const handleSaveConsulta = useCallback(async () => {
+    if (!formData.mainClient.id) {
+      alert('Seleccioná un cliente antes de guardar la consulta.');
+      return;
+    }
+
+    const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
+    if (!hasValidSegment) {
+      alert('Completá check-in y check-out de al menos un segmento para guardar la consulta.');
+      return;
+    }
+
+    setIsSavingConsulta(true);
+
+    try {
+      const outcome = await saveQueryAutomatically({ silent: false });
+      if (!outcome?.ok) {
+        if (outcome?.reason === 'busy') {
+          alert('Ya hay un guardado en curso. Esperá un momento e intentá de nuevo.');
+          return;
+        }
+        throw new Error(outcome?.reason || 'No se pudo guardar la consulta');
+      }
+
+      const queryId = outcome.result?.segments?.[0]?.id || currentQueryId;
+      alert(
+        queryId
+          ? `Consulta #${queryId} guardada. No se creó una reserva: la recuperás en Consultas y Reservas.`
+          : 'Consulta guardada. No se creó una reserva: la recuperás en Consultas y Reservas.'
+      );
+
+      // Ir al listado: deja claro que es Query recuperable, no Reservation pendiente
+      navigate('/consultas-reservas');
+    } catch (error) {
+      console.error('Error al guardar consulta:', error);
+      alert(`No se pudo guardar la consulta: ${error.message || 'Error desconocido'}`);
+    } finally {
+      setIsSavingConsulta(false);
+    }
+  }, [formData.mainClient.id, segments, saveQueryAutomatically, currentQueryId, navigate]);
 
   // Función para cargar clientes
   const loadClients = useCallback(async () => {
@@ -3243,6 +3295,21 @@ export default function Consulta() {
             title="Copiar datos de la consulta al portapapeles"
           >
             📋 Copiar Datos
+          </button>
+
+          {/* Guardar como Query/QueryGroup — no crea Reservation (ni pendiente) */}
+          <button
+            type="button"
+            className={styles.draftButton}
+            onClick={handleSaveConsulta}
+            disabled={isSavingConsulta || !formData.mainClient.id}
+            title={
+              !formData.mainClient.id
+                ? 'Seleccioná un cliente para guardar la consulta'
+                : 'Guardar datos como consulta recuperable, sin confirmar reserva'
+            }
+          >
+            {isSavingConsulta ? 'Guardando…' : '💾 Guardar consulta'}
           </button>
 
           {/* Botón de crear reserva - Solo si hay cliente */}

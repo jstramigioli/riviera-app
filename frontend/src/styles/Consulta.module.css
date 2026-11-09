@@ -1280,10 +1280,20 @@
   font-size: 0.9rem;
   font-weight: 600;
   transition: background-color 0.2s;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.draftButton:hover {
+.draftButton:hover:not(:disabled) {
   background: #5a6268;
+}
+
+.draftButton:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
 }
 
 .confirmButton {
