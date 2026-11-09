@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import LibroReservasBoard from './components/LibroReservasBoard';
@@ -34,6 +34,7 @@ import RoomDetails from './pages/RoomDetails';
 import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
+  const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [notificationModal, setNotificationModal] = useState({
@@ -57,6 +58,8 @@ function ReservationsView() {
   };
   
   const {
+    rooms,
+    clients,
     setClients,
     reservations,
     setReservations,
@@ -206,7 +209,21 @@ function ReservationsView() {
         width={600}
       >
         {panelMode === 'reservation' && selectedReservation && (
-          <ReservationDetailsPanel reservation={selectedReservation} onStatusChange={handleStatusChange} />
+          <ReservationDetailsPanel
+            reservation={selectedReservation}
+            onStatusChange={handleStatusChange}
+            isEditing={isEditing}
+            editData={editData}
+            rooms={rooms}
+            clients={clients}
+            onEditToggle={handleEditToggle}
+            onEditChange={handleEditChange}
+            onSave={handleEditSave}
+            onOpenFullEdit={(id) => {
+              closePanel();
+              navigate(`/reservations/${id}`, { state: { isEditing: true } });
+            }}
+          />
         )}
 
         {panelMode === 'client' && selectedClient && (

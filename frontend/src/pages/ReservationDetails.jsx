@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
-  fetchReservations, 
-  fetchRooms, 
+  fetchReservations,
+  fetchRooms,
+  fetchClients,
+  updateReservation,
   API_URL,
   getReservationFinancialSummary,
   getPagosByReserva,
@@ -16,22 +18,26 @@ import {
   deleteCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
+import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
 import PagosTab from '../components/ReservationTabs/PagosTab';
 import CargosTab from '../components/ReservationTabs/CargosTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import ServiciosTab from '../components/ReservationTabs/ServiciosTab';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import styles from './ReservationDetails.module.css';
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [allReservations, setAllReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -51,15 +57,21 @@ const ReservationDetails = () => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [tags, setTags] = useState([]);
 
+  // Edición
+  const [isEditing, setIsEditing] = useState(Boolean(location.state?.isEditing));
+  const [editData, setEditData] = useState(null);
+  const [saving, setSaving] = useState(false);
+
   // Cargar datos iniciales
   useEffect(() => {
     const loadReservationData = async () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
+        const [reservationsData, roomsData, clientsData, serviceTypesResponse, tagsResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
+          fetchClients(),
           fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
           fetch('http://localhost:3001/api/tags').then(res => res.json())
         ]);
@@ -73,7 +85,10 @@ const ReservationDetails = () => {
         }
         
         setReservation(foundReservation);
+        setEditData(foundReservation);
+        setAllReservations(reservationsData);
         setRooms(roomsData);
+        setClients(clientsData);
         setServiceTypes(serviceTypesResponse.data || []);
         setTags(tagsResponse || []);
         
@@ -89,6 +104,13 @@ const ReservationDetails = () => {
       loadReservationData();
     }
   }, [reservationId]);
+
+  useEffect(() => {
+    if (location.state?.isEditing) {
+      setIsEditing(true);
+      setActiveTab('general');
+    }
+  }, [location.state?.isEditing]);
 
   // Cargar datos financieros cuando se acceda a esas pestañas
   useEffect(() => {
@@ -216,6 +238,59 @@ const ReservationDetails = () => {
     }
   };
 
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditData(reservation);
+      setIsEditing(false);
+      return;
+    }
+    setEditData(reservation);
+    setIsEditing(true);
+    setActiveTab('general');
+  };
+
+  const handleEditSave = async () => {
+    if (!editData) return;
+
+    const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
+    if (!dateValidation.isValid) {
+      alert(`Error de validación: ${dateValidation.message}`);
+      return;
+    }
+
+    const conflict = validateReservationConflict(
+      allReservations,
+      editData.roomId,
+      editData.checkIn,
+      editData.checkOut,
+      editData.id
+    );
+
+    if (conflict.hasConflict) {
+      showConflictNotification(conflict.message);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await updateReservation(editData.id, editData);
+      setReservation(updated);
+      setEditData(updated);
+      setAllReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setIsEditing(false);
+      alert('Reserva actualizada');
+    } catch (err) {
+      console.error('Error guardando reserva:', err);
+      alert(`Error al guardar: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteReservation = async () => {
     try {
       const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
@@ -269,6 +344,12 @@ const ReservationDetails = () => {
         return (
           <GeneralInfoTab
             reservation={reservation}
+            editData={editData}
+            isEditing={isEditing}
+            rooms={rooms}
+            clients={clients}
+            serviceTypes={serviceTypes}
+            onEditChange={handleEditChange}
             financialSummary={financialSummary}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
@@ -421,26 +502,48 @@ const ReservationDetails = () => {
         {/* Footer con botones de acción */}
         <div className={styles.sidePanelFooter}>
           <div className={styles.actionButtons}>
-            <button 
-              onClick={() => setShowDeleteModal(true)}
-              className={styles.deleteButton}
-              title="Eliminar reserva"
+            <button
+              onClick={handleEditToggle}
+              className={styles.editButton}
+              title={isEditing ? 'Cancelar edición' : 'Editar datos'}
             >
-              Eliminar
+              {isEditing ? <><FaTimes /> Cancelar</> : <><FaPen /> Editar</>}
             </button>
-            <button 
-              onClick={handleBackClick}
-              className={styles.backButton}
-            >
-              Volver
-            </button>
+            {isEditing ? (
+              <button
+                onClick={handleEditSave}
+                className={styles.backButton}
+                disabled={saving}
+                title="Guardar cambios"
+              >
+                <FaSave /> {saving ? 'Guardando…' : 'Guardar'}
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowDeleteModal(true)}
+                className={styles.deleteButton}
+                title="Eliminar reserva"
+              >
+                Eliminar
+              </button>
+            )}
+            {!isEditing && (
+              <button 
+                onClick={handleBackClick}
+                className={styles.backButton}
+              >
+                Volver
+              </button>
+            )}
           </div>
-          <div className={styles.statusButtons}>
-            <ReservationStatusButtons 
-              reservation={reservation} 
-              onStatusChange={handleStatusChange} 
-            />
-          </div>
+          {!isEditing && (
+            <div className={styles.statusButtons}>
+              <ReservationStatusButtons 
+                reservation={reservation} 
+                onStatusChange={handleStatusChange} 
+              />
+            </div>
+          )}
         </div>
       </div>
 

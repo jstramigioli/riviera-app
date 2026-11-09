@@ -306,8 +306,24 @@
 
 .actionButtons {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
+}
+
+.actionButtons .editButton,
+.actionButtons .backButton,
+.actionButtons .deleteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusButtons > div {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  width: 100%;
 }
 
 .editButton,

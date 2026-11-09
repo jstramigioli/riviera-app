@@ -11,14 +11,69 @@
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  padding: 24px 24px 16px 24px;
+  padding: 20px 20px 14px 20px;
   border-bottom: 1px solid #e5e7eb;
   background: var(--color-primary);
   color: white;
   border-radius: var(--radius-md) 12px 0 0;
   flex-shrink: 0;
+}
+
+.headerMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.headerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.headerActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.headerActionBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.saveRow {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.saveButton {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #28a745;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.saveButton:hover {
+  background: #218838;
 }
 
 .icon {

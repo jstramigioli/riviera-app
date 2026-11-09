@@ -25,13 +25,13 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
               className={`${styles.actionButton} ${styles.confirm}`}
               onClick={() => handleStatusChange('CONFIRMADA', 'confirm')}
             >
-              Confirmar reserva
+              Confirmar
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
               onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
-              Cancelar reserva
+              Cancelar
             </button>
           </>
         );
@@ -43,20 +43,20 @@ const ReservationStatusButtons = ({ reservation, onStatusChange }) => {
               className={`${styles.actionButton} ${styles.checkIn}`}
               onClick={() => handleStatusChange('INGRESADA', 'check-in')}
             >
-              Registrar check-in
+              Check-in
             </button>
             <button 
               className={`${styles.actionButton} ${styles.cancel}`}
               onClick={() => handleStatusChange('CANCELADA', 'cancel')}
             >
-              Cancelar reserva
+              Cancelar
             </button>
             {checkInPassed && (
               <button 
                 className={`${styles.actionButton} ${styles.noShow}`}
                 onClick={() => handleStatusChange('NO_PRESENTADA', 'no-show')}
               >
-                Marcar como no presentada
+                No-show
               </button>
             )}
           </>
