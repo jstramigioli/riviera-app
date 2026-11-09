@@ -391,24 +391,14 @@ export default function LibroReservasBoard({
   return (
     <>
       <div className={styles.board} ref={measureRef}>
-        <div className={styles.toolbar}>
-          <span className={styles.toolbarHint}>
-            {windowStart
-              ? `${formatDateUi(windowStart)} → ${formatDateUi(shiftIso(windowStart, days.length))}`
-              : null}
-            {loadingEdge ? (
-              <span className={styles.loadingEdge}>
-                {' '}
-                cargando {loadingEdge === 'left' ? '←' : '→'}
-              </span>
-            ) : null}
+        <button type="button" className={styles.todayBtn} onClick={jumpToToday}>
+          Hoy
+        </button>
+        {loadingEdge ? (
+          <span className={styles.loadingEdge} aria-live="polite">
+            cargando {loadingEdge === 'left' ? '←' : '→'}
           </span>
-          <div className={styles.toolbarActions}>
-            <button type="button" className={styles.todayBtn} onClick={jumpToToday}>
-              Hoy
-            </button>
-          </div>
-        </div>
+        ) : null}
 
         {error ? <div className={styles.errorBanner}>{error}</div> : null}
 

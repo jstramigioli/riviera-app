@@ -1,8 +1,9 @@
 /* Libro de Reservas — look v1, geometría v2 (CELL=42, LABEL_W=140) */
 
 .board {
+  position: relative;
   width: calc(100% - 1.5rem);
-  margin: 0.75rem;
+  margin: 0.5rem 0.75rem;
   background: var(--color-bg-white);
   border-radius: 8px;
   border: 1px solid var(--color-border);
@@ -14,35 +15,20 @@
   flex: 1;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0;
-}
-
-.toolbarHint {
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.toolbarActions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
 .todayBtn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  z-index: 40;
   border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--color-bg-white);
   color: var(--color-text-main);
   border-radius: 4px;
-  padding: 0.25rem 0.65rem;
+  padding: 0.2rem 0.55rem;
   font-size: var(--font-size-small);
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   transition: background 0.15s ease;
 }
 
@@ -52,9 +38,14 @@
 }
 
 .loadingEdge {
+  position: absolute;
+  top: 0.55rem;
+  right: 4.25rem;
+  z-index: 40;
   font-size: 0.75rem;
   color: var(--color-primary);
   animation: pulse 1s infinite;
+  pointer-events: none;
 }
 
 @keyframes pulse {
@@ -64,7 +55,7 @@
 
 .scroller {
   overflow: auto;
-  max-height: calc(100vh - 52px - 44px - 32px);
+  max-height: calc(100vh - 52px - 16px);
   border-radius: 0 0 8px 8px;
   position: relative;
   scrollbar-width: thin;
@@ -187,7 +178,7 @@
 .roomRow {
   display: flex;
   border-bottom: 1px solid var(--color-border);
-  height: 30px;
+  height: 22px;
   position: relative;
 }
 
@@ -200,11 +191,12 @@
   box-sizing: border-box;
   border-right: 1px solid var(--color-border);
   background: var(--color-bg-room);
-  padding: 0 0.75rem;
+  padding: 0 0.5rem;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   overflow: hidden;
+  line-height: 1;
 }
 
 .roomName {
@@ -287,7 +279,7 @@
 
 .barText {
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
