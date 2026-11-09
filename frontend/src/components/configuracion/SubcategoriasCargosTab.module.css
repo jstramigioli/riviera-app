@@ -22,7 +22,7 @@
 
 .titleSection h3 {
   margin: 0 0 8px 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -71,7 +71,7 @@
   text-align: center;
   padding: 60px 20px;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -83,7 +83,7 @@
 .emptyState h4 {
   margin: 0 0 12px 0;
   color: #2d3748;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
 }
 
 .emptyState p {
@@ -113,7 +113,7 @@
 /* Tabla */
 .tableContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
@@ -152,7 +152,7 @@
 .toggleButton {
   width: auto !important;
   padding: 4px 8px !important;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -262,7 +262,7 @@
   height: 300px;
   text-align: center;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin: 20px;
 }
 
@@ -304,7 +304,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
@@ -324,7 +324,7 @@
 .modalHeader h3 {
   margin: 0;
   color: #2d3748;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .closeButton {

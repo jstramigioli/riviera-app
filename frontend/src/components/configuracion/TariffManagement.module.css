@@ -18,7 +18,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid #e9ecef;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -31,8 +31,8 @@
 
 /* Header */
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
   padding: 24px;
   margin-bottom: 24px;
   color: white;
@@ -52,7 +52,7 @@
 
 .title {
   margin: 0 0 8px 0;
-  font-size: 1.75rem;
+  font-size: var(--font-size-xlarge);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -60,7 +60,7 @@
 }
 
 .titleIcon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
 }
 
 .subtitle {
@@ -121,7 +121,7 @@
 .navigationTabs {
   display: flex;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 8px;
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -151,14 +151,14 @@
 }
 
 .navTab.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .navTab.active:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Content Sections */
@@ -170,7 +170,7 @@
 .intelligentSection,
 .seasonalSection {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -183,7 +183,7 @@
 
 .sectionHeader h3 {
   margin: 0 0 8px 0;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #2d3748;
 }
@@ -204,7 +204,7 @@
 
 .statCard {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -215,19 +215,19 @@
 
 .statCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .statIcon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
 }
 
 .statContent {
@@ -235,7 +235,7 @@
 }
 
 .statValue {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 4px;
@@ -250,21 +250,21 @@
 /* Empty State */
 .emptyState {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 48px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .emptyIcon {
-  font-size: 4rem;
+  font-size: var(--font-size-xxlarge);
   margin-bottom: 16px;
 }
 
 .emptyState h3 {
   margin: 0 0 8px 0;
   color: #2d3748;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
 }
 
 .emptyState p {
@@ -274,7 +274,7 @@
 }
 
 .emptyState .primaryButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border: none;
   color: white;
   padding: 16px 24px;
@@ -296,7 +296,7 @@
 .draftInfo {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 20px;
   display: flex;
@@ -337,7 +337,7 @@
   background: #fef3c7;
   color: #92400e;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   font-weight: 600;
   border: 1px solid #f59e0b;
@@ -347,7 +347,7 @@
   background: #d1fae5;
   color: #065f46;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   font-weight: 600;
   border: 1px solid #10b981;
@@ -368,7 +368,7 @@
   z-index: 1000;
   border-radius: 8px;
   padding: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
   animation: slideIn 0.3s ease-out;
   max-width: 400px;
 }
@@ -396,7 +396,7 @@
 .notificationClose {
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   cursor: pointer;
   opacity: 0.7;
   padding: 0;
@@ -447,7 +447,7 @@
 .pricesSection {
   padding: 24px;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -478,7 +478,7 @@
 
 .dateInput:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -504,13 +504,13 @@
 
 .seasonBlockInfo {
   padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
 }
 
 .seasonBlockInfo h4 {
   margin: 0 0 8px 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -571,7 +571,7 @@
 }
 
 .finalPrice {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #28a745;
   margin-bottom: 4px;
@@ -654,7 +654,7 @@
 .newBlockCard {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0;
   margin-bottom: 16px;
   cursor: pointer;
@@ -667,7 +667,7 @@
   border-color: #3b82f6;
   background: #f8fafc;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .newBlockCard:active {
@@ -689,7 +689,7 @@
   width: 48px;
   height: 48px;
   background: #f3f4f6;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   color: #6b7280;
   font-size: 20px;
   transition: all 0.2s ease;

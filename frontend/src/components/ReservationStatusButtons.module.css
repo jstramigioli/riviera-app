@@ -6,7 +6,7 @@
 
 .actionsTitle {
   margin: 0 0 16px 0;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #495057;
   border-bottom: 2px solid #dee2e6;

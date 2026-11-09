@@ -286,12 +286,13 @@ describe('DayInfoSidePanel', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('should handle edge case with reservations at midnight', () => {
+  it('should handle edge case with reservations at midnight (civil day)', () => {
     const midnightReservations = [
       {
         id: 1,
         checkIn: '2024-01-02T00:00:00Z',
         checkOut: '2024-01-03T00:00:00Z',
+        roomId: 1,
         mainClient: { firstName: 'Juan', lastName: 'Pérez' }
       }
     ];
@@ -306,7 +307,9 @@ describe('DayInfoSidePanel', () => {
       />
     );
 
-    // Debería contar como habitación ocupada
-    expect(screen.getAllByText('1')).toHaveLength(1); // 1 habitación ocupada
+    // Día civil 2024-01-02: check-in + ocupación (half-open hasta 2024-01-03)
+    expect(screen.getByText('Habitaciones Ocupadas').previousSibling).toHaveTextContent('1');
+    expect(screen.getByText('Ingresos de Pasajeros').previousSibling).toHaveTextContent('1');
+    expect(screen.getByText('Salidas').previousSibling).toHaveTextContent('0');
   });
 }); 
