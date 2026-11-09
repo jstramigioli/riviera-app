@@ -212,13 +212,7 @@ function ReservationsView() {
           <ReservationDetailsPanel
             reservation={selectedReservation}
             onStatusChange={handleStatusChange}
-            isEditing={isEditing}
-            editData={editData}
-            rooms={rooms}
-            clients={clients}
-            onEditToggle={handleEditToggle}
-            onEditChange={handleEditChange}
-            onSave={handleEditSave}
+            onDelete={() => setShowDeleteModal(true)}
             onOpenFullEdit={(id) => {
               closePanel();
               navigate(`/reservations/${id}`, { state: { isEditing: true } });

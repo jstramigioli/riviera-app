@@ -504,10 +504,10 @@ const ReservationDetails = () => {
           <div className={styles.actionButtons}>
             <button
               onClick={handleEditToggle}
-              className={styles.editButton}
-              title={isEditing ? 'Cancelar edición' : 'Editar datos'}
+              className={`${styles.editButton} ${isEditing ? styles.editing : ''}`}
+              title={isEditing ? 'Desactivar modo edición' : 'Activar modo edición'}
             >
-              {isEditing ? <><FaTimes /> Cancelar</> : <><FaPen /> Editar</>}
+              {isEditing ? <><FaTimes /> Salir edición</> : <><FaPen /> Editar</>}
             </button>
             {isEditing ? (
               <button
@@ -519,16 +519,17 @@ const ReservationDetails = () => {
                 <FaSave /> {saving ? 'Guardando…' : 'Guardar'}
               </button>
             ) : (
-              <button 
-                onClick={() => setShowDeleteModal(true)}
-                className={styles.deleteButton}
-                title="Eliminar reserva"
-              >
-                Eliminar
-              </button>
+              <div className={styles.statusButtons}>
+                <ReservationStatusButtons
+                  reservation={reservation}
+                  onStatusChange={handleStatusChange}
+                  onDelete={() => setShowDeleteModal(true)}
+                  variant="dark"
+                />
+              </div>
             )}
             {!isEditing && (
-              <button 
+              <button
                 onClick={handleBackClick}
                 className={styles.backButton}
               >
@@ -536,14 +537,6 @@ const ReservationDetails = () => {
               </button>
             )}
           </div>
-          {!isEditing && (
-            <div className={styles.statusButtons}>
-              <ReservationStatusButtons 
-                reservation={reservation} 
-                onStatusChange={handleStatusChange} 
-              />
-            </div>
-          )}
         </div>
       </div>
 

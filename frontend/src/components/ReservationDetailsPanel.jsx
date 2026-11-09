@@ -3,29 +3,14 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-import { FaPen, FaTimes, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaPen } from 'react-icons/fa';
 import ReservationStatusButtons from './ReservationStatusButtons';
 import styles from './ReservationDetailsPanel.module.css';
-
-const fieldStyle = {
-  fontSize: '0.95rem',
-  width: '100%',
-  padding: '6px 8px',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  boxSizing: 'border-box'
-};
 
 const ReservationDetailsPanel = ({
   reservation,
   onStatusChange,
-  isEditing = false,
-  editData = null,
-  rooms = [],
-  clients = [],
-  onEditToggle,
-  onEditChange,
-  onSave,
+  onDelete,
   onOpenFullEdit
 }) => {
   const navigate = useNavigate();
@@ -48,23 +33,12 @@ const ReservationDetailsPanel = ({
   
   if (!reservation) return null;
 
-  const data = isEditing && editData ? editData : reservation;
-
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
       return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
     } catch {
       return dateString;
-    }
-  };
-
-  const toDateInput = (dateString) => {
-    if (!dateString) return '';
-    try {
-      return format(new Date(dateString), 'yyyy-MM-dd');
-    } catch {
-      return '';
     }
   };
 
@@ -137,30 +111,10 @@ const ReservationDetailsPanel = ({
     }
   };
 
-  const handleSegmentField = (field, value) => {
-    if (!onEditChange) return;
-    const segments = [...(editData?.segments || reservation.segments || [])];
-    if (!segments[0]) {
-      segments[0] = {};
-    }
-    segments[0] = { ...segments[0], [field]: value };
-    onEditChange('segments', segments);
-  };
-
-  const handleServiceChange = (serviceId) => {
-    if (!onEditChange) return;
-    const segments = [...(editData?.segments || reservation.segments || [])];
-    if (!segments[0]) {
-      segments[0] = {};
-    }
-    segments[0] = { ...segments[0], services: serviceId ? [serviceId] : [] };
-    onEditChange('segments', segments);
-  };
-
-  const guestCount = data.segments?.[0]?.guestCount || data.requiredGuests || 1;
-  const serviceId = data.segments?.[0]?.services?.[0] || data.reservationType || '';
-  const checkIn = data.segments?.[0]?.startDate || data.checkIn;
-  const checkOut = data.segments?.[data.segments?.length - 1]?.endDate || data.checkOut;
+  const guestCount = reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1;
+  const serviceId = reservation.segments?.[0]?.services?.[0] || reservation.reservationType || '';
+  const checkIn = reservation.segments?.[0]?.startDate || reservation.checkIn;
+  const checkOut = reservation.segments?.[reservation.segments?.length - 1]?.endDate || reservation.checkOut;
 
   const goToFullPageEdit = () => {
     if (onOpenFullEdit) {
@@ -192,102 +146,35 @@ const ReservationDetailsPanel = ({
             {getStatusLabel(reservation.status)}
           </div>
         </div>
-        <div className={styles.headerActions}>
-          {onEditToggle && (
-            <button
-              type="button"
-              className={styles.headerActionBtn}
-              onClick={onEditToggle}
-              title={isEditing ? 'Cancelar edición' : 'Editar datos'}
-            >
-              {isEditing ? <FaTimes /> : <FaPen />}
-              <span>{isEditing ? 'Cancelar' : 'Editar'}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.headerActionBtn}
-            onClick={goToFullPageEdit}
-            title="Abrir página de reserva en modo edición"
-          >
-            <FaExternalLinkAlt />
-            <span>Página</span>
-          </button>
-        </div>
       </div>
       
       <div className={styles.body}>
-        {/* Cliente */}
         <div className={styles.clientSection}>
-          {isEditing ? (
-            <select
-              value={data.mainClientId || reservation.mainClientId || ''}
-              onChange={(e) => onEditChange('mainClientId', parseInt(e.target.value, 10))}
-              style={fieldStyle}
-            >
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.firstName} {client.lastName}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span 
-              className={styles.clientName} 
-              onClick={handleClientClick}
-              style={{ cursor: reservation.mainClient?.id ? 'pointer' : 'default' }}
-            >
-              {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
-            </span>
-          )}
+          <span 
+            className={styles.clientName} 
+            onClick={handleClientClick}
+            style={{ cursor: reservation.mainClient?.id ? 'pointer' : 'default' }}
+          >
+            {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
+          </span>
         </div>
 
-        {/* Información de Huéspedes y Servicio */}
         <div className={styles.requirementsSection}>
           <table className={styles.requirementsTable}>
             <tbody>
               <tr>
                 <td className={styles.tableLabel}>Huéspedes:</td>
                 <td className={styles.tableValue}>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      min={1}
-                      value={guestCount}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value, 10) || 1;
-                        handleSegmentField('guestCount', value);
-                        onEditChange('requiredGuests', value);
-                      }}
-                      style={fieldStyle}
-                    />
-                  ) : (
-                    <>
-                      {guestCount} persona{guestCount > 1 ? 's' : ''}
-                    </>
-                  )}
+                  {guestCount} persona{guestCount > 1 ? 's' : ''}
                 </td>
               </tr>
               <tr>
                 <td className={styles.tableLabel}>Servicio:</td>
                 <td className={styles.tableValue}>
-                  {isEditing ? (
-                    <select
-                      value={serviceId}
-                      onChange={(e) => handleServiceChange(e.target.value)}
-                      style={fieldStyle}
-                    >
-                      <option value="">Seleccionar…</option>
-                      {serviceTypes.map((st) => (
-                        <option key={st.id} value={st.id}>{st.name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    getServiceTypeLabel(serviceId || 'con_desayuno')
-                  )}
+                  {getServiceTypeLabel(serviceId || 'con_desayuno')}
                 </td>
               </tr>
-              {!isEditing && reservation.segments?.[0]?.services?.length > 0 && (
+              {reservation.segments?.[0]?.services?.length > 0 && (
                 <tr>
                   <td className={styles.tableLabel}>Etiquetas:</td>
                   <td className={styles.tableValue}>
@@ -305,53 +192,19 @@ const ReservationDetailsPanel = ({
           </table>
         </div>
 
-        {/* Estancia */}
         <div className={styles.staySection}>
           <div className={styles.stayPeriod}>
             <table className={styles.stayTable}>
               <tbody>
                 <tr>
                   <td className={styles.tableLabel}>Check-in:</td>
-                  <td className={styles.tableValue}>
-                    {isEditing ? (
-                      <input
-                        type="date"
-                        value={toDateInput(checkIn)}
-                        onChange={(e) => {
-                          onEditChange('checkIn', e.target.value);
-                          handleSegmentField('startDate', e.target.value);
-                        }}
-                        style={fieldStyle}
-                      />
-                    ) : (
-                      formatDate(checkIn)
-                    )}
-                  </td>
+                  <td className={styles.tableValue}>{formatDate(checkIn)}</td>
                 </tr>
                 <tr>
                   <td className={styles.tableLabel}>Check-out:</td>
-                  <td className={styles.tableValue}>
-                    {isEditing ? (
-                      <input
-                        type="date"
-                        value={toDateInput(checkOut)}
-                        onChange={(e) => {
-                          onEditChange('checkOut', e.target.value);
-                          if (!onEditChange) return;
-                          const segments = [...(editData?.segments || reservation.segments || [])];
-                          const lastIdx = Math.max(segments.length - 1, 0);
-                          if (!segments[lastIdx]) segments[lastIdx] = {};
-                          segments[lastIdx] = { ...segments[lastIdx], endDate: e.target.value };
-                          onEditChange('segments', segments);
-                        }}
-                        style={fieldStyle}
-                      />
-                    ) : (
-                      formatDate(checkOut)
-                    )}
-                  </td>
+                  <td className={styles.tableValue}>{formatDate(checkOut)}</td>
                 </tr>
-                {!isEditing && checkIn && checkOut && (
+                {checkIn && checkOut && (
                   <tr>
                     <td className={styles.tableLabel}>Noches:</td>
                     <td className={styles.tableValue}>
@@ -362,7 +215,7 @@ const ReservationDetailsPanel = ({
               </tbody>
             </table>
             
-            {!isEditing && reservation.segments?.length > 1 && (
+            {reservation.segments?.length > 1 && (
               <div>
                 {reservation.segments.map((segment, index) => (
                   index < reservation.segments.length - 1 && (
@@ -376,26 +229,13 @@ const ReservationDetailsPanel = ({
           </div>
         </div>
 
-        {/* Habitación */}
         <div className={styles.roomSection}>
           <table className={styles.roomTable}>
             <tbody>
               <tr>
                 <td className={styles.tableLabel}>Habitación:</td>
                 <td className={styles.tableValue}>
-                  {isEditing ? (
-                    <select
-                      value={data.roomId || reservation.roomId || ''}
-                      onChange={(e) => onEditChange('roomId', parseInt(e.target.value, 10))}
-                      style={fieldStyle}
-                    >
-                      {rooms.map((room) => (
-                        <option key={room.id} value={room.id}>
-                          {room.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : reservation.room ? (
+                  {reservation.room ? (
                     <a 
                       href={`/rooms/${reservation.room.id}`}
                       onClick={(e) => { e.preventDefault(); navigate(`/rooms/${reservation.room.id}`); }}
@@ -413,86 +253,48 @@ const ReservationDetailsPanel = ({
           </table>
         </div>
 
-        {/* Total */}
         <div className={styles.totalSection}>
           <table className={styles.totalTable}>
             <tbody>
               <tr>
                 <td className={styles.tableLabel}>Monto:</td>
                 <td className={styles.tableValue}>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={data.totalAmount ?? reservation.totalAmount ?? 0}
-                      onChange={(e) => onEditChange('totalAmount', parseFloat(e.target.value) || 0)}
-                      style={fieldStyle}
-                    />
-                  ) : (
-                    `$${(reservation.totalAmount || 0).toLocaleString('es-AR')}`
-                  )}
+                  ${(reservation.totalAmount || 0).toLocaleString('es-AR')}
                 </td>
               </tr>
-              {isEditing && (
-                <tr>
-                  <td className={styles.tableLabel}>Estado:</td>
-                  <td className={styles.tableValue}>
-                    <select
-                      value={data.status || reservation.status}
-                      onChange={(e) => onEditChange('status', e.target.value)}
-                      style={fieldStyle}
-                    >
-                      <option value="PENDIENTE">Pendiente</option>
-                      <option value="CONFIRMADA">Confirmada</option>
-                      <option value="INGRESADA">Ingresada</option>
-                      <option value="FINALIZADA">Finalizada</option>
-                      <option value="CANCELADA">Cancelada</option>
-                      <option value="NO_PRESENTADA">No presentada</option>
-                    </select>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
 
-        {/* Notas */}
         <div className={styles.statusSection}>
           <table className={styles.statusTable}>
             <tbody>
               <tr>
                 <td className={styles.tableLabel}>Notas:</td>
                 <td className={styles.tableValue}>
-                  {isEditing ? (
-                    <textarea
-                      value={data.notes ?? reservation.notes ?? ''}
-                      onChange={(e) => onEditChange('notes', e.target.value)}
-                      style={{ ...fieldStyle, minHeight: 60 }}
-                      placeholder="Notas adicionales…"
-                    />
-                  ) : (
-                    reservation.notes || 'Sin notas'
-                  )}
+                  {reservation.notes || 'Sin notas'}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
 
-        {isEditing && onSave && (
-          <div className={styles.saveRow}>
-            <button type="button" className={styles.saveButton} onClick={onSave}>
-              Guardar cambios
-            </button>
-          </div>
-        )}
-
-        {/* Botones de Estado */}
-        {!isEditing && (
-          <ReservationStatusButtons 
-            reservation={reservation} 
-            onStatusChange={onStatusChange} 
-          />
-        )}
+      <div className={styles.actionsRow}>
+        <button
+          type="button"
+          className={styles.editActionBtn}
+          onClick={goToFullPageEdit}
+          title="Abrir página de reserva en modo edición"
+        >
+          <FaPen />
+          <span>Editar</span>
+        </button>
+        <ReservationStatusButtons
+          reservation={reservation}
+          onStatusChange={onStatusChange}
+          onDelete={onDelete}
+        />
       </div>
     </div>
   );
