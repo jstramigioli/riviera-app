@@ -64,7 +64,8 @@ function truncateBarLabel(firstName, lastName, widthPx) {
  */
 export default function LibroReservasBoard({
   onReservationClick,
-  reservationsForDayInfo = []
+  reservationsForDayInfo = [],
+  refreshToken = 0
 }) {
   const [todayIso, setTodayIso] = useState(() => todayIsoLocal());
   const [days, setDays] = useState([]);
@@ -247,6 +248,15 @@ export default function LibroReservasBoard({
     const half = Math.floor(Math.min(MAX_WINDOW_DAYS, visibleDays * 2 + 7) / 2);
     void loadWindow(shiftIso(real, -half), half * 2 + 1, { side: 'replace' });
   }
+
+  // Recargar ventana actual tras cambios de estado/reservas (p.ej. cancelación)
+  useEffect(() => {
+    if (!refreshToken) return;
+    const curStart = windowStartRef.current;
+    const curDays = daysRef.current;
+    if (!curStart || !curDays.length) return;
+    void loadWindow(curStart, curDays.length, { side: 'replace' });
+  }, [refreshToken, loadWindow]);
 
   async function handleBarClick(block) {
     if (!onReservationClick) return;

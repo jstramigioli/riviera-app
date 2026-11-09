@@ -5,9 +5,12 @@ export function validateReservationConflict(reservations, roomId, checkIn, check
   const newCheckIn = new Date(checkIn);
   const newCheckOut = new Date(checkOut);
   
-  // Buscar reservas existentes para la misma habitación
+  const nonOccupying = new Set(['CANCELADA', 'NO_PRESENTADA', 'cancelled', 'no_show']);
+  // Buscar reservas existentes para la misma habitación (ignorar canceladas / no-show)
   const existingReservations = reservations.filter(res => 
-    res.roomId === roomId && res.id !== excludeReservationId
+    res.roomId === roomId &&
+    res.id !== excludeReservationId &&
+    !nonOccupying.has(res.status)
   );
   
   // Verificar si hay conflictos

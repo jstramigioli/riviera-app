@@ -51,7 +51,9 @@ export default function DayInfoSidePanel({
     let checkOuts = 0;
     let guestsOnDay = 0;
 
+    const nonOccupying = new Set(['CANCELADA', 'NO_PRESENTADA', 'cancelled', 'no_show']);
     for (const reservation of reservations || []) {
+      if (nonOccupying.has(reservation.status)) continue;
       const segments =
         reservation.segments?.filter((s) => s.isActive !== false) || [];
 

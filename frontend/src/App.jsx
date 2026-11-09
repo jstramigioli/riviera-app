@@ -35,6 +35,7 @@ import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
     title: '',
@@ -135,6 +136,7 @@ function ReservationsView() {
     try {
       await deleteReservation(selectedReservation.id);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
+      setCalendarRefreshToken((t) => t + 1);
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
@@ -156,6 +158,9 @@ function ReservationsView() {
         const updatedReservation = { ...selectedReservation, status: newStatus };
         setSelectedReservation(updatedReservation);
       }
+
+      // Refrescar Libro para que canceladas / no-show desaparezcan al instante
+      setCalendarRefreshToken((t) => t + 1);
       
       // Mostrar notificación de éxito
       const actionMessages = {
@@ -202,6 +207,7 @@ function ReservationsView() {
         <LibroReservasBoard
           onReservationClick={handleReservationClick}
           reservationsForDayInfo={reservations}
+          refreshToken={calendarRefreshToken}
         />
       </div>
       <SidePanel

@@ -22,30 +22,33 @@ function getReservationData(reservation) {
     return null;
   }
 
-  const activeSegments = reservation.segments
-    .filter(s => s.isActive)
-    .map(normalizeSegment);
-  
-  if (activeSegments.length === 0) {
+  const normalized = reservation.segments.map(normalizeSegment);
+  const activeSegments = normalized.filter((s) => s.isActive);
+
+  // Canceladas / no-show desactivan segmentos: seguir mostrando historial con inactivos
+  const displaySegments =
+    activeSegments.length > 0 ? activeSegments : normalized;
+
+  if (displaySegments.length === 0) {
     return null;
   }
 
-  const checkIn = activeSegments
+  const checkIn = displaySegments
     .map((s) => s.startDate)
     .sort()[0];
-  const checkOut = activeSegments
+  const checkOut = displaySegments
     .map((s) => s.endDate)
     .sort()
     .at(-1);
   
   // Calcular total (noches half-open)
-  const totalAmount = activeSegments.reduce((sum, segment) => {
+  const totalAmount = displaySegments.reduce((sum, segment) => {
     const days = Math.max(1, daysBetweenCivil(segment.startDate, segment.endDate));
     return sum + (days * segment.baseRate);
   }, 0);
 
-  // Obtener datos del primer segmento activo (como referencia)
-  const firstSegment = activeSegments[0];
+  // Obtener datos del primer segmento (como referencia)
+  const firstSegment = displaySegments[0];
   
   // Construir el objeto room completo con roomType
   const roomData = firstSegment.room ? {
@@ -70,17 +73,17 @@ function getReservationData(reservation) {
     
     // Datos del primer segmento (como referencia)
     roomId: firstSegment.roomId,
-    reservationType: firstSegment.services[0],
+    reservationType: firstSegment.services?.[0],
     requiredGuests: firstSegment.guestCount,
     
     // Datos calculados
     days: nightCount,
     averageRate: totalAmount / nightCount,
     
-    // Relaciones
+    // Relaciones — incluir inactivos si no hay activos (historial canceladas)
     mainClient: reservation.mainClient,
     guests: reservation.guests,
-    segments: activeSegments,
+    segments: displaySegments,
     childReservations: reservation.childReservations,
     
     room: roomData
@@ -96,8 +99,8 @@ async function getReservationWithData(reservationId) {
     include: {
       mainClient: true,
       guests: true,
+      // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
-        where: { isActive: true },
         include: {
           room: true,
           roomType: true
@@ -107,7 +110,6 @@ async function getReservationWithData(reservationId) {
       childReservations: {
         include: {
           segments: {
-            where: { isActive: true },
             include: {
               room: true,
               roomType: true
@@ -135,7 +137,6 @@ async function getAllReservationsWithData() {
       mainClient: true,
       guests: true,
       segments: {
-        where: { isActive: true },
         include: {
           room: true,
           roomType: true
@@ -145,7 +146,6 @@ async function getAllReservationsWithData() {
       childReservations: {
         include: {
           segments: {
-            where: { isActive: true },
             include: {
               room: true,
               roomType: true
@@ -176,6 +176,19 @@ async function createReservationWithSegments(reservationData) {
     parentReservationId = null
   } = reservationData;
 
+  // Validar segmentos ANTES de crear la reserva (evita huérfanas sin segmentos)
+  for (const segmentData of segments || []) {
+    if (!segmentData.roomId) {
+      throw new Error('Cada segmento debe tener una habitación asignada');
+    }
+    if (!segmentData.startDate || !segmentData.endDate) {
+      throw new Error('Cada segmento debe tener fechas de inicio y fin');
+    }
+    if (!segmentData.services || !Array.isArray(segmentData.services) || segmentData.services.length === 0) {
+      throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
+    }
+  }
+
   // Crear la reserva
   const reservation = await prisma.reservation.create({
     data: {
@@ -187,16 +200,11 @@ async function createReservationWithSegments(reservationData) {
     }
   });
 
-  // Crear todos los segmentos
+  // Crear todos los segmentos; si falla, borrar la reserva huérfana
   const createdSegments = [];
+  try {
   for (const segmentData of segments) {
     console.log('🔍 Procesando segmento:', JSON.stringify(segmentData, null, 2));
-    
-    // Validar que services sea un array con al menos un elemento
-    if (!segmentData.services || !Array.isArray(segmentData.services) || segmentData.services.length === 0) {
-      console.error('❌ Services inválido:', segmentData.services);
-      throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
-    }
     
     let resolvedRoomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null;
     if (!resolvedRoomTypeId && segmentData.roomId) {
@@ -229,6 +237,10 @@ async function createReservationWithSegments(reservationData) {
       }
     });
     createdSegments.push(segment);
+  }
+  } catch (segmentError) {
+    await prisma.reservation.delete({ where: { id: reservation.id } }).catch(() => {});
+    throw segmentError;
   }
 
   // Cargos + night rates desde la cotización canónica (detalle por noche, no solo promedio)
@@ -482,12 +494,13 @@ async function updateReservationWithSegments(reservationId, updateData) {
  * Verifica disponibilidad de una habitación en un rango de fechas
  */
 async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservationId = null) {
+  const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
   const conflictingSegments = await prisma.reservationSegment.findMany({
     where: {
       roomId: parseInt(roomId),
       isActive: true,
       reservation: {
-        status: { in: ['active', 'confirmed'] },
+        status: { in: OCCUPYING_STATUSES },
         id: excludeReservationId ? { not: parseInt(excludeReservationId) } : undefined
       },
       OR: [

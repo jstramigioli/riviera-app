@@ -7,6 +7,7 @@ const {
   daysBetweenCivil
 } = require('../utils/calendarDates');
 const { sortRooms } = require('../utils/roomSort');
+const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
 
 const prisma = new PrismaClient();
 
@@ -74,7 +75,10 @@ async function loadCalendar(startIso, days) {
       where: {
         isActive: true,
         startDate: { lt: endExclusive },
-        endDate: { gt: start }
+        endDate: { gt: start },
+        reservation: {
+          status: { in: OCCUPYING_STATUSES }
+        }
       },
       include: {
         reservation: {
