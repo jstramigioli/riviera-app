@@ -9,7 +9,9 @@ import {
   updateReservation,
   API_URL,
   getReservationFinancialSummary,
-  createCargo
+  createCargo,
+  updateCargo,
+  deleteCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
@@ -127,6 +129,28 @@ const ReservationDetails = () => {
       alert('Cargo agregado exitosamente');
     } catch (error) {
       console.error('Error agregando cargo:', error);
+      alert(`Error: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const handleUpdateCargo = async (cargoId, cargoData) => {
+    try {
+      await updateCargo(cargoId, cargoData);
+      await loadFinancialData();
+    } catch (error) {
+      console.error('Error actualizando cargo:', error);
+      alert(`Error: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const handleDeleteCargo = async (cargoId) => {
+    try {
+      await deleteCargo(cargoId);
+      await loadFinancialData();
+    } catch (error) {
+      console.error('Error eliminando cargo:', error);
       alert(`Error: ${error.message}`);
       throw error;
     }
@@ -299,6 +323,8 @@ const ReservationDetails = () => {
             formatCurrency={formatCurrency}
             onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
+            onUpdateCargo={handleUpdateCargo}
+            onDeleteCargo={handleDeleteCargo}
           />
         );
       case 'huespedes':
