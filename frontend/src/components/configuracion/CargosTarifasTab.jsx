@@ -56,8 +56,8 @@ const CargosTarifasTab = () => {
       {/* Header principal */}
       <div className={styles.header}>
         <div className={styles.headerContent}>
-          <h2>Cargos y Tarifas</h2>
-          <p>Configuración de tipos de cargo y estructura de tarifas</p>
+          <h2> Cargos y Tarifas</h2>
+          <p> Configuración de tipos de cargo y estructura de tarifas</p>
         </div>
       </div>
 

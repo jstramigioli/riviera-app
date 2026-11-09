@@ -209,13 +209,13 @@ export default function ReservationsTable({
             onChange={(e) => setFilterStatus(e.target.value)}
             className={styles.filterSelect}
           >
-            <option value="all">Todos los estados</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="confirmada">Confirmadas</option>
-                <option value="ingresada">Ingresadas</option>
-                <option value="finalizada">Finalizadas</option>
-                <option value="cancelada">Canceladas</option>
-                <option value="no presentada">No presentadas</option>
+            <option value="all"> Todos los estados</option>
+                <option value="pendiente"> Pendientes</option>
+                <option value="confirmada"> Confirmadas</option>
+                <option value="ingresada"> Ingresadas</option>
+                <option value="finalizada"> Finalizadas</option>
+                <option value="cancelada"> Canceladas</option>
+                <option value="no presentada"> No presentadas</option>
           </select>
         </div>
       </div>
@@ -364,14 +364,14 @@ export default function ReservationsTable({
         
         {processedReservations.length === 0 && (
           <div className={styles.emptyState}>
-            <p>No se encontraron reservas que coincidan con los filtros aplicados.</p>
+            <p> No se encontraron reservas que coincidan con los filtros aplicados.</p>
           </div>
         )}
       </div>
 
       {/* Información de resultados */}
       <div className={styles.resultsInfo}>
-        <span>Mostrando {processedReservations.length} de {reservations.length} reservas</span>
+        <span> Mostrando {processedReservations.length} de {reservations.length} reservas</span>
       </div>
     </div>
   );

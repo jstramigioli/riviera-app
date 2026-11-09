@@ -117,8 +117,8 @@ describe('ClientStats', () => {
   it('renders client statistics correctly', () => {
     render(<ClientStats clients={mockClients} />)
     
-    expect(screen.getByText('📊 Resumen General')).toBeInTheDocument()
-    expect(screen.getByText('🗺️ Distribución por Provincia')).toBeInTheDocument()
-    expect(screen.getByText('📋 Detalle por Provincia')).toBeInTheDocument()
+    expect(screen.getByText('Resumen General')).toBeInTheDocument()
+    expect(screen.getByText('Distribución por Provincia')).toBeInTheDocument()
+    expect(screen.getByText('Detalle por Provincia')).toBeInTheDocument()
   })
 }) 

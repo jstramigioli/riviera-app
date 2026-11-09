@@ -4,29 +4,29 @@ import Configuracion from './Configuracion'
 
 // Mock de los componentes de configuración
 vi.mock('../components/configuracion/HabitacionesTab', () => ({
-  default: () => <div data-testid="habitaciones-tab">Habitaciones Tab</div>
+  default: () => <div data-testid="habitaciones-tab"> Habitaciones Tab</div>
 }))
 
 vi.mock('../components/configuracion/EtiquetasTab', () => ({
-  default: () => <div data-testid="etiquetas-tab">Etiquetas Tab</div>
+  default: () => <div data-testid="etiquetas-tab"> Etiquetas Tab</div>
 }))
 
 vi.mock('../components/configuracion/DynamicPricingConfigPanel', () => ({
-  default: () => <div data-testid="dynamic-pricing-tab">Dynamic Pricing Tab</div>
+  default: () => <div data-testid="dynamic-pricing-tab"> Dynamic Pricing Tab</div>
 }))
 
 
 
 vi.mock('../components/configuracion/MealPricingEditor', () => ({
-  default: () => <div data-testid="meal-pricing-tab">Meal Pricing Tab</div>
+  default: () => <div data-testid="meal-pricing-tab"> Meal Pricing Tab</div>
 }))
 
 vi.mock('../components/configuracion/OperationalPeriodsPanel', () => ({
-  default: () => <div data-testid="operational-periods-tab">Operational Periods Tab</div>
+  default: () => <div data-testid="operational-periods-tab"> Operational Periods Tab</div>
 }))
 
 vi.mock('../components/configuracion/TarifasPreviewPanel', () => ({
-  default: () => <div data-testid="tarifas-preview-tab">Tarifas Preview Tab</div>
+  default: () => <div data-testid="tarifas-preview-tab"> Tarifas Preview Tab</div>
 }))
 
 // Mock de localStorage

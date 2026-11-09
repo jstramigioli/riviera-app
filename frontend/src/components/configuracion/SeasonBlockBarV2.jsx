@@ -708,7 +708,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       <div className={styles.bar}>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner}></div>
-          <span>Cargando bloque...</span>
+          <span> Cargando bloque...</span>
         </div>
       </div>
     );
@@ -718,7 +718,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     return (
       <div className={styles.bar}>
         <div className={styles.error}>
-          <span>Error: {error}</span>
+          <span> Error: {error}</span>
           <button onClick={() => setError(null)} className={styles.errorClose}>×</button>
         </div>
       </div>
@@ -852,8 +852,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           onClick={(e) => e.stopPropagation()}
           title={
             block?.isDraft 
-              ? "Modo Borrador: Los precios no están disponibles para nuevas reservas. Cambia a 'Activo' para que los precios estén vigentes para nuevas reservas."
-              : "Modo Activo: Los precios están vigentes y disponibles para nuevas reservas. Cambia a 'Borrador' para desactivar temporalmente los precios."
+              ? "Modo Borrador: Los precios no están disponibles para nuevas reservas. Cambia a 'Activo'para que los precios estén vigentes para nuevas reservas."
+              : "Modo Activo: Los precios están vigentes y disponibles para nuevas reservas. Cambia a 'Borrador'para desactivar temporalmente los precios."
           }
         >
           <div className={styles.toggleWrapper}>
@@ -896,7 +896,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           {roundingConfig && roundingConfig.multiple > 1 && (
             <div className={styles.roundingInfo}>
               <FiInfo />
-              <span>Redondeo activo: múltiplos de ${roundingConfig.multiple} ({roundingConfig.mode})</span>
+              <span> Redondeo activo: múltiplos de ${roundingConfig.multiple} ({roundingConfig.mode})</span>
             </div>
           )}
           
@@ -904,7 +904,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           <table className={styles.pricesGrid}>
             <thead>
               <tr>
-                <th className={styles.roomTypeHeader}>Habitación</th>
+                <th className={styles.roomTypeHeader}> Habitación</th>
                 {getActiveServiceTypes().map(serviceType => {
                   const isServiceEnabled = serviceType.isEnabled;
                   return (
@@ -1014,7 +1014,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 handleDiameter={18}
                 disabled={!isEditing}
               />
-              <span className={styles.toggleText}>Mantener proporciones</span>
+              <span className={styles.toggleText}> Mantener proporciones</span>
             </label>
             
           </div>
@@ -1091,7 +1091,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   handleDiameter={18}
                   disabled={!isEditing}
                 />
-                <span className={styles.toggleText}>Mantener proporciones</span>
+                <span className={styles.toggleText}> Mantener proporciones</span>
               </label>
               
             </div>

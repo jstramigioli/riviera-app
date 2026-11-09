@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiX, FiSave, FiTrash2, FiCopy, FiCalendar, FiDollarSign, FiSettings, FiPercent } from 'react-icons/fi';
+import { FiX, FiSave, FiTrash2, FiCopy, FiCalendar, FiDollarSign, FiSettings, FiPercent , FiAlertTriangle } from 'react-icons/fi';
 import { useSeasonBlock } from '../../hooks/useSeasonBlock';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './SeasonBlockModal.module.css';
@@ -239,7 +239,7 @@ const SeasonBlockModal = ({
               </h2>
               {blockId && formData.isDraft && (
                 <div className={styles.draftIndicator}>
-                  <span>📝 Cambios sin confirmar</span>
+                  <span> Cambios sin confirmar</span>
                 </div>
               )}
             </div>
@@ -258,13 +258,13 @@ const SeasonBlockModal = ({
             {loading ? (
               <div className={styles.loading}>
                 <div className={styles.loadingSpinner}></div>
-                <span>Cargando datos...</span>
+                <span> Cargando datos...</span>
               </div>
             ) : error ? (
               <div className={styles.error}>
-                <span>⚠️</span>
+                <span aria-hidden="true"><FiAlertTriangle /></span>
                 <div>
-                  <h3>Error al cargar los datos</h3>
+                  <h3> Error al cargar los datos</h3>
                   <p>{error}</p>
                   <button 
                     className={`${styles.button} ${styles.buttonCancel}`}
@@ -415,7 +415,7 @@ const SeasonBlockModal = ({
                           <FiDollarSign /> Establecer Tarifas
                         </h3>
                         <div className={styles.adjustmentModeSelector}>
-                          <label className={styles.modeLabel}>Modo de ajuste:</label>
+                          <label className={styles.modeLabel}> Modo de ajuste:</label>
                           <div className={styles.modeButtons}>
                             <button
                               type="button"
@@ -450,7 +450,7 @@ const SeasonBlockModal = ({
                       <table className={styles.table} role="table">
                         <thead>
                           <tr>
-                            <th scope="col">Habitación</th>
+                            <th scope="col"> Habitación</th>
                             {getEnabledServiceTypes().map(serviceType => (
                               <th key={serviceType.id} scope="col">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -471,7 +471,7 @@ const SeasonBlockModal = ({
                           {/* Percentage Adjustment Row */}
                           {formData.serviceAdjustmentMode === 'PERCENTAGE' && (
                             <tr>
-                              <th scope="col" style={{ background: '#f8f9fa' }}>Ajuste (%)</th>
+                              <th scope="col" style={{ background: '#f8f9fa' }}> Ajuste (%)</th>
                               {getEnabledServiceTypes().map(serviceType => {
                                 const isBaseService = serviceType.name === 'Solo Alojamiento';
                                 const adjustment = getServiceAdjustment(null, serviceType.id);
@@ -645,8 +645,8 @@ const SeasonBlockModal = ({
       {showConflictModal && (
         <div className={styles.conflictModal}>
           <div className={styles.conflictContent}>
-            <div className={styles.conflictIcon}>⚠️</div>
-            <h3 className={styles.conflictTitle}>Conflicto de Fechas Detectado</h3>
+            <div className={styles.conflictIcon} aria-hidden="true"><FiAlertTriangle /></div>
+            <h3 className={styles.conflictTitle}> Conflicto de Fechas Detectado</h3>
             <p className={styles.conflictMessage}>
               Las fechas seleccionadas se solapan con otros bloques de temporada existentes. 
               ¿Deseas forzar el guardado de todas formas?

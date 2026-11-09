@@ -324,7 +324,7 @@ const ReservationDetails = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando detalles de la reserva...</div>
+        <div className={styles.loading}> Cargando detalles de la reserva...</div>
       </div>
     );
   }
@@ -334,7 +334,7 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Error</h2>
+          <h2> Error</h2>
           <p>{error}</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
@@ -349,8 +349,8 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Reserva no encontrada</h2>
-          <p>La reserva con ID {reservationId} no existe.</p>
+          <h2> Reserva no encontrada</h2>
+          <p> La reserva con ID {reservationId} no existe.</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
           </button>
@@ -366,7 +366,7 @@ const ReservationDetails = () => {
       <div className={styles.sidePanel}>
         {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Reserva #{reservation.id}</h2>
+          <h2> Reserva #{reservation.id}</h2>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
@@ -456,7 +456,7 @@ const ReservationDetails = () => {
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
-              <h3>⚠️ Confirmar Eliminación</h3>
+              <h3> Confirmar Eliminación</h3>
             </div>
             <div className={styles.modalBody}>
               <p>

@@ -57,19 +57,19 @@ export default function ActiveSeasonBlocks() {
   if (loading) {
     return (
       <div className={styles.cardContent}>
-        <h3 className={styles.cardTitle}>📅 Bloques de Temporada</h3>
-        <div className={styles.loading}>Cargando bloques...</div>
+        <h3 className={styles.cardTitle}> Bloques de Temporada</h3>
+        <div className={styles.loading}> Cargando bloques...</div>
       </div>
     );
   }
 
   return (
     <div className={styles.cardContent}>
-      <h3 className={styles.cardTitle}>📅 Bloques de Temporada</h3>
+      <h3 className={styles.cardTitle}> Bloques de Temporada</h3>
       
       {seasonBlocks.length === 0 ? (
         <div className={styles.emptyState}>
-          <p>No hay bloques de temporada configurados</p>
+          <p> No hay bloques de temporada configurados</p>
         </div>
       ) : (
         <div className={styles.blocksList}>
@@ -82,7 +82,7 @@ export default function ActiveSeasonBlocks() {
                 <div className={styles.blockHeader}>
                   <h4 className={styles.blockName}>{block.name}</h4>
                   <span className={`${styles.blockStatus} ${isActive ? styles.active : isUpcomingBlock ? styles.upcoming : styles.past}`}>
-                    {isActive ? '🟢 Activo' : isUpcomingBlock ? '🟡 Próximo' : '🔴 Finalizado'}
+                    {isActive ? 'Activo' : isUpcomingBlock ? 'Próximo' : 'Finalizado'}
                   </span>
                 </div>
                 

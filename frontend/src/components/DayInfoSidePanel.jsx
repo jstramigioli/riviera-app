@@ -1,3 +1,4 @@
+import { FiDownload, FiUpload, FiHome, FiBarChart2, FiUsers, FiGrid } from 'react-icons/fi';
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -85,13 +86,13 @@ export default function DayInfoSidePanel({
   };
 
   const stats = calculateDayStats();
-  const formattedDate = format(selectedDate, 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es });
+  const formattedDate = format(selectedDate, 'EEEE, d \'de\'MMMM \'de\'yyyy', { locale: es });
 
   return (
     <SidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Información del ${format(selectedDate, 'd \'de\' MMMM', { locale: es })}`}
+      title={`Información del ${format(selectedDate, 'd \'de\'MMMM', { locale: es })}`}
       width={450}
     >
       <div className={styles.content}>
@@ -101,58 +102,58 @@ export default function DayInfoSidePanel({
 
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>📥</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiDownload /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.checkIns}</div>
-              <div className={styles.statLabel}>Ingresos de Pasajeros</div>
+              <div className={styles.statLabel}> Ingresos de Pasajeros</div>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>📤</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiUpload /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.checkOuts}</div>
-              <div className={styles.statLabel}>Salidas</div>
+              <div className={styles.statLabel}> Salidas</div>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>🏨</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiHome /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.occupiedRooms}</div>
-              <div className={styles.statLabel}>Habitaciones Ocupadas</div>
+              <div className={styles.statLabel}> Habitaciones Ocupadas</div>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>📊</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiBarChart2 /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</div>
-              <div className={styles.statLabel}>Ocupación (Habitaciones)</div>
+              <div className={styles.statLabel}> Ocupación (Habitaciones)</div>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>👥</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiUsers /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.guestOccupancyPercentage.toFixed(1)}%</div>
-              <div className={styles.statLabel}>Ocupación (Pasajeros)</div>
+              <div className={styles.statLabel}> Ocupación (Pasajeros)</div>
             </div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon}>🛏️</div>
+            <div className={styles.statIcon} aria-hidden="true"><FiGrid /></div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.totalGuests}</div>
-              <div className={styles.statLabel}>Pasajeros Alojados</div>
+              <div className={styles.statLabel}> Pasajeros Alojados</div>
             </div>
           </div>
         </div>
 
         <div className={styles.summary}>
-          <h4>Resumen del Día</h4>
+          <h4> Resumen del Día</h4>
           <p>
-            El {format(selectedDate, 'd \'de\' MMMM', { locale: es })} se registraron{' '}
+            El {format(selectedDate, 'd \'de\'MMMM', { locale: es })} se registraron{' '}
             <strong>{stats.checkIns} ingresos</strong> y <strong>{stats.checkOuts} salidas</strong>.
             La ocupación de habitaciones fue del <strong>{stats.roomOccupancyPercentage.toFixed(1)}%</strong> 
             con <strong>{stats.totalGuests} pasajeros</strong> alojados.
@@ -160,17 +161,17 @@ export default function DayInfoSidePanel({
         </div>
 
         <div className={styles.details}>
-          <h4>Detalles</h4>
+          <h4> Detalles</h4>
           <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Total de habitaciones:</span>
+            <span className={styles.detailLabel}> Total de habitaciones:</span>
             <span className={styles.detailValue}>{stats.totalRooms}</span>
           </div>
           <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Habitaciones disponibles:</span>
+            <span className={styles.detailLabel}> Habitaciones disponibles:</span>
             <span className={styles.detailValue}>{stats.totalRooms - stats.occupiedRooms}</span>
           </div>
           <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Tasa de ocupación:</span>
+            <span className={styles.detailLabel}> Tasa de ocupación:</span>
             <span className={styles.detailValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</span>
           </div>
         </div>

@@ -161,7 +161,7 @@ const CatalogosYTiposTab = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando tipos de cargo...</div>
+        <div className={styles.loading}> Cargando tipos de cargo...</div>
       </div>
     );
   }
@@ -170,7 +170,7 @@ const CatalogosYTiposTab = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h3>Error</h3>
+          <h3> Error</h3>
           <p>{error}</p>
           <button onClick={loadTiposCargo} className={styles.retryButton}>
             Reintentar
@@ -184,8 +184,8 @@ const CatalogosYTiposTab = () => {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerContent}>
-          <h2>Catálogos y Tipos</h2>
-          <p>Gestión de tipos de cargo personalizables</p>
+          <h2> Catálogos y Tipos</h2>
+          <p> Gestión de tipos de cargo personalizables</p>
         </div>
         <button 
           className={styles.addButton}
@@ -197,7 +197,7 @@ const CatalogosYTiposTab = () => {
 
       <div className={styles.content}>
         <div className={styles.section}>
-          <h3>Tipos de Cargo</h3>
+          <h3> Tipos de Cargo</h3>
           <p className={styles.sectionDescription}>
             Los tipos hardcoded son parte del sistema y no pueden ser eliminados. 
             Los tipos personalizables pueden ser creados, editados y eliminados según tus necesidades.
@@ -207,15 +207,15 @@ const CatalogosYTiposTab = () => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Estado</th>
-                  <th>Tipo</th>
-                  <th>Código</th>
-                  <th>Nombre</th>
-                  <th>Descripción</th>
-                  <th>Color</th>
-                  <th>Origen</th>
-                  <th>Cargos</th>
-                  <th>Acciones</th>
+                  <th> Estado</th>
+                  <th> Tipo</th>
+                  <th> Código</th>
+                  <th> Nombre</th>
+                  <th> Descripción</th>
+                  <th> Color</th>
+                  <th> Origen</th>
+                  <th> Cargos</th>
+                  <th> Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -250,7 +250,7 @@ const CatalogosYTiposTab = () => {
                     </td>
                     <td>
                       <span className={`${styles.badge} ${tipo.esHardcoded ? styles.hardcoded : styles.custom}`}>
-                        {tipo.esHardcoded ? '🔒 Sistema' : '✏️ Personalizable'}
+                        {tipo.esHardcoded? 'Sistema': 'Personalizable'}
                       </span>
                     </td>
                     <td className={styles.countCell}>
@@ -307,7 +307,7 @@ const CatalogosYTiposTab = () => {
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Código *</label>
+                  <label> Código *</label>
                   <input
                     type="text"
                     value={formData.codigo}
@@ -316,11 +316,11 @@ const CatalogosYTiposTab = () => {
                     required
                     disabled={editingTipo} // No permitir editar código existente
                   />
-                  <small>Se convertirá automáticamente a mayúsculas y espacios a guiones bajos</small>
+                  <small> Se convertirá automáticamente a mayúsculas y espacios a guiones bajos</small>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Nombre *</label>
+                  <label> Nombre *</label>
                   <input
                     type="text"
                     value={formData.nombre}
@@ -332,7 +332,7 @@ const CatalogosYTiposTab = () => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Descripción</label>
+                <label> Descripción</label>
                 <textarea
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -342,7 +342,7 @@ const CatalogosYTiposTab = () => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Color</label>
+                <label> Color</label>
                 <div className={styles.colorInputContainer}>
                   <input
                     type="color"

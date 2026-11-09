@@ -135,7 +135,7 @@ const RoomDetails = () => {
     return (
       <div className={styles.newLayout}>
         <div className={styles.loadingContainer}>
-          <div className={styles.loading}>Cargando datos de la habitación...</div>
+          <div className={styles.loading}> Cargando datos de la habitación...</div>
         </div>
       </div>
     );
@@ -158,7 +158,7 @@ const RoomDetails = () => {
     return (
       <div className={styles.newLayout}>
         <div className={styles.errorContainer}>
-          <div className={styles.error}>Habitación no encontrada</div>
+          <div className={styles.error}> Habitación no encontrada</div>
           <button onClick={handleBackClick} className={styles.retryButton}>
             Volver
           </button>
@@ -177,7 +177,7 @@ const RoomDetails = () => {
       <div className={styles.sidePanel}>
         {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Habitación #{room.number}</h2>
+          <h2> Habitación #{room.number}</h2>
           <div className={styles.roomInfo}>
             <div className={styles.roomName}>
               {room.name}
@@ -207,31 +207,31 @@ const RoomDetails = () => {
               className={`${styles.sectionButton} ${activeSection === 'overview' ? styles.active : ''}`}
               onClick={() => setActiveSection('overview')}
             >
-              📋 Resumen General
+              Resumen General
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'calendar' ? styles.active : ''}`}
               onClick={() => setActiveSection('calendar')}
             >
-              📅 Calendario de Ocupación
+              Calendario de Ocupación
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'maintenance' ? styles.active : ''}`}
               onClick={() => setActiveSection('maintenance')}
             >
-              🧹 Estado de Limpieza
+              Estado de Limpieza
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'reservations' ? styles.active : ''}`}
               onClick={() => setActiveSection('reservations')}
             >
-              📝 Historial de Reservas
+              Historial de Reservas
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'notes' ? styles.active : ''}`}
               onClick={() => setActiveSection('notes')}
             >
-              📄 Notas y Observaciones
+              Notas y Observaciones
             </button>
           </div>
         </div>
@@ -256,52 +256,52 @@ const RoomDetails = () => {
           {/* Sección de Resumen General */}
           {activeSection === 'overview' && (
             <div className={styles.section}>
-              <h2>Resumen General</h2>
+              <h2> Resumen General</h2>
               <div className={styles.overviewContainer}>
                 <div className={styles.overviewGrid}>
                   <div className={styles.overviewCard}>
-                    <h3>Información Básica</h3>
+                    <h3> Información Básica</h3>
                     <div className={styles.infoList}>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Número:</span>
+                        <span className={styles.label}> Número:</span>
                         <span className={styles.value}>{room.number}</span>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Nombre:</span>
+                        <span className={styles.label}> Nombre:</span>
                         <span className={styles.value}>{room.name}</span>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Tipo:</span>
+                        <span className={styles.label}> Tipo:</span>
                         <span className={styles.value}>{room.roomType?.name || 'Sin tipo'}</span>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Capacidad:</span>
+                        <span className={styles.label}> Capacidad:</span>
                         <span className={styles.value}>{room.capacity || 'No especificada'}</span>
                       </div>
                     </div>
                   </div>
                   
                   <div className={styles.overviewCard}>
-                    <h3>Estado Actual</h3>
+                    <h3> Estado Actual</h3>
                     <div className={styles.infoList}>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Estado:</span>
+                        <span className={styles.label}> Estado:</span>
                         <span className={styles.value}>{currentStatus}</span>
                       </div>
                       {currentGuest && (
                         <div className={styles.infoItem}>
-                          <span className={styles.label}>Huésped actual:</span>
+                          <span className={styles.label}> Huésped actual:</span>
                           <span className={styles.value}>
                             {currentGuest.firstName} {currentGuest.lastName}
                           </span>
                         </div>
                       )}
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Reservas totales:</span>
+                        <span className={styles.label}> Reservas totales:</span>
                         <span className={styles.value}>{reservations.length}</span>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}>Próximas reservas:</span>
+                        <span className={styles.label}> Próximas reservas:</span>
                         <span className={styles.value}>{upcomingReservations.length}</span>
                       </div>
                     </div>
@@ -314,10 +314,10 @@ const RoomDetails = () => {
           {/* Sección de Calendario de Ocupación */}
           {activeSection === 'calendar' && (
             <div className={styles.section}>
-              <h2>Calendario de Ocupación</h2>
+              <h2> Calendario de Ocupación</h2>
               <div className={styles.calendarContainer}>
                 <div className={styles.calendarInfo}>
-                  <h3>Próximas Reservas</h3>
+                  <h3> Próximas Reservas</h3>
                   {upcomingReservations.length === 0 ? (
                     <div className={styles.noDataMessage}>
                       No hay reservas próximas para esta habitación
@@ -349,49 +349,49 @@ const RoomDetails = () => {
           {/* Sección de Estado de Limpieza */}
           {activeSection === 'maintenance' && (
             <div className={styles.section}>
-              <h2>Estado de Limpieza y Mantenimiento</h2>
+              <h2> Estado de Limpieza y Mantenimiento</h2>
               <div className={styles.maintenanceContainer}>
                 <div className={styles.maintenanceGrid}>
                   <div className={styles.maintenanceCard}>
-                    <h3>Estado de Limpieza</h3>
+                    <h3> Estado de Limpieza</h3>
                     <div className={styles.cleaningStatus}>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Limpieza general:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}>✓ Limpia</span>
+                        <span className={styles.statusLabel}> Limpieza general:</span>
+                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpia</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Baño:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}>✓ Limpio</span>
+                        <span className={styles.statusLabel}> Baño:</span>
+                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpio</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Ropa de cama:</span>
-                        <span className={`${styles.statusIndicator} ${styles.needsCleaning}`}>⚠ Cambio pendiente</span>
+                        <span className={styles.statusLabel}> Ropa de cama:</span>
+                        <span className={`${styles.statusIndicator} ${styles.needsCleaning}`}> Cambio pendiente</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Toallas:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}>✓ Limpias</span>
+                        <span className={styles.statusLabel}> Toallas:</span>
+                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpias</span>
                       </div>
                     </div>
                   </div>
                   
                   <div className={styles.maintenanceCard}>
-                    <h3>Mantenimiento</h3>
+                    <h3> Mantenimiento</h3>
                     <div className={styles.maintenanceStatus}>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Aire acondicionado:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}>✓ Funcionando</span>
+                        <span className={styles.statusLabel}> Aire acondicionado:</span>
+                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Televisión:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}>✓ Funcionando</span>
+                        <span className={styles.statusLabel}> Televisión:</span>
+                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>WiFi:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}>✓ Funcionando</span>
+                        <span className={styles.statusLabel}> WiFi:</span>
+                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
                       </div>
                       <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}>Iluminación:</span>
-                        <span className={`${styles.statusIndicator} ${styles.needsRepair}`}>⚠ Revisar</span>
+                        <span className={styles.statusLabel}> Iluminación:</span>
+                        <span className={`${styles.statusIndicator} ${styles.needsRepair}`}> Revisar</span>
                       </div>
                     </div>
                   </div>
@@ -403,7 +403,7 @@ const RoomDetails = () => {
           {/* Sección de Historial de Reservas */}
           {activeSection === 'reservations' && (
             <div className={styles.section}>
-              <h2>Historial de Reservas</h2>
+              <h2> Historial de Reservas</h2>
               {reservations.length === 0 ? (
                 <div className={styles.noDataMessage}>
                   Esta habitación no tiene reservas registradas
@@ -413,13 +413,13 @@ const RoomDetails = () => {
                   <table className={styles.reservationsTable}>
                     <thead>
                       <tr>
-                        <th>ID</th>
-                        <th>Huésped</th>
-                        <th>Check-in</th>
-                        <th>Check-out</th>
-                        <th>Estado</th>
-                        <th>Total</th>
-                        <th>Acciones</th>
+                        <th> ID</th>
+                        <th> Huésped</th>
+                        <th> Check-in</th>
+                        <th> Check-out</th>
+                        <th> Estado</th>
+                        <th> Total</th>
+                        <th> Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -464,23 +464,23 @@ const RoomDetails = () => {
           {/* Sección de Notas y Observaciones */}
           {activeSection === 'notes' && (
             <div className={styles.section}>
-              <h2>Notas y Observaciones</h2>
+              <h2> Notas y Observaciones</h2>
               <div className={styles.notesContainer}>
                 <div className={styles.notesCard}>
-                  <h3>Notas Generales</h3>
+                  <h3> Notas Generales</h3>
                   <div className={styles.notesContent}>
-                    <p>Esta habitación tiene una excelente vista al jardín y es muy silenciosa durante la noche.</p>
-                    <p>El aire acondicionado funciona mejor en el modo automático.</p>
-                    <p>La cama king size es muy cómoda según feedback de huéspedes.</p>
+                    <p> Esta habitación tiene una excelente vista al jardín y es muy silenciosa durante la noche.</p>
+                    <p> El aire acondicionado funciona mejor en el modo automático.</p>
+                    <p> La cama king size es muy cómoda según feedback de huéspedes.</p>
                   </div>
                 </div>
                 
                 <div className={styles.notesCard}>
-                  <h3>Observaciones de Mantenimiento</h3>
+                  <h3> Observaciones de Mantenimiento</h3>
                   <div className={styles.notesContent}>
                     <p>Última limpieza profunda: 15/01/2024</p>
-                    <p>Revisión de aire acondicionado: 10/01/2024</p>
-                    <p>Cambio de cortinas: Pendiente</p>
+                    <p> Revisión de aire acondicionado: 10/01/2024</p>
+                    <p> Cambio de cortinas: Pendiente</p>
                   </div>
                 </div>
               </div>

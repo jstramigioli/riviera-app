@@ -66,7 +66,7 @@ describe('reservationUtils', () => {
       
       showConflictNotification(message)
       
-      expect(global.alert).toHaveBeenCalledWith('⚠️ Conflicto de reserva: Test conflict message')
+      expect(global.alert).toHaveBeenCalledWith('Conflicto de reserva: Test conflict message')
     })
   })
 

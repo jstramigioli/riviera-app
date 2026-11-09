@@ -17,23 +17,23 @@ const GeneralInfoTab = ({
 
   return (
     <div className={styles.tabContent}>
-      <h3 className={styles.sectionTitle}>Información General</h3>
+      <h3 className={styles.sectionTitle}> Información General</h3>
       
       {/* Resumen Financiero */}
       {financialSummary && (
         <div className={styles.financialAlert}>
-          <div className={styles.financialAlertHeader}>Estado Financiero</div>
+          <div className={styles.financialAlertHeader}> Estado Financiero</div>
           <div className={styles.financialAlertBody}>
             <div className={styles.financialRow}>
-              <span>Total Cargos:</span>
+              <span> Total Cargos:</span>
               <strong>{formatCurrency(financialSummary.resumen.totalCargos)}</strong>
             </div>
             <div className={styles.financialRow}>
-              <span>Total Pagos:</span>
+              <span> Total Pagos:</span>
               <strong>{formatCurrency(financialSummary.resumen.totalPagos)}</strong>
             </div>
             <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[financialSummary.resumen.estadoPago]}`}>
-              <span>Saldo:</span>
+              <span> Saldo:</span>
               <strong>{formatCurrency(financialSummary.resumen.saldo)}</strong>
             </div>
             <div className={styles.estadoPagoTag}>
@@ -47,29 +47,29 @@ const GeneralInfoTab = ({
 
       <div className={styles.infoGrid}>
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Check-in:</span>
+          <span className={styles.infoLabel}> Check-in:</span>
           <span className={styles.infoValue}>{formatDate(reservation.checkIn)}</span>
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Check-out:</span>
+          <span className={styles.infoLabel}> Check-out:</span>
           <span className={styles.infoValue}>{formatDate(reservation.checkOut)}</span>
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Noches:</span>
+          <span className={styles.infoLabel}> Noches:</span>
           <span className={styles.infoValue}>{nights}</span>
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Estado:</span>
+          <span className={styles.infoLabel}> Estado:</span>
           <span className={`${styles.infoValue} ${styles.statusBadge} ${styles[reservation.status]}`}>
             {getStatusLabel(reservation.status)}
           </span>
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Huéspedes:</span>
+          <span className={styles.infoLabel}> Huéspedes:</span>
           <span className={styles.infoValue}>
             {reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1} persona{(reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1) > 1 ? 's' : ''}
           </span>
@@ -78,7 +78,7 @@ const GeneralInfoTab = ({
         {reservation.room && (
           <>
             <div className={styles.infoItem}>
-              <span className={styles.infoLabel}>Habitación:</span>
+              <span className={styles.infoLabel}> Habitación:</span>
               <span className={styles.infoValue}>
                 <a href={`/rooms/${reservation.room.id}`} className={styles.link}>
                   {reservation.room.name}
@@ -87,14 +87,14 @@ const GeneralInfoTab = ({
             </div>
             
             <div className={styles.infoItem}>
-              <span className={styles.infoLabel}>Tipo:</span>
+              <span className={styles.infoLabel}> Tipo:</span>
               <span className={styles.infoValue}>{reservation.room.roomType?.name || 'No especificado'}</span>
             </div>
           </>
         )}
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Servicio:</span>
+          <span className={styles.infoLabel}> Servicio:</span>
           <span className={styles.infoValue}>
             {getServiceTypeLabel(reservation.segments?.[0]?.services?.[0] || reservation.reservationType)}
           </span>
@@ -102,7 +102,7 @@ const GeneralInfoTab = ({
         
         {reservation.totalAmount && (
           <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Tarifa Base:</span>
+            <span className={styles.infoLabel}> Tarifa Base:</span>
             <span className={`${styles.infoValue} ${styles.highlight}`}>
               {formatCurrency(reservation.totalAmount)}
             </span>
@@ -112,7 +112,7 @@ const GeneralInfoTab = ({
 
       {reservation.notes && (
         <div className={styles.notesBox}>
-          <h4>📝 Notas:</h4>
+          <h4> Notas:</h4>
           <p>{reservation.notes}</p>
         </div>
       )}

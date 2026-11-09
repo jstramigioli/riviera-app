@@ -1,3 +1,4 @@
+import { FiTool, FiCalendar, FiCpu, FiBarChart2 } from 'react-icons/fi';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/TariffDashboard.module.css';
@@ -27,16 +28,16 @@ export default function QuickActions() {
 
   return (
     <div className={styles.cardContent}>
-      <h3 className={styles.cardTitle}>⚡ Acciones Rápidas</h3>
+      <h3 className={styles.cardTitle}> Acciones Rápidas</h3>
       
       <div className={styles.actionsList}>
         <button 
           className={styles.actionButton}
           onClick={handleNavigateToConfig}
         >
-          <span className={styles.actionIcon}>🔧</span>
+          <span className={styles.actionIcon} aria-hidden="true"><FiTool /></span>
           <div className={styles.actionContent}>
-            <span className={styles.actionTitle}>Configuración Completa</span>
+            <span className={styles.actionTitle}> Configuración Completa</span>
             <span className={styles.actionDescription}>
               Gestionar todos los aspectos de tarifas
             </span>
@@ -47,9 +48,9 @@ export default function QuickActions() {
           className={styles.actionButton}
           onClick={handleNavigateToSeasonBlocks}
         >
-          <span className={styles.actionIcon}>📅</span>
+          <span className={styles.actionIcon} aria-hidden="true"><FiCalendar /></span>
           <div className={styles.actionContent}>
-            <span className={styles.actionTitle}>Gestionar Bloques</span>
+            <span className={styles.actionTitle}> Gestionar Bloques</span>
             <span className={styles.actionDescription}>
               Crear y editar bloques de temporada
             </span>
@@ -60,9 +61,9 @@ export default function QuickActions() {
           className={styles.actionButton}
           onClick={handleNavigateToIntelligentPricing}
         >
-          <span className={styles.actionIcon}>🧠</span>
+          <span className={styles.actionIcon} aria-hidden="true"><FiCpu /></span>
           <div className={styles.actionContent}>
-            <span className={styles.actionTitle}>Precios Inteligentes</span>
+            <span className={styles.actionTitle}> Precios Inteligentes</span>
             <span className={styles.actionDescription}>
               Configurar algoritmos de precios
             </span>
@@ -73,9 +74,9 @@ export default function QuickActions() {
           className={styles.actionButton}
           onClick={handleNavigateToRatesCalendar}
         >
-          <span className={styles.actionIcon}>📊</span>
+          <span className={styles.actionIcon} aria-hidden="true"><FiBarChart2 /></span>
           <div className={styles.actionContent}>
-            <span className={styles.actionTitle}>Calendario de Tarifas</span>
+            <span className={styles.actionTitle}> Calendario de Tarifas</span>
             <span className={styles.actionDescription}>
               Ver y editar tarifas por fecha
             </span>

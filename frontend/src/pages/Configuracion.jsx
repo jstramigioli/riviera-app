@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings } from 'react-icons/fi';
 import styles from '../styles/App.module.css';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
@@ -23,13 +24,13 @@ function ConfiguracionView() {
   }, [activeTab]);
 
   const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: '🏨' },
-    { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
-    { id: 'calendario', label: 'Calendario', icon: '📅' },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
-    { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'sistema', label: 'Sistema', icon: '⚙️' }
+    { id: 'hotel', label: 'Hotel', icon: FiHome },
+    { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
+    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
+    { id: 'calendario', label: 'Calendario', icon: FiCalendar },
+    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
+    { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
+    { id: 'sistema', label: 'Sistema', icon: FiSettings }
   ];
 
   const renderTabContent = () => {
@@ -72,15 +73,15 @@ function ConfiguracionView() {
       case 'usuarios':
         return (
           <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Gestión de Usuarios</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
+            <h3> Gestión de Usuarios</h3>
+            <p> Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
       case 'sistema':
         return (
           <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Configuración del Sistema</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
+            <h3> Configuración del Sistema</h3>
+            <p> Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
       default:
@@ -91,8 +92,8 @@ function ConfiguracionView() {
   return (
     <div className={styles.appContainer}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Configuración</h1>
-        <p className={styles.subtitle}>Gestiona la configuración del sistema</p>
+        <h1 className={styles.title}> Hotel Riviera - Configuración</h1>
+        <p className={styles.subtitle}> Gestiona la configuración del sistema</p>
       </div>
       
       <div style={{ 
@@ -135,7 +136,7 @@ function ConfiguracionView() {
                 gap: '8px'
               }}
             >
-              <span>{tab.icon}</span>
+              <span aria-hidden="true">{tab.icon ? React.createElement(tab.icon) : null}</span>
               {tab.label}
             </button>
           ))}

@@ -10,7 +10,7 @@ describe('EditPanel', () => {
     onEditToggle: vi.fn(),
     onSave: vi.fn(),
     onDelete: vi.fn(),
-    children: <div data-testid="panel-content">Panel Content</div>,
+    children: <div data-testid="panel-content"> Panel Content</div>,
     saveButtonText: 'Guardar Cambios',
     saveDisabled: false,
     showDeleteButton: false
@@ -165,8 +165,8 @@ describe('EditPanel', () => {
   it('handles multiple children', () => {
     const multipleChildren = (
       <>
-        <div data-testid="child-1">Child 1</div>
-        <div data-testid="child-2">Child 2</div>
+        <div data-testid="child-1"> Child 1</div>
+        <div data-testid="child-2"> Child 2</div>
       </>
     )
     

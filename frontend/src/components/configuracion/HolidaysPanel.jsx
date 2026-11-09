@@ -1,3 +1,4 @@
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import React, { useEffect, useState } from 'react';
 
 export default function HolidaysPanel({ hotelId = "default-hotel" }) {
@@ -272,7 +273,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
           fontSize: '18px',
           fontWeight: '600'
         }}>
-          🧩 Configuración de Feriados
+          Configuración de Feriados
         </h3>
         
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -288,7 +289,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
               fontSize: '12px'
             }}
           >
-            📤 Exportar
+            Exportar
           </button>
           <label style={{
             padding: '8px 12px',
@@ -300,7 +301,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
             fontSize: '12px',
             margin: 0
           }}>
-            📥 Importar
+            Importar
             <input
               type="file"
               accept=".json"
@@ -322,7 +323,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
         <form onSubmit={handleAddHoliday} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
           <div style={{ flex: '1' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
-              📅 Fecha:
+              Fecha:
             </label>
             <input
               type="date"
@@ -341,7 +342,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
           
           <div style={{ flex: '2' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
-              🏷️ Nombre del feriado:
+              Nombre del feriado:
             </label>
             <input
               type="text"
@@ -372,7 +373,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
               fontWeight: '500'
             }}
           >
-            ➕ Agregar
+            Agregar
           </button>
         </form>
       </div>
@@ -380,7 +381,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
       {/* Tabla de feriados */}
       <div style={{ marginTop: '20px' }}>
         <h4 style={{ marginBottom: '12px', color: '#495057', fontSize: '16px' }}>
-          📋 Lista de Feriados ({holidays.length})
+          Lista de Feriados ({holidays.length})
         </h4>
         
         {holidays.length === 0 ? (
@@ -409,7 +410,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
                     fontWeight: '600',
                     color: '#495057'
                   }}>
-                    📅 Fecha
+                    Fecha
                   </th>
                   <th style={{ 
                     padding: '12px', 
@@ -418,7 +419,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
                     fontWeight: '600',
                     color: '#495057'
                   }}>
-                    🏷️ Nombre
+                    Nombre
                   </th>
                   <th style={{ 
                     padding: '12px', 
@@ -456,7 +457,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
                           }}
                           title="Editar"
                         >
-                          ✏️
+                          <FiEdit2 aria-hidden="true" />
                         </button>
                         <button
                           onClick={() => handleDeleteHoliday(holiday.id)}
@@ -471,7 +472,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
                           }}
                           title="Eliminar"
                         >
-                          🗑️
+                          <FiTrash2 aria-hidden="true" />
                         </button>
                       </div>
                     </td>
@@ -544,10 +545,10 @@ function EditHolidayModal({ holiday, onClose, onSave }) {
         borderRadius: '8px', 
         minWidth: '400px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>✏️ Editar Feriado</h3>
+        <h3 style={{ marginBottom: '20px' }}> Editar Feriado</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>📅 Fecha:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fecha:</label>
             <input
               type="date"
               value={formData.date}
@@ -558,7 +559,7 @@ function EditHolidayModal({ holiday, onClose, onSave }) {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>🏷️ Nombre del feriado:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Nombre del feriado:</label>
             <input
               type="text"
               value={formData.name}

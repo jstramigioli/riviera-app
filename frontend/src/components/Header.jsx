@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import usePageTitle from '../hooks/usePageTitle';
 import logoHotel from '../assets/logo-hotel.png';
+import { FiSettings } from 'react-icons/fi';
 import styles from '../styles/App.module.css';
 
 function Header() {
@@ -59,7 +60,7 @@ function Header() {
           className={`${styles.navLink} ${styles.configButton} ${location.pathname === '/configuracion' ? styles.active : ''}`}
           title="Configuración"
         >
-          ⚙️
+          <FiSettings aria-hidden="true" />
         </Link>
       </div>
     </nav>

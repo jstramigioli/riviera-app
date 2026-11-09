@@ -185,18 +185,18 @@ function ReservationsView() {
     }
   };
 
-  if (loading) return <div className={styles.loading}>Cargando datos...</div>;
+  if (loading) return <div className={styles.loading}> Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className={styles.appContainer}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Gestión de Reservas</h1>
+        <h1 className={styles.title}> Hotel Riviera - Gestión de Reservas</h1>
         <p className={styles.subtitle}>¡Bienvenido! Aquí podrás gestionar habitaciones, clientes y reservas.</p>
         <div className={styles.stats}>
-          <span className={styles.statItem}>Habitaciones: {rooms.length}</span>
-          <span className={styles.statItem}>Reservas: {reservations.length}</span>
-          <span className={styles.statItem}>Clientes: {clients.length}</span>
+          <span className={styles.statItem}> Habitaciones: {rooms.length}</span>
+          <span className={styles.statItem}> Reservas: {reservations.length}</span>
+          <span className={styles.statItem}> Clientes: {clients.length}</span>
         </div>
       </div>
       <div className={styles.gridWrapper}>
@@ -229,7 +229,7 @@ function ReservationsView() {
           >
             {/* Nombre */}
             <div style={{ marginBottom: 8 }}>
-              <b>Nombre:</b> {isEditing ? (
+              <b> Nombre:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.firstName || selectedClient.firstName}
@@ -243,7 +243,7 @@ function ReservationsView() {
 
             {/* Apellido */}
             <div style={{ marginBottom: 8 }}>
-              <b>Apellido:</b> {isEditing ? (
+              <b> Apellido:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.lastName || selectedClient.lastName}
@@ -257,7 +257,7 @@ function ReservationsView() {
 
             {/* Email */}
             <div style={{ marginBottom: 8 }}>
-              <b>Email:</b> {isEditing ? (
+              <b> Email:</b> {isEditing ? (
                 <input
                   type="email"
                   value={editData.email || selectedClient.email}
@@ -271,7 +271,7 @@ function ReservationsView() {
 
             {/* Teléfono */}
             <div style={{ marginBottom: 8 }}>
-              <b>Teléfono:</b> {isEditing ? (
+              <b> Teléfono:</b> {isEditing ? (
                 <input
                   type="tel"
                   value={editData.phone || selectedClient.phone}
@@ -285,16 +285,16 @@ function ReservationsView() {
 
             {/* Tipo de documento */}
             <div style={{ marginBottom: 8 }}>
-              <b>Tipo de documento:</b> {isEditing ? (
+              <b> Tipo de documento:</b> {isEditing ? (
                 <select
                   value={editData.documentType || selectedClient.documentType}
                   onChange={e => handleEditChange('documentType', e.target.value)}
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
+                  <option value="DNI"> DNI</option>
+                  <option value="Pasaporte"> Pasaporte</option>
+                  <option value="Cédula"> Cédula</option>
+                  <option value="Otro"> Otro</option>
                 </select>
               ) : (
                 selectedClient.documentType
@@ -303,7 +303,7 @@ function ReservationsView() {
 
             {/* Número de documento */}
             <div style={{ marginBottom: 8 }}>
-              <b>Número de documento:</b> {isEditing ? (
+              <b> Número de documento:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.documentNumber || selectedClient.documentNumber}
@@ -317,7 +317,7 @@ function ReservationsView() {
 
             {/* País */}
             <div style={{ marginBottom: 8 }}>
-              <b>País:</b> {isEditing ? (
+              <b> País:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.country || selectedClient.country}
@@ -331,7 +331,7 @@ function ReservationsView() {
 
             {/* Provincia */}
             <div style={{ marginBottom: 8 }}>
-              <b>Provincia:</b> {isEditing ? (
+              <b> Provincia:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.province || selectedClient.province}
@@ -345,7 +345,7 @@ function ReservationsView() {
 
             {/* Ciudad */}
             <div style={{ marginBottom: 8 }}>
-              <b>Ciudad:</b> {isEditing ? (
+              <b> Ciudad:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.city || selectedClient.city}
@@ -359,7 +359,7 @@ function ReservationsView() {
 
             {/* Notas */}
             <div style={{ marginBottom: 8 }}>
-              <b>Notas:</b> {isEditing ? (
+              <b> Notas:</b> {isEditing ? (
                 <textarea
                   value={editData.notes || selectedClient.notes}
                   onChange={e => handleEditChange('notes', e.target.value)}
@@ -374,7 +374,7 @@ function ReservationsView() {
             {/* Reservas del cliente - solo en visualización */}
             {!isEditing && (
               <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-                <b>Reservas del cliente:</b>
+                <b> Reservas del cliente:</b>
                 <div style={{ marginTop: '8px' }}>
                   {reservations.filter(r => r.mainClientId === selectedClient.id).length > 0 ? (
                     reservations
@@ -402,7 +402,7 @@ function ReservationsView() {
                         </div>
                       ))
                   ) : (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>No tiene reservas registradas</div>
+                    <div style={{ color: '#666', fontStyle: 'italic' }}> No tiene reservas registradas</div>
                   )}
                 </div>
               </div>
@@ -426,7 +426,7 @@ function ReservationsView() {
                   onClick={() => alert('Panel de balance será implementado próximamente')}
                   title="Ver detalles del balance"
                 >
-                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Balance:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}> Balance:</span>
                   <span style={{ 
                     fontWeight: 'bold', 
                     fontSize: '1.2rem',

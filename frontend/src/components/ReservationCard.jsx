@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -60,21 +61,21 @@ const ReservationCard = React.memo(function ReservationCard({
         </h3>
         <span className={`${styles.status} ${styles[statusColor]}`}>
           {getStatusLabel(reservation.status)}
-          {statusColor === 'upcoming' && '🔵 Próxima'}
-          {statusColor === 'past' && '⚫ Pasada'}
+          {statusColor === 'upcoming' && 'Próxima'}
+          {statusColor === 'past' && 'Pasada'}
         </span>
       </div>
 
       <div className={styles.details}>
         <div className={styles.dateRange}>
           <div className={styles.date}>
-            <span className={styles.label}>Check-in:</span>
+            <span className={styles.label}> Check-in:</span>
             <span className={styles.value}>
               {format(new Date(reservation.checkIn), 'dd/MM/yyyy', { locale: es })}
             </span>
           </div>
           <div className={styles.date}>
-            <span className={styles.label}>Check-out:</span>
+            <span className={styles.label}> Check-out:</span>
             <span className={styles.value}>
               {format(new Date(reservation.checkOut), 'dd/MM/yyyy', { locale: es })}
             </span>
@@ -83,18 +84,18 @@ const ReservationCard = React.memo(function ReservationCard({
 
         <div className={styles.info}>
           <div className={styles.room}>
-            <span className={styles.label}>Habitación:</span>
+            <span className={styles.label}> Habitación:</span>
             <span className={styles.value}>{reservation.room?.name || 'N/A'}</span>
           </div>
           <div className={styles.duration}>
-            <span className={styles.label}>Duración:</span>
+            <span className={styles.label}> Duración:</span>
             <span className={styles.value}>{duration} {duration === 1 ? 'noche' : 'noches'}</span>
           </div>
         </div>
 
         {reservation.notes && (
           <div className={styles.notes}>
-            <span className={styles.label}>Notas:</span>
+            <span className={styles.label}> Notas:</span>
             <span className={styles.value}>{reservation.notes}</span>
           </div>
         )}
@@ -107,14 +108,14 @@ const ReservationCard = React.memo(function ReservationCard({
             onClick={handleEdit}
             title="Editar reserva"
           >
-            ✏️
+            <FiEdit2 aria-hidden="true" />
           </button>
           <button 
             className={`${styles.actionButton} ${styles.delete}`}
             onClick={handleDelete}
             title="Eliminar reserva"
           >
-            🗑️
+            <FiTrash2 aria-hidden="true" />
           </button>
         </div>
       )}

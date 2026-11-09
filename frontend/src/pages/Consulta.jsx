@@ -1,3 +1,4 @@
+import { FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
@@ -143,7 +144,7 @@ export default function Consulta() {
           const firstBlock = availableBlocks[0];
           
           // Extraer solo la parte de fecha (YYYY-MM-DD) del string ISO para evitar problemas de zona horaria
-          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10" de "2025-10-10T00:00:00.000Z"
+          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10"de "2025-10-10T00:00:00.000Z"
           const checkInDate = startDateISO;
           const checkOutDate = format(addDays(new Date(startDateISO + 'T12:00:00'), 1), 'yyyy-MM-dd');
           
@@ -1896,7 +1897,7 @@ export default function Consulta() {
         setFormData(prev => ({
           ...prev,
           mainClient: {
-            id: newClient.id,  // ✨ Agregar el ID para que se setee como cliente principal
+            id: newClient.id, // Agregar el ID para que se setee como cliente principal
             firstName: newClient.firstName,
             lastName: newClient.lastName,
             email: newClient.email || '',
@@ -1908,11 +1909,11 @@ export default function Consulta() {
         setShowNewClientForm(false);
       } else {
         const errorData = await response.json();
-        alert(`❌ Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
+        alert(`Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error saving client:', error);
-      alert('❌ Error al conectar con el servidor. Intenta nuevamente.');
+      alert('Error al conectar con el servidor. Intenta nuevamente.');
     }
   };
 
@@ -2281,15 +2282,15 @@ export default function Consulta() {
       };
 
       // Formatear datos para copiar
-      let texto = '🏨 CONSULTA DE RESERVA\n';
+      let texto = 'CONSULTA DE RESERVA\n';
       texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
       // Cliente (si existe)
       if (formData.mainClient.firstName || formData.mainClient.lastName) {
-        texto += '👤 CLIENTE\n';
+        texto += 'CLIENTE\n';
         texto += `${formData.mainClient.firstName || ''} ${formData.mainClient.lastName || ''}`.trim() + '\n';
-        if (formData.mainClient.email) texto += `📧 ${formData.mainClient.email}\n`;
-        if (formData.mainClient.phone) texto += `📱 ${formData.mainClient.phone}\n`;
+        if (formData.mainClient.email) texto += ` ${formData.mainClient.email}\n`;
+        if (formData.mainClient.phone) texto += ` ${formData.mainClient.phone}\n`;
         texto += '\n';
       }
 
@@ -2300,7 +2301,7 @@ export default function Consulta() {
         ? Math.ceil((new Date(lastCheckOut) - new Date(firstCheckIn)) / (1000 * 60 * 60 * 24))
         : 0;
 
-      texto += '📅 ESTANCIA\n';
+      texto += 'ESTANCIA\n';
       texto += `Check-in: ${formatDate(firstCheckIn)}\n`;
       texto += `Check-out: ${formatDate(lastCheckOut)}\n`;
       texto += `Noches: ${totalNights}\n`;
@@ -2309,7 +2310,7 @@ export default function Consulta() {
       // Segmentos
       if (segments.length === 1) {
         // Un solo segmento
-        texto += '🏨 HABITACIÓN\n';
+        texto += 'HABITACIÓN\n';
         texto += `${getRoomName(0)}\n`;
         texto += `Servicio: ${getServiceTypeName(segments[0].serviceType)}\n`;
         const total = getTotalAmount(0);
@@ -2318,14 +2319,14 @@ export default function Consulta() {
         }
       } else {
         // Múltiples segmentos
-        texto += '📦 SEGMENTOS DE ESTANCIA\n\n';
+        texto += 'SEGMENTOS DE ESTANCIA\n\n';
         segments.forEach((segment, index) => {
-          texto += `  ${index + 1}. ${formatDate(segment.checkIn)} - ${formatDate(segment.checkOut)}\n`;
-          texto += `     Habitación: ${getRoomName(index)}\n`;
-          texto += `     Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
+          texto += ` ${index + 1}. ${formatDate(segment.checkIn)} - ${formatDate(segment.checkOut)}\n`;
+          texto += ` Habitación: ${getRoomName(index)}\n`;
+          texto += ` Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
           const total = getTotalAmount(index);
           if (total > 0) {
-            texto += `     Tarifa: $${total.toLocaleString('es-AR')}\n`;
+            texto += ` Tarifa: $${total.toLocaleString('es-AR')}\n`;
           }
           texto += '\n';
         });
@@ -2337,7 +2338,7 @@ export default function Consulta() {
       );
 
       if (hasRequirements) {
-        texto += '✨ REQUERIMIENTOS ESPECIALES\n';
+        texto += 'REQUERIMIENTOS ESPECIALES\n';
         segments.forEach((segment, index) => {
           if (segment.requiredTags && segment.requiredTags.length > 0) {
             const tagNames = segment.requiredTags
@@ -2354,7 +2355,7 @@ export default function Consulta() {
 
       // Notas
       if (notes && notes.trim()) {
-        texto += '📝 NOTAS\n';
+        texto += 'NOTAS\n';
         texto += notes + '\n\n';
       }
 
@@ -2365,18 +2366,18 @@ export default function Consulta() {
 
       if (totalGeneral > 0) {
         texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-        texto += `💰 TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
+        texto += `TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
       }
 
       // Copiar al portapapeles
       await navigator.clipboard.writeText(texto);
       
       // Mostrar confirmación visual
-      alert('✅ Datos copiados al portapapeles');
+      alert('Datos copiados al portapapeles');
       
     } catch (error) {
       console.error('Error al copiar datos:', error);
-      alert('❌ Error al copiar datos al portapapeles');
+      alert('Error al copiar datos al portapapeles');
     }
   };
 
@@ -2453,7 +2454,7 @@ export default function Consulta() {
           }
         } catch (clientError) {
           console.error('Error creando cliente:', clientError);
-          alert(`❌ Error al crear el cliente: ${clientError.message}`);
+          alert(`Error al crear el cliente: ${clientError.message}`);
           return;
         }
       } else {
@@ -2548,7 +2549,7 @@ export default function Consulta() {
       }
       
       // Mostrar mensaje de éxito
-      alert('✅ Reserva creada exitosamente');
+      alert('Reserva creada exitosamente');
       
       // Cerrar modal y limpiar formulario
       setShowConfirmationModal(false);
@@ -2559,7 +2560,7 @@ export default function Consulta() {
       
     } catch (error) {
       console.error('Error al crear la reserva:', error);
-      alert(`❌ Error al crear la reserva: ${error.message}`);
+      alert(`Error al crear la reserva: ${error.message}`);
     } finally {
       setIsCreatingReservation(false);
     }
@@ -2629,7 +2630,7 @@ export default function Consulta() {
             {/* Campo de cliente */}
             <div className={styles.clientFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cliente</label>
+                <label> Cliente</label>
                 {showNewClientForm ? (
                   <div className={styles.newClientForm}>
                     <div className={styles.newClientGrid}>
@@ -2661,8 +2662,8 @@ export default function Consulta() {
                       />
                     </div>
                     <div className={styles.newClientButtons}>
-                      <button type="button" onClick={handleSaveNewClient}>Guardar</button>
-                      <button type="button" onClick={handleNewSearch}>❌ Cancelar</button>
+                      <button type="button" onClick={handleSaveNewClient}> Guardar</button>
+                      <button type="button" onClick={handleNewSearch}> Cancelar</button>
                     </div>
                   </div>
                 ) : (
@@ -2713,7 +2714,7 @@ export default function Consulta() {
             {/* Campo global de cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
+                <label> Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
@@ -2754,7 +2755,7 @@ export default function Consulta() {
             {/* Cliente seleccionado */}
             <div className={styles.selectedClientContainer}>
               <div className={styles.formGroup}>
-                <label>Cliente</label>
+                <label> Cliente</label>
                 <div className={styles.selectedClientDisplay}>
                   <span className={styles.clientName}>
                     {formData.mainClient.firstName} {formData.mainClient.lastName}
@@ -2780,7 +2781,7 @@ export default function Consulta() {
                     className={styles.removeClientButton}
                     title="Eliminar cliente de la consulta"
                   >
-                    ✕
+                    
                   </button>
                 </div>
               </div>
@@ -2789,7 +2790,7 @@ export default function Consulta() {
             {/* Cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
+                <label> Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
@@ -2825,7 +2826,7 @@ export default function Consulta() {
             {/* Notas globales */}
             <div className={styles.notesFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Notas</label>
+                <label> Notas</label>
                 <textarea
                   className={styles.notesTextarea}
                   value={notes}
@@ -2923,7 +2924,7 @@ export default function Consulta() {
               {/* Tipo de servicio */}
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Tipo de Servicio</label>
+                  <label> Tipo de Servicio</label>
                   <select
                     value={segments[activeBlockIndex]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'serviceType', e.target.value)}
@@ -2944,8 +2945,8 @@ export default function Consulta() {
                   className={styles.expandableHeader}
                   onClick={() => setShowSegments(!showSegments)}
                 >
-                  <label>Requisitos Especiales</label>
-                  <span className={styles.expandIcon}>{showSegments ? '▼' : '▶'}</span>
+                  <label> Requisitos Especiales</label>
+                  <span className={styles.expandIcon}>{showSegments ? '▼' : ''}</span>
                 </button>
                 
                 {showSegments && (
@@ -2953,7 +2954,7 @@ export default function Consulta() {
                     <div className={styles.requirementsFlexContainer}>
                       {/* Habitación Específica */}
                       <div className={styles.formGroup}>
-                        <label>Habitación Específica:</label>
+                        <label> Habitación Específica:</label>
                         <select
                           value={segments[activeBlockIndex]?.requiredRoomId || ''}
                           onChange={(e) => segments[activeBlockIndex] && handleSegmentRoomChange(segments[activeBlockIndex].id, e.target.value)}
@@ -2965,9 +2966,9 @@ export default function Consulta() {
                             fontSize: '14px'
                           }}
                         >
-                          <option value="">No</option>
+                          <option value=""> No</option>
                           {loadingAllRooms ? (
-                            <option disabled>Cargando habitaciones...</option>
+                            <option disabled> Cargando habitaciones...</option>
                           ) : (
                             allRooms
                               .filter(room => room.maxPeople >= (segments[activeBlockIndex]?.requiredGuests || 1))
@@ -3021,7 +3022,7 @@ export default function Consulta() {
                   borderRadius: '6px',
                   color: '#c33'
                 }}>
-                  ⚠️ El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
+                  El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
                 </div>
               )}
             </div>
@@ -3029,18 +3030,18 @@ export default function Consulta() {
             {/* Habitaciones Disponibles - Se muestran cuando hay resultados de búsqueda */}
             {hasSearchedPerBlock[activeBlockIndex] === true && (
               <>
-              <h3 className={styles.roomsSectionTitle}>Habitaciones Disponibles</h3>
+              <h3 className={styles.roomsSectionTitle}> Habitaciones Disponibles</h3>
               
               {loadingRooms ? (
                 <div className={styles.loading}>
-                  🔍 Buscando habitaciones disponibles...
+                  Buscando habitaciones disponibles...
                     </div>
               ) : (availableRoomsPerBlock[activeBlockIndex] || []).length === 0 ? (
                 <div className={styles.noRooms}>
                   {/* Mostrar mensaje específico si hay disponibilidad parcial, sino mensaje genérico */}
                   {isPartiallyAvailable && availablePeriods.length > 0 ? (
                     <>
-                      <p>El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
+                      <p> El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
                         
                         <button 
                           onClick={createSegmentsFromAvailablePeriods}
@@ -3056,7 +3057,7 @@ export default function Consulta() {
                           marginTop: '15px'
                           }}
                         >
-                        🔄 Dividir la reserva en tramos
+                        Dividir la reserva en tramos
                         </button>
                         
                         <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
@@ -3064,7 +3065,7 @@ export default function Consulta() {
                         </p>
                     </>
                   ) : (
-                  <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
+                  <p> No se encontraron habitaciones disponibles para los criterios especificados.</p>
                   )}
                 </div>
               ) : (
@@ -3155,9 +3156,9 @@ export default function Consulta() {
                             <div className={styles.roomItemRight}>
                               <div className={styles.complianceIndicator} title={compliance.message}>
                                 {compliance.complies ? (
-                                  <span className={styles.complianceCheck}>✓</span>
+                                  <span className={styles.complianceCheck} aria-hidden="true"><FiCheck /></span>
                                 ) : (
-                                  <span className={styles.complianceX}>✗</span>
+                                  <span className={styles.complianceX} aria-hidden="true"><FiX /></span>
                                 )}
                               </div>
                               
@@ -3181,12 +3182,12 @@ export default function Consulta() {
                           
                           {showDetails && (
                             <div className={styles.roomDetailsExpanded}>
-                              <h4>Detalle Tarifario por Día</h4>
+                              <h4> Detalle Tarifario por Día</h4>
                               <div className={styles.dailyRatesTable}>
                                 {room.ratesData && room.ratesData.rates ? (
                                   room.ratesData.rates.map((rate, index) => (
                                     <div key={index} className={styles.dailyRateRow}>
-                                      <span>Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
+                                      <span> Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
                                       <span>${new Intl.NumberFormat('es-AR').format(rate.serviceRate || rate.baseRate)}</span>
                                     </div>
                                   ))
@@ -3200,7 +3201,7 @@ export default function Consulta() {
                                 <div className={styles.dailyRatesTotal}>
                                   <div className={styles.totalSeparator}></div>
                                   <div className={styles.dailyRateRow}>
-                                    <span><strong>Total:</strong></span>
+                                    <span><strong> Total:</strong></span>
                                     <span><strong>${new Intl.NumberFormat('es-AR').format(room.ratesData.totalAmount)}</strong></span>
                                   </div>
                                 </div>
@@ -3229,7 +3230,7 @@ export default function Consulta() {
             onClick={handleCopyReservationData}
             title="Copiar datos de la consulta al portapapeles"
           >
-            📋 Copiar Datos
+            Copiar Datos
           </button>
 
           {/* Botón de crear reserva - Solo si hay cliente */}
@@ -3241,7 +3242,7 @@ export default function Consulta() {
               disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
               title={!segments.every((_, index) => selectedRoomsPerBlock[index]) ? 'Selecciona una habitación para cada segmento' : 'Crear la reserva'}
             >
-              ✅ Crear Reserva
+              Crear Reserva
             </button>
           )}
         </div>
@@ -3288,8 +3289,8 @@ export default function Consulta() {
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '32px' }}>⚠️</div>
-              <h2 style={{ margin: 0, color: '#dc2626' }}>Advertencia: Fecha Pasada</h2>
+              <div style={{ fontSize: '32px' }} aria-hidden="true"><FiAlertTriangle /></div>
+              <h2 style={{ margin: 0, color: '#dc2626' }}> Advertencia: Fecha Pasada</h2>
             </div>
             <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '16px' }}>
               La reserva que estás creando incluye fechas anteriores a hoy. Esto normalmente indica un error.

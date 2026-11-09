@@ -102,14 +102,14 @@ function ReservationRequirements({
             backgroundColor: 'var(--color-bg-white)'
           }}
         >
-          <option value={1}>1 huésped</option>
-          <option value={2}>2 huéspedes</option>
-          <option value={3}>3 huéspedes</option>
-          <option value={4}>4 huéspedes</option>
-          <option value={5}>5 huéspedes</option>
-          <option value={6}>6 huéspedes</option>
-          <option value={7}>7 huéspedes</option>
-          <option value={8}>8 huéspedes</option>
+          <option value={1}> 1 huésped</option>
+          <option value={2}> 2 huéspedes</option>
+          <option value={3}> 3 huéspedes</option>
+          <option value={4}> 4 huéspedes</option>
+          <option value={5}> 5 huéspedes</option>
+          <option value={6}> 6 huéspedes</option>
+          <option value={7}> 7 huéspedes</option>
+          <option value={8}> 8 huéspedes</option>
         </select>
       </div>
 
@@ -136,9 +136,9 @@ function ReservationRequirements({
             backgroundColor: 'var(--color-bg-white)'
           }}
         >
-          <option value="">No</option>
+          <option value=""> No</option>
           {loadingRooms ? (
-            <option disabled>Cargando habitaciones...</option>
+            <option disabled> Cargando habitaciones...</option>
           ) : (
             filteredRooms.map(room => (
               <option key={room.id} value={room.id}>
