@@ -13,7 +13,13 @@ const {
   validateReservationUpdate
 } = require('../utils/segmentValidation');
 const { getCanonicalRoomTypePrice } = require('../services/canonicalPricingService');
-const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
+const {
+  OCCUPYING_STATUSES,
+  NON_OCCUPYING_STATUSES,
+  VALID_RESERVATION_STATUSES,
+  getReservationStatusOptions,
+  isValidReservationStatus,
+} = require('../constants/reservationStatus');
 
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
@@ -242,6 +248,14 @@ exports.updateReservation = async (req, res) => {
   }
 };
 
+/** GET /api/reservations/statuses — lista canónica del enum (fuente de verdad para el FE) */
+exports.getReservationStatuses = (req, res) => {
+  res.json({
+    statuses: getReservationStatusOptions(),
+    values: VALID_RESERVATION_STATUSES,
+  });
+};
+
 // Actualizar solo el estado de una reserva
 exports.updateReservationStatus = async (req, res) => {
   const { id } = req.params;
@@ -257,20 +271,17 @@ exports.updateReservationStatus = async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
-    // Validar el estado
-    const validStatuses = ['PENDIENTE', 'CONFIRMADA', 'INGRESADA', 'FINALIZADA', 'CANCELADA', 'NO_PRESENTADA'];
-    if (!validStatuses.includes(status)) {
+    if (!isValidReservationStatus(status)) {
       return res.status(400).json({ 
         error: 'Estado inválido',
         message: `El estado '${status}' no es válido`,
-        validStatuses: validStatuses,
+        validStatuses: VALID_RESERVATION_STATUSES,
         receivedStatus: status
       });
     }
 
-    const nonOccupying = ['CANCELADA', 'NO_PRESENTADA'];
-    const wasNonOccupying = nonOccupying.includes(existingReservation.status);
-    const willBeNonOccupying = nonOccupying.includes(status);
+    const wasNonOccupying = NON_OCCUPYING_STATUSES.includes(existingReservation.status);
+    const willBeNonOccupying = NON_OCCUPYING_STATUSES.includes(status);
 
     // Actualizar estado y liberar/reocupar segmentos según ocupación
     const updatedReservation = await prisma.$transaction(async (tx) => {
