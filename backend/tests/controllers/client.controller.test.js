@@ -217,4 +217,32 @@ describe('Controlador de Clientes', () => {
         .expect(404);
     });
   });
+
+  describe('GET /api/clients/:id/balance', () => {
+    it('debería calcular balance desde cargos y pagos de las reservas', async () => {
+      global.mockPrisma.client.findUnique.mockResolvedValue({
+        id: 1212,
+        firstName: 'Julián',
+        lastName: 'Stramigioli',
+        reservations: [
+          {
+            id: 9,
+            status: 'PENDIENTE',
+            cargos: [{ monto: 414000 }],
+            pagos: [{ montoARS: 424000 }],
+          },
+        ],
+      });
+
+      const response = await request(app)
+        .get('/api/clients/1212/balance')
+        .expect(200);
+
+      expect(response.body.totalCharges).toBe(414000);
+      expect(response.body.totalPayments).toBe(424000);
+      expect(response.body.balance).toBe(-10000);
+      expect(response.body.isDebtor).toBe(false);
+      expect(response.body.reservations).toHaveLength(1);
+    });
+  });
 });

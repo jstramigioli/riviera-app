@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { aggregateReservationsBalance } = require('../utils/reservationBalance');
 
 // Listar todos los clientes
 exports.getAllClients = async (req, res) => {
@@ -118,42 +119,40 @@ exports.deleteClient = async (req, res) => {
   }
 };
 
-// Calcular balance de un cliente
+// Calcular balance de un cliente (misma fuente que resumen de reserva: cargos − pagos)
 exports.getClientBalance = async (req, res) => {
   const { id } = req.params;
   try {
     const client = await prisma.client.findUnique({
       where: { id: parseInt(id) },
       include: {
-        reservations: true
-      }
+        reservations: {
+          include: {
+            cargos: true,
+            pagos: true,
+          },
+        },
+      },
     });
-    
+
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    // Calcular total de cargos (reservas)
-    const totalCharges = client.reservations
-      .filter(r => !['CANCELADA', 'NO_PRESENTADA', 'cancelled'].includes(r.status))
-      .reduce((sum, r) => sum + r.totalAmount, 0);
-
-    // Por ahora asumimos que no hay pagos registrados para clientes
-    // En el futuro esto se conectará con el sistema de pagos
-    const totalPayments = 0;
-
-    // Balance = cargos - pagos
-    const balance = totalCharges - totalPayments;
+    const aggregated = aggregateReservationsBalance(client.reservations);
 
     res.json({
       clientId: client.id,
       clientName: `${client.firstName} ${client.lastName}`,
-      totalCharges,
-      totalPayments,
-      balance,
-      isDebtor: balance > 0
+      totalCharges: aggregated.totalCharges,
+      totalPayments: aggregated.totalPayments,
+      balance: aggregated.balance,
+      isDebtor: aggregated.balance > 0,
+      reservationCount: aggregated.reservationCount,
+      reservations: aggregated.reservations,
     });
   } catch (error) {
+    console.error('Error calculating client balance:', error);
     res.status(500).json({ error: 'Error calculating client balance' });
   }
 }; 
