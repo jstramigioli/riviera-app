@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import useReservationStatuses from '../../hooks/useReservationStatuses';
 import styles from './ReservationTabs.module.css';
 
@@ -22,6 +23,31 @@ const toDateInput = (dateString) => {
   }
 };
 
+/** Total de la estadía: nunca confundir con tarifa/noche (baseRate). */
+const resolveReservationTotal = (reservation, nights) => {
+  const explicit = Number(reservation?.totalAmount);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const activeSegments = (reservation?.segments || []).filter((s) => s.isActive !== false);
+  const segments = activeSegments.length > 0 ? activeSegments : (reservation?.segments || []);
+  if (segments.length > 0) {
+    const fromSegments = segments.reduce((sum, segment) => {
+      const start = segment.startDate ? new Date(segment.startDate) : null;
+      const end = segment.endDate ? new Date(segment.endDate) : null;
+      const segNights = start && end
+        ? Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)))
+        : nights || 1;
+      const rate = Number(segment.baseRate) || 0;
+      return sum + rate * segNights;
+    }, 0);
+    if (fromSegments > 0) return fromSegments;
+  }
+
+  const nightly = Number(reservation?.averageRate || reservation?.segments?.[0]?.baseRate) || 0;
+  if (nightly > 0 && nights > 0) return nightly * nights;
+  return 0;
+};
+
 const GeneralInfoTab = ({ 
   reservation,
   editData,
@@ -37,18 +63,30 @@ const GeneralInfoTab = ({
   getStatusLabel 
 }) => {
   const { statuses: statusOptions } = useReservationStatuses();
+  const [financialExpanded, setFinancialExpanded] = useState(false);
 
   if (!reservation) return null;
 
   const data = isEditing && editData ? editData : reservation;
 
-  const checkIn = data.segments?.[0]?.startDate || data.checkIn;
-  const checkOut = data.segments?.[data.segments?.length - 1]?.endDate || data.checkOut;
+  const checkIn = data.checkIn || data.segments?.[0]?.startDate;
+  const checkOut = data.checkOut || data.segments?.[data.segments?.length - 1]?.endDate;
   const nights = checkIn && checkOut
     ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
     : 0;
   const guestCount = data.segments?.[0]?.guestCount || data.requiredGuests || 1;
   const serviceId = data.segments?.[0]?.services?.[0] || data.reservationType || '';
+  const reservationTotal = resolveReservationTotal(reservation, nights);
+  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
+  const totalCargosRaw = Number(financialSummary?.resumen?.totalCargos) || 0;
+  // Si los cargos están desfasados (p.ej. solo 1 noche), el total de reserva manda.
+  const totalCargosDisplay = Math.max(totalCargosRaw, reservationTotal);
+  const saldoDisplay = totalCargosDisplay - totalPagos;
+  const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
+
+  const cargoItems = financialSummary?.cargos?.items || [];
+  const pagoItems = financialSummary?.pagos?.items || [];
+  const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
 
   const handleSegmentField = (field, value) => {
     if (!onEditChange) return;
@@ -69,31 +107,6 @@ const GeneralInfoTab = ({
   return (
     <div className={styles.tabContent}>
       <h3 className={styles.sectionTitle}>Información General</h3>
-      
-      {financialSummary && (
-        <div className={styles.financialAlert}>
-          <div className={styles.financialAlertHeader}>Estado Financiero</div>
-          <div className={styles.financialAlertBody}>
-            <div className={styles.financialRow}>
-              <span>Total Cargos:</span>
-              <strong>{formatCurrency(financialSummary.resumen.totalCargos)}</strong>
-            </div>
-            <div className={styles.financialRow}>
-              <span>Total Pagos:</span>
-              <strong>{formatCurrency(financialSummary.resumen.totalPagos)}</strong>
-            </div>
-            <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[financialSummary.resumen.estadoPago]}`}>
-              <span>Saldo:</span>
-              <strong>{formatCurrency(financialSummary.resumen.saldo)}</strong>
-            </div>
-            <div className={styles.estadoPagoTag}>
-              {financialSummary.resumen.estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
-              {financialSummary.resumen.estadoPago === 'PAGADO' && 'Pagado completamente'}
-              {financialSummary.resumen.estadoPago === 'A_FAVOR' && 'Saldo a favor'}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className={styles.infoGrid}>
         <div className={styles.infoItem}>
@@ -261,17 +274,17 @@ const GeneralInfoTab = ({
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Tarifa Base:</span>
-          <span className={`${styles.infoValue} ${!isEditing ? styles.highlight : ''}`}>
+          <span className={styles.infoLabel}>Total:</span>
+          <span className={`${styles.infoValue} ${!isEditing ? styles.highlight : ''}`} data-testid="reservation-total">
             {isEditing ? (
               <input
                 type="number"
-                value={data.totalAmount ?? reservation.totalAmount ?? 0}
+                value={data.totalAmount ?? reservationTotal ?? 0}
                 onChange={(e) => onEditChange('totalAmount', parseFloat(e.target.value) || 0)}
                 style={inputStyle}
               />
-            ) : reservation.totalAmount != null ? (
-              formatCurrency(reservation.totalAmount)
+            ) : reservationTotal > 0 ? (
+              formatCurrency(reservationTotal)
             ) : (
               '—'
             )}
@@ -292,6 +305,129 @@ const GeneralInfoTab = ({
           <p>{reservation.notes || 'Sin notas'}</p>
         )}
       </div>
+
+      {financialSummary && (
+        <div className={`${styles.financialAlert} ${financialExpanded ? styles.financialAlertExpanded : ''}`}>
+          <button
+            type="button"
+            className={styles.financialAlertToggle}
+            onClick={() => setFinancialExpanded((v) => !v)}
+            aria-expanded={financialExpanded}
+          >
+            <span className={styles.financialAlertHeader}>Estado Financiero</span>
+            <span className={styles.financialExpandIcon} aria-hidden="true">
+              {financialExpanded ? <FaChevronDown /> : <FaChevronRight />}
+            </span>
+          </button>
+          <div className={styles.financialAlertBody}>
+            <div className={styles.financialRow}>
+              <span>Total reserva:</span>
+              <strong data-testid="financial-total-reserva">{formatCurrency(reservationTotal)}</strong>
+            </div>
+            <div className={styles.financialRow}>
+              <span>Total cargos:</span>
+              <strong>{formatCurrency(totalCargosDisplay)}</strong>
+            </div>
+            <div className={styles.financialRow}>
+              <span>Total pagos:</span>
+              <strong>{formatCurrency(totalPagos)}</strong>
+            </div>
+            <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[estadoPago]}`}>
+              <span>Saldo:</span>
+              <strong>{formatCurrency(saldoDisplay)}</strong>
+            </div>
+            <div className={styles.estadoPagoTag}>
+              {estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
+              {estadoPago === 'PAGADO' && 'Pagado completamente'}
+              {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
+            </div>
+          </div>
+
+          {financialExpanded && (
+            <div className={styles.financialBreakdown}>
+              <div className={styles.breakdownSection}>
+                <h4>Desglose de montos</h4>
+                {Object.keys(cargosPorTipo).length > 0 ? (
+                  <ul className={styles.breakdownList}>
+                    {Object.values(cargosPorTipo).map((tipo) => (
+                      <li key={tipo.codigo} className={styles.breakdownGroup}>
+                        <div className={styles.breakdownGroupHeader}>
+                          <span>{tipo.nombre}</span>
+                          <strong>{formatCurrency(tipo.total)}</strong>
+                        </div>
+                        {(tipo.items || []).map((item) => (
+                          <div key={item.id} className={styles.breakdownItem}>
+                            <span>{item.descripcion || 'Cargo'}</span>
+                            <span>{formatCurrency(item.monto)}</span>
+                          </div>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+                ) : cargoItems.length > 0 ? (
+                  <ul className={styles.breakdownList}>
+                    {cargoItems.map((item) => (
+                      <li key={item.id} className={styles.breakdownItem}>
+                        <span>{item.descripcion || 'Cargo'}</span>
+                        <span>{formatCurrency(item.monto)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={styles.breakdownEmpty}>
+                    Sin cargos registrados. Total de reserva: {formatCurrency(reservationTotal)}
+                    {nights > 1 ? ` (${nights} noches).` : '.'}
+                  </p>
+                )}
+
+                {totalCargosRaw > 0 && totalCargosRaw < reservationTotal && (
+                  <p className={styles.breakdownHint}>
+                    Los cargos cargados ({formatCurrency(totalCargosRaw)}) son menores al total
+                    de la reserva ({formatCurrency(reservationTotal)}). Se usa el total de la estadía.
+                  </p>
+                )}
+              </div>
+
+              <div className={styles.breakdownSection}>
+                <h4>Pagos</h4>
+                {pagoItems.length > 0 ? (
+                  <ul className={styles.breakdownList}>
+                    {pagoItems.map((pago) => (
+                      <li key={pago.id} className={styles.breakdownItem}>
+                        <span>{pago.metodo || 'Pago'}{pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}</span>
+                        <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                )}
+              </div>
+
+              {nights > 0 && reservationTotal > 0 && (
+                <div className={styles.breakdownSection}>
+                  <h4>Desglose por noche (total de reserva)</h4>
+                  <ul className={styles.breakdownList}>
+                    {Array.from({ length: nights }, (_, i) => {
+                      const perNight = reservationTotal / nights;
+                      return (
+                        <li key={`night-${i + 1}`} className={styles.breakdownItem}>
+                          <span>Noche {i + 1}</span>
+                          <span>{formatCurrency(perNight)}</span>
+                        </li>
+                      );
+                    })}
+                    <li className={`${styles.breakdownItem} ${styles.breakdownTotal}`}>
+                      <strong>Total estadía</strong>
+                      <strong>{formatCurrency(reservationTotal)}</strong>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

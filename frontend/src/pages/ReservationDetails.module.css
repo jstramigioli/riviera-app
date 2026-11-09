@@ -1,9 +1,10 @@
 /* Estilos idénticos a NuevaConsulta.module.css */
 .newLayout {
   display: flex;
-  min-height: 100vh;
+  height: calc(100vh - var(--nav-height));
+  max-height: calc(100vh - var(--nav-height));
   background: var(--color-bg);
-  height: auto;
+  overflow: hidden;
 }
 
 .sidePanel {
@@ -12,14 +13,15 @@
   color: white;
   padding: 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
+  position: fixed;
+  left: 0;
+  top: var(--nav-height);
   height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
-  align-self: flex-start;
+  overflow: hidden;
+  z-index: 20;
 }
 
 /* Todos los textos en el side panel deben ser blancos */
@@ -48,18 +50,75 @@
 }
 
 .sidePanelHeader {
-  padding: 24px 15% 24px 5%;
+  padding: 20px 16px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.sidePanelHeaderTop {
+  display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .sidePanelHeader h2 {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: var(--font-size-xlarge);
   font-weight: 700;
   color: white;
+  min-width: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.headerIconBtn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.headerIconBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.headerIconBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.headerIconBtnDanger {
+  background: rgba(220, 53, 69, 0.75);
+}
+
+.headerIconBtnDanger:hover:not(:disabled) {
+  background: rgba(220, 53, 69, 0.95);
+}
+
+.headerIconBtn svg {
+  width: 12px;
+  height: 12px;
 }
 
 .guestInfo {
@@ -310,6 +369,7 @@
   align-items: stretch;
   gap: 8px;
   justify-content: stretch;
+  width: 100%;
 }
 
 .actionButtons .editButton,
@@ -378,18 +438,24 @@
 
 .mainContent {
   flex: 1;
+  margin-left: 350px;
   background: white;
-  min-height: calc(100vh - var(--nav-height));
+  height: calc(100vh - var(--nav-height));
+  max-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mainContentBody {
   flex: 1;
   padding: 24px;
-  overflow-y: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: white;
-  min-height: calc(100vh - 80px - 48px); /* Restar padding */
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .section {
@@ -869,11 +935,11 @@
 /* Responsive para el nuevo layout */
 @media (max-width: 1024px) {
   .sidePanel {
-    width: 350px;
+    width: 320px;
   }
   
   .mainContent {
-    margin-left: 350px;
+    margin-left: 320px;
   }
   
   .infoGrid {
@@ -893,16 +959,29 @@
 @media (max-width: 768px) {
   .newLayout {
     flex-direction: column;
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
   
   .sidePanel {
     position: relative;
+    top: 0;
     width: 100%;
     height: auto;
+    max-height: none;
+    overflow: visible;
   }
   
   .mainContent {
     margin-left: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .mainContentBody {
+    overflow: visible;
   }
   
   .mainContentFooter {

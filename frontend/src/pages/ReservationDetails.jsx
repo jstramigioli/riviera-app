@@ -208,6 +208,11 @@ const ReservationDetails = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
+      // Fechas civiles yyyy-MM-dd: parsear en local para evitar off-by-one UTC
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        const [y, m, d] = String(dateString).split('-').map(Number);
+        return format(new Date(y, m - 1, d), 'dd/MM/yyyy', { locale: es });
+      }
       return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
     } catch {
       return dateString;
@@ -443,11 +448,47 @@ const ReservationDetails = () => {
   // Render principal
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
+      {/* Side / top panel */}
       <div className={styles.sidePanel}>
-        {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Reserva #{reservation.id}</h2>
+          <div className={styles.sidePanelHeaderTop}>
+            <h2>Reserva #{reservation.id}</h2>
+            <div className={styles.headerActions}>
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleEditSave}
+                    className={styles.headerIconBtn}
+                    disabled={saving}
+                    title={saving ? 'Guardando…' : 'Guardar cambios'}
+                    aria-label="Guardar cambios"
+                  >
+                    <FaSave />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={`${styles.headerIconBtn} ${styles.headerIconBtnDanger}`}
+                    title="Salir de edición"
+                    aria-label="Salir de edición"
+                  >
+                    <FaTimes />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEditToggle}
+                  className={styles.headerIconBtn}
+                  title="Editar reserva"
+                  aria-label="Editar reserva"
+                >
+                  <FaPen />
+                </button>
+              )}
+            </div>
+          </div>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
@@ -463,7 +504,6 @@ const ReservationDetails = () => {
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
         <div className={styles.sidePanelContent}>
           <div className={styles.sectionMenu}>
             <button 
@@ -499,26 +539,9 @@ const ReservationDetails = () => {
           </div>
         </div>
 
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button
-              onClick={handleEditToggle}
-              className={`${styles.editButton} ${isEditing ? styles.editing : ''}`}
-              title={isEditing ? 'Desactivar modo edición' : 'Activar modo edición'}
-            >
-              {isEditing ? <><FaTimes /> Salir edición</> : <><FaPen /> Editar</>}
-            </button>
-            {isEditing ? (
-              <button
-                onClick={handleEditSave}
-                className={styles.backButton}
-                disabled={saving}
-                title="Guardar cambios"
-              >
-                <FaSave /> {saving ? 'Guardando…' : 'Guardar'}
-              </button>
-            ) : (
+        {!isEditing && (
+          <div className={styles.sidePanelFooter}>
+            <div className={styles.actionButtons}>
               <div className={styles.statusButtons}>
                 <ReservationStatusButtons
                   reservation={reservation}
@@ -527,20 +550,11 @@ const ReservationDetails = () => {
                   variant="dark"
                 />
               </div>
-            )}
-            {!isEditing && (
-              <button
-                onClick={handleBackClick}
-                className={styles.backButton}
-              >
-                Volver
-              </button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
           {renderTabContent()}
