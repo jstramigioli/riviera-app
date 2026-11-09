@@ -1,7 +1,7 @@
 /** Constantes de geometría alineadas con v2 (CalendarBoard). */
 export const CELL = 42;
 export const LABEL_W = 140;
-export const ROW_H = 30;
+export const ROW_H = 22;
 export const MAX_WINDOW_DAYS = 90;
 export const CHUNK = 21;
 export const EDGE_DAYS = 4;
@@ -18,8 +18,8 @@ export function blockStyle(startOffset, span) {
   return {
     left: startOffset * CELL + 2,
     width: Math.max(span * CELL - 4, 8),
-    top: 3,
-    height: ROW_H - 6,
+    top: 2,
+    height: ROW_H - 4,
     position: 'absolute'
   };
 }
