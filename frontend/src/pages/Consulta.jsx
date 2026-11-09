@@ -2483,9 +2483,11 @@ export default function Consulta() {
             throw new Error(`El segmento ${index + 1} tiene fechas inválidas (check-out debe ser después de check-in).`);
           }
           
-          // Calcular baseRate - debe existir y ser válida
-          const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
+          // Snapshot canónico: night rates día a día + promedio solo como baseRate del segmento
+          const ratesData = selectedRoomsPerBlock[index].ratesData;
+          const totalAmount = ratesData?.totalAmount;
           const roomPrice = selectedRoomsPerBlock[index].price;
+          const nightlyRates = Array.isArray(ratesData?.rates) ? ratesData.rates : [];
           
           let baseRate = null;
           if (totalAmount && totalAmount > 0) {
@@ -2502,9 +2504,19 @@ export default function Consulta() {
           if (!segment.requiredGuests || segment.requiredGuests <= 0) {
             throw new Error(`El segmento ${index + 1} debe tener al menos 1 huésped.`);
           }
+
+          const nightRates = nightlyRates.map((rate) => ({
+            date: rate.dateString || rate.date,
+            baseRate: rate.baseRate,
+            serviceRate: rate.serviceRate ?? rate.finalRate ?? rate.baseRate,
+            finalRate: rate.finalRate ?? rate.serviceRate ?? rate.baseRate,
+            seasonBlockId: rate.seasonBlockId || null,
+            seasonBlockName: rate.seasonBlockName || null
+          }));
           
           return {
             roomId: selectedRoomsPerBlock[index].id,
+            roomTypeId: selectedRoomsPerBlock[index].roomTypeId || selectedRoomsPerBlock[index].roomType?.id || null,
             startDate: segment.checkIn,
             endDate: segment.checkOut,
             requiredGuests: segment.requiredGuests,
@@ -2512,6 +2524,7 @@ export default function Consulta() {
             requiredTags: segment.requiredTags || [],
             requiredRoomId: segment.requiredRoomId || null,
             baseRate: baseRate,
+            nightRates,
             guestCount: segment.requiredGuests
           };
         }),

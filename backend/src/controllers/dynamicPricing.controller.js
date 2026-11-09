@@ -1,6 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const dynamicPricingService = require('../services/dynamicPricingService');
+const {
+  calculateFinalPrice,
+  getRoundingConfig,
+  toDateOnlyString,
+  blockCoversDate
+} = require('../services/canonicalPricingService');
 
 class DynamicPricingController {
 
@@ -367,10 +373,11 @@ class DynamicPricingController {
 
       console.log('📅 Buscando tarifas para:', hotelId, roomTypeId, start, end);
 
-      // Obtener bloques de temporada que cubran las fechas solicitadas
+      // Solo bloques confirmados (isDraft: false) — path canónico alineado con admin
       const seasonBlocks = await prisma.seasonBlock.findMany({
         where: { 
           hotelId,
+          isDraft: false,
           startDate: { lte: new Date(end) },
           endDate: { gte: new Date(start) }
         },
@@ -383,6 +390,8 @@ class DynamicPricingController {
           }
         }
       });
+
+      const roundingConfig = await getRoundingConfig(hotelId);
 
       console.log('📅 Bloques de temporada disponibles:', seasonBlocks.map(block => ({
         id: block.id,
@@ -691,35 +700,44 @@ class DynamicPricingController {
       const expectedDays = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24));
       console.log('📅 Días esperados:', expectedDays);
 
-      // Generar tarifas basadas en los bloques de temporada
+      // Generar tarifas noche a noche con el mismo motor que admin (% servicio + redondeo)
       const rates = [];
       const missingDates = [];
       
       for (let date = new Date(startDateObj); date < endDateObj; date.setDate(date.getDate() + 1)) {
-        const dateString = date.toISOString().split('T')[0];
-        
-        // Buscar un bloque de temporada que cubra esta fecha
-        const coveringBlock = seasonBlocks.find(block => {
-          const blockStart = new Date(block.startDate);
-          const blockEnd = new Date(block.endDate);
-          return date >= blockStart && date <= blockEnd;
-        });
+        const coveringBlock = seasonBlocks.find(block => blockCoversDate(block, date));
         
         if (coveringBlock) {
-          // Buscar el precio para este tipo de habitación y servicio en el bloque
           const roomTypePrice = coveringBlock.seasonPrices.find(price => 
             price.roomTypeId === parseInt(roomTypeId) && 
             price.serviceTypeId === requestedService.id
           );
           
           if (roomTypePrice) {
+            const selection = coveringBlock.blockServiceSelections.find(
+              (s) => s.serviceTypeId === requestedService.id && s.isEnabled
+            );
+            const priced = calculateFinalPrice(
+              roomTypePrice.basePrice,
+              selection?.percentageAdjustment ?? 0,
+              roundingConfig
+            );
+
             rates.push({
               date: new Date(date),
-              baseRate: roomTypePrice.basePrice,
-              dynamicRate: roomTypePrice.basePrice, // Por ahora usar el mismo precio
+              dateString: toDateOnlyString(date),
+              baseRate: priced.basePrice,
+              dynamicRate: priced.finalPrice, // alias histórico; no implica DynamicPricing
+              serviceRate: priced.finalPrice,
+              finalRate: priced.finalPrice,
+              percentageAdjustment: priced.percentageAdjustment,
+              wasRounded: priced.wasRounded,
+              seasonBlockId: coveringBlock.id,
+              seasonBlockName: coveringBlock.name,
               hotelId,
               roomTypeId: parseInt(roomTypeId),
-              serviceTypeId: requestedService.id
+              serviceTypeId: requestedService.id,
+              currency: 'ARS'
             });
           } else {
             missingDates.push(new Date(date));
@@ -729,14 +747,13 @@ class DynamicPricingController {
         }
       }
 
-      console.log('📊 Tarifas generadas:', rates.length);
-      console.log('📊 Fechas de tarifas:', rates.map(r => r.date));
+      console.log('📊 Tarifas generadas (canónicas):', rates.length);
 
       if (missingDates.length > 0) {
-        console.log('⚠️ Fechas sin tarifas disponibles:', missingDates.map(d => d.toISOString().split('T')[0]));
+        console.log('⚠️ Fechas sin tarifas disponibles:', missingDates.map(d => toDateOnlyString(d)));
         return res.status(400).json({
           message: 'No hay tarifas disponibles para todas las fechas solicitadas',
-          missingDates: missingDates.map(d => d.toISOString().split('T')[0]),
+          missingDates: missingDates.map(d => toDateOnlyString(d)),
           availableBlocks: seasonBlocks.map(block => ({
             name: block.name,
             startDate: block.startDate,
@@ -745,23 +762,15 @@ class DynamicPricingController {
         });
       }
 
-      // Calcular el total sumando todas las tarifas
       let totalAmount = 0;
-      const ratesWithService = rates.map((rate, index) => {
-        // Usar solo la tarifa base, sin multiplicadores
-        const serviceRate = rate.baseRate;
-        
-        // Sumar todas las tarifas al total
-        totalAmount += serviceRate;
-        
+      const ratesWithService = rates.map((rate) => {
+        totalAmount += rate.serviceRate;
         return {
           ...rate,
-          serviceRate,
           serviceType
         };
       });
 
-      // El número de noches es igual al número de tarifas
       const numberOfNights = rates.length;
       
       res.status(200).json({
@@ -772,6 +781,8 @@ class DynamicPricingController {
         serviceType,
         numberOfNights: numberOfNights,
         averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0,
+        currency: 'ARS',
+        pricingEngine: 'canonical-season-block',
         availableServices: commonServices.map(s => s.name),
         serviceAvailabilityMessages: serviceAvailabilityMessages.length > 0 ? serviceAvailabilityMessages : undefined
       });

@@ -135,7 +135,7 @@ exports.getClientBalance = async (req, res) => {
 
     // Calcular total de cargos (reservas)
     const totalCharges = client.reservations
-      .filter(r => r.status !== 'cancelled')
+      .filter(r => !['CANCELADA', 'NO_PRESENTADA', 'cancelled'].includes(r.status))
       .reduce((sum, r) => sum + r.totalAmount, 0);
 
     // Por ahora asumimos que no hay pagos registrados para clientes

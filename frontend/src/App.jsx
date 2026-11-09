@@ -3,8 +3,7 @@ import { getStatusLabel } from "./utils/reservationStatusUtils";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
-import ReservationBar from './components/ReservationBar';
-import ReservationGrid from './components/ReservationGrid';
+import LibroReservasBoard from './components/LibroReservasBoard';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
@@ -36,6 +35,7 @@ import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
     title: '',
@@ -136,6 +136,7 @@ function ReservationsView() {
     try {
       await deleteReservation(selectedReservation.id);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
+      setCalendarRefreshToken((t) => t + 1);
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
@@ -157,6 +158,9 @@ function ReservationsView() {
         const updatedReservation = { ...selectedReservation, status: newStatus };
         setSelectedReservation(updatedReservation);
       }
+
+      // Refrescar Libro para que canceladas / no-show desaparezcan al instante
+      setCalendarRefreshToken((t) => t + 1);
       
       // Mostrar notificación de éxito
       const actionMessages = {
@@ -200,12 +204,10 @@ function ReservationsView() {
         </div>
       </div>
       <div className={styles.gridWrapper}>
-        <ReservationGrid 
-          rooms={rooms} 
-          reservations={reservations}
-          setReservations={setReservations}
-          updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
+        <LibroReservasBoard
           onReservationClick={handleReservationClick}
+          reservationsForDayInfo={reservations}
+          refreshToken={calendarRefreshToken}
         />
       </div>
       <SidePanel
@@ -477,7 +479,27 @@ function TarifasView() {
 }
 
 function TarifasCalendarioView() {
-  return <RatesCalendar />;
+  return (
+    <div style={{ padding: '16px' }}>
+      <div
+        role="status"
+        style={{
+          marginBottom: '16px',
+          padding: '12px 16px',
+          background: '#fff8e6',
+          border: '1px solid #f0d78c',
+          borderRadius: '8px',
+          color: '#5c4b1a',
+          maxWidth: '960px'
+        }}
+      >
+        Calendario paralelo (legacy). No es el path canónico de cotización ni de cargos.
+        Gestioná tarifas operativas en{' '}
+        <a href="/configuracion?tab=cargos-tarifas">Configuración → Cargos y Tarifas</a>.
+      </div>
+      <RatesCalendar />
+    </div>
+  );
 }
 
 function CobrosPagosView() {
