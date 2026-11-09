@@ -266,7 +266,8 @@ html, body {
   box-sizing: border-box;
   font-family: var(--font-main);
   font-size: var(--font-size-base);
-  background: #f5f5f5;
+  background: var(--color-bg);
+  color: var(--color-text-main);
   overflow-x: hidden;
 }
 

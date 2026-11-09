@@ -13,7 +13,7 @@
 
 .modalContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0;
   max-width: 400px;
   width: 90%;
@@ -53,7 +53,7 @@
 
 .modalTitle {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   flex: 1;
 }
@@ -61,7 +61,7 @@
 .closeButton {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   cursor: pointer;
   color: #6b7280;
   padding: 4px;
@@ -133,12 +133,12 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
 }
 
 .modalButton:hover {
-  background: #5a6fd8;
+  background: var(--color-primary-dark);
 }
 
 .dangerButton {

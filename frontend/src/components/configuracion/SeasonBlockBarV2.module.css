@@ -52,7 +52,7 @@
 .bar {
   background: white;
   border: 1px solid #e1e5e9;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
@@ -61,12 +61,12 @@
 }
 
 .bar:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .bar.expanded {
   margin-bottom: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
 }
 
 .bar.editing {
@@ -344,7 +344,7 @@
   width: 48px;
   height: 24px;
   background: #d1d5db;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   position: relative;
   transition: background 0.3s ease;
 }
@@ -767,7 +767,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
@@ -998,7 +998,7 @@
   padding: 20px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .blockServicesToggle h4 {
@@ -1052,7 +1052,7 @@
 .customToggle {
   width: 120px; /* Ancho fijo para mantener consistencia */
   height: 32px;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1194,7 +1194,7 @@
 .saveButton:hover {
   background: #059669;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .saveButton:active {
@@ -1209,7 +1209,7 @@
 .cancelButton:hover {
   background: #4b5563;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .cancelButton:active {
@@ -1306,7 +1306,7 @@
 .revertButton:hover {
   background: #dc2626;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .revertButton:active {
