@@ -181,25 +181,18 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   }, [hasTariffChanges, isEditing]);
 
-  // Auto-borrador: Si todos los servicios están desactivados, pasar a modo borrador
+  // Solo avisar cuando YA cargaron selecciones y quedaron todas off.
+  // No mutar formData aqui: updateFormData espera (field, value) y durante el load
+  // blockServiceSelections=[] disparaba un falso positivo.
   useEffect(() => {
-    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
-    if (activeServices.length === 0 && !formData.isDraft) {
-      console.log('🚨 Todos los servicios desactivados - pasando a modo borrador');
-      updateFormData({ isDraft: true });
-      showNotification('Bloque pasado a modo borrador: todos los servicios están desactivados', 'warning');
-    }
-  }, [blockServiceSelections, formData.isDraft]);
+    if (loading) return;
+    if (!Array.isArray(blockServiceSelections) || blockServiceSelections.length === 0) return;
 
-  // Validación adicional: Si el bloque está activo pero no tiene servicios habilitados, desactivarlo
-  useEffect(() => {
-    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
-    if (activeServices.length === 0 && !formData.isDraft && block && !block.isDraft) {
-      console.log('🚨 Bloque activo sin servicios - desactivando automáticamente');
-      updateFormData({ isDraft: true });
-      showNotification('Bloque desactivado automáticamente: no tiene servicios habilitados', 'warning');
+    const activeServices = blockServiceSelections.filter(s => s.isEnabled);
+    if (activeServices.length === 0 && block && !block.isDraft) {
+      showNotification('Este bloque no tiene servicios habilitados', 'warning');
     }
-  }, [blockServiceSelections, formData.isDraft, block]);
+  }, [loading, blockServiceSelections, block]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -595,8 +588,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   // Manejar inicio de edición de precio
   const handlePriceInputFocus = (roomTypeId, serviceTypeId) => {
-    const currentPrice = prices.find(p => 
-      p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
+    const currentPrice = prices.find(p =>
+      Number(p.roomTypeId) === Number(roomTypeId) && p.serviceTypeId === serviceTypeId
     );
     setEditingCell({
       roomTypeId,
@@ -686,8 +679,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   };
 
   const getPriceDisplayInfo = (roomTypeId, serviceTypeId) => {
-    const currentPrice = prices.find(p => 
-      p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
+    const currentPrice = prices.find(p =>
+      Number(p.roomTypeId) === Number(roomTypeId) && p.serviceTypeId === serviceTypeId
     );
     
     const basePrice = currentPrice?.basePrice || 0;
@@ -947,8 +940,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   {getActiveServiceTypes().map(serviceType => {
                     const serviceTypeId = serviceType.serviceTypeId || serviceType.id;
                     const priceInfo = getPriceDisplayInfo(roomType.id, serviceTypeId);
-                    const currentPrice = prices.find(p => 
-                      p.roomTypeId === roomType.id && p.serviceTypeId === serviceTypeId
+                    const currentPrice = prices.find(p =>
+                      Number(p.roomTypeId) === Number(roomType.id) && p.serviceTypeId === serviceTypeId
                     );
                     const isCurrentlyEditing = editingCell.roomTypeId === roomType.id && 
                                               editingCell.serviceTypeId === serviceTypeId;
@@ -1069,7 +1062,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       {(!hasAnyChanges || !isEditing) && (
         <button 
           className={styles.actionButtons}
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={() => {
+            if (!isEditing) {
+              // Expandir al editar para mostrar la grilla de SeasonPrices
+              setIsExpanded(true);
+              setIsEditing(true);
+            } else {
+              setIsEditing(false);
+            }
+          }}
           type="button"
         >
           {isEditing && (

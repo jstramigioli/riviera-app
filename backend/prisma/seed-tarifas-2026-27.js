@@ -115,25 +115,41 @@ async function ensureRounding(hotelId, rounding, dryRun) {
   return created;
 }
 
+/** Nombres legacy del hotel que equivalen a los del Excel/seed. */
+const SERVICE_NAME_ALIASES = {
+  solo_alojamiento: ['Solo Alojamiento', 'Sin desayuno'],
+  desayuno_riviera: ['Desayuno Riviera', 'Con Desayuno'],
+  media_pension: ['Desayuno y Media Pensión', 'Media Pensión'],
+};
+
 async function ensureServiceTypes(hotelId, serviceTypes, dryRun) {
   const byKey = {};
   for (const st of serviceTypes) {
-    const existing = await prisma.serviceType.findFirst({
+    const aliasNames = SERVICE_NAME_ALIASES[st.key] || [st.name];
+    let existing = await prisma.serviceType.findFirst({
       where: { hotelId, name: st.name },
     });
+    // Reutilizar catálogo legacy si el nombre canónico del seed aún no existe
+    if (!existing) {
+      existing = await prisma.serviceType.findFirst({
+        where: { hotelId, name: { in: aliasNames } },
+      });
+    }
     if (existing) {
       if (!dryRun) {
         await prisma.serviceType.update({
           where: { id: existing.id },
           data: {
+            // Mantener el nombre canónico del seed para la UI de tarifas
+            name: st.name,
             description: st.description,
             orderIndex: st.orderIndex,
             isActive: true,
           },
         });
       }
-      byKey[st.key] = existing;
-      console.log(`✅ ServiceType: ${st.name}`);
+      byKey[st.key] = { ...existing, name: st.name };
+      console.log(`✅ ServiceType: ${st.name} (id=${existing.id}${existing.name !== st.name ? `, era "${existing.name}"` : ''})`);
       continue;
     }
     if (dryRun) {

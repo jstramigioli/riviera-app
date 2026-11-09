@@ -100,26 +100,50 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
 
   // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
-    // Si no hay selecciones, usar los servicios disponibles desde la API
-    if (blockServiceSelections.length === 0) {
-      return serviceTypes.map(serviceType => ({
-        id: serviceType.id,
-        serviceTypeId: serviceType.id,
-        isEnabled: true, // Por defecto habilitados
-        pricingMode: 'PERCENTAGE',
-        value: 0,
-        serviceType: serviceType
+    // Selecciones del bloque = fuente de verdad de columnas
+    if (blockServiceSelections.length > 0) {
+      return blockServiceSelections.map(selection => ({
+        ...selection,
+        serviceType: selection.serviceType || {
+          id: selection.serviceTypeId,
+          name: 'Servicio',
+          description: 'Servicio del bloque'
+        }
       }));
     }
-    
-    // Retornar todos los servicios con su información completa
-    return blockServiceSelections.map(selection => ({
-      ...selection,
-      serviceType: selection.serviceType || {
-        id: selection.serviceTypeId,
-        name: 'Servicio',
-        description: 'Servicio del bloque'
+
+    // Mientras cargan selecciones: derivar columnas desde SeasonPrices ya cargados.
+    // Evita mostrar el catálogo completo (legacy + seed) con celdas a $0.
+    if (prices.length > 0) {
+      const seen = new Set();
+      const derived = [];
+      for (const price of prices) {
+        if (!price?.serviceTypeId || seen.has(price.serviceTypeId)) continue;
+        seen.add(price.serviceTypeId);
+        const serviceType =
+          price.serviceType ||
+          serviceTypes.find(st => st.id === price.serviceTypeId) ||
+          { id: price.serviceTypeId, name: 'Servicio' };
+        derived.push({
+          id: price.serviceTypeId,
+          serviceTypeId: price.serviceTypeId,
+          isEnabled: true,
+          pricingMode: 'PERCENTAGE',
+          value: 0,
+          serviceType
+        });
       }
+      if (derived.length > 0) return derived;
+    }
+
+    // Bloque nuevo sin precios ni selecciones
+    return serviceTypes.map(serviceType => ({
+      id: serviceType.id,
+      serviceTypeId: serviceType.id,
+      isEnabled: true,
+      pricingMode: 'PERCENTAGE',
+      value: 0,
+      serviceType
     }));
   };
 
@@ -402,20 +426,29 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           setPrices(block.seasonPrices || []);
         }
 
-        // Cargar selecciones de servicios del bloque
+        // Preferir selecciones ya incluidas en GET /season-blocks/:id (evita carrera con []).
+        if (Array.isArray(block.blockServiceSelections) && block.blockServiceSelections.length > 0) {
+          setBlockServiceSelections(block.blockServiceSelections);
+        }
+
+        // Refresco opcional desde el endpoint dedicado
         try {
           const blockServiceSelectionsRes = await fetch(`${API_URL}/block-service-selections/block/${blockId}`);
           if (blockServiceSelectionsRes.ok) {
             const blockServiceSelectionsData = await blockServiceSelectionsRes.json();
-            setBlockServiceSelections(blockServiceSelectionsData);
-          } else {
-            // Si no hay selecciones, inicializar por defecto
+            if (Array.isArray(blockServiceSelectionsData) && blockServiceSelectionsData.length > 0) {
+              setBlockServiceSelections(blockServiceSelectionsData);
+            } else if (!block.blockServiceSelections?.length) {
+              initializeDefaultServiceSelections(serviceTypesData.data || []);
+            }
+          } else if (!block.blockServiceSelections?.length) {
             initializeDefaultServiceSelections(serviceTypesData.data || []);
           }
         } catch (err) {
           console.error('Error loading block service selections:', err);
-          // Si hay error, inicializar por defecto
-          initializeDefaultServiceSelections(serviceTypesData.data || []);
+          if (!block.blockServiceSelections?.length) {
+            initializeDefaultServiceSelections(serviceTypesData.data || []);
+          }
         }
       } else {
         // Inicializar datos por defecto para nuevo bloque
