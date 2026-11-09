@@ -196,7 +196,7 @@ const EstadoFinancieroTab = ({
                   <span className={styles.financialRowChevron} aria-hidden="true">
                     {expandedFinancialRow === 'total' ? <FaChevronDown /> : <FaChevronRight />}
                   </span>
-                  Total reserva
+                  Reserva
                 </span>
                 <strong data-testid="financial-total-reserva">{formatCurrency(reservationTotal)}</strong>
               </button>
@@ -236,7 +236,7 @@ const EstadoFinancieroTab = ({
                   <span className={styles.financialRowChevron} aria-hidden="true">
                     {expandedFinancialRow === 'cargos' ? <FaChevronDown /> : <FaChevronRight />}
                   </span>
-                  Total cargos
+                  Cargos
                 </span>
                 <strong>{formatCurrency(totalCargosDisplay)}</strong>
               </button>
@@ -297,7 +297,7 @@ const EstadoFinancieroTab = ({
                   <span className={styles.financialRowChevron} aria-hidden="true">
                     {expandedFinancialRow === 'pagos' ? <FaChevronDown /> : <FaChevronRight />}
                   </span>
-                  Total pagos
+                  Pagos
                 </span>
                 <strong>{formatCurrency(totalPagos)}</strong>
               </button>
