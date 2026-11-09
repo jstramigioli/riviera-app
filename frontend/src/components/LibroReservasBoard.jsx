@@ -83,6 +83,10 @@ export default function LibroReservasBoard({
   const scrollerRef = useRef(null);
   const measureRef = useRef(null);
   const centeredOnce = useRef(false);
+  /** Día al que scrollear tras cargar ventana (hoy o próximo open). */
+  const scrollTargetIso = useRef(null);
+  /** true = alinear a la izquierda; false = centrar en el viewport de días. */
+  const scrollAlignStart = useRef(false);
   const loadingLock = useRef(false);
   const pendingScrollAdjust = useRef(null);
   const daysRef = useRef(days);
@@ -119,12 +123,18 @@ export default function LibroReservasBoard({
     if (centeredOnce.current) return;
     const scroller = scrollerRef.current;
     if (!scroller || !days.length) return;
-    const idx = days.findIndex((d) => d.iso === todayIso);
+    const targetIso = scrollTargetIso.current || todayIso;
+    const idx = days.findIndex((d) => d.iso === targetIso);
     if (idx < 0) return;
-    const target =
-      LABEL_W +
-      idx * CELL -
-      Math.max(0, (scroller.clientWidth - LABEL_W) / 2 - CELL / 2);
+    let target;
+    if (scrollAlignStart.current) {
+      // Próximo día de apertura pegado a la izquierda del área de días
+      // (todo lo visible a la derecha son días abiertos / temporada).
+      target = idx * CELL;
+    } else {
+      const daysViewport = Math.max(0, scroller.clientWidth - LABEL_W);
+      target = idx * CELL - Math.max(0, daysViewport / 2 - CELL / 2);
+    }
     scroller.scrollLeft = Math.max(0, target);
     centeredOnce.current = true;
   }, [days, todayIso]);
@@ -160,9 +170,10 @@ export default function LibroReservasBoard({
 
   /**
    * Focus inicial sólido (patrón v1 getAutoCenterDate + v2 window):
-   * 1) hoy si hay bloques o día abierto en la ventana
-   * 2) si no, inicio del próximo período abierto
-   * 3) si no, primera reserva futura vía un probe amplio
+   * 1) hoy si el hotel está abierto → centrar en hoy
+   * 2) si hoy está cerrado → próximo período abierto alineado a la izquierda
+   *    (días abiertos a la derecha; no mitad cerrados por centrado)
+   * 3) sin períodos abiertos → centrar en hoy
    */
   useEffect(() => {
     let cancelled = false;
@@ -170,15 +181,20 @@ export default function LibroReservasBoard({
       const needed = Math.min(MAX_WINDOW_DAYS, Math.max(visibleDays * 2 + 7, CHUNK * 2));
       const half = Math.floor(needed / 2);
       centeredOnce.current = false;
+      scrollTargetIso.current = todayIso;
+      scrollAlignStart.current = false;
 
       // Probe alrededor de hoy
       const probeStart = shiftIso(todayIso, -half);
       try {
         const probe = await fetchCalendar(probeStart, needed);
         if (cancelled) return;
-        const hasBlocks = (probe.rooms || []).some((r) => (r.blocks || []).length > 0);
         const todayOpen = (probe.days || []).some((d) => d.iso === todayIso && !d.closed);
-        if (hasBlocks || todayOpen || !(probe.openPeriods || []).length) {
+        const openPeriods = probe.openPeriods || [];
+
+        if (todayOpen || !openPeriods.length) {
+          scrollTargetIso.current = todayIso;
+          scrollAlignStart.current = false;
           setWindowStart(probe.startIso);
           setDays(probe.days || []);
           setRooms(probe.rooms || []);
@@ -186,18 +202,24 @@ export default function LibroReservasBoard({
           return;
         }
 
-        // Próximo período abierto >= hoy
-        const futurePeriod = (probe.openPeriods || [])
+        // Próximo período abierto >= hoy → alinear apertura a la izquierda
+        const futurePeriod = openPeriods
           .filter((p) => p.openTo >= todayIso)
           .sort((a, b) => a.openFrom.localeCompare(b.openFrom))[0];
         const focus = futurePeriod
           ? futurePeriod.openFrom < todayIso
             ? todayIso
             : futurePeriod.openFrom
-          : (probe.openPeriods || []).slice(-1)[0]?.openFrom || todayIso;
+          : openPeriods.slice(-1)[0]?.openFrom || todayIso;
 
+        const alignStart = focus > todayIso;
+        scrollTargetIso.current = focus;
+        scrollAlignStart.current = alignStart;
         centeredOnce.current = false;
-        await loadWindow(shiftIso(focus, -half), needed, { side: 'replace' });
+        // Poco margen previo (= EDGE_DAYS) para no disparar edge-load al abrir
+        // y maximizar días abiertos visibles a la derecha.
+        const startOffset = alignStart ? Math.min(EDGE_DAYS, half) : half;
+        await loadWindow(shiftIso(focus, -startOffset), needed, { side: 'replace' });
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Error al cargar el calendario');
@@ -241,12 +263,41 @@ export default function LibroReservasBoard({
     }
   };
 
-  function jumpToToday() {
+  async function jumpToToday() {
     const real = todayIsoLocal();
     setTodayIso(real);
     centeredOnce.current = false;
-    const half = Math.floor(Math.min(MAX_WINDOW_DAYS, visibleDays * 2 + 7) / 2);
-    void loadWindow(shiftIso(real, -half), half * 2 + 1, { side: 'replace' });
+    scrollTargetIso.current = real;
+    scrollAlignStart.current = false;
+    const needed = Math.min(MAX_WINDOW_DAYS, Math.max(visibleDays * 2 + 7, CHUNK * 2));
+    const half = Math.floor(needed / 2);
+    try {
+      const probe = await fetchCalendar(shiftIso(real, -half), needed);
+      const todayOpen = (probe.days || []).some((d) => d.iso === real && !d.closed);
+      const openPeriods = probe.openPeriods || [];
+      if (todayOpen || !openPeriods.length) {
+        scrollTargetIso.current = real;
+        scrollAlignStart.current = false;
+        await loadWindow(shiftIso(real, -half), needed, { side: 'replace' });
+        return;
+      }
+      const futurePeriod = openPeriods
+        .filter((p) => p.openTo >= real)
+        .sort((a, b) => a.openFrom.localeCompare(b.openFrom))[0];
+      const focus = futurePeriod
+        ? futurePeriod.openFrom < real
+          ? real
+          : futurePeriod.openFrom
+        : openPeriods.slice(-1)[0]?.openFrom || real;
+      const alignStart = focus > real;
+      scrollTargetIso.current = focus;
+      scrollAlignStart.current = alignStart;
+      const startOffset = alignStart ? Math.min(EDGE_DAYS, half) : half;
+      await loadWindow(shiftIso(focus, -startOffset), needed, { side: 'replace' });
+    } catch (err) {
+      console.error(err);
+      await loadWindow(shiftIso(real, -half), needed, { side: 'replace' });
+    }
   }
 
   // Recargar ventana actual tras cambios de estado/reservas (p.ej. cancelación)
