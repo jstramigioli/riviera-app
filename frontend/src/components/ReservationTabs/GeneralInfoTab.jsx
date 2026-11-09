@@ -23,6 +23,18 @@ const toDateInput = (dateString) => {
   }
 };
 
+/** Noches civiles entre YYYY-MM-DD (evita desfases por timezone). */
+const civilNights = (checkIn, checkOut) => {
+  if (!checkIn || !checkOut) return 0;
+  const start = String(checkIn).slice(0, 10);
+  const end = String(checkOut).slice(0, 10);
+  const [ys, ms, ds] = start.split('-').map(Number);
+  const [ye, me, de] = end.split('-').map(Number);
+  if (![ys, ms, ds, ye, me, de].every(Number.isFinite)) return 0;
+  const msDiff = Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds);
+  return Math.max(0, Math.round(msDiff / 86400000));
+};
+
 /** Total de la estadía: nunca confundir con tarifa/noche (baseRate). */
 const resolveReservationTotal = (reservation, nights) => {
   const explicit = Number(reservation?.totalAmount);
@@ -32,11 +44,7 @@ const resolveReservationTotal = (reservation, nights) => {
   const segments = activeSegments.length > 0 ? activeSegments : (reservation?.segments || []);
   if (segments.length > 0) {
     const fromSegments = segments.reduce((sum, segment) => {
-      const start = segment.startDate ? new Date(segment.startDate) : null;
-      const end = segment.endDate ? new Date(segment.endDate) : null;
-      const segNights = start && end
-        ? Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)))
-        : nights || 1;
+      const segNights = civilNights(segment.startDate, segment.endDate) || nights || 1;
       const rate = Number(segment.baseRate) || 0;
       return sum + rate * segNights;
     }, 0);
@@ -63,7 +71,7 @@ const GeneralInfoTab = ({
   getStatusLabel 
 }) => {
   const { statuses: statusOptions } = useReservationStatuses();
-  const [financialExpanded, setFinancialExpanded] = useState(false);
+  const [expandedFinancialRow, setExpandedFinancialRow] = useState(null);
 
   if (!reservation) return null;
 
@@ -71,15 +79,18 @@ const GeneralInfoTab = ({
 
   const checkIn = data.checkIn || data.segments?.[0]?.startDate;
   const checkOut = data.checkOut || data.segments?.[data.segments?.length - 1]?.endDate;
-  const nights = checkIn && checkOut
-    ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
-    : 0;
+  const nightsFromDates = civilNights(checkIn, checkOut);
+  const nights = Number(data.days) > 0 ? Number(data.days) : nightsFromDates;
   const guestCount = data.segments?.[0]?.guestCount || data.requiredGuests || 1;
   const serviceId = data.segments?.[0]?.services?.[0] || data.reservationType || '';
   const reservationTotal = resolveReservationTotal(reservation, nights);
+  const activeSegment = reservation?.segments?.find((s) => s.isActive !== false) || reservation?.segments?.[0];
+  const nightlyRate = Number(reservation?.averageRate)
+    || Number(activeSegment?.baseRate)
+    || (nights > 0 ? reservationTotal / nights : 0);
   const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
   const totalCargosRaw = Number(financialSummary?.resumen?.totalCargos) || 0;
-  // Si los cargos están desfasados (p.ej. solo 1 noche), el total de reserva manda.
+  // Si los cargos estan desfasados (p.ej. solo 1 noche), el total de reserva manda.
   const totalCargosDisplay = Math.max(totalCargosRaw, reservationTotal);
   const saldoDisplay = totalCargosDisplay - totalPagos;
   const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
@@ -87,6 +98,11 @@ const GeneralInfoTab = ({
   const cargoItems = financialSummary?.cargos?.items || [];
   const pagoItems = financialSummary?.pagos?.items || [];
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
+  const nonAlojamientoTipos = Object.values(cargosPorTipo).filter((t) => t.codigo !== 'ALOJAMIENTO');
+
+  const toggleFinancialRow = (row) => {
+    setExpandedFinancialRow((current) => (current === row ? null : row));
+  };
 
   const handleSegmentField = (field, value) => {
     if (!onEditChange) return;
@@ -307,31 +323,144 @@ const GeneralInfoTab = ({
       </div>
 
       {financialSummary && (
-        <div className={`${styles.financialAlert} ${financialExpanded ? styles.financialAlertExpanded : ''}`}>
-          <button
-            type="button"
-            className={styles.financialAlertToggle}
-            onClick={() => setFinancialExpanded((v) => !v)}
-            aria-expanded={financialExpanded}
-          >
-            <span className={styles.financialAlertHeader}>Estado Financiero</span>
-            <span className={styles.financialExpandIcon} aria-hidden="true">
-              {financialExpanded ? <FaChevronDown /> : <FaChevronRight />}
-            </span>
-          </button>
+        <div className={styles.financialAlert} data-testid="estado-financiero">
+          <div className={styles.financialAlertHeader}>Estado Financiero</div>
           <div className={styles.financialAlertBody}>
-            <div className={styles.financialRow}>
-              <span>Total reserva:</span>
-              <strong data-testid="financial-total-reserva">{formatCurrency(reservationTotal)}</strong>
+            <div className={styles.financialRowBlock}>
+              <button
+                type="button"
+                className={styles.financialRowToggle}
+                onClick={() => toggleFinancialRow('total')}
+                aria-expanded={expandedFinancialRow === 'total'}
+                data-testid="financial-row-total"
+              >
+                <span className={styles.financialRowLabel}>
+                  <span className={styles.financialRowChevron} aria-hidden="true">
+                    {expandedFinancialRow === 'total' ? <FaChevronDown /> : <FaChevronRight />}
+                  </span>
+                  Total reserva
+                </span>
+                <strong data-testid="financial-total-reserva">{formatCurrency(reservationTotal)}</strong>
+              </button>
+              {expandedFinancialRow === 'total' && (
+                <div className={styles.financialRowDetail} data-testid="financial-detail-total">
+                  {nights > 0 && nightlyRate > 0 ? (
+                    <ul className={styles.breakdownList}>
+                      <li className={styles.breakdownItem} data-testid="alojamiento-noches">
+                        <span>
+                          Alojamiento · {nights}×{formatCurrency(nightlyRate)}
+                        </span>
+                        <strong>{formatCurrency(nights * nightlyRate)}</strong>
+                      </li>
+                      {nonAlojamientoTipos.map((tipo) => (
+                        <li key={tipo.codigo} className={styles.breakdownItem}>
+                          <span>{tipo.nombre}</span>
+                          <span>{formatCurrency(tipo.total)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={styles.breakdownEmpty}>Sin desglose de alojamiento disponible.</p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className={styles.financialRow}>
-              <span>Total cargos:</span>
-              <strong>{formatCurrency(totalCargosDisplay)}</strong>
+
+            <div className={styles.financialRowBlock}>
+              <button
+                type="button"
+                className={styles.financialRowToggle}
+                onClick={() => toggleFinancialRow('cargos')}
+                aria-expanded={expandedFinancialRow === 'cargos'}
+                data-testid="financial-row-cargos"
+              >
+                <span className={styles.financialRowLabel}>
+                  <span className={styles.financialRowChevron} aria-hidden="true">
+                    {expandedFinancialRow === 'cargos' ? <FaChevronDown /> : <FaChevronRight />}
+                  </span>
+                  Total cargos
+                </span>
+                <strong>{formatCurrency(totalCargosDisplay)}</strong>
+              </button>
+              {expandedFinancialRow === 'cargos' && (
+                <div className={styles.financialRowDetail} data-testid="financial-detail-cargos">
+                  {Object.keys(cargosPorTipo).length > 0 ? (
+                    <ul className={styles.breakdownList}>
+                      {Object.values(cargosPorTipo).map((tipo) => (
+                        <li key={tipo.codigo} className={styles.breakdownGroup}>
+                          <div className={styles.breakdownGroupHeader}>
+                            <span>{tipo.nombre}</span>
+                            <strong>{formatCurrency(tipo.total)}</strong>
+                          </div>
+                          {(tipo.items || []).map((item) => (
+                            <div key={item.id} className={styles.breakdownItem}>
+                              <span>{item.descripcion || 'Cargo'}</span>
+                              <span>{formatCurrency(item.monto)}</span>
+                            </div>
+                          ))}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : cargoItems.length > 0 ? (
+                    <ul className={styles.breakdownList}>
+                      {cargoItems.map((item) => (
+                        <li key={item.id} className={styles.breakdownItem}>
+                          <span>{item.descripcion || 'Cargo'}</span>
+                          <span>{formatCurrency(item.monto)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={styles.breakdownEmpty}>
+                      Sin cargos registrados. Total de reserva: {formatCurrency(reservationTotal)}
+                      {nights > 1 ? ` (${nights} noches).` : '.'}
+                    </p>
+                  )}
+
+                  {totalCargosRaw > 0 && totalCargosRaw < reservationTotal && (
+                    <p className={styles.breakdownHint}>
+                      Los cargos cargados ({formatCurrency(totalCargosRaw)}) son menores al total
+                      de la reserva ({formatCurrency(reservationTotal)}). Se usa el total de la estadía.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className={styles.financialRow}>
-              <span>Total pagos:</span>
-              <strong>{formatCurrency(totalPagos)}</strong>
+
+            <div className={styles.financialRowBlock}>
+              <button
+                type="button"
+                className={styles.financialRowToggle}
+                onClick={() => toggleFinancialRow('pagos')}
+                aria-expanded={expandedFinancialRow === 'pagos'}
+                data-testid="financial-row-pagos"
+              >
+                <span className={styles.financialRowLabel}>
+                  <span className={styles.financialRowChevron} aria-hidden="true">
+                    {expandedFinancialRow === 'pagos' ? <FaChevronDown /> : <FaChevronRight />}
+                  </span>
+                  Total pagos
+                </span>
+                <strong>{formatCurrency(totalPagos)}</strong>
+              </button>
+              {expandedFinancialRow === 'pagos' && (
+                <div className={styles.financialRowDetail} data-testid="financial-detail-pagos">
+                  {pagoItems.length > 0 ? (
+                    <ul className={styles.breakdownList}>
+                      {pagoItems.map((pago) => (
+                        <li key={pago.id} className={styles.breakdownItem}>
+                          <span>{pago.metodo || 'Pago'}{pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}</span>
+                          <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                  )}
+                </div>
+              )}
             </div>
+
             <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[estadoPago]}`}>
               <span>Saldo:</span>
               <strong>{formatCurrency(saldoDisplay)}</strong>
@@ -342,90 +471,6 @@ const GeneralInfoTab = ({
               {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
             </div>
           </div>
-
-          {financialExpanded && (
-            <div className={styles.financialBreakdown}>
-              <div className={styles.breakdownSection}>
-                <h4>Desglose de montos</h4>
-                {Object.keys(cargosPorTipo).length > 0 ? (
-                  <ul className={styles.breakdownList}>
-                    {Object.values(cargosPorTipo).map((tipo) => (
-                      <li key={tipo.codigo} className={styles.breakdownGroup}>
-                        <div className={styles.breakdownGroupHeader}>
-                          <span>{tipo.nombre}</span>
-                          <strong>{formatCurrency(tipo.total)}</strong>
-                        </div>
-                        {(tipo.items || []).map((item) => (
-                          <div key={item.id} className={styles.breakdownItem}>
-                            <span>{item.descripcion || 'Cargo'}</span>
-                            <span>{formatCurrency(item.monto)}</span>
-                          </div>
-                        ))}
-                      </li>
-                    ))}
-                  </ul>
-                ) : cargoItems.length > 0 ? (
-                  <ul className={styles.breakdownList}>
-                    {cargoItems.map((item) => (
-                      <li key={item.id} className={styles.breakdownItem}>
-                        <span>{item.descripcion || 'Cargo'}</span>
-                        <span>{formatCurrency(item.monto)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className={styles.breakdownEmpty}>
-                    Sin cargos registrados. Total de reserva: {formatCurrency(reservationTotal)}
-                    {nights > 1 ? ` (${nights} noches).` : '.'}
-                  </p>
-                )}
-
-                {totalCargosRaw > 0 && totalCargosRaw < reservationTotal && (
-                  <p className={styles.breakdownHint}>
-                    Los cargos cargados ({formatCurrency(totalCargosRaw)}) son menores al total
-                    de la reserva ({formatCurrency(reservationTotal)}). Se usa el total de la estadía.
-                  </p>
-                )}
-              </div>
-
-              <div className={styles.breakdownSection}>
-                <h4>Pagos</h4>
-                {pagoItems.length > 0 ? (
-                  <ul className={styles.breakdownList}>
-                    {pagoItems.map((pago) => (
-                      <li key={pago.id} className={styles.breakdownItem}>
-                        <span>{pago.metodo || 'Pago'}{pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}</span>
-                        <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
-                )}
-              </div>
-
-              {nights > 0 && reservationTotal > 0 && (
-                <div className={styles.breakdownSection}>
-                  <h4>Desglose por noche (total de reserva)</h4>
-                  <ul className={styles.breakdownList}>
-                    {Array.from({ length: nights }, (_, i) => {
-                      const perNight = reservationTotal / nights;
-                      return (
-                        <li key={`night-${i + 1}`} className={styles.breakdownItem}>
-                          <span>Noche {i + 1}</span>
-                          <span>{formatCurrency(perNight)}</span>
-                        </li>
-                      );
-                    })}
-                    <li className={`${styles.breakdownItem} ${styles.breakdownTotal}`}>
-                      <strong>Total estadía</strong>
-                      <strong>{formatCurrency(reservationTotal)}</strong>
-                    </li>
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
