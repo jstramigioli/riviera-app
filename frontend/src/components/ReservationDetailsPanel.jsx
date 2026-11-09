@@ -11,7 +11,8 @@ const ReservationDetailsPanel = ({
   reservation,
   onStatusChange,
   onDelete,
-  onOpenFullEdit
+  onOpenFullEdit,
+  onClose
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -145,6 +146,28 @@ const ReservationDetailsPanel = ({
             ></span>
             {getStatusLabel(reservation.status)}
           </div>
+        </div>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.headerIconBtn}
+            onClick={goToFullPageEdit}
+            title="Editar reserva"
+            aria-label="Editar reserva"
+          >
+            <FaPen />
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              className={styles.headerIconBtn}
+              onClick={onClose}
+              title="Cerrar panel"
+              aria-label="Cerrar panel"
+            >
+              &times;
+            </button>
+          )}
         </div>
       </div>
       
@@ -281,15 +304,6 @@ const ReservationDetailsPanel = ({
       </div>
 
       <div className={styles.actionsRow}>
-        <button
-          type="button"
-          className={styles.editActionBtn}
-          onClick={goToFullPageEdit}
-          title="Abrir página de reserva en modo edición"
-        >
-          <FaPen />
-          <span>Editar</span>
-        </button>
         <ReservationStatusButtons
           reservation={reservation}
           onStatusChange={onStatusChange}

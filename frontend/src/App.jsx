@@ -208,12 +208,14 @@ function ReservationsView() {
         onClose={closePanel}
         title=""
         width={600}
+        hideHeader={panelMode === 'reservation'}
       >
         {panelMode === 'reservation' && selectedReservation && (
           <ReservationDetailsPanel
             reservation={selectedReservation}
             onStatusChange={handleStatusChange}
             onDelete={() => setShowDeleteModal(true)}
+            onClose={closePanel}
             onOpenFullEdit={(id) => {
               closePanel();
               navigate(`/reservations/${id}`, { state: { isEditing: true } });

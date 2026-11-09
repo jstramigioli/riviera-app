@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from '../styles/SidePanel.module.css';
 
-export default function SidePanel({ open, onClose, title, children, width = 400 }) {
+export default function SidePanel({ open, onClose, title, children, width = 400, hideHeader = false }) {
   return (
     <>
       {/* Overlay */}
@@ -15,12 +15,14 @@ export default function SidePanel({ open, onClose, title, children, width = 400 
         style={{ width }}
         aria-hidden={!open}
       >
-        <div className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
-          <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar panel">
-            &times;
-          </button>
-        </div>
+        {!hideHeader && (
+          <div className={styles.header}>
+            <h2 className={styles.title}>{title}</h2>
+            <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar panel">
+              &times;
+            </button>
+          </div>
+        )}
         <div className={styles.content}>
           {children}
         </div>
