@@ -167,7 +167,20 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
       {/* Grid de cards */}
       <div className={styles.guestsGrid}>
         {/* Cliente Principal */}
-        <div className={styles.guestCardMain}>
+        <div
+          className={`${styles.guestCardMain} ${styles.guestCardClickable}`}
+          onClick={onClientClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClientClick?.();
+            }
+          }}
+          title="Ver página del huésped"
+          data-testid="guest-main-card"
+        >
           <div className={styles.guestBadge}>Cliente Principal</div>
           <div className={styles.guestIcon}>
             <FaUser />

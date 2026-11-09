@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import React from 'react';
 import useReservationStatuses from '../../hooks/useReservationStatuses';
 import styles from './ReservationTabs.module.css';
 
@@ -64,14 +63,12 @@ const GeneralInfoTab = ({
   clients = [],
   serviceTypes = [],
   onEditChange,
-  financialSummary, 
   formatDate, 
   formatCurrency, 
   getServiceTypeLabel,
   getStatusLabel 
 }) => {
   const { statuses: statusOptions } = useReservationStatuses();
-  const [expandedFinancialRow, setExpandedFinancialRow] = useState(null);
 
   if (!reservation) return null;
 
@@ -84,25 +81,6 @@ const GeneralInfoTab = ({
   const guestCount = data.segments?.[0]?.guestCount || data.requiredGuests || 1;
   const serviceId = data.segments?.[0]?.services?.[0] || data.reservationType || '';
   const reservationTotal = resolveReservationTotal(reservation, nights);
-  const activeSegment = reservation?.segments?.find((s) => s.isActive !== false) || reservation?.segments?.[0];
-  const nightlyRate = Number(reservation?.averageRate)
-    || Number(activeSegment?.baseRate)
-    || (nights > 0 ? reservationTotal / nights : 0);
-  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
-  const totalCargosRaw = Number(financialSummary?.resumen?.totalCargos) || 0;
-  // Si los cargos estan desfasados (p.ej. solo 1 noche), el total de reserva manda.
-  const totalCargosDisplay = Math.max(totalCargosRaw, reservationTotal);
-  const saldoDisplay = totalCargosDisplay - totalPagos;
-  const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
-
-  const cargoItems = financialSummary?.cargos?.items || [];
-  const pagoItems = financialSummary?.pagos?.items || [];
-  const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
-  const nonAlojamientoTipos = Object.values(cargosPorTipo).filter((t) => t.codigo !== 'ALOJAMIENTO');
-
-  const toggleFinancialRow = (row) => {
-    setExpandedFinancialRow((current) => (current === row ? null : row));
-  };
 
   const handleSegmentField = (field, value) => {
     if (!onEditChange) return;
@@ -122,7 +100,7 @@ const GeneralInfoTab = ({
 
   return (
     <div className={styles.tabContent}>
-      <h3 className={styles.sectionTitle}>Información General</h3>
+      <h3 className={`${styles.sectionTitle} ${styles.generalInfoTitle}`}>Información general</h3>
 
       <div className={styles.infoGrid}>
         <div className={styles.infoItem}>
@@ -321,158 +299,6 @@ const GeneralInfoTab = ({
           <p>{reservation.notes || 'Sin notas'}</p>
         )}
       </div>
-
-      {financialSummary && (
-        <div className={styles.financialAlert} data-testid="estado-financiero">
-          <div className={styles.financialAlertHeader}>Estado Financiero</div>
-          <div className={styles.financialAlertBody}>
-            <div className={styles.financialRowBlock}>
-              <button
-                type="button"
-                className={styles.financialRowToggle}
-                onClick={() => toggleFinancialRow('total')}
-                aria-expanded={expandedFinancialRow === 'total'}
-                data-testid="financial-row-total"
-              >
-                <span className={styles.financialRowLabel}>
-                  <span className={styles.financialRowChevron} aria-hidden="true">
-                    {expandedFinancialRow === 'total' ? <FaChevronDown /> : <FaChevronRight />}
-                  </span>
-                  Total reserva
-                </span>
-                <strong data-testid="financial-total-reserva">{formatCurrency(reservationTotal)}</strong>
-              </button>
-              {expandedFinancialRow === 'total' && (
-                <div className={styles.financialRowDetail} data-testid="financial-detail-total">
-                  {nights > 0 && nightlyRate > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      <li className={styles.breakdownItem} data-testid="alojamiento-noches">
-                        <span>
-                          Alojamiento · {nights}×{formatCurrency(nightlyRate)}
-                        </span>
-                        <strong>{formatCurrency(nights * nightlyRate)}</strong>
-                      </li>
-                      {nonAlojamientoTipos.map((tipo) => (
-                        <li key={tipo.codigo} className={styles.breakdownItem}>
-                          <span>{tipo.nombre}</span>
-                          <span>{formatCurrency(tipo.total)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className={styles.breakdownEmpty}>Sin desglose de alojamiento disponible.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className={styles.financialRowBlock}>
-              <button
-                type="button"
-                className={styles.financialRowToggle}
-                onClick={() => toggleFinancialRow('cargos')}
-                aria-expanded={expandedFinancialRow === 'cargos'}
-                data-testid="financial-row-cargos"
-              >
-                <span className={styles.financialRowLabel}>
-                  <span className={styles.financialRowChevron} aria-hidden="true">
-                    {expandedFinancialRow === 'cargos' ? <FaChevronDown /> : <FaChevronRight />}
-                  </span>
-                  Total cargos
-                </span>
-                <strong>{formatCurrency(totalCargosDisplay)}</strong>
-              </button>
-              {expandedFinancialRow === 'cargos' && (
-                <div className={styles.financialRowDetail} data-testid="financial-detail-cargos">
-                  {Object.keys(cargosPorTipo).length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {Object.values(cargosPorTipo).map((tipo) => (
-                        <li key={tipo.codigo} className={styles.breakdownGroup}>
-                          <div className={styles.breakdownGroupHeader}>
-                            <span>{tipo.nombre}</span>
-                            <strong>{formatCurrency(tipo.total)}</strong>
-                          </div>
-                          {(tipo.items || []).map((item) => (
-                            <div key={item.id} className={styles.breakdownItem}>
-                              <span>{item.descripcion || 'Cargo'}</span>
-                              <span>{formatCurrency(item.monto)}</span>
-                            </div>
-                          ))}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : cargoItems.length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {cargoItems.map((item) => (
-                        <li key={item.id} className={styles.breakdownItem}>
-                          <span>{item.descripcion || 'Cargo'}</span>
-                          <span>{formatCurrency(item.monto)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className={styles.breakdownEmpty}>
-                      Sin cargos registrados. Total de reserva: {formatCurrency(reservationTotal)}
-                      {nights > 1 ? ` (${nights} noches).` : '.'}
-                    </p>
-                  )}
-
-                  {totalCargosRaw > 0 && totalCargosRaw < reservationTotal && (
-                    <p className={styles.breakdownHint}>
-                      Los cargos cargados ({formatCurrency(totalCargosRaw)}) son menores al total
-                      de la reserva ({formatCurrency(reservationTotal)}). Se usa el total de la estadía.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className={styles.financialRowBlock}>
-              <button
-                type="button"
-                className={styles.financialRowToggle}
-                onClick={() => toggleFinancialRow('pagos')}
-                aria-expanded={expandedFinancialRow === 'pagos'}
-                data-testid="financial-row-pagos"
-              >
-                <span className={styles.financialRowLabel}>
-                  <span className={styles.financialRowChevron} aria-hidden="true">
-                    {expandedFinancialRow === 'pagos' ? <FaChevronDown /> : <FaChevronRight />}
-                  </span>
-                  Total pagos
-                </span>
-                <strong>{formatCurrency(totalPagos)}</strong>
-              </button>
-              {expandedFinancialRow === 'pagos' && (
-                <div className={styles.financialRowDetail} data-testid="financial-detail-pagos">
-                  {pagoItems.length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {pagoItems.map((pago) => (
-                        <li key={pago.id} className={styles.breakdownItem}>
-                          <span>{pago.metodo || 'Pago'}{pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}</span>
-                          <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[estadoPago]}`}>
-              <span>Saldo:</span>
-              <strong>{formatCurrency(saldoDisplay)}</strong>
-            </div>
-            <div className={styles.estadoPagoTag}>
-              {estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
-              {estadoPago === 'PAGADO' && 'Pagado completamente'}
-              {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
