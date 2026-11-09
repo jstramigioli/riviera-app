@@ -329,31 +329,48 @@ table, img, video, iframe {
   max-width: 100%;
   overflow-x: hidden;
 } 
-/* ===== Impresión de liquidación ===== */
+/* ===== Impresion de liquidacion ===== */
 @media print {
   body.printing-liquidacion * {
     visibility: hidden !important;
   }
 
+  body.printing-liquidacion [data-print-root],
+  body.printing-liquidacion [data-print-root] *,
   body.printing-liquidacion [data-testid="liquidacion-print"],
   body.printing-liquidacion [data-testid="liquidacion-print"] * {
     visibility: visible !important;
   }
 
-  body.printing-liquidacion [data-testid="liquidacion-print"] {
-    position: absolute !important;
+  body.printing-liquidacion [data-print-root] {
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+    z-index: 99999 !important;
+  }
+
+  body.printing-liquidacion [data-testid="liquidacion-print"] {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
     width: 100% !important;
     display: block !important;
     background: #fff !important;
     color: #111 !important;
-    z-index: 99999 !important;
   }
 
-  body.printing-liquidacion {
+  body.printing-liquidacion,
+  body.printing-liquidacion html,
+  body.printing-liquidacion #root {
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 }

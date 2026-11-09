@@ -171,9 +171,13 @@
 @media print {
   .sheet {
     display: block !important;
-    width: 100%;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
     padding: 0;
     margin: 0;
+    visibility: visible !important;
   }
 
   @page {

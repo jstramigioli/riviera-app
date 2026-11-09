@@ -41,7 +41,7 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
   const saldo = totalCargos - totalPagos;
   const emittedAt = new Date();
 
-  const tipoOrder = ['ALOJAMIENTO', 'SERVICIO', 'CONSUMO', 'OTRO'];
+  const tipoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
   const tiposOrdenados = [
     ...tipoOrder.filter((c) => cargosPorTipo[c]),
     ...Object.keys(cargosPorTipo).filter((c) => !tipoOrder.includes(c))
