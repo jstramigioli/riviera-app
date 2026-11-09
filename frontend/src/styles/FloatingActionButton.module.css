@@ -1,8 +1,8 @@
 /* FloatingActionButton.module.css */
 .floatingActionContainer {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
+  bottom: 1.25rem;
+  right: 1.25rem;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -11,66 +11,62 @@
 
 /* Botón principal */
 .mainButton {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--color-primary);
   border: none;
   color: white;
-  font-size: 2.2rem;
-  font-weight: bold;
+  font-size: 1.5rem;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
-  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1002;
 }
 
 .mainButton:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  background: var(--color-primary-dark);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
 }
 
 .mainButton:active {
-  transform: translateY(0) scale(0.95);
-  box-shadow: 0 2px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 .mainButton.expanded {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-  transform: rotate(45deg);
+  background: var(--color-danger);
 }
 
 .mainButton.expanded:hover {
-  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  background: var(--color-danger-dark);
 }
 
 .plusIcon {
   line-height: 1;
   margin-top: -2px;
-  transition: transform 0.3s ease;
+  transition: transform 0.2s ease;
 }
 
 /* Contenedor de botones de acción */
 .actionButtons {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 10px;
   opacity: 0;
-  transform: translateY(20px) scale(0.8);
+  transform: translateY(8px);
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .actionButtons.expanded {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
   pointer-events: auto;
 }
 
@@ -79,52 +75,52 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 25px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
   background: white;
-  color: #333;
-  font-size: 14px;
+  color: var(--color-text-main);
+  font-size: var(--font-size-small);
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s ease;
   white-space: nowrap;
   min-width: 140px;
   justify-content: flex-start;
 }
 
 .actionButton:hover {
-  transform: translateX(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  background: var(--color-bg);
 }
 
 .actionButton:active {
-  transform: translateX(-2px) scale(0.98);
+  background: var(--color-border-light);
 }
 
-/* Estilos específicos para cada tipo de botón */
 .queryButton {
-  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-  color: white;
+  background: var(--color-warning);
+  border-color: transparent;
+  color: #3d3200;
 }
 
 .queryButton:hover {
-  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  background: #e0a800;
 }
 
 .reservationButton {
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  background: var(--color-success);
+  border-color: transparent;
   color: white;
 }
 
 .reservationButton:hover {
-  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  background: var(--color-success-dark);
 }
 
 .actionIcon {
-  font-size: 16px;
-  width: 20px;
+  font-size: 14px;
+  width: 18px;
   text-align: center;
 }
 
@@ -132,74 +128,45 @@
   font-weight: 500;
 }
 
-/* Animaciones */
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px) scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
-  .floatingActionContainer {
-    bottom: 1.5rem;
-    right: 1.5rem;
-  }
-
-  .mainButton {
-    width: 55px;
-    height: 55px;
-    font-size: 2rem;
-  }
-
-  .actionButton {
-    padding: 10px 14px;
-    font-size: 13px;
-    min-width: 120px;
-  }
-
-  .actionButtons {
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-}
-
-@media (max-width: 480px) {
   .floatingActionContainer {
     bottom: 1rem;
     right: 1rem;
   }
 
   .mainButton {
-    width: 50px;
-    height: 50px;
-    font-size: 1.8rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.35rem;
   }
 
   .actionButton {
-    padding: 8px 12px;
-    font-size: 12px;
-    min-width: 100px;
+    padding: 7px 10px;
+    font-size: var(--font-size-small);
+    min-width: 120px;
   }
 
   .actionButtons {
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 6px;
+    margin-bottom: 8px;
   }
-} 
+}
+
+@media (max-width: 480px) {
+  .floatingActionContainer {
+    bottom: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .mainButton {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
+  }
+
+  .actionButton {
+    padding: 6px 10px;
+    min-width: 110px;
+  }
+}

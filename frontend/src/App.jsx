@@ -57,8 +57,6 @@ function ReservationsView() {
   };
   
   const {
-    rooms,
-    clients,
     setClients,
     reservations,
     setReservations,
@@ -194,15 +192,6 @@ function ReservationsView() {
 
   return (
     <div className={styles.appContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Gestión de Reservas</h1>
-        <p className={styles.subtitle}>¡Bienvenido! Aquí podrás gestionar habitaciones, clientes y reservas.</p>
-        <div className={styles.stats}>
-          <span className={styles.statItem}>Habitaciones: {rooms.length}</span>
-          <span className={styles.statItem}>Reservas: {reservations.length}</span>
-          <span className={styles.statItem}>Clientes: {clients.length}</span>
-        </div>
-      </div>
       <div className={styles.gridWrapper}>
         <LibroReservasBoard
           onReservationClick={handleReservationClick}
