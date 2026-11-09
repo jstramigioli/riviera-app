@@ -160,10 +160,83 @@
 .breakdownItem {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-size: 0.9rem;
   padding: 4px 0;
   color: rgba(255, 255, 255, 0.9);
+}
+
+.breakdownMonto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.breakdownActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.manualAsterisk {
+  margin-left: 3px;
+  color: #ffd54f;
+  font-weight: 700;
+  cursor: help;
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.undoIconButton {
+  background: none;
+  border: none;
+  color: #ffd54f;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.undoIconButton:hover {
+  background: rgba(255, 213, 79, 0.2);
+  transform: scale(1.1);
+}
+
+.financialAlert .editIconButton,
+.financialAlert .deleteIconButton {
+  color: rgba(255, 255, 255, 0.92);
+  padding: 4px 6px;
+}
+
+.financialAlert .editIconButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.financialAlert .deleteIconButton:hover {
+  background: rgba(220, 53, 69, 0.35);
+  color: #fff;
+}
+
+.printRoot {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 210mm;
+  pointer-events: none;
+}
+
+.modalHint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  color: #5d4037;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .breakdownEmpty,
@@ -374,6 +447,31 @@
   background: #5568d3;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #cfd4dc;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #f5f7fb;
+  border-color: #9aa3b2;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .primaryButton {

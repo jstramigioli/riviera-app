@@ -30,6 +30,21 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
     return { totalNights: 0 };
   }
 
+  // Conservar overrides manuales por fecha civil antes de regenerar
+  const existingLodging = await prisma.cargo.findMany({
+    where: { reservaId, subcategoriaCargoId: null }
+  });
+  const overrideByDate = new Map();
+  for (const cargo of existingLodging) {
+    const key = toDateOnlyString(cargo.fecha);
+    if (cargo.manualOverride) {
+      overrideByDate.set(key, {
+        monto: parseFloat(cargo.monto),
+        notas: cargo.notas || null
+      });
+    }
+  }
+
   await prisma.cargo.deleteMany({
     where: {
       reservaId,
@@ -91,9 +106,14 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
         return nrDate === dateKey;
       });
 
-      const nightAmount = quoted
+      // Tarifa original de la reserva (siempre vs cotización/baseRate, no vs override)
+      const originalAmount = quoted
         ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
         : parseFloat(segment.baseRate);
+
+      const preserved = overrideByDate.get(dateKey);
+      const hasOverride = Boolean(preserved);
+      const effectiveAmount = hasOverride ? preserved.monto : originalAmount;
 
       const dateStr = currentDate.toLocaleDateString('es-AR', {
         timeZone: 'UTC',
@@ -108,8 +128,12 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
           serviceTypeId: serviceTypeId || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-          monto: nightAmount,
-          notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
+          monto: effectiveAmount,
+          montoOriginal: originalAmount,
+          manualOverride: hasOverride,
+          notas:
+            preserved?.notas ||
+            `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
           fecha: currentDate
         }
       });
@@ -119,11 +143,11 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           reservationId: reservaId,
           date: currentDate,
           baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
-          dynamicRate: nightAmount,
-          finalRate: nightAmount,
+          dynamicRate: originalAmount,
+          finalRate: effectiveAmount,
           serviceType: serviceTypeId || 'base',
-          serviceRate: nightAmount,
-          manualOverride: false
+          serviceRate: originalAmount,
+          manualOverride: hasOverride
         }
       });
 
