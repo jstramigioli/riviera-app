@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
+const { calculateReservationBalance } = require('../utils/reservationBalance');
 
 // ============================================
 // CONTROLADORES DE PAGOS
@@ -644,16 +645,7 @@ exports.getResumenFinanciero = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // Calcular totales (usando montoARS para pagos)
-    const totalCargos = cargos.reduce((sum, cargo) => {
-      return sum + parseFloat(cargo.monto);
-    }, 0);
-
-    const totalPagos = pagos.reduce((sum, pago) => {
-      return sum + parseFloat(pago.montoARS);
-    }, 0);
-
-    const saldo = totalCargos - totalPagos;
+    const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(cargos, pagos);
 
     // Agrupar cargos por tipo principal y subcategoría (enfoque híbrido)
     const cargosPorTipo = cargos.reduce((acc, cargo) => {
@@ -742,7 +734,7 @@ exports.getResumenFinanciero = async (req, res) => {
         totalCargos,
         totalPagos,
         saldo,
-        estadoPago: saldo > 0 ? 'PENDIENTE' : (saldo < 0 ? 'A_FAVOR' : 'PAGADO')
+        estadoPago
       },
       cargos: {
         total: totalCargos,
@@ -808,15 +800,10 @@ exports.getReservasConSaldos = async (req, res) => {
     });
 
     const reservasConSaldos = reservas.map(reserva => {
-      const totalCargos = reserva.cargos.reduce((sum, cargo) => {
-        return sum + parseFloat(cargo.monto);
-      }, 0);
-
-      const totalPagos = reserva.pagos.reduce((sum, pago) => {
-        return sum + parseFloat(pago.montoARS);
-      }, 0);
-
-      const saldo = totalCargos - totalPagos;
+      const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(
+        reserva.cargos,
+        reserva.pagos
+      );
 
       return {
         id: reserva.id,
@@ -826,7 +813,7 @@ exports.getReservasConSaldos = async (req, res) => {
         totalCargos,
         totalPagos,
         saldo,
-        estadoPago: saldo > 0 ? 'PENDIENTE' : (saldo < 0 ? 'A_FAVOR' : 'PAGADO'),
+        estadoPago,
         createdAt: reserva.createdAt,
         updatedAt: reserva.updatedAt
       };
