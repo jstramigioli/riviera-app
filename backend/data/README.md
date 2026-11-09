@@ -13,6 +13,19 @@ Este directorio contiene los datos exportados de la base de datos PostgreSQL del
 - `reservations.json` - Reservas con relaciones
 - `dailyRates.json` - Tarifas diarias por tipo de habitación
 - `metadata.json` - Metadatos de la exportación
+- `Calculadora_de_tarifas_Hotel_Riviera_2026_27.xlsx` — Excel fuente de tarifas reales 2026/27
+- `tarifas-2026-27.json` — Datos versionados para el seed canónico (SeasonBlock / SeasonPrice)
+
+### Seed tarifas 2026/27
+
+```bash
+cd backend
+npm run seed:tarifas-2026-27
+# o, para recrear solo los bloques de este seed:
+npm run seed:tarifas-2026-27:replace
+```
+
+Documentación: ver el doc del Project store `docs/seed-tarifas-2026-27.md` (y comentarios en `prisma/seed-tarifas-2026-27.js`).
 
 ## Cómo usar
 

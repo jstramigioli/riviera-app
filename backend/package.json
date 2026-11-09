@@ -13,7 +13,10 @@
     "import-db": "node scripts/import-database.js",
     "generate-test-reservations": "node scripts/generate-test-reservations.js",
     "cleanup-test-reservations": "node scripts/generate-test-reservations.js --cleanup",
-    "db:fix-sequences": "npx prisma db execute --schema=./prisma/schema.prisma --file=./scripts/fix-sequences.sql"
+    "db:fix-sequences": "npx prisma db execute --schema=./prisma/schema.prisma --file=./scripts/fix-sequences.sql",
+    "seed:tarifas-2026-27": "node prisma/seed-tarifas-2026-27.js",
+    "seed:tarifas-2026-27:replace": "node prisma/seed-tarifas-2026-27.js --replace",
+    "extract:tarifas-2026-27": "node scripts/extract-tarifas-2026-27.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
