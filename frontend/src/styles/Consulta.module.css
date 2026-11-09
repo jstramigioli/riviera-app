@@ -4,11 +4,11 @@
 .pageHeader {
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .pageTitle {
-  font-size: 2rem;
+  font-size: var(--font-size-xlarge);
   font-weight: 700;
   color: var(--color-primary);
   margin: 0;
@@ -23,8 +23,8 @@
   width: 100%;
   margin: 0 auto;
   padding: 20px;
-  padding-top: 100px; /* Espacio para el header fijo (80px) + margen */
-  min-height: calc(100vh - 80px);
+  padding-top: 16px; /* Espacio para el header fijo (80px) + margen */
+  min-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -51,7 +51,7 @@
 .sectionHeader h2 {
   margin: 0;
   color: #495057;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -199,7 +199,7 @@
   max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .clientOption {
@@ -374,7 +374,7 @@
 }
 
 .clientInfo strong {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #2c3e50;
   display: block;
@@ -498,7 +498,7 @@
   padding: 6px 12px;
   border: 1px solid #ced4da;
   background: white;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.8rem;
   transition: all 0.2s;
@@ -554,7 +554,7 @@
 }
 
 .roomsSectionTitle {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #495057;
   margin: 20px 0 15px 0;
@@ -592,7 +592,7 @@
 
 .copyButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
 .clientFieldContainer {
@@ -670,7 +670,7 @@
   background: transparent;
   border: none;
   color: #dc3545;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
@@ -771,7 +771,7 @@
   border: none;
   padding: 12px 16px;
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   transition: background-color 0.2s;
   display: flex;
@@ -832,7 +832,7 @@
 }
 
 .expandIcon {
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   color: #6c757d;
 }
 
@@ -862,7 +862,7 @@
   padding: 40px;
   text-align: center;
   color: #6c757d;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .noRooms {
@@ -927,7 +927,7 @@
 .roomMainInfo h3 {
   margin: 0 0 8px 0;
   color: #495057;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
 }
 
@@ -957,7 +957,7 @@
 .rateAmount {
   font-weight: 600;
   color: #28a745;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .detailsButton {
@@ -1043,12 +1043,12 @@
 .roomCardHeader h3 {
   margin: 0;
   color: #495057;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
 }
 
 .complianceIndicator {
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
 }
 
 .complianceCheck {
@@ -1078,7 +1078,7 @@
 
 .capacityBadge {
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -1115,7 +1115,7 @@
 .rateAmount {
   font-weight: 600;
   color: #28a745;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .roomDetails {
@@ -1261,7 +1261,7 @@
 .totalAmount {
   font-weight: 600;
   color: #28a745 !important;
-  font-size: 1.1rem !important;
+  font-size: var(--font-size-medium) !important;
 }
 
 .summaryActions {
@@ -1280,10 +1280,20 @@
   font-size: 0.9rem;
   font-weight: 600;
   transition: background-color 0.2s;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.draftButton:hover {
+.draftButton:hover:not(:disabled) {
   background: #5a6268;
+}
+
+.draftButton:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
 }
 
 .confirmButton {
@@ -1415,7 +1425,7 @@
   width: 100%;
   margin: 0 auto;
   padding: 20px;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
@@ -1477,7 +1487,7 @@
 
 .formSection {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -1581,7 +1591,7 @@
   background: white;
   border: 1px solid #ced4da;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
   z-index: 1000;
   max-height: 200px;
   overflow-y: auto;
@@ -1829,7 +1839,7 @@
   background: var(--color-primary);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .reserveButton {
@@ -1852,7 +1862,7 @@
 .reserveButton:hover {
   background: linear-gradient(135deg, #218838, #1ea085);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Estilos para radio buttons de selección de habitación */
@@ -1907,7 +1917,7 @@
 /* Sección de previsualización */
 .previewSection {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -1974,7 +1984,7 @@
   background: var(--color-primary);
   color: white;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-small);
   font-weight: 500;
 }
@@ -2097,9 +2107,9 @@
   padding: 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   position: fixed;
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--nav-height));
   left: 0;
-  top: 80px;
+  top: var(--nav-height);
   display: flex;
   flex-direction: column;
 }
@@ -2183,7 +2193,7 @@
   flex: 1;
   margin-left: 900px;
   background: var(--color-bg);
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
 }
@@ -2338,7 +2348,7 @@
 /* Estilos para el contenido principal */
 .section {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -2364,8 +2374,8 @@
 /* Estilos para tablas */
 .tableContainer {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   flex: 1;
   min-height: 0;
@@ -2478,7 +2488,7 @@
   background-color: #e9ecef;
   color: #495057;
   padding: 2px 6px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-small);
   border: 1px solid #ced4da;
   margin-right: 4px;
@@ -2514,13 +2524,13 @@
 
 .complianceCheck {
   color: var(--color-success);
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: bold;
 }
 
 .complianceX {
   color: var(--color-danger);
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: bold;
 }
 
@@ -2603,7 +2613,7 @@
 /* Estilos para la sección de notas */
 .notesSection {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--color-border);

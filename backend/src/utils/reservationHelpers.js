@@ -1,38 +1,194 @@
 const { PrismaClient } = require('@prisma/client');
+const { civilFromDb, daysBetweenCivil } = require('./calendarDates');
 const prisma = new PrismaClient();
+const {
+  toDateOnlyString,
+  dateOnlyUTC,
+  getCanonicalNightlyRates
+} = require('../services/canonicalPricingService');
+
+async function resolveHotelId(serviceTypeId) {
+  if (serviceTypeId) {
+    const serviceType = await prisma.serviceType.findUnique({
+      where: { id: serviceTypeId },
+      select: { hotelId: true }
+    });
+    if (serviceType?.hotelId) return serviceType.hotelId;
+  }
+  const hotel = await prisma.hotel.findFirst({ select: { id: true } });
+  return hotel?.id || 'default-hotel';
+}
 
 /**
- * Obtiene los datos calculados de una reserva desde sus segmentos
+ * Regenera cargos de alojamiento + ReservationNightRate desde segmentos activos.
+ * Conserva cargos con subcategoriaCargoId (consumos/servicios/otros).
+ * Prioridad de monto: nightRates del payload → motor canónico → baseRate del segmento.
+ */
+async function syncLodgingChargesAndNightRates(reservationId, segments, originalSegments = []) {
+  const reservaId = parseInt(reservationId, 10);
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return { totalNights: 0 };
+  }
+
+  await prisma.cargo.deleteMany({
+    where: {
+      reservaId,
+      subcategoriaCargoId: null
+    }
+  });
+  await prisma.reservationNightRate.deleteMany({
+    where: { reservationId: reservaId }
+  });
+
+  let totalNights = 0;
+
+  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+    const segment = segments[segmentIndex];
+    const originalSegment = originalSegments[segmentIndex] || {};
+    const startIso = civilFromDb(segment.startDate);
+    const endIso = civilFromDb(segment.endDate);
+    const days = Math.max(0, daysBetweenCivil(startIso, endIso));
+    const serviceTypeId =
+      segment.services && segment.services.length > 0 ? segment.services[0] : null;
+    const roomTypeId = segment.roomTypeId || segment.room?.roomTypeId || null;
+
+    let serviceTypeLabel = 'Alojamiento';
+    if (serviceTypeId) {
+      const serviceType = await prisma.serviceType.findUnique({ where: { id: serviceTypeId } });
+      serviceTypeLabel = serviceType?.name || serviceTypeId;
+    }
+
+    let quotedNightRates = Array.isArray(originalSegment.nightRates)
+      ? originalSegment.nightRates
+      : [];
+
+    if (quotedNightRates.length === 0 && roomTypeId && serviceTypeId && days > 0) {
+      try {
+        const hotelId = await resolveHotelId(serviceTypeId);
+        const canonical = await getCanonicalNightlyRates({
+          hotelId,
+          roomTypeId: parseInt(roomTypeId, 10),
+          serviceTypeId,
+          startDate: startIso,
+          endDate: endIso
+        });
+        quotedNightRates = canonical.rates || [];
+      } catch (quoteError) {
+        console.warn(
+          `⚠️ Cotización canónica falló para reserva #${reservaId}; uso baseRate`,
+          quoteError.message
+        );
+      }
+    }
+
+    for (let i = 0; i < days; i++) {
+      const currentDate = dateOnlyUTC(startIso);
+      currentDate.setUTCDate(currentDate.getUTCDate() + i);
+      const dateKey = toDateOnlyString(currentDate);
+
+      const quoted = quotedNightRates.find((nr) => {
+        const nrDate = toDateOnlyString(nr.date || nr.dateString);
+        return nrDate === dateKey;
+      });
+
+      const nightAmount = quoted
+        ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
+        : parseFloat(segment.baseRate);
+
+      const dateStr = currentDate.toLocaleDateString('es-AR', {
+        timeZone: 'UTC',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      });
+
+      await prisma.cargo.create({
+        data: {
+          reservaId,
+          roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
+          serviceTypeId: serviceTypeId || null,
+          descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
+          monto: nightAmount,
+          notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
+          fecha: currentDate
+        }
+      });
+
+      await prisma.reservationNightRate.create({
+        data: {
+          reservationId: reservaId,
+          date: currentDate,
+          baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
+          dynamicRate: nightAmount,
+          finalRate: nightAmount,
+          serviceType: serviceTypeId || 'base',
+          serviceRate: nightAmount,
+          manualOverride: false
+        }
+      });
+
+      totalNights += 1;
+    }
+  }
+
+  console.log(`✅ ${totalNights} cargos + night rates sincronizados para reserva #${reservaId}`);
+  return { totalNights };
+}
+
+/** Normaliza un segmento con fechas civiles yyyy-MM-dd (sin Instant ambiguo). */
+function normalizeSegment(segment) {
+  if (!segment) return segment;
+  return {
+    ...segment,
+    startDate: civilFromDb(segment.startDate),
+    endDate: civilFromDb(segment.endDate)
+  };
+}
+
+/**
+ * Obtiene los datos calculados de una reserva desde sus segmentos.
+ * checkIn / checkOut y fechas de segmento salen como yyyy-MM-dd.
  */
 function getReservationData(reservation) {
   if (!reservation.segments || reservation.segments.length === 0) {
     return null;
   }
 
-  const activeSegments = reservation.segments.filter(s => s.isActive);
-  
-  if (activeSegments.length === 0) {
+  const normalized = reservation.segments.map(normalizeSegment);
+  const activeSegments = normalized.filter((s) => s.isActive);
+
+  // Canceladas / no-show desactivan segmentos: seguir mostrando historial con inactivos
+  const displaySegments =
+    activeSegments.length > 0 ? activeSegments : normalized;
+
+  if (displaySegments.length === 0) {
     return null;
   }
 
-  // Calcular fechas
-  const checkIn = new Date(Math.min(...activeSegments.map(s => new Date(s.startDate))));
-  const checkOut = new Date(Math.max(...activeSegments.map(s => new Date(s.endDate))));
+  const checkIn = displaySegments
+    .map((s) => s.startDate)
+    .sort()[0];
+  const checkOut = displaySegments
+    .map((s) => s.endDate)
+    .sort()
+    .at(-1);
   
-  // Calcular total
-  const totalAmount = activeSegments.reduce((sum, segment) => {
-    const days = Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24));
+  // Calcular total (noches half-open)
+  const totalAmount = displaySegments.reduce((sum, segment) => {
+    const days = Math.max(1, daysBetweenCivil(segment.startDate, segment.endDate));
     return sum + (days * segment.baseRate);
   }, 0);
 
-  // Obtener datos del primer segmento activo (como referencia)
-  const firstSegment = activeSegments[0];
+  // Obtener datos del primer segmento (como referencia)
+  const firstSegment = displaySegments[0];
   
   // Construir el objeto room completo con roomType
   const roomData = firstSegment.room ? {
     ...firstSegment.room,
     roomType: firstSegment.roomType || firstSegment.room.roomType
   } : null;
+
+  const nightCount = Math.max(1, daysBetweenCivil(checkIn, checkOut));
   
   return {
     id: reservation.id,
@@ -46,24 +202,22 @@ function getReservationData(reservation) {
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
-    // requiredTags eliminado - ahora es por segmento
     
     // Datos del primer segmento (como referencia)
     roomId: firstSegment.roomId,
-    reservationType: firstSegment.services[0], // Sin fallback - debe ser un ID válido de ServiceType
+    reservationType: firstSegment.services?.[0],
     requiredGuests: firstSegment.guestCount,
     
     // Datos calculados
-    days: Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)),
-    averageRate: totalAmount / Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)),
+    days: nightCount,
+    averageRate: totalAmount / nightCount,
     
-    // Relaciones
+    // Relaciones — incluir inactivos si no hay activos (historial canceladas)
     mainClient: reservation.mainClient,
     guests: reservation.guests,
-    segments: activeSegments,
+    segments: displaySegments,
     childReservations: reservation.childReservations,
     
-    // Incluir la información de la habitación desde el primer segmento con roomType
     room: roomData
   };
 }
@@ -77,8 +231,8 @@ async function getReservationWithData(reservationId) {
     include: {
       mainClient: true,
       guests: true,
+      // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
-        where: { isActive: true },
         include: {
           room: true,
           roomType: true
@@ -88,7 +242,6 @@ async function getReservationWithData(reservationId) {
       childReservations: {
         include: {
           segments: {
-            where: { isActive: true },
             include: {
               room: true,
               roomType: true
@@ -116,7 +269,6 @@ async function getAllReservationsWithData() {
       mainClient: true,
       guests: true,
       segments: {
-        where: { isActive: true },
         include: {
           room: true,
           roomType: true
@@ -126,7 +278,6 @@ async function getAllReservationsWithData() {
       childReservations: {
         include: {
           segments: {
-            where: { isActive: true },
             include: {
               room: true,
               roomType: true
@@ -157,6 +308,19 @@ async function createReservationWithSegments(reservationData) {
     parentReservationId = null
   } = reservationData;
 
+  // Validar segmentos ANTES de crear la reserva (evita huérfanas sin segmentos)
+  for (const segmentData of segments || []) {
+    if (!segmentData.roomId) {
+      throw new Error('Cada segmento debe tener una habitación asignada');
+    }
+    if (!segmentData.startDate || !segmentData.endDate) {
+      throw new Error('Cada segmento debe tener fechas de inicio y fin');
+    }
+    if (!segmentData.services || !Array.isArray(segmentData.services) || segmentData.services.length === 0) {
+      throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
+    }
+  }
+
   // Crear la reserva
   const reservation = await prisma.reservation.create({
     data: {
@@ -168,24 +332,28 @@ async function createReservationWithSegments(reservationData) {
     }
   });
 
-  // Crear todos los segmentos
+  // Crear todos los segmentos; si falla, borrar la reserva huérfana
   const createdSegments = [];
+  try {
   for (const segmentData of segments) {
     console.log('🔍 Procesando segmento:', JSON.stringify(segmentData, null, 2));
     
-    // Validar que services sea un array con al menos un elemento
-    if (!segmentData.services || !Array.isArray(segmentData.services) || segmentData.services.length === 0) {
-      console.error('❌ Services inválido:', segmentData.services);
-      throw new Error('Cada segmento debe tener al menos un servicio especificado (services debe ser un array de IDs)');
+    let resolvedRoomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null;
+    if (!resolvedRoomTypeId && segmentData.roomId) {
+      const room = await prisma.room.findUnique({
+        where: { id: parseInt(segmentData.roomId) },
+        select: { roomTypeId: true }
+      });
+      resolvedRoomTypeId = room?.roomTypeId || null;
     }
-    
+
     const segment = await prisma.reservationSegment.create({
       data: {
         reservationId: reservation.id,
         startDate: new Date(segmentData.startDate),
         endDate: new Date(segmentData.endDate),
         roomId: parseInt(segmentData.roomId),
-        roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+        roomTypeId: resolvedRoomTypeId,
         services: segmentData.services, // Sin fallback - debe venir del frontend
         baseRate: parseFloat(segmentData.baseRate),
         guestCount: parseInt(segmentData.guestCount),
@@ -202,77 +370,16 @@ async function createReservationWithSegments(reservationData) {
     });
     createdSegments.push(segment);
   }
+  } catch (segmentError) {
+    await prisma.reservation.delete({ where: { id: reservation.id } }).catch(() => {});
+    throw segmentError;
+  }
 
-  // Crear automáticamente un cargo por cada noche de la reserva
+  // Cargos + night rates desde la cotización canónica (detalle por noche, no solo promedio)
   try {
-    for (const segment of createdSegments) {
-      const startDate = new Date(segment.startDate);
-      const endDate = new Date(segment.endDate);
-      const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-      
-      // Crear un cargo por cada noche
-      for (let i = 0; i < days; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-        
-        // Formatear la fecha para la descripción
-        const dateStr = currentDate.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short'
-        });
-        
-        // Obtener el tipo de servicio del segmento
-        const serviceTypeId = segment.services && segment.services.length > 0 ? segment.services[0] : null;
-        let serviceTypeLabel = 'Desayuno'; // Valor por defecto
-        
-        if (serviceTypeId) {
-          try {
-            // Buscar el tipo de servicio en la base de datos
-            const serviceType = await prisma.serviceType.findUnique({
-              where: { id: serviceTypeId }
-            });
-            
-            if (serviceType) {
-              serviceTypeLabel = serviceType.name;
-            } else {
-              // Fallback a nombres conocidos si no se encuentra en la BD
-              serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                                serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                                serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
-                                serviceTypeId;
-            }
-          } catch (error) {
-            console.error('Error obteniendo tipo de servicio:', error);
-            // Usar fallback en caso de error
-            serviceTypeLabel = serviceTypeId === 'con_desayuno' ? 'Desayuno' : 
-                              serviceTypeId === 'media_pension' ? 'Media Pensión' : 
-                              serviceTypeId === 'pension_completa' ? 'Pensión Completa' : 
-                              serviceTypeId;
-          }
-        }
-        
-        await prisma.cargo.create({
-          data: {
-            reservaId: reservation.id,
-            descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-            monto: segment.baseRate,
-            tipo: 'ALOJAMIENTO',
-            notas: `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
-            fecha: currentDate
-          }
-        });
-      }
-    }
-
-    const totalNights = createdSegments.reduce((totalDays, segment) => {
-      const days = Math.ceil((new Date(segment.endDate) - new Date(segment.startDate)) / (1000 * 60 * 60 * 24));
-      return totalDays + days;
-    }, 0);
-
-    console.log(`✅ ${totalNights} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    await syncLodgingChargesAndNightRates(reservation.id, createdSegments, segments);
   } catch (cargoError) {
-    console.error('❌ Error creando cargos de reserva:', cargoError);
+    console.error('❌ Error creando cargos/night rates de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
   }
 
@@ -332,42 +439,57 @@ async function createReservationWithSegment(reservationData) {
     }
   });
 
-  // Crear automáticamente un cargo por cada noche de la reserva
+  // Cargos de alojamiento (schema actual: roomTypeId + serviceTypeId, sin campo tipo)
   try {
     const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    
-    // Crear un cargo por cada noche
+    const room = await prisma.room.findUnique({
+      where: { id: parseInt(roomId) },
+      include: { roomType: true }
+    });
+    const serviceType = await prisma.serviceType.findUnique({ where: { id: reservationType } });
+    const serviceTypeLabel = serviceType?.name
+      || (reservationType === 'con_desayuno' ? 'Desayuno'
+        : reservationType === 'media_pension' ? 'Media Pensión'
+        : reservationType === 'pension_completa' ? 'Pensión Completa'
+        : reservationType);
+
     for (let i = 0; i < days; i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i);
-      
-      // Formatear la fecha para la descripción
-      const dateStr = currentDate.toLocaleDateString('es-ES', {
+
+      const dateStr = currentDate.toLocaleDateString('es-AR', {
         weekday: 'short',
         day: 'numeric',
         month: 'short'
       });
-      
-      // Obtener el tipo de servicio
-      const serviceTypeLabel = reservationType === 'con_desayuno' ? 'Desayuno' : 
-                              reservationType === 'media_pension' ? 'Media Pensión' : 
-                              reservationType === 'pension_completa' ? 'Pensión Completa' : 
-                              reservationType;
-      
+
       await prisma.cargo.create({
         data: {
           reservaId: reservation.id,
+          roomTypeId: room?.roomTypeId || null,
+          serviceTypeId: serviceType?.id || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
           monto: baseRate,
-          tipo: 'ALOJAMIENTO',
           notas: `Noche ${i + 1} de ${days}`,
           fecha: currentDate
         }
       });
+
+      await prisma.reservationNightRate.create({
+        data: {
+          reservationId: reservation.id,
+          date: currentDate,
+          baseRate,
+          dynamicRate: baseRate,
+          finalRate: baseRate,
+          serviceType: reservationType,
+          serviceRate: baseRate,
+          manualOverride: false
+        }
+      });
     }
 
-    console.log(`✅ ${days} cargos de alojamiento creados automáticamente para reserva #${reservation.id}`);
+    console.log(`✅ ${days} cargos + night rates creados para reserva #${reservation.id}`);
   } catch (cargoError) {
     console.error('❌ Error creando cargos de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
@@ -378,7 +500,8 @@ async function createReservationWithSegment(reservationData) {
 }
 
 /**
- * Actualiza una reserva y sus segmentos
+ * Actualiza una reserva y sus segmentos.
+ * Si cambian segmentos (fechas/servicio/habitación), regenera cargos de alojamiento + night rates.
  */
 async function updateReservationWithSegments(reservationId, updateData) {
   const {
@@ -387,42 +510,81 @@ async function updateReservationWithSegments(reservationId, updateData) {
     segments
   } = updateData;
 
+  const id = parseInt(reservationId, 10);
+
   // Actualizar datos básicos de la reserva
-  const updatedReservation = await prisma.reservation.update({
-    where: { id: parseInt(reservationId) },
+  await prisma.reservation.update({
+    where: { id },
     data: {
       status: status || undefined,
       notes: notes !== undefined ? notes : undefined
     }
   });
 
-  // Si se proporcionan nuevos segmentos, actualizarlos
+  // Si se proporcionan nuevos segmentos, actualizarlos y sincronizar cargos
   if (segments && Array.isArray(segments)) {
+    const previousActive = await prisma.reservationSegment.findMany({
+      where: { reservationId: id, isActive: true },
+      select: {
+        startDate: true,
+        endDate: true,
+        roomId: true,
+        roomTypeId: true,
+        services: true,
+        baseRate: true
+      }
+    });
+
     // Desactivar segmentos existentes
     await prisma.reservationSegment.updateMany({
-      where: { 
-        reservationId: parseInt(reservationId),
+      where: {
+        reservationId: id,
         isActive: true
       },
       data: { isActive: false }
     });
 
     // Crear nuevos segmentos
+    const createdSegments = [];
     for (const segmentData of segments) {
-      await prisma.reservationSegment.create({
+      let resolvedRoomTypeId = segmentData.roomTypeId ? parseInt(segmentData.roomTypeId, 10) : null;
+      if (!resolvedRoomTypeId && segmentData.roomId) {
+        const room = await prisma.room.findUnique({
+          where: { id: parseInt(segmentData.roomId, 10) },
+          select: { roomTypeId: true }
+        });
+        resolvedRoomTypeId = room?.roomTypeId || null;
+      }
+
+      const created = await prisma.reservationSegment.create({
         data: {
-          reservationId: parseInt(reservationId),
+          reservationId: id,
           startDate: new Date(segmentData.startDate),
           endDate: new Date(segmentData.endDate),
-          roomId: parseInt(segmentData.roomId),
-          roomTypeId: segmentData.roomTypeId ? parseInt(segmentData.roomTypeId) : null,
+          roomId: parseInt(segmentData.roomId, 10),
+          roomTypeId: resolvedRoomTypeId,
           services: segmentData.services || ['con_desayuno'],
           baseRate: parseFloat(segmentData.baseRate),
-          guestCount: parseInt(segmentData.guestCount),
+          guestCount: parseInt(segmentData.guestCount, 10),
           reason: segmentData.reason,
           notes: segmentData.notes
+        },
+        include: {
+          room: true,
+          roomType: true
         }
       });
+      createdSegments.push(created);
+    }
+
+    const needsSync = await lodgingNeedsSync(id, previousActive, createdSegments);
+    if (needsSync) {
+      try {
+        await syncLodgingChargesAndNightRates(id, createdSegments, segments);
+      } catch (cargoError) {
+        console.error(`❌ Error sincronizando cargos/night rates de reserva #${id}:`, cargoError);
+        // No revertir el update de segmentos si falla la sync financiera
+      }
     }
   }
 
@@ -430,16 +592,63 @@ async function updateReservationWithSegments(reservationId, updateData) {
   return getReservationWithData(reservationId);
 }
 
+/** Compara fechas / habitación / servicio / tarifa base para decidir regenerar cargos. */
+function lodgingStayChanged(previousSegments, nextSegments) {
+  const normalize = (segs) =>
+    (segs || [])
+      .map((s) => ({
+        start: civilFromDb(s.startDate),
+        end: civilFromDb(s.endDate),
+        roomId: Number(s.roomId),
+        roomTypeId: s.roomTypeId != null ? Number(s.roomTypeId) : null,
+        services: Array.isArray(s.services) ? [...s.services].map(String).sort().join(',') : '',
+        baseRate: Number(s.baseRate)
+      }))
+      .sort((a, b) => `${a.start}|${a.roomId}`.localeCompare(`${b.start}|${b.roomId}`));
+
+  const prev = normalize(previousSegments);
+  const next = normalize(nextSegments);
+  if (prev.length !== next.length) return true;
+  return JSON.stringify(prev) !== JSON.stringify(next);
+}
+
+function expectedLodgingNights(segments) {
+  return (segments || []).reduce((sum, s) => {
+    const start = civilFromDb(s.startDate);
+    const end = civilFromDb(s.endDate);
+    if (!start || !end) return sum;
+    return sum + Math.max(0, daysBetweenCivil(start, end));
+  }, 0);
+}
+
+/** Regenera si cambió la estadía o si cargos/night rates ya no coinciden con las noches. */
+async function lodgingNeedsSync(reservationId, previousSegments, nextSegments) {
+  if (lodgingStayChanged(previousSegments, nextSegments)) return true;
+
+  const expected = expectedLodgingNights(nextSegments);
+  const [cargoCount, nightCount] = await Promise.all([
+    prisma.cargo.count({
+      where: { reservaId: reservationId, subcategoriaCargoId: null }
+    }),
+    prisma.reservationNightRate.count({
+      where: { reservationId }
+    })
+  ]);
+
+  return cargoCount !== expected || nightCount !== expected;
+}
+
 /**
  * Verifica disponibilidad de una habitación en un rango de fechas
  */
 async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservationId = null) {
+  const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
   const conflictingSegments = await prisma.reservationSegment.findMany({
     where: {
       roomId: parseInt(roomId),
       isActive: true,
       reservation: {
-        status: { in: ['active', 'confirmed'] },
+        status: { in: OCCUPYING_STATUSES },
         id: excludeReservationId ? { not: parseInt(excludeReservationId) } : undefined
       },
       OR: [
@@ -485,5 +694,6 @@ module.exports = {
   createReservationWithSegment,
   createReservationWithSegments,
   updateReservationWithSegments,
+  syncLodgingChargesAndNightRates,
   checkRoomAvailability
 }; 

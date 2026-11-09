@@ -1,37 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
-  fetchReservations, 
-  fetchRooms, 
+  fetchReservations,
+  fetchRooms,
+  fetchClients,
+  updateReservation,
   API_URL,
   getReservationFinancialSummary,
-  getPagosByReserva,
-  createPago,
-  deletePago,
-  getCargosByReserva,
-  createCargo,
-  updateCargo,
-  deleteCargo
+  createCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
+import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
-import PagosTab from '../components/ReservationTabs/PagosTab';
-import CargosTab from '../components/ReservationTabs/CargosTab';
+import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
-import ServiciosTab from '../components/ReservationTabs/ServiciosTab';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import styles from './ReservationDetails.module.css';
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [allReservations, setAllReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -40,8 +38,6 @@ const ReservationDetails = () => {
   
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
-  const [pagos, setPagos] = useState([]);
-  const [cargos, setCargos] = useState([]);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
   
   // Estado para modal de eliminación
@@ -49,7 +45,11 @@ const ReservationDetails = () => {
   
   // Estado para tipos de servicio
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [tags, setTags] = useState([]);
+
+  // Edición
+  const [isEditing, setIsEditing] = useState(Boolean(location.state?.isEditing));
+  const [editData, setEditData] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -57,11 +57,11 @@ const ReservationDetails = () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
+        const [reservationsData, roomsData, clientsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetchClients(),
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -73,9 +73,11 @@ const ReservationDetails = () => {
         }
         
         setReservation(foundReservation);
+        setEditData(foundReservation);
+        setAllReservations(reservationsData);
         setRooms(roomsData);
+        setClients(clientsData);
         setServiceTypes(serviceTypesResponse.data || []);
-        setTags(tagsResponse || []);
         
         setLoading(false);
       } catch (error) {
@@ -90,9 +92,16 @@ const ReservationDetails = () => {
     }
   }, [reservationId]);
 
-  // Cargar datos financieros cuando se acceda a esas pestañas
   useEffect(() => {
-    if ((activeTab === 'pagos' || activeTab === 'cargos' || activeTab === 'general') && reservation) {
+    if (location.state?.isEditing) {
+      setIsEditing(true);
+      setActiveTab('general');
+    }
+  }, [location.state?.isEditing]);
+
+  // Cargar datos financieros en la pestaña Estado financiero
+  useEffect(() => {
+    if (activeTab === 'financiero' && reservation) {
       loadFinancialData();
     }
   }, [activeTab, reservation]);
@@ -102,15 +111,8 @@ const ReservationDetails = () => {
     
     try {
       setLoadingFinancial(true);
-      const [summary, pagosData, cargosData] = await Promise.all([
-        getReservationFinancialSummary(reservation.id),
-        getPagosByReserva(reservation.id),
-        getCargosByReserva(reservation.id)
-      ]);
-      
+      const summary = await getReservationFinancialSummary(reservation.id);
       setFinancialSummary(summary);
-      setPagos(pagosData);
-      setCargos(cargosData);
     } catch (error) {
       console.error('Error cargando datos financieros:', error);
     } finally {
@@ -118,33 +120,6 @@ const ReservationDetails = () => {
     }
   };
 
-  // Handlers para pagos
-  const handleAddPago = async (pagoData) => {
-    try {
-      await createPago(reservation.id, pagoData);
-      await loadFinancialData();
-      alert('Pago agregado exitosamente');
-    } catch (error) {
-      console.error('Error agregando pago:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeletePago = async (pagoId) => {
-    if (!confirm('¿Estás seguro de eliminar este pago?')) return;
-    
-    try {
-      await deletePago(pagoId);
-      await loadFinancialData();
-      alert('Pago eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando pago:', error);
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Handlers para cargos
   const handleAddCargo = async (cargoData) => {
     try {
       await createCargo(reservation.id, cargoData);
@@ -157,35 +132,15 @@ const ReservationDetails = () => {
     }
   };
 
-  const handleUpdateCargo = async (cargoId, cargoData) => {
-    try {
-      await updateCargo(cargoId, cargoData);
-      await loadFinancialData();
-      alert('Cargo actualizado exitosamente');
-    } catch (error) {
-      console.error('Error actualizando cargo:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeleteCargo = async (cargoId) => {
-    if (!confirm('¿Estás seguro de eliminar este cargo?')) return;
-    
-    try {
-      await deleteCargo(cargoId);
-      await loadFinancialData();
-      alert('Cargo eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando cargo:', error);
-      alert(`Error: ${error.message}`);
-    }
-  };
-
   // Utilidades
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
+      // Fechas civiles yyyy-MM-dd: parsear en local para evitar off-by-one UTC
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        const [y, m, d] = String(dateString).split('-').map(Number);
+        return format(new Date(y, m - 1, d), 'dd/MM/yyyy', { locale: es });
+      }
       return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
     } catch {
       return dateString;
@@ -213,6 +168,59 @@ const ReservationDetails = () => {
   const handleClientClick = () => {
     if (reservation?.mainClient?.id) {
       navigate(`/clients/${reservation.mainClient.id}`);
+    }
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditData(reservation);
+      setIsEditing(false);
+      return;
+    }
+    setEditData(reservation);
+    setIsEditing(true);
+    setActiveTab('general');
+  };
+
+  const handleEditSave = async () => {
+    if (!editData) return;
+
+    const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
+    if (!dateValidation.isValid) {
+      alert(`Error de validación: ${dateValidation.message}`);
+      return;
+    }
+
+    const conflict = validateReservationConflict(
+      allReservations,
+      editData.roomId,
+      editData.checkIn,
+      editData.checkOut,
+      editData.id
+    );
+
+    if (conflict.hasConflict) {
+      showConflictNotification(conflict.message);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await updateReservation(editData.id, editData);
+      setReservation(updated);
+      setEditData(updated);
+      setAllReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setIsEditing(false);
+      alert('Reserva actualizada');
+    } catch (err) {
+      console.error('Error guardando reserva:', err);
+      alert(`Error al guardar: ${err.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -269,37 +277,28 @@ const ReservationDetails = () => {
         return (
           <GeneralInfoTab
             reservation={reservation}
-            financialSummary={financialSummary}
+            editData={editData}
+            isEditing={isEditing}
+            rooms={rooms}
+            clients={clients}
+            serviceTypes={serviceTypes}
+            onEditChange={handleEditChange}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
           />
         );
-      case 'pagos':
+      case 'financiero':
         return (
-          <PagosTab
+          <EstadoFinancieroTab
             reservation={reservation}
-            pagos={pagos}
             financialSummary={financialSummary}
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
-            onDeletePago={handleDeletePago}
-          />
-        );
-      case 'cargos':
-        return (
-          <CargosTab
-            cargos={cargos}
-            financialSummary={financialSummary}
-            loadingFinancial={loadingFinancial}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
+            onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
-            onUpdateCargo={handleUpdateCargo}
-            onDeleteCargo={handleDeleteCargo}
           />
         );
       case 'huespedes':
@@ -307,12 +306,6 @@ const ReservationDetails = () => {
           <HuespedesTab
             reservation={reservation}
             onClientClick={handleClientClick}
-          />
-        );
-      case 'servicios':
-        return (
-          <ServiciosTab
-            reservation={reservation}
           />
         );
       default:
@@ -362,11 +355,47 @@ const ReservationDetails = () => {
   // Render principal
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
+      {/* Side / top panel */}
       <div className={styles.sidePanel}>
-        {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Reserva #{reservation.id}</h2>
+          <div className={styles.sidePanelHeaderTop}>
+            <h2>Reserva #{reservation.id}</h2>
+            <div className={styles.headerActions}>
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleEditSave}
+                    className={styles.headerIconBtn}
+                    disabled={saving}
+                    title={saving ? 'Guardando…' : 'Guardar cambios'}
+                    aria-label="Guardar cambios"
+                  >
+                    <FaSave />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={`${styles.headerIconBtn} ${styles.headerIconBtnDanger}`}
+                    title="Salir de edición"
+                    aria-label="Salir de edición"
+                  >
+                    <FaTimes />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEditToggle}
+                  className={styles.headerIconBtn}
+                  title="Editar reserva"
+                  aria-label="Editar reserva"
+                >
+                  <FaPen />
+                </button>
+              )}
+            </div>
+          </div>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
@@ -382,26 +411,19 @@ const ReservationDetails = () => {
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
         <div className={styles.sidePanelContent}>
           <div className={styles.sectionMenu}>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'general' ? styles.active : ''}`}
               onClick={() => setActiveTab('general')}
             >
-              Información General
+              Información general
             </button>
             <button 
-              className={`${styles.sectionButton} ${activeTab === 'pagos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('pagos')}
+              className={`${styles.sectionButton} ${activeTab === 'financiero' ? styles.active : ''}`}
+              onClick={() => setActiveTab('financiero')}
             >
-              Pagos
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'cargos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('cargos')}
-            >
-              Cargos / Consumos
+              Estado financiero
             </button>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'huespedes' ? styles.active : ''}`}
@@ -409,42 +431,25 @@ const ReservationDetails = () => {
             >
               Huéspedes
             </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'servicios' ? styles.active : ''}`}
-              onClick={() => setActiveTab('servicios')}
-            >
-              Servicios / Mantenimiento
-            </button>
           </div>
         </div>
 
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button 
-              onClick={() => setShowDeleteModal(true)}
-              className={styles.deleteButton}
-              title="Eliminar reserva"
-            >
-              Eliminar
-            </button>
-            <button 
-              onClick={handleBackClick}
-              className={styles.backButton}
-            >
-              Volver
-            </button>
+        {!isEditing && (
+          <div className={styles.sidePanelFooter}>
+            <div className={styles.actionButtons}>
+              <div className={styles.statusButtons}>
+                <ReservationStatusButtons
+                  reservation={reservation}
+                  onStatusChange={handleStatusChange}
+                  onDelete={() => setShowDeleteModal(true)}
+                  variant="dark"
+                />
+              </div>
+            </div>
           </div>
-          <div className={styles.statusButtons}>
-            <ReservationStatusButtons 
-              reservation={reservation} 
-              onStatusChange={handleStatusChange} 
-            />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
           {renderTabContent()}

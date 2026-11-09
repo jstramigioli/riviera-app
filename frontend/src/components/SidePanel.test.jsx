@@ -49,4 +49,11 @@ describe('SidePanel', () => {
     
     expect(mockOnClose).toHaveBeenCalled()
   })
+
+  it('hides header when hideHeader is true', () => {
+    render(<SidePanel {...mockProps} hideHeader />)
+    expect(screen.queryByText('Test Panel')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Cerrar panel')).not.toBeInTheDocument()
+    expect(screen.getByText('Test content')).toBeInTheDocument()
+  })
 }) 

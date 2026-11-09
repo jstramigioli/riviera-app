@@ -411,42 +411,17 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                   ))}
                 </div>
                 
-                {/* Botón para mostrar/ocultar bloques concluidos */}
                 {seasonBlocks.some(block => isBlockConcluded(block)) && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    marginTop: '20px',
-                    padding: '16px'
-                  }}>
+                  <div className={styles.concludedToggleWrap}>
                     <button
+                      type="button"
                       onClick={() => setShowConcludedBlocks(!showConcludedBlocks)}
-                      style={{
-                        padding: '12px 24px',
-                        backgroundColor: showConcludedBlocks ? 'var(--color-primary)' : 'var(--color-bg)',
-                        color: showConcludedBlocks ? 'white' : 'var(--color-text-main)',
-                        border: '2px solid var(--color-primary)',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: 'var(--font-size-small)',
-                        fontWeight: '600',
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
+                      className={`${styles.concludedToggle} ${showConcludedBlocks ? styles.concludedToggleActive : ''}`}
                     >
-                      {showConcludedBlocks ? (
-                        <>
-                          <span>Ocultar bloques anteriores</span>
-                          <FiChevronDown />
-                        </>
-                      ) : (
-                        <>
-                          <span>Mostrar bloques anteriores</span>
-                          <FiChevronDown />
-                        </>
-                      )}
+                      <span>
+                        {showConcludedBlocks ? 'Ocultar bloques anteriores' : 'Mostrar bloques anteriores'}
+                      </span>
+                      <FiChevronDown />
                     </button>
                   </div>
                 )}

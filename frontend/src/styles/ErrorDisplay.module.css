@@ -4,12 +4,12 @@
   align-items: center;
   min-height: 60vh;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
 }
 
 .errorCard {
   background: white;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 3rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   text-align: center;
@@ -30,7 +30,7 @@
 }
 
 .errorIcon {
-  font-size: 4rem;
+  font-size: var(--font-size-xxlarge);
   color: #ef4444;
   margin-bottom: 1.5rem;
   animation: pulse 2s infinite;
@@ -46,7 +46,7 @@
 }
 
 .errorTitle {
-  font-size: 1.75rem;
+  font-size: var(--font-size-xlarge);
   font-weight: var(--font-weight-bold);
   color: #1f2937;
   margin-bottom: 1rem;
@@ -54,7 +54,7 @@
 }
 
 .errorMessage {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   color: #6b7280;
   line-height: 1.6;
   margin-bottom: 1.5rem;
@@ -94,7 +94,7 @@
 
 .retryButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .retryButton:active {
@@ -102,7 +102,7 @@
 }
 
 .retryIcon {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   animation: spin 1s linear infinite;
 }
 
@@ -126,7 +126,7 @@
   }
   
   .errorTitle {
-    font-size: 1.5rem;
+    font-size: var(--font-size-large);
   }
   
   .errorMessage {

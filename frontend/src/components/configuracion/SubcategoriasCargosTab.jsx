@@ -196,22 +196,15 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.titleSection}>
-            <h3 style={{ color: currentTipoInfo.color }}>
-              Subcategorías de {currentTipoInfo.nombre}
-            </h3>
-            <p>{currentTipoInfo.descripcion}</p>
-            <small className={styles.ejemplos}>
-              <strong>Ejemplos:</strong> {currentTipoInfo.ejemplos}
-            </small>
-          </div>
-        </div>
-        <button 
+        <p className={styles.hint}>
+          {currentTipoInfo.descripcion} · Ej.: {currentTipoInfo.ejemplos}
+        </p>
+        <button
           className={styles.addButton}
           onClick={handleAddNew}
+          type="button"
         >
-          <FaPlus /> Nueva Subcategoría
+          <FaPlus /> Nueva subcategoría
         </button>
       </div>
 

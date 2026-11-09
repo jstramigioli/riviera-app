@@ -8,6 +8,9 @@ const router = express.Router();
 // GET /api/reservations - Listar todas las reservas
 router.get('/', reservationController.getAllReservations);
 
+// GET /api/reservations/statuses - Enum canónico de estados (antes de /:id)
+router.get('/statuses', reservationController.getReservationStatuses);
+
 // GET /api/reservations/available-rooms - Buscar habitaciones disponibles según requerimientos
 router.get('/available-rooms', reservationController.findAvailableRooms);
 

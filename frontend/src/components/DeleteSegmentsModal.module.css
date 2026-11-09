@@ -14,7 +14,7 @@
 
 .modal {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0;
   max-width: 500px;
   width: 90%;

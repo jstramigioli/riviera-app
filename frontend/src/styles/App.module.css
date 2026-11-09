@@ -7,19 +7,21 @@
   display: flex;
   flex-direction: column;
   overflow-x: hidden; /* Evita scroll horizontal, permite vertical */
+  padding-top: 52px; /* Compensa nav fixed */
 }
 
 .navigation {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   width: 100%;
   background-color: var(--color-primary);
-  padding: 0 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 80px;
+  height: 52px;
   flex-shrink: 0;
   z-index: 1000;
 }
@@ -27,26 +29,26 @@
 .navLeft {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 20px;
 }
 
 .logoContainer {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-right: 8px;
+  gap: 8px;
+  margin-right: 4px;
 }
 
 .logo {
-  height: 40px;
+  height: 32px;
   width: auto;
   object-fit: contain;
 }
 
 .hotelName {
   color: var(--color-text-light);
-  font-weight: 700;
-  font-size: 1.2rem;
+  font-weight: 600;
+  font-size: var(--font-size-medium);
   white-space: nowrap;
 }
 
@@ -62,13 +64,14 @@
 
 .navLink {
   display: inline-block;
-  padding: 16px 24px;
-  color: rgba(255, 255, 255, 0.8);
+  padding: 14px 14px;
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-weight: 500;
-  font-size: var(--font-size-base);
-  transition: all 0.2s;
-  border-bottom: 3px solid transparent;
+  font-size: var(--font-size-medium);
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  border-bottom: 2px solid transparent;
 }
 
 .navLink:hover {
@@ -83,10 +86,10 @@
 }
 
 .configButton {
-  font-size: var(--font-size-large);
-  padding: 12px 16px;
-  border-radius: 50%;
-  min-width: 48px;
+  font-size: var(--font-size-medium);
+  padding: 8px 12px;
+  border-radius: 6px;
+  min-width: 36px;
   text-align: center;
   display: flex;
   align-items: center;
@@ -95,19 +98,16 @@
 
 .configButton:hover {
   background-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
 }
 
 .configButton.active {
   background-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
 }
 
 .appContainer {
   width: 100%;
   max-width: 100%;
-  min-height: calc(100vh - 80px); /* Deja crecer si el contenido es mayor */
-  margin-top: 80px; /* Espacio para el header fijo */
+  min-height: calc(100vh - 52px);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -121,38 +121,30 @@
   padding: 20px;
 }
 
+/* Bloque de bienvenida del Libro eliminado — tipografía de página genérica */
 .header {
   flex-shrink: 0;
-  margin-bottom: 0.5rem;
-  text-align: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  margin: 0.5rem;
-  max-width: 90%;
-  height: 120px; /* Altura fija para el panel de bienvenida */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden; /* Evitar que el contenido se desborde */
+  margin: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
 }
 
 .title {
-  margin: 0 0 4px 0;
+  margin: 0;
   color: var(--color-text-dark);
-  font-size: 1.8rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--font-size-xlarge);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .subtitle {
-  margin: 0 0 8px 0;
+  margin: 0.25rem 0 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 /* Estilos para la barra de scroll */
@@ -205,19 +197,19 @@
 
 .stats {
   display: flex;
-  justify-content: center;
-  gap: 24px;
+  justify-content: flex-start;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .statItem {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: var(--color-text-light);
-  padding: 6px 12px;
-  border-radius: 16px;
+  background: var(--color-bg);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+  border-radius: 4px;
   font-weight: 500;
   font-size: var(--font-size-small);
-  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
 }
 
 .loading {
@@ -255,44 +247,44 @@
 
 @media (max-width: 768px) {
   .ratesContainer {
-    padding: 16px;
+    padding: 12px;
   }
   
   .header {
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 10px 12px;
+    margin: 0.5rem;
   }
   
   .title {
-    font-size: 1.8rem;
+    font-size: var(--font-size-large);
   }
   
   .subtitle {
-    font-size: 1rem;
+    font-size: var(--font-size-small);
   }
   
   .stats {
-    gap: 16px;
+    gap: 8px;
   }
   
   .statItem {
     font-size: var(--font-size-small);
-    padding: 6px 12px;
+    padding: 3px 8px;
   }
   
   .navigation {
-    padding: 0 16px;
+    padding: 0 10px;
   }
   
   .navLink {
-    padding: 12px 16px;
-    font-size: var(--font-size-medium);
+    padding: 12px 10px;
+    font-size: var(--font-size-small);
   }
 }
 
 @media (max-width: 480px) {
   .title {
-    font-size: 1.25rem;
+    font-size: var(--font-size-medium);
   }
   
   .subtitle {
