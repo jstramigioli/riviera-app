@@ -9,22 +9,14 @@ import {
   updateReservation,
   API_URL,
   getReservationFinancialSummary,
-  getPagosByReserva,
-  createPago,
-  deletePago,
-  getCargosByReserva,
-  createCargo,
-  updateCargo,
-  deleteCargo
+  createCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
-import PagosTab from '../components/ReservationTabs/PagosTab';
-import CargosTab from '../components/ReservationTabs/CargosTab';
+import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
-import ServiciosTab from '../components/ReservationTabs/ServiciosTab';
 import { FaTrash, FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import styles from './ReservationDetails.module.css';
 
@@ -46,8 +38,6 @@ const ReservationDetails = () => {
   
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
-  const [pagos, setPagos] = useState([]);
-  const [cargos, setCargos] = useState([]);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
   
   // Estado para modal de eliminación
@@ -55,7 +45,6 @@ const ReservationDetails = () => {
   
   // Estado para tipos de servicio
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [tags, setTags] = useState([]);
 
   // Edición
   const [isEditing, setIsEditing] = useState(Boolean(location.state?.isEditing));
@@ -68,12 +57,11 @@ const ReservationDetails = () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, clientsData, serviceTypesResponse, tagsResponse] = await Promise.all([
+        const [reservationsData, roomsData, clientsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
           fetchClients(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -90,7 +78,6 @@ const ReservationDetails = () => {
         setRooms(roomsData);
         setClients(clientsData);
         setServiceTypes(serviceTypesResponse.data || []);
-        setTags(tagsResponse || []);
         
         setLoading(false);
       } catch (error) {
@@ -112,9 +99,9 @@ const ReservationDetails = () => {
     }
   }, [location.state?.isEditing]);
 
-  // Cargar datos financieros cuando se acceda a esas pestañas
+  // Cargar datos financieros en la pestaña Estado financiero
   useEffect(() => {
-    if ((activeTab === 'pagos' || activeTab === 'cargos' || activeTab === 'general') && reservation) {
+    if (activeTab === 'financiero' && reservation) {
       loadFinancialData();
     }
   }, [activeTab, reservation]);
@@ -124,15 +111,8 @@ const ReservationDetails = () => {
     
     try {
       setLoadingFinancial(true);
-      const [summary, pagosData, cargosData] = await Promise.all([
-        getReservationFinancialSummary(reservation.id),
-        getPagosByReserva(reservation.id),
-        getCargosByReserva(reservation.id)
-      ]);
-      
+      const summary = await getReservationFinancialSummary(reservation.id);
       setFinancialSummary(summary);
-      setPagos(pagosData);
-      setCargos(cargosData);
     } catch (error) {
       console.error('Error cargando datos financieros:', error);
     } finally {
@@ -140,33 +120,6 @@ const ReservationDetails = () => {
     }
   };
 
-  // Handlers para pagos
-  const handleAddPago = async (pagoData) => {
-    try {
-      await createPago(reservation.id, pagoData);
-      await loadFinancialData();
-      alert('Pago agregado exitosamente');
-    } catch (error) {
-      console.error('Error agregando pago:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeletePago = async (pagoId) => {
-    if (!confirm('¿Estás seguro de eliminar este pago?')) return;
-    
-    try {
-      await deletePago(pagoId);
-      await loadFinancialData();
-      alert('Pago eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando pago:', error);
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Handlers para cargos
   const handleAddCargo = async (cargoData) => {
     try {
       await createCargo(reservation.id, cargoData);
@@ -176,31 +129,6 @@ const ReservationDetails = () => {
       console.error('Error agregando cargo:', error);
       alert(`Error: ${error.message}`);
       throw error;
-    }
-  };
-
-  const handleUpdateCargo = async (cargoId, cargoData) => {
-    try {
-      await updateCargo(cargoId, cargoData);
-      await loadFinancialData();
-      alert('Cargo actualizado exitosamente');
-    } catch (error) {
-      console.error('Error actualizando cargo:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeleteCargo = async (cargoId) => {
-    if (!confirm('¿Estás seguro de eliminar este cargo?')) return;
-    
-    try {
-      await deleteCargo(cargoId);
-      await loadFinancialData();
-      alert('Cargo eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando cargo:', error);
-      alert(`Error: ${error.message}`);
     }
   };
 
@@ -355,37 +283,22 @@ const ReservationDetails = () => {
             clients={clients}
             serviceTypes={serviceTypes}
             onEditChange={handleEditChange}
-            financialSummary={financialSummary}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
           />
         );
-      case 'pagos':
+      case 'financiero':
         return (
-          <PagosTab
+          <EstadoFinancieroTab
             reservation={reservation}
-            pagos={pagos}
             financialSummary={financialSummary}
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
-            onDeletePago={handleDeletePago}
-          />
-        );
-      case 'cargos':
-        return (
-          <CargosTab
-            cargos={cargos}
-            financialSummary={financialSummary}
-            loadingFinancial={loadingFinancial}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
+            onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
-            onUpdateCargo={handleUpdateCargo}
-            onDeleteCargo={handleDeleteCargo}
           />
         );
       case 'huespedes':
@@ -393,12 +306,6 @@ const ReservationDetails = () => {
           <HuespedesTab
             reservation={reservation}
             onClientClick={handleClientClick}
-          />
-        );
-      case 'servicios':
-        return (
-          <ServiciosTab
-            reservation={reservation}
           />
         );
       default:
@@ -510,31 +417,19 @@ const ReservationDetails = () => {
               className={`${styles.sectionButton} ${activeTab === 'general' ? styles.active : ''}`}
               onClick={() => setActiveTab('general')}
             >
-              Información General
+              Información general
             </button>
             <button 
-              className={`${styles.sectionButton} ${activeTab === 'pagos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('pagos')}
+              className={`${styles.sectionButton} ${activeTab === 'financiero' ? styles.active : ''}`}
+              onClick={() => setActiveTab('financiero')}
             >
-              Pagos
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'cargos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('cargos')}
-            >
-              Cargos / Consumos
+              Estado financiero
             </button>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'huespedes' ? styles.active : ''}`}
               onClick={() => setActiveTab('huespedes')}
             >
               Huéspedes
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'servicios' ? styles.active : ''}`}
-              onClick={() => setActiveTab('servicios')}
-            >
-              Servicios / Mantenimiento
             </button>
           </div>
         </div>

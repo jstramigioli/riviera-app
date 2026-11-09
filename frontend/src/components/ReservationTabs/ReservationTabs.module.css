@@ -1,6 +1,6 @@
-/* Tab Content */
+/* Tab Content — sin padding extra: mainContentBody ya alinea con el side panel */
 .tabContent {
-  padding: 24px;
+  padding: 0;
   animation: fadeIn 0.3s ease-in;
 }
 
@@ -20,14 +20,32 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .sectionTitle {
-  font-size: var(--font-size-large);
-  font-weight: 600;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
   color: #1a1a1a;
   margin: 0;
+  line-height: 1.2;
+}
+
+/* Título Info general: alineado con Reserva #N del side panel; más aire antes de cards */
+.generalInfoTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 28px 0;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.headerActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 /* Financial Alert */
@@ -35,10 +53,24 @@
   background: var(--color-primary);
   border-radius: var(--radius-md);
   padding: 20px;
-  margin-top: 24px;
+  margin-top: 0;
   margin-bottom: 8px;
   color: white;
   box-shadow: var(--shadow-sm);
+}
+
+.guestCardClickable {
+  cursor: pointer;
+}
+
+.guestCardClickable:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.guestCardClickable:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
 }
 
 .financialAlertHeader {

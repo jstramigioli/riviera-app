@@ -450,7 +450,8 @@
 
 .mainContentBody {
   flex: 1;
-  padding: 24px;
+  /* padding-top 20px alinea el título con Reserva #N del side panel */
+  padding: 20px 24px 24px;
   overflow-y: auto;
   overflow-x: hidden;
   background: white;
