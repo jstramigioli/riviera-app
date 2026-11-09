@@ -171,7 +171,8 @@ function ReservationsView() {
         "check-out": "Check-out registrado exitosamente",
         "no-show": "Reserva marcada como no presentada",
         "reopen": "Estadía reabierta exitosamente",
-        "reactivate": "Reserva reactivada exitosamente"
+        "reactivate": "Reserva reactivada exitosamente",
+        "set-status": "Estado actualizado exitosamente"
       };
       
       showNotification(

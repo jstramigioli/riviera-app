@@ -1,4 +1,5 @@
 import React from 'react';
+import useReservationStatuses from '../../hooks/useReservationStatuses';
 import styles from './ReservationTabs.module.css';
 
 const inputStyle = {
@@ -35,6 +36,8 @@ const GeneralInfoTab = ({
   getServiceTypeLabel,
   getStatusLabel 
 }) => {
+  const { statuses: statusOptions } = useReservationStatuses();
+
   if (!reservation) return null;
 
   const data = isEditing && editData ? editData : reservation;
@@ -149,12 +152,11 @@ const GeneralInfoTab = ({
                 onChange={(e) => onEditChange('status', e.target.value)}
                 style={inputStyle}
               >
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="CONFIRMADA">Confirmada</option>
-                <option value="INGRESADA">Ingresada</option>
-                <option value="FINALIZADA">Finalizada</option>
-                <option value="CANCELADA">Cancelada</option>
-                <option value="NO_PRESENTADA">No presentada</option>
+                {statusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             ) : (
               getStatusLabel(reservation.status)

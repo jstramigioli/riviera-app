@@ -123,6 +123,13 @@ export async function updateReservationStatus(id, status) {
   return res.json();
 }
 
+/** Estados canónicos desde el backend (enum Prisma / constant BE) */
+export async function fetchReservationStatuses() {
+  const res = await fetch(`${API_URL}/reservations/statuses`);
+  if (!res.ok) throw new Error('Error fetching reservation statuses');
+  return res.json();
+}
+
 export async function createReservation(data) {
   // Siempre usar la ruta de multi-segment ya que todas las reservas usan segmentos
   const res = await fetch(`${API_URL}/reservations/multi-segment`, {
