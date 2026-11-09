@@ -13,6 +13,14 @@ const VALID_RESERVATION_STATUSES = [
   'NO_PRESENTADA'
 ];
 
+/** Estados que no ocupan habitación ni deben verse en el Libro */
+const NON_OCCUPYING_STATUSES = ['CANCELADA', 'NO_PRESENTADA'];
+
+/** Estados que sí ocupan (calendario, overlap, disponibilidad) */
+const OCCUPYING_STATUSES = VALID_RESERVATION_STATUSES.filter(
+  (s) => !NON_OCCUPYING_STATUSES.includes(s)
+);
+
 /**
  * Valida que el estado de reserva sea válido
  */
@@ -115,5 +123,7 @@ module.exports = {
   validateReservationStatus,
   validateStatusTransition,
   validateReservationStatusMiddleware,
-  VALID_RESERVATION_STATUSES
+  VALID_RESERVATION_STATUSES,
+  NON_OCCUPYING_STATUSES,
+  OCCUPYING_STATUSES
 };

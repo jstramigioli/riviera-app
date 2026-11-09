@@ -14,7 +14,7 @@
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -86,7 +86,7 @@
 
 .statusValue {
   padding: 0.25rem 0.75rem;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -239,7 +239,7 @@
 .editSection h3 {
   margin: 0 0 16px 0;
   color: white;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
 }
 
@@ -293,21 +293,49 @@
 }
 
 .sidePanelFooter {
-  padding: 20px 15% 20px 5%;
+  padding: 16px 12px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.1);
-  min-height: 150px;
+  min-height: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 16px;
+  gap: 0;
   flex-shrink: 0;
 }
 
 .actionButtons {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  justify-content: stretch;
+}
+
+.actionButtons .editButton,
+.actionButtons .backButton,
+.actionButtons .deleteButton {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
+.statusButtons {
+  display: flex;
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.statusButtons > div {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  width: 100%;
 }
 
 .editButton,
@@ -348,15 +376,10 @@
   background: rgba(220, 53, 69, 1);
 }
 
-.statusButtons {
-  display: flex;
-  justify-content: center;
-}
-
 .mainContent {
   flex: 1;
   background: white;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
 }
@@ -391,7 +414,7 @@
 }
 
 .clientSection .clientName {
-  font-size: 1.3rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #2563eb;
   cursor: pointer;
@@ -512,7 +535,7 @@
   background: #e3f2fd;
   color: #1976d2;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 500;
   border: 1px solid #bbdefb;
@@ -555,7 +578,7 @@
   margin-bottom: 16px;
   padding: 12px;
   background: #f8f9fa;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid var(--color-primary);
   border-radius: 4px;
 }
 
@@ -611,7 +634,7 @@
 
 .infoCard {
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid #e9ecef;
   margin-bottom: 20px;
@@ -619,13 +642,13 @@
 }
 
 .infoCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
 
 .infoCard h3 {
   color: var(--color-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   margin: 0 0 16px 0;
   font-weight: 600;
   border-bottom: 2px solid var(--color-primary);
@@ -713,8 +736,8 @@
 
 .tableContainer {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   flex: 1;
   min-height: 0;
@@ -776,7 +799,7 @@
 .totalAmount {
   font-weight: 700;
   color: var(--color-success);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .modifications {
@@ -908,7 +931,7 @@
   }
   
   .clientSection .clientName {
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .segmentDetail {
@@ -951,7 +974,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 500px;
   width: 100%;
@@ -967,7 +990,7 @@
 .modalHeader h3 {
   margin: 0;
   color: #1f2937;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 

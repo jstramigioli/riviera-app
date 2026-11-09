@@ -1,10 +1,10 @@
 /* Dashboard Container */
 .dashboardContainer {
-  padding: 2rem;
+  padding: 16px;
   max-width: 1400px;
   margin: 0 auto;
-  min-height: calc(100vh - 100px);
-  background-color: #f8f9fa;
+  min-height: calc(100vh - var(--nav-height));
+  background-color: var(--color-bg);
   overflow-y: auto;
   height: 100%;
 }
@@ -16,14 +16,14 @@
 }
 
 .title {
-  font-size: 2.5rem;
+  font-size: var(--font-size-xxlarge);
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 0.5rem;
 }
 
 .subtitle {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   color: #6c757d;
   margin-bottom: 0;
 }
@@ -31,7 +31,7 @@
 /* Grid Layout */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -39,26 +39,25 @@
 /* Cards */
 .card {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: var(--color-border-dark);
 }
 
 .cardContent {
-  padding: 1.5rem;
+  padding: 12px;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .cardTitle {
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 1rem;
@@ -352,7 +351,7 @@
 }
 
 .blockName {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #2c3e50;
   margin: 0;
@@ -431,7 +430,7 @@
 }
 
 .actionIcon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   width: 40px;
   text-align: center;
 }
@@ -476,7 +475,7 @@
   }
 
   .title {
-    font-size: 2rem;
+    font-size: var(--font-size-xlarge);
   }
 
   .grid {
@@ -505,7 +504,7 @@
   }
 
   .actionIcon {
-    font-size: 1.25rem;
+    font-size: var(--font-size-large);
     width: 30px;
   }
 }
@@ -516,7 +515,7 @@
   }
 
   .title {
-    font-size: 1.75rem;
+    font-size: var(--font-size-xlarge);
   }
 
   .subtitle {

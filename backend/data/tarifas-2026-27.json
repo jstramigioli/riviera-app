@@ -1,0 +1,2058 @@
+{
+  "meta": {
+    "seedTag": "tarifas-2026-27",
+    "sourceFile": "backend/data/Calculadora_de_tarifas_Hotel_Riviera_2026_27.xlsx",
+    "extractedAt": "2026-11-09T18:59:50.786Z",
+    "notes": [
+      "Calendario tomado de hoja 'impresion' desplazado +1 año → temporada 2026/27.",
+      "Última fila de impresion con año 2025 en marzo se normalizó a 2026 antes del +1.",
+      "Precios de hojas Valor A/B/C/D (no de 'impresion').",
+      "Departamentos: SeasonPrice usa ocupación = maxPeople del tipo.",
+      "Servicios: Sin desayuno→Solo Alojamiento; Desayuno Riviera; Desayuno+MP→Desayuno y Media Pensión.",
+      "percentageAdjustment=0: SeasonPrice ya es precio final ARS.",
+      "Diversidad cultural solo con --with-diversidad."
+    ],
+    "operationalPeriod": {
+      "startDate": "2026-12-05",
+      "endDate": "2027-03-25",
+      "label": "Temporada 2026/27"
+    },
+    "impresionRaw": [
+      {
+        "start": "2025-12-05",
+        "end": "2025-12-19",
+        "valor": "D"
+      },
+      {
+        "start": "2025-12-20",
+        "end": "2025-12-26",
+        "valor": "C"
+      },
+      {
+        "start": "2025-12-27",
+        "end": "2026-01-09",
+        "valor": "B"
+      },
+      {
+        "start": "2026-01-10",
+        "end": "2026-02-17",
+        "valor": "A"
+      },
+      {
+        "start": "2026-02-18",
+        "end": "2026-02-28",
+        "valor": "B"
+      },
+      {
+        "start": "2025-03-01",
+        "end": "2025-03-25",
+        "valor": "D"
+      }
+    ],
+    "calendar2026_27": [
+      {
+        "start": "2026-12-05",
+        "end": "2026-12-19",
+        "valor": "D"
+      },
+      {
+        "start": "2026-12-20",
+        "end": "2026-12-26",
+        "valor": "C"
+      },
+      {
+        "start": "2026-12-27",
+        "end": "2027-01-09",
+        "valor": "B"
+      },
+      {
+        "start": "2027-01-10",
+        "end": "2027-02-17",
+        "valor": "A"
+      },
+      {
+        "start": "2027-02-18",
+        "end": "2027-02-28",
+        "valor": "B"
+      },
+      {
+        "start": "2027-03-01",
+        "end": "2027-03-25",
+        "valor": "D"
+      }
+    ]
+  },
+  "hotel": {
+    "id": "default-hotel",
+    "name": "Hotel Riviera",
+    "description": "Hotel Riviera — seed tarifas 2026/27"
+  },
+  "roundingConfig": {
+    "multiple": 1000,
+    "mode": "ceil",
+    "note": "Excel usa CEILING(...,1000)"
+  },
+  "serviceTypes": [
+    {
+      "key": "solo_alojamiento",
+      "name": "Solo Alojamiento",
+      "excelHeader": "Sin desayuno",
+      "description": "Sin desayuno (base)",
+      "orderIndex": 0
+    },
+    {
+      "key": "desayuno_riviera",
+      "name": "Desayuno Riviera",
+      "excelHeader": "Desayuno Riviera",
+      "description": "Incluye desayuno Riviera",
+      "orderIndex": 1
+    },
+    {
+      "key": "media_pension",
+      "name": "Desayuno y Media Pensión",
+      "excelHeader": "Desayuno Riviera Y Media Pensión",
+      "description": "Desayuno Riviera y media pensión",
+      "orderIndex": 2
+    }
+  ],
+  "roomTypes": [
+    {
+      "name": "single",
+      "displayName": "Single",
+      "excelName": "Single",
+      "maxPeople": 1,
+      "orderIndex": 1,
+      "kind": "hotel"
+    },
+    {
+      "name": "doble",
+      "displayName": "Doble",
+      "excelName": "Doble",
+      "maxPeople": 2,
+      "orderIndex": 2,
+      "kind": "hotel"
+    },
+    {
+      "name": "triple",
+      "displayName": "Triple",
+      "excelName": "Triple",
+      "maxPeople": 3,
+      "orderIndex": 3,
+      "kind": "hotel"
+    },
+    {
+      "name": "cuadruple",
+      "displayName": "Cuádruple",
+      "excelName": "Cuádruple",
+      "maxPeople": 4,
+      "orderIndex": 4,
+      "kind": "hotel"
+    },
+    {
+      "name": "quintuple",
+      "displayName": "Quíntuple",
+      "excelName": "Quíntuple",
+      "maxPeople": 5,
+      "orderIndex": 5,
+      "kind": "hotel"
+    },
+    {
+      "name": "departamento El Tilo",
+      "displayName": "El Tilo",
+      "excelName": "El Tilo",
+      "maxPeople": 5,
+      "orderIndex": 10,
+      "kind": "departamento"
+    },
+    {
+      "name": "departamento El Romerito",
+      "displayName": "El Romerito",
+      "excelName": "El Romerito",
+      "maxPeople": 2,
+      "orderIndex": 11,
+      "kind": "departamento"
+    },
+    {
+      "name": "departamento Via 1",
+      "displayName": "Via 1",
+      "excelName": "Via 1",
+      "maxPeople": 4,
+      "orderIndex": 12,
+      "kind": "departamento"
+    },
+    {
+      "name": "departamento La Esquinita",
+      "displayName": "La Esquinita",
+      "excelName": "Esquinita",
+      "maxPeople": 4,
+      "orderIndex": 13,
+      "kind": "departamento"
+    }
+  ],
+  "seasonBlocks": [
+    {
+      "name": "2026/27 · Valor D (apertura)",
+      "description": "[seed:tarifas-2026-27] Temporada valor D — apertura. Fuente Excel hojas Valor D / impresion (+1 año).",
+      "startDate": "2026-12-05",
+      "endDate": "2026-12-19",
+      "valor": "D",
+      "orderIndex": 0,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 88000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 98000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 127000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 142000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 157000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 200000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 178000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 197000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 251000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 214000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 236000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 303000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 250000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 275000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 351000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 151000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 185000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 288000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 98000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 119000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 178000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 151000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 181000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 272000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 173000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 203000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 294000,
+          "occupancyUsed": 4
+        }
+      ]
+    },
+    {
+      "name": "2026/27 · Valor C (navidad)",
+      "description": "[seed:tarifas-2026-27] Temporada valor C — navidad. Fuente Excel hojas Valor C / impresion (+1 año).",
+      "startDate": "2026-12-20",
+      "endDate": "2026-12-26",
+      "valor": "C",
+      "orderIndex": 1,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 99000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 109000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 138000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 160000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 175000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 218000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 200000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 219000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 273000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 241000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 263000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 330000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 282000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 307000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 383000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 168000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 202000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 305000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 109000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 130000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 189000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 168000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 198000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 289000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 193000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 223000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 314000,
+          "occupancyUsed": 4
+        }
+      ]
+    },
+    {
+      "name": "2026/27 · Valor B (fin de año)",
+      "description": "[seed:tarifas-2026-27] Temporada valor B — fin de año. Fuente Excel hojas Valor B / impresion (+1 año).",
+      "startDate": "2026-12-27",
+      "endDate": "2027-01-09",
+      "valor": "B",
+      "orderIndex": 2,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 110000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 120000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 149000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 177000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 192000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 235000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 221000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 240000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 294000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 266000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 288000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 355000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 311000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 336000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 412000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 185000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 219000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 322000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 120000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 141000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 200000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 185000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 215000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 306000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 212000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 242000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 333000,
+          "occupancyUsed": 4
+        }
+      ]
+    },
+    {
+      "name": "2026/27 · Valor A (alta)",
+      "description": "[seed:tarifas-2026-27] Temporada valor A — alta. Fuente Excel hojas Valor A / impresion (+1 año).",
+      "startDate": "2027-01-10",
+      "endDate": "2027-02-17",
+      "valor": "A",
+      "orderIndex": 3,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 137000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 147000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 176000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 221000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 236000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 279000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 276000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 295000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 349000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 332000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 354000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 421000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 388000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 413000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 489000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 227000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 261000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 364000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 147000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 168000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 227000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 227000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 257000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 348000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 260000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 290000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 381000,
+          "occupancyUsed": 4
+        }
+      ]
+    },
+    {
+      "name": "2026/27 · Valor B (febrero)",
+      "description": "[seed:tarifas-2026-27] Temporada valor B — febrero. Fuente Excel hojas Valor B / impresion (+1 año).",
+      "startDate": "2027-02-18",
+      "endDate": "2027-02-28",
+      "valor": "B",
+      "orderIndex": 4,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 110000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 120000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 149000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 177000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 192000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 235000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 221000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 240000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 294000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 266000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 288000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 355000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 311000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 336000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 412000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 185000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 219000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 322000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 120000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 141000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 200000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 185000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 215000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 306000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 212000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 242000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 333000,
+          "occupancyUsed": 4
+        }
+      ]
+    },
+    {
+      "name": "2026/27 · Valor D (cierre)",
+      "description": "[seed:tarifas-2026-27] Temporada valor D — cierre. Fuente Excel hojas Valor D / impresion (+1 año).",
+      "startDate": "2027-03-01",
+      "endDate": "2027-03-25",
+      "valor": "D",
+      "orderIndex": 5,
+      "isDraft": false,
+      "prices": [
+        {
+          "roomTypeName": "single",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 88000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 98000
+        },
+        {
+          "roomTypeName": "single",
+          "serviceKey": "media_pension",
+          "basePrice": 127000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 142000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 157000
+        },
+        {
+          "roomTypeName": "doble",
+          "serviceKey": "media_pension",
+          "basePrice": 200000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 178000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 197000
+        },
+        {
+          "roomTypeName": "triple",
+          "serviceKey": "media_pension",
+          "basePrice": 251000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 214000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 236000
+        },
+        {
+          "roomTypeName": "cuadruple",
+          "serviceKey": "media_pension",
+          "basePrice": 303000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 250000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 275000
+        },
+        {
+          "roomTypeName": "quintuple",
+          "serviceKey": "media_pension",
+          "basePrice": 351000
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 151000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 185000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Tilo",
+          "serviceKey": "media_pension",
+          "basePrice": 288000,
+          "occupancyUsed": 5
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 98000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 119000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento El Romerito",
+          "serviceKey": "media_pension",
+          "basePrice": 178000,
+          "occupancyUsed": 2
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 151000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 181000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento Via 1",
+          "serviceKey": "media_pension",
+          "basePrice": 272000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "solo_alojamiento",
+          "basePrice": 173000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "desayuno_riviera",
+          "basePrice": 203000,
+          "occupancyUsed": 4
+        },
+        {
+          "roomTypeName": "departamento La Esquinita",
+          "serviceKey": "media_pension",
+          "basePrice": 294000,
+          "occupancyUsed": 4
+        }
+      ]
+    }
+  ],
+  "diversidadCultural": {
+    "name": "2026/27 · Diversidad cultural",
+    "description": "[seed:tarifas-2026-27] Tarifa especial Diversidad cultural (sin fechas de calendario en el Excel; se crea como borrador).",
+    "valor": "DIVERSIDAD",
+    "isDraft": true,
+    "startDate": "2026-12-05",
+    "endDate": "2027-03-25",
+    "orderIndex": 99,
+    "prices": [
+      {
+        "roomTypeName": "single",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 65000
+      },
+      {
+        "roomTypeName": "single",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 75000
+      },
+      {
+        "roomTypeName": "single",
+        "serviceKey": "media_pension",
+        "basePrice": 104000
+      },
+      {
+        "roomTypeName": "doble",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 105000
+      },
+      {
+        "roomTypeName": "doble",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 120000
+      },
+      {
+        "roomTypeName": "doble",
+        "serviceKey": "media_pension",
+        "basePrice": 163000
+      },
+      {
+        "roomTypeName": "triple",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 131000
+      },
+      {
+        "roomTypeName": "triple",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 150000
+      },
+      {
+        "roomTypeName": "triple",
+        "serviceKey": "media_pension",
+        "basePrice": 204000
+      },
+      {
+        "roomTypeName": "cuadruple",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 158000
+      },
+      {
+        "roomTypeName": "cuadruple",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 180000
+      },
+      {
+        "roomTypeName": "cuadruple",
+        "serviceKey": "media_pension",
+        "basePrice": 247000
+      },
+      {
+        "roomTypeName": "quintuple",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 185000
+      },
+      {
+        "roomTypeName": "quintuple",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 210000
+      },
+      {
+        "roomTypeName": "quintuple",
+        "serviceKey": "media_pension",
+        "basePrice": 286000
+      },
+      {
+        "roomTypeName": "departamento El Tilo",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 93000,
+        "occupancyUsed": 5
+      },
+      {
+        "roomTypeName": "departamento El Tilo",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 127000,
+        "occupancyUsed": 5
+      },
+      {
+        "roomTypeName": "departamento El Tilo",
+        "serviceKey": "media_pension",
+        "basePrice": 230000,
+        "occupancyUsed": 5
+      },
+      {
+        "roomTypeName": "departamento El Romerito",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 60000,
+        "occupancyUsed": 2
+      },
+      {
+        "roomTypeName": "departamento El Romerito",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 81000,
+        "occupancyUsed": 2
+      },
+      {
+        "roomTypeName": "departamento El Romerito",
+        "serviceKey": "media_pension",
+        "basePrice": 140000,
+        "occupancyUsed": 2
+      },
+      {
+        "roomTypeName": "departamento Via 1",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 93000,
+        "occupancyUsed": 4
+      },
+      {
+        "roomTypeName": "departamento Via 1",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 123000,
+        "occupancyUsed": 4
+      },
+      {
+        "roomTypeName": "departamento Via 1",
+        "serviceKey": "media_pension",
+        "basePrice": 214000,
+        "occupancyUsed": 4
+      },
+      {
+        "roomTypeName": "departamento La Esquinita",
+        "serviceKey": "solo_alojamiento",
+        "basePrice": 106000,
+        "occupancyUsed": 4
+      },
+      {
+        "roomTypeName": "departamento La Esquinita",
+        "serviceKey": "desayuno_riviera",
+        "basePrice": 136000,
+        "occupancyUsed": 4
+      },
+      {
+        "roomTypeName": "departamento La Esquinita",
+        "serviceKey": "media_pension",
+        "basePrice": 227000,
+        "occupancyUsed": 4
+      }
+    ],
+    "includeByDefault": false
+  },
+  "tiers": {
+    "A": {
+      "sheet": "Valor A",
+      "referenceDobleDesayuno": 236000,
+      "hotelRooms": {
+        "Single": {
+          "solo_alojamiento": 137000,
+          "desayuno_riviera": 147000,
+          "media_pension": 176000
+        },
+        "Doble": {
+          "solo_alojamiento": 221000,
+          "desayuno_riviera": 236000,
+          "media_pension": 279000
+        },
+        "Triple": {
+          "solo_alojamiento": 276000,
+          "desayuno_riviera": 295000,
+          "media_pension": 349000
+        },
+        "Cuádruple": {
+          "solo_alojamiento": 332000,
+          "desayuno_riviera": 354000,
+          "media_pension": 421000
+        },
+        "Quíntuple": {
+          "solo_alojamiento": 388000,
+          "desayuno_riviera": 413000,
+          "media_pension": 489000
+        }
+      },
+      "departments": {
+        "El Tilo": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 248000,
+              "media_pension": 307000
+            },
+            "3": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 253000,
+              "media_pension": 326000
+            },
+            "4": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 257000,
+              "media_pension": 348000
+            },
+            "5": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 261000,
+              "media_pension": 364000
+            }
+          },
+          "seedOccupancy": 5,
+          "seedPrices": {
+            "solo_alojamiento": 227000,
+            "desayuno_riviera": 261000,
+            "media_pension": 364000
+          },
+          "roomTypeName": "departamento El Tilo",
+          "displayName": "El Tilo"
+        },
+        "El Romerito": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 147000,
+              "desayuno_riviera": 161000,
+              "media_pension": 201000
+            },
+            "2": {
+              "solo_alojamiento": 147000,
+              "desayuno_riviera": 168000,
+              "media_pension": 227000
+            }
+          },
+          "seedOccupancy": 2,
+          "seedPrices": {
+            "solo_alojamiento": 147000,
+            "desayuno_riviera": 168000,
+            "media_pension": 227000
+          },
+          "roomTypeName": "departamento El Romerito",
+          "displayName": "El Romerito"
+        },
+        "Via 1": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 248000,
+              "media_pension": 307000
+            },
+            "3": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 253000,
+              "media_pension": 326000
+            },
+            "4": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 257000,
+              "media_pension": 348000
+            },
+            "5": {
+              "solo_alojamiento": 227000,
+              "desayuno_riviera": 261000,
+              "media_pension": 364000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 227000,
+            "desayuno_riviera": 257000,
+            "media_pension": 348000
+          },
+          "roomTypeName": "departamento Via 1",
+          "displayName": "Via 1"
+        },
+        "Esquinita": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 260000,
+              "desayuno_riviera": 274000,
+              "media_pension": 314000
+            },
+            "2": {
+              "solo_alojamiento": 260000,
+              "desayuno_riviera": 281000,
+              "media_pension": 340000
+            },
+            "3": {
+              "solo_alojamiento": 260000,
+              "desayuno_riviera": 286000,
+              "media_pension": 359000
+            },
+            "4": {
+              "solo_alojamiento": 260000,
+              "desayuno_riviera": 290000,
+              "media_pension": 381000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 260000,
+            "desayuno_riviera": 290000,
+            "media_pension": 381000
+          },
+          "roomTypeName": "departamento La Esquinita",
+          "displayName": "La Esquinita"
+        }
+      }
+    },
+    "B": {
+      "sheet": "Valor B",
+      "referenceDobleDesayuno": 192000,
+      "hotelRooms": {
+        "Single": {
+          "solo_alojamiento": 110000,
+          "desayuno_riviera": 120000,
+          "media_pension": 149000
+        },
+        "Doble": {
+          "solo_alojamiento": 177000,
+          "desayuno_riviera": 192000,
+          "media_pension": 235000
+        },
+        "Triple": {
+          "solo_alojamiento": 221000,
+          "desayuno_riviera": 240000,
+          "media_pension": 294000
+        },
+        "Cuádruple": {
+          "solo_alojamiento": 266000,
+          "desayuno_riviera": 288000,
+          "media_pension": 355000
+        },
+        "Quíntuple": {
+          "solo_alojamiento": 311000,
+          "desayuno_riviera": 336000,
+          "media_pension": 412000
+        }
+      },
+      "departments": {
+        "El Tilo": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 206000,
+              "media_pension": 265000
+            },
+            "3": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 211000,
+              "media_pension": 284000
+            },
+            "4": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 215000,
+              "media_pension": 306000
+            },
+            "5": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 219000,
+              "media_pension": 322000
+            }
+          },
+          "seedOccupancy": 5,
+          "seedPrices": {
+            "solo_alojamiento": 185000,
+            "desayuno_riviera": 219000,
+            "media_pension": 322000
+          },
+          "roomTypeName": "departamento El Tilo",
+          "displayName": "El Tilo"
+        },
+        "El Romerito": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 120000,
+              "desayuno_riviera": 134000,
+              "media_pension": 174000
+            },
+            "2": {
+              "solo_alojamiento": 120000,
+              "desayuno_riviera": 141000,
+              "media_pension": 200000
+            }
+          },
+          "seedOccupancy": 2,
+          "seedPrices": {
+            "solo_alojamiento": 120000,
+            "desayuno_riviera": 141000,
+            "media_pension": 200000
+          },
+          "roomTypeName": "departamento El Romerito",
+          "displayName": "El Romerito"
+        },
+        "Via 1": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 206000,
+              "media_pension": 265000
+            },
+            "3": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 211000,
+              "media_pension": 284000
+            },
+            "4": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 215000,
+              "media_pension": 306000
+            },
+            "5": {
+              "solo_alojamiento": 185000,
+              "desayuno_riviera": 219000,
+              "media_pension": 322000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 185000,
+            "desayuno_riviera": 215000,
+            "media_pension": 306000
+          },
+          "roomTypeName": "departamento Via 1",
+          "displayName": "Via 1"
+        },
+        "Esquinita": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 212000,
+              "desayuno_riviera": 226000,
+              "media_pension": 266000
+            },
+            "2": {
+              "solo_alojamiento": 212000,
+              "desayuno_riviera": 233000,
+              "media_pension": 292000
+            },
+            "3": {
+              "solo_alojamiento": 212000,
+              "desayuno_riviera": 238000,
+              "media_pension": 311000
+            },
+            "4": {
+              "solo_alojamiento": 212000,
+              "desayuno_riviera": 242000,
+              "media_pension": 333000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 212000,
+            "desayuno_riviera": 242000,
+            "media_pension": 333000
+          },
+          "roomTypeName": "departamento La Esquinita",
+          "displayName": "La Esquinita"
+        }
+      }
+    },
+    "C": {
+      "sheet": "Valor C",
+      "referenceDobleDesayuno": 175000,
+      "hotelRooms": {
+        "Single": {
+          "solo_alojamiento": 99000,
+          "desayuno_riviera": 109000,
+          "media_pension": 138000
+        },
+        "Doble": {
+          "solo_alojamiento": 160000,
+          "desayuno_riviera": 175000,
+          "media_pension": 218000
+        },
+        "Triple": {
+          "solo_alojamiento": 200000,
+          "desayuno_riviera": 219000,
+          "media_pension": 273000
+        },
+        "Cuádruple": {
+          "solo_alojamiento": 241000,
+          "desayuno_riviera": 263000,
+          "media_pension": 330000
+        },
+        "Quíntuple": {
+          "solo_alojamiento": 282000,
+          "desayuno_riviera": 307000,
+          "media_pension": 383000
+        }
+      },
+      "departments": {
+        "El Tilo": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 189000,
+              "media_pension": 248000
+            },
+            "3": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 194000,
+              "media_pension": 267000
+            },
+            "4": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 198000,
+              "media_pension": 289000
+            },
+            "5": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 202000,
+              "media_pension": 305000
+            }
+          },
+          "seedOccupancy": 5,
+          "seedPrices": {
+            "solo_alojamiento": 168000,
+            "desayuno_riviera": 202000,
+            "media_pension": 305000
+          },
+          "roomTypeName": "departamento El Tilo",
+          "displayName": "El Tilo"
+        },
+        "El Romerito": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 109000,
+              "desayuno_riviera": 123000,
+              "media_pension": 163000
+            },
+            "2": {
+              "solo_alojamiento": 109000,
+              "desayuno_riviera": 130000,
+              "media_pension": 189000
+            }
+          },
+          "seedOccupancy": 2,
+          "seedPrices": {
+            "solo_alojamiento": 109000,
+            "desayuno_riviera": 130000,
+            "media_pension": 189000
+          },
+          "roomTypeName": "departamento El Romerito",
+          "displayName": "El Romerito"
+        },
+        "Via 1": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 189000,
+              "media_pension": 248000
+            },
+            "3": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 194000,
+              "media_pension": 267000
+            },
+            "4": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 198000,
+              "media_pension": 289000
+            },
+            "5": {
+              "solo_alojamiento": 168000,
+              "desayuno_riviera": 202000,
+              "media_pension": 305000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 168000,
+            "desayuno_riviera": 198000,
+            "media_pension": 289000
+          },
+          "roomTypeName": "departamento Via 1",
+          "displayName": "Via 1"
+        },
+        "Esquinita": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 193000,
+              "desayuno_riviera": 207000,
+              "media_pension": 247000
+            },
+            "2": {
+              "solo_alojamiento": 193000,
+              "desayuno_riviera": 214000,
+              "media_pension": 273000
+            },
+            "3": {
+              "solo_alojamiento": 193000,
+              "desayuno_riviera": 219000,
+              "media_pension": 292000
+            },
+            "4": {
+              "solo_alojamiento": 193000,
+              "desayuno_riviera": 223000,
+              "media_pension": 314000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 193000,
+            "desayuno_riviera": 223000,
+            "media_pension": 314000
+          },
+          "roomTypeName": "departamento La Esquinita",
+          "displayName": "La Esquinita"
+        }
+      }
+    },
+    "D": {
+      "sheet": "Valor D",
+      "referenceDobleDesayuno": 157000,
+      "hotelRooms": {
+        "Single": {
+          "solo_alojamiento": 88000,
+          "desayuno_riviera": 98000,
+          "media_pension": 127000
+        },
+        "Doble": {
+          "solo_alojamiento": 142000,
+          "desayuno_riviera": 157000,
+          "media_pension": 200000
+        },
+        "Triple": {
+          "solo_alojamiento": 178000,
+          "desayuno_riviera": 197000,
+          "media_pension": 251000
+        },
+        "Cuádruple": {
+          "solo_alojamiento": 214000,
+          "desayuno_riviera": 236000,
+          "media_pension": 303000
+        },
+        "Quíntuple": {
+          "solo_alojamiento": 250000,
+          "desayuno_riviera": 275000,
+          "media_pension": 351000
+        }
+      },
+      "departments": {
+        "El Tilo": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 172000,
+              "media_pension": 231000
+            },
+            "3": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 177000,
+              "media_pension": 250000
+            },
+            "4": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 181000,
+              "media_pension": 272000
+            },
+            "5": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 185000,
+              "media_pension": 288000
+            }
+          },
+          "seedOccupancy": 5,
+          "seedPrices": {
+            "solo_alojamiento": 151000,
+            "desayuno_riviera": 185000,
+            "media_pension": 288000
+          },
+          "roomTypeName": "departamento El Tilo",
+          "displayName": "El Tilo"
+        },
+        "El Romerito": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 98000,
+              "desayuno_riviera": 112000,
+              "media_pension": 152000
+            },
+            "2": {
+              "solo_alojamiento": 98000,
+              "desayuno_riviera": 119000,
+              "media_pension": 178000
+            }
+          },
+          "seedOccupancy": 2,
+          "seedPrices": {
+            "solo_alojamiento": 98000,
+            "desayuno_riviera": 119000,
+            "media_pension": 178000
+          },
+          "roomTypeName": "departamento El Romerito",
+          "displayName": "El Romerito"
+        },
+        "Via 1": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 172000,
+              "media_pension": 231000
+            },
+            "3": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 177000,
+              "media_pension": 250000
+            },
+            "4": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 181000,
+              "media_pension": 272000
+            },
+            "5": {
+              "solo_alojamiento": 151000,
+              "desayuno_riviera": 185000,
+              "media_pension": 288000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 151000,
+            "desayuno_riviera": 181000,
+            "media_pension": 272000
+          },
+          "roomTypeName": "departamento Via 1",
+          "displayName": "Via 1"
+        },
+        "Esquinita": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 173000,
+              "desayuno_riviera": 187000,
+              "media_pension": 227000
+            },
+            "2": {
+              "solo_alojamiento": 173000,
+              "desayuno_riviera": 194000,
+              "media_pension": 253000
+            },
+            "3": {
+              "solo_alojamiento": 173000,
+              "desayuno_riviera": 199000,
+              "media_pension": 272000
+            },
+            "4": {
+              "solo_alojamiento": 173000,
+              "desayuno_riviera": 203000,
+              "media_pension": 294000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 173000,
+            "desayuno_riviera": 203000,
+            "media_pension": 294000
+          },
+          "roomTypeName": "departamento La Esquinita",
+          "displayName": "La Esquinita"
+        }
+      }
+    },
+    "DIVERSIDAD": {
+      "sheet": "Diversidad cultural",
+      "referenceDobleDesayuno": 120000,
+      "hotelRooms": {
+        "Single": {
+          "solo_alojamiento": 65000,
+          "desayuno_riviera": 75000,
+          "media_pension": 104000
+        },
+        "Doble": {
+          "solo_alojamiento": 105000,
+          "desayuno_riviera": 120000,
+          "media_pension": 163000
+        },
+        "Triple": {
+          "solo_alojamiento": 131000,
+          "desayuno_riviera": 150000,
+          "media_pension": 204000
+        },
+        "Cuádruple": {
+          "solo_alojamiento": 158000,
+          "desayuno_riviera": 180000,
+          "media_pension": 247000
+        },
+        "Quíntuple": {
+          "solo_alojamiento": 185000,
+          "desayuno_riviera": 210000,
+          "media_pension": 286000
+        }
+      },
+      "departments": {
+        "El Tilo": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 114000,
+              "media_pension": 173000
+            },
+            "3": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 119000,
+              "media_pension": 192000
+            },
+            "4": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 123000,
+              "media_pension": 214000
+            },
+            "5": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 127000,
+              "media_pension": 230000
+            }
+          },
+          "seedOccupancy": 5,
+          "seedPrices": {
+            "solo_alojamiento": 93000,
+            "desayuno_riviera": 127000,
+            "media_pension": 230000
+          },
+          "roomTypeName": "departamento El Tilo",
+          "displayName": "El Tilo"
+        },
+        "El Romerito": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 60000,
+              "desayuno_riviera": 74000,
+              "media_pension": 114000
+            },
+            "2": {
+              "solo_alojamiento": 60000,
+              "desayuno_riviera": 81000,
+              "media_pension": 140000
+            }
+          },
+          "seedOccupancy": 2,
+          "seedPrices": {
+            "solo_alojamiento": 60000,
+            "desayuno_riviera": 81000,
+            "media_pension": 140000
+          },
+          "roomTypeName": "departamento El Romerito",
+          "displayName": "El Romerito"
+        },
+        "Via 1": {
+          "byOccupancy": {
+            "2": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 114000,
+              "media_pension": 173000
+            },
+            "3": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 119000,
+              "media_pension": 192000
+            },
+            "4": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 123000,
+              "media_pension": 214000
+            },
+            "5": {
+              "solo_alojamiento": 93000,
+              "desayuno_riviera": 127000,
+              "media_pension": 230000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 93000,
+            "desayuno_riviera": 123000,
+            "media_pension": 214000
+          },
+          "roomTypeName": "departamento Via 1",
+          "displayName": "Via 1"
+        },
+        "Esquinita": {
+          "byOccupancy": {
+            "1": {
+              "solo_alojamiento": 106000,
+              "desayuno_riviera": 120000,
+              "media_pension": 160000
+            },
+            "2": {
+              "solo_alojamiento": 106000,
+              "desayuno_riviera": 127000,
+              "media_pension": 186000
+            },
+            "3": {
+              "solo_alojamiento": 106000,
+              "desayuno_riviera": 132000,
+              "media_pension": 205000
+            },
+            "4": {
+              "solo_alojamiento": 106000,
+              "desayuno_riviera": 136000,
+              "media_pension": 227000
+            }
+          },
+          "seedOccupancy": 4,
+          "seedPrices": {
+            "solo_alojamiento": 106000,
+            "desayuno_riviera": 136000,
+            "media_pension": 227000
+          },
+          "roomTypeName": "departamento La Esquinita",
+          "displayName": "La Esquinita"
+        }
+      }
+    }
+  }
+}

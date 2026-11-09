@@ -12,9 +12,9 @@
   padding: 0;
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   position: fixed;
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--nav-height));
   left: 0;
-  top: 80px;
+  top: var(--nav-height);
   display: flex;
   flex-direction: column;
 }
@@ -54,7 +54,7 @@
 
 .sidePanelHeader h2 {
   color: white;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 700;
   margin: 0;
 }
@@ -66,7 +66,7 @@
 }
 
 .roomName {
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: white;
 }
@@ -88,7 +88,7 @@
 .guestValue {
   background: rgba(255, 255, 255, 0.2);
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   font-weight: 500;
   color: white;
@@ -137,7 +137,7 @@
   flex: 1;
   margin-left: 350px;
   background: var(--color-bg);
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
 }
@@ -154,7 +154,7 @@
 
 .section h2 {
   color: var(--color-primary);
-  font-size: 1.8rem;
+  font-size: var(--font-size-xlarge);
   margin: 0 0 24px 0;
   font-weight: 600;
 }
@@ -200,9 +200,9 @@
 /* Estilos para el resumen general */
 .overviewContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   flex: 1;
 }
 
@@ -214,20 +214,20 @@
 
 .overviewCard {
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
 }
 
 .overviewCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
 
 .overviewCard h3 {
   color: var(--color-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   margin: 0 0 16px 0;
   font-weight: 600;
   border-bottom: 2px solid var(--color-primary);
@@ -268,15 +268,15 @@
 /* Estilos para el calendario */
 .calendarContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   flex: 1;
 }
 
 .calendarInfo h3 {
   color: var(--color-primary);
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   margin: 0 0 16px 0;
   font-weight: 600;
 }
@@ -320,7 +320,7 @@
 
 .statusBadge {
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -348,9 +348,9 @@
 /* Estilos para mantenimiento */
 .maintenanceContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   flex: 1;
 }
 
@@ -362,20 +362,20 @@
 
 .maintenanceCard {
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
 }
 
 .maintenanceCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
 
 .maintenanceCard h3 {
   color: var(--color-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   margin: 0 0 16px 0;
   font-weight: 600;
   border-bottom: 2px solid var(--color-primary);
@@ -437,9 +437,9 @@
 /* Estilos para la tabla de reservas */
 .tableContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -523,7 +523,7 @@
 
 .statusValue {
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -551,9 +551,9 @@
 /* Estilos para notas */
 .notesContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   flex: 1;
 }
 
@@ -565,20 +565,20 @@
 
 .notesCard {
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
 }
 
 .notesCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
 
 .notesCard h3 {
   color: var(--color-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   margin: 0 0 16px 0;
   font-weight: 600;
   border-bottom: 2px solid var(--color-primary);
@@ -610,13 +610,13 @@
 }
 
 .loading {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   color: var(--color-primary);
   font-weight: 500;
 }
 
 .error {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   color: var(--color-danger);
   font-weight: 500;
   text-align: center;

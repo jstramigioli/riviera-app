@@ -1,36 +1,33 @@
 /* FloatingAddButton.module.css */
 .floatingButton {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  bottom: 1.25rem;
+  right: 1.25rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--color-primary);
   border: none;
   color: white;
-  font-size: 2.2rem;
-  font-weight: bold;
+  font-size: var(--font-size-large);
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
-  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .floatingButton:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  background: var(--color-primary-dark);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
 }
 
 .floatingButton:active {
-  transform: translateY(0) scale(0.95);
-  box-shadow: 0 2px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 .plusIcon {
@@ -52,11 +49,11 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .floatingButton {
-    bottom: 1.5rem;
-    right: 1.5rem;
-    width: 55px;
-    height: 55px;
-    font-size: 2rem;
+    bottom: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.35rem;
   }
 }
 
@@ -66,6 +63,6 @@
     right: 1rem;
     width: 50px;
     height: 50px;
-    font-size: 1.8rem;
+    font-size: var(--font-size-xlarge);
   }
 } 

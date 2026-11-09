@@ -14,7 +14,7 @@
 .dateHeader h3 {
   margin: 0;
   color: #2c3e50;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   opacity: 0.8;
 }
@@ -28,7 +28,7 @@
 
 .statCard {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   display: flex;
   align-items: center;
@@ -41,17 +41,17 @@
 .statCard:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .statIcon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   width: 50px;
   height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border-radius: 10px;
   color: white;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
@@ -64,7 +64,7 @@
 }
 
 .statValue {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 0.25rem;
@@ -80,7 +80,7 @@
 
 .summary {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   border: 1px solid #e9ecef;
   margin-bottom: 1.5rem;
@@ -90,7 +90,7 @@
 .summary h4 {
   margin: 0 0 1rem 0;
   color: #2c3e50;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
 }
 
@@ -102,13 +102,13 @@
 }
 
 .summary strong {
-  color: #667eea;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .details {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   border: 1px solid #e9ecef;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -117,7 +117,7 @@
 .details h4 {
   margin: 0 0 1rem 0;
   color: #2c3e50;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
 }
 
@@ -159,11 +159,11 @@
   .statIcon {
     width: 45px;
     height: 45px;
-    font-size: 1.3rem;
+    font-size: var(--font-size-large);
   }
   
   .statValue {
-    font-size: 1.3rem;
+    font-size: var(--font-size-large);
   }
   
   .statLabel {
@@ -197,11 +197,11 @@
   .statIcon {
     width: 40px;
     height: 40px;
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .statValue {
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .statLabel {
