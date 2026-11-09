@@ -53,19 +53,19 @@
   --color-reservation-hover: #a8c4d3;
   --color-reservation-border: rgba(184, 212, 227, 0.5);
   
-  /* Tipografía — escala densa / look operativo */
+  /* Tipografía — body legible; títulos solo un escalón; piso 12px */
   --font-main: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-weight-light: 300;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --font-size-base: 13px;
-  --font-size-small: 0.846rem;   /* ~11px */
-  --font-size-medium: 0.923rem;  /* ~12px */
-  --font-size-large: 1.077rem;   /* ~14px */
-  --font-size-xlarge: 1.23rem;   /* ~16px */
-  --font-size-xxlarge: 1.385rem; /* ~18px */
+  --font-size-base: 14px;
+  --font-size-small: 12px;
+  --font-size-medium: 13px;
+  --font-size-large: 15px;
+  --font-size-xlarge: 16px;
+  --font-size-xxlarge: 18px;
 
   /* Superficies densas */
   --radius-sm: 4px;

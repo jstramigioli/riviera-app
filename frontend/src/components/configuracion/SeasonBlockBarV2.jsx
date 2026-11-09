@@ -826,11 +826,14 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 })}
                 className={isEditing ? styles.editableField : ''}
                 style={{
-                  color: (formData.description || block?.description) ? '#374151' : '#9ca3af',
+                  color: (formData.description || block?.description) ? 'var(--color-text-main)' : 'var(--color-text-muted)',
                   fontStyle: (formData.description || block?.description) ? 'normal' : 'italic',
-                  minHeight: '24px',
+                  fontSize: 'var(--font-size-base)',
+                  lineHeight: 1.4,
+                  minHeight: '20px',
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  margin: 0
                 }}
               >
                 {(formData.description || block?.description) || (isEditing ? 'Haz clic aquí para agregar una descripción...' : 'Sin descripción')}
@@ -861,9 +864,21 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           </div>
         </div>
 
-        {/* Botones de acción superiores */}
         <div className={styles.topActions} onClick={(e) => e.stopPropagation()}>
           <div className={styles.actionButtonsRow}>
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExpanded(true);
+                  setIsEditing(true);
+                }}
+                className={`${styles.actionBtn} ${styles.edit}`}
+                title="Editar bloque de temporada"
+              >
+                <FiEdit3 />
+              </button>
+            )}
             <button
               onClick={handleClone}
               className={`${styles.actionBtn} ${styles.clone}`}
@@ -871,7 +886,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
             >
               <FiCopy />
             </button>
-            
             <button
               onClick={() => setShowDeleteConfirmation(true)}
               className={`${styles.actionBtn} ${styles.delete}`}
@@ -1058,50 +1072,36 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
         </div>
       )}
 
-      {/* Botón de editar/cancelar - cuando no hay cambios O no estamos en modo edición */}
-      {(!hasAnyChanges || !isEditing) && (
-        <button 
-          className={styles.actionButtons}
-          onClick={() => {
-            if (!isEditing) {
-              // Expandir al editar para mostrar la grilla de SeasonPrices
-              setIsExpanded(true);
-              setIsEditing(true);
-            } else {
-              setIsEditing(false);
-            }
-          }}
-          type="button"
-        >
-          {isEditing && (
-            <div className={styles.toggleControls}>
-              <label 
-                className={styles.toggleLabel}
-                title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Switch
-                  checked={formData.useProportions}
-                  onChange={handleProportionToggle}
-                  onColor="#3b82f6"
-                  offColor="#d1d5db"
-                  checkedIcon={false}
-                  uncheckedIcon={false}
-                  width={44}
-                  height={24}
-                  handleDiameter={18}
-                  disabled={!isEditing}
-                />
-                <span className={styles.toggleText}>Mantener proporciones</span>
-              </label>
-              
-            </div>
-          )}
-          
-          <div className={styles.actionButtonText}>
-            {isEditing ? 'Cancelar' : 'Editar'}
+      {/* Acciones inferiores solo en edición (sin fila "Editar" en cada bloque colapsado) */}
+      {isEditing && !hasAnyChanges && (
+        <div className={styles.actionButtons}>
+          <div className={styles.toggleControls}>
+            <label
+              className={styles.toggleLabel}
+              title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas."
+            >
+              <Switch
+                checked={formData.useProportions}
+                onChange={handleProportionToggle}
+                onColor="#3b82f6"
+                offColor="#d1d5db"
+                checkedIcon={false}
+                uncheckedIcon={false}
+                width={44}
+                height={24}
+                handleDiameter={18}
+              />
+              <span className={styles.toggleText}>Mantener proporciones</span>
+            </label>
           </div>
-        </button>
+          <button
+            type="button"
+            className={`${styles.actionButton} ${styles.cancelButton}`}
+            onClick={() => setIsEditing(false)}
+          >
+            Cancelar
+          </button>
+        </div>
       )}
 
       {/* Modal de confirmación de eliminación */}

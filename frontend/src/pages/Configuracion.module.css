@@ -36,7 +36,7 @@
   background: transparent;
   cursor: pointer;
   padding: 10px 12px;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-base);
   font-weight: 500;
   color: var(--color-text-muted);
   border-bottom: 2px solid transparent;
@@ -57,7 +57,7 @@
 }
 
 .tabIcon {
-  font-size: var(--font-size-medium);
+  font-size: var(--font-size-base);
   line-height: 1;
 }
 
@@ -65,15 +65,16 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 16px 16px;
+  padding: 0;
 }
 
 .panel {
   background: var(--color-bg-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: none;
+  border-radius: 0;
   box-shadow: none;
   overflow: hidden;
+  min-height: 100%;
 }
 
 .placeholder {
@@ -91,5 +92,5 @@
 
 .placeholder p {
   margin: 0;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-base);
 }
