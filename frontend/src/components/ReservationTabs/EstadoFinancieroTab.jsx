@@ -88,6 +88,11 @@ const EstadoFinancieroTab = ({
   const cargoItems = financialSummary?.cargos?.items || [];
   const pagoItems = financialSummary?.pagos?.items || [];
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
+  const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
+  const tiposCargosOrdenados = [
+    ...tipoCargoOrder.filter((codigo) => cargosPorTipo[codigo]),
+    ...Object.keys(cargosPorTipo).filter((codigo) => !tipoCargoOrder.includes(codigo))
+  ].map((codigo) => cargosPorTipo[codigo]);
 
   const toggleFinancialRow = (row) => {
     setExpandedFinancialRow((current) => (current === row ? null : row));
@@ -200,14 +205,20 @@ const EstadoFinancieroTab = ({
       return;
     }
     document.body.classList.add('printing-liquidacion');
+    let cleaned = false;
     const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       document.body.classList.remove('printing-liquidacion');
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    window.print();
-    // Fallback si afterprint no dispara (algunos WebViews)
-    setTimeout(cleanup, 1000);
+    // Esperar un frame para que el CSS de impresión aplique antes del diálogo
+    requestAnimationFrame(() => {
+      window.print();
+      // Fallback largo: no cortar el preview a 1s
+      setTimeout(cleanup, 60000);
+    });
   };
 
   const isLodgingCargo = (item) => !item.subcategoriaCargoId;
@@ -350,9 +361,9 @@ const EstadoFinancieroTab = ({
               </button>
               {expandedFinancialRow === 'cargos' && (
                 <div className={styles.financialRowDetail} data-testid="financial-detail-cargos">
-                  {Object.keys(cargosPorTipo).length > 0 ? (
+                  {tiposCargosOrdenados.length > 0 ? (
                     <ul className={styles.breakdownList}>
-                      {Object.values(cargosPorTipo).map((tipo) => (
+                      {tiposCargosOrdenados.map((tipo) => (
                         <li key={tipo.codigo} className={styles.breakdownGroup}>
                           <div className={styles.breakdownGroupHeader}>
                             <span>{tipo.nombre}</span>
@@ -437,7 +448,7 @@ const EstadoFinancieroTab = ({
         </div>
       )}
 
-      <div className={styles.printRoot} aria-hidden="true">
+      <div className={styles.printRoot} data-print-root aria-hidden="true">
         <LiquidacionPrint
           ref={printRef}
           reservation={reservation}
