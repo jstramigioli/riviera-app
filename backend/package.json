@@ -16,7 +16,8 @@
     "db:fix-sequences": "npx prisma db execute --schema=./prisma/schema.prisma --file=./scripts/fix-sequences.sql",
     "seed:tarifas-2026-27": "node prisma/seed-tarifas-2026-27.js",
     "seed:tarifas-2026-27:replace": "node prisma/seed-tarifas-2026-27.js --replace",
-    "extract:tarifas-2026-27": "node scripts/extract-tarifas-2026-27.js"
+    "extract:tarifas-2026-27": "node scripts/extract-tarifas-2026-27.js",
+    "seed:users": "node prisma/seed-users.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -31,6 +32,8 @@
   "dependencies": {
     "@prisma/client": "^6.13.0",
     "axios": "^1.11.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "googleapis": "^133.0.0",
@@ -38,6 +41,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^30.0.0",
     "jest": "^30.0.4",
     "nodemon": "^2.0.22",
