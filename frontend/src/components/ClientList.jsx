@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import EditClientModal from './EditClientModal';
 import api from '../services/api';
 import styles from '../styles/Estadisticas.module.css';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useAppNotice } from '../hooks/useAppNotice';
 
 function ClientList({ clients, onClientUpdated, onClientDeleted }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('lastName');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -42,19 +46,20 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
   };
 
   const handleDeleteClient = async (client) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar al cliente "${client.firstName} ${client.lastName}"?\n\nEsta acción no se puede deshacer.`
-    );
-    
-    if (confirmDelete) {
-      try {
-        await api.deleteClient(client.id);
-        onClientDeleted(client.id);
-        alert('Cliente eliminado exitosamente');
-      } catch (error) {
-        console.error('Error eliminando cliente:', error);
-        alert('Error al eliminar el cliente');
-      }
+    const ok = await confirm({
+      title: 'Eliminar cliente',
+      message: `¿Confirmás eliminar al cliente "${client.firstName} ${client.lastName}"?\n\nEsta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
+    try {
+      await api.deleteClient(client.id);
+      onClientDeleted(client.id);
+      notify({ title: 'Cliente eliminado', message: 'El cliente se eliminó correctamente.', type: 'success' });
+    } catch (error) {
+      console.error('Error eliminando cliente:', error);
+      notify({ title: 'Error', message: 'No se pudo eliminar el cliente.', type: 'error' });
     }
   };
 
@@ -273,6 +278,8 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
       </div>
 
       {/* Modal de edición */}
+      {confirmDialog}
+      {noticeDialog}
       <EditClientModal
         client={editingClient}
         isOpen={isModalOpen}

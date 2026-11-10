@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 export default function HolidaysPanel({ hotelId = "default-hotel" }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,20 +124,25 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
   };
 
   const handleDeleteHoliday = async (id) => {
-    try {
-      if (window.confirm('¿Estás seguro de que quieres eliminar este feriado?')) {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-        const response = await fetch(`${API_URL}/open-days/${id}`, {
-          method: 'DELETE'
-        });
+    const ok = await confirm({
+      title: 'Eliminar feriado',
+      message: '¿Confirmás eliminar este feriado? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
-        if (response.ok) {
-          showNotification('Feriado eliminado correctamente');
-          loadHolidays();
-        } else {
-          const error = await response.json();
-          showNotification(error.message || 'Error al eliminar', 'error');
-        }
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/open-days/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        showNotification('Feriado eliminado correctamente');
+        loadHolidays();
+      } else {
+        const error = await response.json();
+        showNotification(error.message || 'Error al eliminar', 'error');
       }
     } catch (error) {
       console.error('Error al eliminar feriado:', error);
@@ -508,6 +515,7 @@ export default function HolidaysPanel({ hotelId = "default-hotel" }) {
           {notification.message}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

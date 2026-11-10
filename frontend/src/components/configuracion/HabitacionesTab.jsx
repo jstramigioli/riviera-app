@@ -6,8 +6,12 @@ import RoomTypesPanel from './RoomTypesPanel';
 import EtiquetasTab from './EtiquetasTab';
 import VirtualRoomsPanel from './VirtualRoomsPanel';
 import '../../styles/variables.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 function HabitacionesTab() {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const { tags } = useTags();
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -142,18 +146,19 @@ function HabitacionesTab() {
   };
 
   const handleDeleteRoom = async (room) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar la habitación "${room.name}"?\n\nEsta acción no se puede deshacer.`
-    );
-
-    if (!confirmDelete) return;
+    const ok = await confirm({
+      title: 'Eliminar habitación',
+      message: `¿Confirmás eliminar la habitación "${room.name}"?\n\nEsta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteRoom(room.id);
       setRooms(prev => prev.filter(r => r.id !== room.id));
     } catch (error) {
       console.error('Error eliminando habitación:', error);
-      alert('Error al eliminar la habitación');
+      notify({ title: 'Error', message: 'No se pudo eliminar la habitación.', type: 'error' });
     }
   };
 
@@ -816,6 +821,8 @@ function HabitacionesTab() {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }

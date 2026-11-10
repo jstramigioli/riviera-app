@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import styles from './SubcategoriasCargosTab.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const SubcategoriasCargosTab = ({ tipo }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [subcategorias, setSubcategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -150,9 +154,12 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   };
 
   const handleDelete = async (subcategoria) => {
-    if (!confirm(`¿Estás seguro de eliminar la subcategoría "${subcategoria.nombre}"?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar subcategoría',
+      message: `¿Confirmás eliminar la subcategoría "${subcategoria.nombre}"?`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3001/api/subcategoria-cargo/${subcategoria.id}`, {
@@ -165,9 +172,9 @@ const SubcategoriasCargosTab = ({ tipo }) => {
       }
 
       await loadSubcategorias();
-      alert('Subcategoría eliminada exitosamente');
+      notify({ title: 'Subcategoría eliminada', message: 'Se eliminó correctamente.', type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 
@@ -395,6 +402,8 @@ const SubcategoriasCargosTab = ({ tipo }) => {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };
