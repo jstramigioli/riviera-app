@@ -6,14 +6,14 @@ const ServiciosTab = ({ reservation }) => {
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>🧹 Servicios / Mantenimiento</h3>
+        <h3 className={styles.sectionTitle}> Servicios / Mantenimiento</h3>
         <button className={styles.addButton}>
           <FaPlus /> Agregar Registro
         </button>
       </div>
 
       <div className={styles.emptyState}>
-        <p>No hay registros de servicios o mantenimiento</p>
+        <p> No hay registros de servicios o mantenimiento</p>
         <p className={styles.emptySubtext}>
           Aquí puedes registrar limpiezas, pedidos de mantenimiento, o notas operativas
         </p>

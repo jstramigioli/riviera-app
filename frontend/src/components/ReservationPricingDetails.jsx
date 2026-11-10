@@ -98,7 +98,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
   if (loading) {
     return (
       <div className={styles.expandedContent}>
-        <div className={styles.loading}>Cargando detalles de tarifas...</div>
+        <div className={styles.loading}> Cargando detalles de tarifas...</div>
       </div>
     );
   }
@@ -135,7 +135,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
   return (
     <div className={styles.expandedContent}>
       <div className={styles.header}>
-        <h3>Detalles de Tarifas - Reserva #{reservation.id}</h3>
+        <h3> Detalles de Tarifas - Reserva #{reservation.id}</h3>
         <button onClick={onClose} className={styles.closeButton}>
           ×
         </button>
@@ -145,10 +145,10 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
         <table className={styles.pricingTable}>
           <thead>
             <tr>
-              <th>Noche</th>
-              <th>Precio Base</th>
-              <th>Modificación por precios inteligentes</th>
-              <th>Total Noche</th>
+              <th> Noche</th>
+              <th> Precio Base</th>
+              <th> Modificación por precios inteligentes</th>
+              <th> Total Noche</th>
             </tr>
           </thead>
           <tbody>
@@ -156,7 +156,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
               <tr key={nightRate.id} className={styles.nightRow}>
                 <td className={styles.nightCell}>
                   <div className={styles.nightInfo}>
-                    <span className={styles.nightNumber}>Noche {index + 1}</span>
+                    <span className={styles.nightNumber}> Noche {index + 1}</span>
                     <span className={styles.nightDate}>{formatDate(nightRate.date)}</span>
                   </div>
                 </td>
@@ -183,7 +183,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
             ))}
             <tr className={styles.totalsRow}>
               <td className={styles.totalsLabel}>
-                <strong>TOTALES</strong>
+                <strong> TOTALES</strong>
               </td>
               <td className={styles.totalsBasePrice}>
                 <strong>{formatPrice(totalBasePrice)}</strong>
@@ -201,18 +201,18 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
 
       <div className={styles.summary}>
         <div className={styles.summaryCard}>
-          <h4>Resumen</h4>
+          <h4> Resumen</h4>
           <div className={styles.summaryGrid}>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Total final:</span>
+              <span className={styles.label}> Total final:</span>
               <span className={styles.value}>{formatPrice(totalFinalPrice)}</span>
             </div>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Noches:</span>
+              <span className={styles.label}> Noches:</span>
               <span className={styles.value}>{reservation.nightRates.length}</span>
             </div>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Promedio por noche:</span>
+              <span className={styles.label}> Promedio por noche:</span>
               <span className={styles.value}>{formatPrice(totalFinalPrice / reservation.nightRates.length)}</span>
             </div>
           </div>

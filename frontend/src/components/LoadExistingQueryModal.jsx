@@ -1,3 +1,4 @@
+import { FiAlertTriangle } from 'react-icons/fi';
 import React from 'react';
 import styles from './LoadExistingQueryModal.module.css';
 
@@ -36,7 +37,7 @@ const LoadExistingQueryModal = ({
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h3>📋 Consulta Preexistente</h3>
+          <h3> Consulta Preexistente</h3>
           <button 
             className={styles.closeButton}
             onClick={onClose}
@@ -47,7 +48,7 @@ const LoadExistingQueryModal = ({
         </div>
         
         <div className={styles.content}>
-          <div className={styles.icon}>⚠️</div>
+          <div className={styles.icon} aria-hidden="true"><FiAlertTriangle /></div>
           
           <p className={styles.message}>
             Este cliente ya tiene una consulta guardada que fue modificada por última vez el:

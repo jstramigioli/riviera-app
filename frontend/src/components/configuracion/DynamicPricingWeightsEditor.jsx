@@ -392,7 +392,7 @@ export default function DynamicPricingWeightsEditor({ weights, onChange, config,
             fontSize: '12px',
             fontWeight: '500'
           }}>
-            ⚠️ Total actual: {Math.round(currentTotal)}% - Ajusta los pesos para llegar al 100%
+            Total actual: {Math.round(currentTotal)}% - Ajusta los pesos para llegar al 100%
           </div>
         )}
       </div>

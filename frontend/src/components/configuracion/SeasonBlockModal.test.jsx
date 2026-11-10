@@ -14,12 +14,12 @@ global.fetch = vi.fn();
 // Mock de react-icons
 vi.mock('react-icons/fi', () => ({
   FiX: () => <span data-testid="close-icon">×</span>,
-  FiSave: () => <span data-testid="save-icon">💾</span>,
-  FiTrash2: () => <span data-testid="trash-icon">🗑️</span>,
-  FiCopy: () => <span data-testid="copy-icon">📋</span>,
-  FiCalendar: () => <span data-testid="calendar-icon">📅</span>,
-  FiDollarSign: () => <span data-testid="dollar-icon">💲</span>,
-  FiSettings: () => <span data-testid="settings-icon">⚙️</span>
+  FiSave: () => <span data-testid="save-icon"> save</span>,
+  FiTrash2: () => <span data-testid="trash-icon"> trash</span>,
+  FiCopy: () => <span data-testid="copy-icon"> copy</span>,
+  FiCalendar: () => <span data-testid="calendar-icon"> calendar</span>,
+  FiDollarSign: () => <span data-testid="dollar-icon"> dollar</span>,
+  FiSettings: () => <span data-testid="settings-icon"> settings</span>
 }));
 
 // Mock del componente ConfirmationModal
@@ -29,8 +29,8 @@ vi.mock('../ConfirmationModal', () => ({
       <div data-testid="confirmation-modal">
         <h3>{title}</h3>
         <p>{message}</p>
-        <button onClick={onConfirm}>Confirmar</button>
-        <button onClick={onClose}>Cancelar</button>
+        <button onClick={onConfirm}> Confirmar</button>
+        <button onClick={onClose}> Cancelar</button>
       </div>
     ) : null
 }));

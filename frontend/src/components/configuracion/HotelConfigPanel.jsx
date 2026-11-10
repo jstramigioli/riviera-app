@@ -392,7 +392,7 @@ const HotelConfigPanel = () => {
         alignItems: 'center', 
         height: '200px' 
       }}>
-        <div>Cargando información del hotel...</div>
+        <div> Cargando información del hotel...</div>
       </div>
     );
   }
@@ -413,7 +413,6 @@ const HotelConfigPanel = () => {
           alignItems: 'center',
           gap: '8px'
         }}>
-          <span>🏨</span>
           Configuración del Hotel
         </h2>
         <p style={{ 
@@ -649,7 +648,6 @@ const HotelConfigPanel = () => {
             alignItems: 'center',
             gap: '8px'
           }}>
-            <span>🛎️</span>
             Gestión de Servicios
           </h2>
           <p style={{ 
@@ -672,7 +670,7 @@ const HotelConfigPanel = () => {
             border: '1px solid #f5c6cb'
           }}>
             <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-              ⚠️ Error al eliminar servicio
+              Error al eliminar servicio
             </div>
             <div>{serviceError}</div>
             {serviceError.includes('bloques de temporada') && (
@@ -682,7 +680,7 @@ const HotelConfigPanel = () => {
                 fontStyle: 'italic',
                 color: '#6c757d'
               }}>
-                💡 Para eliminar este servicio, primero debes removerlo de todos los bloques de temporada donde esté siendo utilizado.
+                Para eliminar este servicio, primero debes removerlo de todos los bloques de temporada donde esté siendo utilizado.
               </div>
             )}
           </div>
@@ -760,7 +758,7 @@ const HotelConfigPanel = () => {
                 >
                   <FiEdit2 />
                 </button>
-                {/* 🚨 VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
+                {/* VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
                 {serviceTypes.length > 1 && (
                   <button
                     onClick={() => handleDeleteService(serviceType)}

@@ -85,7 +85,7 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
       flexDirection: 'column',
       minHeight: 'fit-content'
     }}>
-      <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}>Configuración de Desayuno y Media Pensión</h3>
+      <h3 style={{ marginBottom: '20px', color: '#2c3e50' }}> Configuración de Desayuno y Media Pensión</h3>
       
       <div style={{ 
         display: 'grid', 
@@ -101,7 +101,7 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
           background: '#fff'
         }}>
           <h4 style={{ marginBottom: '15px', color: '#34495e', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🍳 Desayuno
+            Desayuno
           </h4>
           
           <div style={{ marginBottom: '15px' }}>
@@ -119,8 +119,8 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
                 fontSize: '14px'
               }}
             >
-              <option value="FIXED">Fijo (monto adicional)</option>
-              <option value="PERCENTAGE">Porcentaje</option>
+              <option value="FIXED"> Fijo (monto adicional)</option>
+              <option value="PERCENTAGE"> Porcentaje</option>
             </select>
           </div>
           
@@ -155,7 +155,7 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
           background: '#fff'
         }}>
           <h4 style={{ marginBottom: '15px', color: '#34495e', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🍽️ Media Pensión
+            Media Pensión
           </h4>
           
           <div style={{ marginBottom: '15px' }}>
@@ -173,8 +173,8 @@ export default function MealPricingEditor({ hotelId = "default-hotel" }) {
                 fontSize: '14px'
               }}
             >
-              <option value="FIXED">Fijo (monto adicional)</option>
-              <option value="PERCENTAGE">Porcentaje</option>
+              <option value="FIXED"> Fijo (monto adicional)</option>
+              <option value="PERCENTAGE"> Porcentaje</option>
             </select>
           </div>
           

@@ -113,19 +113,19 @@ export default function CurrentRatesSummary() {
   if (loading) {
     return (
       <div className={styles.cardContent}>
-        <h3 className={styles.cardTitle}>📊 Tarifas Actuales</h3>
-        <div className={styles.loading}>Cargando tarifas...</div>
+        <h3 className={styles.cardTitle}> Tarifas Actuales</h3>
+        <div className={styles.loading}> Cargando tarifas...</div>
       </div>
     );
   }
 
   return (
     <div className={styles.cardContent}>
-      <h3 className={styles.cardTitle}>📊 Tarifas por Bloque de Temporada</h3>
+      <h3 className={styles.cardTitle}> Tarifas por Bloque de Temporada</h3>
       
       {seasonBlocks.length === 0 ? (
         <div className={styles.emptyState}>
-          <p>No hay bloques de temporada configurados</p>
+          <p> No hay bloques de temporada configurados</p>
         </div>
       ) : (
         <>
@@ -154,12 +154,12 @@ export default function CurrentRatesSummary() {
           {selectedBlock && (
             <div className={styles.selectedBlockInfo}>
               <div className={styles.blockName}>
-                <strong>Bloque seleccionado:</strong> {selectedBlock.name}
+                <strong> Bloque seleccionado:</strong> {selectedBlock.name}
               </div>
               <div className={styles.blockDates}>
                 {formatDate(selectedBlock.startDate)} - {formatDate(selectedBlock.endDate)}
                 {isCurrentlyActive(selectedBlock.startDate, selectedBlock.endDate) && (
-                  <span className={styles.activeIndicator}> 🟢 Activo</span>
+                  <span className={styles.activeIndicator}> Activo</span>
                 )}
               </div>
               <div className={styles.blockMode}>
@@ -170,7 +170,7 @@ export default function CurrentRatesSummary() {
 
           {roomTypes.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No hay tipos de habitación configurados</p>
+              <p> No hay tipos de habitación configurados</p>
             </div>
           ) : (
             <div className={styles.ratesList}>

@@ -55,15 +55,15 @@ export default function IntelligentPricingStatus() {
   if (loading) {
     return (
       <div className={styles.cardContent}>
-        <h3 className={styles.cardTitle}>🧠 Precios Inteligentes</h3>
-        <div className={styles.loading}>Cargando estado...</div>
+        <h3 className={styles.cardTitle}> Precios Inteligentes</h3>
+        <div className={styles.loading}> Cargando estado...</div>
       </div>
     );
   }
 
   return (
     <div className={styles.cardContent}>
-      <h3 className={styles.cardTitle}>🧠 Precios Inteligentes</h3>
+      <h3 className={styles.cardTitle}> Precios Inteligentes</h3>
       
       <div className={styles.statusContainer}>
         <div className={styles.statusIndicator}>

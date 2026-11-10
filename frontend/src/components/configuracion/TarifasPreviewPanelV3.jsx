@@ -611,7 +611,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
         fontSize: 'var(--font-size-small)',
         color: lockedMode ? '#155724' : '#856404'
       }}>
-        <strong>Modo actual:</strong> {lockedMode ? 
+        <strong> Modo actual:</strong> {lockedMode ? 
           'Proporciones bloqueadas - Los cambios mantienen las proporciones entre tipos de habitación' : 
           'Proporciones libres - Cada precio se edita independientemente'
         }
@@ -727,8 +727,8 @@ function RateTypeForm({ rateType, onSubmit, onCancel }) {
             fontSize: 'var(--font-size-medium)'
           }}
         >
-          <option value="FIXED">Monto Fijo</option>
-          <option value="PERCENTAGE">Porcentaje</option>
+          <option value="FIXED"> Monto Fijo</option>
+          <option value="PERCENTAGE"> Porcentaje</option>
         </select>
       </div>
       

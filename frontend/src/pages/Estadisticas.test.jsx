@@ -60,7 +60,7 @@ describe('Estadisticas', () => {
     })
     
     // Verificar que el contenedor principal existe
-    const container = screen.getByText('📊 Estadísticas').closest('div')
+    const container = screen.getByText('Estadísticas').closest('div')
     expect(container).toBeInTheDocument()
   })
 }) 

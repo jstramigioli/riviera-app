@@ -102,7 +102,7 @@ export default function CreateQueryModal({
     <div className={styles.modalOverlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>Consulta</h2>
+          <h2> Consulta</h2>
           <button className={styles.closeButton} onClick={handleClose}>
             ×
           </button>
@@ -110,7 +110,7 @@ export default function CreateQueryModal({
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
-            <label htmlFor="checkIn">Fecha de Entrada *</label>
+            <label htmlFor="checkIn"> Fecha de Entrada *</label>
             <input
               type="date"
               id="checkIn"
@@ -122,7 +122,7 @@ export default function CreateQueryModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="checkOut">Fecha de Salida *</label>
+            <label htmlFor="checkOut"> Fecha de Salida *</label>
             <input
               type="date"
               id="checkOut"
@@ -134,7 +134,7 @@ export default function CreateQueryModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="requiredGuests">Cantidad de Huéspedes *</label>
+            <label htmlFor="requiredGuests"> Cantidad de Huéspedes *</label>
             <input
               type="number"
               id="requiredGuests"
@@ -149,7 +149,7 @@ export default function CreateQueryModal({
 
           {/* Selección de Etiquetas */}
           <div className={styles.formGroup}>
-            <label>Etiquetas Requeridas (Opcional)</label>
+            <label> Etiquetas Requeridas (Opcional)</label>
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',

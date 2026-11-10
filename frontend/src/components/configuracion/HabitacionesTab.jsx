@@ -191,7 +191,7 @@ function HabitacionesTab() {
 
   const renderTags = (roomTags) => {
     if (!roomTags || roomTags.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin etiquetas</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}> Sin etiquetas</span>;
     }
 
     return (
@@ -246,7 +246,7 @@ function HabitacionesTab() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando habitaciones...</div>
+        <div> Cargando habitaciones...</div>
       </div>
     );
   }
@@ -279,7 +279,6 @@ function HabitacionesTab() {
             alignItems: 'center',
             gap: '8px'
           }}>
-            <span>🏨</span>
             Habitaciones
           </h2>
         </div>
@@ -567,7 +566,6 @@ function HabitacionesTab() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🏷️</span>
               Etiquetas
             </h2>
           </div>
@@ -702,7 +700,7 @@ function HabitacionesTab() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="">Seleccionar tipo...</option>
+                  <option value=""> Seleccionar tipo...</option>
                   {roomTypes.map(type => (
                     <option key={type.id} value={type.id}>
                       {getRoomTypeLabel(type.name)} ({getRoomTypeCapacity(type.name)} personas)

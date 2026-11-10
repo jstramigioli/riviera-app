@@ -31,25 +31,25 @@ const factorConfigs = {
     name: 'Ocupación',
     color: '#667eea',
     description: 'Ajusta el precio según la ocupación real vs la ocupación ideal.',
-    icon: '📊'
+    icon: null
   },
   anticipation: {
     name: 'Anticipación',
     color: '#f0932b',
     description: 'Ajusta el precio según cuántos días faltan para la fecha.',
-    icon: '⏰'
+    icon: null
   },
   weekend: {
     name: 'Fin de Semana',
     color: '#eb4d4b',
     description: 'Aplica un recargo adicional en días de fin de semana.',
-    icon: '🎉'
+    icon: null
   },
   holiday: {
     name: 'Feriados',
     color: '#6ab04c',
     description: 'Aplica un recargo adicional en feriados y fines de semana largos.',
-    icon: '🎊'
+    icon: null
   }
 };
 
@@ -233,7 +233,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
     await saveConfig(newConfig);
   };
 
-  if (loading) return <div>Cargando configuración...</div>;
+  if (loading) return <div> Cargando configuración...</div>;
 
   const generateDiscountDescription = () => {
     const conditions = [];
@@ -298,7 +298,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           margin: 0,
           fontSize: 'var(--font-size-medium)',
           fontWeight: '600'
-        }}>Configuración de Tarifas Dinámicas</h3>
+        }}> Configuración de Tarifas Dinámicas</h3>
         
         {/* Toggle switch para activar/desactivar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -352,7 +352,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           color: '#856404',
           fontSize: 'var(--font-size-small)'
         }}>
-          <strong style={{ fontSize: 'var(--font-size-small)' }}>⚠️ Precios dinámicos desactivados</strong>
+          <strong style={{ fontSize: 'var(--font-size-small)' }}> Precios dinámicos desactivados</strong>
           <br />
           Los precios se calcularán usando solo la curva estacional sin ajustes dinámicos por ocupación, anticipación, etc.
         </div>
@@ -520,7 +520,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
                 fontSize: 'var(--font-size-small)',
                 fontWeight: '600'
               }}>
-                📊 Resumen de Ajustes Máximos
+                Resumen de Ajustes Máximos
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div style={{ textAlign: 'center' }}>
