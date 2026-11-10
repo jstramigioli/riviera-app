@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
 import ReservationStatusButtons from './ReservationStatusButtons';
 import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
+import ClientContactLinks from './ClientContactLinks';
 import styles from './ReservationDetailsPanel.module.css';
 
 const ReservationDetailsPanel = ({
@@ -181,6 +182,10 @@ const ReservationDetailsPanel = ({
           >
             {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
           </span>
+          <ClientContactLinks
+            phone={reservation.mainClient?.phone}
+            email={reservation.mainClient?.email}
+          />
         </div>
 
         <div className={styles.requirementsSection}>
