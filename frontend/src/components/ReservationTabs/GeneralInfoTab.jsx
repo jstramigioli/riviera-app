@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { FaPlus, FaTimes } from 'react-icons/fa';
 import useReservationStatuses from '../../hooks/useReservationStatuses';
+import { createClient } from '../../services/api.js';
 import styles from './ReservationTabs.module.css';
 
 const inputStyle = {
@@ -9,6 +11,13 @@ const inputStyle = {
   borderRadius: '4px',
   fontSize: '0.95rem',
   boxSizing: 'border-box'
+};
+
+const emptyNewClient = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: ''
 };
 
 const toDateInput = (dateString) => {
@@ -63,16 +72,67 @@ const GeneralInfoTab = ({
   clients = [],
   serviceTypes = [],
   onEditChange,
+  onClientCreated,
   formatDate, 
   formatCurrency, 
   getServiceTypeLabel,
   getStatusLabel 
 }) => {
   const { statuses: statusOptions } = useReservationStatuses();
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClient, setNewClient] = useState(emptyNewClient);
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientError, setClientError] = useState(null);
+
+  const resetNewClientForm = () => {
+    setShowNewClientForm(false);
+    setNewClient(emptyNewClient);
+    setClientError(null);
+  };
+
+  useEffect(() => {
+    if (!isEditing) resetNewClientForm();
+  }, [isEditing]);
 
   if (!reservation) return null;
 
   const data = isEditing && editData ? editData : reservation;
+
+  const handleNewClientField = (field, value) => {
+    setNewClient((prev) => ({ ...prev, [field]: value }));
+    if (clientError) setClientError(null);
+  };
+
+  const handleSaveNewClient = async () => {
+    if (!newClient.firstName.trim() || !newClient.lastName.trim()) {
+      setClientError('Completá nombre y apellido del cliente.');
+      return;
+    }
+
+    try {
+      setSavingClient(true);
+      setClientError(null);
+      const created = await createClient({
+        firstName: newClient.firstName.trim(),
+        lastName: newClient.lastName.trim(),
+        email: newClient.email.trim() || null,
+        phone: newClient.phone.trim() || null
+      });
+
+      if (onClientCreated) {
+        onClientCreated(created);
+      } else if (onEditChange) {
+        onEditChange('mainClientId', created.id);
+      }
+
+      resetNewClientForm();
+    } catch (err) {
+      console.error('Error creando cliente:', err);
+      setClientError(err.message || 'No se pudo crear el cliente.');
+    } finally {
+      setSavingClient(false);
+    }
+  };
 
   const checkIn = data.checkIn || data.segments?.[0]?.startDate;
   const checkOut = data.checkOut || data.segments?.[data.segments?.length - 1]?.endDate;
@@ -194,21 +254,101 @@ const GeneralInfoTab = ({
           </span>
         </div>
 
-        <div className={styles.infoItem}>
+        <div className={`${styles.infoItem} ${isEditing && showNewClientForm ? styles.infoItemWide : ''}`}>
           <span className={styles.infoLabel}>Cliente:</span>
           <span className={styles.infoValue}>
             {isEditing ? (
-              <select
-                value={data.mainClientId || reservation.mainClientId || ''}
-                onChange={(e) => onEditChange('mainClientId', parseInt(e.target.value, 10))}
-                style={inputStyle}
-              >
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.firstName} {client.lastName}
-                  </option>
-                ))}
-              </select>
+              showNewClientForm ? (
+                <div className={styles.newClientForm} data-testid="edit-new-client-form">
+                  <div className={styles.newClientGrid}>
+                    <input
+                      type="text"
+                      value={newClient.firstName}
+                      onChange={(e) => handleNewClientField('firstName', e.target.value)}
+                      placeholder="Nombre"
+                      style={inputStyle}
+                      aria-label="Nombre del nuevo cliente"
+                      autoFocus
+                    />
+                    <input
+                      type="text"
+                      value={newClient.lastName}
+                      onChange={(e) => handleNewClientField('lastName', e.target.value)}
+                      placeholder="Apellido"
+                      style={inputStyle}
+                      aria-label="Apellido del nuevo cliente"
+                    />
+                    <input
+                      type="email"
+                      value={newClient.email}
+                      onChange={(e) => handleNewClientField('email', e.target.value)}
+                      placeholder="Email"
+                      style={inputStyle}
+                      aria-label="Email del nuevo cliente"
+                    />
+                    <input
+                      type="tel"
+                      value={newClient.phone}
+                      onChange={(e) => handleNewClientField('phone', e.target.value)}
+                      placeholder="Teléfono"
+                      style={inputStyle}
+                      aria-label="Teléfono del nuevo cliente"
+                    />
+                  </div>
+                  {clientError && (
+                    <p className={styles.newClientError} role="alert">{clientError}</p>
+                  )}
+                  <div className={styles.newClientButtons}>
+                    <button
+                      type="button"
+                      className={styles.newClientSaveBtn}
+                      onClick={handleSaveNewClient}
+                      disabled={savingClient}
+                      data-testid="edit-save-new-client"
+                    >
+                      {savingClient ? 'Guardando…' : 'Guardar'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.newClientCancelBtn}
+                      onClick={resetNewClientForm}
+                      disabled={savingClient}
+                      title="Cancelar"
+                      aria-label="Cancelar creación de cliente"
+                    >
+                      <FaTimes aria-hidden /> Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.clientEditRow}>
+                  <select
+                    value={data.mainClientId || reservation.mainClientId || ''}
+                    onChange={(e) => onEditChange('mainClientId', parseInt(e.target.value, 10))}
+                    style={inputStyle}
+                    data-testid="edit-client-select"
+                    aria-label="Cliente de la reserva"
+                  >
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.firstName} {client.lastName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={styles.newClientButton}
+                    onClick={() => {
+                      setShowNewClientForm(true);
+                      setClientError(null);
+                    }}
+                    title="Crear nuevo cliente"
+                    data-testid="edit-new-client-btn"
+                  >
+                    <FaPlus aria-hidden /> Nuevo cliente
+                  </button>
+                </div>
+              )
             ) : (
               `${reservation.mainClient?.firstName || ''} ${reservation.mainClient?.lastName || ''}`.trim() || '—'
             )}

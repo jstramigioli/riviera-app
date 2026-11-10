@@ -175,6 +175,21 @@ const ReservationDetails = () => {
     setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
   };
 
+  const handleClientCreated = (createdClient) => {
+    if (!createdClient?.id) return;
+    setClients((prev) => {
+      if (prev.some((c) => c.id === createdClient.id)) return prev;
+      return [...prev, createdClient].sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'es')
+      );
+    });
+    setEditData((prev) => ({
+      ...(prev || reservation),
+      mainClientId: createdClient.id,
+      mainClient: createdClient
+    }));
+  };
+
   const handleEditToggle = () => {
     if (isEditing) {
       setEditData(reservation);
@@ -283,6 +298,7 @@ const ReservationDetails = () => {
             clients={clients}
             serviceTypes={serviceTypes}
             onEditChange={handleEditChange}
+            onClientCreated={handleClientCreated}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
