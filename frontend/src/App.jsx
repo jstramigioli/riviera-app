@@ -20,6 +20,9 @@ import CobrosPagos from './pages/CobrosPagos';
 import Consulta from './pages/Consulta';
 import ErrorDisplay from './components/ErrorDisplay';
 import { TagsProvider } from './contexts/TagsContext';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
@@ -484,30 +487,130 @@ function CobrosPagosView() {
   return <CobrosPagos />;
 }
 
+function AppShell({ children }) {
+  return (
+    <div className={styles.app}>
+      <Header />
+      {children}
+    </div>
+  );
+}
+
 function App() {
   return (
-    <TagsProvider>
-      <Router>
-        <div className={styles.app}>
-          <Header />
+    <AuthProvider>
+      <TagsProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<ReservationsView />} />
-            <Route path="/libro-de-reservas" element={<ReservationsView />} />
-            <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
-            <Route path="/consulta" element={<Consulta />} />
-            <Route path="/reservations/:reservationId" element={<ReservationDetails />} />
-            <Route path="/clients/:clientId" element={<ClientDetails />} />
-            <Route path="/rooms/:roomId" element={<RoomDetails />} />
-            <Route path="/tarifas" element={<TarifasView />} />
-            <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
-            <Route path="/precios-inteligentes" element={<PreciosInteligentesView />} />
-            <Route path="/cobros-pagos" element={<CobrosPagosView />} />
-            <Route path="/estadisticas" element={<EstadisticasView />} />
-            <Route path="/configuracion" element={<ConfiguracionView />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationsView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/libro-de-reservas"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationsView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/consultas-reservas"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ConsultasReservasViewWrapper /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/consulta"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><Consulta /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/reservations/:reservationId"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/clients/:clientId"
+              element={(
+                <ProtectedRoute permission="clientes">
+                  <AppShell><ClientDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/rooms/:roomId"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><RoomDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/tarifas"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><TarifasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/tarifas/calendario"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><TarifasCalendarioView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/precios-inteligentes"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><PreciosInteligentesView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/cobros-pagos"
+              element={(
+                <ProtectedRoute permission="finanzas">
+                  <AppShell><CobrosPagosView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/estadisticas"
+              element={(
+                <ProtectedRoute permission="reportes">
+                  <AppShell><EstadisticasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/configuracion"
+              element={(
+                <ProtectedRoute permission="settings">
+                  <AppShell><ConfiguracionView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
           </Routes>
-        </div>
-      </Router>
-    </TagsProvider>
+        </Router>
+      </TagsProvider>
+    </AuthProvider>
   );
 }
 
