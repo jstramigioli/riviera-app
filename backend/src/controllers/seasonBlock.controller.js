@@ -100,22 +100,9 @@ const validateDates = (startDate, endDate) => {
   return null;
 };
 
-// Función auxiliar para aplicar redondeo
-const applyRounding = (price, roundingConfig) => {
-  if (!roundingConfig || !price) return price;
-  
-  const { multiple, mode } = roundingConfig;
-  
-  switch (mode) {
-    case 'ceil':
-      return Math.ceil(price / multiple) * multiple;
-    case 'floor':
-      return Math.floor(price / multiple) * multiple;
-    case 'nearest':
-    default:
-      return Math.round(price / multiple) * multiple;
-  }
-};
+const {
+  calculateFinalPrice
+} = require('../services/canonicalPricingService');
 
 // Obtener todos los bloques de temporada
 exports.getAllSeasonBlocks = async (req, res) => {
@@ -729,90 +716,6 @@ exports.updateSeasonBlock = async (req, res) => {
   }
 };
 
-// Confirmar cambios de bloque de temporada (guardar definitivamente)
-exports.confirmSeasonBlock = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    console.log('=== CONFIRM SEASON BLOCK ===');
-    console.log('Block ID:', id);
-    
-    // Verificar que el bloque existe
-    const existingBlock = await prisma.seasonBlock.findUnique({
-      where: { id }
-    });
-    
-    if (!existingBlock) {
-      return res.status(404).json({ 
-        data: null, 
-        errors: ['Bloque de temporada no encontrado'] 
-      });
-    }
-    
-    // Confirmar cambios en transacción
-    const result = await prisma.$transaction(async (tx) => {
-      // Marcar el bloque como guardado
-      const block = await tx.seasonBlock.update({
-        where: { id },
-        data: {
-          isDraft: false,
-          lastSavedAt: new Date()
-        }
-      });
-      
-      // Marcar todos los precios como guardados
-      await tx.seasonPrice.updateMany({
-        where: { seasonBlockId: id },
-        data: { isDraft: false }
-      });
-      
-      // Marcar todas las selecciones de servicios como guardadas
-      await tx.blockServiceSelection.updateMany({
-        where: { seasonBlockId: id },
-        data: { isDraft: false }
-      });
-      
-      console.log('Block confirmed successfully:', {
-        id: block.id,
-        isDraft: block.isDraft,
-        lastSavedAt: block.lastSavedAt
-      });
-      
-      return block;
-    });
-    
-    // Obtener el bloque completo para la respuesta
-    const completeBlock = await prisma.seasonBlock.findUnique({
-      where: { id: result.id },
-      include: {
-        seasonPrices: {
-          include: {
-            roomType: true,
-            serviceType: true
-          }
-        },
-        blockServiceSelections: {
-          include: {
-            serviceType: true
-          }
-        }
-      }
-    });
-    
-    res.json({ 
-      data: completeBlock, 
-      errors: null,
-      message: 'Cambios guardados definitivamente'
-    });
-  } catch (error) {
-    console.error('Error confirming season block:', error);
-    res.status(500).json({ 
-      data: null, 
-      errors: ['Error al confirmar los cambios del bloque de temporada'] 
-    });
-  }
-};
-
 // Eliminar bloque de temporada
 exports.deleteSeasonBlock = async (req, res) => {
   try {
@@ -876,50 +779,31 @@ exports.getCalculatedPrices = async (req, res) => {
       });
     }
     
-    // Obtener configuración de redondeo
-    const roundingConfig = await prisma.roundingConfig.findUnique({
-      where: { hotelId }
-    });
-    
-    // Calcular precios con ajustes y redondeo
+    // Mismo motor canónico que Consulta / cargos (sin redondeo)
     const calculatedPrices = block.seasonPrices.map(price => {
-      let finalPrice = price.basePrice;
-      
-      // Aplicar ajuste de servicio si existe
       const serviceSelection = block.blockServiceSelections.find(
         sel => sel.serviceTypeId === price.serviceTypeId && sel.isEnabled
       );
-      
-      // Aplicar ajuste de porcentaje si existe
-      if (serviceSelection && serviceSelection.percentageAdjustment && serviceSelection.percentageAdjustment !== 0) {
-        const adjustmentMultiplier = 1 + (serviceSelection.percentageAdjustment / 100);
-        finalPrice = Math.round(price.basePrice * adjustmentMultiplier);
-        
-        console.log('=== BACKEND PRICE CALCULATION DEBUG ===');
-        console.log('price.basePrice:', price.basePrice);
-        console.log('serviceSelection.percentageAdjustment:', serviceSelection.percentageAdjustment);
-        console.log('adjustmentMultiplier:', adjustmentMultiplier);
-        console.log('finalPrice:', finalPrice);
-      }
-      
-      // Aplicar redondeo
-      const roundedPrice = applyRounding(finalPrice, roundingConfig);
+      const priced = calculateFinalPrice(
+        price.basePrice,
+        serviceSelection?.percentageAdjustment ?? 0
+      );
       
       return {
         ...price,
-        calculatedPrice: finalPrice,
-        roundedPrice: roundedPrice,
-        wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
+        calculatedPrice: priced.calculatedPrice,
+        roundedPrice: priced.finalPrice,
+        wasRounded: false,
         serviceSelection,
-        percentageAdjustment: serviceSelection?.percentageAdjustment || 0
+        percentageAdjustment: priced.percentageAdjustment,
+        currency: 'ARS'
       };
     });
     
     res.json({ 
       data: {
         block,
-        calculatedPrices,
-        roundingConfig
+        calculatedPrices
       }, 
       errors: null 
     });
@@ -1161,26 +1045,42 @@ exports.confirmSeasonBlock = async (req, res) => {
       });
     }
     
-    // Confirmar el bloque (cambiar isDraft a false)
-    const confirmedBlock = await prisma.seasonBlock.update({
-      where: { id },
-      data: {
-        isDraft: false,
-        lastSavedAt: new Date()
-      },
-      include: {
-        seasonPrices: {
-          include: {
-            roomType: true,
-            serviceType: true
-          }
-        },
-        blockServiceSelections: {
-          include: {
-            serviceType: true
+    // Confirmar bloque + precios + selecciones (una sola implementación)
+    const confirmedBlock = await prisma.$transaction(async (tx) => {
+      const block = await tx.seasonBlock.update({
+        where: { id },
+        data: {
+          isDraft: false,
+          lastSavedAt: new Date()
+        }
+      });
+
+      await tx.seasonPrice.updateMany({
+        where: { seasonBlockId: id },
+        data: { isDraft: false }
+      });
+
+      await tx.blockServiceSelection.updateMany({
+        where: { seasonBlockId: id },
+        data: { isDraft: false }
+      });
+
+      return tx.seasonBlock.findUnique({
+        where: { id: block.id },
+        include: {
+          seasonPrices: {
+            include: {
+              roomType: true,
+              serviceType: true
+            }
+          },
+          blockServiceSelections: {
+            include: {
+              serviceType: true
+            }
           }
         }
-      }
+      });
     });
     
     console.log('Block confirmed successfully:', {
@@ -1191,7 +1091,8 @@ exports.confirmSeasonBlock = async (req, res) => {
     
     res.json({ 
       data: confirmedBlock, 
-      errors: null 
+      errors: null,
+      message: 'Bloque confirmado. Solo afecta cotizaciones y nuevas reservas; las reservas existentes conservan su snapshot.'
     });
   } catch (error) {
     console.error('Error confirming season block:', error);
@@ -1200,7 +1101,4 @@ exports.confirmSeasonBlock = async (req, res) => {
       errors: ['Error al confirmar el bloque de temporada'] 
     });
   }
-}; 
-
-// El archivo ya tiene todas las funciones exportadas correctamente arriba
-// No necesitamos la clase duplicada 
+};

@@ -102,8 +102,8 @@ export default function RatesCalendar() {
   if (loading) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2 style={{ color: '#2c3e50', margin: 0 }}>Calendario de Tarifas</h2>
-        <p>Cargando tarifas...</p>
+        <h2 style={{ color: '#2c3e50', margin: 0 }}> Calendario de Tarifas</h2>
+        <p> Cargando tarifas...</p>
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default function RatesCalendar() {
         alignItems: 'center',
         marginBottom: '20px'
       }}>
-        <h2 style={{ color: '#2c3e50', margin: 0 }}>Calendario de Tarifas</h2>
+        <h2 style={{ color: '#2c3e50', margin: 0 }}> Calendario de Tarifas</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}

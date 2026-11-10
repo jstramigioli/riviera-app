@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [periods, setPeriods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -154,24 +156,27 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
         return;
       }
       
-      // Si no hay reservas, proceder con la eliminación
-      if (window.confirm('¿Estás seguro de que quieres eliminar este período?')) {
-        const response = await fetch(`${API_URL}/operational-periods/${id}`, {
-          method: 'DELETE'
-        });
+      const ok = await confirm({
+        title: 'Eliminar período',
+        message: '¿Confirmás eliminar este período? Esta acción no se puede deshacer.',
+        confirmText: 'Eliminar',
+      });
+      if (!ok) return;
 
-        if (response.ok) {
-          showNotification('Período eliminado correctamente');
-          loadPeriods();
-          
-          // Disparar evento para actualizar otros componentes
-          window.dispatchEvent(new CustomEvent('operationalPeriodsUpdated', {
-            detail: { hotelId, periods: await loadPeriodsData() }
-          }));
-        } else {
-          const error = await response.json();
-          showNotification(error.message || 'Error al eliminar', 'error');
-        }
+      const response = await fetch(`${API_URL}/operational-periods/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        showNotification('Período eliminado correctamente');
+        loadPeriods();
+
+        window.dispatchEvent(new CustomEvent('operationalPeriodsUpdated', {
+          detail: { hotelId, periods: await loadPeriodsData() }
+        }));
+      } else {
+        const error = await response.json();
+        showNotification(error.message || 'Error al eliminar', 'error');
       }
     } catch (error) {
       console.error('Error al eliminar período:', error);
@@ -432,6 +437,7 @@ export default function OperationalPeriodsPanel({ hotelId = "default-hotel" }) {
           {notification.message}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }
@@ -462,10 +468,10 @@ function AddPeriodModal({ onClose, onAdd }) {
         minWidth: '500px',
         maxWidth: '600px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Agregar Período Operacional</h3>
+        <h3 style={{ marginBottom: '20px' }}> Agregar Período Operacional</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Título (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Título (opcional):</label>
             <input
               type="text"
               value={formData.label}
@@ -477,7 +483,7 @@ function AddPeriodModal({ onClose, onAdd }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -487,7 +493,7 @@ function AddPeriodModal({ onClose, onAdd }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}
@@ -558,10 +564,10 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
         borderRadius: '8px', 
         minWidth: '500px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Editar Período Operacional</h3>
+        <h3 style={{ marginBottom: '20px' }}> Editar Período Operacional</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Título (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Título (opcional):</label>
             <input
               type="text"
               value={formData.label}
@@ -573,7 +579,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -583,7 +589,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}

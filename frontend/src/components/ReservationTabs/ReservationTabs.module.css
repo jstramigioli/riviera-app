@@ -1,6 +1,6 @@
-/* Tab Content */
+/* Tab Content — sin padding extra: mainContentBody ya alinea con el side panel */
 .tabContent {
-  padding: 24px;
+  padding: 0;
   animation: fadeIn 0.3s ease-in;
 }
 
@@ -20,36 +20,262 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .sectionTitle {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
   color: #1a1a1a;
   margin: 0;
+  line-height: 1.2;
+}
+
+/* Título Info general: alineado con Reserva #N del side panel; más aire antes de cards */
+.generalInfoTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 28px 0;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.headerActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 /* Financial Alert */
 .financialAlert {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
   padding: 20px;
-  margin-bottom: 24px;
+  margin-top: 0;
+  margin-bottom: 8px;
   color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.guestCardClickable {
+  cursor: pointer;
+}
+
+.guestCardClickable:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.guestCardClickable:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
 }
 
 .financialAlertHeader {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin: 0 0 16px;
 }
 
 .financialAlertBody {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.financialRowBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.financialRowToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.financialRowToggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.financialRowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.financialRowChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.financialRowDetail {
+  padding: 0 12px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.breakdownList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdownGroup {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.breakdownGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.breakdownItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  padding: 4px 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.breakdownMonto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.breakdownActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.manualAsterisk {
+  margin-left: 3px;
+  color: #ffd54f;
+  font-weight: 700;
+  cursor: help;
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.undoIconButton {
+  background: none;
+  border: none;
+  color: #ffd54f;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.undoIconButton:hover {
+  background: rgba(255, 213, 79, 0.2);
+  transform: scale(1.1);
+}
+
+.financialAlert .editIconButton,
+.financialAlert .deleteIconButton {
+  color: rgba(255, 255, 255, 0.92);
+  padding: 4px 6px;
+}
+
+.financialAlert .editIconButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.financialAlert .deleteIconButton:hover {
+  background: rgba(220, 53, 69, 0.35);
+  color: #fff;
+}
+
+.printRoot {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 210mm;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+@media print {
+  .printRoot {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    transform: none !important;
+    pointer-events: auto;
+    z-index: auto;
+  }
+}
+
+.modalHint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  color: #5d4037;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.breakdownEmpty,
+.breakdownHint {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.45;
+}
+
+.breakdownHint {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 193, 7, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 193, 7, 0.45);
 }
 
 .financialRow {
@@ -63,7 +289,7 @@
 
 .saldoRow {
   background: rgba(255, 255, 255, 0.2);
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -86,7 +312,7 @@
   text-align: center;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   font-size: 0.95rem;
   font-weight: 500;
 }
@@ -106,7 +332,7 @@
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--color-primary);
 }
 
 .infoLabel {
@@ -124,15 +350,115 @@
 }
 
 .infoValue.highlight {
-  font-size: 1.2rem;
-  color: #667eea;
+  font-size: var(--font-size-large);
+  color: var(--color-primary);
   font-weight: 600;
+}
+
+.infoItemWide {
+  grid-column: 1 / -1;
+}
+
+.clientEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.clientEditRow select {
+  flex: 1;
+  min-width: 0;
+}
+
+.newClientButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-primary, #3f5f8a);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--color-primary, #3f5f8a);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.newClientButton:hover {
+  background: var(--color-primary-light, #e8eef5);
+}
+
+.newClientForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.newClientGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.newClientButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.newClientSaveBtn,
+.newClientCancelBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newClientSaveBtn {
+  border: 1px solid var(--color-primary, #3f5f8a);
+  background: var(--color-primary, #3f5f8a);
+  color: #fff;
+}
+
+.newClientSaveBtn:hover:not(:disabled) {
+  background: var(--color-primary-dark, #334d70);
+}
+
+.newClientSaveBtn:disabled,
+.newClientCancelBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.newClientCancelBtn {
+  border: 1px solid #d8dde6;
+  background: #fff;
+  color: #3a4250;
+}
+
+.newClientCancelBtn:hover:not(:disabled) {
+  background: #f4f5f7;
+}
+
+.newClientError {
+  margin: 0;
+  color: #e03131;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .statusBadge {
   display: inline-block;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -164,7 +490,7 @@
 }
 
 .link {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 600;
 }
@@ -202,11 +528,11 @@
 }
 
 .summaryCard {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .summaryLabel {
@@ -216,7 +542,7 @@
 }
 
 .summaryValue {
-  font-size: 1.8rem;
+  font-size: var(--font-size-xlarge);
   font-weight: 700;
 }
 
@@ -230,7 +556,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -246,9 +572,34 @@
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
 }
 
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #cfd4dc;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #f5f7fb;
+  border-color: #9aa3b2;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .primaryButton {
   padding: 12px 24px;
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -266,7 +617,7 @@
 /* Table */
 .tableContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -302,7 +653,7 @@
 
 .montoCell {
   font-weight: 600;
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 1.05rem;
 }
 
@@ -316,7 +667,7 @@
 .tipoBadge {
   display: inline-block;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -381,7 +732,7 @@
 }
 
 .emptyState p {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   margin-bottom: 16px;
 }
 
@@ -407,7 +758,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 500px;
   width: 90%;
@@ -437,14 +788,14 @@
 
 .modalHeader h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--font-size-large);
   color: #1a1a1a;
 }
 
 .closeButton {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   color: #999;
   cursor: pointer;
   padding: 4px;
@@ -488,7 +839,7 @@
 .formGroup select:focus,
 .formGroup textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .formGroup textarea {
@@ -526,7 +877,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -543,16 +894,16 @@
 
 /* Huéspedes Tab */
 .clientePrincipalBox {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin-bottom: 24px;
 }
 
 .clientePrincipalBox h4 {
   margin: 0 0 16px 0;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   opacity: 0.9;
 }
 
@@ -569,7 +920,7 @@
 }
 
 .clienteName {
-  font-size: 1.3rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   margin-bottom: 12px;
 }
@@ -585,7 +936,7 @@
 .guestsBox {
   background: white;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -604,12 +955,12 @@
   background: #f8f9fa;
   padding: 16px;
   border-radius: 8px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--color-primary);
   position: relative;
 }
 
 .guestCard .guestName {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 12px;
@@ -651,11 +1002,11 @@
 }
 
 .guestCardMain {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   position: relative;
   min-height: 280px;
   display: flex;
@@ -671,7 +1022,7 @@
   left: 16px;
   background: rgba(255, 255, 255, 0.2);
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -685,7 +1036,7 @@
 }
 
 .guestCardMain .guestNameMain {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 700;
   margin: 0 0 16px 0;
   color: white;
@@ -710,7 +1061,7 @@
 .guestCard {
   background: white;
   padding: 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 2px solid #e9ecef;
   position: relative;
@@ -726,7 +1077,7 @@
 .guestCard:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .guestCardHeader {
@@ -739,9 +1090,9 @@
 
 .guestBadgeSecundary {
   background: #f0f0f0;
-  color: #667eea;
+  color: var(--color-primary);
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -769,7 +1120,7 @@
 
 .iconButton:hover {
   background: #f0f0f0;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .iconButton:first-child:hover {
@@ -781,13 +1132,13 @@
 }
 
 .guestIcon {
-  font-size: 2.5rem;
-  color: #667eea;
+  font-size: var(--font-size-xxlarge);
+  color: var(--color-primary);
   margin-bottom: 12px;
 }
 
 .guestCard .guestName {
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #1a1a1a;
   margin: 0 0 16px 0;
@@ -814,7 +1165,7 @@
 .emptyGuestSlot {
   background: white;
   border: 2px dashed #d0d0d0;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 40px 20px;
   min-height: 280px;
   display: flex;
@@ -829,7 +1180,7 @@
 }
 
 .emptyGuestSlot:hover {
-  border-color: #667eea;
+  border-color: var(--color-primary);
   background: #f8f9ff;
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
@@ -865,7 +1216,7 @@
 }
 
 .emptyGuestSlot:hover .emptySlotIcon {
-  color: #667eea;
+  color: var(--color-primary);
   transform: scale(1.2);
 }
 
@@ -878,7 +1229,7 @@
 }
 
 .emptyGuestSlot:hover .emptySlotText {
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 /* Responsive */
@@ -897,7 +1248,7 @@
 
 .chargeGroup {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
@@ -917,7 +1268,7 @@
 .groupHeader:hover {
   background: #e9ecef;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .groupHeaderLeft {
@@ -927,7 +1278,7 @@
 }
 
 .groupIcon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   width: 40px;
   height: 40px;
   display: flex;
@@ -946,7 +1297,7 @@
 
 .groupTitle {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -1025,7 +1376,7 @@
   text-align: center;
   padding: 40px;
   color: #666;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 /* Estilos para pagos multimoneda */
@@ -1058,7 +1409,7 @@
 }
 
 .addPaymentButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 12px 24px;

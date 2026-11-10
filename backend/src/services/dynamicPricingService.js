@@ -22,7 +22,8 @@ class DynamicPricingService {
         return 0.5; // Valor por defecto si no hay habitaciones
       }
 
-      // Obtener segmentos de reserva activos para esa fecha
+      // Obtener segmentos activos que ocupan habitación (excl. canceladas / no-show)
+      const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
       const activeReservations = await this.prisma.reservationSegment.count({
         where: {
           startDate: {
@@ -31,7 +32,10 @@ class DynamicPricingService {
           endDate: {
             gt: date
           },
-          isActive: true
+          isActive: true,
+          reservation: {
+            status: { in: OCCUPYING_STATUSES }
+          }
         }
       });
 

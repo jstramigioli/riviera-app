@@ -1,55 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
-  fetchReservations, 
-  fetchRooms, 
+  fetchReservations,
+  fetchRooms,
+  fetchClients,
+  updateReservation,
   API_URL,
   getReservationFinancialSummary,
-  getPagosByReserva,
-  createPago,
-  deletePago,
-  getCargosByReserva,
   createCargo,
   updateCargo,
   deleteCargo
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
+import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
-import PagosTab from '../components/ReservationTabs/PagosTab';
-import CargosTab from '../components/ReservationTabs/CargosTab';
+import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
-import ServiciosTab from '../components/ReservationTabs/ServiciosTab';
-import { FaTrash } from 'react-icons/fa';
+import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetails.module.css';
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
   const [rooms, setRooms] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [allReservations, setAllReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado de pestañas
-  const [activeTab, setActiveTab] = useState('general');
+  // Estado de pestañas (puede venir del panel del Libro vía location.state)
+  const [activeTab, setActiveTab] = useState(
+    location.state?.activeTab === 'financiero' ? 'financiero' : 'general'
+  );
+  const [pendingFinancialAction, setPendingFinancialAction] = useState(
+    location.state?.financialAction || null
+  );
   
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
-  const [pagos, setPagos] = useState([]);
-  const [cargos, setCargos] = useState([]);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
-  
-  // Estado para modal de eliminación
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Estado para tipos de servicio
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [tags, setTags] = useState([]);
+
+  // Edición
+  const [isEditing, setIsEditing] = useState(Boolean(location.state?.isEditing));
+  const [editData, setEditData] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -57,11 +65,11 @@ const ReservationDetails = () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
+        const [reservationsData, roomsData, clientsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
           fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetchClients(),
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -73,9 +81,11 @@ const ReservationDetails = () => {
         }
         
         setReservation(foundReservation);
+        setEditData(foundReservation);
+        setAllReservations(reservationsData);
         setRooms(roomsData);
+        setClients(clientsData);
         setServiceTypes(serviceTypesResponse.data || []);
-        setTags(tagsResponse || []);
         
         setLoading(false);
       } catch (error) {
@@ -90,9 +100,27 @@ const ReservationDetails = () => {
     }
   }, [reservationId]);
 
-  // Cargar datos financieros cuando se acceda a esas pestañas
   useEffect(() => {
-    if ((activeTab === 'pagos' || activeTab === 'cargos' || activeTab === 'general') && reservation) {
+    if (location.state?.isEditing) {
+      setIsEditing(true);
+      setActiveTab('general');
+    }
+  }, [location.state?.isEditing]);
+
+  useEffect(() => {
+    if (location.state?.activeTab === 'financiero' || location.state?.financialAction) {
+      setActiveTab('financiero');
+      if (location.state?.financialAction) {
+        setPendingFinancialAction(location.state.financialAction);
+      }
+      // Limpiar state para no re-disparar al volver con el historial
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.activeTab, location.state?.financialAction, location.pathname, navigate]);
+
+  // Cargar datos financieros en la pestaña Estado financiero
+  useEffect(() => {
+    if (activeTab === 'financiero' && reservation) {
       loadFinancialData();
     }
   }, [activeTab, reservation]);
@@ -102,15 +130,8 @@ const ReservationDetails = () => {
     
     try {
       setLoadingFinancial(true);
-      const [summary, pagosData, cargosData] = await Promise.all([
-        getReservationFinancialSummary(reservation.id),
-        getPagosByReserva(reservation.id),
-        getCargosByReserva(reservation.id)
-      ]);
-      
+      const summary = await getReservationFinancialSummary(reservation.id);
       setFinancialSummary(summary);
-      setPagos(pagosData);
-      setCargos(cargosData);
     } catch (error) {
       console.error('Error cargando datos financieros:', error);
     } finally {
@@ -118,41 +139,14 @@ const ReservationDetails = () => {
     }
   };
 
-  // Handlers para pagos
-  const handleAddPago = async (pagoData) => {
-    try {
-      await createPago(reservation.id, pagoData);
-      await loadFinancialData();
-      alert('Pago agregado exitosamente');
-    } catch (error) {
-      console.error('Error agregando pago:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeletePago = async (pagoId) => {
-    if (!confirm('¿Estás seguro de eliminar este pago?')) return;
-    
-    try {
-      await deletePago(pagoId);
-      await loadFinancialData();
-      alert('Pago eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando pago:', error);
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Handlers para cargos
   const handleAddCargo = async (cargoData) => {
     try {
       await createCargo(reservation.id, cargoData);
       await loadFinancialData();
-      alert('Cargo agregado exitosamente');
+      notify({ title: 'Cargo agregado', message: 'El cargo se registró correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error agregando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
@@ -161,24 +155,30 @@ const ReservationDetails = () => {
     try {
       await updateCargo(cargoId, cargoData);
       await loadFinancialData();
-      alert('Cargo actualizado exitosamente');
+      notify({ title: 'Cargo actualizado', message: 'El cargo se actualizó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error actualizando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
 
   const handleDeleteCargo = async (cargoId) => {
-    if (!confirm('¿Estás seguro de eliminar este cargo?')) return;
-    
+    const ok = await confirm({
+      title: 'Eliminar consumo',
+      message: '¿Confirmás eliminar este cargo / consumo? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
       await deleteCargo(cargoId);
       await loadFinancialData();
-      alert('Cargo eliminado exitosamente');
+      notify({ title: 'Consumo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error eliminando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
+      throw error;
     }
   };
 
@@ -186,6 +186,11 @@ const ReservationDetails = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
+      // Fechas civiles yyyy-MM-dd: parsear en local para evitar off-by-one UTC
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        const [y, m, d] = String(dateString).split('-').map(Number);
+        return format(new Date(y, m - 1, d), 'dd/MM/yyyy', { locale: es });
+      }
       return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
     } catch {
       return dateString;
@@ -216,7 +221,82 @@ const ReservationDetails = () => {
     }
   };
 
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleClientCreated = (createdClient) => {
+    if (!createdClient?.id) return;
+    setClients((prev) => {
+      if (prev.some((c) => c.id === createdClient.id)) return prev;
+      return [...prev, createdClient].sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'es')
+      );
+    });
+    setEditData((prev) => ({
+      ...(prev || reservation),
+      mainClientId: createdClient.id,
+      mainClient: createdClient
+    }));
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditData(reservation);
+      setIsEditing(false);
+      return;
+    }
+    setEditData(reservation);
+    setIsEditing(true);
+    setActiveTab('general');
+  };
+
+  const handleEditSave = async () => {
+    if (!editData) return;
+
+    const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
+    if (!dateValidation.isValid) {
+      notify({ title: 'Validación', message: dateValidation.message, type: 'warning' });
+      return;
+    }
+
+    const conflict = validateReservationConflict(
+      allReservations,
+      editData.roomId,
+      editData.checkIn,
+      editData.checkOut,
+      editData.id
+    );
+
+    if (conflict.hasConflict) {
+      showConflictNotification(conflict.message);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await updateReservation(editData.id, editData);
+      setReservation(updated);
+      setEditData(updated);
+      setAllReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setIsEditing(false);
+      notify({ title: 'Reserva actualizada', message: 'Los cambios se guardaron correctamente.', type: 'success' });
+    } catch (err) {
+      console.error('Error guardando reserva:', err);
+      notify({ title: 'Error al guardar', message: err.message, type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteReservation = async () => {
+    const ok = await confirm({
+      title: 'Eliminar reserva',
+      message: `¿Confirmás eliminar la reserva #${reservation.id}? Esta acción no se puede deshacer y eliminará todos los registros relacionados.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
       const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
         method: 'DELETE',
@@ -229,7 +309,7 @@ const ReservationDetails = () => {
       navigate(-1);
     } catch (error) {
       console.error('Error eliminando reserva:', error);
-      alert('Error al eliminar la reserva');
+      notify({ title: 'Error', message: 'Error al eliminar la reserva', type: 'error' });
     }
   };
 
@@ -258,7 +338,7 @@ const ReservationDetails = () => {
       setReservation(updatedReservation);
     } catch (error) {
       console.error('Error actualizando estado de la reserva:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
@@ -269,37 +349,33 @@ const ReservationDetails = () => {
         return (
           <GeneralInfoTab
             reservation={reservation}
-            financialSummary={financialSummary}
+            editData={editData}
+            isEditing={isEditing}
+            rooms={rooms}
+            clients={clients}
+            serviceTypes={serviceTypes}
+            onEditChange={handleEditChange}
+            onClientCreated={handleClientCreated}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
             getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
           />
         );
-      case 'pagos':
+      case 'financiero':
         return (
-          <PagosTab
+          <EstadoFinancieroTab
             reservation={reservation}
-            pagos={pagos}
             financialSummary={financialSummary}
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
-            onDeletePago={handleDeletePago}
-          />
-        );
-      case 'cargos':
-        return (
-          <CargosTab
-            cargos={cargos}
-            financialSummary={financialSummary}
-            loadingFinancial={loadingFinancial}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
+            onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
+            pendingAction={pendingFinancialAction}
+            onPendingActionHandled={() => setPendingFinancialAction(null)}
           />
         );
       case 'huespedes':
@@ -307,12 +383,6 @@ const ReservationDetails = () => {
           <HuespedesTab
             reservation={reservation}
             onClientClick={handleClientClick}
-          />
-        );
-      case 'servicios':
-        return (
-          <ServiciosTab
-            reservation={reservation}
           />
         );
       default:
@@ -324,7 +394,7 @@ const ReservationDetails = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando detalles de la reserva...</div>
+        <div className={styles.loading}> Cargando detalles de la reserva...</div>
       </div>
     );
   }
@@ -334,7 +404,7 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Error</h2>
+          <h2> Error</h2>
           <p>{error}</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
@@ -349,8 +419,8 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Reserva no encontrada</h2>
-          <p>La reserva con ID {reservationId} no existe.</p>
+          <h2> Reserva no encontrada</h2>
+          <p> La reserva con ID {reservationId} no existe.</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
           </button>
@@ -362,11 +432,47 @@ const ReservationDetails = () => {
   // Render principal
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
+      {/* Side / top panel */}
       <div className={styles.sidePanel}>
-        {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Reserva #{reservation.id}</h2>
+          <div className={styles.sidePanelHeaderTop}>
+            <h2>Reserva #{reservation.id}</h2>
+            <div className={styles.headerActions}>
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleEditSave}
+                    className={styles.headerIconBtn}
+                    disabled={saving}
+                    title={saving ? 'Guardando…' : 'Guardar cambios'}
+                    aria-label="Guardar cambios"
+                  >
+                    <FaSave />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={`${styles.headerIconBtn} ${styles.headerIconBtnDanger}`}
+                    title="Salir de edición"
+                    aria-label="Salir de edición"
+                  >
+                    <FaTimes />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEditToggle}
+                  className={styles.headerIconBtn}
+                  title="Editar reserva"
+                  aria-label="Editar reserva"
+                >
+                  <FaPen />
+                </button>
+              )}
+            </div>
+          </div>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
@@ -382,26 +488,19 @@ const ReservationDetails = () => {
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
         <div className={styles.sidePanelContent}>
           <div className={styles.sectionMenu}>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'general' ? styles.active : ''}`}
               onClick={() => setActiveTab('general')}
             >
-              Información General
+              Información general
             </button>
             <button 
-              className={`${styles.sectionButton} ${activeTab === 'pagos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('pagos')}
+              className={`${styles.sectionButton} ${activeTab === 'financiero' ? styles.active : ''}`}
+              onClick={() => setActiveTab('financiero')}
             >
-              Pagos
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'cargos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('cargos')}
-            >
-              Cargos / Consumos
+              Estado financiero
             </button>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'huespedes' ? styles.active : ''}`}
@@ -409,81 +508,33 @@ const ReservationDetails = () => {
             >
               Huéspedes
             </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'servicios' ? styles.active : ''}`}
-              onClick={() => setActiveTab('servicios')}
-            >
-              Servicios / Mantenimiento
-            </button>
           </div>
         </div>
 
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button 
-              onClick={() => setShowDeleteModal(true)}
-              className={styles.deleteButton}
-              title="Eliminar reserva"
-            >
-              Eliminar
-            </button>
-            <button 
-              onClick={handleBackClick}
-              className={styles.backButton}
-            >
-              Volver
-            </button>
+        {!isEditing && (
+          <div className={styles.sidePanelFooter}>
+            <div className={styles.actionButtons}>
+              <div className={styles.statusButtons}>
+                <ReservationStatusButtons
+                  reservation={reservation}
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDeleteReservation}
+                  variant="dark"
+                />
+              </div>
+            </div>
           </div>
-          <div className={styles.statusButtons}>
-            <ReservationStatusButtons 
-              reservation={reservation} 
-              onStatusChange={handleStatusChange} 
-            />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
           {renderTabContent()}
         </div>
       </div>
 
-      {/* Modal de confirmación de eliminación */}
-      {showDeleteModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>⚠️ Confirmar Eliminación</h3>
-            </div>
-            <div className={styles.modalBody}>
-              <p>
-                ¿Estás seguro de eliminar la reserva #{reservation.id}?
-              </p>
-              <p>
-                Esta acción no se puede deshacer y eliminará todos los registros relacionados.
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button 
-                onClick={handleDeleteReservation}
-                className={`${styles.modalButton} ${styles.deleteButton}`}
-              >
-                <FaTrash />
-                Eliminar Definitivamente
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className={`${styles.modalButton} ${styles.cancelButton}`}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

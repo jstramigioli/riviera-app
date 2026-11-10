@@ -76,50 +76,56 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [blockServiceSelections, setBlockServiceSelections] = useState([]); // Selecciones de servicios del bloque
   const [prices, setPrices] = useState([]); // Precios por habitación y servicio
-  const [roundingConfig, setRoundingConfig] = useState(null);
   
   // Estados para validación
   const [validationErrors, setValidationErrors] = useState({});
 
-  // Función para aplicar redondeo
-  const applyRounding = useCallback((price, config = roundingConfig) => {
-    if (!config || !price) return price;
-    
-    const { multiple, mode } = config;
-    
-    switch (mode) {
-      case 'ceil':
-        return Math.ceil(price / multiple) * multiple;
-      case 'floor':
-        return Math.floor(price / multiple) * multiple;
-      case 'nearest':
-      default:
-        return Math.round(price / multiple) * multiple;
-    }
-  }, [roundingConfig]);
-
   // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
-    // Si no hay selecciones, usar los servicios disponibles desde la API
-    if (blockServiceSelections.length === 0) {
-      return serviceTypes.map(serviceType => ({
-        id: serviceType.id,
-        serviceTypeId: serviceType.id,
-        isEnabled: true, // Por defecto habilitados
-        pricingMode: 'PERCENTAGE',
-        value: 0,
-        serviceType: serviceType
+    // Selecciones del bloque = fuente de verdad de columnas
+    if (blockServiceSelections.length > 0) {
+      return blockServiceSelections.map(selection => ({
+        ...selection,
+        serviceType: selection.serviceType || {
+          id: selection.serviceTypeId,
+          name: 'Servicio',
+          description: 'Servicio del bloque'
+        }
       }));
     }
-    
-    // Retornar todos los servicios con su información completa
-    return blockServiceSelections.map(selection => ({
-      ...selection,
-      serviceType: selection.serviceType || {
-        id: selection.serviceTypeId,
-        name: 'Servicio',
-        description: 'Servicio del bloque'
+
+    // Mientras cargan selecciones: derivar columnas desde SeasonPrices ya cargados.
+    // Evita mostrar el catálogo completo (legacy + seed) con celdas a $0.
+    if (prices.length > 0) {
+      const seen = new Set();
+      const derived = [];
+      for (const price of prices) {
+        if (!price?.serviceTypeId || seen.has(price.serviceTypeId)) continue;
+        seen.add(price.serviceTypeId);
+        const serviceType =
+          price.serviceType ||
+          serviceTypes.find(st => st.id === price.serviceTypeId) ||
+          { id: price.serviceTypeId, name: 'Servicio' };
+        derived.push({
+          id: price.serviceTypeId,
+          serviceTypeId: price.serviceTypeId,
+          isEnabled: true,
+          pricingMode: 'PERCENTAGE',
+          value: 0,
+          serviceType
+        });
       }
+      if (derived.length > 0) return derived;
+    }
+
+    // Bloque nuevo sin precios ni selecciones
+    return serviceTypes.map(serviceType => ({
+      id: serviceType.id,
+      serviceTypeId: serviceType.id,
+      isEnabled: true,
+      pricingMode: 'PERCENTAGE',
+      value: 0,
+      serviceType
     }));
   };
 
@@ -292,23 +298,19 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     
     try {
       // Cargar datos básicos en paralelo
-      const [roomTypesRes, serviceTypesRes, roundingConfigRes] = await Promise.all([
+      const [roomTypesRes, serviceTypesRes] = await Promise.all([
         fetch(`${API_URL}/room-types`),
-        fetch(`${API_URL}/service-types?hotelId=${hotelId}`),
-        fetch(`${API_URL}/rounding-config?hotelId=${hotelId}`)
+        fetch(`${API_URL}/service-types?hotelId=${hotelId}`)
       ]);
 
       if (!roomTypesRes.ok) throw new Error('Error al cargar tipos de habitación');
       if (!serviceTypesRes.ok) throw new Error('Error al cargar tipos de servicio');
-      if (!roundingConfigRes.ok) throw new Error('Error al cargar configuración de redondeo');
 
       const roomTypesData = await roomTypesRes.json();
       const serviceTypesData = await serviceTypesRes.json();
-      const roundingConfigData = await roundingConfigRes.json();
 
       setRoomTypes(roomTypesData);
       setServiceTypes(serviceTypesData.data || []);
-      setRoundingConfig(roundingConfigData.data);
 
       // Si hay blockId, cargar datos del bloque
       if (blockId) {
@@ -402,20 +404,29 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           setPrices(block.seasonPrices || []);
         }
 
-        // Cargar selecciones de servicios del bloque
+        // Preferir selecciones ya incluidas en GET /season-blocks/:id (evita carrera con []).
+        if (Array.isArray(block.blockServiceSelections) && block.blockServiceSelections.length > 0) {
+          setBlockServiceSelections(block.blockServiceSelections);
+        }
+
+        // Refresco opcional desde el endpoint dedicado
         try {
           const blockServiceSelectionsRes = await fetch(`${API_URL}/block-service-selections/block/${blockId}`);
           if (blockServiceSelectionsRes.ok) {
             const blockServiceSelectionsData = await blockServiceSelectionsRes.json();
-            setBlockServiceSelections(blockServiceSelectionsData);
-          } else {
-            // Si no hay selecciones, inicializar por defecto
+            if (Array.isArray(blockServiceSelectionsData) && blockServiceSelectionsData.length > 0) {
+              setBlockServiceSelections(blockServiceSelectionsData);
+            } else if (!block.blockServiceSelections?.length) {
+              initializeDefaultServiceSelections(serviceTypesData.data || []);
+            }
+          } else if (!block.blockServiceSelections?.length) {
             initializeDefaultServiceSelections(serviceTypesData.data || []);
           }
         } catch (err) {
           console.error('Error loading block service selections:', err);
-          // Si hay error, inicializar por defecto
-          initializeDefaultServiceSelections(serviceTypesData.data || []);
+          if (!block.blockServiceSelections?.length) {
+            initializeDefaultServiceSelections(serviceTypesData.data || []);
+          }
         }
       } else {
         // Inicializar datos por defecto para nuevo bloque
@@ -1136,7 +1147,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   };
 
-  // Obtener precio con ajustes y redondeo
+  // Obtener precio con ajustes (sin redondeo)
   const getCalculatedPrice = (roomTypeId, serviceTypeId) => {
     const basePrice = prices.find(p => 
       p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
@@ -1155,13 +1166,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       }
     }
 
-    const roundedPrice = applyRounding(finalPrice);
-    
     return {
       basePrice,
       adjustedPrice: finalPrice,
-      roundedPrice,
-      wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
+      roundedPrice: finalPrice, // alias histórico
+      wasRounded: false,
       adjustment
     };
   };
@@ -1339,7 +1348,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     serviceTypes,
     prices,
     blockServiceSelections,
-    roundingConfig,
     validationErrors,
     
     // Funciones
@@ -1353,7 +1361,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
-    applyRounding,
     getActiveServiceTypes,
     getActiveServiceAdjustments,
     initializePricesForNewService,

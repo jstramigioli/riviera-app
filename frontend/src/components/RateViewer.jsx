@@ -40,13 +40,13 @@ const RateViewer = ({ onEditMode }) => {
     onEditMode();
   };
 
-  if (loading) return <div className={styles.loading}>Cargando tarifas...</div>;
+  if (loading) return <div className={styles.loading}> Cargando tarifas...</div>;
   if (error) return <div className={styles.error}>{error}</div>;
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2>Tarifas Diarias</h2>
+        <h2> Tarifas Diarias</h2>
         <button 
           className={styles.editButton}
           onClick={handleEditClick}
@@ -57,7 +57,7 @@ const RateViewer = ({ onEditMode }) => {
 
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
-          <label>Fecha desde:</label>
+          <label> Fecha desde:</label>
           <input
             type="date"
             value={filters.startDate}
@@ -65,7 +65,7 @@ const RateViewer = ({ onEditMode }) => {
           />
         </div>
         <div className={styles.filterGroup}>
-          <label>Fecha hasta:</label>
+          <label> Fecha hasta:</label>
           <input
             type="date"
             value={filters.endDate}
@@ -73,16 +73,16 @@ const RateViewer = ({ onEditMode }) => {
           />
         </div>
         <div className={styles.filterGroup}>
-          <label>Tipo de habitación:</label>
+          <label> Tipo de habitación:</label>
           <select
             value={filters.roomTypeId}
             onChange={(e) => handleFilterChange('roomTypeId', e.target.value)}
           >
-            <option value="">Todos los tipos</option>
-            <option value="1">Single</option>
-            <option value="2">Doble</option>
-            <option value="3">Triple</option>
-            <option value="4">Cuádruple</option>
+            <option value=""> Todos los tipos</option>
+            <option value="1"> Single</option>
+            <option value="2"> Doble</option>
+            <option value="3"> Triple</option>
+            <option value="4"> Cuádruple</option>
           </select>
         </div>
       </div>
@@ -91,10 +91,10 @@ const RateViewer = ({ onEditMode }) => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Tipo de Habitación</th>
-              <th>Precio</th>
-              <th>Estadía Mínima</th>
+              <th> Fecha</th>
+              <th> Tipo de Habitación</th>
+              <th> Precio</th>
+              <th> Estadía Mínima</th>
             </tr>
           </thead>
           <tbody>

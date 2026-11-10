@@ -79,7 +79,7 @@ const CobrosPagos = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando datos...</div>
+        <div className={styles.loading}> Cargando datos...</div>
       </div>
     );
   }
@@ -99,17 +99,17 @@ const CobrosPagos = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>Cobros y Pagos</h1>
-        <p>Gestiona los pagos y saldos de las reservas</p>
+        <h1> Cobros y Pagos</h1>
+        <p> Gestiona los pagos y saldos de las reservas</p>
       </div>
 
       <div className={styles.content}>
         <div className={styles.reservationsList}>
-          <h2>Reservas con Saldos</h2>
+          <h2> Reservas con Saldos</h2>
           
           {reservationsWithBalances.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No hay reservas registradas</p>
+              <p> No hay reservas registradas</p>
             </div>
           ) : (
             <div className={styles.reservationsGrid}>
@@ -129,7 +129,7 @@ const CobrosPagos = () => {
                     className={styles.reservationCard}
                   >
                     <div className={styles.reservationInfo}>
-                      <h3>Reserva #{reservation.id}</h3>
+                      <h3> Reserva #{reservation.id}</h3>
                       <p className={styles.clientName}>
                         {reservation.mainClient.firstName} {reservation.mainClient.lastName}
                       </p>
@@ -141,7 +141,7 @@ const CobrosPagos = () => {
                     
                     <div className={styles.balanceInfo}>
                       <div className={styles.balanceAmount}>
-                        <span className={styles.label}>Saldo:</span>
+                        <span className={styles.label}> Saldo:</span>
                         <span 
                           className={styles.amount}
                           style={{ color: getStatusColor(reservation.estadoPago) }}
@@ -153,8 +153,8 @@ const CobrosPagos = () => {
                         {reservation.estadoPago}
                       </div>
                       <div className={styles.totalsInfo}>
-                        <small>Cargos: {formatPrice(reservation.totalCargos)}</small>
-                        <small>Pagos: {formatPrice(reservation.totalPagos)}</small>
+                        <small> Cargos: {formatPrice(reservation.totalCargos)}</small>
+                        <small> Pagos: {formatPrice(reservation.totalPagos)}</small>
                       </div>
                     </div>
 

@@ -334,7 +334,7 @@ export default function TarifasPreviewPanel({ hotelId = "default-hotel" }) {
         color: '#2c3e50',
         fontSize: 'var(--font-size-xxlarge)',
         fontWeight: '600'
-      }}>Previsualización de Tarifas</h3>
+      }}> Previsualización de Tarifas</h3>
       
       <div style={{ marginBottom: '20px' }}>
         <div>

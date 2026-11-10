@@ -2,10 +2,19 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import Header from './Header'
 
-// Mock de react-router-dom
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, title }) => <a href={to} title={title}>{children}</a>,
   useLocation: () => ({ pathname: '/' }),
+  useNavigate: () => vi.fn(),
+}))
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: { username: 'admin', displayName: 'Administrador', role: 'ADMIN' },
+    can: () => true,
+    logout: vi.fn(),
+    switchUser: vi.fn(),
+  }),
 }))
 
 describe('Header', () => {
@@ -27,4 +36,4 @@ describe('Header', () => {
     const configButton = screen.getByTitle('Configuración')
     expect(configButton).toBeInTheDocument()
   })
-}) 
+})

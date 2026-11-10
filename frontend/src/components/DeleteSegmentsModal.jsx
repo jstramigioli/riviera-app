@@ -16,7 +16,7 @@ const DeleteSegmentsModal = ({
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h3>⚠️ Eliminar {segmentWord}</h3>
+          <h3> Eliminar {segmentWord}</h3>
         </div>
         
         <div className={styles.content}>
@@ -25,7 +25,7 @@ const DeleteSegmentsModal = ({
           </p>
           
           <div className={styles.segmentsList}>
-            <strong>Segmento{segmentCount === 1 ? '' : 's'} que se eliminarán:</strong>
+            <strong> Segmento{segmentCount === 1 ? '' : 's'} que se eliminarán:</strong>
             <ul>
               {segmentsToDelete.map((seg, index) => (
                 <li key={index}>

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
-import ReservationBar from './components/ReservationBar';
-import ReservationGrid from './components/ReservationGrid';
+import LibroReservasBoard from './components/LibroReservasBoard';
 import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
@@ -13,6 +12,7 @@ import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
+import AuditoriaView from './pages/Auditoria';
 import RatesCalendar from './components/RatesCalendar';
 import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
@@ -20,6 +20,9 @@ import CobrosPagos from './pages/CobrosPagos';
 import Consulta from './pages/Consulta';
 import ErrorDisplay from './components/ErrorDisplay';
 import { TagsProvider } from './contexts/TagsContext';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
@@ -35,7 +38,9 @@ import RoomDetails from './pages/RoomDetails';
 import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
+  const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
     title: '',
@@ -136,6 +141,7 @@ function ReservationsView() {
     try {
       await deleteReservation(selectedReservation.id);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
+      setCalendarRefreshToken((t) => t + 1);
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
@@ -157,6 +163,9 @@ function ReservationsView() {
         const updatedReservation = { ...selectedReservation, status: newStatus };
         setSelectedReservation(updatedReservation);
       }
+
+      // Refrescar Libro para que canceladas / no-show desaparezcan al instante
+      setCalendarRefreshToken((t) => t + 1);
       
       // Mostrar notificación de éxito
       const actionMessages = {
@@ -166,7 +175,8 @@ function ReservationsView() {
         "check-out": "Check-out registrado exitosamente",
         "no-show": "Reserva marcada como no presentada",
         "reopen": "Estadía reabierta exitosamente",
-        "reactivate": "Reserva reactivada exitosamente"
+        "reactivate": "Reserva reactivada exitosamente",
+        "set-status": "Estado actualizado exitosamente"
       };
       
       showNotification(
@@ -185,27 +195,16 @@ function ReservationsView() {
     }
   };
 
-  if (loading) return <div className={styles.loading}>Cargando datos...</div>;
+  if (loading) return <div className={styles.loading}> Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className={styles.appContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Gestión de Reservas</h1>
-        <p className={styles.subtitle}>¡Bienvenido! Aquí podrás gestionar habitaciones, clientes y reservas.</p>
-        <div className={styles.stats}>
-          <span className={styles.statItem}>Habitaciones: {rooms.length}</span>
-          <span className={styles.statItem}>Reservas: {reservations.length}</span>
-          <span className={styles.statItem}>Clientes: {clients.length}</span>
-        </div>
-      </div>
       <div className={styles.gridWrapper}>
-        <ReservationGrid 
-          rooms={rooms} 
-          reservations={reservations}
-          setReservations={setReservations}
-          updateReservation={(id, data) => updateReservationOnServer(id, data, setReservations)}
+        <LibroReservasBoard
           onReservationClick={handleReservationClick}
+          reservationsForDayInfo={reservations}
+          refreshToken={calendarRefreshToken}
         />
       </div>
       <SidePanel
@@ -213,9 +212,19 @@ function ReservationsView() {
         onClose={closePanel}
         title=""
         width={600}
+        hideHeader={panelMode === 'reservation'}
       >
         {panelMode === 'reservation' && selectedReservation && (
-          <ReservationDetailsPanel reservation={selectedReservation} onStatusChange={handleStatusChange} />
+          <ReservationDetailsPanel
+            reservation={selectedReservation}
+            onStatusChange={handleStatusChange}
+            onDelete={() => setShowDeleteModal(true)}
+            onClose={closePanel}
+            onOpenFullEdit={(id) => {
+              closePanel();
+              navigate(`/reservations/${id}`, { state: { isEditing: true } });
+            }}
+          />
         )}
 
         {panelMode === 'client' && selectedClient && (
@@ -229,7 +238,7 @@ function ReservationsView() {
           >
             {/* Nombre */}
             <div style={{ marginBottom: 8 }}>
-              <b>Nombre:</b> {isEditing ? (
+              <b> Nombre:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.firstName || selectedClient.firstName}
@@ -243,7 +252,7 @@ function ReservationsView() {
 
             {/* Apellido */}
             <div style={{ marginBottom: 8 }}>
-              <b>Apellido:</b> {isEditing ? (
+              <b> Apellido:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.lastName || selectedClient.lastName}
@@ -257,7 +266,7 @@ function ReservationsView() {
 
             {/* Email */}
             <div style={{ marginBottom: 8 }}>
-              <b>Email:</b> {isEditing ? (
+              <b> Email:</b> {isEditing ? (
                 <input
                   type="email"
                   value={editData.email || selectedClient.email}
@@ -271,7 +280,7 @@ function ReservationsView() {
 
             {/* Teléfono */}
             <div style={{ marginBottom: 8 }}>
-              <b>Teléfono:</b> {isEditing ? (
+              <b> Teléfono:</b> {isEditing ? (
                 <input
                   type="tel"
                   value={editData.phone || selectedClient.phone}
@@ -285,16 +294,16 @@ function ReservationsView() {
 
             {/* Tipo de documento */}
             <div style={{ marginBottom: 8 }}>
-              <b>Tipo de documento:</b> {isEditing ? (
+              <b> Tipo de documento:</b> {isEditing ? (
                 <select
                   value={editData.documentType || selectedClient.documentType}
                   onChange={e => handleEditChange('documentType', e.target.value)}
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                 >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
+                  <option value="DNI"> DNI</option>
+                  <option value="Pasaporte"> Pasaporte</option>
+                  <option value="Cédula"> Cédula</option>
+                  <option value="Otro"> Otro</option>
                 </select>
               ) : (
                 selectedClient.documentType
@@ -303,7 +312,7 @@ function ReservationsView() {
 
             {/* Número de documento */}
             <div style={{ marginBottom: 8 }}>
-              <b>Número de documento:</b> {isEditing ? (
+              <b> Número de documento:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.documentNumber || selectedClient.documentNumber}
@@ -317,7 +326,7 @@ function ReservationsView() {
 
             {/* País */}
             <div style={{ marginBottom: 8 }}>
-              <b>País:</b> {isEditing ? (
+              <b> País:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.country || selectedClient.country}
@@ -331,7 +340,7 @@ function ReservationsView() {
 
             {/* Provincia */}
             <div style={{ marginBottom: 8 }}>
-              <b>Provincia:</b> {isEditing ? (
+              <b> Provincia:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.province || selectedClient.province}
@@ -345,7 +354,7 @@ function ReservationsView() {
 
             {/* Ciudad */}
             <div style={{ marginBottom: 8 }}>
-              <b>Ciudad:</b> {isEditing ? (
+              <b> Ciudad:</b> {isEditing ? (
                 <input
                   type="text"
                   value={editData.city || selectedClient.city}
@@ -359,7 +368,7 @@ function ReservationsView() {
 
             {/* Notas */}
             <div style={{ marginBottom: 8 }}>
-              <b>Notas:</b> {isEditing ? (
+              <b> Notas:</b> {isEditing ? (
                 <textarea
                   value={editData.notes || selectedClient.notes}
                   onChange={e => handleEditChange('notes', e.target.value)}
@@ -374,7 +383,7 @@ function ReservationsView() {
             {/* Reservas del cliente - solo en visualización */}
             {!isEditing && (
               <div style={{ marginBottom: 16, padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-                <b>Reservas del cliente:</b>
+                <b> Reservas del cliente:</b>
                 <div style={{ marginTop: '8px' }}>
                   {reservations.filter(r => r.mainClientId === selectedClient.id).length > 0 ? (
                     reservations
@@ -402,7 +411,7 @@ function ReservationsView() {
                         </div>
                       ))
                   ) : (
-                    <div style={{ color: '#666', fontStyle: 'italic' }}>No tiene reservas registradas</div>
+                    <div style={{ color: '#666', fontStyle: 'italic' }}> No tiene reservas registradas</div>
                   )}
                 </div>
               </div>
@@ -426,7 +435,7 @@ function ReservationsView() {
                   onClick={() => alert('Panel de balance será implementado próximamente')}
                   title="Ver detalles del balance"
                 >
-                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Balance:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}> Balance:</span>
                   <span style={{ 
                     fontWeight: 'bold', 
                     fontSize: '1.2rem',
@@ -477,37 +486,165 @@ function TarifasView() {
 }
 
 function TarifasCalendarioView() {
-  return <RatesCalendar />;
+  return (
+    <div style={{ padding: '16px' }}>
+      <div
+        role="status"
+        style={{
+          marginBottom: '16px',
+          padding: '12px 16px',
+          background: '#fff8e6',
+          border: '1px solid #f0d78c',
+          borderRadius: '8px',
+          color: '#5c4b1a',
+          maxWidth: '960px'
+        }}
+      >
+        Calendario paralelo (legacy). No es el path canónico de cotización ni de cargos.
+        Gestioná tarifas operativas en{' '}
+        <a href="/configuracion?tab=cargos-tarifas">Configuración → Cargos y Tarifas</a>.
+      </div>
+      <RatesCalendar />
+    </div>
+  );
 }
 
 function CobrosPagosView() {
   return <CobrosPagos />;
 }
 
+function AppShell({ children }) {
+  return (
+    <div className={styles.app}>
+      <Header />
+      {children}
+    </div>
+  );
+}
+
 function App() {
   return (
-    <TagsProvider>
-      <Router>
-        <div className={styles.app}>
-          <Header />
+    <AuthProvider>
+      <TagsProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<ReservationsView />} />
-            <Route path="/libro-de-reservas" element={<ReservationsView />} />
-            <Route path="/consultas-reservas" element={<ConsultasReservasViewWrapper />} />
-            <Route path="/consulta" element={<Consulta />} />
-            <Route path="/reservations/:reservationId" element={<ReservationDetails />} />
-            <Route path="/clients/:clientId" element={<ClientDetails />} />
-            <Route path="/rooms/:roomId" element={<RoomDetails />} />
-            <Route path="/tarifas" element={<TarifasView />} />
-            <Route path="/tarifas/calendario" element={<TarifasCalendarioView />} />
-            <Route path="/precios-inteligentes" element={<PreciosInteligentesView />} />
-            <Route path="/cobros-pagos" element={<CobrosPagosView />} />
-            <Route path="/estadisticas" element={<EstadisticasView />} />
-            <Route path="/configuracion" element={<ConfiguracionView />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationsView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/libro-de-reservas"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationsView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/consultas-reservas"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ConsultasReservasViewWrapper /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/consulta"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><Consulta /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/reservations/:reservationId"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><ReservationDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/clients/:clientId"
+              element={(
+                <ProtectedRoute permission="clientes">
+                  <AppShell><ClientDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/rooms/:roomId"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><RoomDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/tarifas"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><TarifasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/tarifas/calendario"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><TarifasCalendarioView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/precios-inteligentes"
+              element={(
+                <ProtectedRoute permission="tarifas">
+                  <AppShell><PreciosInteligentesView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/cobros-pagos"
+              element={(
+                <ProtectedRoute permission="finanzas">
+                  <AppShell><CobrosPagosView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/estadisticas"
+              element={(
+                <ProtectedRoute permission="reportes">
+                  <AppShell><EstadisticasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/auditoria"
+              element={(
+                <ProtectedRoute permission="auditoria">
+                  <AppShell><AuditoriaView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/configuracion"
+              element={(
+                <ProtectedRoute permission="settings">
+                  <AppShell><ConfiguracionView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
           </Routes>
-        </div>
-      </Router>
-    </TagsProvider>
+        </Router>
+      </TagsProvider>
+    </AuthProvider>
   );
 }
 

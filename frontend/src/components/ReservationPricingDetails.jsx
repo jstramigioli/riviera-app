@@ -98,7 +98,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
   if (loading) {
     return (
       <div className={styles.expandedContent}>
-        <div className={styles.loading}>Cargando detalles de tarifas...</div>
+        <div className={styles.loading}> Cargando detalles de tarifas...</div>
       </div>
     );
   }
@@ -118,56 +118,56 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
     return null;
   }
 
-  const { reservation } = pricingData;
+  const { reservation, pricingSummary } = pricingData;
+  const nightBase = (night) => night.baseRate ?? night.basePrice ?? 0;
 
-  // Calcular totales
-  const totalBasePrice = reservation.nightRates.reduce((sum, night) => sum + night.basePrice, 0);
-  const totalDynamicModifications = reservation.nightRates.reduce((sum, night) => {
-    const modifications = (night.occupancyAdjustment || 0) + 
-                        (night.weekendAdjustment || 0) + 
-                        (night.holidayAdjustment || 0) + 
-                        (night.gapPromotionAmount || 0) + 
-                        (night.serviceAdjustment || 0);
-    return sum + modifications;
-  }, 0);
-  const totalFinalPrice = reservation.nightRates.reduce((sum, night) => sum + night.finalRate, 0);
+  const totalBasePrice = reservation.nightRates.reduce((sum, night) => sum + Number(nightBase(night)), 0);
+  const totalFinalPrice = reservation.nightRates.reduce((sum, night) => sum + Number(night.finalRate || 0), 0);
+  const pricingSource = pricingSummary?.pricingSource || 'stored-night-rates';
 
   return (
     <div className={styles.expandedContent}>
       <div className={styles.header}>
-        <h3>Detalles de Tarifas - Reserva #{reservation.id}</h3>
+        <h3> Detalles de Tarifas - Reserva #{reservation.id}</h3>
         <button onClick={onClose} className={styles.closeButton}>
           ×
         </button>
       </div>
+
+      <p style={{ margin: '0 0 12px', color: '#555', fontSize: '0.9rem' }}>
+        Snapshot al confirmar (ARS). Los precios inteligentes no modifican este detalle.
+        {pricingSource === 'legacy-segment-average' && (
+          <> · Reserva antigua sin night rates: se muestra el promedio del segmento.</>
+        )}
+      </p>
 
       <div className={styles.tableContainer}>
         <table className={styles.pricingTable}>
           <thead>
             <tr>
               <th>Noche</th>
-              <th>Precio Base</th>
-              <th>Modificación por precios inteligentes</th>
-              <th>Total Noche</th>
+              <th>Tarifa base</th>
+              <th>Notas</th>
+              <th>Total noche</th>
             </tr>
           </thead>
           <tbody>
             {reservation.nightRates.map((nightRate, index) => (
-              <tr key={nightRate.id} className={styles.nightRow}>
+              <tr key={nightRate.id || index} className={styles.nightRow}>
                 <td className={styles.nightCell}>
                   <div className={styles.nightInfo}>
-                    <span className={styles.nightNumber}>Noche {index + 1}</span>
+                    <span className={styles.nightNumber}> Noche {index + 1}</span>
                     <span className={styles.nightDate}>{formatDate(nightRate.date)}</span>
                   </div>
                 </td>
                 <td className={styles.basePriceCell}>
-                  {formatPrice(nightRate.basePrice)}
+                  {formatPrice(nightBase(nightRate))}
                 </td>
                 <td className={styles.modificationsCell}>
                   <div className={styles.modificationsList}>
-                    {getDynamicPricingModifications(nightRate).map((modification, index) => (
+                    {getDynamicPricingModifications(nightRate).map((modification, modIndex) => (
                       <div 
-                        key={index} 
+                        key={modIndex} 
                         className={styles.modificationItem}
                         data-color={modification.color}
                       >
@@ -183,13 +183,13 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
             ))}
             <tr className={styles.totalsRow}>
               <td className={styles.totalsLabel}>
-                <strong>TOTALES</strong>
+                <strong> TOTALES</strong>
               </td>
               <td className={styles.totalsBasePrice}>
                 <strong>{formatPrice(totalBasePrice)}</strong>
               </td>
               <td className={styles.totalsModifications}>
-                <strong>{formatPrice(totalDynamicModifications)}</strong>
+                <strong>—</strong>
               </td>
               <td className={styles.totalsFinal}>
                 <strong>{formatPrice(totalFinalPrice)}</strong>
@@ -201,18 +201,18 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
 
       <div className={styles.summary}>
         <div className={styles.summaryCard}>
-          <h4>Resumen</h4>
+          <h4> Resumen</h4>
           <div className={styles.summaryGrid}>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Total final:</span>
+              <span className={styles.label}> Total final:</span>
               <span className={styles.value}>{formatPrice(totalFinalPrice)}</span>
             </div>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Noches:</span>
+              <span className={styles.label}> Noches:</span>
               <span className={styles.value}>{reservation.nightRates.length}</span>
             </div>
             <div className={styles.summaryItem}>
-              <span className={styles.label}>Promedio por noche:</span>
+              <span className={styles.label}> Promedio por noche:</span>
               <span className={styles.value}>{formatPrice(totalFinalPrice / reservation.nightRates.length)}</span>
             </div>
           </div>

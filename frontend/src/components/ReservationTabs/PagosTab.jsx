@@ -24,7 +24,7 @@ const PagosTab = ({
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>💳 Pagos</h3>
+        <h3 className={styles.sectionTitle}> Pagos</h3>
         <button 
           className={styles.addButton}
           onClick={() => setShowPaymentForm(true)}
@@ -34,18 +34,18 @@ const PagosTab = ({
       </div>
 
       {loadingFinancial ? (
-        <div className={styles.loading}>Cargando pagos...</div>
+        <div className={styles.loading}> Cargando pagos...</div>
       ) : (
         <>
           <div className={styles.summaryCards}>
             <div className={styles.summaryCard}>
-              <div className={styles.summaryLabel}>Total Abonado</div>
+              <div className={styles.summaryLabel}> Total Abonado</div>
               <div className={styles.summaryValue}>
                 {formatCurrency(financialSummary?.resumen.totalPagos || 0)}
               </div>
             </div>
             <div className={styles.summaryCard}>
-              <div className={styles.summaryLabel}>Saldo Restante</div>
+              <div className={styles.summaryLabel}> Saldo Restante</div>
               <div className={`${styles.summaryValue} ${styles.saldo}`}>
                 {formatCurrency(financialSummary?.resumen.saldo || 0)}
               </div>
@@ -54,21 +54,21 @@ const PagosTab = ({
 
           {pagos.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No hay pagos registrados</p>
+              <p> No hay pagos registrados</p>
             </div>
           ) : (
             <div className={styles.tableContainer}>
               <table className={styles.dataTable}>
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Monto</th>
-                    <th>Moneda</th>
-                    <th>Método</th>
-                    <th>Detalles</th>
-                    <th>Referencia</th>
-                    <th>Notas</th>
-                    <th>Acciones</th>
+                    <th> Fecha</th>
+                    <th> Monto</th>
+                    <th> Moneda</th>
+                    <th> Método</th>
+                    <th> Detalles</th>
+                    <th> Referencia</th>
+                    <th> Notas</th>
+                    <th> Acciones</th>
                   </tr>
                 </thead>
                 <tbody>

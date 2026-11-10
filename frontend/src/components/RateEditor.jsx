@@ -3,8 +3,10 @@ import { format } from 'date-fns';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { createRates, updateRate, deleteRate } from '../services/api';
 import styles from '../styles/RateEditor.module.css';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 
 const RateEditor = ({ onViewMode, rates = [] }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [formData, setFormData] = useState({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
@@ -48,8 +50,13 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
   };
 
   const handleDeleteRate = async (rateId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta tarifa?')) return;
-    
+    const ok = await confirm({
+      title: 'Eliminar tarifa',
+      message: '¿Confirmás eliminar esta tarifa? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     setLoading(true);
     try {
       await deleteRate(rateId);
@@ -78,7 +85,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2>Editor de Tarifas</h2>
+        <h2> Editor de Tarifas</h2>
         <button 
           className={styles.viewButton}
           onClick={onViewMode}
@@ -92,7 +99,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
-            <label>Fecha desde:</label>
+            <label> Fecha desde:</label>
             <input
               type="date"
               value={formData.startDate}
@@ -101,7 +108,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
             />
           </div>
           <div className={styles.formGroup}>
-            <label>Fecha hasta:</label>
+            <label> Fecha hasta:</label>
             <input
               type="date"
               value={formData.endDate}
@@ -113,21 +120,21 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
-            <label>Tipo de habitación:</label>
+            <label> Tipo de habitación:</label>
             <select
               value={formData.roomTypeId}
               onChange={(e) => handleInputChange('roomTypeId', e.target.value)}
               required
             >
-              <option value="">Seleccionar tipo</option>
-              <option value="1">Single</option>
-              <option value="2">Doble</option>
-              <option value="3">Triple</option>
-              <option value="4">Cuádruple</option>
+              <option value=""> Seleccionar tipo</option>
+              <option value="1"> Single</option>
+              <option value="2"> Doble</option>
+              <option value="3"> Triple</option>
+              <option value="4"> Cuádruple</option>
             </select>
           </div>
           <div className={styles.formGroup}>
-            <label>Precio:</label>
+            <label> Precio:</label>
             <input
               type="number"
               value={formData.price}
@@ -138,7 +145,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
             />
           </div>
           <div className={styles.formGroup}>
-            <label>Estadía mínima (opcional):</label>
+            <label> Estadía mínima (opcional):</label>
             <input
               type="number"
               value={formData.minStay}
@@ -159,16 +166,16 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
       </form>
 
       <div className={styles.existingRates}>
-        <h3>Tarifas Existentes</h3>
+        <h3> Tarifas Existentes</h3>
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Precio</th>
-                <th>Min. Estadía</th>
-                <th>Acciones</th>
+                <th> Fecha</th>
+                <th> Tipo</th>
+                <th> Precio</th>
+                <th> Min. Estadía</th>
+                <th> Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -207,6 +214,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
           </table>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 };

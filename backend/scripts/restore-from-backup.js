@@ -39,7 +39,6 @@ async function restoreFromBackup() {
       'dailyRoomRates',
       'roomGapPromotions',
       'reservationNightRates',
-      'roundingConfigs',
       'seasonBlocks',
       'seasonPrices',
       'proportionCoefficients',
@@ -212,11 +211,7 @@ async function restoreFromBackup() {
 
         case 'roundingConfigs':
           for (const config of data) {
-            await prisma.roundingConfig.upsert({
-              where: { id: config.id },
-              update: config,
-              create: config
-            });
+            /* rounding removed */
           }
           break;
 

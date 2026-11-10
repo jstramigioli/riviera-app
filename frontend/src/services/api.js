@@ -55,6 +55,30 @@ export async function fetchReservations() {
   return res.json();
 }
 
+/** Calendario Libro de Reservas: ventana civil start + days. */
+export async function fetchCalendar(start, days) {
+  const params = new URLSearchParams({
+    start,
+    days: String(days)
+  });
+  const res = await fetch(`${API_URL}/calendar?${params}`);
+  if (!res.ok) {
+    let msg = 'Error fetching calendar';
+    try {
+      const body = await res.json();
+      msg = body.error || msg;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function fetchReservation(id) {
+  const res = await fetch(`${API_URL}/reservations/${id}`);
+  if (!res.ok) throw new Error('Error fetching reservation');
+  return res.json();
+}
+
 export async function fetchClients() {
   const res = await fetch(`${API_URL}/clients`);
   if (!res.ok) throw new Error('Error fetching clients');
@@ -96,6 +120,13 @@ export async function updateReservationStatus(id, status) {
     body: JSON.stringify({ status })
   });
   if (!res.ok) throw new Error('Error updating reservation status');
+  return res.json();
+}
+
+/** Estados canónicos desde el backend (enum Prisma / constant BE) */
+export async function fetchReservationStatuses() {
+  const res = await fetch(`${API_URL}/reservations/statuses`);
+  if (!res.ok) throw new Error('Error fetching reservation statuses');
   return res.json();
 }
 
@@ -686,10 +717,32 @@ export async function updateQuery(id, data) {
 
 export async function deleteQuery(id) {
   const res = await fetch(`${API_URL}/queries/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'include'
   });
   if (!res.ok) throw new Error('Error deleting query');
   return res.ok;
+}
+
+/** Elimina todas las consultas. Requiere confirmación en backend. */
+export async function deleteAllQueries() {
+  const res = await fetch(`${API_URL}/queries/all`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'LIMPIAR_TODAS' })
+  });
+  if (!res.ok) {
+    let message = 'Error al limpiar las consultas';
+    try {
+      const data = await res.json();
+      message = data.message || data.error || message;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 export async function convertQueryToReservation(id) {
@@ -911,6 +964,43 @@ export async function getTipoCambioActual() {
   return res.json();
 }
 
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchAuditLogs(params = {}) {
+  const res = await fetch(`${API_URL}/audit-logs${buildQuery(params)}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar auditoría');
+  }
+  return res.json();
+}
+
+export async function fetchAuditLogById(id) {
+  const res = await fetch(`${API_URL}/audit-logs/${id}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar registro');
+  }
+  return res.json();
+}
+
+export async function fetchAuditEntities() {
+  const res = await fetch(`${API_URL}/audit-logs/meta/entities`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar entidades');
+  }
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -961,6 +1051,7 @@ export default {
   createQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
@@ -971,5 +1062,8 @@ export default {
   getCargosByReserva,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  fetchAuditLogs,
+  fetchAuditLogById,
+  fetchAuditEntities
 };

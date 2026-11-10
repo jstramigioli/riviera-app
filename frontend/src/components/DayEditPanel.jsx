@@ -16,7 +16,7 @@ export default function DayEditPanel({
   const [formData, setFormData] = useState({
     isClosed: true,
     isHoliday: false,
-    priceType: 'dynamic', // 'dynamic' o 'fixed'
+    priceType: 'dynamic', // 'dynamic'o 'fixed'
     fixedPrice: null,
     notes: '',
     roomTypePrices: []
@@ -143,13 +143,13 @@ export default function DayEditPanel({
     <SidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Editar Día - ${format(selectedDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es })}`}
+      title={`Editar Día - ${format(selectedDate, 'dd \'de\'MMMM \'de\'yyyy', { locale: es })}`}
       width={600}
     >
       <div className={styles.content}>
         {/* Estado del día */}
         <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>Estado del Día</h3>
+          <h3 className={styles.sectionTitle}> Estado del Día</h3>
           <div className={styles.formGroup}>
             <label className={styles.checkboxLabel}>
               <input
@@ -172,7 +172,7 @@ export default function DayEditPanel({
                 className={styles.checkbox}
               />
               <span className={styles.checkboxText}>
-                🏖️ Feriado/Fin de semana largo
+                Feriado/Fin de semana largo
               </span>
             </label>
           </div>
@@ -183,7 +183,7 @@ export default function DayEditPanel({
           <>
             {/* Precio base */}
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Precio Base</h3>
+              <h3 className={styles.sectionTitle}> Precio Base</h3>
               <div className={styles.priceTypeSelector}>
                 <label className={styles.radioLabel}>
                   <input
@@ -237,7 +237,7 @@ export default function DayEditPanel({
 
             {/* Notas */}
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Notas o Evento Especial</h3>
+              <h3 className={styles.sectionTitle}> Notas o Evento Especial</h3>
               <div className={styles.formGroup}>
                 <textarea
                   value={formData.notes}
@@ -251,14 +251,14 @@ export default function DayEditPanel({
 
             {/* Tarifas por tipo de habitación */}
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Tarifas por Tipo de Habitación</h3>
+              <h3 className={styles.sectionTitle}> Tarifas por Tipo de Habitación</h3>
               <div className={styles.roomTypesTable}>
                 <div className={styles.tableHeader}>
-                  <div className={styles.headerCell}>Tipo</div>
-                  <div className={styles.headerCell}>Multiplicador</div>
-                  <div className={styles.headerCell}>Precio Base</div>
-                  <div className={styles.headerCell}>Precio Final</div>
-                  <div className={styles.headerCell}>Precio Personalizado</div>
+                  <div className={styles.headerCell}> Tipo</div>
+                  <div className={styles.headerCell}> Multiplicador</div>
+                  <div className={styles.headerCell}> Precio Base</div>
+                  <div className={styles.headerCell}> Precio Final</div>
+                  <div className={styles.headerCell}> Precio Personalizado</div>
                 </div>
                 {formData.roomTypePrices.map((roomType) => (
                   <div key={roomType.roomTypeId} className={styles.tableRow}>

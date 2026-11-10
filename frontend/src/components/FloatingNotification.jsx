@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FiAlertTriangle, FiCheckCircle, FiInfo } from 'react-icons/fi';
 import '../styles/FloatingNotification.css';
 
 const FloatingNotification = ({ 
@@ -24,15 +25,14 @@ const FloatingNotification = ({
   const getIcon = () => {
     switch (type) {
       case 'error':
-        return '⚠️';
       case 'warning':
-        return '⚠️';
+        return <FiAlertTriangle aria-hidden="true" />;
       case 'success':
-        return '✅';
+        return <FiCheckCircle aria-hidden="true" />;
       case 'info':
-        return 'ℹ️';
+        return <FiInfo aria-hidden="true" />;
       default:
-        return '⚠️';
+        return <FiAlertTriangle aria-hidden="true" />;
     }
   };
 

@@ -6,8 +6,12 @@ import RoomTypesPanel from './RoomTypesPanel';
 import EtiquetasTab from './EtiquetasTab';
 import VirtualRoomsPanel from './VirtualRoomsPanel';
 import '../../styles/variables.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 function HabitacionesTab() {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const { tags } = useTags();
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -142,18 +146,19 @@ function HabitacionesTab() {
   };
 
   const handleDeleteRoom = async (room) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar la habitación "${room.name}"?\n\nEsta acción no se puede deshacer.`
-    );
-
-    if (!confirmDelete) return;
+    const ok = await confirm({
+      title: 'Eliminar habitación',
+      message: `¿Confirmás eliminar la habitación "${room.name}"?\n\nEsta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteRoom(room.id);
       setRooms(prev => prev.filter(r => r.id !== room.id));
     } catch (error) {
       console.error('Error eliminando habitación:', error);
-      alert('Error al eliminar la habitación');
+      notify({ title: 'Error', message: 'No se pudo eliminar la habitación.', type: 'error' });
     }
   };
 
@@ -191,7 +196,7 @@ function HabitacionesTab() {
 
   const renderTags = (roomTags) => {
     if (!roomTags || roomTags.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin etiquetas</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}> Sin etiquetas</span>;
     }
 
     return (
@@ -246,7 +251,7 @@ function HabitacionesTab() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando habitaciones...</div>
+        <div> Cargando habitaciones...</div>
       </div>
     );
   }
@@ -279,7 +284,6 @@ function HabitacionesTab() {
             alignItems: 'center',
             gap: '8px'
           }}>
-            <span>🏨</span>
             Habitaciones
           </h2>
         </div>
@@ -567,7 +571,6 @@ function HabitacionesTab() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🏷️</span>
               Etiquetas
             </h2>
           </div>
@@ -702,7 +705,7 @@ function HabitacionesTab() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="">Seleccionar tipo...</option>
+                  <option value=""> Seleccionar tipo...</option>
                   {roomTypes.map(type => (
                     <option key={type.id} value={type.id}>
                       {getRoomTypeLabel(type.name)} ({getRoomTypeCapacity(type.name)} personas)
@@ -816,6 +819,8 @@ function HabitacionesTab() {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }

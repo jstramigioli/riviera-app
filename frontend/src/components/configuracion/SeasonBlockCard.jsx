@@ -99,7 +99,7 @@ export default function SeasonBlockCard({ block, onEdit, onDelete }) {
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <FiDollarSign className={styles.sectionIcon} />
-          <span className={styles.sectionTitle}>Tarifas Base</span>
+          <span className={styles.sectionTitle}> Tarifas Base</span>
         </div>
         <div className={styles.sectionContent}>
           {priceSummary}
@@ -110,11 +110,11 @@ export default function SeasonBlockCard({ block, onEdit, onDelete }) {
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <FiSettings className={styles.sectionIcon} />
-          <span className={styles.sectionTitle}>Ajustes por Servicio</span>
+          <span className={styles.sectionTitle}> Ajustes por Servicio</span>
         </div>
         <div className={styles.sectionContent}>
           {adjustmentSummary.length === 0 ? (
-            <span className={styles.noAdjustments}>Sin ajustes configurados</span>
+            <span className={styles.noAdjustments}> Sin ajustes configurados</span>
           ) : (
             <div className={styles.adjustmentsList}>
               {adjustmentSummary.map(({ serviceType, adjustments }) => {
@@ -150,24 +150,24 @@ export default function SeasonBlockCard({ block, onEdit, onDelete }) {
       <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={styles.statValue}>{block.seasonPrices?.length || 0}</span>
-          <span className={styles.statLabel}>Habitaciones</span>
+          <span className={styles.statLabel}> Habitaciones</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.statValue}>
             {new Set(block.seasonServiceAdjustments?.map(adj => adj.serviceTypeId)).size || 0}
           </span>
-          <span className={styles.statLabel}>Servicios</span>
+          <span className={styles.statLabel}> Servicios</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.statValue}>{block.seasonServiceAdjustments?.length || 0}</span>
-          <span className={styles.statLabel}>Ajustes</span>
+          <span className={styles.statLabel}> Ajustes</span>
         </div>
       </div>
 
       {/* Status */}
       <div className={styles.footer}>
         <div className={`${styles.status} ${block.isActive ? styles.active : styles.inactive}`}>
-          {block.isActive ? '✅ Activo' : '❌ Inactivo'}
+          {block.isActive ? 'Activo' : 'Inactivo'}
         </div>
         <div className={styles.orderIndex}>
           Orden: {block.orderIndex}

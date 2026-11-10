@@ -40,7 +40,7 @@ export default function OccupancyFactorConfig({
           fontStyle: 'italic',
           textAlign: 'center'
         }}>
-          Esta es la ocupación considerada "normal" para calcular ajustes. 
+          Esta es la ocupación considerada "normal"para calcular ajustes. 
           Si la ocupación real es mayor, se aplica recargo; si es menor, se aplica descuento.
         </div>
       </div>

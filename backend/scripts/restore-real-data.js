@@ -30,7 +30,7 @@ async function restoreRealData() {
     await prisma.serviceType.deleteMany();
     await prisma.tag.deleteMany();
     await prisma.dynamicPricingConfig.deleteMany();
-    await prisma.roundingConfig.deleteMany();
+    /* rounding removed */
     console.log('✅ Datos limpiados');
 
     // 2. Restaurar tags
@@ -137,17 +137,6 @@ async function restoreRealData() {
       console.log(`✅ Configuración de precios dinámicos restaurada: ${dynamicPricingData.length}`);
     }
 
-    // 8. Restaurar configuración de redondeo
-    console.log('🔢 Restaurando configuración de redondeo...');
-    const roundingData = JSON.parse(fs.readFileSync(path.join(backupPath, 'roundingConfigs.json'), 'utf8'));
-    if (roundingData.length > 0) {
-      await prisma.roundingConfig.createMany({
-        data: roundingData,
-        skipDuplicates: true
-      });
-      console.log(`✅ Configuración de redondeo restaurada: ${roundingData.length}`);
-    }
-
     console.log('🎉 Restauración de datos reales completada!');
     
     // Verificar datos restaurados
@@ -158,8 +147,7 @@ async function restoreRealData() {
       prisma.roomType.count(),
       prisma.serviceType.count(),
       prisma.tag.count(),
-      prisma.dynamicPricingConfig.count(),
-      prisma.roundingConfig.count()
+      prisma.dynamicPricingConfig.count()
     ]);
     
     console.log('📊 Datos restaurados:');
@@ -170,7 +158,6 @@ async function restoreRealData() {
     console.log(`🍽️ Tipos de servicio: ${finalCounts[4]}`);
     console.log(`🏷️ Tags: ${finalCounts[5]}`);
     console.log(`⚙️ Configuración de precios: ${finalCounts[6]}`);
-    console.log(`🔢 Configuración de redondeo: ${finalCounts[7]}`);
 
   } catch (error) {
     console.error('❌ Error durante la restauración:', error);

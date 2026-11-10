@@ -104,7 +104,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
   if (!queries || queries.length === 0) {
     return (
       <div className={styles.noData}>
-        <p>No hay consultas registradas</p>
+        <p> No hay consultas registradas</p>
       </div>
     );
   }
@@ -199,7 +199,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
                   }}
                   title="Eliminar consulta"
                 >
-                  ✕
+                  
                 </button>
               </td>
             </tr>

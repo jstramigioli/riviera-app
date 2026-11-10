@@ -39,7 +39,6 @@ async function restoreComplete() {
       'dailyRoomRates',
       'roomGapPromotions',
       'reservationNightRates',
-      'roundingConfigs',
       'seasonBlocks',
       'seasonPrices',
       'proportionCoefficients',
@@ -288,11 +287,7 @@ async function restoreComplete() {
           case 'roundingConfigs':
             for (const config of data) {
               try {
-                await prisma.roundingConfig.upsert({
-                  where: { id: config.id },
-                  update: config,
-                  create: config
-                });
+                /* rounding removed */
                 restored++;
               } catch (error) {
                 errors++;

@@ -1,68 +1,51 @@
-/* Contenedor principal */
 .container {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f8f9fa;
+  background: var(--color-bg-white);
 }
 
-/* Header */
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px;
-  background: white;
-  border-bottom: 1px solid #e9ecef;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-bg-white);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.headerContent {
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  line-height: 1.4;
   flex: 1;
-}
-
-.titleSection h3 {
-  margin: 0 0 8px 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.titleSection p {
-  margin: 0 0 8px 0;
-  color: #6c757d;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.ejemplos {
-  color: #6c757d;
-  font-size: 0.8rem;
-  font-style: italic;
+  min-width: 0;
 }
 
 .addButton {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #007bff;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--color-primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .addButton:hover {
-  background: #0056b3;
-  transform: translateY(-1px);
+  background: var(--color-primary-dark);
 }
 
-/* Contenido */
 .content {
   flex: 1;
-  padding: 20px;
+  padding: 12px 16px 16px;
   overflow: auto;
 }
 
@@ -71,7 +54,7 @@
   text-align: center;
   padding: 60px 20px;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
@@ -83,7 +66,7 @@
 .emptyState h4 {
   margin: 0 0 12px 0;
   color: #2d3748;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
 }
 
 .emptyState p {
@@ -113,30 +96,33 @@
 /* Tabla */
 .tableContainer {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  font-size: var(--font-size-base);
 }
 
 .table th {
-  background: #f8f9fa;
-  padding: 16px 12px;
+  background: var(--color-bg);
+  padding: 10px 12px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #e9ecef;
-  font-size: 0.875rem;
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-medium);
 }
 
 .table td {
-  padding: 12px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-light);
   vertical-align: middle;
+  font-size: var(--font-size-base);
 }
 
 .table tr:hover {
@@ -152,7 +138,7 @@
 .toggleButton {
   width: auto !important;
   padding: 4px 8px !important;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -262,7 +248,7 @@
   height: 300px;
   text-align: center;
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   margin: 20px;
 }
 
@@ -304,7 +290,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
@@ -324,7 +310,7 @@
 .modalHeader h3 {
   margin: 0;
   color: #2d3748;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .closeButton {

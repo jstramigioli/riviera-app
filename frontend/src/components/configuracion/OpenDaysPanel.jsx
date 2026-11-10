@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [openDays, setOpenDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -111,9 +113,12 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
   };
 
   const handleDeleteOpenDay = async (id) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este día de apertura?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar día de apertura',
+      message: '¿Confirmás eliminar este día de apertura? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -351,6 +356,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
           {notification.message}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }
@@ -384,11 +390,11 @@ function AddPeriodModal({ onClose, onAdd }) {
         minWidth: '500px',
         maxWidth: '600px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Agregar Período de Apertura</h3>
+        <h3 style={{ marginBottom: '20px' }}> Agregar Período de Apertura</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fecha de inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -398,7 +404,7 @@ function AddPeriodModal({ onClose, onAdd }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha de fin:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fecha de fin:</label>
               <input
                 type="date"
                 value={formData.endDate}
@@ -416,7 +422,7 @@ function AddPeriodModal({ onClose, onAdd }) {
                 checked={formData.isClosed}
                 onChange={(e) => setFormData({ ...formData, isClosed: e.target.checked })}
               />
-              <span>Hotel cerrado</span>
+              <span> Hotel cerrado</span>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
@@ -424,12 +430,12 @@ function AddPeriodModal({ onClose, onAdd }) {
                 checked={formData.isHoliday}
                 onChange={(e) => setFormData({ ...formData, isHoliday: e.target.checked })}
               />
-              <span>Feriado/Fin de semana largo</span>
+              <span> Feriado/Fin de semana largo</span>
             </label>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Precio fijo (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Precio fijo (opcional):</label>
             <input
               type="number"
               value={formData.fixedPrice}
@@ -440,7 +446,7 @@ function AddPeriodModal({ onClose, onAdd }) {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Notas:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Notas:</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -522,10 +528,10 @@ function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
         borderRadius: '8px', 
         minWidth: '500px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Editar Día de Apertura</h3>
+        <h3 style={{ marginBottom: '20px' }}> Editar Día de Apertura</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fecha:</label>
             <input
               type="date"
               value={formData.date}
@@ -542,7 +548,7 @@ function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
                 checked={formData.isClosed}
                 onChange={(e) => setFormData({ ...formData, isClosed: e.target.checked })}
               />
-              <span>Hotel cerrado</span>
+              <span> Hotel cerrado</span>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
@@ -550,12 +556,12 @@ function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
                 checked={formData.isHoliday}
                 onChange={(e) => setFormData({ ...formData, isHoliday: e.target.checked })}
               />
-              <span>Feriado/Fin de semana largo</span>
+              <span> Feriado/Fin de semana largo</span>
             </label>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Precio fijo (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Precio fijo (opcional):</label>
             <input
               type="number"
               value={formData.fixedPrice}
@@ -566,7 +572,7 @@ function EditOpenDayModal({ openDay, onClose, onSave, onDelete }) {
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Notas:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Notas:</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

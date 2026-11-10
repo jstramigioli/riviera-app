@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
+const { calculateReservationBalance } = require('../utils/reservationBalance');
 
 // ============================================
 // CONTROLADORES DE PAGOS
@@ -303,6 +304,8 @@ exports.createCargo = async (req, res) => {
 
     cargoData.roomTypeId = parseInt(roomTypeId);
     cargoData.serviceTypeId = serviceTypeId;
+    cargoData.montoOriginal = new Decimal(monto);
+    cargoData.manualOverride = false;
   }
   // CASO 2: Otros tipos (subcategoría personalizable)
   else if (subcategoriaCargoId) {
@@ -385,11 +388,66 @@ exports.updateCargo = async (req, res) => {
     tipoCargoId, 
     tipo, 
     notas, 
-    fecha 
+    fecha,
+    clearOverride
   } = req.body;
 
   try {
+    const cargoExistente = await prisma.cargo.findUnique({
+      where: { id: parseInt(id, 10) }
+    });
+    if (!cargoExistente) {
+      return res.status(404).json({ error: 'Cargo no encontrado' });
+    }
+
+    const isLodging = !cargoExistente.subcategoriaCargoId;
     const dataToUpdate = {};
+
+    // Quitar override de alojamiento → vuelve al monto original (tarifa de la reserva)
+    if (clearOverride === true) {
+      if (!isLodging) {
+        return res.status(400).json({
+          error: 'clearOverride solo aplica a cargos de alojamiento'
+        });
+      }
+      const original = cargoExistente.montoOriginal != null
+        ? parseFloat(cargoExistente.montoOriginal)
+        : parseFloat(cargoExistente.monto);
+      dataToUpdate.monto = new Decimal(original);
+      dataToUpdate.manualOverride = false;
+      if (cargoExistente.montoOriginal == null) {
+        dataToUpdate.montoOriginal = new Decimal(original);
+      }
+
+      const cargoRestaurado = await prisma.cargo.update({
+        where: { id: parseInt(id, 10) },
+        data: dataToUpdate,
+        include: {
+          subcategoriaCargo: true,
+          roomType: true,
+          serviceType: true
+        }
+      });
+
+      // Alinear night rate de esa fecha si existe
+      try {
+        const dateKey = cargoRestaurado.fecha;
+        await prisma.reservationNightRate.updateMany({
+          where: {
+            reservationId: cargoRestaurado.reservaId,
+            date: dateKey
+          },
+          data: {
+            finalRate: original,
+            manualOverride: false
+          }
+        });
+      } catch (nrErr) {
+        console.warn('No se pudo alinear night rate al quitar override:', nrErr.message);
+      }
+
+      return res.json(cargoRestaurado);
+    }
     
     if (descripcion !== undefined) dataToUpdate.descripcion = descripcion;
     if (monto !== undefined) {
@@ -397,6 +455,14 @@ exports.updateCargo = async (req, res) => {
         return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
       }
       dataToUpdate.monto = new Decimal(monto);
+
+      // Alojamiento: monto manual tiene prioridad sobre la tarifa; se conserva original
+      if (isLodging) {
+        if (cargoExistente.montoOriginal == null) {
+          dataToUpdate.montoOriginal = new Decimal(cargoExistente.monto);
+        }
+        dataToUpdate.manualOverride = true;
+      }
     }
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
@@ -494,6 +560,24 @@ exports.updateCargo = async (req, res) => {
       }
     });
 
+    // Si se sobreescribió un cargo de alojamiento, alinear night rate
+    if (isLodging && dataToUpdate.manualOverride === true && dataToUpdate.monto !== undefined) {
+      try {
+        await prisma.reservationNightRate.updateMany({
+          where: {
+            reservationId: cargoActualizado.reservaId,
+            date: cargoActualizado.fecha
+          },
+          data: {
+            finalRate: parseFloat(cargoActualizado.monto),
+            manualOverride: true
+          }
+        });
+      } catch (nrErr) {
+        console.warn('No se pudo alinear night rate al override:', nrErr.message);
+      }
+    }
+
     res.json(cargoActualizado);
   } catch (error) {
     if (error.code === 'P2025') {
@@ -561,16 +645,7 @@ exports.getResumenFinanciero = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // Calcular totales (usando montoARS para pagos)
-    const totalCargos = cargos.reduce((sum, cargo) => {
-      return sum + parseFloat(cargo.monto);
-    }, 0);
-
-    const totalPagos = pagos.reduce((sum, pago) => {
-      return sum + parseFloat(pago.montoARS);
-    }, 0);
-
-    const saldo = totalCargos - totalPagos;
+    const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(cargos, pagos);
 
     // Agrupar cargos por tipo principal y subcategoría (enfoque híbrido)
     const cargosPorTipo = cargos.reduce((acc, cargo) => {
@@ -659,7 +734,7 @@ exports.getResumenFinanciero = async (req, res) => {
         totalCargos,
         totalPagos,
         saldo,
-        estadoPago: saldo > 0 ? 'PENDIENTE' : (saldo < 0 ? 'A_FAVOR' : 'PAGADO')
+        estadoPago
       },
       cargos: {
         total: totalCargos,
@@ -725,15 +800,10 @@ exports.getReservasConSaldos = async (req, res) => {
     });
 
     const reservasConSaldos = reservas.map(reserva => {
-      const totalCargos = reserva.cargos.reduce((sum, cargo) => {
-        return sum + parseFloat(cargo.monto);
-      }, 0);
-
-      const totalPagos = reserva.pagos.reduce((sum, pago) => {
-        return sum + parseFloat(pago.montoARS);
-      }, 0);
-
-      const saldo = totalCargos - totalPagos;
+      const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(
+        reserva.cargos,
+        reserva.pagos
+      );
 
       return {
         id: reserva.id,
@@ -743,7 +813,7 @@ exports.getReservasConSaldos = async (req, res) => {
         totalCargos,
         totalPagos,
         saldo,
-        estadoPago: saldo > 0 ? 'PENDIENTE' : (saldo < 0 ? 'A_FAVOR' : 'PAGADO'),
+        estadoPago,
         createdAt: reserva.createdAt,
         updatedAt: reserva.updatedAt
       };

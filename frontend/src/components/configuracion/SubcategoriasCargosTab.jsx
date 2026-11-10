@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import styles from './SubcategoriasCargosTab.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const SubcategoriasCargosTab = ({ tipo }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [subcategorias, setSubcategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -150,9 +154,12 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   };
 
   const handleDelete = async (subcategoria) => {
-    if (!confirm(`¿Estás seguro de eliminar la subcategoría "${subcategoria.nombre}"?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar subcategoría',
+      message: `¿Confirmás eliminar la subcategoría "${subcategoria.nombre}"?`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3001/api/subcategoria-cargo/${subcategoria.id}`, {
@@ -165,16 +172,16 @@ const SubcategoriasCargosTab = ({ tipo }) => {
       }
 
       await loadSubcategorias();
-      alert('Subcategoría eliminada exitosamente');
+      notify({ title: 'Subcategoría eliminada', message: 'Se eliminó correctamente.', type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando subcategorías de {currentTipoInfo.nombre.toLowerCase()}...</div>
+        <div className={styles.loading}> Cargando subcategorías de {currentTipoInfo.nombre.toLowerCase()}...</div>
       </div>
     );
   }
@@ -183,7 +190,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h3>Error</h3>
+          <h3> Error</h3>
           <p>{error}</p>
           <button onClick={loadSubcategorias} className={styles.retryButton}>
             Reintentar
@@ -196,30 +203,23 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.titleSection}>
-            <h3 style={{ color: currentTipoInfo.color }}>
-              Subcategorías de {currentTipoInfo.nombre}
-            </h3>
-            <p>{currentTipoInfo.descripcion}</p>
-            <small className={styles.ejemplos}>
-              <strong>Ejemplos:</strong> {currentTipoInfo.ejemplos}
-            </small>
-          </div>
-        </div>
-        <button 
+        <p className={styles.hint}>
+          {currentTipoInfo.descripcion} · Ej.: {currentTipoInfo.ejemplos}
+        </p>
+        <button
           className={styles.addButton}
           onClick={handleAddNew}
+          type="button"
         >
-          <FaPlus /> Nueva Subcategoría
+          <FaPlus /> Nueva subcategoría
         </button>
       </div>
 
       <div className={styles.content}>
         {subcategorias.length === 0 ? (
           <div className={styles.emptyState}>
-            <h4>No hay subcategorías configuradas</h4>
-            <p>Crea subcategorías personalizadas para organizar mejor los cargos de {currentTipoInfo.nombre.toLowerCase()}.</p>
+            <h4> No hay subcategorías configuradas</h4>
+            <p> Crea subcategorías personalizadas para organizar mejor los cargos de {currentTipoInfo.nombre.toLowerCase()}.</p>
             <button 
               className={styles.primaryButton}
               onClick={handleAddNew}
@@ -232,13 +232,13 @@ const SubcategoriasCargosTab = ({ tipo }) => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Estado</th>
-                  <th>Color</th>
-                  <th>Código</th>
-                  <th>Nombre</th>
-                  <th>Descripción</th>
-                  <th>Cargos</th>
-                  <th>Acciones</th>
+                  <th> Estado</th>
+                  <th> Color</th>
+                  <th> Código</th>
+                  <th> Nombre</th>
+                  <th> Descripción</th>
+                  <th> Cargos</th>
+                  <th> Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,7 +322,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Código *</label>
+                  <label> Código *</label>
                   <input
                     type="text"
                     value={formData.codigo}
@@ -331,11 +331,11 @@ const SubcategoriasCargosTab = ({ tipo }) => {
                     required
                     disabled={editingSubcategoria} // No editar código existente
                   />
-                  <small>Se convertirá automáticamente a mayúsculas</small>
+                  <small> Se convertirá automáticamente a mayúsculas</small>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Nombre *</label>
+                  <label> Nombre *</label>
                   <input
                     type="text"
                     value={formData.nombre}
@@ -347,7 +347,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Descripción</label>
+                <label> Descripción</label>
                 <textarea
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -357,7 +357,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Color</label>
+                <label> Color</label>
                 <div className={styles.colorInputContainer}>
                   <input
                     type="color"
@@ -395,6 +395,8 @@ const SubcategoriasCargosTab = ({ tipo }) => {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

@@ -21,7 +21,6 @@ model Hotel {
   dailyRoomRates       DailyRoomRate[]
   dynamicPricingConfig DynamicPricingConfig?
   openDays             OpenDay[]
-  roundingConfig       RoundingConfig?
   seasonBlocks         SeasonBlock[]
   serviceTypes         ServiceType[]
 }
@@ -124,9 +123,14 @@ model Client {
   notes           String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Guest {
@@ -162,6 +166,9 @@ model Reservation {
   segments            ReservationSegment[]
   pagos               Pago[]
   cargos              Cargo[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model QueryGroup {
@@ -195,6 +202,8 @@ model Query {
   nightRates        QueryNightRate[]
 
   @@index([queryGroupId])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model QueryGuest {
@@ -354,16 +363,6 @@ model ReservationNightRate {
   reservation            Reservation @relation(fields: [reservationId], references: [id])
 
   @@unique([reservationId, date])
-}
-
-model RoundingConfig {
-  id        String   @id @default(cuid())
-  hotelId   String   @unique
-  multiple  Int      @default(1)
-  mode      String   @default("nearest")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
 }
 
 model SeasonBlock {
@@ -535,10 +534,66 @@ model Cargo {
   // Campos básicos
   descripcion         String
   monto               Decimal            @db.Decimal(10, 2)
+  // Tarifa/cálculo original de la reserva; el monto efectivo puede sobreescribirse
+  montoOriginal       Decimal?           @db.Decimal(10, 2)
+  manualOverride      Boolean            @default(false)
   fecha               DateTime           @default(now())
   notas               String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  GERENCIA
+  RECEPCION
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  displayName  String
+  passwordHash String
+  role         UserRole
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Registro de cambios de datos (quién / qué / cuándo). Escrito por extensión Prisma + contexto ALS de auth.
+model AuditLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  actorUserId     String?
+  actorUsername   String?
+  actorDisplayName String?
+  actorRole       String?
+  action          String   // CREATE | UPDATE | DELETE | CREATE_MANY | UPDATE_MANY | DELETE_MANY | UPSERT
+  entity          String   // nombre de modelo Prisma (Reservation, Client, ...)
+  entityId        String?  // id como string (soporta Int y cuid)
+  summary         String
+  before          Json?
+  after           Json?
+  diff            Json?
+  meta            Json?
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([actorUserId])
+  @@index([action])
 }
 
 enum ReservationStatus {

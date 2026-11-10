@@ -123,17 +123,17 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
   };
 
   if (loading) {
-    return <div className={styles.loading}>Cargando servicios...</div>;
+    return <div className={styles.loading}> Cargando servicios...</div>;
   }
 
   if (error) {
-    return <div className={styles.error}>Error: {error}</div>;
+    return <div className={styles.error}> Error: {error}</div>;
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h3>Servicios del Bloque</h3>
+        <h3> Servicios del Bloque</h3>
         <button
           className={styles.addButton}
           onClick={() => setShowAddForm(true)}
@@ -147,16 +147,16 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
       {showAddForm && (
         <div className={styles.formOverlay}>
           <div className={styles.form}>
-            <h4>Agregar Servicio</h4>
+            <h4> Agregar Servicio</h4>
             <form onSubmit={handleAddService}>
               <div className={styles.formGroup}>
-                <label>Servicio:</label>
+                <label> Servicio:</label>
                 <select
                   value={formData.serviceTypeId}
                   onChange={(e) => setFormData({ ...formData, serviceTypeId: e.target.value })}
                   required
                 >
-                  <option value="">Seleccionar servicio</option>
+                  <option value=""> Seleccionar servicio</option>
                   {availableServices.map(service => (
                     <option key={service.id} value={service.id}>
                       {service.name}
@@ -186,10 +186,10 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
       {editingSelection && (
         <div className={styles.formOverlay}>
           <div className={styles.form}>
-            <h4>Editar Servicio: {editingSelection.serviceType.name}</h4>
+            <h4> Editar Servicio: {editingSelection.serviceType.name}</h4>
             <form onSubmit={handleEditService}>
               <div className={styles.formGroup}>
-                <label>Habilitado:</label>
+                <label> Habilitado:</label>
                 <input
                   type="checkbox"
                   checked={formData.isEnabled}
@@ -218,7 +218,7 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
       <div className={styles.servicesList}>
         {selections.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No hay servicios configurados. Agrega servicios para ver la tabla de precios.</p>
+            <p> No hay servicios configurados. Agrega servicios para ver la tabla de precios.</p>
           </div>
         ) : (
           <div className={styles.servicesGrid}>

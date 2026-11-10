@@ -124,25 +124,6 @@ async function ensureDefaultData() {
       console.log('✅ Configuración de dynamic pricing encontrada');
     }
 
-    // Verificar configuración de redondeo
-    let roundingConfig = await prisma.roundingConfig.findUnique({
-      where: { hotelId: 'default-hotel' }
-    });
-
-    if (!roundingConfig) {
-      console.log('🔢 Creando configuración de redondeo...');
-      roundingConfig = await prisma.roundingConfig.create({
-        data: {
-          hotelId: 'default-hotel',
-          multiple: 1,
-          mode: 'nearest'
-        }
-      });
-      console.log('✅ Configuración de redondeo creada');
-    } else {
-      console.log('✅ Configuración de redondeo encontrada');
-    }
-
     console.log('🎉 Verificación completada exitosamente');
     
   } catch (error) {

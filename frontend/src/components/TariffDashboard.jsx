@@ -19,7 +19,7 @@ export default function TariffDashboard() {
   if (loading) {
     return (
       <div className={styles.dashboardContainer}>
-        <div className={styles.loading}>Cargando información de tarifas...</div>
+        <div className={styles.loading}> Cargando información de tarifas...</div>
       </div>
     );
   }
@@ -37,9 +37,9 @@ export default function TariffDashboard() {
   return (
     <div className={styles.dashboardContainer}>
       <div className={styles.header}>
-        <h1 className={styles.title}>💰 Gestión de Tarifas</h1>
+        <h1 className={styles.title}>Tarifas</h1>
         <p className={styles.subtitle}>
-          Consulta y gestiona las tarifas del hotel, precios inteligentes y bloques de temporada
+          Resumen operativo. La fuente de verdad es Configuración → Cargos y Tarifas (bloques de temporada, ARS).
         </p>
       </div>
 

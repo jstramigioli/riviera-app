@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { fetchVirtualRooms, fetchRooms, fetchRoomTypes, createVirtualRoom, updateVirtualRoom, deleteVirtualRoom } from '../../services/api';
 import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 function VirtualRoomsPanel() {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [virtualRooms, setVirtualRooms] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -133,18 +137,19 @@ function VirtualRoomsPanel() {
   };
 
   const handleDeleteVirtualRoom = async (virtualRoom) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar la habitación virtual "${virtualRoom.name}"?\n\nEsta acción no se puede deshacer.`
-    );
-
-    if (!confirmDelete) return;
+    const ok = await confirm({
+      title: 'Eliminar habitación virtual',
+      message: `¿Confirmás eliminar la habitación virtual "${virtualRoom.name}"?\n\nEsta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteVirtualRoom(virtualRoom.id);
       setVirtualRooms(prev => prev.filter(vr => vr.id !== virtualRoom.id));
     } catch (error) {
       console.error('Error eliminando habitación virtual:', error);
-      alert('Error al eliminar la habitación virtual');
+      notify({ title: 'Error', message: 'No se pudo eliminar la habitación virtual.', type: 'error' });
     }
   };
 
@@ -224,7 +229,7 @@ function VirtualRoomsPanel() {
 
   const renderComponentRooms = (components) => {
     if (!components || components.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin habitaciones</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}> Sin habitaciones</span>;
     }
 
     return (
@@ -282,7 +287,7 @@ function VirtualRoomsPanel() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando habitaciones virtuales...</div>
+        <div> Cargando habitaciones virtuales...</div>
       </div>
     );
   }
@@ -314,7 +319,6 @@ function VirtualRoomsPanel() {
             alignItems: 'center',
             gap: '8px'
           }}>
-            <span>🏗️</span>
             Habitaciones Virtuales
           </h2>
           <p style={{ 
@@ -691,7 +695,7 @@ function VirtualRoomsPanel() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="">Seleccionar tipo...</option>
+                  <option value=""> Seleccionar tipo...</option>
                   {roomTypes.map(type => (
                     <option key={type.id} value={type.id}>
                       {getRoomTypeLabel(type.name)} ({getRoomTypeCapacity(type.name)} personas)
@@ -739,7 +743,7 @@ function VirtualRoomsPanel() {
                           backgroundColor: 'var(--color-bg-white)'
                         }}
                       >
-                        <option value="">Seleccionar habitación...</option>
+                        <option value=""> Seleccionar habitación...</option>
                         {rooms.map(room => (
                           <option key={room.id} value={room.id}>
                             {room.name} ({getRoomTypeLabel(getRoomTypeById(room.roomTypeId)?.name || '')})
@@ -857,6 +861,8 @@ function VirtualRoomsPanel() {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }
