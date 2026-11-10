@@ -124,9 +124,14 @@ model Client {
   notes           String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Guest {
@@ -162,6 +167,9 @@ model Reservation {
   segments            ReservationSegment[]
   pagos               Pago[]
   cargos              Cargo[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model QueryGroup {
@@ -195,6 +203,8 @@ model Query {
   nightRates        QueryNightRate[]
 
   @@index([queryGroupId])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model QueryGuest {
@@ -572,6 +582,29 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Registro de cambios de datos (quién / qué / cuándo). Escrito por extensión Prisma + contexto ALS de auth.
+model AuditLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  actorUserId     String?
+  actorUsername   String?
+  actorDisplayName String?
+  actorRole       String?
+  action          String   // CREATE | UPDATE | DELETE | CREATE_MANY | UPDATE_MANY | DELETE_MANY | UPSERT
+  entity          String   // nombre de modelo Prisma (Reservation, Client, ...)
+  entityId        String?  // id como string (soporta Int y cuid)
+  summary         String
+  before          Json?
+  after           Json?
+  diff            Json?
+  meta            Json?
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([actorUserId])
+  @@index([action])
 }
 
 enum ReservationStatus {

@@ -1,10 +1,12 @@
 const prisma = require('../utils/prisma');
 const { aggregateReservationsBalance } = require('../utils/reservationBalance');
 
-// Listar todos los clientes
+// Listar todos los clientes (incluye createdAt/updatedAt para comparaciones temporales)
 exports.getAllClients = async (req, res) => {
   try {
-    const clients = await prisma.client.findMany();
+    const clients = await prisma.client.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(clients);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching clients' });
