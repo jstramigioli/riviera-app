@@ -335,7 +335,6 @@ async function deleteSeedBlocks(hotelId, dryRun) {
   const ids = existing.map((b) => b.id);
   await prisma.seasonPrice.deleteMany({ where: { seasonBlockId: { in: ids } } });
   await prisma.blockServiceSelection.deleteMany({ where: { seasonBlockId: { in: ids } } });
-  await prisma.proportionCoefficient.deleteMany({ where: { seasonBlockId: { in: ids } } });
   await prisma.seasonBlock.deleteMany({ where: { id: { in: ids } } });
   console.log('Ô£à Bloques anteriores eliminados');
 }

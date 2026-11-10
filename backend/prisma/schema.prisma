@@ -39,7 +39,6 @@ model RoomType {
   maxPeople              Int                     @default(1)
   orderIndex             Int                     @default(0)
   dailyRoomRates         DailyRoomRate[]
-  proportionCoefficients ProportionCoefficient[]
   segments               ReservationSegment[]
   rooms                  Room[]
   seasonPrices           SeasonPrice[]
@@ -374,7 +373,6 @@ model SeasonBlock {
   endDate                DateTime
   orderIndex             Int                     @default(0)
   useBlockServices       Boolean                 @default(false)
-  useProportions         Boolean                 @default(false)
   referenceRoomTypeId    Int?
   serviceAdjustmentMode  String                  @default("PERCENTAGE")
   isDraft                Boolean                 @default(true)
@@ -382,7 +380,6 @@ model SeasonBlock {
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
-  proportionCoefficients ProportionCoefficient[]
   hotel                  Hotel                   @relation(fields: [hotelId], references: [id])
   seasonPrices           SeasonPrice[]
 
@@ -403,19 +400,6 @@ model SeasonPrice {
   serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
 
   @@unique([seasonBlockId, roomTypeId, serviceTypeId])
-}
-
-model ProportionCoefficient {
-  id            String      @id @default(cuid())
-  seasonBlockId String
-  roomTypeId    Int
-  coefficient   Float       @default(1.0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
-  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
-
-  @@unique([seasonBlockId, roomTypeId])
 }
 
 model ServiceType {
