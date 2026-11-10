@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FiLock, FiUnlock } from 'react-icons/fi';
 
 export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
   console.log('TarifasPreviewPanelV3 - Componente iniciado con hotelId:', hotelId);
@@ -7,7 +6,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
   // Estados principales
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [lockedMode, setLockedMode] = useState(false); // Nuevo estado para el modo bloqueado
   
   // Datos del sistema
   const [basePrice, setBasePrice] = useState(100000); // Precio por defecto
@@ -157,14 +155,7 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
 
   const handlePriceConfirm = (roomTypeName, priceType, value) => {
     const newPrice = parseFloat(value) || 0;
-    
-    if (lockedMode) {
-      // Modo bloqueado: mantener proporciones
-      handleLockedPriceChange(roomTypeName, priceType, newPrice);
-    } else {
-      // Modo libre: cambiar solo el precio específico
-      handleFreePriceChange(roomTypeName, priceType, newPrice);
-    }
+    handleFreePriceChange(roomTypeName, priceType, newPrice);
     
     // Limpiar el estado de edición temporal
     const newEditingPrices = { ...editingPrices };
@@ -190,48 +181,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
     
     newRoomPrices[roomTypeName][priceType] = newPrice;
     setRoomPrices(newRoomPrices);
-  };
-
-  const handleLockedPriceChange = (roomTypeName, priceType, newPrice) => {
-    const newRoomPrices = { ...roomPrices };
-    
-    // Obtener el precio actual del tipo de habitación que se está modificando
-    const currentPrices = roomPrices[roomTypeName] || {
-      base: basePrice,
-      breakfast: basePrice,
-      halfBoard: basePrice
-    };
-    
-    // Calcular el factor de cambio basado en el precio modificado
-    let changeFactor;
-    if (priceType === 'base') {
-      changeFactor = newPrice / currentPrices.base;
-    } else if (priceType === 'breakfast') {
-      changeFactor = newPrice / currentPrices.breakfast;
-    } else if (priceType === 'halfBoard') {
-      changeFactor = newPrice / currentPrices.halfBoard;
-    }
-    
-    // Aplicar el mismo factor de cambio a todos los tipos de habitación
-    roomTypes.forEach(roomType => {
-      const currentRoomPrices = roomPrices[roomType.name] || {
-        base: basePrice,
-        breakfast: basePrice,
-        halfBoard: basePrice
-      };
-      
-      newRoomPrices[roomType.name] = {
-        base: Math.round(currentRoomPrices.base * changeFactor),
-        breakfast: Math.round(currentRoomPrices.breakfast * changeFactor),
-        halfBoard: Math.round(currentRoomPrices.halfBoard * changeFactor)
-      };
-    });
-    
-    setRoomPrices(newRoomPrices);
-  };
-
-  const toggleLockedMode = () => {
-    setLockedMode(!lockedMode);
   };
 
   // Funciones para gestión de tipos de tarifa
@@ -359,25 +308,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
           />
         </div>
         
-        <button
-          onClick={toggleLockedMode}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            backgroundColor: lockedMode ? '#28a745' : '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: 'var(--font-size-medium)',
-            fontWeight: '500'
-          }}
-        >
-          {lockedMode ? <FiLock /> : <FiUnlock />}
-          {lockedMode ? 'Proporciones Bloqueadas' : 'Proporciones Libres'}
-        </button>
       </div>
 
 
@@ -600,21 +530,6 @@ export default function TarifasPreviewPanelV3({ hotelId = "default-hotel" }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Información del modo */}
-      <div style={{ 
-        marginTop: '15px', 
-        padding: '10px', 
-        backgroundColor: lockedMode ? '#d4edda' : '#fff3cd', 
-        borderRadius: '4px',
-        fontSize: 'var(--font-size-small)',
-        color: lockedMode ? '#155724' : '#856404'
-      }}>
-        <strong> Modo actual:</strong> {lockedMode ? 
-          'Proporciones bloqueadas - Los cambios mantienen las proporciones entre tipos de habitación' : 
-          'Proporciones libres - Cada precio se edita independientemente'
-        }
       </div>
 
       {/* Modal para agregar/editar tipo de tarifa */}

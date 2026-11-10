@@ -4,6 +4,7 @@ import Switch from 'react-switch';
 import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
+import { hasActiveSeasonOverlap, toCivilDate } from '../../utils/seasonBlockOverlap';
 import styles from './SeasonBlockBarV2.module.css';
 
 const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened, seasonBlocks = [] }) => {
@@ -283,42 +284,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   };
 
-  // Función para verificar superposición de fechas
+  // Overlap cerrado por día civil; solo bloques activos; excluye el actual
   const checkDateOverlap = (startDate, endDate, otherBlocks) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    console.log('🔍 checkDateOverlap - Fechas a verificar:', { start, end });
-    console.log('🔍 checkDateOverlap - Bloques a comparar:', otherBlocks.length);
-    
-    return otherBlocks.some(otherBlock => {
-      if (otherBlock.id === block?.id) {
-        console.log('🔍 Excluyendo bloque actual:', otherBlock.id);
-        return false; // Excluir el bloque actual
-      }
-      
-      // 🚨 VALIDACIÓN CRÍTICA: Solo verificar bloques activos (no borradores)
-      if (otherBlock.isDraft) {
-        console.log('🔍 Excluyendo bloque borrador:', otherBlock.id);
-        return false;
-      }
-      
-      const otherStart = new Date(otherBlock.startDate);
-      const otherEnd = new Date(otherBlock.endDate);
-      
-      console.log('🔍 Comparando con bloque activo:', {
-        id: otherBlock.id,
-        name: otherBlock.name,
-        otherStart,
-        otherEnd,
-        isDraft: otherBlock.isDraft
-      });
-      
-      // Verificar si hay superposición
-      const hasOverlap = (start <= otherEnd && end >= otherStart);
-      console.log('🔍 ¿Hay superposición con este bloque activo?', hasOverlap);
-      
-      return hasOverlap;
+    return hasActiveSeasonOverlap(startDate, endDate, otherBlocks || [], block?.id, {
+      includeDrafts: false
     });
   };
 
@@ -385,10 +354,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       console.error('Error in handleConfirm:', error);
       showNotification('Error al guardar los cambios', 'error');
     }
-  };
-
-  const handleProportionToggle = (enabled) => {
-    updateFormData('useProportions', enabled);
   };
 
 
@@ -536,6 +501,9 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       if (!block) return;
       
       const newDraftStatus = !block.isDraft;
+      // Usar fechas del formulario (editadas), no el snapshot del prop/DB
+      const effectiveStart = toCivilDate(formData.startDate || block.startDate);
+      const effectiveEnd = toCivilDate(formData.endDate || block.endDate);
       
       // Validación: No permitir activar un bloque si todos los servicios están deshabilitados
       if (!newDraftStatus) { // Si se está intentando activar (newDraftStatus = false)
@@ -544,31 +512,33 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           showNotification('No se puede activar un bloque sin servicios habilitados', 'error');
           return;
         }
+
+        if (!effectiveStart || !effectiveEnd) {
+          showNotification('No se puede activar: el bloque debe tener fechas de inicio y fin', 'error');
+          return;
+        }
         
-        // 🚨 VALIDACIÓN CRÍTICA: Verificar superposición de fechas al activar
-        console.log('🔍 Validando superposición al activar bloque...');
-        console.log('📅 Fechas del bloque a activar:', { startDate: block.startDate, endDate: block.endDate });
-        console.log('📋 Bloques existentes:', seasonBlocks?.length || 0);
-        
-        const hasOverlap = checkDateOverlap(block.startDate, block.endDate, seasonBlocks || []);
-        console.log('🔍 ¿Hay superposición al activar?', hasOverlap);
+        const hasOverlap = checkDateOverlap(effectiveStart, effectiveEnd, seasonBlocks || []);
         
         if (hasOverlap) {
-          console.log('🚨 Superposición detectada al activar - bloqueando activación');
           showNotification('No se puede activar: las fechas se superponen con otro bloque activo', 'error');
           return;
         }
       }
       
-      // Llamar a la API para actualizar solo el campo isDraft
+      // Enviar fechas efectivas al activar para no validar fechas viejas en el backend
+      const payload = {
+        isDraft: newDraftStatus
+      };
+      if (effectiveStart) payload.startDate = effectiveStart;
+      if (effectiveEnd) payload.endDate = effectiveEnd;
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/season-blocks/${block.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          isDraft: newDraftStatus
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (response.ok) {
@@ -640,34 +610,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
 
 
-  // Confirmar cambio de precio (aplicar proporciones)
+  // Confirmar cambio de precio (solo la celda editada; sin proporciones)
   const handlePriceInputConfirm = (e) => {
-    console.log('=== HANDLE PRICE INPUT CONFIRM ===');
-    console.log('Event target:', e.target);
-    console.log('Dataset:', e.target.dataset);
-    console.log('Editing cell:', editingCell);
-    
     const roomTypeId = e.target.dataset.roomTypeId;
     const serviceTypeId = e.target.dataset.serviceTypeId;
-    const value = editingCell.value || e.target.value; // Usar editingCell.value como prioridad
-    
-    console.log('roomTypeId:', roomTypeId);
-    console.log('serviceTypeId:', serviceTypeId);
-    console.log('editingCell.value:', editingCell.value);
-    console.log('e.target.value:', e.target.value);
-    console.log('Final value to use:', value);
+    const value = editingCell.value || e.target.value;
     
     if (roomTypeId && serviceTypeId && value !== '') {
-      // Usar el tipo correcto para roomTypeId (puede ser string o number)
       const parsedRoomTypeId = isNaN(roomTypeId) ? roomTypeId : parseInt(roomTypeId);
-      
-      console.log('parsedRoomTypeId:', parsedRoomTypeId);
-      console.log('Calling updatePrice with:', parsedRoomTypeId, serviceTypeId, value, true);
-      
-      // Llamar directamente a updatePrice con applyProportions: true
-      updatePrice(parsedRoomTypeId, serviceTypeId, value, true);
-    } else {
-      console.log('Missing required data for price update');
+      updatePrice(parsedRoomTypeId, serviceTypeId, value);
     }
     
     setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
@@ -1019,31 +970,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Toggle de proporciones en edición (guardar/cancelar van arriba como iconos) */}
-      {isEditing && (
-        <div className={styles.actionButtons}>
-          <div className={styles.toggleControls}>
-            <label
-              className={styles.toggleLabel}
-              title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas."
-            >
-              <Switch
-                checked={formData.useProportions}
-                onChange={handleProportionToggle}
-                onColor="#3b82f6"
-                offColor="#d1d5db"
-                checkedIcon={false}
-                uncheckedIcon={false}
-                width={44}
-                height={24}
-                handleDiameter={18}
-              />
-              <span className={styles.toggleText}>Mantener proporciones</span>
-            </label>
-          </div>
         </div>
       )}
 
