@@ -9,8 +9,10 @@ import {
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { FiFilter } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
+import ConsumptionOrderModal from './ConsumptionOrderModal';
 import { fetchCalendar, fetchReservation } from '../services/api';
 import {
   todayIsoLocal,
@@ -84,6 +86,8 @@ export default function LibroReservasBoard({
   const [roomTypeFilter, setRoomTypeFilter] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, left: 0 });
+  const [consumptionOpen, setConsumptionOpen] = useState(false);
+  const navigate = useNavigate();
 
   const scrollerRef = useRef(null);
   const measureRef = useRef(null);
@@ -473,9 +477,6 @@ export default function LibroReservasBoard({
   return (
     <>
       <div className={styles.board} ref={measureRef}>
-        <button type="button" className={styles.todayBtn} onClick={jumpToToday}>
-          Hoy
-        </button>
         {loadingEdge ? (
           <span className={styles.loadingEdge} aria-live="polite">
             cargando {loadingEdge === 'left' ? '←' : '→'}
@@ -676,7 +677,17 @@ export default function LibroReservasBoard({
         }}
       />
 
-      <FloatingActionButton onCreateQuery={() => { window.location.href = '/consulta'; }} />
+      <FloatingActionButton
+        onToday={jumpToToday}
+        onCreateQuery={() => navigate('/consulta')}
+        onCreateReservation={() => navigate('/consulta?modo=reserva')}
+        onCreateConsumption={() => setConsumptionOpen(true)}
+      />
+
+      <ConsumptionOrderModal
+        open={consumptionOpen}
+        onClose={() => setConsumptionOpen(false)}
+      />
     </>
   );
 }

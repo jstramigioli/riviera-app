@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings, FiClipboard } from 'react-icons/fi';
+import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings, FiClipboard, FiCoffee } from 'react-icons/fi';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
+import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
@@ -14,6 +15,7 @@ const SETTINGS_TABS = [
   { id: 'hotel', label: 'Hotel', icon: FiHome },
   { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
   { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
+  { id: 'menu-consumos', label: 'Menú', icon: FiCoffee },
   { id: 'calendario', label: 'Calendario', icon: FiCalendar },
   { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
   { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
@@ -71,6 +73,8 @@ function ConfiguracionView() {
         return <HabitacionesTab />;
       case 'cargos-tarifas':
         return <CargosTarifasTab />;
+      case 'menu-consumos':
+        return <MenuConsumosTab />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':

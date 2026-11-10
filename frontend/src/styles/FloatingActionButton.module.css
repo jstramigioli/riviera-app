@@ -1,134 +1,128 @@
-/* FloatingActionButton.module.css */
 .floatingActionContainer {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 0.55rem;
 }
 
-/* Botón principal */
+.todayButton {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  min-width: 3.25rem;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  font-family: var(--font-main);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.todayButton:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border-color: var(--color-primary);
+}
+
+.todayButton:focus-visible,
+.mainButton:focus-visible,
+.actionButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .mainButton {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   background: var(--color-primary);
   border: none;
-  color: white;
-  font-size: var(--font-size-large);
-  font-weight: 600;
+  color: var(--color-text-light);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-md);
+  transition: background 0.15s ease, transform 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  user-select: none;
-  z-index: 1002;
+  z-index: 2;
 }
 
 .mainButton:hover {
   background: var(--color-primary-dark);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
-}
-
-.mainButton:active {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 .mainButton.expanded {
-  background: var(--color-danger);
-}
-
-.mainButton.expanded:hover {
-  background: var(--color-danger-dark);
+  background: var(--color-secondary-dark);
 }
 
 .plusIcon {
+  display: flex;
   line-height: 1;
-  margin-top: -2px;
-  transition: transform 0.2s ease;
+  font-size: 1.35rem;
 }
 
-/* Contenedor de botones de acción */
 .actionButtons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
+  align-items: flex-end;
+  gap: 0.4rem;
+  max-height: 0;
   opacity: 0;
-  transform: translateY(8px);
+  overflow: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateY(6px);
+  transition: max-height 0.2s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
 .actionButtons.expanded {
+  max-height: 220px;
   opacity: 1;
-  transform: translateY(0);
   pointer-events: auto;
+  transform: translateY(0);
 }
 
-/* Botones de acción individuales */
 .actionButton {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: white;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
   color: var(--color-text-main);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-medium);
   font-weight: 500;
+  font-family: var(--font-main);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  transition: background 0.15s ease;
+  box-shadow: var(--shadow-sm);
   white-space: nowrap;
-  min-width: 140px;
+  min-width: 10.5rem;
   justify-content: flex-start;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .actionButton:hover {
-  background: var(--color-bg);
-}
-
-.actionButton:active {
-  background: var(--color-border-light);
-}
-
-.queryButton {
-  background: var(--color-warning);
-  border-color: transparent;
-  color: #3d3200;
-}
-
-.queryButton:hover {
-  background: #e0a800;
-}
-
-.reservationButton {
-  background: var(--color-success);
-  border-color: transparent;
-  color: white;
-}
-
-.reservationButton:hover {
-  background: var(--color-success-dark);
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
 }
 
 .actionIcon {
-  font-size: 14px;
-  width: 18px;
-  text-align: center;
+  display: flex;
+  color: var(--color-primary);
+  font-size: 0.95rem;
 }
 
 .actionLabel {
   font-weight: 500;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .floatingActionContainer {
     bottom: 1rem;
@@ -136,37 +130,12 @@
   }
 
   .mainButton {
-    width: 40px;
-    height: 40px;
-    font-size: 1.35rem;
+    width: 48px;
+    height: 48px;
   }
 
   .actionButton {
-    padding: 7px 10px;
+    min-width: 9.5rem;
     font-size: var(--font-size-small);
-    min-width: 120px;
-  }
-
-  .actionButtons {
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .floatingActionContainer {
-    bottom: 0.75rem;
-    right: 0.75rem;
-  }
-
-  .mainButton {
-    width: 38px;
-    height: 38px;
-    font-size: var(--font-size-large);
-  }
-
-  .actionButton {
-    padding: 6px 10px;
-    min-width: 110px;
   }
 }

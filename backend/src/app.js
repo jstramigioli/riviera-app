@@ -26,6 +26,8 @@ const virtualRoomRoutes = require('./routes/virtualRoom.routes');
 const configuracionRoutes = require('./routes/configuracion.routes');
 const tipoCargoRoutes = require('./routes/tipoCargoRoutes');
 const subcategoriaCargoRoutes = require('./routes/subcategoriaCargoRoutes');
+const menuItemRoutes = require('./routes/menuItem.routes');
+const consumptionRoutes = require('./routes/consumption.routes');
 const alojamientoRoutes = require('./routes/alojamientoRoutes');
 const calendarRoutes = require('./routes/calendar.routes');
 const authRoutes = require('./routes/auth.routes');
@@ -98,6 +100,8 @@ app.use('/api/virtual-rooms', settings, virtualRoomRoutes);
 app.use('/api/configuracion', settings, configuracionRoutes);
 app.use('/api/tipo-cargo', finanzas, tipoCargoRoutes);
 app.use('/api/subcategoria-cargo', settings, subcategoriaCargoRoutes);
+app.use('/api/menu-items', ops, menuItemRoutes);
+app.use('/api/consumptions', finanzas, consumptionRoutes);
 app.use('/api/alojamiento', finanzas, alojamientoRoutes);
 app.use('/api/calendar', ops, calendarRoutes);
 

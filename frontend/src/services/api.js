@@ -867,6 +867,95 @@ export async function deleteCargo(cargoId) {
 }
 
 // ============================================
+// Menú de consumos / comanda POS
+// ============================================
+
+export async function fetchMenuItems({ category, q, active } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (q) params.set('q', q);
+  if (active === true) params.set('active', 'true');
+  if (active === false) params.set('active', 'false');
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items${qs ? `?${qs}` : ''}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar el menú');
+  }
+  return res.json();
+}
+
+export async function createMenuItem(data) {
+  const res = await fetch(`${API_URL}/menu-items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear ítem');
+  }
+  return res.json();
+}
+
+export async function updateMenuItem(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar ítem');
+  }
+  return res.json();
+}
+
+export async function toggleMenuItem(id) {
+  const res = await fetch(`${API_URL}/menu-items/${id}/toggle`, {
+    method: 'PUT'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del ítem');
+  }
+  return res.json();
+}
+
+export async function deleteMenuItem(id) {
+  const res = await fetch(`${API_URL}/menu-items/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar ítem');
+  }
+  return res.json();
+}
+
+export async function fetchOccupiedRoomsToday() {
+  const res = await fetch(`${API_URL}/consumptions/occupied-rooms`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar habitaciones ocupadas');
+  }
+  return res.json();
+}
+
+export async function createConsumptionOrder(data) {
+  const res = await fetch(`${API_URL}/consumptions/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al cargar el consumo');
+  }
+  return res.json();
+}
+
+// ============================================
 // FUNCIONES DE CONFIGURACIÓN
 // ============================================
 

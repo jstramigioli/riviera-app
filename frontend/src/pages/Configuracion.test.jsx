@@ -17,6 +17,10 @@ vi.mock('../components/configuracion/CargosTarifasTab', () => ({
   default: () => <div data-testid="cargos-tarifas-tab">Cargos y Tarifas Tab</div>
 }))
 
+vi.mock('../components/configuracion/MenuConsumosTab', () => ({
+  default: () => <div data-testid="menu-consumos-tab">Menú Tab</div>
+}))
+
 vi.mock('../components/configuracion/HotelConfigPanel', () => ({
   default: () => <div data-testid="hotel-tab">Hotel Tab</div>
 }))
@@ -65,6 +69,7 @@ describe('Configuracion', () => {
     renderConfig()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
     expect(screen.getByText('Cargos y Tarifas')).toBeInTheDocument()
+    expect(screen.getByText('Menú')).toBeInTheDocument()
     expect(screen.getByText('Usuarios')).toBeInTheDocument()
     expect(screen.getByText('Sistema')).toBeInTheDocument()
     expect(screen.getByText('Auditoría')).toBeInTheDocument()

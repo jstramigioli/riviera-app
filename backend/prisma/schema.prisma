@@ -599,6 +599,28 @@ model Configuracion {
   updatedAt   DateTime @updatedAt
 }
 
+/// Ítems del menú de consumos (comanda / POS). Categorías fijas: Bebidas, Minutas, Cafetería.
+enum MenuCategory {
+  BEBIDAS
+  MINUTAS
+  CAFETERIA
+}
+
+model MenuItem {
+  id          Int          @id @default(autoincrement())
+  category    MenuCategory
+  name        String
+  price       Decimal      @db.Decimal(10, 2)
+  description String?
+  isActive    Boolean      @default(true)
+  ordenIndex  Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([category, isActive])
+  @@index([name])
+}
+
 enum ServiceAdjustmentMode {
   FIXED
   PERCENTAGE
