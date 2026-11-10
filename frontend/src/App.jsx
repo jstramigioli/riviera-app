@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import LibroReservasBoard from './components/LibroReservasBoard';
@@ -12,7 +12,6 @@ import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
-import AuditoriaView from './pages/Auditoria';
 import RatesCalendar from './components/RatesCalendar';
 import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
@@ -627,16 +626,12 @@ function App() {
             />
             <Route
               path="/auditoria"
-              element={(
-                <ProtectedRoute permission="auditoria">
-                  <AppShell><AuditoriaView /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<Navigate to="/configuracion?tab=auditoria" replace />}
             />
             <Route
               path="/configuracion"
               element={(
-                <ProtectedRoute permission="settings">
+                <ProtectedRoute permission={['settings', 'auditoria']}>
                   <AppShell><ConfiguracionView /></AppShell>
                 </ProtectedRoute>
               )}

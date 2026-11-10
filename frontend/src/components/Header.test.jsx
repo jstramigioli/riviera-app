@@ -21,8 +21,16 @@ describe('Header', () => {
   it('renders navigation links', () => {
     render(<Header />)
     expect(screen.getByText('Libro de Reservas')).toBeInTheDocument()
-    expect(screen.getByText('Tarifas')).toBeInTheDocument()
+    expect(screen.getByText('Consultas y Reservas')).toBeInTheDocument()
+    expect(screen.getByText('Cobros y Pagos')).toBeInTheDocument()
     expect(screen.getByText('Estadísticas')).toBeInTheDocument()
+  })
+
+  it('does not render Tarifas, Precios inteligentes or Auditoría in top nav', () => {
+    render(<Header />)
+    expect(screen.queryByText('Tarifas')).not.toBeInTheDocument()
+    expect(screen.queryByText('Precios Inteligentes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Auditoría')).not.toBeInTheDocument()
   })
 
   it('has correct navigation structure', () => {

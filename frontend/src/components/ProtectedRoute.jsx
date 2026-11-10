@@ -18,7 +18,10 @@ function ProtectedRoute({ children, permission }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (permission && !can(permission)) {
+  const required = Array.isArray(permission)
+    ? permission
+    : (permission ? [permission] : []);
+  if (required.length > 0 && !required.some((item) => can(item))) {
     return <Navigate to="/libro-de-reservas" replace />;
   }
 
