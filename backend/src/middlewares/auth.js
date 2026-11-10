@@ -4,6 +4,7 @@ const {
   publicUser
 } = require('../auth/sessionService');
 const { roleHasPermission } = require('../auth/permissions');
+const { runWithAuditContext, buildActorContext } = require('../audit/context');
 
 async function requireAuth(req, res, next) {
   try {
@@ -19,7 +20,9 @@ async function requireAuth(req, res, next) {
     req.authToken = token;
     req.session = result.session;
     req.user = publicUser(result.user);
-    return next();
+
+    // Propaga el actor al AsyncLocalStorage para que la extensión Prisma registre quién mutó.
+    return runWithAuditContext(buildActorContext(result.user), () => next());
   } catch (error) {
     return next(error);
   }

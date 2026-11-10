@@ -12,6 +12,7 @@ import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
+import AuditoriaView from './pages/Auditoria';
 import RatesCalendar from './components/RatesCalendar';
 import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
@@ -621,6 +622,14 @@ function App() {
               element={(
                 <ProtectedRoute permission="reportes">
                   <AppShell><EstadisticasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/auditoria"
+              element={(
+                <ProtectedRoute permission="auditoria">
+                  <AppShell><AuditoriaView /></AppShell>
                 </ProtectedRoute>
               )}
             />

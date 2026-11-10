@@ -942,6 +942,43 @@ export async function getTipoCambioActual() {
   return res.json();
 }
 
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchAuditLogs(params = {}) {
+  const res = await fetch(`${API_URL}/audit-logs${buildQuery(params)}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar auditoría');
+  }
+  return res.json();
+}
+
+export async function fetchAuditLogById(id) {
+  const res = await fetch(`${API_URL}/audit-logs/${id}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar registro');
+  }
+  return res.json();
+}
+
+export async function fetchAuditEntities() {
+  const res = await fetch(`${API_URL}/audit-logs/meta/entities`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar entidades');
+  }
+  return res.json();
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -1002,5 +1039,8 @@ export default {
   getCargosByReserva,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  fetchAuditLogs,
+  fetchAuditLogById,
+  fetchAuditEntities
 };

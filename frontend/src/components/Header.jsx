@@ -92,6 +92,14 @@ function Header() {
               Estadísticas
             </Link>
           ) : null}
+          {can('auditoria') ? (
+            <Link
+              to="/auditoria"
+              className={`${styles.navLink} ${location.pathname === '/auditoria' ? styles.active : ''}`}
+            >
+              Auditoría
+            </Link>
+          ) : null}
         </div>
       </div>
       <div className={styles.navRight}>

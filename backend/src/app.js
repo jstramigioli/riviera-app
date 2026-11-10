@@ -29,6 +29,7 @@ const subcategoriaCargoRoutes = require('./routes/subcategoriaCargoRoutes');
 const alojamientoRoutes = require('./routes/alojamientoRoutes');
 const calendarRoutes = require('./routes/calendar.routes');
 const authRoutes = require('./routes/auth.routes');
+const auditRoutes = require('./routes/audit.routes');
 const { requireAuth, requirePermission } = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -65,9 +66,11 @@ const settings = [requireAuth, requirePermission('settings')];
 const finanzas = [requireAuth, requirePermission('finanzas')];
 const clientes = [requireAuth, requirePermission('clientes')];
 const reservas = [requireAuth, requirePermission('reservas')];
+const auditoria = [requireAuth, requirePermission('auditoria')];
 
 // Auth (login público; me/logout/users protegidos dentro del router)
 app.use('/api/auth', authRoutes);
+app.use('/api/audit-logs', auditoria, auditRoutes);
 
 // Rutas operativas
 app.use('/api/rooms', ops, roomRoutes);
