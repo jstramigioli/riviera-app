@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [openDays, setOpenDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -111,9 +113,12 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
   };
 
   const handleDeleteOpenDay = async (id) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este día de apertura?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar día de apertura',
+      message: '¿Confirmás eliminar este día de apertura? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -351,6 +356,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
           {notification.message}
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

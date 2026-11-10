@@ -3,8 +3,10 @@ import { format } from 'date-fns';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { createRates, updateRate, deleteRate } from '../services/api';
 import styles from '../styles/RateEditor.module.css';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 
 const RateEditor = ({ onViewMode, rates = [] }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [formData, setFormData] = useState({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
@@ -48,8 +50,13 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
   };
 
   const handleDeleteRate = async (rateId) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta tarifa?')) return;
-    
+    const ok = await confirm({
+      title: 'Eliminar tarifa',
+      message: '¿Confirmás eliminar esta tarifa? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     setLoading(true);
     try {
       await deleteRate(rateId);
@@ -207,6 +214,7 @@ const RateEditor = ({ onViewMode, rates = [] }) => {
           </table>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 };

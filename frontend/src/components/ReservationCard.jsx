@@ -3,6 +3,7 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationCard.module.css';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 
 const ReservationCard = React.memo(function ReservationCard({
   reservation,
@@ -12,17 +13,21 @@ const ReservationCard = React.memo(function ReservationCard({
   isSelected = false,
   showActions = true
 }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const handleEdit = useCallback((e) => {
     e.stopPropagation();
     onEdit?.(reservation);
   }, [reservation, onEdit]);
 
-  const handleDelete = useCallback((e) => {
+  const handleDelete = useCallback(async (e) => {
     e.stopPropagation();
-    if (window.confirm('¿Está seguro de que desea eliminar esta reserva?')) {
-      onDelete?.(reservation.id);
-    }
-  }, [reservation.id, onDelete]);
+    const ok = await confirm({
+      title: 'Eliminar reserva',
+      message: '¿Confirmás eliminar esta reserva? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (ok) onDelete?.(reservation.id);
+  }, [reservation.id, onDelete, confirm]);
 
   const handleView = useCallback(() => {
     onView?.(reservation);
@@ -118,6 +123,7 @@ const ReservationCard = React.memo(function ReservationCard({
           </button>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }, (prevProps, nextProps) => {

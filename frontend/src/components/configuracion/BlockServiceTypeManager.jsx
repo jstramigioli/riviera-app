@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiMove, FiSave, FiX } from 'react-icons/fi';
 import { useBlockServiceTypes } from '../../hooks/useBlockServiceTypes';
 import styles from './BlockServiceTypeManager.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const {
     blockServiceTypes,
     loading,
@@ -58,12 +62,17 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este tipo de servicio?')) {
-      try {
-        await deleteBlockServiceType(id);
-      } catch (error) {
-        alert(error.message);
-      }
+    const ok = await confirm({
+      title: 'Eliminar tipo de servicio',
+      message: '¿Confirmás eliminar este tipo de servicio? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
+    try {
+      await deleteBlockServiceType(id);
+    } catch (error) {
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
@@ -277,6 +286,8 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
           ))
         )}
       </div>
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }; 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2, FiTrash2, FiSave } from 'react-icons/fi';
 import styles from './ServiceTypesModal.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 
 export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceTypes, hotelId }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [localServiceTypes, setLocalServiceTypes] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editingData, setEditingData] = useState({ name: '', description: '' });
@@ -136,9 +138,12 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
       return;
     }
 
-    if (!confirm(`¿Estás seguro de que deseas eliminar "${serviceType.name}"?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar tipo de servicio',
+      message: `¿Confirmás eliminar "${serviceType.name}"?`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     setLoading(true);
     try {
@@ -352,6 +357,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
           </button>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 } 

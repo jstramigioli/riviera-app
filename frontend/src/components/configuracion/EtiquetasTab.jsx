@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { createTag, updateTag, deleteTag } from '../../services/api';
 import { useTags } from '../../hooks/useTags';
 import '../../styles/variables.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 function EtiquetasTab({ onDataChange }) {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const { tags, loading, addTag, updateTag: updateTagInContext, removeTag } = useTags();
   const [editingTag, setEditingTag] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -37,15 +41,20 @@ function EtiquetasTab({ onDataChange }) {
   };
 
   const handleDelete = async (tagId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar esta etiqueta?')) {
-      try {
-        await deleteTag(tagId);
-        removeTag(tagId);
-        if (onDataChange) onDataChange(); // Notify parent component about data change
-      } catch (error) {
-        console.error('Error eliminando etiqueta:', error);
-        alert('Error al eliminar la etiqueta');
-      }
+    const ok = await confirm({
+      title: 'Eliminar etiqueta',
+      message: '¿Confirmás eliminar esta etiqueta? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
+    try {
+      await deleteTag(tagId);
+      removeTag(tagId);
+      if (onDataChange) onDataChange();
+    } catch (error) {
+      console.error('Error eliminando etiqueta:', error);
+      notify({ title: 'Error', message: 'No se pudo eliminar la etiqueta.', type: 'error' });
     }
   };
 
@@ -342,6 +351,8 @@ function EtiquetasTab({ onDataChange }) {
           </tbody>
         </table>
       </div>
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }

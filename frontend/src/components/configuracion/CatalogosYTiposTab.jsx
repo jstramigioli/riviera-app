@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff, FaPalette } from 'react-icons/fa';
 import styles from './CatalogosYTiposTab.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const CatalogosYTiposTab = () => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [tiposCargo, setTiposCargo] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -133,13 +137,16 @@ const CatalogosYTiposTab = () => {
 
   const handleDelete = async (tipo) => {
     if (tipo.esHardcoded) {
-      alert('Los tipos hardcoded no pueden ser eliminados');
+      notify({ title: 'No permitido', message: 'Los tipos hardcoded no pueden ser eliminados.', type: 'warning' });
       return;
     }
 
-    if (!confirm(`¿Estás seguro de eliminar el tipo "${tipo.nombre}"?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Eliminar tipo de cargo',
+      message: `¿Confirmás eliminar el tipo "${tipo.nombre}"?`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3001/api/tipo-cargo/${tipo.id}`, {
@@ -152,9 +159,9 @@ const CatalogosYTiposTab = () => {
       }
 
       await loadTiposCargo();
-      alert('Tipo eliminado exitosamente');
+      notify({ title: 'Tipo eliminado', message: 'Se eliminó correctamente.', type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 
@@ -380,6 +387,8 @@ const CatalogosYTiposTab = () => {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };
