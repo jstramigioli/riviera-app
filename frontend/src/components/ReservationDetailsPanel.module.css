@@ -134,15 +134,15 @@
 .clientName {
   font-size: var(--font-size-large);
   font-weight: 600;
-  color: #2563eb;
+  color: var(--color-primary, #3f5f8a);
   cursor: pointer;
   transition: color 0.2s;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .clientName:hover {
-  color: #1d4ed8;
+  color: var(--color-primary-dark, #334d70);
   text-decoration: underline;
 }
 
