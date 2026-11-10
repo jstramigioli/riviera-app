@@ -204,20 +204,38 @@ const EstadoFinancieroTab = ({
       alert('No hay datos financieros para imprimir');
       return;
     }
+    const printRoot = printRef.current?.closest('[data-print-root]') || printRef.current;
+    if (!printRoot) {
+      alert('No se encontró el documento de liquidación');
+      return;
+    }
+    const placeholder = document.createComment('liquidacion-print-placeholder');
+    const originalParent = printRoot.parentNode;
+    if (originalParent) {
+      originalParent.insertBefore(placeholder, printRoot);
+      document.body.appendChild(printRoot);
+    }
+    document.documentElement.classList.add('printing-liquidacion');
     document.body.classList.add('printing-liquidacion');
     let cleaned = false;
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
+      document.documentElement.classList.remove('printing-liquidacion');
       document.body.classList.remove('printing-liquidacion');
+      if (placeholder.parentNode) {
+        placeholder.parentNode.insertBefore(printRoot, placeholder);
+        placeholder.remove();
+      }
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    // Esperar un frame para que el CSS de impresión aplique antes del diálogo
+    // Dos frames: reflow con html/body height:auto antes del diálogo de Chrome
     requestAnimationFrame(() => {
-      window.print();
-      // Fallback largo: no cortar el preview a 1s
-      setTimeout(cleanup, 60000);
+      requestAnimationFrame(() => {
+        window.print();
+        setTimeout(cleanup, 60000);
+      });
     });
   };
 

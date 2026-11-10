@@ -329,48 +329,70 @@ table, img, video, iframe {
   max-width: 100%;
   overflow-x: hidden;
 } 
-/* ===== Impresion de liquidacion ===== */
+/* ===== Impresion de liquidacion =====
+   Importante: NO usar visibility:hidden (Chrome recorta a 1 hoja).
+   html/body del app usan height:100vh — hay que anularlos en print. */
 @media print {
-  body.printing-liquidacion * {
-    visibility: hidden !important;
-  }
-
-  body.printing-liquidacion [data-print-root],
-  body.printing-liquidacion [data-print-root] *,
-  body.printing-liquidacion [data-testid="liquidacion-print"],
-  body.printing-liquidacion [data-testid="liquidacion-print"] * {
-    visibility: visible !important;
-  }
-
-  body.printing-liquidacion [data-print-root] {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
+  html.printing-liquidacion,
+  html.printing-liquidacion body,
+  body.printing-liquidacion {
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
-    pointer-events: auto !important;
-    z-index: 99999 !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    position: static !important;
   }
 
+  /* La app se oculta; el sheet vive en body (flujo multipágina) */
+  html.printing-liquidacion #root,
+  body.printing-liquidacion #root {
+    display: none !important;
+  }
+
+  html.printing-liquidacion [data-print-root],
+  body.printing-liquidacion [data-print-root] {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    z-index: auto !important;
+  }
+
+  html.printing-liquidacion [data-testid="liquidacion-print"],
   body.printing-liquidacion [data-testid="liquidacion-print"] {
+    display: block !important;
     position: static !important;
     left: auto !important;
     top: auto !important;
     width: 100% !important;
-    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     background: #fff !important;
     color: #111 !important;
+    visibility: visible !important;
   }
 
-  body.printing-liquidacion,
-  body.printing-liquidacion html,
-  body.printing-liquidacion #root {
-    background: #fff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
   }
 }
