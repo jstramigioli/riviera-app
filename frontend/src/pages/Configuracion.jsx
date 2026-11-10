@@ -1,51 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings } from 'react-icons/fi';
+import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings, FiClipboard } from 'react-icons/fi';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
+import Auditoria from './Auditoria';
+import { useAuth } from '../contexts/AuthContext';
 import styles from './Configuracion.module.css';
 
-const VALID_TABS = new Set([
-  'hotel',
-  'habitaciones',
-  'cargos-tarifas',
-  'calendario',
-  'tipo-cambio',
-  'usuarios',
-  'sistema'
-]);
+const SETTINGS_TABS = [
+  { id: 'hotel', label: 'Hotel', icon: FiHome },
+  { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
+  { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
+  { id: 'calendario', label: 'Calendario', icon: FiCalendar },
+  { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
+  { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
+  { id: 'sistema', label: 'Sistema', icon: FiSettings }
+];
+
+const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría', icon: FiClipboard };
 
 function ConfiguracionView() {
   const [searchParams] = useSearchParams();
+  const { can } = useAuth();
+  const canSettings = can('settings');
+  const canAuditoria = can('auditoria');
+
+  const tabs = useMemo(() => {
+    const next = [];
+    if (canSettings) next.push(...SETTINGS_TABS);
+    if (canAuditoria) next.push(AUDITORIA_TAB);
+    return next;
+  }, [canSettings, canAuditoria]);
+
+  const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
+  const defaultTab = canSettings ? 'habitaciones' : (canAuditoria ? 'auditoria' : 'habitaciones');
+
   const [activeTab, setActiveTab] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
-    if (fromUrl && VALID_TABS.has(fromUrl)) return fromUrl;
-    return localStorage.getItem('configActiveTab') || 'habitaciones';
+    if (fromUrl && validTabIds.has(fromUrl)) return fromUrl;
+    const stored = localStorage.getItem('configActiveTab');
+    if (stored && validTabIds.has(stored)) return stored;
+    return defaultTab;
   });
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && VALID_TABS.has(tab)) {
+    if (tab && validTabIds.has(tab)) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, validTabIds]);
+
+  useEffect(() => {
+    if (!validTabIds.has(activeTab) && tabs.length > 0) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [activeTab, tabs, validTabIds]);
 
   useEffect(() => {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);
-
-  const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: FiHome },
-    { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
-    { id: 'calendario', label: 'Calendario', icon: FiCalendar },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
-    { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
-    { id: 'sistema', label: 'Sistema', icon: FiSettings }
-  ];
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -73,8 +89,10 @@ function ConfiguracionView() {
             <p>Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
+      case 'auditoria':
+        return <Auditoria />;
       default:
-        return <HabitacionesTab />;
+        return canSettings ? <HabitacionesTab /> : <Auditoria />;
     }
   };
 

@@ -3,6 +3,12 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Configuracion from './Configuracion'
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    can: (permission) => permission === 'settings' || permission === 'auditoria',
+  }),
+}))
+
 vi.mock('../components/configuracion/HabitacionesTab', () => ({
   default: () => <div data-testid="habitaciones-tab"> Habitaciones Tab</div>
 }))
@@ -21,6 +27,10 @@ vi.mock('../components/configuracion/CalendarioTab', () => ({
 
 vi.mock('../components/TipoCambioConfig', () => ({
   default: () => <div data-testid="tipo-cambio-tab">Tipo Cambio Tab</div>
+}))
+
+vi.mock('./Auditoria', () => ({
+  default: () => <div data-testid="auditoria-tab">Auditoría Tab</div>
 }))
 
 const localStorageMock = {
@@ -51,12 +61,13 @@ describe('Configuracion', () => {
     expect(screen.getByText('Configuración')).toBeInTheDocument()
   })
 
-  it('renders navigation tabs', () => {
+  it('renders navigation tabs including Auditoría', () => {
     renderConfig()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
     expect(screen.getByText('Cargos y Tarifas')).toBeInTheDocument()
     expect(screen.getByText('Usuarios')).toBeInTheDocument()
     expect(screen.getByText('Sistema')).toBeInTheDocument()
+    expect(screen.getByText('Auditoría')).toBeInTheDocument()
   })
 
   it('shows habitaciones tab by default', () => {
@@ -68,6 +79,12 @@ describe('Configuracion', () => {
     renderConfig()
     fireEvent.click(screen.getByText('Cargos y Tarifas'))
     expect(screen.getByTestId('cargos-tarifas-tab')).toBeInTheDocument()
+  })
+
+  it('switches to auditoria tab when clicked', () => {
+    renderConfig()
+    fireEvent.click(screen.getByText('Auditoría'))
+    expect(screen.getByTestId('auditoria-tab')).toBeInTheDocument()
   })
 
   it('switches back to habitaciones tab', () => {

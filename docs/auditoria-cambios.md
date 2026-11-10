@@ -24,7 +24,7 @@ Permiso: `auditoria` (ADMIN, GERENCIA).
 
 ## UI
 
-Ruta `/auditoria` (nav visible para admin/gerencia).
+Acceso desde **Configuración → Auditoría** (admin y gerencia). `/auditoria` redirige a `/configuracion?tab=auditoria`. No aparece en el menú superior.
 
 ## Timestamps `createdAt` / `updatedAt`
 

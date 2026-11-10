@@ -37,6 +37,8 @@ function Header() {
     navigate('/login', { replace: true, state: { from: location.pathname } });
   }
 
+  const showConfig = can('settings') || can('auditoria');
+
   return (
     <nav className={styles.navigation}>
       <div className={styles.navLeft}>
@@ -60,22 +62,6 @@ function Header() {
               Consultas y Reservas
             </Link>
           ) : null}
-          {can('tarifas') ? (
-            <Link
-              to="/tarifas"
-              className={`${styles.navLink} ${location.pathname === '/tarifas' ? styles.active : ''}`}
-            >
-              Tarifas
-            </Link>
-          ) : null}
-          {can('tarifas') ? (
-            <Link
-              to="/precios-inteligentes"
-              className={`${styles.navLink} ${location.pathname === '/precios-inteligentes' ? styles.active : ''}`}
-            >
-              Precios Inteligentes
-            </Link>
-          ) : null}
           {can('finanzas') ? (
             <Link
               to="/cobros-pagos"
@@ -92,18 +78,10 @@ function Header() {
               Estadísticas
             </Link>
           ) : null}
-          {can('auditoria') ? (
-            <Link
-              to="/auditoria"
-              className={`${styles.navLink} ${location.pathname === '/auditoria' ? styles.active : ''}`}
-            >
-              Auditoría
-            </Link>
-          ) : null}
         </div>
       </div>
       <div className={styles.navRight}>
-        {can('settings') ? (
+        {showConfig ? (
           <Link
             to="/configuracion"
             className={`${styles.navLink} ${styles.configButton} ${location.pathname === '/configuracion' ? styles.active : ''}`}
