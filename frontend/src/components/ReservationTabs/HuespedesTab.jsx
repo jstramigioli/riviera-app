@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaUser, FaTimes } from 'react-icons/fa';
 import { API_URL } from '../../services/api';
 import styles from './ReservationTabs.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -66,7 +70,12 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
   };
 
   const handleDelete = async (guestId) => {
-    if (!confirm('¿Estás seguro de eliminar este acompañante?')) return;
+    const ok = await confirm({
+      title: 'Eliminar acompañante',
+      message: '¿Confirmás eliminar este acompañante? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       setLoading(true);
@@ -76,12 +85,11 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
 
       if (!response.ok) throw new Error('Error al eliminar el huésped');
 
-      // Actualizar lista local
       setGuests(guests.filter(g => g.id !== guestId));
-      alert('Acompañante eliminado exitosamente');
+      notify({ title: 'Acompañante eliminado', message: 'Se eliminó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error eliminando huésped:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -413,6 +421,8 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

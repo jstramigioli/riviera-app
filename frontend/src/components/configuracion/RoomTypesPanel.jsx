@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRoomTypes, createRoomType, updateRoomType, deleteRoomType, updateRoomTypesOrder } from '../../services/api';
 import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const RoomTypesPanel = () => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [roomTypes, setRoomTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingType, setEditingType] = useState(null);
@@ -136,23 +140,23 @@ const RoomTypesPanel = () => {
   };
 
   const handleDeleteType = async (roomType) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar el tipo "${roomType.name}"?\n\nEsta acción no se puede deshacer y puede afectar a las habitaciones existentes.`
-    );
-
-    if (!confirmDelete) return;
+    const ok = await confirm({
+      title: 'Eliminar tipo de habitación',
+      message: `¿Confirmás eliminar el tipo "${roomType.name}"?\n\nEsta acción no se puede deshacer y puede afectar a las habitaciones existentes.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteRoomType(roomType.id);
       setRoomTypes(prev => prev.filter(type => type.id !== roomType.id));
       
-      // Disparar evento para actualizar otros componentes
       window.dispatchEvent(new CustomEvent('roomTypesUpdated', {
         detail: { action: 'delete', roomType: roomType }
       }));
     } catch (error) {
       console.error('Error eliminando tipo de habitación:', error);
-      alert('Error al eliminar el tipo de habitación');
+      notify({ title: 'Error', message: 'No se pudo eliminar el tipo de habitación.', type: 'error' });
     }
   };
 
@@ -699,6 +703,8 @@ const RoomTypesPanel = () => {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

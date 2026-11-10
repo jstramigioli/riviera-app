@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { fetchVirtualRooms, fetchRooms, fetchRoomTypes, createVirtualRoom, updateVirtualRoom, deleteVirtualRoom } from '../../services/api';
 import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 function VirtualRoomsPanel() {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [virtualRooms, setVirtualRooms] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -133,18 +137,19 @@ function VirtualRoomsPanel() {
   };
 
   const handleDeleteVirtualRoom = async (virtualRoom) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar la habitación virtual "${virtualRoom.name}"?\n\nEsta acción no se puede deshacer.`
-    );
-
-    if (!confirmDelete) return;
+    const ok = await confirm({
+      title: 'Eliminar habitación virtual',
+      message: `¿Confirmás eliminar la habitación virtual "${virtualRoom.name}"?\n\nEsta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteVirtualRoom(virtualRoom.id);
       setVirtualRooms(prev => prev.filter(vr => vr.id !== virtualRoom.id));
     } catch (error) {
       console.error('Error eliminando habitación virtual:', error);
-      alert('Error al eliminar la habitación virtual');
+      notify({ title: 'Error', message: 'No se pudo eliminar la habitación virtual.', type: 'error' });
     }
   };
 
@@ -857,6 +862,8 @@ function VirtualRoomsPanel() {
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }

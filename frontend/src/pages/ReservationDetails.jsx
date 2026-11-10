@@ -19,13 +19,17 @@ import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
-import { FaTrash, FaPen, FaTimes, FaSave } from 'react-icons/fa';
+import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetails.module.css';
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
@@ -46,9 +50,6 @@ const ReservationDetails = () => {
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
-  
-  // Estado para modal de eliminación
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Estado para tipos de servicio
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -142,10 +143,10 @@ const ReservationDetails = () => {
     try {
       await createCargo(reservation.id, cargoData);
       await loadFinancialData();
-      alert('Cargo agregado exitosamente');
+      notify({ title: 'Cargo agregado', message: 'El cargo se registró correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error agregando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
@@ -154,20 +155,29 @@ const ReservationDetails = () => {
     try {
       await updateCargo(cargoId, cargoData);
       await loadFinancialData();
+      notify({ title: 'Cargo actualizado', message: 'El cargo se actualizó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error actualizando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
 
   const handleDeleteCargo = async (cargoId) => {
+    const ok = await confirm({
+      title: 'Eliminar consumo',
+      message: '¿Confirmás eliminar este cargo / consumo? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
       await deleteCargo(cargoId);
       await loadFinancialData();
+      notify({ title: 'Consumo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error eliminando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
@@ -246,7 +256,7 @@ const ReservationDetails = () => {
 
     const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
     if (!dateValidation.isValid) {
-      alert(`Error de validación: ${dateValidation.message}`);
+      notify({ title: 'Validación', message: dateValidation.message, type: 'warning' });
       return;
     }
 
@@ -270,16 +280,23 @@ const ReservationDetails = () => {
       setEditData(updated);
       setAllReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setIsEditing(false);
-      alert('Reserva actualizada');
+      notify({ title: 'Reserva actualizada', message: 'Los cambios se guardaron correctamente.', type: 'success' });
     } catch (err) {
       console.error('Error guardando reserva:', err);
-      alert(`Error al guardar: ${err.message}`);
+      notify({ title: 'Error al guardar', message: err.message, type: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteReservation = async () => {
+    const ok = await confirm({
+      title: 'Eliminar reserva',
+      message: `¿Confirmás eliminar la reserva #${reservation.id}? Esta acción no se puede deshacer y eliminará todos los registros relacionados.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
       const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
         method: 'DELETE',
@@ -292,7 +309,7 @@ const ReservationDetails = () => {
       navigate(-1);
     } catch (error) {
       console.error('Error eliminando reserva:', error);
-      alert('Error al eliminar la reserva');
+      notify({ title: 'Error', message: 'Error al eliminar la reserva', type: 'error' });
     }
   };
 
@@ -321,7 +338,7 @@ const ReservationDetails = () => {
       setReservation(updatedReservation);
     } catch (error) {
       console.error('Error actualizando estado de la reserva:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
@@ -501,7 +518,7 @@ const ReservationDetails = () => {
                 <ReservationStatusButtons
                   reservation={reservation}
                   onStatusChange={handleStatusChange}
-                  onDelete={() => setShowDeleteModal(true)}
+                  onDelete={handleDeleteReservation}
                   variant="dark"
                 />
               </div>
@@ -516,39 +533,8 @@ const ReservationDetails = () => {
         </div>
       </div>
 
-      {/* Modal de confirmación de eliminación */}
-      {showDeleteModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>⚠️ Confirmar Eliminación</h3>
-            </div>
-            <div className={styles.modalBody}>
-              <p>
-                ¿Estás seguro de eliminar la reserva #{reservation.id}?
-              </p>
-              <p>
-                Esta acción no se puede deshacer y eliminará todos los registros relacionados.
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button 
-                onClick={handleDeleteReservation}
-                className={`${styles.modalButton} ${styles.deleteButton}`}
-              >
-                <FaTrash />
-                Eliminar Definitivamente
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className={`${styles.modalButton} ${styles.cancelButton}`}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };
