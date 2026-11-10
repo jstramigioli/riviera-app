@@ -245,7 +245,6 @@ function main() {
       name: 'Hotel Riviera',
       description: 'Hotel Riviera — seed tarifas 2026/27',
     },
-    roundingConfig: { multiple: 1000, mode: 'ceil', note: 'Excel usa CEILING(...,1000)' },
     serviceTypes: SERVICES,
     roomTypes,
     seasonBlocks,

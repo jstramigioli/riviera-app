@@ -236,12 +236,12 @@
 }
 
 .actionBtn.save {
-  background: #dcfce7;
-  color: #16a34a;
+  background: transparent;
+  color: #2f9e44;
 }
 
 .actionBtn.save:hover:not(:disabled) {
-  background: #bbf7d0;
+  background: #e8f5e9;
 }
 
 .actionBtn.confirm {
@@ -254,12 +254,12 @@
 }
 
 .actionBtn.cancel {
-  background: #f3f4f6;
+  background: transparent;
   color: #6b7280;
 }
 
 .actionBtn.cancel:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #f3f4f6;
 }
 
 /* Contenido expandido */

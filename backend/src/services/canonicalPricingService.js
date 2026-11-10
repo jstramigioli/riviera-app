@@ -1,7 +1,8 @@
 /**
- * Motor canónico de precios — SeasonBlock + SeasonPrice + BlockServiceSelection + RoundingConfig.
+ * Motor canónico de precios — SeasonBlock + SeasonPrice + BlockServiceSelection.
  * Usado por admin (preview) y por cotización/consulta/reserva.
  * Precios inteligentes (DynamicPricing) NO forman parte de este path.
+ * Sin redondeo: el precio final es base + ajuste de servicio.
  */
 
 const { PrismaClient } = require('@prisma/client');
@@ -9,30 +10,10 @@ const prisma = new PrismaClient();
 
 const CURRENCY = 'ARS';
 
-function applyRounding(price, roundingConfig) {
-  if (!roundingConfig || price == null || Number.isNaN(Number(price))) {
-    return price;
-  }
-
-  const multiple = Number(roundingConfig.multiple) || 1;
-  const mode = roundingConfig.mode || 'nearest';
-  const value = Number(price);
-
-  switch (mode) {
-    case 'ceil':
-      return Math.ceil(value / multiple) * multiple;
-    case 'floor':
-      return Math.floor(value / multiple) * multiple;
-    case 'nearest':
-    default:
-      return Math.round(value / multiple) * multiple;
-  }
-}
-
 /**
- * Precio final de una noche: base → % servicio → redondeo.
+ * Precio final de una noche: base → % servicio (sin redondeo).
  */
-function calculateFinalPrice(basePrice, percentageAdjustment = 0, roundingConfig = null) {
+function calculateFinalPrice(basePrice, percentageAdjustment = 0) {
   let finalPrice = Number(basePrice) || 0;
   const adjustment = Number(percentageAdjustment) || 0;
 
@@ -40,14 +21,13 @@ function calculateFinalPrice(basePrice, percentageAdjustment = 0, roundingConfig
     finalPrice = Math.round(finalPrice * (1 + adjustment / 100));
   }
 
-  const roundedPrice = applyRounding(finalPrice, roundingConfig);
   return {
     basePrice: Number(basePrice) || 0,
     percentageAdjustment: adjustment,
     calculatedPrice: finalPrice,
-    roundedPrice,
-    finalPrice: roundedPrice,
-    wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
+    roundedPrice: finalPrice, // alias histórico (sin redondeo)
+    finalPrice,
+    wasRounded: false,
     currency: CURRENCY
   };
 }
@@ -69,11 +49,6 @@ function blockCoversDate(block, date) {
   const end = toDateOnlyString(block.endDate);
   if (!day || !start || !end) return false;
   return day >= start && day <= end;
-}
-
-async function getRoundingConfig(hotelId) {
-  if (!hotelId) return null;
-  return prisma.roundingConfig.findUnique({ where: { hotelId } });
 }
 
 /**
@@ -103,7 +78,7 @@ async function findActiveSeasonBlocks(hotelId, startDate, endDate) {
 /**
  * Precio de una noche concreta para roomType + serviceType.
  */
-function priceForNight(block, roomTypeId, serviceTypeId, roundingConfig) {
+function priceForNight(block, roomTypeId, serviceTypeId) {
   const seasonPrice = block.seasonPrices.find(
     (p) => p.roomTypeId === Number(roomTypeId) && p.serviceTypeId === serviceTypeId
   );
@@ -115,7 +90,7 @@ function priceForNight(block, roomTypeId, serviceTypeId, roundingConfig) {
   const percentageAdjustment = selection?.percentageAdjustment ?? 0;
 
   return {
-    ...calculateFinalPrice(seasonPrice.basePrice, percentageAdjustment, roundingConfig),
+    ...calculateFinalPrice(seasonPrice.basePrice, percentageAdjustment),
     seasonBlockId: block.id,
     seasonBlockName: block.name,
     roomTypeId: Number(roomTypeId),
@@ -133,7 +108,6 @@ async function getCanonicalNightlyRates({
   startDate,
   endDate
 }) {
-  const roundingConfig = await getRoundingConfig(hotelId);
   const seasonBlocks = await findActiveSeasonBlocks(hotelId, startDate, endDate);
 
   const start = dateOnlyUTC(startDate);
@@ -148,7 +122,7 @@ async function getCanonicalNightlyRates({
       continue;
     }
 
-    const priced = priceForNight(coveringBlock, roomTypeId, serviceTypeId, roundingConfig);
+    const priced = priceForNight(coveringBlock, roomTypeId, serviceTypeId);
     if (!priced) {
       missingDates.push(toDateOnlyString(d));
       continue;
@@ -162,7 +136,7 @@ async function getCanonicalNightlyRates({
       serviceRate: priced.finalPrice,
       finalRate: priced.finalPrice,
       percentageAdjustment: priced.percentageAdjustment,
-      wasRounded: priced.wasRounded,
+      wasRounded: false,
       seasonBlockId: priced.seasonBlockId,
       seasonBlockName: priced.seasonBlockName,
       hotelId,
@@ -182,7 +156,6 @@ async function getCanonicalNightlyRates({
     numberOfNights,
     averageRatePerNight: numberOfNights > 0 ? totalAmount / numberOfNights : 0,
     seasonBlocks,
-    roundingConfig,
     currency: CURRENCY
   };
 }
@@ -192,10 +165,9 @@ async function getCanonicalNightlyRates({
  */
 async function getCanonicalRoomTypePrice({ hotelId, roomTypeId, serviceTypeId, block }) {
   if (!block) return 0;
-  const roundingConfig = await getRoundingConfig(hotelId);
 
   if (serviceTypeId) {
-    const priced = priceForNight(block, roomTypeId, serviceTypeId, roundingConfig);
+    const priced = priceForNight(block, roomTypeId, serviceTypeId);
     return priced ? priced.finalPrice : 0;
   }
 
@@ -210,8 +182,7 @@ async function getCanonicalRoomTypePrice({ hotelId, roomTypeId, serviceTypeId, b
     );
     const result = calculateFinalPrice(
       price.basePrice,
-      selection?.percentageAdjustment ?? 0,
-      roundingConfig
+      selection?.percentageAdjustment ?? 0
     );
     min = Math.min(min, result.finalPrice);
   }
@@ -220,12 +191,10 @@ async function getCanonicalRoomTypePrice({ hotelId, roomTypeId, serviceTypeId, b
 
 module.exports = {
   CURRENCY,
-  applyRounding,
   calculateFinalPrice,
   toDateOnlyString,
   dateOnlyUTC,
   blockCoversDate,
-  getRoundingConfig,
   findActiveSeasonBlocks,
   priceForNight,
   getCanonicalNightlyRates,

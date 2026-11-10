@@ -29,7 +29,6 @@ async function backupDatabase() {
             dailyRoomRates: true,
             dynamicPricingConfig: true,
             openDays: true,
-            roundingConfig: true,
             seasonBlocks: {
               include: {
                 blockServiceSelections: true,
@@ -171,14 +170,6 @@ async function backupDatabase() {
         query: prisma.reservationNightRate.findMany({
           include: {
             reservation: true
-          }
-        })
-      },
-      { 
-        name: 'roundingConfigs', 
-        query: prisma.roundingConfig.findMany({
-          include: {
-            hotel: true
           }
         })
       },

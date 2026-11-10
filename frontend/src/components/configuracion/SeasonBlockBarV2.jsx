@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiEdit3, FiTrash2, FiCopy, FiSave, FiX, FiSettings, FiPercent, FiDollarSign, FiInfo, FiCheck } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiEdit3, FiTrash2, FiCopy, FiX, FiCheck } from 'react-icons/fi';
 import Switch from 'react-switch';
 import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
@@ -36,7 +36,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     roomTypes,
 
     blockServiceSelections,
-    roundingConfig,
     validationErrors,
     updateFormData,
     updatePrice,
@@ -470,22 +469,34 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   const handleSaveTariffChanges = async () => {
     const saveResult = await saveSeasonBlock();
     if (saveResult.success) {
-      console.log('=== SAVE SUCCESSFUL ===');
-      
       setOriginalPrices([...prices]);
       setHasTariffChanges(false);
       setHasAnyChanges(false);
-      setIsEditing(false); // Desactivar modo edición después de guardar
-      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
-      
+      setIsEditing(false);
+      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
       showNotification('Cambios guardados exitosamente');
-      
-      // Recargar los datos del bloque para sincronizar
       if (onBlockUpdated) {
         onBlockUpdated();
       }
     } else {
       showNotification(saveResult.error || 'Error al guardar los cambios', 'error');
+    }
+  };
+
+  const handleCancelEdit = async () => {
+    setIsEditing(false);
+    if (resetAllData) {
+      const success = await resetAllData();
+      if (success) {
+        setHasTariffChanges(false);
+        setHasAnyChanges(false);
+        setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
+        setEditingField({ name: false, startDate: false, endDate: false, description: false });
+      } else if (onResetBlock) {
+        onResetBlock();
+      }
+    } else if (onResetBlock) {
+      onResetBlock();
     }
   };
 
@@ -866,7 +877,28 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
         <div className={styles.topActions} onClick={(e) => e.stopPropagation()}>
           <div className={styles.actionButtonsRow}>
-            {!isEditing && (
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveTariffChanges}
+                  className={`${styles.actionBtn} ${styles.save}`}
+                  title="Guardar cambios"
+                  aria-label="Guardar cambios"
+                >
+                  <FiCheck aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className={`${styles.actionBtn} ${styles.cancel}`}
+                  title="Cancelar edición"
+                  aria-label="Cancelar edición"
+                >
+                  <FiX aria-hidden="true" />
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 onClick={() => {
@@ -875,23 +907,26 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 }}
                 className={`${styles.actionBtn} ${styles.edit}`}
                 title="Editar bloque de temporada"
+                aria-label="Editar bloque de temporada"
               >
-                <FiEdit3 />
+                <FiEdit3 aria-hidden="true" />
               </button>
             )}
             <button
               onClick={handleClone}
               className={`${styles.actionBtn} ${styles.clone}`}
               title="Duplicar bloque de temporada"
+              aria-label="Duplicar bloque de temporada"
             >
-              <FiCopy />
+              <FiCopy aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowDeleteConfirmation(true)}
               className={`${styles.actionBtn} ${styles.delete}`}
               title="Eliminar bloque de temporada"
+              aria-label="Eliminar bloque de temporada"
             >
-              <FiTrash2 />
+              <FiTrash2 aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -900,14 +935,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       {/* Contenido expandido */}
       {isExpanded && (
         <div className={styles.expandedContent}>
-          {roundingConfig && roundingConfig.multiple > 1 && (
-            <div className={styles.roundingInfo}>
-              <FiInfo />
-              <span> Redondeo activo: múltiplos de ${roundingConfig.multiple} ({roundingConfig.mode})</span>
-            </div>
-          )}
-          
-
           <table className={styles.pricesGrid}>
             <thead>
               <tr>
@@ -983,12 +1010,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                             <div className={styles.finalPrice}>
                               {formatCurrency(priceInfo.roundedPrice)}
                             </div>
-                            {priceInfo.wasRounded && (
-                              <div className={styles.originalPrice} title={`Precio original: ${formatCurrency(priceInfo.adjustedPrice)}`}>
-                                (de {formatCurrency(priceInfo.adjustedPrice)})
-                              </div>
-                            )}
-                            {/* Los ajustes se aplican automáticamente al precio, no se muestran indicadores */}
                           </div>
                         )}
                       </td>
@@ -1001,79 +1022,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
         </div>
       )}
 
-      {/* Botones de acción inferiores - cuando hay cualquier tipo de cambio Y estamos en modo edición */}
-      {hasAnyChanges && isEditing && (
-        <div className={styles.actionButtons}>
-          <div className={styles.toggleControls}>
-            <label 
-              className={styles.toggleLabel}
-              title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
-            >
-              <Switch
-                checked={formData.useProportions}
-                onChange={handleProportionToggle}
-                onColor="#3b82f6"
-                offColor="#d1d5db"
-                checkedIcon={false}
-                uncheckedIcon={false}
-                width={44}
-                height={24}
-                handleDiameter={18}
-                disabled={!isEditing}
-              />
-              <span className={styles.toggleText}> Mantener proporciones</span>
-            </label>
-            
-          </div>
-          
-          <div className={styles.actionButtonsRight}>
-            <button
-              onClick={handleSaveTariffChanges}
-              className={`${styles.actionButton} ${styles.saveButton}`}
-            >
-              Guardar
-            </button>
-            
-            <button
-              onClick={async () => {
-                console.log('=== CANCEL BUTTON CLICKED ===');
-                setIsEditing(false);
-                
-                // Resetear todos los datos a sus valores originales
-                if (resetAllData) {
-                  console.log('Calling resetAllData to restore all original data');
-                  const success = await resetAllData();
-                  if (success) {
-                    setHasTariffChanges(false);
-                    setHasAnyChanges(false);
-                    setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
-                    setEditingField({ name: false, startDate: false, endDate: false, description: false });
-                    console.log('All data reset successfully');
-                  } else {
-                    console.log('Reset failed, using fallback');
-                    // Fallback al key reset si resetAllData falla
-                    if (onResetBlock) {
-                      onResetBlock();
-                    }
-                  }
-                } else {
-                  console.log('No resetAllData available, using fallback');
-                  // Fallback al key reset si resetAllData no está disponible
-                  if (onResetBlock) {
-                    onResetBlock();
-                  }
-                }
-              }}
-              className={`${styles.actionButton} ${styles.cancelButton}`}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Acciones inferiores solo en edición (sin fila "Editar" en cada bloque colapsado) */}
-      {isEditing && !hasAnyChanges && (
+      {/* Toggle de proporciones en edición (guardar/cancelar van arriba como iconos) */}
+      {isEditing && (
         <div className={styles.actionButtons}>
           <div className={styles.toggleControls}>
             <label
@@ -1094,13 +1044,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
               <span className={styles.toggleText}>Mantener proporciones</span>
             </label>
           </div>
-          <button
-            type="button"
-            className={`${styles.actionButton} ${styles.cancelButton}`}
-            onClick={() => setIsEditing(false)}
-          >
-            Cancelar
-          </button>
         </div>
       )}
 

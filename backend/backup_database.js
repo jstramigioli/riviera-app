@@ -134,7 +134,6 @@ async function createBackup() {
     const hotel = await prisma.hotel.findMany({
       include: {
         dynamicPricingConfig: true,
-        roundingConfig: true,
         openDays: true,
         serviceTypes: true
       }
@@ -285,21 +284,7 @@ async function createBackup() {
     );
     console.log(`✅ Tarifas nocturnas de reservas respaldadas: ${reservationNightRates.length} registros`);
 
-    // 19. Backup de CONFIGURACIÓN DE REDONDEO
-    console.log('🔢 Respaldando configuración de redondeo...');
-    const roundingConfigs = await prisma.roundingConfig.findMany({
-      include: {
-        hotel: true
-      }
-    });
-    
-    fs.writeFileSync(
-      path.join(backupDir, 'roundingConfigs.json'),
-      JSON.stringify(roundingConfigs, null, 2)
-    );
-    console.log(`✅ Configuración de redondeo respaldada: ${roundingConfigs.length} registros`);
-
-    // 20. Backup de PRECIOS DE TEMPORADA
+    // 19. Backup de PRECIOS DE TEMPORADA
     console.log('💵 Respaldando precios de temporada...');
     const seasonPrices = await prisma.seasonPrice.findMany({
       include: {
@@ -447,7 +432,6 @@ async function createBackup() {
         dailyRoomRates: true,
         dynamicPricingConfig: true,
         openDays: true,
-        roundingConfig: true,
         seasonBlocks: true,
         serviceTypes: true
       }
@@ -482,7 +466,6 @@ async function createBackup() {
         dailyRoomRates: dailyRoomRates.length,
         roomGapPromotions: roomGapPromotions.length,
         reservationNightRates: reservationNightRates.length,
-        roundingConfigs: roundingConfigs.length,
         seasonPrices: seasonPrices.length,
         proportionCoefficients: proportionCoefficients.length,
         serviceTypes: serviceTypes.length,
@@ -531,7 +514,6 @@ async function createBackup() {
     console.log(`   📊 Tarifas diarias: ${dailyRoomRates.length}`);
     console.log(`   🎁 Promociones de gap: ${roomGapPromotions.length}`);
     console.log(`   🌃 Tarifas nocturnas de reservas: ${reservationNightRates.length}`);
-    console.log(`   🔢 Configuración de redondeo: ${roundingConfigs.length}`);
     console.log(`   📅 Bloques de temporada: ${seasonBlocks.length}`);
     console.log(`   💵 Precios de temporada: ${seasonPrices.length}`);
     console.log(`   📐 Coeficientes de proporción: ${proportionCoefficients.length}`);

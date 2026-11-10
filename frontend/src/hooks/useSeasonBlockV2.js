@@ -76,27 +76,9 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [blockServiceSelections, setBlockServiceSelections] = useState([]); // Selecciones de servicios del bloque
   const [prices, setPrices] = useState([]); // Precios por habitación y servicio
-  const [roundingConfig, setRoundingConfig] = useState(null);
   
   // Estados para validación
   const [validationErrors, setValidationErrors] = useState({});
-
-  // Función para aplicar redondeo
-  const applyRounding = useCallback((price, config = roundingConfig) => {
-    if (!config || !price) return price;
-    
-    const { multiple, mode } = config;
-    
-    switch (mode) {
-      case 'ceil':
-        return Math.ceil(price / multiple) * multiple;
-      case 'floor':
-        return Math.floor(price / multiple) * multiple;
-      case 'nearest':
-      default:
-        return Math.round(price / multiple) * multiple;
-    }
-  }, [roundingConfig]);
 
   // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
@@ -316,23 +298,19 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     
     try {
       // Cargar datos básicos en paralelo
-      const [roomTypesRes, serviceTypesRes, roundingConfigRes] = await Promise.all([
+      const [roomTypesRes, serviceTypesRes] = await Promise.all([
         fetch(`${API_URL}/room-types`),
-        fetch(`${API_URL}/service-types?hotelId=${hotelId}`),
-        fetch(`${API_URL}/rounding-config?hotelId=${hotelId}`)
+        fetch(`${API_URL}/service-types?hotelId=${hotelId}`)
       ]);
 
       if (!roomTypesRes.ok) throw new Error('Error al cargar tipos de habitación');
       if (!serviceTypesRes.ok) throw new Error('Error al cargar tipos de servicio');
-      if (!roundingConfigRes.ok) throw new Error('Error al cargar configuración de redondeo');
 
       const roomTypesData = await roomTypesRes.json();
       const serviceTypesData = await serviceTypesRes.json();
-      const roundingConfigData = await roundingConfigRes.json();
 
       setRoomTypes(roomTypesData);
       setServiceTypes(serviceTypesData.data || []);
-      setRoundingConfig(roundingConfigData.data);
 
       // Si hay blockId, cargar datos del bloque
       if (blockId) {
@@ -1169,7 +1147,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   };
 
-  // Obtener precio con ajustes y redondeo
+  // Obtener precio con ajustes (sin redondeo)
   const getCalculatedPrice = (roomTypeId, serviceTypeId) => {
     const basePrice = prices.find(p => 
       p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
@@ -1188,13 +1166,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       }
     }
 
-    const roundedPrice = applyRounding(finalPrice);
-    
     return {
       basePrice,
       adjustedPrice: finalPrice,
-      roundedPrice,
-      wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
+      roundedPrice: finalPrice, // alias histórico
+      wasRounded: false,
       adjustment
     };
   };
@@ -1372,7 +1348,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     serviceTypes,
     prices,
     blockServiceSelections,
-    roundingConfig,
     validationErrors,
     
     // Funciones
@@ -1386,7 +1361,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
-    applyRounding,
     getActiveServiceTypes,
     getActiveServiceAdjustments,
     initializePricesForNewService,

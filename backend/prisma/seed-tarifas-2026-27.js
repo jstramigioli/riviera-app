@@ -4,7 +4,7 @@
  * Fuente: backend/data/tarifas-2026-27.json
  * (extra├¡do de Calculadora_de_tarifas_Hotel_Riviera_2026_27.xlsx)
  *
- * Modelo can├│nico: Hotel + RoomType + ServiceType + RoundingConfig
+ * Modelo can├│nico: Hotel + RoomType + ServiceType
  *   + SeasonBlock + SeasonPrice + BlockServiceSelection
  *   (+ OpenDay opcionales para el per├¡odo operativo)
  *
@@ -88,31 +88,6 @@ async function ensureHotel(hotelData, dryRun) {
   });
   console.log(`Ô£à Hotel creado: ${hotel.name}`);
   return hotel;
-}
-
-async function ensureRounding(hotelId, rounding, dryRun) {
-  const existing = await prisma.roundingConfig.findUnique({ where: { hotelId } });
-  if (dryRun) {
-    console.log(`­ƒöÄ [dry-run] rounding multiple=${rounding.multiple} mode=${rounding.mode}`);
-    return existing;
-  }
-  if (existing) {
-    const updated = await prisma.roundingConfig.update({
-      where: { hotelId },
-      data: { multiple: rounding.multiple, mode: rounding.mode },
-    });
-    console.log(`Ô£à RoundingConfig actualizado: ├ù${updated.multiple} (${updated.mode})`);
-    return updated;
-  }
-  const created = await prisma.roundingConfig.create({
-    data: {
-      hotelId,
-      multiple: rounding.multiple,
-      mode: rounding.mode,
-    },
-  });
-  console.log(`Ô£à RoundingConfig creado: ├ù${created.multiple} (${created.mode})`);
-  return created;
 }
 
 /**
@@ -582,7 +557,6 @@ async function main() {
   }
 
   const hotel = await ensureHotel(data.hotel, opts.dryRun);
-  await ensureRounding(hotel.id, data.roundingConfig, opts.dryRun);
   const serviceByKey = await ensureServiceTypes(hotel.id, data.serviceTypes, opts.dryRun);
   const roomByName = await ensureRoomTypes(data.roomTypes, opts.dryRun);
 

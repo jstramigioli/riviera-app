@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import SeasonBlockBarV2 from './SeasonBlockBarV2';
 import DynamicPricingConfigPanel from './DynamicPricingConfigPanel';
-import RoundingConfigPanel from './RoundingConfigPanel';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
-import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiPercent, FiChevronDown } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiChevronDown } from 'react-icons/fi';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
   const [seasonBlocks, setSeasonBlocks] = useState([]);
-  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices', 'rounding'
+  const [activeSection, setActiveSection] = useState('blocks'); // 'blocks', 'intelligent', 'prices'
   
   // Estado para key reset de bloques
   const [blockKeys, setBlockKeys] = useState({});
@@ -351,13 +350,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           <FiGrid />
           Precios por Fecha
         </button>
-        <button
-          className={`${styles.navTab} ${activeSection === 'rounding' ? styles.active : ''}`}
-          onClick={() => setActiveSection('rounding')}
-        >
-          <FiPercent />
-          Redondeo
-        </button>
       </div>
 
       {/* Content Sections */}
@@ -536,15 +528,6 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
           </div>
         )}
 
-        {activeSection === 'rounding' && (
-          <div className={styles.roundingSection}>
-            <div className={styles.sectionHeader}>
-              <h3> Configuración de Redondeo</h3>
-              <p> Define cómo se redondean los precios calculados en todo el sistema</p>
-            </div>
-            <RoundingConfigPanel hotelId={hotelId} />
-          </div>
-        )}
       </div>
 
 

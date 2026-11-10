@@ -101,7 +101,6 @@ const validateDates = (startDate, endDate) => {
 };
 
 const {
-  applyRounding,
   calculateFinalPrice
 } = require('../services/canonicalPricingService');
 
@@ -780,27 +779,21 @@ exports.getCalculatedPrices = async (req, res) => {
       });
     }
     
-    // Obtener configuración de redondeo
-    const roundingConfig = await prisma.roundingConfig.findUnique({
-      where: { hotelId }
-    });
-    
-    // Mismo motor canónico que Consulta / cargos
+    // Mismo motor canónico que Consulta / cargos (sin redondeo)
     const calculatedPrices = block.seasonPrices.map(price => {
       const serviceSelection = block.blockServiceSelections.find(
         sel => sel.serviceTypeId === price.serviceTypeId && sel.isEnabled
       );
       const priced = calculateFinalPrice(
         price.basePrice,
-        serviceSelection?.percentageAdjustment ?? 0,
-        roundingConfig
+        serviceSelection?.percentageAdjustment ?? 0
       );
       
       return {
         ...price,
         calculatedPrice: priced.calculatedPrice,
-        roundedPrice: priced.roundedPrice,
-        wasRounded: priced.wasRounded,
+        roundedPrice: priced.finalPrice,
+        wasRounded: false,
         serviceSelection,
         percentageAdjustment: priced.percentageAdjustment,
         currency: 'ARS'
@@ -810,8 +803,7 @@ exports.getCalculatedPrices = async (req, res) => {
     res.json({ 
       data: {
         block,
-        calculatedPrices,
-        roundingConfig
+        calculatedPrices
       }, 
       errors: null 
     });

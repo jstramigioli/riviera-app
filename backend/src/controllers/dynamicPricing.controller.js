@@ -3,7 +3,6 @@ const prisma = new PrismaClient();
 const dynamicPricingService = require('../services/dynamicPricingService');
 const {
   calculateFinalPrice,
-  getRoundingConfig,
   toDateOnlyString,
   blockCoversDate
 } = require('../services/canonicalPricingService');
@@ -391,8 +390,6 @@ class DynamicPricingController {
         }
       });
 
-      const roundingConfig = await getRoundingConfig(hotelId);
-
       console.log('📅 Bloques de temporada disponibles:', seasonBlocks.map(block => ({
         id: block.id,
         name: block.name,
@@ -719,8 +716,7 @@ class DynamicPricingController {
             );
             const priced = calculateFinalPrice(
               roomTypePrice.basePrice,
-              selection?.percentageAdjustment ?? 0,
-              roundingConfig
+              selection?.percentageAdjustment ?? 0
             );
 
             rates.push({
@@ -731,7 +727,7 @@ class DynamicPricingController {
               serviceRate: priced.finalPrice,
               finalRate: priced.finalPrice,
               percentageAdjustment: priced.percentageAdjustment,
-              wasRounded: priced.wasRounded,
+              wasRounded: false,
               seasonBlockId: coveringBlock.id,
               seasonBlockName: coveringBlock.name,
               hotelId,

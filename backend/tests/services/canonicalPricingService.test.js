@@ -1,27 +1,21 @@
 const {
-  applyRounding,
   calculateFinalPrice,
   blockCoversDate
 } = require('../../src/services/canonicalPricingService');
 
 describe('canonicalPricingService', () => {
-  test('applyRounding nearest/ceil/floor', () => {
-    expect(applyRounding(103, { multiple: 10, mode: 'nearest' })).toBe(100);
-    expect(applyRounding(105, { multiple: 10, mode: 'nearest' })).toBe(110);
-    expect(applyRounding(101, { multiple: 10, mode: 'ceil' })).toBe(110);
-    expect(applyRounding(109, { multiple: 10, mode: 'floor' })).toBe(100);
-  });
-
-  test('calculateFinalPrice aplica % y redondeo', () => {
-    const priced = calculateFinalPrice(1000, 10, { multiple: 50, mode: 'nearest' });
+  test('calculateFinalPrice aplica % sin redondeo', () => {
+    const priced = calculateFinalPrice(1000, 10);
     expect(priced.calculatedPrice).toBe(1100);
     expect(priced.finalPrice).toBe(1100);
+    expect(priced.wasRounded).toBe(false);
     expect(priced.currency).toBe('ARS');
   });
 
-  test('calculateFinalPrice sin ajuste', () => {
-    const priced = calculateFinalPrice(999, 0, { multiple: 10, mode: 'ceil' });
-    expect(priced.finalPrice).toBe(1000);
+  test('calculateFinalPrice sin ajuste conserva el precio exacto', () => {
+    const priced = calculateFinalPrice(999, 0);
+    expect(priced.finalPrice).toBe(999);
+    expect(priced.wasRounded).toBe(false);
   });
 
   test('blockCoversDate compara por día calendario', () => {
