@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { calculateReservationBalance } = require('../utils/reservationBalance');
 
 // Listar todos los huéspedes
 exports.getAllGuests = async (req, res) => {
@@ -171,27 +172,19 @@ exports.getGuestBalance = async (req, res) => {
       });
     }
 
-    // Calcular total de cargos desde la reserva
-    const totalCharges = guest.reservation.cargos.reduce((sum, cargo) => {
-      return sum + parseFloat(cargo.monto);
-    }, 0);
-
-    // Calcular total de pagos desde la reserva (usando montoARS)
-    const totalPayments = guest.reservation.pagos.reduce((sum, pago) => {
-      return sum + parseFloat(pago.montoARS);
-    }, 0);
-
-    // Balance = cargos - pagos
-    const balance = totalCharges - totalPayments;
+    const { totalCargos, totalPagos, saldo } = calculateReservationBalance(
+      guest.reservation.cargos,
+      guest.reservation.pagos
+    );
 
     res.json({
       guestId: guest.id,
       guestName: `${guest.firstName} ${guest.lastName}`,
       reservationId: guest.reservation.id,
-      totalCharges,
-      totalPayments,
-      balance,
-      isDebtor: balance > 0
+      totalCharges: totalCargos,
+      totalPayments: totalPagos,
+      balance: saldo,
+      isDebtor: saldo > 0
     });
   } catch (error) {
     console.error('Error calculating guest balance:', error);
