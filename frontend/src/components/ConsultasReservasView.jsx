@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
-import { deleteReservation, deleteQuery } from '../services/api';
+import { deleteReservation, deleteQuery, deleteAllQueries } from '../services/api';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationsTable from './ReservationsTable';
 import QueriesTable from './QueriesTable';
@@ -17,9 +19,11 @@ import styles from './ConsultasReservasView.module.css';
 
 function ConsultasReservasView() {
   const navigate = useNavigate();
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeSection, setActiveSection] = useState('consultas');
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [clearingAll, setClearingAll] = useState(false);
   
   const {
     rooms,
@@ -158,46 +162,53 @@ function ConsultasReservasView() {
     }
   };
 
+  const handleClearAllQueries = async () => {
+    if (!queries.length || clearingAll) return;
 
-  if (loading) return <div className={styles.loading}> Cargando datos...</div>;
+    const ok = await confirm({
+      title: 'Limpiar todas las consultas',
+      message: `¿Confirmás eliminar las ${queries.length} consultas almacenadas? Esta acción no se puede deshacer.`,
+      confirmText: 'Limpiar todas',
+      cancelText: 'Cancelar',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    try {
+      setClearingAll(true);
+      await deleteAllQueries();
+      setQueries([]);
+    } catch (error) {
+      console.error('Error clearing queries:', error);
+      alert(error.message || 'Error al limpiar las consultas');
+    } finally {
+      setClearingAll(false);
+    }
+  };
+
+
+  if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className={styles.newLayout}>
       {/* Sidebar Izquierdo */}
       <div className={styles.sidebar}>
-        {/* Header del sidebar */}
         <div className={styles.sidebarHeader}>
-          <h2> Consultas y Reservas</h2>
-          <div className={styles.stats}>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}> Consultas:</span>
-              <span className={styles.statValue}>{queries.length}</span>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}> Reservas:</span>
-              <span className={styles.statValue}>{reservations.length}</span>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}> Habitaciones:</span>
-              <span className={styles.statValue}>{rooms.length}</span>
-            </div>
-            <div className={styles.statItem}>
-              <span className={styles.statLabel}> Clientes:</span>
-              <span className={styles.statValue}>{clients.length}</span>
-            </div>
-          </div>
+          <h2>Consultas y Reservas</h2>
         </div>
 
         {/* Menú de navegación */}
         <div className={styles.sectionMenu}>
           <button 
+            type="button"
             className={`${styles.sectionButton} ${activeSection === 'consultas' ? styles.active : ''}`}
             onClick={() => setActiveSection('consultas')}
           >
             Consultas
           </button>
           <button 
+            type="button"
             className={`${styles.sectionButton} ${activeSection === 'reservas' ? styles.active : ''}`}
             onClick={() => setActiveSection('reservas')}
           >
@@ -213,14 +224,28 @@ function ConsultasReservasView() {
           {activeSection === 'consultas' && (
             <div className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2> Consultas</h2>
-                <button 
-                  className={styles.createButton}
-                  onClick={() => navigate('/consulta')}
-                  title="Crear nueva consulta"
-                >
-                  + Nueva Consulta
-                </button>
+                <h2>Consultas</h2>
+                <div className={styles.sectionActions}>
+                  <button
+                    type="button"
+                    className={styles.clearAllButton}
+                    onClick={handleClearAllQueries}
+                    disabled={!queries.length || clearingAll}
+                    title="Eliminar todas las consultas almacenadas"
+                  >
+                    <FiTrash2 aria-hidden="true" />
+                    {clearingAll ? 'Limpiando…' : 'Limpiar todas'}
+                  </button>
+                  <button 
+                    type="button"
+                    className={styles.createButton}
+                    onClick={() => navigate('/consulta')}
+                    title="Crear nueva consulta"
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Nueva Consulta
+                  </button>
+                </div>
               </div>
               <QueriesTable 
                 queries={queries}
@@ -232,7 +257,7 @@ function ConsultasReservasView() {
           {/* Sección de Reservas */}
           {activeSection === 'reservas' && (
             <div className={styles.section}>
-              <h2> Reservas</h2>
+              <h2>Reservas</h2>
               <ReservationsTable 
                 reservations={reservations}
                 rooms={rooms}
@@ -655,6 +680,7 @@ function ConsultasReservasView() {
         cancelText="Cancelar"
         type="danger"
       />
+      {confirmDialog}
     </div>
   );
 }

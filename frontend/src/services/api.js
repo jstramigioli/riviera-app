@@ -717,10 +717,32 @@ export async function updateQuery(id, data) {
 
 export async function deleteQuery(id) {
   const res = await fetch(`${API_URL}/queries/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'include'
   });
   if (!res.ok) throw new Error('Error deleting query');
   return res.ok;
+}
+
+/** Elimina todas las consultas. Requiere confirmación en backend. */
+export async function deleteAllQueries() {
+  const res = await fetch(`${API_URL}/queries/all`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'LIMPIAR_TODAS' })
+  });
+  if (!res.ok) {
+    let message = 'Error al limpiar las consultas';
+    try {
+      const data = await res.json();
+      message = data.message || data.error || message;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 export async function convertQueryToReservation(id) {
@@ -1029,6 +1051,7 @@ export default {
   createQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,

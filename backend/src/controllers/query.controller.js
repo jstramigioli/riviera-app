@@ -569,6 +569,49 @@ const deleteQuery = async (req, res) => {
   }
 };
 
+const CLEAR_ALL_CONFIRM_TOKEN = 'LIMPIAR_TODAS';
+
+/**
+ * Elimina todas las consultas y tablas relacionadas.
+ * Requiere body.confirm === 'LIMPIAR_TODAS' (además de auth/permiso reservas).
+ */
+const deleteAllQueries = async (req, res) => {
+  try {
+    if (req.body?.confirm !== CLEAR_ALL_CONFIRM_TOKEN) {
+      return res.status(400).json({
+        error: 'Confirmación requerida',
+        message: `Enviá confirm: "${CLEAR_ALL_CONFIRM_TOKEN}" para vaciar las consultas`
+      });
+    }
+
+    const auditedPrisma = require('../utils/prisma');
+
+    const deleted = await auditedPrisma.$transaction(async (tx) => {
+      const payments = await tx.queryPayment.deleteMany({});
+      const guests = await tx.queryGuest.deleteMany({});
+      const nightRates = await tx.queryNightRate.deleteMany({});
+      const queries = await tx.query.deleteMany({});
+      const groups = await tx.queryGroup.deleteMany({});
+
+      return {
+        payments: payments.count,
+        guests: guests.count,
+        nightRates: nightRates.count,
+        queries: queries.count,
+        groups: groups.count
+      };
+    });
+
+    res.json({
+      message: 'Todas las consultas fueron eliminadas',
+      deleted
+    });
+  } catch (error) {
+    console.error('Error al limpiar consultas:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // Convertir consulta a reserva
 const convertQueryToReservation = async (req, res) => {
   try {
@@ -792,6 +835,7 @@ module.exports = {
   updateMultiSegmentQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
