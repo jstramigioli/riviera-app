@@ -96,16 +96,16 @@ const TipoCambioConfig = () => {
         {/* Configuración actual */}
         {currentConfig && (
           <div className={styles.currentConfig}>
-            <h3>Configuración Actual</h3>
+            <h3> Configuración Actual</h3>
             <div className={styles.configInfo}>
               <div className={styles.configRow}>
-                <span className={styles.label}>Tipo de cambio:</span>
+                <span className={styles.label}> Tipo de cambio:</span>
                 <span className={styles.value}>
                   {formatPrice(currentConfig.tipoCambio)} por USD
                 </span>
               </div>
               <div className={styles.configRow}>
-                <span className={styles.label}>Descripción:</span>
+                <span className={styles.label}> Descripción:</span>
                 <span className={styles.value}>{currentConfig.descripcion}</span>
               </div>
               <div className={styles.configRow}>
@@ -120,7 +120,7 @@ const TipoCambioConfig = () => {
 
         {/* Formulario de actualización */}
         <div className={styles.formSection}>
-          <h3>Actualizar Tipo de Cambio</h3>
+          <h3> Actualizar Tipo de Cambio</h3>
           
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.formGroup}>
@@ -144,7 +144,7 @@ const TipoCambioConfig = () => {
             </div>
 
             <div className={styles.formGroup}>
-              <label htmlFor="descripcion">Descripción</label>
+              <label htmlFor="descripcion"> Descripción</label>
               <input
                 id="descripcion"
                 type="text"
@@ -190,7 +190,7 @@ const TipoCambioConfig = () => {
 
         {/* Información adicional */}
         <div className={styles.infoSection}>
-          <h3>Información Importante</h3>
+          <h3> Información Importante</h3>
           <div className={styles.infoList}>
             <div className={styles.infoItem}>
               <FiInfo />

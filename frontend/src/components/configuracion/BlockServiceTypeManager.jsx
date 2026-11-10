@@ -106,17 +106,17 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
   };
 
   if (loading) {
-    return <div className={styles.loading}>Cargando tipos de servicio...</div>;
+    return <div className={styles.loading}> Cargando tipos de servicio...</div>;
   }
 
   if (error) {
-    return <div className={styles.error}>Error: {error}</div>;
+    return <div className={styles.error}> Error: {error}</div>;
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h3>Tipos de Servicio del Bloque</h3>
+        <h3> Tipos de Servicio del Bloque</h3>
         {isEditing && (
           <button
             className={styles.addButton}
@@ -131,7 +131,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
       {/* Formulario de creación */}
       {showCreateForm && (
         <div className={styles.createForm}>
-          <h4>Nuevo Tipo de Servicio</h4>
+          <h4> Nuevo Tipo de Servicio</h4>
           <div className={styles.formRow}>
             <input
               type="text"
@@ -154,8 +154,8 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
               onChange={(e) => setFormData(prev => ({ ...prev, adjustmentMode: e.target.value }))}
               className={styles.select}
             >
-              <option value="PERCENTAGE">Porcentaje del precio base</option>
-              <option value="FIXED">Precio fijo</option>
+              <option value="PERCENTAGE"> Porcentaje del precio base</option>
+              <option value="FIXED"> Precio fijo</option>
             </select>
             <input
               type="number"
@@ -182,7 +182,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
         {blockServiceTypes.length === 0 ? (
           <div className={styles.emptyState}>
             No hay tipos de servicio configurados para este bloque.
-            {isEditing && ' Haz clic en "Agregar Servicio" para comenzar.'}
+            {isEditing && 'Haz clic en "Agregar Servicio"para comenzar.'}
           </div>
         ) : (
           blockServiceTypes.map((serviceType) => (
@@ -260,8 +260,8 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
                       onChange={(e) => setFormData(prev => ({ ...prev, adjustmentMode: e.target.value }))}
                       className={styles.select}
                     >
-                      <option value="PERCENTAGE">Porcentaje del precio base</option>
-                      <option value="FIXED">Precio fijo</option>
+                      <option value="PERCENTAGE"> Porcentaje del precio base</option>
+                      <option value="FIXED"> Precio fijo</option>
                     </select>
                     <input
                       type="number"

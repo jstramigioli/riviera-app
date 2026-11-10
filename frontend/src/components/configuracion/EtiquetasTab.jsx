@@ -88,7 +88,7 @@ function EtiquetasTab({ onDataChange }) {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '20px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando etiquetas...</div>
+        <div> Cargando etiquetas...</div>
       </div>
     );
   }

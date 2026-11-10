@@ -1,3 +1,4 @@
+import { FiTool, FiCalendar, FiCpu, FiBarChart2 } from 'react-icons/fi';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from '../../styles/TariffDashboard.module.css';

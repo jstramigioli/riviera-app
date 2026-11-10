@@ -169,7 +169,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>👥 Huéspedes</h3>
+        <h3 className={styles.sectionTitle}> Huéspedes</h3>
       </div>
 
       {/* Grid de cards */}
@@ -199,12 +199,12 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
           <div className={styles.guestDetails}>
             {reservation.mainClient?.email && (
               <div className={styles.guestDetail}>
-                <strong>Email:</strong> {reservation.mainClient.email}
+                <strong> Email:</strong> {reservation.mainClient.email}
               </div>
             )}
             {reservation.mainClient?.phone && (
               <div className={styles.guestDetail}>
-                <strong>Teléfono:</strong> {reservation.mainClient.phone}
+                <strong> Teléfono:</strong> {reservation.mainClient.phone}
               </div>
             )}
             {reservation.mainClient?.documentNumber && (
@@ -219,7 +219,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
         {guests.map((guest, index) => index < maxGuests && (
           <div key={guest.id} className={styles.guestCard}>
             <div className={styles.guestCardHeader}>
-              <span className={styles.guestBadgeSecundary}>Acompañante {index + 1}</span>
+              <span className={styles.guestBadgeSecundary}> Acompañante {index + 1}</span>
               <div className={styles.guestActions}>
                 <button
                   className={styles.iconButton}
@@ -251,12 +251,12 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               )}
               {guest.email && (
                 <div className={styles.guestDetail}>
-                  <strong>Email:</strong> {guest.email}
+                  <strong> Email:</strong> {guest.email}
                 </div>
               )}
               {guest.phone && (
                 <div className={styles.guestDetail}>
-                  <strong>Tel:</strong> {guest.phone}
+                  <strong> Tel:</strong> {guest.phone}
                 </div>
               )}
             </div>
@@ -299,7 +299,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
 
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formGroup}>
-                <label htmlFor="firstName">Nombre *</label>
+                <label htmlFor="firstName"> Nombre *</label>
                 <input
                   type="text"
                   id="firstName"
@@ -312,7 +312,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="lastName">Apellido *</label>
+                <label htmlFor="lastName"> Apellido *</label>
                 <input
                   type="text"
                   id="lastName"
@@ -325,7 +325,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="documentType">Tipo de Documento</label>
+                <label htmlFor="documentType"> Tipo de Documento</label>
                 <select
                   id="documentType"
                   name="documentType"
@@ -333,15 +333,15 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
                   onChange={handleInputChange}
                   disabled={loading}
                 >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
+                  <option value="DNI"> DNI</option>
+                  <option value="Pasaporte"> Pasaporte</option>
+                  <option value="Cédula"> Cédula</option>
+                  <option value="Otro"> Otro</option>
                 </select>
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="documentNumber">Número de Documento</label>
+                <label htmlFor="documentNumber"> Número de Documento</label>
                 <input
                   type="text"
                   id="documentNumber"
@@ -353,7 +353,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="phone">Teléfono</label>
+                <label htmlFor="phone"> Teléfono</label>
                 <input
                   type="tel"
                   id="phone"
@@ -365,7 +365,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="email">Email</label>
+                <label htmlFor="email"> Email</label>
                 <input
                   type="email"
                   id="email"
@@ -377,7 +377,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="address">Dirección</label>
+                <label htmlFor="address"> Dirección</label>
                 <input
                   type="text"
                   id="address"
@@ -389,7 +389,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label htmlFor="city">Ciudad</label>
+                <label htmlFor="city"> Ciudad</label>
                 <input
                   type="text"
                   id="city"

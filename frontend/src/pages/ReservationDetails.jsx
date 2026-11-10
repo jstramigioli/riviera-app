@@ -394,7 +394,7 @@ const ReservationDetails = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando detalles de la reserva...</div>
+        <div className={styles.loading}> Cargando detalles de la reserva...</div>
       </div>
     );
   }
@@ -404,7 +404,7 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Error</h2>
+          <h2> Error</h2>
           <p>{error}</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
@@ -419,8 +419,8 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Reserva no encontrada</h2>
-          <p>La reserva con ID {reservationId} no existe.</p>
+          <h2> Reserva no encontrada</h2>
+          <p> La reserva con ID {reservationId} no existe.</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
           </button>

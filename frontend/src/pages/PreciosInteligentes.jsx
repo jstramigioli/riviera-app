@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FiSettings, FiCoffee, FiEye } from 'react-icons/fi';
 import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
 import MealPricingEditor from '../components/configuracion/MealPricingEditor';
 import styles from '../styles/App.module.css';
@@ -7,9 +8,9 @@ function PreciosInteligentesView() {
   const [activeTab, setActiveTab] = useState('config');
 
   const tabs = [
-    { id: 'config', label: 'Configuración General', icon: '⚙️' },
-    { id: 'meals', label: 'Precios de Comidas', icon: '🍽️' },
-    { id: 'preview', label: 'Vista Previa', icon: '👁️' }
+    { id: 'config', label: 'Configuración General', icon: FiSettings },
+    { id: 'meals', label: 'Precios de Comidas', icon: FiCoffee },
+    { id: 'preview', label: 'Vista Previa', icon: FiEye }
   ];
 
   const renderTabContent = () => {
@@ -21,8 +22,8 @@ function PreciosInteligentesView() {
       case 'preview':
         return (
           <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Vista Previa de Precios Inteligentes</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
+            <h3> Vista Previa de Precios Inteligentes</h3>
+            <p> Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
       default:
@@ -95,7 +96,7 @@ function PreciosInteligentesView() {
                 gap: '8px'
               }}
             >
-              <span>{tab.icon}</span>
+              <span aria-hidden="true">{tab.icon ? React.createElement(tab.icon) : null}</span>
               {tab.label}
             </button>
           ))}

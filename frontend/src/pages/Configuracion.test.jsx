@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Configuracion from './Configuracion'
 
 vi.mock('../components/configuracion/HabitacionesTab', () => ({
-  default: () => <div data-testid="habitaciones-tab">Habitaciones Tab</div>
+  default: () => <div data-testid="habitaciones-tab"> Habitaciones Tab</div>
 }))
 
 vi.mock('../components/configuracion/CargosTarifasTab', () => ({

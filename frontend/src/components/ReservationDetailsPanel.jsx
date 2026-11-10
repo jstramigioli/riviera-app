@@ -200,7 +200,7 @@ const ReservationDetailsPanel = ({
               </tr>
               {reservation.segments?.[0]?.services?.length > 0 && (
                 <tr>
-                  <td className={styles.tableLabel}>Etiquetas:</td>
+                  <td className={styles.tableLabel}> Etiquetas:</td>
                   <td className={styles.tableValue}>
                     <div className={styles.tagsContainer}>
                       {reservation.segments[0].services.map((service, index) => (
@@ -230,7 +230,7 @@ const ReservationDetailsPanel = ({
                 </tr>
                 {checkIn && checkOut && (
                   <tr>
-                    <td className={styles.tableLabel}>Noches:</td>
+                    <td className={styles.tableLabel}> Noches:</td>
                     <td className={styles.tableValue}>
                       {Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))}
                     </td>

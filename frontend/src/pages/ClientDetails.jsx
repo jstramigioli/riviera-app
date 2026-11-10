@@ -180,7 +180,7 @@ const ClientDetails = () => {
     return (
       <div className={styles.newLayout}>
         <div className={styles.loadingContainer}>
-          <div className={styles.loading}>Cargando datos del cliente...</div>
+          <div className={styles.loading}> Cargando datos del cliente...</div>
         </div>
       </div>
     );
@@ -203,7 +203,7 @@ const ClientDetails = () => {
     return (
       <div className={styles.newLayout}>
         <div className={styles.errorContainer}>
-          <div className={styles.error}>Cliente no encontrado</div>
+          <div className={styles.error}> Cliente no encontrado</div>
           <button onClick={() => navigate('/cobros-pagos')} className={styles.retryButton}>
             Volver
           </button>
@@ -228,7 +228,7 @@ const ClientDetails = () => {
       <div className={styles.sidePanel}>
         {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Cliente #{client.id}</h2>
+          <h2> Cliente #{client.id}</h2>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {client.firstName} {client.lastName}
@@ -278,25 +278,25 @@ const ClientDetails = () => {
               className={`${styles.sectionButton} ${activeSection === 'personal' ? styles.active : ''}`}
               onClick={() => setActiveSection('personal')}
             >
-              👤 Información Personal
+              Información Personal
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'reservations' ? styles.active : ''}`}
               onClick={() => setActiveSection('reservations')}
             >
-              📋 Reservas
+              Reservas
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'balance' ? styles.active : ''}`}
               onClick={() => setActiveSection('balance')}
             >
-              💰 Balance de Pagos
+              Balance de Pagos
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'documents' ? styles.active : ''}`}
               onClick={() => setActiveSection('documents')}
             >
-              📄 Documentación Asociada
+              Documentación Asociada
             </button>
           </div>
         </div>
@@ -310,48 +310,48 @@ const ClientDetails = () => {
           {/* Sección de Información Personal */}
           {activeSection === 'personal' && (
             <div className={styles.section}>
-              <h2>Información Personal</h2>
+              <h2> Información Personal</h2>
               <div className={styles.personalInfoContainer}>
                 <div className={styles.personalInfoGrid}>
                   <div className={styles.personalInfoCard}>
-                    <h3>Datos Personales</h3>
+                    <h3> Datos Personales</h3>
                     <div className={styles.infoList}>
                       <div className={styles.infoItem} onClick={() => handleEditField('firstName')}>
-                        <span className={styles.label}>Nombre:</span>
+                        <span className={styles.label}> Nombre:</span>
                         <span className={styles.value}>{client.firstName}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('lastName')}>
-                        <span className={styles.label}>Apellido:</span>
+                        <span className={styles.label}> Apellido:</span>
                         <span className={styles.value}>{client.lastName}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('email')}>
-                        <span className={styles.label}>Email:</span>
+                        <span className={styles.label}> Email:</span>
                         <span className={styles.value}>{client.email || 'Sin email'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('phone')}>
-                        <span className={styles.label}>Teléfono:</span>
+                        <span className={styles.label}> Teléfono:</span>
                         <span className={styles.value}>{client.phone || 'Sin teléfono'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('document')}>
-                        <span className={styles.label}>Documento:</span>
+                        <span className={styles.label}> Documento:</span>
                         <span className={styles.value}>{client.documentType && client.documentNumber ? `${client.documentType} ${client.documentNumber}` : 'Sin documento'}</span>
                       </div>
                     </div>
                   </div>
                   
                   <div className={styles.personalInfoCard}>
-                    <h3>Domicilio</h3>
+                    <h3> Domicilio</h3>
                     <div className={styles.infoList}>
                       <div className={styles.infoItem} onClick={() => handleEditField('country')}>
-                        <span className={styles.label}>País:</span>
+                        <span className={styles.label}> País:</span>
                         <span className={styles.value}>{client.country || 'Sin país'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('province')}>
-                        <span className={styles.label}>Provincia:</span>
+                        <span className={styles.label}> Provincia:</span>
                         <span className={styles.value}>{client.province || 'Sin provincia'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('city')}>
-                        <span className={styles.label}>Ciudad:</span>
+                        <span className={styles.label}> Ciudad:</span>
                         <span className={styles.value}>{client.city || 'Sin ciudad'}</span>
                       </div>
                     </div>
@@ -359,7 +359,7 @@ const ClientDetails = () => {
                   
                   
                   <div className={styles.personalInfoCard}>
-                    <h3>Resumen de Cuenta</h3>
+                    <h3> Resumen de Cuenta</h3>
                     <div className={styles.infoList}>
                       <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
                         <span className={styles.label}>
@@ -368,15 +368,15 @@ const ClientDetails = () => {
                         <span className={styles.value}>{formatPrice(Math.abs(totalBalance))}</span>
                       </div>
                       <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}>Reservas Activas:</span>
+                        <span className={styles.label}> Reservas Activas:</span>
                         <span className={styles.value}>{activeReservations.length}</span>
                       </div>
                       <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}>Reservas Completadas:</span>
+                        <span className={styles.label}> Reservas Completadas:</span>
                         <span className={styles.value}>{completedReservations.length}</span>
                       </div>
                       <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}>Total de Reservas:</span>
+                        <span className={styles.label}> Total de Reservas:</span>
                         <span className={styles.value}>{reservations.length}</span>
                       </div>
                     </div>
@@ -389,7 +389,7 @@ const ClientDetails = () => {
           {/* Sección de Reservas */}
           {activeSection === 'reservations' && (
             <div className={styles.section}>
-              <h2>Reservas del Cliente</h2>
+              <h2> Reservas del Cliente</h2>
               {reservations.length === 0 ? (
                 <div className={styles.noDataMessage}>
                   Este cliente no tiene reservas registradas
@@ -454,10 +454,10 @@ const ClientDetails = () => {
           {/* Sección de Balance de Pagos */}
           {activeSection === 'balance' && (
             <div className={styles.section}>
-              <h2>Balance de Pagos</h2>
+              <h2> Balance de Pagos</h2>
               <div className={styles.balanceGrid}>
                 <div className={styles.balanceCard}>
-                  <h3>Resumen Financiero</h3>
+                  <h3> Resumen Financiero</h3>
                   <div className={styles.balanceDetails}>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>
@@ -476,7 +476,7 @@ const ClientDetails = () => {
                       <span className={styles.value}>{formatPrice(clientBalance?.totalPayments || 0)}</span>
                     </div>
                     <div className={styles.balanceItem}>
-                      <span className={styles.label}>Reservas Activas:</span>
+                      <span className={styles.label}> Reservas Activas:</span>
                       <span className={styles.value}>{activeReservations.length}</span>
                     </div>
                     <div className={styles.balanceItem}>
@@ -489,28 +489,28 @@ const ClientDetails = () => {
                 </div>
                 
                 <div className={styles.balanceCard}>
-                  <h3>Desglose por Estado</h3>
+                  <h3> Desglose por Estado</h3>
                   <div className={styles.statusBreakdown}>
                     <div className={styles.statusItem}>
-                      <span className={styles.label}>Pendientes:</span>
+                      <span className={styles.label}> Pendientes:</span>
                       <span className={styles.value}>
                         {reservations.filter(r => r.status === 'PENDIENTE' || r.status === 'pending').length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
-                      <span className={styles.label}>Confirmadas:</span>
+                      <span className={styles.label}> Confirmadas:</span>
                       <span className={styles.value}>
                         {reservations.filter(r => r.status === 'CONFIRMADA' || r.status === 'confirmed').length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
-                      <span className={styles.label}>Ingresadas:</span>
+                      <span className={styles.label}> Ingresadas:</span>
                       <span className={styles.value}>
                         {reservations.filter(r => r.status === 'INGRESADA' || r.status === 'ingresada').length}
                       </span>
                     </div>
                     <div className={styles.statusItem}>
-                      <span className={styles.label}>Completadas:</span>
+                      <span className={styles.label}> Completadas:</span>
                       <span className={styles.value}>
                         {completedReservations.length}
                       </span>
@@ -525,36 +525,36 @@ const ClientDetails = () => {
           {/* Sección de Documentación Asociada */}
           {activeSection === 'documents' && (
             <div className={styles.section}>
-              <h2>Documentación Asociada</h2>
+              <h2> Documentación Asociada</h2>
               <div className={styles.documentsContainer}>
                 <div className={styles.documentsGrid}>
                   <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>🆔</div>
+                    <div className={styles.documentIcon} aria-hidden="true"> ID</div>
                     <div className={styles.documentInfo}>
-                      <h3>Documento de Identidad</h3>
-                      <p>Foto del DNI o documento de identidad del cliente</p>
+                      <h3> Documento de Identidad</h3>
+                      <p> Foto del DNI o documento de identidad del cliente</p>
                       <div className={styles.documentActions}>
                         <button className={styles.uploadButton}>
-                          📤 Subir Foto
+                          Subir Foto
                         </button>
                         <button className={styles.viewButton}>
-                          👁️ Ver Documento
+                          Ver Documento
                         </button>
                       </div>
                     </div>
                   </div>
                   
                   <div className={styles.documentCard}>
-                    <div className={styles.documentIcon}>💰</div>
+                    <div className={styles.documentIcon} aria-hidden="true">$</div>
                     <div className={styles.documentInfo}>
-                      <h3>Comprobantes de Pago</h3>
-                      <p>Recibos y comprobantes de pago</p>
+                      <h3> Comprobantes de Pago</h3>
+                      <p> Recibos y comprobantes de pago</p>
                       <div className={styles.documentActions}>
                         <button className={styles.uploadButton}>
-                          📤 Subir Comprobante
+                          Subir Comprobante
                         </button>
                         <button className={styles.viewButton}>
-                          👁️ Ver Comprobantes
+                          Ver Comprobantes
                         </button>
                       </div>
                     </div>

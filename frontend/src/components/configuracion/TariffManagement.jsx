@@ -319,7 +319,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
     return (
       <div className={styles.loadingContainer}>
         <div className={styles.spinner}></div>
-        <p>Cargando configuración de tarifas...</p>
+        <p> Cargando configuración de tarifas...</p>
       </div>
     );
   }
@@ -367,8 +367,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             {/* Season Blocks List */}
             {seasonBlocks.length === 0 ? (
               <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>📅</div>
-                <h3>No hay bloques de temporada</h3>
+                <div className={styles.emptyIcon} aria-hidden="true"><FiCalendar /></div>
+                <h3> No hay bloques de temporada</h3>
                 <button
                   className={styles.primaryButton}
                   onClick={handleCreateBlock}
@@ -390,7 +390,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                         <FiPlus />
                       </div>
                       <div className={styles.newBlockText}>
-                        <h3 className={styles.newBlockTitle}>Nuevo Bloque</h3>
+                        <h3 className={styles.newBlockTitle}> Nuevo Bloque</h3>
                       </div>
                     </div>
                   </button>
@@ -433,8 +433,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
         {activeSection === 'intelligent' && (
           <div className={styles.intelligentSection}>
             <div className={styles.sectionHeader}>
-              <h3>Configuración de Precios Inteligentes</h3>
-              <p>Gestiona los factores dinámicos que ajustan automáticamente los precios</p>
+              <h3> Configuración de Precios Inteligentes</h3>
+              <p> Gestiona los factores dinámicos que ajustan automáticamente los precios</p>
             </div>
             <DynamicPricingConfigPanel hotelId={hotelId} />
           </div>
@@ -445,13 +445,13 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
         {activeSection === 'prices' && (
           <div className={styles.pricesSection}>
             <div className={styles.sectionHeader}>
-              <h3>Precios por Fecha</h3>
-              <p>Visualiza las tarifas calculadas para una fecha específica</p>
+              <h3> Precios por Fecha</h3>
+              <p> Visualiza las tarifas calculadas para una fecha específica</p>
             </div>
             
             {/* Date Selector */}
             <div className={styles.dateSelector}>
-              <label htmlFor="date-selector">Seleccionar fecha:</label>
+              <label htmlFor="date-selector"> Seleccionar fecha:</label>
               <input
                 id="date-selector"
                 type="date"
@@ -468,7 +468,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
             {loadingPrices && (
               <div className={styles.loadingState}>
                 <div className={styles.spinner}></div>
-                <p>Cargando precios para {selectedDate}...</p>
+                <p> Cargando precios para {selectedDate}...</p>
               </div>
             )}
 
@@ -477,23 +477,23 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
               <div className={styles.pricesTableContainer}>
                 {pricesByDate.empty ? (
                   <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>📅</div>
-                    <h3>No hay precios disponibles</h3>
+                    <div className={styles.emptyIcon} aria-hidden="true"><FiCalendar /></div>
+                    <h3> No hay precios disponibles</h3>
                     <p>{pricesByDate.message}</p>
                   </div>
                 ) : (
                   <div className={styles.pricesInfo}>
                     <div className={styles.seasonBlockInfo}>
-                      <h4>Bloque de Temporada: {pricesByDate.seasonBlock.name}</h4>
+                      <h4> Bloque de Temporada: {pricesByDate.seasonBlock.name}</h4>
                       <p>{pricesByDate.seasonBlock.description}</p>
-                      <p>Período: {new Date(pricesByDate.seasonBlock.startDate).toLocaleDateString()} - {new Date(pricesByDate.seasonBlock.endDate).toLocaleDateString()}</p>
+                      <p> Período: {new Date(pricesByDate.seasonBlock.startDate).toLocaleDateString()} - {new Date(pricesByDate.seasonBlock.endDate).toLocaleDateString()}</p>
                     </div>
                     
                     <div className={styles.pricesTable}>
                       <table>
                         <thead>
                           <tr>
-                            <th>Tipo de Habitación</th>
+                            <th> Tipo de Habitación</th>
                             {pricesByDate.serviceTypes.map(service => (
                               <th key={service.id}>{service.name}</th>
                             ))}
@@ -505,7 +505,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                               <td className={styles.roomTypeCell}>
                                 <strong>{room.roomType.name}</strong>
                                 <br />
-                                <small>Base: ${room.basePrice.toLocaleString()}</small>
+                                <small> Base: ${room.basePrice.toLocaleString()}</small>
                               </td>
                               {room.services.map(service => (
                                 <td key={service.serviceType.id} className={styles.priceCell}>
@@ -539,8 +539,8 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
         {activeSection === 'rounding' && (
           <div className={styles.roundingSection}>
             <div className={styles.sectionHeader}>
-              <h3>Configuración de Redondeo</h3>
-              <p>Define cómo se redondean los precios calculados en todo el sistema</p>
+              <h3> Configuración de Redondeo</h3>
+              <p> Define cómo se redondean los precios calculados en todo el sistema</p>
             </div>
             <RoundingConfigPanel hotelId={hotelId} />
           </div>

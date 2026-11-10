@@ -181,7 +181,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando subcategorías de {currentTipoInfo.nombre.toLowerCase()}...</div>
+        <div className={styles.loading}> Cargando subcategorías de {currentTipoInfo.nombre.toLowerCase()}...</div>
       </div>
     );
   }
@@ -190,7 +190,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h3>Error</h3>
+          <h3> Error</h3>
           <p>{error}</p>
           <button onClick={loadSubcategorias} className={styles.retryButton}>
             Reintentar
@@ -218,8 +218,8 @@ const SubcategoriasCargosTab = ({ tipo }) => {
       <div className={styles.content}>
         {subcategorias.length === 0 ? (
           <div className={styles.emptyState}>
-            <h4>No hay subcategorías configuradas</h4>
-            <p>Crea subcategorías personalizadas para organizar mejor los cargos de {currentTipoInfo.nombre.toLowerCase()}.</p>
+            <h4> No hay subcategorías configuradas</h4>
+            <p> Crea subcategorías personalizadas para organizar mejor los cargos de {currentTipoInfo.nombre.toLowerCase()}.</p>
             <button 
               className={styles.primaryButton}
               onClick={handleAddNew}
@@ -232,13 +232,13 @@ const SubcategoriasCargosTab = ({ tipo }) => {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Estado</th>
-                  <th>Color</th>
-                  <th>Código</th>
-                  <th>Nombre</th>
-                  <th>Descripción</th>
-                  <th>Cargos</th>
-                  <th>Acciones</th>
+                  <th> Estado</th>
+                  <th> Color</th>
+                  <th> Código</th>
+                  <th> Nombre</th>
+                  <th> Descripción</th>
+                  <th> Cargos</th>
+                  <th> Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,7 +322,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Código *</label>
+                  <label> Código *</label>
                   <input
                     type="text"
                     value={formData.codigo}
@@ -331,11 +331,11 @@ const SubcategoriasCargosTab = ({ tipo }) => {
                     required
                     disabled={editingSubcategoria} // No editar código existente
                   />
-                  <small>Se convertirá automáticamente a mayúsculas</small>
+                  <small> Se convertirá automáticamente a mayúsculas</small>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Nombre *</label>
+                  <label> Nombre *</label>
                   <input
                     type="text"
                     value={formData.nombre}
@@ -347,7 +347,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Descripción</label>
+                <label> Descripción</label>
                 <textarea
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -357,7 +357,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Color</label>
+                <label> Color</label>
                 <div className={styles.colorInputContainer}>
                   <input
                     type="color"

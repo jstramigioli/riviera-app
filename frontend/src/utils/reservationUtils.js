@@ -37,7 +37,7 @@ export function showConflictNotification(message, position = null) {
   
   // Si no hay posición específica, usar alert como fallback
   if (!position) {
-    alert(`⚠️ Conflicto de reserva: ${message}`);
+    alert(`Conflicto de reserva: ${message}`);
     return;
   }
   

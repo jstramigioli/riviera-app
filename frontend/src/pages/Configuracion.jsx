@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings } from 'react-icons/fi';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
@@ -37,13 +38,13 @@ function ConfiguracionView() {
   }, [activeTab]);
 
   const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: '🏨' },
-    { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
-    { id: 'calendario', label: 'Calendario', icon: '📅' },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
-    { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'sistema', label: 'Sistema', icon: '⚙️' }
+    { id: 'hotel', label: 'Hotel', icon: FiHome },
+    { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
+    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
+    { id: 'calendario', label: 'Calendario', icon: FiCalendar },
+    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
+    { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
+    { id: 'sistema', label: 'Sistema', icon: FiSettings }
   ];
 
   const renderTabContent = () => {
@@ -89,7 +90,7 @@ function ConfiguracionView() {
               onClick={() => setActiveTab(tab.id)}
               className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
             >
-              <span className={styles.tabIcon} aria-hidden="true">{tab.icon}</span>
+              <span className={styles.tabIcon} aria-hidden="true"><tab.icon /></span>
               {tab.label}
             </button>
           ))}

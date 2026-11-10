@@ -282,7 +282,7 @@ export default function TarifasPreviewPanelV2({ hotelId = "default-hotel" }) {
         borderRadius: '6px',
         fontSize: 'var(--font-size-medium)'
       }}>
-        <strong>Precio Base Global:</strong> ${basePrice.toLocaleString()}
+        <strong> Precio Base Global:</strong> ${basePrice.toLocaleString()}
         {basePrice === 100000 && (
           <div style={{ 
             marginTop: '8px', 

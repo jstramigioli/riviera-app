@@ -1,3 +1,4 @@
+import { FiX } from 'react-icons/fi';
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
 import api from '../services/api';
@@ -122,26 +123,24 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>✏️ Editar Cliente</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
+          <h2> Editar Cliente</h2>
+          <button className={styles.closeButton} onClick={onClose}><FiX aria-hidden="true" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
           {error && (
             <div className={styles.error}>
-              ❌ {error}
+              {error}
             </div>
           )}
 
           <div className={styles.formGrid}>
             {/* Información Personal */}
             <div className={styles.section}>
-              <h3>👤 Información Personal</h3>
+              <h3> Información Personal</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="firstName">Nombre *</label>
+                <label htmlFor="firstName"> Nombre *</label>
                 <input
                   type="text"
                   id="firstName"
@@ -154,7 +153,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="lastName">Apellido *</label>
+                <label htmlFor="lastName"> Apellido *</label>
                 <input
                   type="text"
                   id="lastName"
@@ -167,7 +166,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="email">Email</label>
+                <label htmlFor="email"> Email</label>
                 <input
                   type="email"
                   id="email"
@@ -179,7 +178,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="phone">Teléfono</label>
+                <label htmlFor="phone"> Teléfono</label>
                 <input
                   type="tel"
                   id="phone"
@@ -193,10 +192,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Documentación */}
             <div className={styles.section}>
-              <h3>📄 Documentación</h3>
+              <h3> Documentación</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="documentType">Tipo de Documento</label>
+                <label htmlFor="documentType"> Tipo de Documento</label>
                 <select
                   id="documentType"
                   name="documentType"
@@ -204,15 +203,15 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   onChange={handleInputChange}
                   className={styles.select}
                 >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
+                  <option value="DNI"> DNI</option>
+                  <option value="Pasaporte"> Pasaporte</option>
+                  <option value="Cédula"> Cédula</option>
+                  <option value="Otro"> Otro</option>
                 </select>
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="documentNumber">Número de Documento</label>
+                <label htmlFor="documentNumber"> Número de Documento</label>
                 <input
                   type="text"
                   id="documentNumber"
@@ -226,7 +225,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Ubicación */}
             <div className={styles.section}>
-              <h3>📍 Ubicación</h3>
+              <h3> Ubicación</h3>
               
               <LocationSelector
                 country={formData.country}
@@ -240,10 +239,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Domicilio */}
             <div className={styles.section}>
-              <h3>🏠 Domicilio</h3>
+              <h3> Domicilio</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="address">Dirección</label>
+                <label htmlFor="address"> Dirección</label>
                 <textarea
                   id="address"
                   name="address"
@@ -258,7 +257,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Preferencias */}
             <div className={styles.section}>
-              <h3>⚙️ Preferencias</h3>
+              <h3> Preferencias</h3>
               
               <div className={styles.fieldGroup}>
                 <label className={styles.checkboxLabel}>
@@ -276,10 +275,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Notas */}
             <div className={styles.section}>
-              <h3>📝 Notas Adicionales</h3>
+              <h3> Notas Adicionales</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="notes">Notas</label>
+                <label htmlFor="notes"> Notas</label>
                 <textarea
                   id="notes"
                   name="notes"

@@ -179,7 +179,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
       <div className={styles.modalContent}>
         {/* Header */}
         <div className={styles.modalHeader}>
-          <h2>Gestión de Tipos de Servicio</h2>
+          <h2> Gestión de Tipos de Servicio</h2>
           <button
             className={styles.closeButton}
             onClick={handleClose}
@@ -200,7 +200,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
           {isCreating && (
             <div className={styles.editForm}>
               <div className={styles.formGroup}>
-                <label>Nombre *</label>
+                <label> Nombre *</label>
                 <input
                   type="text"
                   value={editingData.name}
@@ -210,7 +210,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Descripción</label>
+                <label> Descripción</label>
                 <textarea
                   value={editingData.description}
                   onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
@@ -259,7 +259,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
                   // Edit Form
                   <div className={styles.editForm}>
                     <div className={styles.formGroup}>
-                      <label>Nombre *</label>
+                      <label> Nombre *</label>
                       <input
                         type="text"
                         value={editingData.name}
@@ -268,7 +268,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
                       />
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Descripción</label>
+                      <label> Descripción</label>
                       <textarea
                         value={editingData.description}
                         onChange={(e) => setEditingData({ ...editingData, description: e.target.value })}
@@ -318,7 +318,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
                       >
                         <FiEdit2 />
                       </button>
-                      {/* 🚨 VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
+                      {/* VALIDACIÓN: Solo mostrar botón de eliminar si hay más de 1 servicio */}
                       {(() => {
                         const shouldShowDelete = localServiceTypes.length > 1;
                         console.log(`🔍 Botón eliminar para "${serviceType.name}": ${shouldShowDelete ? 'VISIBLE' : 'OCULTO'} (total: ${localServiceTypes.length})`);
@@ -342,7 +342,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
 
           {localServiceTypes.length === 0 && !isCreating && (
             <div className={styles.emptyState}>
-              <p>No hay tipos de servicio configurados</p>
+              <p> No hay tipos de servicio configurados</p>
             </div>
           )}
         </div>

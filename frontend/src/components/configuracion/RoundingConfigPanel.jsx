@@ -124,7 +124,7 @@ const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
       <div className={styles.panel}>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner}></div>
-          <span>Cargando configuración...</span>
+          <span> Cargando configuración...</span>
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
           <FiSettings />
           Configuración de Redondeo
         </h3>
-        <p>Define cómo se redondean los precios calculados en todo el sistema de tarifas.</p>
+        <p> Define cómo se redondean los precios calculados en todo el sistema de tarifas.</p>
       </div>
 
       {error && (
@@ -157,7 +157,7 @@ const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
       <div className={styles.content}>
         {/* Configuración de múltiplo */}
         <div className={styles.configSection}>
-          <label className={styles.sectionLabel}>Múltiplo de Redondeo</label>
+          <label className={styles.sectionLabel}> Múltiplo de Redondeo</label>
           <p className={styles.sectionDescription}>
             Selecciona a qué múltiplo se deben redondear los precios.
           </p>
@@ -180,7 +180,7 @@ const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
 
         {/* Configuración de modo */}
         <div className={styles.configSection}>
-          <label className={styles.sectionLabel}>Modo de Redondeo</label>
+          <label className={styles.sectionLabel}> Modo de Redondeo</label>
           <p className={styles.sectionDescription}>
             Define la dirección del redondeo cuando el precio no es exacto.
           </p>
@@ -209,7 +209,7 @@ const RoundingConfigPanel = ({ hotelId = 'default-hotel' }) => {
           <div className={styles.examplesSection}>
             <div className={styles.examplesHeader}>
               <FiInfo />
-              <span>Ejemplos de Redondeo</span>
+              <span> Ejemplos de Redondeo</span>
             </div>
             
             <div className={styles.examplesGrid}>

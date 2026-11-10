@@ -231,7 +231,7 @@ const RoomTypesPanel = () => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando tipos de habitaciones...</div>
+        <div> Cargando tipos de habitaciones...</div>
       </div>
     );
   }
@@ -252,7 +252,6 @@ const RoomTypesPanel = () => {
           alignItems: 'center',
           gap: '8px'
         }}>
-          <span>🛏️</span>
           Tipos de Habitaciones
         </h3>
         <p style={{ 

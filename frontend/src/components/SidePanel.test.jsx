@@ -7,7 +7,7 @@ describe('SidePanel', () => {
     open: true,
     onClose: vi.fn(),
     title: 'Test Panel',
-    children: <div>Test content</div>,
+    children: <div> Test content</div>,
     width: 400
   }
 

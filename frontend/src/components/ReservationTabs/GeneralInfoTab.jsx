@@ -232,7 +232,7 @@ const GeneralInfoTab = ({
         </div>
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Huéspedes:</span>
+          <span className={styles.infoLabel}> Huéspedes:</span>
           <span className={styles.infoValue}>
             {isEditing ? (
               <input
@@ -388,7 +388,7 @@ const GeneralInfoTab = ({
         )}
         
         <div className={styles.infoItem}>
-          <span className={styles.infoLabel}>Servicio:</span>
+          <span className={styles.infoLabel}> Servicio:</span>
           <span className={styles.infoValue}>
             {isEditing ? (
               <select

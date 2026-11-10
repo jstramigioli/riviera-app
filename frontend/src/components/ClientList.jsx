@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FiSearch, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import EditClientModal from './EditClientModal';
 import api from '../services/api';
 import styles from '../styles/Estadisticas.module.css';
@@ -104,7 +105,7 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
-          <span className={styles.searchIcon}>🔍</span>
+          <span className={styles.searchIcon} aria-hidden="true"><FiSearch /></span>
         </div>
         <div className={styles.resultsInfo}>
           Mostrando {filteredAndSortedClients.length} de {clients.length} clientes
@@ -241,11 +242,11 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
                 <td>
                   {client.wantsPromotions ? (
                     <span className={styles.promotionBadge}>
-                      ✅ Sí
+                      Sí
                     </span>
                   ) : (
                     <span className={styles.noPromotionBadge}>
-                      ❌ No
+                      No
                     </span>
                   )}
                 </td>
@@ -255,14 +256,14 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
                     className={styles.editButton}
                     title="Editar cliente"
                   >
-                    ✏️
+                    <FiEdit2 aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => handleDeleteClient(client)}
                     className={styles.deleteButton}
                     title="Eliminar cliente"
                   >
-                    🗑️
+                    <FiTrash2 aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -272,7 +273,7 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
         
         {filteredAndSortedClients.length === 0 && (
           <div className={styles.emptyState}>
-            <p>No se encontraron clientes que coincidan con la búsqueda.</p>
+            <p> No se encontraron clientes que coincidan con la búsqueda.</p>
           </div>
         )}
       </div>

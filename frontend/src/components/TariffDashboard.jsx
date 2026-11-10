@@ -19,7 +19,7 @@ export default function TariffDashboard() {
   if (loading) {
     return (
       <div className={styles.dashboardContainer}>
-        <div className={styles.loading}>Cargando información de tarifas...</div>
+        <div className={styles.loading}> Cargando información de tarifas...</div>
       </div>
     );
   }

@@ -229,7 +229,7 @@ function VirtualRoomsPanel() {
 
   const renderComponentRooms = (components) => {
     if (!components || components.length === 0) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>Sin habitaciones</span>;
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}> Sin habitaciones</span>;
     }
 
     return (
@@ -287,7 +287,7 @@ function VirtualRoomsPanel() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', fontSize: 'var(--font-size-large)' }}>
-        <div>Cargando habitaciones virtuales...</div>
+        <div> Cargando habitaciones virtuales...</div>
       </div>
     );
   }
@@ -319,7 +319,6 @@ function VirtualRoomsPanel() {
             alignItems: 'center',
             gap: '8px'
           }}>
-            <span>🏗️</span>
             Habitaciones Virtuales
           </h2>
           <p style={{ 
@@ -696,7 +695,7 @@ function VirtualRoomsPanel() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="">Seleccionar tipo...</option>
+                  <option value=""> Seleccionar tipo...</option>
                   {roomTypes.map(type => (
                     <option key={type.id} value={type.id}>
                       {getRoomTypeLabel(type.name)} ({getRoomTypeCapacity(type.name)} personas)
@@ -744,7 +743,7 @@ function VirtualRoomsPanel() {
                           backgroundColor: 'var(--color-bg-white)'
                         }}
                       >
-                        <option value="">Seleccionar habitación...</option>
+                        <option value=""> Seleccionar habitación...</option>
                         {rooms.map(room => (
                           <option key={room.id} value={room.id}>
                             {room.name} ({getRoomTypeLabel(getRoomTypeById(room.roomTypeId)?.name || '')})

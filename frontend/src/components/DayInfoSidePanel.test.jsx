@@ -10,7 +10,7 @@ vi.mock('./SidePanel', () => ({
     return (
       <div data-testid="side-panel">
         <h2>{title}</h2>
-        <button onClick={onClose}>Cerrar</button>
+        <button onClick={onClose}> Cerrar</button>
         {children}
       </div>
     );

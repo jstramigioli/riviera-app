@@ -468,10 +468,10 @@ function AddPeriodModal({ onClose, onAdd }) {
         minWidth: '500px',
         maxWidth: '600px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Agregar Período Operacional</h3>
+        <h3 style={{ marginBottom: '20px' }}> Agregar Período Operacional</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Título (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Título (opcional):</label>
             <input
               type="text"
               value={formData.label}
@@ -483,7 +483,7 @@ function AddPeriodModal({ onClose, onAdd }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -493,7 +493,7 @@ function AddPeriodModal({ onClose, onAdd }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}
@@ -564,10 +564,10 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
         borderRadius: '8px', 
         minWidth: '500px'
       }}>
-        <h3 style={{ marginBottom: '20px' }}>Editar Período Operacional</h3>
+        <h3 style={{ marginBottom: '20px' }}> Editar Período Operacional</h3>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Título (opcional):</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Título (opcional):</label>
             <input
               type="text"
               value={formData.label}
@@ -579,7 +579,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Inicio:</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Inicio:</label>
               <input
                 type="date"
                 value={formData.startDate}
@@ -589,7 +589,7 @@ function EditPeriodModal({ period, onClose, onSave, onDelete }) {
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fin (último día abierto):</label>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}> Fin (último día abierto):</label>
               <input
                 type="date"
                 value={formData.endDate}

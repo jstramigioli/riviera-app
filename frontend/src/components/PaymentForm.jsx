@@ -157,7 +157,7 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>Monto *</label>
+              <label> Monto *</label>
               <input
                 type="number"
                 value={formData.monto}
@@ -170,14 +170,14 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
             </div>
 
             <div className={styles.formGroup}>
-              <label>Moneda *</label>
+              <label> Moneda *</label>
               <select
                 value={formData.moneda}
                 onChange={(e) => handleInputChange('moneda', e.target.value)}
                 required
               >
-                <option value="ARS">Pesos Argentinos (ARS)</option>
-                <option value="USD">Dólares (USD)</option>
+                <option value="ARS"> Pesos Argentinos (ARS)</option>
+                <option value="USD"> Dólares (USD)</option>
               </select>
             </div>
           </div>
@@ -185,7 +185,7 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
           {formData.moneda === 'USD' && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Tipo de Cambio *</label>
+                <label> Tipo de Cambio *</label>
                 <input
                   type="number"
                   value={formData.tipoCambio}
@@ -201,25 +201,25 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>Método de Pago *</label>
+              <label> Método de Pago *</label>
               <select
                 value={formData.metodo}
                 onChange={(e) => handleInputChange('metodo', e.target.value)}
                 required
               >
-                <option value="Efectivo">Efectivo</option>
-                <option value="Tarjeta Debito">Tarjeta Débito</option>
-                <option value="Tarjeta Credito">Tarjeta Crédito</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Mercadopago">Mercadopago</option>
-                <option value="Cuenta DNI">Cuenta DNI</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Otro">Otro</option>
+                <option value="Efectivo"> Efectivo</option>
+                <option value="Tarjeta Debito"> Tarjeta Débito</option>
+                <option value="Tarjeta Credito"> Tarjeta Crédito</option>
+                <option value="Transferencia"> Transferencia</option>
+                <option value="Mercadopago"> Mercadopago</option>
+                <option value="Cuenta DNI"> Cuenta DNI</option>
+                <option value="Cheque"> Cheque</option>
+                <option value="Otro"> Otro</option>
               </select>
             </div>
 
             <div className={styles.formGroup}>
-              <label>Referencia</label>
+              <label> Referencia</label>
               <input
                 type="text"
                 value={formData.referencia}
@@ -233,7 +233,7 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
           {['Tarjeta Debito', 'Tarjeta Credito'].includes(formData.metodo) && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Número de Tarjeta *</label>
+                <label> Número de Tarjeta *</label>
                 <input
                   type="text"
                   value={formData.numeroTarjeta}
@@ -245,33 +245,33 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Empresa *</label>
+                <label> Empresa *</label>
                 <select
                   value={formData.empresa}
                   onChange={(e) => handleInputChange('empresa', e.target.value)}
                   required
                 >
-                  <option value="">Seleccionar empresa...</option>
+                  <option value=""> Seleccionar empresa...</option>
                   {formData.metodo === 'Tarjeta Debito' ? (
                     <>
-                      <option value="Maestro">Maestro</option>
-                      <option value="Visa Electron">Visa Electron</option>
-                      <option value="Cabal 24hs">Cabal 24hs</option>
-                      <option value="Mastercard Debito">Mastercard Débito</option>
-                      <option value="Otra">Otra</option>
+                      <option value="Maestro"> Maestro</option>
+                      <option value="Visa Electron"> Visa Electron</option>
+                      <option value="Cabal 24hs"> Cabal 24hs</option>
+                      <option value="Mastercard Debito"> Mastercard Débito</option>
+                      <option value="Otra"> Otra</option>
                     </>
                   ) : (
                     <>
-                      <option value="American Express">American Express</option>
-                      <option value="Visa">Visa</option>
-                      <option value="Mastercard">Mastercard</option>
-                      <option value="Credencial">Credencial</option>
-                      <option value="Carta Franca">Carta Franca</option>
-                      <option value="Cabal">Cabal</option>
-                      <option value="Diners">Diners</option>
-                      <option value="Tarjeta Shopping">Tarjeta Shopping</option>
-                      <option value="Tarjeta Naranja">Tarjeta Naranja</option>
-                      <option value="Otra">Otra</option>
+                      <option value="American Express"> American Express</option>
+                      <option value="Visa"> Visa</option>
+                      <option value="Mastercard"> Mastercard</option>
+                      <option value="Credencial"> Credencial</option>
+                      <option value="Carta Franca"> Carta Franca</option>
+                      <option value="Cabal"> Cabal</option>
+                      <option value="Diners"> Diners</option>
+                      <option value="Tarjeta Shopping"> Tarjeta Shopping</option>
+                      <option value="Tarjeta Naranja"> Tarjeta Naranja</option>
+                      <option value="Otra"> Otra</option>
                     </>
                   )}
                 </select>
@@ -281,7 +281,7 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>Notas</label>
+              <label> Notas</label>
               <textarea
                 value={formData.notas}
                 onChange={(e) => handleInputChange('notas', e.target.value)}
@@ -293,9 +293,9 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
 
           {/* Resumen del pago */}
           <div className={styles.paymentSummary}>
-            <h3>Resumen del Pago</h3>
+            <h3> Resumen del Pago</h3>
             <div className={styles.summaryRow}>
-              <span>Monto original:</span>
+              <span> Monto original:</span>
               <span className={styles.amount}>
                 {formData.moneda === 'USD' 
                   ? formatPriceUSD(parseFloat(formData.monto) || 0)
@@ -305,12 +305,12 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
             </div>
             {formData.moneda === 'USD' && (
               <div className={styles.summaryRow}>
-                <span>Tipo de cambio:</span>
+                <span> Tipo de cambio:</span>
                 <span>{parseFloat(formData.tipoCambio) || 0}</span>
               </div>
             )}
             <div className={styles.summaryRow}>
-              <span>Equivalente en ARS:</span>
+              <span> Equivalente en ARS:</span>
               <span className={styles.amountARS}>
                 {formatPrice(montoARS)}
               </span>
