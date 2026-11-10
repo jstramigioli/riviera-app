@@ -204,12 +204,23 @@ const EstadoFinancieroTab = ({
       alert('No hay datos financieros para imprimir');
       return;
     }
+    const printRoot = printRef.current?.closest('[data-print-root]') || printRef.current;
+    const placeholder = document.createComment('liquidacion-print-placeholder');
+    const originalParent = printRoot?.parentNode || null;
+    if (printRoot && originalParent) {
+      originalParent.insertBefore(placeholder, printRoot);
+      document.body.appendChild(printRoot);
+    }
     document.body.classList.add('printing-liquidacion');
     let cleaned = false;
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
       document.body.classList.remove('printing-liquidacion');
+      if (printRoot && placeholder.parentNode) {
+        placeholder.parentNode.insertBefore(printRoot, placeholder);
+        placeholder.remove();
+      }
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);

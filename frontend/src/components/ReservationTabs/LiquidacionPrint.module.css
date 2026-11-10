@@ -48,7 +48,6 @@
 
 .block {
   margin-bottom: 16px;
-  page-break-inside: avoid;
 }
 
 .block h2 {
@@ -58,6 +57,11 @@
   letter-spacing: 0.06em;
   border-bottom: 1px solid #ccc;
   padding-bottom: 4px;
+}
+
+.keepTogether {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .grid2 {
@@ -78,6 +82,15 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 10.5pt;
+}
+
+.table thead {
+  display: table-header-group;
+}
+
+.table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .table th,
@@ -101,16 +114,32 @@
   font-variant-numeric: tabular-nums;
 }
 
-.chargeGroup {
-  margin-bottom: 10px;
+.summaryTable .summaryMain td {
+  font-weight: 600;
 }
 
-.groupHead {
-  display: flex;
-  justify-content: space-between;
+.summaryGroup td {
+  font-weight: 700;
+  padding-top: 10px;
+  border-bottom: 1px solid #bbb;
+  text-transform: uppercase;
+  font-size: 9.5pt;
+  letter-spacing: 0.04em;
+}
+
+.summaryItem td:first-child {
+  padding-left: 14px;
+}
+
+.summarySubtotal td {
   font-weight: 600;
-  margin: 6px 0 4px;
-  font-size: 10.5pt;
+  border-bottom: 1px solid #999;
+}
+
+.pagoDetalle {
+  font-size: 9.5pt;
+  color: #333;
+  word-break: break-word;
 }
 
 .subtotal {
@@ -128,15 +157,16 @@
   font-style: italic;
 }
 
-.footnote {
-  margin: 6px 0 0;
-  font-size: 9pt;
-  color: #555;
+.cargosBlock,
+.pagosBlock {
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .saldoBlock {
   border: 1.5px solid #111;
   padding: 10px 12px;
+  margin-bottom: 0;
 }
 
 .saldoRow {
@@ -152,12 +182,19 @@
   color: #333;
 }
 
+.closing {
+  margin-top: 8px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  break-before: auto;
+  page-break-before: auto;
+}
+
 .footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 40px;
   margin-top: 36px;
-  page-break-inside: avoid;
 }
 
 .signLine {
@@ -175,9 +212,17 @@
     left: auto !important;
     top: auto !important;
     width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     padding: 0;
     margin: 0;
     visibility: visible !important;
+  }
+
+  .pagosBlock {
+    break-before: auto;
+    page-break-before: auto;
   }
 
   @page {
