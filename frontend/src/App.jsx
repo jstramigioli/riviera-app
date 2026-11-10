@@ -12,8 +12,6 @@ import CalendarioGestion from './pages/CalendarioGestion';
 import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
-import RatesCalendar from './components/RatesCalendar';
-import TariffDashboard from './components/TariffDashboard';
 import ConsultasReservasView from './components/ConsultasReservasView';
 import CobrosPagos from './pages/CobrosPagos';
 import Consulta from './pages/Consulta';
@@ -34,7 +32,6 @@ import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
-import PreciosInteligentesView from './pages/PreciosInteligentes';
 
 function ReservationsView() {
   const navigate = useNavigate();
@@ -480,34 +477,6 @@ function ConsultasReservasViewWrapper() {
   return <ConsultasReservasView />;
 }
 
-function TarifasView() {
-  return <TariffDashboard />;
-}
-
-function TarifasCalendarioView() {
-  return (
-    <div style={{ padding: '16px' }}>
-      <div
-        role="status"
-        style={{
-          marginBottom: '16px',
-          padding: '12px 16px',
-          background: '#fff8e6',
-          border: '1px solid #f0d78c',
-          borderRadius: '8px',
-          color: '#5c4b1a',
-          maxWidth: '960px'
-        }}
-      >
-        Calendario paralelo (legacy). No es el path canónico de cotización ni de cargos.
-        Gestioná tarifas operativas en{' '}
-        <a href="/configuracion?tab=cargos-tarifas">Configuración → Cargos y Tarifas</a>.
-      </div>
-      <RatesCalendar />
-    </div>
-  );
-}
-
 function CobrosPagosView() {
   return <CobrosPagos />;
 }
@@ -586,27 +555,15 @@ function App() {
             />
             <Route
               path="/tarifas"
-              element={(
-                <ProtectedRoute permission="tarifas">
-                  <AppShell><TarifasView /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<Navigate to="/configuracion?tab=cargos-tarifas" replace />}
             />
             <Route
               path="/tarifas/calendario"
-              element={(
-                <ProtectedRoute permission="tarifas">
-                  <AppShell><TarifasCalendarioView /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<Navigate to="/configuracion?tab=cargos-tarifas" replace />}
             />
             <Route
               path="/precios-inteligentes"
-              element={(
-                <ProtectedRoute permission="tarifas">
-                  <AppShell><PreciosInteligentesView /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<Navigate to="/configuracion?tab=cargos-tarifas" replace />}
             />
             <Route
               path="/cobros-pagos"
