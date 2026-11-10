@@ -225,6 +225,9 @@
   left: -9999px;
   top: 0;
   width: 210mm;
+  height: auto;
+  max-height: none;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -234,10 +237,15 @@
     left: auto !important;
     top: auto !important;
     right: auto !important;
+    bottom: auto !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    transform: none !important;
     pointer-events: auto;
     z-index: auto;
   }

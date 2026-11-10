@@ -213,20 +213,32 @@
     top: auto !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    transform: none !important;
     padding: 0;
     margin: 0;
     visibility: visible !important;
   }
 
+  .cargosBlock,
   .pagosBlock {
-    break-before: auto;
-    page-break-before: auto;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
-  @page {
-    size: A4;
-    margin: 14mm 12mm;
+  .pagosBlock table {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .closing {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: auto;
+    page-break-before: auto;
   }
 }
