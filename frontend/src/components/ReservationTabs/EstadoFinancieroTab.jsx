@@ -22,7 +22,9 @@ const EstadoFinancieroTab = ({
   onFinancialChange,
   onAddCargo,
   onUpdateCargo,
-  onDeleteCargo
+  onDeleteCargo,
+  pendingAction = null,
+  onPendingActionHandled
 }) => {
   const [expandedFinancialRow, setExpandedFinancialRow] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -38,6 +40,7 @@ const EstadoFinancieroTab = ({
     notas: ''
   });
   const printRef = useRef(null);
+  const pendingHandledRef = useRef(null);
 
   useEffect(() => {
     loadCategoriasHibridas();
@@ -76,26 +79,6 @@ const EstadoFinancieroTab = ({
     } finally {
       setLoadingCategorias(false);
     }
-  };
-
-  if (!reservation) return null;
-
-  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
-  const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
-  const saldoDisplay = totalCargos - totalPagos;
-  const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
-
-  const cargoItems = financialSummary?.cargos?.items || [];
-  const pagoItems = financialSummary?.pagos?.items || [];
-  const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
-  const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
-  const tiposCargosOrdenados = [
-    ...tipoCargoOrder.filter((codigo) => cargosPorTipo[codigo]),
-    ...Object.keys(cargosPorTipo).filter((codigo) => !tipoCargoOrder.includes(codigo))
-  ].map((codigo) => cargosPorTipo[codigo]);
-
-  const toggleFinancialRow = (row) => {
-    setExpandedFinancialRow((current) => (current === row ? null : row));
   };
 
   const resetCargoForm = () => {
@@ -237,6 +220,67 @@ const EstadoFinancieroTab = ({
         setTimeout(cleanup, 60000);
       });
     });
+  };
+
+  // Acciones disparadas desde el menú ⋮ del panel del Libro
+  useEffect(() => {
+    if (!pendingAction) {
+      pendingHandledRef.current = null;
+      return;
+    }
+    if (pendingHandledRef.current === pendingAction) return;
+    if (loadingFinancial || loadingCategorias) return;
+
+    if (pendingAction === 'add-consumo') {
+      if (subcategorias.length === 0) return;
+      pendingHandledRef.current = pendingAction;
+      openCreateCargo();
+      onPendingActionHandled?.();
+      return;
+    }
+
+    if (pendingAction === 'add-pago') {
+      pendingHandledRef.current = pendingAction;
+      setShowPaymentForm(true);
+      onPendingActionHandled?.();
+      return;
+    }
+
+    if (pendingAction === 'print-liquidacion') {
+      if (!financialSummary) return;
+      pendingHandledRef.current = pendingAction;
+      requestAnimationFrame(() => {
+        handlePrintLiquidacion();
+        onPendingActionHandled?.();
+      });
+    }
+  }, [
+    pendingAction,
+    loadingFinancial,
+    loadingCategorias,
+    financialSummary,
+    subcategorias.length,
+    onPendingActionHandled
+  ]);
+
+  if (!reservation) return null;
+
+  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
+  const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
+  const saldoDisplay = totalCargos - totalPagos;
+  const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
+
+  const cargoItems = financialSummary?.cargos?.items || [];
+  const pagoItems = financialSummary?.pagos?.items || [];
+  const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
+  const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
+  const tiposCargosOrdenados = [
+    ...tipoCargoOrder.filter((codigo) => cargosPorTipo[codigo]),
+    ...Object.keys(cargosPorTipo).filter((codigo) => !tipoCargoOrder.includes(codigo))
+  ].map((codigo) => cargosPorTipo[codigo]);
+
+  const toggleFinancialRow = (row) => {
+    setExpandedFinancialRow((current) => (current === row ? null : row));
   };
 
   const isLodgingCargo = (item) => !item.subcategoriaCargoId;
