@@ -5,6 +5,7 @@ import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
 import ReservationStatusButtons from './ReservationStatusButtons';
+import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
 import styles from './ReservationDetailsPanel.module.css';
 
 const ReservationDetailsPanel = ({
@@ -304,11 +305,14 @@ const ReservationDetailsPanel = ({
       </div>
 
       <div className={styles.actionsRow}>
-        <ReservationStatusButtons
-          reservation={reservation}
-          onStatusChange={onStatusChange}
-          onDelete={onDelete}
-        />
+        <div className={styles.actionsRowStatus}>
+          <ReservationStatusButtons
+            reservation={reservation}
+            onStatusChange={onStatusChange}
+            onDelete={onDelete}
+          />
+        </div>
+        <ReservationPanelMoreMenu reservation={reservation} />
       </div>
     </div>
   );

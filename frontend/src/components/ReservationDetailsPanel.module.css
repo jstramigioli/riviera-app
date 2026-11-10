@@ -73,9 +73,13 @@
   overflow: visible;
 }
 
-.actionsRow > * {
+.actionsRowStatus {
   flex: 1;
   min-width: 0;
+}
+
+.actionsRowStatus > * {
+  width: 100%;
 }
 
 .icon {

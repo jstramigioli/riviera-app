@@ -35,8 +35,13 @@ const ReservationDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado de pestañas
-  const [activeTab, setActiveTab] = useState('general');
+  // Estado de pestañas (puede venir del panel del Libro vía location.state)
+  const [activeTab, setActiveTab] = useState(
+    location.state?.activeTab === 'financiero' ? 'financiero' : 'general'
+  );
+  const [pendingFinancialAction, setPendingFinancialAction] = useState(
+    location.state?.financialAction || null
+  );
   
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
@@ -100,6 +105,17 @@ const ReservationDetails = () => {
       setActiveTab('general');
     }
   }, [location.state?.isEditing]);
+
+  useEffect(() => {
+    if (location.state?.activeTab === 'financiero' || location.state?.financialAction) {
+      setActiveTab('financiero');
+      if (location.state?.financialAction) {
+        setPendingFinancialAction(location.state.financialAction);
+      }
+      // Limpiar state para no re-disparar al volver con el historial
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.activeTab, location.state?.financialAction, location.pathname, navigate]);
 
   // Cargar datos financieros en la pestaña Estado financiero
   useEffect(() => {
@@ -325,6 +341,8 @@ const ReservationDetails = () => {
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
+            pendingAction={pendingFinancialAction}
+            onPendingActionHandled={() => setPendingFinancialAction(null)}
           />
         );
       case 'huespedes':
