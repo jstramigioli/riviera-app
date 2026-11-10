@@ -68,7 +68,9 @@ async function loadCalendar(startIso, days) {
         name: true,
         maxPeople: true,
         status: true,
-        orderIndex: true
+        orderIndex: true,
+        roomTypeId: true,
+        roomType: { select: { id: true, name: true, maxPeople: true } }
       }
     }),
     prisma.reservationSegment.findMany({
@@ -152,6 +154,10 @@ async function loadCalendar(startIso, days) {
       name: r.name,
       maxPeople: r.maxPeople,
       status: r.status,
+      roomTypeId: r.roomTypeId,
+      roomType: r.roomType
+        ? { id: r.roomType.id, name: r.roomType.name, maxPeople: r.roomType.maxPeople }
+        : null,
       blocks: blocksByRoom.get(r.id) || []
     }))
   };
