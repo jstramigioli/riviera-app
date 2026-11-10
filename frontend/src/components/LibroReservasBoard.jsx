@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { FiFilter } from 'react-icons/fi';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
 import { fetchCalendar, fetchReservation } from '../services/api';
@@ -79,9 +80,15 @@ export default function LibroReservasBoard({
   const [selectedDateIso, setSelectedDateIso] = useState(null);
   const [dayInfoOpen, setDayInfoOpen] = useState(false);
   const [booting, setBooting] = useState(true);
+  /** null = todos los tipos; Set<number> = solo esos roomTypeId */
+  const [roomTypeFilter, setRoomTypeFilter] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, left: 0 });
 
   const scrollerRef = useRef(null);
   const measureRef = useRef(null);
+  const filterWrapRef = useRef(null);
+  const filterBtnRef = useRef(null);
   const centeredOnce = useRef(false);
   /** Día al que scrollear tras cargar ventana (hoy o próximo open). */
   const scrollTargetIso = useRef(null);
@@ -96,9 +103,84 @@ export default function LibroReservasBoard({
 
   const monthSpans = useMemo(() => monthSpansFor(days), [days]);
 
+  const roomTypeOptions = useMemo(() => {
+    const byId = new Map();
+    for (const room of rooms) {
+      const rt = room.roomType;
+      const id = room.roomTypeId ?? rt?.id;
+      if (id == null) continue;
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          name: rt?.name || `Tipo ${id}`,
+          maxPeople: rt?.maxPeople ?? room.maxPeople
+        });
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }, [rooms]);
+
+  const visibleRooms = useMemo(() => {
+    if (roomTypeFilter == null) return rooms;
+    return rooms.filter((room) => {
+      const id = room.roomTypeId ?? room.roomType?.id;
+      return id != null && roomTypeFilter.has(id);
+    });
+  }, [rooms, roomTypeFilter]);
+
+  const filterActive = roomTypeFilter != null;
+
   useEffect(() => {
     setTodayIso(todayIsoLocal());
   }, []);
+
+  const syncFilterMenuPos = useCallback(() => {
+    const btn = filterBtnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setFilterMenuPos({ top: rect.bottom + 4, left: rect.left });
+  }, []);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    syncFilterMenuPos();
+    const onPointerDown = (e) => {
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFilterOpen(false);
+    };
+    const onReposition = () => syncFilterMenuPos();
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    const scroller = scrollerRef.current;
+    scroller?.addEventListener('scroll', onReposition);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      scroller?.removeEventListener('scroll', onReposition);
+    };
+  }, [filterOpen, syncFilterMenuPos]);
+
+  function toggleRoomTypeFilter(typeId) {
+    setRoomTypeFilter((prev) => {
+      const allIds = roomTypeOptions.map((o) => o.id);
+      const next = new Set(prev == null ? allIds : prev);
+      if (next.has(typeId)) next.delete(typeId);
+      else next.add(typeId);
+      if (next.size === allIds.length) return null;
+      return next;
+    });
+  }
+
+  function openFilterMenu() {
+    syncFilterMenuPos();
+    setFilterOpen((o) => !o);
+  }
 
   useEffect(() => {
     const el = measureRef.current;
@@ -426,7 +508,75 @@ export default function LibroReservasBoard({
                 ))}
               </div>
               <div className={styles.dayRow}>
-                <div className={styles.cornerCell}>Habitación</div>
+                <div className={styles.cornerCell}>
+                  <span className={styles.cornerLabel}>Habitación</span>
+                  <div className={styles.filterWrap} ref={filterWrapRef}>
+                    <button
+                      ref={filterBtnRef}
+                      type="button"
+                      className={[
+                        styles.filterBtn,
+                        filterOpen ? styles.filterBtnOpen : '',
+                        filterActive ? styles.filterBtnActive : ''
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      aria-label="Filtrar por tipo de habitación"
+                      aria-expanded={filterOpen}
+                      aria-haspopup="menu"
+                      title="Filtrar por tipo"
+                      onClick={openFilterMenu}
+                    >
+                      <FiFilter size={13} aria-hidden="true" />
+                    </button>
+                    {filterOpen ? (
+                      <div
+                        className={styles.filterMenu}
+                        role="menu"
+                        style={{ top: filterMenuPos.top, left: filterMenuPos.left }}
+                      >
+                        <div className={styles.filterMenuTitle}>Tipo de habitación</div>
+                        {roomTypeOptions.length === 0 ? (
+                          <div className={styles.filterOption}>Sin tipos</div>
+                        ) : (
+                          roomTypeOptions.map((opt) => {
+                            const checked =
+                              roomTypeFilter == null || roomTypeFilter.has(opt.id);
+                            return (
+                              <label
+                                key={opt.id}
+                                className={styles.filterOption}
+                                role="menuitemcheckbox"
+                                aria-checked={checked}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleRoomTypeFilter(opt.id)}
+                                />
+                                <span>
+                                  {opt.name}
+                                  {opt.maxPeople != null ? ` (x${opt.maxPeople})` : ''}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                        {filterActive ? (
+                          <div className={styles.filterMenuFooter}>
+                            <button
+                              type="button"
+                              className={styles.filterClear}
+                              onClick={() => setRoomTypeFilter(null)}
+                            >
+                              Mostrar todas
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
                 {days.map((d) => {
                   const sunday = d.weekday === 0;
                   return (
@@ -456,7 +606,7 @@ export default function LibroReservasBoard({
               </div>
             </div>
 
-            {rooms.map((room, roomIndex) => (
+            {visibleRooms.map((room, roomIndex) => (
               <div key={room.id} className={styles.roomRow} style={{ height: ROW_H }}>
                 <div className={styles.roomLabel} title={room.name}>
                   <span className={styles.roomName}>{room.name}</span>
