@@ -32,6 +32,7 @@ import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
+import PublicCheckIn from './pages/PublicCheckIn';
 
 function ReservationsView() {
   const navigate = useNavigate();
@@ -497,6 +498,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/check-in/:token" element={<PublicCheckIn />} />
             <Route
               path="/"
               element={(

@@ -155,6 +155,8 @@ model Reservation {
   notes               String?
   isMultiRoom         Boolean                @default(false)
   parentReservationId Int?
+  /// Patente del vehículo (estacionamiento), cargada vía check-in online o recepción.
+  vehiclePlate        String?
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   guests              Guest[]
@@ -165,9 +167,45 @@ model Reservation {
   segments            ReservationSegment[]
   pagos               Pago[]
   cargos              Cargo[]
+  onlineCheckIns      OnlineCheckIn[]
 
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+enum OnlineCheckInStatus {
+  PENDING
+  SENT
+  COMPLETED
+  EXPIRED
+}
+
+/// Check-in online vinculado a una reserva (token público + respuestas).
+model OnlineCheckIn {
+  id             String              @id @default(cuid())
+  reservationId  Int
+  token          String              @unique
+  status         OnlineCheckInStatus @default(PENDING)
+  sentAt         DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  firstName      String?
+  lastName       String?
+  email          String?
+  phone          String?
+  documentType   String?
+  documentNumber String?
+  country        String?
+  province       String?
+  city           String?
+  address        String?
+  vehiclePlate   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  reservation    Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+  @@index([status])
 }
 
 model QueryGroup {

@@ -359,8 +359,56 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.checkInMeta {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.checkInActions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.checkInSendBtn,
+.checkInCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.checkInSendBtn {
+  flex: 1 1 auto;
+}
+
+.checkInCopyBtn {
+  flex: 0 0 36px;
+  padding: 6px;
+}
+
+.checkInSendBtn:hover:not(:disabled),
+.checkInCopyBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.checkInSendBtn:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .actionButtons {
