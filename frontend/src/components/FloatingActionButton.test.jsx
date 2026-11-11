@@ -22,15 +22,27 @@ describe('FloatingActionButton hub', () => {
     expect(onToday).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Nueva consulta' }))
+
+    const consulta = screen.getByRole('menuitem', { name: '+ Consulta' })
+    const reserva = screen.getByRole('menuitem', { name: '+ Reserva' })
+    const consumo = screen.getByRole('menuitem', { name: '+ Consumo' })
+
+    expect(consulta).toHaveTextContent('+ Consulta')
+    expect(reserva).toHaveTextContent('+ Reserva')
+    expect(consumo).toHaveTextContent('+ Consumo')
+    expect(consulta.querySelector('svg')).toBeNull()
+    expect(reserva.querySelector('svg')).toBeNull()
+    expect(consumo.querySelector('svg')).toBeNull()
+
+    fireEvent.click(consulta)
     expect(onCreateQuery).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Nueva reserva' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ Reserva' }))
     expect(onCreateReservation).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Nuevo consumo' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ Consumo' }))
     expect(onCreateConsumption).toHaveBeenCalledTimes(1)
   })
 })

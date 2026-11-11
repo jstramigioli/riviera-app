@@ -90,8 +90,7 @@
 .actionButton {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.75rem;
+  padding: 0.45rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-white);
@@ -102,8 +101,8 @@
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   white-space: nowrap;
-  min-width: 10.5rem;
-  justify-content: flex-start;
+  min-width: 7.5rem;
+  justify-content: center;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
@@ -111,16 +110,6 @@
   background: var(--color-primary-light);
   border-color: var(--color-primary);
   color: var(--color-primary-dark);
-}
-
-.actionIcon {
-  display: flex;
-  color: var(--color-primary);
-  font-size: 0.95rem;
-}
-
-.actionLabel {
-  font-weight: 500;
 }
 
 @media (max-width: 768px) {
@@ -135,7 +124,7 @@
   }
 
   .actionButton {
-    min-width: 9.5rem;
+    min-width: 7rem;
     font-size: var(--font-size-small);
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { FiPlus, FiX, FiFileText, FiCalendar, FiShoppingCart } from 'react-icons/fi';
+import { FiPlus, FiX } from 'react-icons/fi';
 import styles from '../styles/FloatingActionButton.module.css';
 
 /**
@@ -43,20 +43,17 @@ export default function FloatingActionButton({
   const actions = [
     {
       key: 'consulta',
-      label: 'Nueva consulta',
-      icon: FiFileText,
+      label: '+ Consulta',
       onSelect: onCreateQuery
     },
     {
       key: 'reserva',
-      label: 'Nueva reserva',
-      icon: FiCalendar,
+      label: '+ Reserva',
       onSelect: onCreateReservation
     },
     {
       key: 'consumo',
-      label: 'Nuevo consumo',
-      icon: FiShoppingCart,
+      label: '+ Consumo',
       onSelect: onCreateConsumption
     }
   ];
@@ -79,24 +76,18 @@ export default function FloatingActionButton({
         role="menu"
         aria-hidden={!open}
       >
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.key}
-              type="button"
-              role="menuitem"
-              className={styles.actionButton}
-              tabIndex={open ? 0 : -1}
-              onClick={() => run(action.onSelect)}
-            >
-              <span className={styles.actionIcon} aria-hidden="true">
-                <Icon />
-              </span>
-              <span className={styles.actionLabel}>{action.label}</span>
-            </button>
-          );
-        })}
+        {actions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            role="menuitem"
+            className={styles.actionButton}
+            tabIndex={open ? 0 : -1}
+            onClick={() => run(action.onSelect)}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
 
       <button
