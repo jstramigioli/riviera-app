@@ -57,7 +57,7 @@ function clientPrefill(client = {}, reservation = {}) {
     city: client.city || '',
     address: getAddressFromNotes(client.notes),
     wantsPromotions: Boolean(client.wantsPromotions),
-    vehiclePlate: reservation.vehiclePlate || ''
+    vehiclePlate: reservation.vehiclePlate || client.vehiclePlate || ''
   };
 }
 
@@ -161,7 +161,7 @@ async function sendReservationCheckIn(req, res) {
         country: client?.country || null,
         province: client?.province || null,
         city: client?.city || null,
-        vehiclePlate: reservation.vehiclePlate || null
+        vehiclePlate: reservation.vehiclePlate || client?.vehiclePlate || null
       }
     });
 
@@ -287,7 +287,7 @@ async function getPublicCheckIn(req, res) {
 }
 
 /**
- * Público: enviar respuestas; actualiza cliente + patente de reserva.
+ * Público: enviar respuestas; actualiza cliente (incl. patente) + patente de reserva + snapshot.
  */
 async function submitPublicCheckIn(req, res) {
   try {
@@ -351,7 +351,8 @@ async function submitPublicCheckIn(req, res) {
           province,
           city,
           wantsPromotions,
-          notes
+          notes,
+          vehiclePlate
         }
       });
 

@@ -103,6 +103,13 @@
   font-size: 0.9rem;
 }
 
+.hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.846rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
 .input,
 .select,
 .textarea {
