@@ -666,7 +666,29 @@
   color: #212529;
 }
 
+.clientNameLink {
+  flex: 1;
+  font-weight: 500;
+  color: #0b5ed7;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font: inherit;
+}
+
+.clientNameLink:hover {
+  color: #084298;
+}
+
 .removeClientButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: #dc3545;
