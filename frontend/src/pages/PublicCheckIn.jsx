@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
-import { API_URL } from '../services/api';
 import styles from './PublicCheckIn.module.css';
+
+// Preferir same-origin /api (proxy Vite) para evitar CORS / 127 vs localhost en local.
+const CHECKIN_API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'CUIT', 'Otro'];
 
@@ -44,7 +46,7 @@ export default function PublicCheckIn() {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`${API_URL}/public/check-in/${token}`);
+        const res = await fetch(`${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           throw new Error(data.error || 'No se pudo cargar el check-in');
@@ -74,7 +76,7 @@ export default function PublicCheckIn() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/public/check-in/${token}`, {
+      const res = await fetch(`${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields)

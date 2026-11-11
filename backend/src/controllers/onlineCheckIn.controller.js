@@ -6,8 +6,25 @@ const {
   sendCheckInEmail
 } = require('../services/checkInMail');
 
-const TOKEN_BYTES = 24;
+// 16 bytes → 32 hex chars: enough entropy, menos chance de truncarse al copiar en chat/UI
+const TOKEN_BYTES = 16;
 const DEFAULT_EXPIRY_DAYS = 30;
+
+function normalizeTokenParam(raw) {
+  if (raw == null) return '';
+  let token = String(raw).trim();
+  try {
+    token = decodeURIComponent(token);
+  } catch {
+    // keep raw trimmed token
+  }
+  return token;
+}
+
+function isWellFormedToken(token) {
+  // Acepta tokens viejos (48 hex) y nuevos (32 hex)
+  return /^[a-f0-9]{32,64}$/i.test(token);
+}
 
 function normalizePlate(value) {
   if (value == null) return null;
@@ -183,7 +200,13 @@ async function sendReservationCheckIn(req, res) {
  */
 async function getPublicCheckIn(req, res) {
   try {
-    const { token } = req.params;
+    const token = normalizeTokenParam(req.params.token);
+    if (!isWellFormedToken(token)) {
+      return res.status(400).json({
+        error: 'Link incompleto o corrupto. Pedí un link nuevo desde la reserva.'
+      });
+    }
+
     const checkIn = await prisma.onlineCheckIn.findUnique({
       where: { token },
       include: {
@@ -255,7 +278,13 @@ async function getPublicCheckIn(req, res) {
  */
 async function submitPublicCheckIn(req, res) {
   try {
-    const { token } = req.params;
+    const token = normalizeTokenParam(req.params.token);
+    if (!isWellFormedToken(token)) {
+      return res.status(400).json({
+        error: 'Link incompleto o corrupto. Pedí un link nuevo desde la reserva.'
+      });
+    }
+
     const checkIn = await prisma.onlineCheckIn.findUnique({
       where: { token },
       include: { reservation: true }
