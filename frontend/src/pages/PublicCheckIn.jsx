@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
+import LocationSelector from '../components/LocationSelector';
+import { CLIENT_DOCUMENT_TYPES } from '../constants/clientFormFields';
 import styles from './PublicCheckIn.module.css';
 
 // Preferir same-origin /api (proxy Vite) para evitar CORS / 127 vs localhost en local.
 const CHECKIN_API_BASE = import.meta.env.VITE_API_URL || '/api';
-
-const DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'CUIT', 'Otro'];
 
 const EMPTY = {
   firstName: '',
@@ -15,10 +15,11 @@ const EMPTY = {
   phone: '',
   documentType: 'DNI',
   documentNumber: '',
-  country: '',
+  country: 'AR',
   province: '',
   city: '',
   address: '',
+  wantsPromotions: false,
   vehiclePlate: ''
 };
 
@@ -53,7 +54,13 @@ export default function PublicCheckIn() {
         }
         if (cancelled) return;
         setReservation(data.reservation || null);
-        setFields({ ...EMPTY, ...(data.fields || {}) });
+        setFields({
+          ...EMPTY,
+          ...(data.fields || {}),
+          country: data.fields?.country || 'AR',
+          documentType: data.fields?.documentType || 'DNI',
+          wantsPromotions: Boolean(data.fields?.wantsPromotions)
+        });
         setDone(Boolean(data.completed));
       } catch (err) {
         if (!cancelled) setError(err.message || 'Error al cargar');
@@ -67,8 +74,15 @@ export default function PublicCheckIn() {
   }, [token]);
 
   function handleChange(event) {
-    const { name, value } = event.target;
-    setFields((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    setFields((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  }
+
+  function handleLocationChange(field, value) {
+    setFields((prev) => ({ ...prev, [field]: value }));
   }
 
   async function handleSubmit(event) {
@@ -159,14 +173,14 @@ export default function PublicCheckIn() {
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Datos personales</h2>
+            <h2 className={styles.sectionTitle}>Información personal</h2>
             <div className={styles.grid}>
               <label className={styles.field}>
-                <span>Nombre</span>
+                <span>Nombre *</span>
                 <input name="firstName" value={fields.firstName} onChange={handleChange} required autoComplete="given-name" />
               </label>
               <label className={styles.field}>
-                <span>Apellido</span>
+                <span>Apellido *</span>
                 <input name="lastName" value={fields.lastName} onChange={handleChange} required autoComplete="family-name" />
               </label>
               <label className={styles.field}>
@@ -175,12 +189,18 @@ export default function PublicCheckIn() {
               </label>
               <label className={styles.field}>
                 <span>Teléfono</span>
-                <input name="phone" value={fields.phone} onChange={handleChange} autoComplete="tel" />
+                <input type="tel" name="phone" value={fields.phone} onChange={handleChange} autoComplete="tel" />
               </label>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Documentación</h2>
+            <div className={styles.grid}>
               <label className={styles.field}>
                 <span>Tipo de documento</span>
                 <select name="documentType" value={fields.documentType || 'DNI'} onChange={handleChange}>
-                  {DOCUMENT_TYPES.map((type) => (
+                  {CLIENT_DOCUMENT_TYPES.map((type) => (
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
@@ -189,23 +209,49 @@ export default function PublicCheckIn() {
                 <span>Número de documento</span>
                 <input name="documentNumber" value={fields.documentNumber} onChange={handleChange} />
               </label>
-              <label className={styles.field}>
-                <span>País</span>
-                <input name="country" value={fields.country} onChange={handleChange} autoComplete="country-name" />
-              </label>
-              <label className={styles.field}>
-                <span>Provincia</span>
-                <input name="province" value={fields.province} onChange={handleChange} />
-              </label>
-              <label className={styles.field}>
-                <span>Ciudad</span>
-                <input name="city" value={fields.city} onChange={handleChange} autoComplete="address-level2" />
-              </label>
-              <label className={`${styles.field} ${styles.fieldWide}`}>
-                <span>Dirección</span>
-                <input name="address" value={fields.address} onChange={handleChange} autoComplete="street-address" />
-              </label>
             </div>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Ubicación</h2>
+            <div className={styles.locationBlock}>
+              <LocationSelector
+                country={fields.country}
+                province={fields.province}
+                city={fields.city}
+                onCountryChange={(value) => handleLocationChange('country', value)}
+                onProvinceChange={(value) => handleLocationChange('province', value)}
+                onCityChange={(value) => handleLocationChange('city', value)}
+              />
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Domicilio</h2>
+            <label className={`${styles.field} ${styles.fieldWide}`}>
+              <span>Dirección</span>
+              <textarea
+                name="address"
+                value={fields.address}
+                onChange={handleChange}
+                placeholder="Ingresa la dirección completa"
+                rows={3}
+                autoComplete="street-address"
+              />
+            </label>
+          </section>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Preferencias</h2>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                name="wantsPromotions"
+                checked={Boolean(fields.wantsPromotions)}
+                onChange={handleChange}
+              />
+              Deseo recibir información de promociones
+            </label>
           </section>
 
           <section className={styles.section}>

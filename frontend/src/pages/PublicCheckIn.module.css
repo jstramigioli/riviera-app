@@ -86,7 +86,8 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   font-size: 0.923rem;
   color: var(--color-text-main, #3a4250);
@@ -94,13 +95,32 @@
   border-radius: 6px;
   padding: 8px 10px;
   background: #fff;
+  resize: vertical;
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: var(--color-primary, #3f5f8a);
   box-shadow: 0 0 0 2px rgba(63, 95, 138, 0.15);
+}
+
+.locationBlock {
+  width: 100%;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.923rem;
+  color: var(--color-text-main, #3a4250);
+  cursor: pointer;
+}
+
+.checkboxLabel input {
+  margin-top: 3px;
 }
 
 .hint {

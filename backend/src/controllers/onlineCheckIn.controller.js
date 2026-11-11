@@ -5,6 +5,12 @@ const {
   buildMailto,
   sendCheckInEmail
 } = require('../services/checkInMail');
+const {
+  getAddressFromNotes,
+  createNotesWithAddress
+} = require('../utils/clientAddressNotes');
+
+const CLIENT_DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'Cédula', 'Otro'];
 
 // 16 bytes → 32 hex chars: enough entropy, menos chance de truncarse al copiar en chat/UI
 const TOKEN_BYTES = 16;
@@ -46,12 +52,18 @@ function clientPrefill(client = {}, reservation = {}) {
     phone: client.phone || '',
     documentType: client.documentType || 'DNI',
     documentNumber: client.documentNumber || '',
-    country: client.country || '',
+    country: client.country || 'AR',
     province: client.province || '',
     city: client.city || '',
-    address: '',
+    address: getAddressFromNotes(client.notes),
+    wantsPromotions: Boolean(client.wantsPromotions),
     vehiclePlate: reservation.vehiclePlate || ''
   };
+}
+
+function normalizeDocumentType(value) {
+  const cleaned = normalizeText(value) || 'DNI';
+  return CLIENT_DOCUMENT_TYPES.includes(cleaned) ? cleaned : 'DNI';
 }
 
 async function getLatestCheckIn(reservationId) {
@@ -248,10 +260,11 @@ async function getPublicCheckIn(req, res) {
       phone: checkIn.phone || prefill.phone,
       documentType: checkIn.documentType || prefill.documentType,
       documentNumber: checkIn.documentNumber || prefill.documentNumber,
-      country: checkIn.country || prefill.country,
+      country: checkIn.country || prefill.country || 'AR',
       province: checkIn.province || prefill.province,
       city: checkIn.city || prefill.city,
       address: checkIn.address || prefill.address,
+      wantsPromotions: prefill.wantsPromotions,
       vehiclePlate: checkIn.vehiclePlate || prefill.vehiclePlate
     };
 
@@ -306,18 +319,25 @@ async function submitPublicCheckIn(req, res) {
 
     const email = normalizeText(body.email);
     const phone = normalizeText(body.phone);
-    const documentType = normalizeText(body.documentType) || 'DNI';
+    const documentType = normalizeDocumentType(body.documentType);
     const documentNumber = normalizeText(body.documentNumber);
-    const country = normalizeText(body.country);
+    const country = normalizeText(body.country) || 'AR';
     const province = normalizeText(body.province);
     const city = normalizeText(body.city);
     const address = normalizeText(body.address);
+    const wantsPromotions = Boolean(body.wantsPromotions);
     const vehiclePlate = normalizePlate(body.vehiclePlate);
 
     const reservationId = checkIn.reservationId;
     const mainClientId = checkIn.reservation.mainClientId;
 
     const result = await prisma.$transaction(async (tx) => {
+      const existingClient = await tx.client.findUnique({
+        where: { id: mainClientId },
+        select: { notes: true }
+      });
+      const notes = createNotesWithAddress(existingClient?.notes, address);
+
       await tx.client.update({
         where: { id: mainClientId },
         data: {
@@ -329,7 +349,9 @@ async function submitPublicCheckIn(req, res) {
           documentNumber,
           country,
           province,
-          city
+          city,
+          wantsPromotions,
+          notes
         }
       });
 

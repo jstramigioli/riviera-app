@@ -1,6 +1,12 @@
 import { FiX } from 'react-icons/fi';
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
+import { CLIENT_DOCUMENT_TYPES } from '../constants/clientFormFields';
+import {
+  createNotesWithAddress,
+  getAddressFromNotes,
+  stripAddressFromNotes
+} from '../utils/clientAddressNotes';
 import api from '../services/api';
 import styles from './EditClientModal.module.css';
 
@@ -21,37 +27,9 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Función para extraer domicilio de las notas
-  const getAddressFromNotes = (notes) => {
-    if (!notes) return '';
-    const addressMatch = notes.match(/Domicilio:\s*(.+)/);
-    return addressMatch ? addressMatch[1].trim() : '';
-  };
-
-  // Función para crear notas con domicilio
-  const createNotesWithAddress = (notes, address) => {
-    if (!address) return notes || '';
-    
-    // Si ya hay notas con domicilio, actualizar
-    if (notes && notes.includes('Domicilio:')) {
-      return notes.replace(/Domicilio:\s*[^\n]*/, `Domicilio: ${address}`);
-    }
-    
-    // Si hay otras notas, agregar domicilio al final
-    if (notes) {
-      return `${notes}\nDomicilio: ${address}`;
-    }
-    
-    // Si no hay notas, crear solo el domicilio
-    return `Domicilio: ${address}`;
-  };
-
   // Inicializar formulario cuando se abre el modal
   useEffect(() => {
     if (client && isOpen) {
-      const address = getAddressFromNotes(client.notes);
-      const notesWithoutAddress = client.notes?.replace(/Domicilio:\s*[^\n]*\n?/, '').trim() || '';
-      
       setFormData({
         firstName: client.firstName || '',
         lastName: client.lastName || '',
@@ -63,8 +41,8 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         province: client.province || '',
         city: client.city || '',
         wantsPromotions: client.wantsPromotions || false,
-        notes: notesWithoutAddress,
-        address: address
+        notes: stripAddressFromNotes(client.notes),
+        address: getAddressFromNotes(client.notes)
       });
       setError(null);
     }
@@ -203,10 +181,9 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   onChange={handleInputChange}
                   className={styles.select}
                 >
-                  <option value="DNI"> DNI</option>
-                  <option value="Pasaporte"> Pasaporte</option>
-                  <option value="Cédula"> Cédula</option>
-                  <option value="Otro"> Otro</option>
+                  {CLIENT_DOCUMENT_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
