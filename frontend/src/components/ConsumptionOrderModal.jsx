@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { FiPlus, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
+import { FiMinus, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
 import {
   fetchOccupiedRoomsToday,
   fetchMenuItems,
@@ -24,10 +24,6 @@ function formatMoney(value) {
   });
 }
 
-function lineKey(itemId) {
-  return `item-${itemId}`;
-}
-
 function todayLocalIso() {
   const now = new Date();
   const y = now.getFullYear();
@@ -47,15 +43,46 @@ function reservationOptionLabel(row) {
   return `${room} - ${apellido}`;
 }
 
+function newLine() {
+  return {
+    key: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    menuItemId: null,
+    name: '',
+    category: null,
+    price: 0,
+    quantity: 1,
+    query: '',
+    dropdownOpen: false,
+    highlight: 0
+  };
+}
+
+function filterMenuItems(menuItems, query) {
+  const q = query.trim().toLowerCase();
+  let list = menuItems.filter((i) => i.isActive !== false);
+  if (q) {
+    list = list.filter((i) => {
+      const hay = `${i.name} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  return [...list].sort((a, b) => {
+    const ca = CATEGORY_ORDER.indexOf(a.category);
+    const cb = CATEGORY_ORDER.indexOf(b.category);
+    if (ca !== cb) return ca - cb;
+    return (a.ordenIndex || 0) - (b.ordenIndex || 0) || a.name.localeCompare(b.name, 'es');
+  });
+}
+
 /**
- * Modal POS de comanda: fecha → reservas ocupadas ese día → ítems.
+ * Modal POS de comanda: fecha → reservas ocupadas ese día → filas de ítems.
  */
 export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const titleId = useId();
   const dateRef = useRef(null);
   const reservationRef = useRef(null);
-  const searchRef = useRef(null);
-  const listRef = useRef(null);
+  const itemInputRefs = useRef({});
+  const dropdownListRefs = useRef({});
 
   const [fecha, setFecha] = useState(todayLocalIso);
   const [reservations, setReservations] = useState([]);
@@ -63,10 +90,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingReservations, setLoadingReservations] = useState(false);
   const [selectionKey, setSelectionKey] = useState('');
-  const [query, setQuery] = useState('');
-  const [highlight, setHighlight] = useState(0);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [lines, setLines] = useState([]);
+  const [lines, setLines] = useState([newLine()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -76,34 +100,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     [reservations, selectionKey]
   );
 
-  const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = menuItems.filter((i) => i.isActive !== false);
-    if (q) {
-      list = list.filter((i) => {
-        const hay = `${i.name} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
-        return hay.includes(q);
-      });
-    }
-    return [...list].sort((a, b) => {
-      const ca = CATEGORY_ORDER.indexOf(a.category);
-      const cb = CATEGORY_ORDER.indexOf(b.category);
-      if (ca !== cb) return ca - cb;
-      return (a.ordenIndex || 0) - (b.ordenIndex || 0) || a.name.localeCompare(b.name, 'es');
-    });
-  }, [menuItems, query]);
+  const filledLines = useMemo(
+    () => lines.filter((l) => l.menuItemId),
+    [lines]
+  );
 
   const total = useMemo(
-    () => lines.reduce((sum, line) => sum + Number(line.price) * Number(line.quantity), 0),
-    [lines]
+    () => filledLines.reduce((sum, line) => sum + Number(line.price) * Number(line.quantity), 0),
+    [filledLines]
   );
 
   const resetOrder = useCallback(() => {
     setSelectionKey('');
-    setQuery('');
-    setHighlight(0);
-    setDropdownOpen(false);
-    setLines([]);
+    setLines([newLine()]);
     setError(null);
   }, []);
 
@@ -154,17 +163,21 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     if (!open) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') {
+        const openDropdown = lines.some((l) => l.dropdownOpen);
+        if (openDropdown) {
+          e.preventDefault();
+          setLines((prev) =>
+            prev.map((l) => (l.dropdownOpen ? { ...l, dropdownOpen: false } : l))
+          );
+          return;
+        }
         e.preventDefault();
         onClose?.();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    setHighlight(0);
-  }, [query, filteredItems.length]);
+  }, [open, onClose, lines]);
 
   const onFechaChange = (value) => {
     setFecha(value);
@@ -175,76 +188,128 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     }
   };
 
-  const addItem = (item) => {
-    if (!item) return;
-    setLines((prev) => {
-      const key = lineKey(item.id);
-      const existing = prev.find((l) => l.key === key);
-      if (existing) {
-        return prev.map((l) =>
-          l.key === key ? { ...l, quantity: Math.min(999, l.quantity + 1) } : l
-        );
-      }
-      return [
-        ...prev,
-        {
-          key,
-          menuItemId: item.id,
-          name: item.name,
-          category: item.category,
-          price: Number(item.price),
-          quantity: 1
-        }
-      ];
-    });
-    setQuery('');
-    setDropdownOpen(false);
-    setHighlight(0);
-    window.setTimeout(() => searchRef.current?.focus(), 20);
+  const updateLine = (key, patch) => {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  };
+
+  const closeOtherDropdowns = (exceptKey) => {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === exceptKey || !l.dropdownOpen ? l : { ...l, dropdownOpen: false }
+      )
+    );
   };
 
   const setQuantity = (key, value) => {
     const qty = Math.max(1, Math.min(999, Number(value) || 1));
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, quantity: qty } : l)));
+    updateLine(key, { quantity: qty });
+  };
+
+  const bumpQuantity = (key, delta) => {
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.key !== key) return l;
+        const next = Math.max(1, Math.min(999, (Number(l.quantity) || 1) + delta));
+        return { ...l, quantity: next };
+      })
+    );
   };
 
   const removeLine = (key) => {
-    setLines((prev) => prev.filter((l) => l.key !== key));
+    setLines((prev) => {
+      const next = prev.filter((l) => l.key !== key);
+      return next.length === 0 ? [newLine()] : next;
+    });
   };
 
-  const onSearchKeyDown = (e) => {
-    if (!dropdownOpen && (e.key === 'ArrowDown' || e.key === 'Enter') && filteredItems.length) {
-      setDropdownOpen(true);
+  const addRow = () => {
+    const row = newLine();
+    setLines((prev) => [...prev, row]);
+    window.setTimeout(() => itemInputRefs.current[row.key]?.focus(), 30);
+  };
+
+  const selectItem = (lineKey, item) => {
+    if (!item) return;
+    let focusKey = null;
+    setLines((prev) => {
+      const updated = prev.map((l) =>
+        l.key === lineKey
+          ? {
+              ...l,
+              menuItemId: item.id,
+              name: item.name,
+              category: item.category,
+              price: Number(item.price),
+              query: item.name,
+              dropdownOpen: false,
+              highlight: 0
+            }
+          : l
+      );
+      const idx = updated.findIndex((l) => l.key === lineKey);
+      const hasEmptyAfter = updated
+        .slice(idx + 1)
+        .some((l) => !l.menuItemId && !String(l.query || '').trim());
+      if (hasEmptyAfter) {
+        const nextEmpty = updated.slice(idx + 1).find((l) => !l.menuItemId);
+        focusKey = nextEmpty?.key || null;
+        return updated;
+      }
+      if (idx === updated.length - 1) {
+        const row = newLine();
+        focusKey = row.key;
+        return [...updated, row];
+      }
+      return updated;
+    });
+    window.setTimeout(() => {
+      if (focusKey) itemInputRefs.current[focusKey]?.focus();
+    }, 30);
+  };
+
+  const onItemKeyDown = (e, line) => {
+    const options = filterMenuItems(menuItems, line.query);
+
+    if (!line.dropdownOpen && (e.key === 'ArrowDown' || e.key === 'Enter') && options.length) {
+      closeOtherDropdowns(line.key);
+      updateLine(line.key, { dropdownOpen: true });
     }
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setDropdownOpen(true);
-      setHighlight((h) => Math.min(filteredItems.length - 1, h + 1));
+      closeOtherDropdowns(line.key);
+      updateLine(line.key, {
+        dropdownOpen: true,
+        highlight: Math.min(options.length - 1, (line.highlight || 0) + 1)
+      });
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlight((h) => Math.max(0, h - 1));
+      updateLine(line.key, { highlight: Math.max(0, (line.highlight || 0) - 1) });
       return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredItems[highlight]) addItem(filteredItems[highlight]);
+      if (options[line.highlight]) {
+        selectItem(line.key, options[line.highlight]);
+      }
       return;
     }
-    if (e.key === 'Escape' && dropdownOpen) {
+    if (e.key === 'Escape' && line.dropdownOpen) {
       e.preventDefault();
       e.stopPropagation();
-      setDropdownOpen(false);
+      updateLine(line.key, { dropdownOpen: false });
     }
   };
 
   useEffect(() => {
-    if (!dropdownOpen || !listRef.current) return;
-    const el = listRef.current.querySelector(`[data-idx="${highlight}"]`);
+    const openLine = lines.find((l) => l.dropdownOpen);
+    if (!openLine) return;
+    const listEl = dropdownListRefs.current[openLine.key];
+    const el = listEl?.querySelector(`[data-idx="${openLine.highlight}"]`);
     el?.scrollIntoView({ block: 'nearest' });
-  }, [highlight, dropdownOpen]);
+  }, [lines]);
 
   const submit = async ({ continueAfter }) => {
     setError(null);
@@ -260,21 +325,33 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
       dateRef.current?.focus();
       return;
     }
-    if (lines.length === 0) {
+    if (filledLines.length === 0) {
       setError('Agregá al menos un ítem a la comanda');
-      searchRef.current?.focus();
+      const first = lines[0];
+      if (first) itemInputRefs.current[first.key]?.focus();
       return;
     }
 
     setSubmitting(true);
     try {
+      // Agrupar filas del mismo ítem por si el usuario repitió
+      const merged = new Map();
+      for (const line of filledLines) {
+        const prev = merged.get(line.menuItemId);
+        if (prev) {
+          prev.quantity = Math.min(999, prev.quantity + Number(line.quantity));
+        } else {
+          merged.set(line.menuItemId, {
+            menuItemId: line.menuItemId,
+            quantity: Number(line.quantity)
+          });
+        }
+      }
+
       const result = await createConsumptionOrder({
         reservationId: selectedReservation.reservationId,
         fecha,
-        items: lines.map((l) => ({
-          menuItemId: l.menuItemId,
-          quantity: l.quantity
-        }))
+        items: [...merged.values()]
       });
 
       const label = reservationOptionLabel(selectedReservation);
@@ -299,6 +376,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   if (!open) return null;
 
   const busy = loadingMeta || loadingReservations || submitting;
+  const itemsEnabled = Boolean(selectedReservation) && !submitting;
 
   return (
     <div className={styles.overlay} role="presentation">
@@ -311,7 +389,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
         <header className={styles.header}>
           <div>
             <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
-            <p className={styles.subtitle}>Comanda por reserva — Enter agrega ítems</p>
+            <p className={styles.subtitle}>Comanda por reserva — filas de ítems del menú</p>
           </div>
           <button
             type="button"
@@ -324,7 +402,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
           </button>
         </header>
 
-        <div className={styles.body}>
+        <div className={styles.stickyTop}>
           {error ? <div className={styles.error} role="alert">{error}</div> : null}
           {successMsg ? <div className={styles.success} role="status">{successMsg}</div> : null}
 
@@ -354,9 +432,24 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
               value={selectionKey}
               disabled={busy}
               onChange={(e) => {
-                setSelectionKey(e.target.value);
+                const value = e.target.value;
+                setSelectionKey(value);
                 setSuccessMsg(null);
-                window.setTimeout(() => searchRef.current?.focus(), 20);
+                let focusKey = null;
+                setLines((prev) => {
+                  if (prev.length) {
+                    focusKey = prev[0].key;
+                    return prev;
+                  }
+                  const row = newLine();
+                  focusKey = row.key;
+                  return [row];
+                });
+                if (value) {
+                  window.setTimeout(() => {
+                    if (focusKey) itemInputRefs.current[focusKey]?.focus();
+                  }, 20);
+                }
               }}
             >
               <option value="">
@@ -374,88 +467,34 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
               ))}
             </select>
           </div>
+        </div>
 
-          <div className={styles.row}>
-            <span className={styles.label}>Cliente</span>
-            <div className={styles.clientBox}>
-              {selectedReservation?.clientName || (selectionKey ? 'Sin nombre' : '—')}
-            </div>
-          </div>
-
-          <div className={styles.row}>
-            <label className={styles.label} htmlFor="consumo-search">
-              Ítem del menú
-            </label>
-            <div className={styles.searchWrap}>
-              <FiSearch className={styles.searchIcon} aria-hidden="true" />
-              <input
-                id="consumo-search"
-                ref={searchRef}
-                className={styles.searchInput}
-                type="text"
-                autoComplete="off"
-                placeholder="Buscar bebidas, minutas, cafetería…"
-                value={query}
-                disabled={submitting || !selectedReservation}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setDropdownOpen(true);
-                }}
-                onFocus={() => setDropdownOpen(true)}
-                onKeyDown={onSearchKeyDown}
-                aria-autocomplete="list"
-                aria-expanded={dropdownOpen}
-              />
-              {dropdownOpen && selectedReservation ? (
-                <ul className={styles.dropdown} role="listbox" ref={listRef}>
-                  {filteredItems.length === 0 ? (
-                    <li className={styles.dropdownEmpty}>Sin resultados</li>
-                  ) : (
-                    filteredItems.map((item, idx) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          role="option"
-                          data-idx={idx}
-                          aria-selected={idx === highlight}
-                          className={`${styles.dropdownItem} ${idx === highlight ? styles.dropdownItemActive : ''}`}
-                          onMouseEnter={() => setHighlight(idx)}
-                          onClick={() => addItem(item)}
-                        >
-                          <span className={styles.itemCat}>
-                            {CATEGORY_LABELS[item.category] || item.category}
-                          </span>
-                          <span className={styles.itemName}>{item.name}</span>
-                          <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              ) : null}
-            </div>
-          </div>
-
+        <div className={styles.itemsZone}>
           <div className={styles.linesHeader}>
-            <span>Comanda</span>
-            <span className={styles.muted}>{lines.length} ítem(s)</span>
+            <span className={styles.colQty}>Cant.</span>
+            <span className={styles.colItem}>Ítem</span>
+            <span className={styles.colPrice}>Precio</span>
+            <span className={styles.colRemove} aria-hidden="true" />
           </div>
 
-          {lines.length === 0 ? (
-            <div className={styles.emptyLines}>Sin ítems. Buscá y presioná Enter para agregar.</div>
-          ) : (
-            <ul className={styles.lines}>
-              {lines.map((line) => (
+          <ul className={styles.lines}>
+            {lines.map((line) => {
+              const options = filterMenuItems(menuItems, line.query);
+              return (
                 <li key={line.key} className={styles.line}>
-                  <div className={styles.lineMain}>
-                    <span className={styles.lineCat}>
-                      {CATEGORY_LABELS[line.category] || line.category}
-                    </span>
-                    <span className={styles.lineName}>{line.name}</span>
-                  </div>
-                  <div className={styles.lineControls}>
+                  <div className={styles.qtyGroup}>
+                    <button
+                      type="button"
+                      className={styles.qtyBtn}
+                      disabled={!itemsEnabled}
+                      onClick={() => bumpQuantity(line.key, -1)}
+                      aria-label="Restar cantidad"
+                      title="Restar"
+                    >
+                      <FiMinus />
+                    </button>
                     <label className={styles.srOnly} htmlFor={`qty-${line.key}`}>
-                      Cantidad {line.name}
+                      Cantidad {line.name || 'ítem'}
                     </label>
                     <input
                       id={`qty-${line.key}`}
@@ -464,26 +503,123 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
                       min={1}
                       max={999}
                       value={line.quantity}
+                      disabled={!itemsEnabled}
                       onChange={(e) => setQuantity(line.key, e.target.value)}
                       onFocus={(e) => e.target.select()}
                     />
-                    <span className={styles.lineSubtotal}>
-                      {formatMoney(line.price * line.quantity)}
-                    </span>
                     <button
                       type="button"
-                      className={styles.iconBtn}
-                      onClick={() => removeLine(line.key)}
-                      aria-label={`Quitar ${line.name}`}
-                      title="Quitar"
+                      className={styles.qtyBtn}
+                      disabled={!itemsEnabled}
+                      onClick={() => bumpQuantity(line.key, 1)}
+                      aria-label="Sumar cantidad"
+                      title="Sumar"
                     >
-                      <FiTrash2 />
+                      <FiPlus />
                     </button>
                   </div>
+
+                  <div className={styles.itemCell}>
+                    <input
+                      ref={(el) => {
+                        itemInputRefs.current[line.key] = el;
+                      }}
+                      className={styles.itemInput}
+                      type="text"
+                      autoComplete="off"
+                      placeholder={
+                        selectedReservation
+                          ? 'Buscar ítem del menú…'
+                          : 'Seleccioná una reserva primero'
+                      }
+                      value={line.query}
+                      disabled={!itemsEnabled}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        closeOtherDropdowns(line.key);
+                        updateLine(line.key, {
+                          query: value,
+                          dropdownOpen: true,
+                          highlight: 0,
+                          // Si edita el texto, invalidar selección previa
+                          menuItemId: null,
+                          name: '',
+                          category: null,
+                          price: 0
+                        });
+                      }}
+                      onFocus={() => {
+                        if (!itemsEnabled) return;
+                        closeOtherDropdowns(line.key);
+                        updateLine(line.key, { dropdownOpen: true });
+                      }}
+                      onKeyDown={(e) => onItemKeyDown(e, line)}
+                      aria-autocomplete="list"
+                      aria-expanded={line.dropdownOpen}
+                    />
+                    {line.dropdownOpen && itemsEnabled ? (
+                      <ul
+                        className={styles.dropdown}
+                        role="listbox"
+                        ref={(el) => {
+                          dropdownListRefs.current[line.key] = el;
+                        }}
+                      >
+                        {options.length === 0 ? (
+                          <li className={styles.dropdownEmpty}>Sin resultados</li>
+                        ) : (
+                          options.map((item, idx) => (
+                            <li key={item.id}>
+                              <button
+                                type="button"
+                                role="option"
+                                data-idx={idx}
+                                aria-selected={idx === line.highlight}
+                                className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
+                                onMouseEnter={() => updateLine(line.key, { highlight: idx })}
+                                onClick={() => selectItem(line.key, item)}
+                              >
+                                <span className={styles.itemCat}>
+                                  {CATEGORY_LABELS[item.category] || item.category}
+                                </span>
+                                <span className={styles.itemName}>{item.name}</span>
+                                <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
+                              </button>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    ) : null}
+                  </div>
+
+                  <div className={styles.priceCell}>
+                    {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.iconBtn}
+                    disabled={!itemsEnabled || (lines.length === 1 && !line.menuItemId)}
+                    onClick={() => removeLine(line.key)}
+                    aria-label={line.name ? `Quitar ${line.name}` : 'Quitar fila'}
+                    title="Quitar"
+                  >
+                    <FiTrash2 />
+                  </button>
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
+
+          <button
+            type="button"
+            className={styles.addRowBtn}
+            disabled={!itemsEnabled}
+            onClick={addRow}
+          >
+            <FiPlus aria-hidden="true" />
+            Agregar fila
+          </button>
         </div>
 
         <footer className={styles.footer}>
@@ -503,7 +639,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
             <button
               type="button"
               className={styles.btnSecondary}
-              disabled={submitting || lines.length === 0 || !selectedReservation}
+              disabled={submitting || filledLines.length === 0 || !selectedReservation}
               onClick={() => submit({ continueAfter: true })}
               title="Guardar y cargar otra reserva"
             >
@@ -513,7 +649,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
             <button
               type="button"
               className={styles.btnPrimary}
-              disabled={submitting || lines.length === 0 || !selectedReservation}
+              disabled={submitting || filledLines.length === 0 || !selectedReservation}
               onClick={() => submit({ continueAfter: false })}
             >
               {submitting ? 'Guardando…' : 'Confirmar'}
