@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiMinus, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
 import {
   fetchOccupiedRoomsToday,
   fetchMenuItems,
-  createConsumptionOrder
+  createConsumptionOrder,
+  deleteCargo
 } from '../services/api';
 import styles from '../styles/ConsumptionOrderModal.module.css';
 
@@ -13,6 +15,8 @@ const CATEGORY_LABELS = {
   MINUTAS: 'Minutas',
   CAFETERIA: 'Cafetería'
 };
+
+const TOAST_MS = 5000;
 
 function formatMoney(value) {
   const n = Number(value) || 0;
@@ -57,6 +61,15 @@ function newLine() {
   };
 }
 
+function cloneLine(line) {
+  return {
+    ...line,
+    key: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    dropdownOpen: false,
+    highlight: 0
+  };
+}
+
 function filterMenuItems(menuItems, query) {
   const q = query.trim().toLowerCase();
   let list = menuItems.filter((i) => i.isActive !== false);
@@ -83,6 +96,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const reservationRef = useRef(null);
   const itemInputRefs = useRef({});
   const dropdownListRefs = useRef({});
+  const toastTimerRef = useRef(null);
+  const pendingUndoRef = useRef(null);
 
   const [fecha, setFecha] = useState(todayLocalIso);
   const [reservations, setReservations] = useState([]);
@@ -93,7 +108,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const [lines, setLines] = useState([newLine()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const selectedReservation = useMemo(
     () => reservations.find((r) => reservationOptionKey(r) === selectionKey) || null,
@@ -109,6 +124,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     () => filledLines.reduce((sum, line) => sum + Number(line.price) * Number(line.quantity), 0),
     [filledLines]
   );
+
+  const clearToastTimer = useCallback(() => {
+    if (toastTimerRef.current != null) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    clearToastTimer();
+    pendingUndoRef.current = null;
+    setToast(null);
+  }, [clearToastTimer]);
 
   const resetOrder = useCallback(() => {
     setSelectionKey('');
@@ -150,14 +178,16 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     const today = todayLocalIso();
     setFecha(today);
     resetOrder();
-    setSuccessMsg(null);
+    dismissToast();
     setLoadingMeta(true);
     Promise.all([loadMenu(), loadReservations(today)]).finally(() => {
       setLoadingMeta(false);
     });
     const t = window.setTimeout(() => dateRef.current?.focus(), 40);
     return () => window.clearTimeout(t);
-  }, [open, loadMenu, loadReservations, resetOrder]);
+  }, [open, loadMenu, loadReservations, resetOrder, dismissToast]);
+
+  useEffect(() => () => clearToastTimer(), [clearToastTimer]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -181,7 +211,6 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
 
   const onFechaChange = (value) => {
     setFecha(value);
-    setSuccessMsg(null);
     setSelectionKey('');
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       loadReservations(value);
@@ -228,14 +257,70 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     });
   };
 
+  const focusItemInput = (rowKey) => {
+    window.setTimeout(() => itemInputRefs.current[rowKey]?.focus(), 30);
+  };
+
   const addRow = () => {
     const row = newLine();
     setLines((prev) => [...prev, row]);
-    window.setTimeout(() => itemInputRefs.current[row.key]?.focus(), 30);
+    focusItemInput(row.key);
   };
 
-  const selectItem = (lineKey, item) => {
+  /**
+   * Asegura fila en blanco después de `lineKey` y enfoca su campo ítem.
+   * Si `selectedItem` viene, aplica la selección en el mismo setState (Enter).
+   */
+  const advanceAfterItem = (lineKey, selectedItem = null) => {
+    const blank = newLine();
+    let focusKey = blank.key;
+
+    setLines((prev) => {
+      const withSelection = selectedItem
+        ? prev.map((l) =>
+            l.key === lineKey
+              ? {
+                  ...l,
+                  menuItemId: selectedItem.id,
+                  name: selectedItem.name,
+                  category: selectedItem.category,
+                  price: Number(selectedItem.price),
+                  query: selectedItem.name,
+                  dropdownOpen: false,
+                  highlight: 0
+                }
+              : l.dropdownOpen
+                ? { ...l, dropdownOpen: false, highlight: 0 }
+                : l
+          )
+        : prev.map((l) =>
+            l.dropdownOpen ? { ...l, dropdownOpen: false, highlight: 0 } : l
+          );
+
+      const idx = withSelection.findIndex((l) => l.key === lineKey);
+      if (idx >= 0) {
+        const emptyAfter = withSelection
+          .slice(idx + 1)
+          .find((l) => !l.menuItemId);
+        if (emptyAfter) {
+          focusKey = emptyAfter.key;
+          return withSelection;
+        }
+      }
+
+      focusKey = blank.key;
+      return [...withSelection, blank];
+    });
+
+    focusItemInput(focusKey);
+  };
+
+  const selectItem = (lineKey, item, { advance = false } = {}) => {
     if (!item) return;
+    if (advance) {
+      advanceAfterItem(lineKey, item);
+      return;
+    }
     setLines((prev) =>
       prev.map((l) =>
         l.key === lineKey
@@ -274,7 +359,12 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (line.dropdownOpen && options[line.highlight]) {
-        selectItem(line.key, options[line.highlight]);
+        selectItem(line.key, options[line.highlight], { advance: true });
+        return;
+      }
+      // Ítem ya elegido: seguir a la fila siguiente (no crear consumo vacío)
+      if (line.menuItemId) {
+        advanceAfterItem(line.key);
       }
       return;
     }
@@ -293,9 +383,52 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     el?.scrollIntoView({ block: 'nearest' });
   }, [lines]);
 
+  const showUndoToast = ({ message, cargoIds, snapshot }) => {
+    clearToastTimer();
+    pendingUndoRef.current = { cargoIds, snapshot };
+    setToast({ message });
+    toastTimerRef.current = window.setTimeout(() => {
+      pendingUndoRef.current = null;
+      setToast(null);
+      toastTimerRef.current = null;
+    }, TOAST_MS);
+  };
+
+  const undoLastOrder = async () => {
+    const pending = pendingUndoRef.current;
+    if (!pending) {
+      dismissToast();
+      return;
+    }
+
+    clearToastTimer();
+    pendingUndoRef.current = null;
+    setToast(null);
+    setError(null);
+
+    try {
+      const ids = Array.isArray(pending.cargoIds) ? pending.cargoIds : [];
+      for (const id of ids) {
+        if (id != null) await deleteCargo(id);
+      }
+    } catch (err) {
+      setError(err.message || 'No se pudo deshacer la comanda');
+    }
+
+    const snap = pending.snapshot;
+    if (snap) {
+      const restored = snap.lines?.length
+        ? snap.lines.map((l) => cloneLine(l))
+        : [newLine()];
+      setFecha(snap.fecha);
+      setSelectionKey(snap.selectionKey);
+      setLines(restored);
+      focusItemInput(restored[0]?.key);
+    }
+  };
+
   const submit = async ({ continueAfter }) => {
     setError(null);
-    setSuccessMsg(null);
 
     if (!selectedReservation?.reservationId) {
       setError('Seleccioná una reserva');
@@ -313,6 +446,12 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
       if (first) itemInputRefs.current[first.key]?.focus();
       return;
     }
+
+    const snapshot = {
+      fecha,
+      selectionKey,
+      lines: filledLines.map((l) => ({ ...l, dropdownOpen: false, highlight: 0 }))
+    };
 
     setSubmitting(true);
     try {
@@ -337,15 +476,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
       });
 
       const label = reservationOptionLabel(selectedReservation);
-      setSuccessMsg(
-        `Comanda cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`
-      );
+      const message = `Comanda cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`;
+      const cargoIds = (result?.data?.cargos || [])
+        .map((c) => c.id)
+        .filter((id) => id != null);
+
       onSaved?.(result);
 
       if (continueAfter) {
+        showUndoToast({ message, cargoIds, snapshot });
         resetOrder();
         window.setTimeout(() => reservationRef.current?.focus(), 40);
       } else {
+        dismissToast();
         onClose?.();
       }
     } catch (err) {
@@ -360,269 +503,295 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const busy = loadingMeta || loadingReservations || submitting;
   const itemsEnabled = Boolean(selectedReservation) && !submitting;
 
+  const toastNode =
+    toast &&
+    createPortal(
+      <div className={styles.toast} role="status" aria-live="polite">
+        <p className={styles.toastText}>{toast.message}</p>
+        <button
+          type="button"
+          className={styles.toastUndo}
+          onClick={undoLastOrder}
+        >
+          Deshacer
+        </button>
+        <button
+          type="button"
+          className={styles.toastClose}
+          onClick={dismissToast}
+          aria-label="Cerrar aviso"
+          title="Cerrar"
+        >
+          <FiX />
+        </button>
+      </div>,
+      document.body
+    );
+
   return (
-    <div className={styles.overlay} role="presentation">
-      <div
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <header className={styles.header}>
-          <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={onClose}
-            aria-label="Cerrar"
-            title="Cerrar"
-          >
-            <FiX />
-          </button>
-        </header>
-
-        {(error || successMsg) && (
-          <div className={styles.alerts}>
-            {error ? <div className={styles.error} role="alert">{error}</div> : null}
-            {successMsg ? <div className={styles.success} role="status">{successMsg}</div> : null}
-          </div>
-        )}
-
-        <div className={styles.body}>
-          <aside className={styles.metaColumn}>
-            <div className={styles.row}>
-              <label className={styles.label} htmlFor="consumo-fecha">
-                Fecha
-              </label>
-              <input
-                id="consumo-fecha"
-                ref={dateRef}
-                className={styles.dateInput}
-                type="date"
-                value={fecha}
-                disabled={submitting}
-                onChange={(e) => onFechaChange(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.row}>
-              <label className={styles.label} htmlFor="consumo-reserva">
-                Reserva
-              </label>
-              <select
-                id="consumo-reserva"
-                ref={reservationRef}
-                className={styles.select}
-                value={selectionKey}
-                disabled={busy}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectionKey(value);
-                  setSuccessMsg(null);
-                  setLines((prev) => (prev.length ? prev : [newLine()]));
-                }}
-              >
-                <option value="">
-                  {loadingReservations
-                    ? 'Cargando reservas…'
-                    : reservations.length === 0
-                      ? 'Sin reservas ocupadas ese día'
-                      : 'Seleccionar reserva…'}
-                </option>
-                {reservations.map((r) => (
-                  <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
-                    {reservationOptionLabel(r)}
-                    {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </aside>
-
-          <div className={styles.itemsZone}>
-            <div className={styles.linesHeader}>
-              <span className={styles.colQty}>Cant.</span>
-              <span className={styles.colItem}>Ítem</span>
-              <span className={styles.colPrice}>Precio</span>
-              <span className={styles.colRemove} aria-hidden="true" />
-            </div>
-
-            <ul className={styles.lines}>
-              {lines.map((line) => {
-                const options = filterMenuItems(menuItems, line.query);
-                return (
-                  <li key={line.key} className={styles.line}>
-                    <div className={styles.qtyGroup}>
-                      <button
-                        type="button"
-                        className={styles.qtyBtn}
-                        disabled={!itemsEnabled}
-                        onClick={() => bumpQuantity(line.key, -1)}
-                        aria-label="Restar cantidad"
-                        title="Restar"
-                      >
-                        <FiMinus />
-                      </button>
-                      <label className={styles.srOnly} htmlFor={`qty-${line.key}`}>
-                        Cantidad {line.name || 'ítem'}
-                      </label>
-                      <input
-                        id={`qty-${line.key}`}
-                        className={styles.qty}
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={line.quantity}
-                        disabled={!itemsEnabled}
-                        onChange={(e) => setQuantity(line.key, e.target.value)}
-                        onFocus={(e) => e.target.select()}
-                      />
-                      <button
-                        type="button"
-                        className={styles.qtyBtn}
-                        disabled={!itemsEnabled}
-                        onClick={() => bumpQuantity(line.key, 1)}
-                        aria-label="Sumar cantidad"
-                        title="Sumar"
-                      >
-                        <FiPlus />
-                      </button>
-                    </div>
-
-                    <div className={styles.itemCell}>
-                      <input
-                        ref={(el) => {
-                          itemInputRefs.current[line.key] = el;
-                        }}
-                        className={styles.itemInput}
-                        type="text"
-                        autoComplete="off"
-                        placeholder={
-                          selectedReservation
-                            ? 'Buscar ítem del menú…'
-                            : 'Seleccioná una reserva primero'
-                        }
-                        value={line.query}
-                        disabled={!itemsEnabled}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          updateLine(line.key, {
-                            query: value,
-                            highlight: 0,
-                            // Si edita el texto, invalidar selección previa
-                            menuItemId: null,
-                            name: '',
-                            category: null,
-                            price: 0
-                          });
-                        }}
-                        onClick={() => openDropdown(line.key, itemsEnabled)}
-                        onKeyDown={(e) => onItemKeyDown(e, line)}
-                        aria-autocomplete="list"
-                        aria-expanded={line.dropdownOpen}
-                      />
-                      {line.dropdownOpen && itemsEnabled ? (
-                        <ul
-                          className={styles.dropdown}
-                          role="listbox"
-                          ref={(el) => {
-                            dropdownListRefs.current[line.key] = el;
-                          }}
-                        >
-                          {options.length === 0 ? (
-                            <li className={styles.dropdownEmpty}>Sin resultados</li>
-                          ) : (
-                            options.map((item, idx) => (
-                              <li key={item.id}>
-                                <button
-                                  type="button"
-                                  role="option"
-                                  data-idx={idx}
-                                  aria-selected={idx === line.highlight}
-                                  className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
-                                  onMouseEnter={() => updateLine(line.key, { highlight: idx })}
-                                  onClick={() => selectItem(line.key, item)}
-                                >
-                                  <span className={styles.itemCat}>
-                                    {CATEGORY_LABELS[item.category] || item.category}
-                                  </span>
-                                  <span className={styles.itemName}>{item.name}</span>
-                                  <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
-                                </button>
-                              </li>
-                            ))
-                          )}
-                        </ul>
-                      ) : null}
-                    </div>
-
-                    <div className={styles.priceCell}>
-                      {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
-                    </div>
-
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      disabled={!itemsEnabled || (lines.length === 1 && !line.menuItemId)}
-                      onClick={() => removeLine(line.key)}
-                      aria-label={line.name ? `Quitar ${line.name}` : 'Quitar fila'}
-                      title="Quitar"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-
+    <>
+      <div className={styles.overlay} role="presentation">
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+        >
+          <header className={styles.header}>
+            <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
             <button
               type="button"
-              className={styles.addRowBtn}
-              disabled={!itemsEnabled}
-              onClick={addRow}
-              aria-label="Agregar fila"
-              title="Agregar fila"
-            >
-              <FiPlus aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        <footer className={styles.footer}>
-          <div className={styles.total}>
-            <span>Total</span>
-            <strong>{formatMoney(total)}</strong>
-          </div>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.btnGhost}
+              className={styles.iconBtn}
               onClick={onClose}
-              disabled={submitting}
+              aria-label="Cerrar"
+              title="Cerrar"
             >
-              Cancelar
+              <FiX />
             </button>
-            <button
-              type="button"
-              className={styles.btnSecondary}
-              disabled={submitting || filledLines.length === 0 || !selectedReservation}
-              onClick={() => submit({ continueAfter: true })}
-              title="Guardar y cargar otra reserva"
-            >
-              <FiPlus aria-hidden="true" />
-              Guardar y otra
-            </button>
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              disabled={submitting || filledLines.length === 0 || !selectedReservation}
-              onClick={() => submit({ continueAfter: false })}
-            >
-              {submitting ? 'Guardando…' : 'Confirmar'}
-            </button>
+          </header>
+
+          {error ? (
+            <div className={styles.alerts}>
+              <div className={styles.error} role="alert">{error}</div>
+            </div>
+          ) : null}
+
+          <div className={styles.body}>
+            <aside className={styles.metaColumn}>
+              <div className={styles.row}>
+                <label className={styles.label} htmlFor="consumo-fecha">
+                  Fecha
+                </label>
+                <input
+                  id="consumo-fecha"
+                  ref={dateRef}
+                  className={styles.dateInput}
+                  type="date"
+                  value={fecha}
+                  disabled={submitting}
+                  onChange={(e) => onFechaChange(e.target.value)}
+                />
+              </div>
+
+              <div className={styles.row}>
+                <label className={styles.label} htmlFor="consumo-reserva">
+                  Reserva
+                </label>
+                <select
+                  id="consumo-reserva"
+                  ref={reservationRef}
+                  className={styles.select}
+                  value={selectionKey}
+                  disabled={busy}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectionKey(value);
+                    setLines((prev) => (prev.length ? prev : [newLine()]));
+                  }}
+                >
+                  <option value="">
+                    {loadingReservations
+                      ? 'Cargando reservas…'
+                      : reservations.length === 0
+                        ? 'Sin reservas ocupadas ese día'
+                        : 'Seleccionar reserva…'}
+                  </option>
+                  {reservations.map((r) => (
+                    <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
+                      {reservationOptionLabel(r)}
+                      {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </aside>
+
+            <div className={styles.itemsZone}>
+              <div className={styles.linesHeader}>
+                <span className={styles.colQty}>Cant.</span>
+                <span className={styles.colItem}>Ítem</span>
+                <span className={styles.colPrice}>Precio</span>
+                <span className={styles.colRemove} aria-hidden="true" />
+              </div>
+
+              <ul className={styles.lines}>
+                {lines.map((line) => {
+                  const options = filterMenuItems(menuItems, line.query);
+                  return (
+                    <li key={line.key} className={styles.line}>
+                      <div className={styles.qtyGroup}>
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!itemsEnabled}
+                          onClick={() => bumpQuantity(line.key, -1)}
+                          aria-label="Restar cantidad"
+                          title="Restar"
+                        >
+                          <FiMinus />
+                        </button>
+                        <label className={styles.srOnly} htmlFor={`qty-${line.key}`}>
+                          Cantidad {line.name || 'ítem'}
+                        </label>
+                        <input
+                          id={`qty-${line.key}`}
+                          className={styles.qty}
+                          type="number"
+                          min={1}
+                          max={999}
+                          value={line.quantity}
+                          disabled={!itemsEnabled}
+                          onChange={(e) => setQuantity(line.key, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                        />
+                        <button
+                          type="button"
+                          className={styles.qtyBtn}
+                          disabled={!itemsEnabled}
+                          onClick={() => bumpQuantity(line.key, 1)}
+                          aria-label="Sumar cantidad"
+                          title="Sumar"
+                        >
+                          <FiPlus />
+                        </button>
+                      </div>
+
+                      <div className={styles.itemCell}>
+                        <input
+                          ref={(el) => {
+                            itemInputRefs.current[line.key] = el;
+                          }}
+                          className={styles.itemInput}
+                          type="text"
+                          autoComplete="off"
+                          placeholder={
+                            selectedReservation
+                              ? 'Buscar ítem del menú…'
+                              : 'Seleccioná una reserva primero'
+                          }
+                          value={line.query}
+                          disabled={!itemsEnabled}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            updateLine(line.key, {
+                              query: value,
+                              highlight: 0,
+                              // Si edita el texto, invalidar selección previa
+                              menuItemId: null,
+                              name: '',
+                              category: null,
+                              price: 0
+                            });
+                          }}
+                          onClick={() => openDropdown(line.key, itemsEnabled)}
+                          onKeyDown={(e) => onItemKeyDown(e, line)}
+                          aria-autocomplete="list"
+                          aria-expanded={line.dropdownOpen}
+                        />
+                        {line.dropdownOpen && itemsEnabled ? (
+                          <ul
+                            className={styles.dropdown}
+                            role="listbox"
+                            ref={(el) => {
+                              dropdownListRefs.current[line.key] = el;
+                            }}
+                          >
+                            {options.length === 0 ? (
+                              <li className={styles.dropdownEmpty}>Sin resultados</li>
+                            ) : (
+                              options.map((item, idx) => (
+                                <li key={item.id}>
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    data-idx={idx}
+                                    aria-selected={idx === line.highlight}
+                                    className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
+                                    onMouseEnter={() => updateLine(line.key, { highlight: idx })}
+                                    onClick={() => selectItem(line.key, item)}
+                                  >
+                                    <span className={styles.itemCat}>
+                                      {CATEGORY_LABELS[item.category] || item.category}
+                                    </span>
+                                    <span className={styles.itemName}>{item.name}</span>
+                                    <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
+                                  </button>
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        ) : null}
+                      </div>
+
+                      <div className={styles.priceCell}>
+                        {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
+                      </div>
+
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        disabled={!itemsEnabled || (lines.length === 1 && !line.menuItemId)}
+                        onClick={() => removeLine(line.key)}
+                        aria-label={line.name ? `Quitar ${line.name}` : 'Quitar fila'}
+                        title="Quitar"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <button
+                type="button"
+                className={styles.addRowBtn}
+                disabled={!itemsEnabled}
+                onClick={addRow}
+                aria-label="Agregar fila"
+                title="Agregar fila"
+              >
+                <FiPlus aria-hidden="true" />
+              </button>
+            </div>
           </div>
-        </footer>
+
+          <footer className={styles.footer}>
+            <div className={styles.total}>
+              <span>Total</span>
+              <strong>{formatMoney(total)}</strong>
+            </div>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={onClose}
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={submitting || filledLines.length === 0 || !selectedReservation}
+                onClick={() => submit({ continueAfter: true })}
+                title="Guardar y cargar otra reserva"
+              >
+                <FiPlus aria-hidden="true" />
+                Guardar y otra
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={submitting || filledLines.length === 0 || !selectedReservation}
+                onClick={() => submit({ continueAfter: false })}
+              >
+                {submitting ? 'Guardando…' : 'Confirmar'}
+              </button>
+            </div>
+          </footer>
+        </div>
       </div>
-    </div>
+      {toastNode}
+    </>
   );
 }
