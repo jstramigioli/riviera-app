@@ -28,19 +28,41 @@ function lineKey(itemId) {
   return `item-${itemId}`;
 }
 
+function todayLocalIso() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function reservationOptionKey(row) {
+  return `${row.reservationId}:${row.roomId}`;
+}
+
+function reservationOptionLabel(row) {
+  if (row.label) return row.label;
+  const room = row.roomName || 'Hab.';
+  const apellido = row.clientLastName || (row.clientName || '').split(/\s+/).pop() || 'Sin apellido';
+  return `${room} - ${apellido}`;
+}
+
 /**
- * Modal POS de comanda: habitación → cliente, buscador de ítems, cantidades, teclado-first.
+ * Modal POS de comanda: fecha → reservas ocupadas ese día → ítems.
  */
 export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const titleId = useId();
-  const roomRef = useRef(null);
+  const dateRef = useRef(null);
+  const reservationRef = useRef(null);
   const searchRef = useRef(null);
   const listRef = useRef(null);
 
-  const [rooms, setRooms] = useState([]);
+  const [fecha, setFecha] = useState(todayLocalIso);
+  const [reservations, setReservations] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
-  const [roomId, setRoomId] = useState('');
+  const [loadingReservations, setLoadingReservations] = useState(false);
+  const [selectionKey, setSelectionKey] = useState('');
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -49,9 +71,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const selectedRoom = useMemo(
-    () => rooms.find((r) => String(r.roomId) === String(roomId)) || null,
-    [rooms, roomId]
+  const selectedReservation = useMemo(
+    () => reservations.find((r) => reservationOptionKey(r) === selectionKey) || null,
+    [reservations, selectionKey]
   );
 
   const filteredItems = useMemo(() => {
@@ -77,7 +99,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   );
 
   const resetOrder = useCallback(() => {
-    setRoomId('');
+    setSelectionKey('');
     setQuery('');
     setHighlight(0);
     setDropdownOpen(false);
@@ -85,31 +107,48 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     setError(null);
   }, []);
 
-  const loadMeta = useCallback(async () => {
-    setLoadingMeta(true);
-    setError(null);
+  const loadMenu = useCallback(async () => {
     try {
-      const [roomsRes, itemsRes] = await Promise.all([
-        fetchOccupiedRoomsToday(),
-        fetchMenuItems({ active: true })
-      ]);
-      setRooms(roomsRes.data || roomsRes || []);
+      const itemsRes = await fetchMenuItems({ active: true });
       setMenuItems(itemsRes.data || itemsRes || []);
     } catch (err) {
-      setError(err.message || 'No se pudo cargar la comanda');
+      setError(err.message || 'No se pudo cargar el menú');
+    }
+  }, []);
+
+  const loadReservations = useCallback(async (dateCivil) => {
+    setLoadingReservations(true);
+    setError(null);
+    try {
+      const roomsRes = await fetchOccupiedRoomsToday(dateCivil);
+      const list = roomsRes.data || roomsRes || [];
+      setReservations(list);
+      setSelectionKey((prev) => {
+        if (!prev) return '';
+        return list.some((r) => reservationOptionKey(r) === prev) ? prev : '';
+      });
+    } catch (err) {
+      setReservations([]);
+      setSelectionKey('');
+      setError(err.message || 'No se pudo cargar las reservas');
     } finally {
-      setLoadingMeta(false);
+      setLoadingReservations(false);
     }
   }, []);
 
   useEffect(() => {
     if (!open) return undefined;
+    const today = todayLocalIso();
+    setFecha(today);
     resetOrder();
     setSuccessMsg(null);
-    loadMeta();
-    const t = window.setTimeout(() => roomRef.current?.focus(), 40);
+    setLoadingMeta(true);
+    Promise.all([loadMenu(), loadReservations(today)]).finally(() => {
+      setLoadingMeta(false);
+    });
+    const t = window.setTimeout(() => dateRef.current?.focus(), 40);
     return () => window.clearTimeout(t);
-  }, [open, loadMeta, resetOrder]);
+  }, [open, loadMenu, loadReservations, resetOrder]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -126,6 +165,15 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   useEffect(() => {
     setHighlight(0);
   }, [query, filteredItems.length]);
+
+  const onFechaChange = (value) => {
+    setFecha(value);
+    setSuccessMsg(null);
+    setSelectionKey('');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      loadReservations(value);
+    }
+  };
 
   const addItem = (item) => {
     if (!item) return;
@@ -202,9 +250,14 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     setError(null);
     setSuccessMsg(null);
 
-    if (!selectedRoom?.reservationId) {
-      setError('Seleccioná una habitación ocupada');
-      roomRef.current?.focus();
+    if (!selectedReservation?.reservationId) {
+      setError('Seleccioná una reserva');
+      reservationRef.current?.focus();
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      setError('Fecha inválida');
+      dateRef.current?.focus();
       return;
     }
     if (lines.length === 0) {
@@ -216,23 +269,23 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     setSubmitting(true);
     try {
       const result = await createConsumptionOrder({
-        reservationId: selectedRoom.reservationId,
+        reservationId: selectedReservation.reservationId,
+        fecha,
         items: lines.map((l) => ({
           menuItemId: l.menuItemId,
           quantity: l.quantity
         }))
       });
 
-      const roomLabel = selectedRoom.roomName;
-      const client = selectedRoom.clientName || 'huésped';
+      const label = reservationOptionLabel(selectedReservation);
       setSuccessMsg(
-        `Comanda cargada en ${roomLabel} (${client}) — ${formatMoney(result?.data?.total ?? total)}`
+        `Comanda cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`
       );
       onSaved?.(result);
 
       if (continueAfter) {
         resetOrder();
-        window.setTimeout(() => roomRef.current?.focus(), 40);
+        window.setTimeout(() => reservationRef.current?.focus(), 40);
       } else {
         onClose?.();
       }
@@ -245,6 +298,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
 
   if (!open) return null;
 
+  const busy = loadingMeta || loadingReservations || submitting;
+
   return (
     <div className={styles.overlay} role="presentation">
       <div
@@ -256,7 +311,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
         <header className={styles.header}>
           <div>
             <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
-            <p className={styles.subtitle}>Comanda por habitación — Enter agrega ítems</p>
+            <p className={styles.subtitle}>Comanda por reserva — Enter agrega ítems</p>
           </div>
           <button
             type="button"
@@ -274,27 +329,47 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
           {successMsg ? <div className={styles.success} role="status">{successMsg}</div> : null}
 
           <div className={styles.row}>
-            <label className={styles.label} htmlFor="consumo-room">
-              Habitación
+            <label className={styles.label} htmlFor="consumo-fecha">
+              Fecha
+            </label>
+            <input
+              id="consumo-fecha"
+              ref={dateRef}
+              className={styles.dateInput}
+              type="date"
+              value={fecha}
+              disabled={submitting}
+              onChange={(e) => onFechaChange(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <label className={styles.label} htmlFor="consumo-reserva">
+              Reserva
             </label>
             <select
-              id="consumo-room"
-              ref={roomRef}
+              id="consumo-reserva"
+              ref={reservationRef}
               className={styles.select}
-              value={roomId}
-              disabled={loadingMeta || submitting}
+              value={selectionKey}
+              disabled={busy}
               onChange={(e) => {
-                setRoomId(e.target.value);
+                setSelectionKey(e.target.value);
                 setSuccessMsg(null);
                 window.setTimeout(() => searchRef.current?.focus(), 20);
               }}
             >
-              <option value="">Seleccionar habitación…</option>
-              {rooms.map((r) => (
-                <option key={r.roomId} value={r.roomId}>
-                  {r.roomName}
-                  {r.clientName ? ` — ${r.clientName}` : ''}
-                  {r.status === 'INGRESADA' ? '' : ` (${r.status})`}
+              <option value="">
+                {loadingReservations
+                  ? 'Cargando reservas…'
+                  : reservations.length === 0
+                    ? 'Sin reservas ocupadas ese día'
+                    : 'Seleccionar reserva…'}
+              </option>
+              {reservations.map((r) => (
+                <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
+                  {reservationOptionLabel(r)}
+                  {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
                 </option>
               ))}
             </select>
@@ -303,7 +378,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
           <div className={styles.row}>
             <span className={styles.label}>Cliente</span>
             <div className={styles.clientBox}>
-              {selectedRoom?.clientName || (roomId ? 'Sin nombre' : '—')}
+              {selectedReservation?.clientName || (selectionKey ? 'Sin nombre' : '—')}
             </div>
           </div>
 
@@ -321,7 +396,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
                 autoComplete="off"
                 placeholder="Buscar bebidas, minutas, cafetería…"
                 value={query}
-                disabled={submitting || !selectedRoom}
+                disabled={submitting || !selectedReservation}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setDropdownOpen(true);
@@ -331,7 +406,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
                 aria-autocomplete="list"
                 aria-expanded={dropdownOpen}
               />
-              {dropdownOpen && selectedRoom ? (
+              {dropdownOpen && selectedReservation ? (
                 <ul className={styles.dropdown} role="listbox" ref={listRef}>
                   {filteredItems.length === 0 ? (
                     <li className={styles.dropdownEmpty}>Sin resultados</li>
@@ -428,17 +503,17 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
             <button
               type="button"
               className={styles.btnSecondary}
-              disabled={submitting || lines.length === 0 || !selectedRoom}
+              disabled={submitting || lines.length === 0 || !selectedReservation}
               onClick={() => submit({ continueAfter: true })}
-              title="Guardar y cargar otra habitación"
+              title="Guardar y cargar otra reserva"
             >
               <FiPlus aria-hidden="true" />
-              Guardar y otra hab.
+              Guardar y otra
             </button>
             <button
               type="button"
               className={styles.btnPrimary}
-              disabled={submitting || lines.length === 0 || !selectedRoom}
+              disabled={submitting || lines.length === 0 || !selectedReservation}
               onClick={() => submit({ continueAfter: false })}
             >
               {submitting ? 'Guardando…' : 'Confirmar'}

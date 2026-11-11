@@ -933,11 +933,17 @@ export async function deleteMenuItem(id) {
   return res.json();
 }
 
-export async function fetchOccupiedRoomsToday() {
-  const res = await fetch(`${API_URL}/consumptions/occupied-rooms`);
+/** Reservas ocupadas en una fecha civil YYYY-MM-DD (default: hoy en el backend). */
+export async function fetchOccupiedRoomsToday(date) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_URL}/consumptions/occupied-rooms${qs ? `?${qs}` : ''}`
+  );
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error al listar habitaciones ocupadas');
+    throw new Error(error.error || 'Error al listar reservas ocupadas');
   }
   return res.json();
 }

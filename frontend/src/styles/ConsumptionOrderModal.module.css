@@ -66,6 +66,7 @@
 
 .select,
 .searchInput,
+.dateInput,
 .qty {
   font-family: var(--font-main);
   font-size: var(--font-size-base);
@@ -75,8 +76,13 @@
   background: var(--color-bg-white);
 }
 
-.select {
+.select,
+.dateInput {
   padding: 0.45rem 0.55rem;
+}
+
+.dateInput {
+  max-width: 12.5rem;
 }
 
 .clientBox {
