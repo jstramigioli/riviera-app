@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
 import LocationSelector from '../components/LocationSelector';
-import { CLIENT_DOCUMENT_TYPES } from '../constants/clientFormFields';
+import {
+  CLIENT_DOCUMENT_TYPES,
+  VEHICLE_PLATE_HINT,
+  VEHICLE_PLATE_LABEL
+} from '../constants/clientFormFields';
 import styles from './PublicCheckIn.module.css';
 
 // Preferir same-origin /api (proxy Vite) para evitar CORS / 127 vs localhost en local.
@@ -257,7 +261,7 @@ export default function PublicCheckIn() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Vehículo</h2>
             <label className={styles.field}>
-              <span>Patente (opcional)</span>
+              <span>{VEHICLE_PLATE_LABEL}</span>
               <input
                 name="vehiclePlate"
                 value={fields.vehiclePlate}
@@ -265,7 +269,7 @@ export default function PublicCheckIn() {
                 placeholder="Ej. AB123CD"
                 autoCapitalize="characters"
               />
-              <span className={styles.hint}>Para identificar el auto en el estacionamiento.</span>
+              <span className={styles.hint}>{VEHICLE_PLATE_HINT}</span>
             </label>
           </section>
 

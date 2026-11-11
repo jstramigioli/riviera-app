@@ -15,8 +15,10 @@ export const CLIENT_PROFILE_FIELD_KEYS = [
   'province',
   'city',
   'address',
+  'vehiclePlate',
   'wantsPromotions'
 ];
 
-/** Solo check-in / reserva — no forzar al perfil Client. */
-export const CHECKIN_ONLY_FIELD_KEYS = ['vehiclePlate'];
+/** Label y ayuda compartidos entre check-in y EditClientModal. */
+export const VEHICLE_PLATE_LABEL = 'Patente (opcional)';
+export const VEHICLE_PLATE_HINT = 'Para identificar el auto en el estacionamiento.';

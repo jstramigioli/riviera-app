@@ -1,7 +1,11 @@
 import { FiX } from 'react-icons/fi';
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
-import { CLIENT_DOCUMENT_TYPES } from '../constants/clientFormFields';
+import {
+  CLIENT_DOCUMENT_TYPES,
+  VEHICLE_PLATE_HINT,
+  VEHICLE_PLATE_LABEL
+} from '../constants/clientFormFields';
 import {
   createNotesWithAddress,
   getAddressFromNotes,
@@ -21,6 +25,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     country: 'AR',
     province: '',
     city: '',
+    vehiclePlate: '',
     wantsPromotions: false,
     notes: ''
   });
@@ -40,6 +45,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         country: client.country || 'AR',
         province: client.province || '',
         city: client.city || '',
+        vehiclePlate: client.vehiclePlate || '',
         wantsPromotions: client.wantsPromotions || false,
         notes: stripAddressFromNotes(client.notes),
         address: getAddressFromNotes(client.notes)
@@ -81,6 +87,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         country: formData.country,
         province: formData.province,
         city: formData.city,
+        vehiclePlate: formData.vehiclePlate,
         wantsPromotions: formData.wantsPromotions,
         notes: notesWithAddress
       });
@@ -229,6 +236,26 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   className={styles.textarea}
                   rows="3"
                 />
+              </div>
+            </div>
+
+            {/* Vehículo — mismos label/hint que check-in online */}
+            <div className={styles.section}>
+              <h3>Vehículo</h3>
+
+              <div className={styles.fieldGroup}>
+                <label htmlFor="vehiclePlate">{VEHICLE_PLATE_LABEL}</label>
+                <input
+                  type="text"
+                  id="vehiclePlate"
+                  name="vehiclePlate"
+                  value={formData.vehiclePlate}
+                  onChange={handleInputChange}
+                  placeholder="Ej. AB123CD"
+                  autoCapitalize="characters"
+                  className={styles.input}
+                />
+                <span className={styles.hint}>{VEHICLE_PLATE_HINT}</span>
               </div>
             </div>
 

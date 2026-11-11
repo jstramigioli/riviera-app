@@ -1,6 +1,12 @@
 const prisma = require('../utils/prisma');
 const { aggregateReservationsBalance } = require('../utils/reservationBalance');
 
+function normalizePlate(value) {
+  if (value == null) return null;
+  const cleaned = String(value).trim().toUpperCase().replace(/\s+/g, '');
+  return cleaned || null;
+}
+
 // Listar todos los clientes (incluye createdAt/updatedAt para comparaciones temporales)
 exports.getAllClients = async (req, res) => {
   try {
@@ -31,7 +37,7 @@ exports.getClientById = async (req, res) => {
 
 // Crear un cliente
 exports.createClient = async (req, res) => {
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
@@ -54,6 +60,7 @@ exports.createClient = async (req, res) => {
         province: province || null,
         city: city || null,
         notes: notes || null,
+        vehiclePlate: normalizePlate(vehiclePlate),
         wantsPromotions: wantsPromotions || false
       }
     });
@@ -71,7 +78,7 @@ exports.createClient = async (req, res) => {
 // Actualizar un cliente
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
@@ -96,6 +103,7 @@ exports.updateClient = async (req, res) => {
         ...(province !== undefined && { province }),
         ...(city !== undefined && { city }),
         ...(notes !== undefined && { notes }),
+        ...(vehiclePlate !== undefined && { vehiclePlate: normalizePlate(vehiclePlate) }),
         ...(wantsPromotions !== undefined && { wantsPromotions })
       }
     });

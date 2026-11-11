@@ -120,6 +120,8 @@ model Client {
   province        String?
   city            String?
   notes           String?
+  /// Patente del vehículo (estacionamiento); misma clave que check-in / reserva.
+  vehiclePlate    String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
   createdAt       DateTime      @default(now())
