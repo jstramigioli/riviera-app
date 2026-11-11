@@ -10,7 +10,7 @@
 }
 
 .modal {
-  width: min(620px, 100%);
+  width: min(920px, 100%);
   max-height: min(92vh, 780px);
   background: var(--color-bg-white);
   border: 1px solid var(--color-border);
@@ -25,7 +25,7 @@
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.9rem 1rem 0.7rem;
@@ -39,20 +39,30 @@
   font-weight: 600;
 }
 
-.subtitle {
-  margin: 0.2rem 0 0;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
+.alerts {
+  flex-shrink: 0;
+  padding: 0.65rem 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.stickyTop {
-  flex-shrink: 0;
-  padding: 0.85rem 1rem 0.65rem;
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(14rem, 15.5rem) minmax(0, 1fr);
+  gap: 0;
+}
+
+.metaColumn {
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  border-bottom: 1px solid var(--color-border-light);
+  border-right: 1px solid var(--color-border-light);
   background: var(--color-bg-white);
+  overflow: auto;
 }
 
 .row {
@@ -82,15 +92,17 @@
 .select,
 .dateInput {
   padding: 0.45rem 0.55rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dateInput {
-  max-width: 12.5rem;
+  max-width: none;
 }
 
 .itemsZone {
-  flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   overflow: auto;
   padding: 0.55rem 1rem 0.75rem;
   display: flex;
@@ -129,6 +141,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  flex: 1 1 auto;
 }
 
 .line {
@@ -268,14 +281,16 @@
   background: transparent;
   color: var(--color-primary-dark);
   border-radius: var(--radius-sm);
-  padding: 0.35rem 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   font-family: var(--font-main);
   font-size: var(--font-size-medium);
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  justify-content: center;
 }
 
 .addRowBtn:hover:not(:disabled) {
@@ -418,6 +433,24 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+@media (max-width: 720px) {
+  .body {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .metaColumn {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-light);
+    overflow: visible;
+  }
+
+  .itemsZone {
+    height: auto;
+    min-height: 12rem;
+  }
 }
 
 @media (max-width: 560px) {

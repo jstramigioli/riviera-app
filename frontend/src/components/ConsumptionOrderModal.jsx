@@ -200,6 +200,12 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     );
   };
 
+  const openDropdown = (lineKey, enabled) => {
+    if (!enabled) return;
+    closeOtherDropdowns(lineKey);
+    updateLine(lineKey, { dropdownOpen: true, highlight: 0 });
+  };
+
   const setQuantity = (key, value) => {
     const qty = Math.max(1, Math.min(999, Number(value) || 1));
     updateLine(key, { quantity: qty });
@@ -230,9 +236,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
 
   const selectItem = (lineKey, item) => {
     if (!item) return;
-    let focusKey = null;
-    setLines((prev) => {
-      const updated = prev.map((l) =>
+    setLines((prev) =>
+      prev.map((l) =>
         l.key === lineKey
           ? {
               ...l,
@@ -245,53 +250,30 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
               highlight: 0
             }
           : l
-      );
-      const idx = updated.findIndex((l) => l.key === lineKey);
-      const hasEmptyAfter = updated
-        .slice(idx + 1)
-        .some((l) => !l.menuItemId && !String(l.query || '').trim());
-      if (hasEmptyAfter) {
-        const nextEmpty = updated.slice(idx + 1).find((l) => !l.menuItemId);
-        focusKey = nextEmpty?.key || null;
-        return updated;
-      }
-      if (idx === updated.length - 1) {
-        const row = newLine();
-        focusKey = row.key;
-        return [...updated, row];
-      }
-      return updated;
-    });
-    window.setTimeout(() => {
-      if (focusKey) itemInputRefs.current[focusKey]?.focus();
-    }, 30);
+      )
+    );
   };
 
   const onItemKeyDown = (e, line) => {
     const options = filterMenuItems(menuItems, line.query);
 
-    if (!line.dropdownOpen && (e.key === 'ArrowDown' || e.key === 'Enter') && options.length) {
-      closeOtherDropdowns(line.key);
-      updateLine(line.key, { dropdownOpen: true });
-    }
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      closeOtherDropdowns(line.key);
+      if (!line.dropdownOpen) return;
       updateLine(line.key, {
-        dropdownOpen: true,
         highlight: Math.min(options.length - 1, (line.highlight || 0) + 1)
       });
       return;
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
+      if (!line.dropdownOpen) return;
       updateLine(line.key, { highlight: Math.max(0, (line.highlight || 0) - 1) });
       return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (options[line.highlight]) {
+      if (line.dropdownOpen && options[line.highlight]) {
         selectItem(line.key, options[line.highlight]);
       }
       return;
@@ -387,10 +369,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
         aria-labelledby={titleId}
       >
         <header className={styles.header}>
-          <div>
-            <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
-            <p className={styles.subtitle}>Comanda por reserva — filas de ítems del menú</p>
-          </div>
+          <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
           <button
             type="button"
             className={styles.iconBtn}
@@ -402,224 +381,211 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
           </button>
         </header>
 
-        <div className={styles.stickyTop}>
-          {error ? <div className={styles.error} role="alert">{error}</div> : null}
-          {successMsg ? <div className={styles.success} role="status">{successMsg}</div> : null}
-
-          <div className={styles.row}>
-            <label className={styles.label} htmlFor="consumo-fecha">
-              Fecha
-            </label>
-            <input
-              id="consumo-fecha"
-              ref={dateRef}
-              className={styles.dateInput}
-              type="date"
-              value={fecha}
-              disabled={submitting}
-              onChange={(e) => onFechaChange(e.target.value)}
-            />
+        {(error || successMsg) && (
+          <div className={styles.alerts}>
+            {error ? <div className={styles.error} role="alert">{error}</div> : null}
+            {successMsg ? <div className={styles.success} role="status">{successMsg}</div> : null}
           </div>
+        )}
 
-          <div className={styles.row}>
-            <label className={styles.label} htmlFor="consumo-reserva">
-              Reserva
-            </label>
-            <select
-              id="consumo-reserva"
-              ref={reservationRef}
-              className={styles.select}
-              value={selectionKey}
-              disabled={busy}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectionKey(value);
-                setSuccessMsg(null);
-                let focusKey = null;
-                setLines((prev) => {
-                  if (prev.length) {
-                    focusKey = prev[0].key;
-                    return prev;
-                  }
-                  const row = newLine();
-                  focusKey = row.key;
-                  return [row];
-                });
-                if (value) {
-                  window.setTimeout(() => {
-                    if (focusKey) itemInputRefs.current[focusKey]?.focus();
-                  }, 20);
-                }
-              }}
-            >
-              <option value="">
-                {loadingReservations
-                  ? 'Cargando reservas…'
-                  : reservations.length === 0
-                    ? 'Sin reservas ocupadas ese día'
-                    : 'Seleccionar reserva…'}
-              </option>
-              {reservations.map((r) => (
-                <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
-                  {reservationOptionLabel(r)}
-                  {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
+        <div className={styles.body}>
+          <aside className={styles.metaColumn}>
+            <div className={styles.row}>
+              <label className={styles.label} htmlFor="consumo-fecha">
+                Fecha
+              </label>
+              <input
+                id="consumo-fecha"
+                ref={dateRef}
+                className={styles.dateInput}
+                type="date"
+                value={fecha}
+                disabled={submitting}
+                onChange={(e) => onFechaChange(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.row}>
+              <label className={styles.label} htmlFor="consumo-reserva">
+                Reserva
+              </label>
+              <select
+                id="consumo-reserva"
+                ref={reservationRef}
+                className={styles.select}
+                value={selectionKey}
+                disabled={busy}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectionKey(value);
+                  setSuccessMsg(null);
+                  setLines((prev) => (prev.length ? prev : [newLine()]));
+                }}
+              >
+                <option value="">
+                  {loadingReservations
+                    ? 'Cargando reservas…'
+                    : reservations.length === 0
+                      ? 'Sin reservas ocupadas ese día'
+                      : 'Seleccionar reserva…'}
                 </option>
-              ))}
-            </select>
-          </div>
-        </div>
+                {reservations.map((r) => (
+                  <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
+                    {reservationOptionLabel(r)}
+                    {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </aside>
 
-        <div className={styles.itemsZone}>
-          <div className={styles.linesHeader}>
-            <span className={styles.colQty}>Cant.</span>
-            <span className={styles.colItem}>Ítem</span>
-            <span className={styles.colPrice}>Precio</span>
-            <span className={styles.colRemove} aria-hidden="true" />
-          </div>
+          <div className={styles.itemsZone}>
+            <div className={styles.linesHeader}>
+              <span className={styles.colQty}>Cant.</span>
+              <span className={styles.colItem}>Ítem</span>
+              <span className={styles.colPrice}>Precio</span>
+              <span className={styles.colRemove} aria-hidden="true" />
+            </div>
 
-          <ul className={styles.lines}>
-            {lines.map((line) => {
-              const options = filterMenuItems(menuItems, line.query);
-              return (
-                <li key={line.key} className={styles.line}>
-                  <div className={styles.qtyGroup}>
-                    <button
-                      type="button"
-                      className={styles.qtyBtn}
-                      disabled={!itemsEnabled}
-                      onClick={() => bumpQuantity(line.key, -1)}
-                      aria-label="Restar cantidad"
-                      title="Restar"
-                    >
-                      <FiMinus />
-                    </button>
-                    <label className={styles.srOnly} htmlFor={`qty-${line.key}`}>
-                      Cantidad {line.name || 'ítem'}
-                    </label>
-                    <input
-                      id={`qty-${line.key}`}
-                      className={styles.qty}
-                      type="number"
-                      min={1}
-                      max={999}
-                      value={line.quantity}
-                      disabled={!itemsEnabled}
-                      onChange={(e) => setQuantity(line.key, e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <button
-                      type="button"
-                      className={styles.qtyBtn}
-                      disabled={!itemsEnabled}
-                      onClick={() => bumpQuantity(line.key, 1)}
-                      aria-label="Sumar cantidad"
-                      title="Sumar"
-                    >
-                      <FiPlus />
-                    </button>
-                  </div>
-
-                  <div className={styles.itemCell}>
-                    <input
-                      ref={(el) => {
-                        itemInputRefs.current[line.key] = el;
-                      }}
-                      className={styles.itemInput}
-                      type="text"
-                      autoComplete="off"
-                      placeholder={
-                        selectedReservation
-                          ? 'Buscar ítem del menú…'
-                          : 'Seleccioná una reserva primero'
-                      }
-                      value={line.query}
-                      disabled={!itemsEnabled}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        closeOtherDropdowns(line.key);
-                        updateLine(line.key, {
-                          query: value,
-                          dropdownOpen: true,
-                          highlight: 0,
-                          // Si edita el texto, invalidar selección previa
-                          menuItemId: null,
-                          name: '',
-                          category: null,
-                          price: 0
-                        });
-                      }}
-                      onFocus={() => {
-                        if (!itemsEnabled) return;
-                        closeOtherDropdowns(line.key);
-                        updateLine(line.key, { dropdownOpen: true });
-                      }}
-                      onKeyDown={(e) => onItemKeyDown(e, line)}
-                      aria-autocomplete="list"
-                      aria-expanded={line.dropdownOpen}
-                    />
-                    {line.dropdownOpen && itemsEnabled ? (
-                      <ul
-                        className={styles.dropdown}
-                        role="listbox"
-                        ref={(el) => {
-                          dropdownListRefs.current[line.key] = el;
-                        }}
+            <ul className={styles.lines}>
+              {lines.map((line) => {
+                const options = filterMenuItems(menuItems, line.query);
+                return (
+                  <li key={line.key} className={styles.line}>
+                    <div className={styles.qtyGroup}>
+                      <button
+                        type="button"
+                        className={styles.qtyBtn}
+                        disabled={!itemsEnabled}
+                        onClick={() => bumpQuantity(line.key, -1)}
+                        aria-label="Restar cantidad"
+                        title="Restar"
                       >
-                        {options.length === 0 ? (
-                          <li className={styles.dropdownEmpty}>Sin resultados</li>
-                        ) : (
-                          options.map((item, idx) => (
-                            <li key={item.id}>
-                              <button
-                                type="button"
-                                role="option"
-                                data-idx={idx}
-                                aria-selected={idx === line.highlight}
-                                className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
-                                onMouseEnter={() => updateLine(line.key, { highlight: idx })}
-                                onClick={() => selectItem(line.key, item)}
-                              >
-                                <span className={styles.itemCat}>
-                                  {CATEGORY_LABELS[item.category] || item.category}
-                                </span>
-                                <span className={styles.itemName}>{item.name}</span>
-                                <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
-                              </button>
-                            </li>
-                          ))
-                        )}
-                      </ul>
-                    ) : null}
-                  </div>
+                        <FiMinus />
+                      </button>
+                      <label className={styles.srOnly} htmlFor={`qty-${line.key}`}>
+                        Cantidad {line.name || 'ítem'}
+                      </label>
+                      <input
+                        id={`qty-${line.key}`}
+                        className={styles.qty}
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={line.quantity}
+                        disabled={!itemsEnabled}
+                        onChange={(e) => setQuantity(line.key, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <button
+                        type="button"
+                        className={styles.qtyBtn}
+                        disabled={!itemsEnabled}
+                        onClick={() => bumpQuantity(line.key, 1)}
+                        aria-label="Sumar cantidad"
+                        title="Sumar"
+                      >
+                        <FiPlus />
+                      </button>
+                    </div>
 
-                  <div className={styles.priceCell}>
-                    {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
-                  </div>
+                    <div className={styles.itemCell}>
+                      <input
+                        ref={(el) => {
+                          itemInputRefs.current[line.key] = el;
+                        }}
+                        className={styles.itemInput}
+                        type="text"
+                        autoComplete="off"
+                        placeholder={
+                          selectedReservation
+                            ? 'Buscar ítem del menú…'
+                            : 'Seleccioná una reserva primero'
+                        }
+                        value={line.query}
+                        disabled={!itemsEnabled}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          updateLine(line.key, {
+                            query: value,
+                            highlight: 0,
+                            // Si edita el texto, invalidar selección previa
+                            menuItemId: null,
+                            name: '',
+                            category: null,
+                            price: 0
+                          });
+                        }}
+                        onClick={() => openDropdown(line.key, itemsEnabled)}
+                        onKeyDown={(e) => onItemKeyDown(e, line)}
+                        aria-autocomplete="list"
+                        aria-expanded={line.dropdownOpen}
+                      />
+                      {line.dropdownOpen && itemsEnabled ? (
+                        <ul
+                          className={styles.dropdown}
+                          role="listbox"
+                          ref={(el) => {
+                            dropdownListRefs.current[line.key] = el;
+                          }}
+                        >
+                          {options.length === 0 ? (
+                            <li className={styles.dropdownEmpty}>Sin resultados</li>
+                          ) : (
+                            options.map((item, idx) => (
+                              <li key={item.id}>
+                                <button
+                                  type="button"
+                                  role="option"
+                                  data-idx={idx}
+                                  aria-selected={idx === line.highlight}
+                                  className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
+                                  onMouseEnter={() => updateLine(line.key, { highlight: idx })}
+                                  onClick={() => selectItem(line.key, item)}
+                                >
+                                  <span className={styles.itemCat}>
+                                    {CATEGORY_LABELS[item.category] || item.category}
+                                  </span>
+                                  <span className={styles.itemName}>{item.name}</span>
+                                  <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      ) : null}
+                    </div>
 
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    disabled={!itemsEnabled || (lines.length === 1 && !line.menuItemId)}
-                    onClick={() => removeLine(line.key)}
-                    aria-label={line.name ? `Quitar ${line.name}` : 'Quitar fila'}
-                    title="Quitar"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className={styles.priceCell}>
+                      {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
+                    </div>
 
-          <button
-            type="button"
-            className={styles.addRowBtn}
-            disabled={!itemsEnabled}
-            onClick={addRow}
-          >
-            <FiPlus aria-hidden="true" />
-            Agregar fila
-          </button>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      disabled={!itemsEnabled || (lines.length === 1 && !line.menuItemId)}
+                      onClick={() => removeLine(line.key)}
+                      aria-label={line.name ? `Quitar ${line.name}` : 'Quitar fila'}
+                      title="Quitar"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <button
+              type="button"
+              className={styles.addRowBtn}
+              disabled={!itemsEnabled}
+              onClick={addRow}
+              aria-label="Agregar fila"
+              title="Agregar fila"
+            >
+              <FiPlus aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <footer className={styles.footer}>
