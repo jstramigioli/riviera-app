@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
+import { useAppNotice } from '../hooks/useAppNotice';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
@@ -24,6 +25,7 @@ export default function Consulta() {
   const location = useLocation();
   const navigate = useNavigate();
   const { tags } = useTags();
+  const { notify, noticeDialog } = useAppNotice();
 
   // Función para validar si el hotel está cerrado en el período solicitado
   const validateHotelAvailability = useCallback(async (checkIn, checkOut) => {
@@ -627,13 +629,21 @@ export default function Consulta() {
   // Guardar consulta explícitamente (sin crear reserva pendiente)
   const handleSaveConsulta = useCallback(async () => {
     if (!formData.mainClient.id) {
-      alert('Seleccioná un cliente antes de guardar la consulta.');
+      notify({
+        title: 'Falta el cliente',
+        message: 'Seleccioná un cliente antes de guardar la consulta.',
+        type: 'warning',
+      });
       return;
     }
 
     const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
     if (!hasValidSegment) {
-      alert('Completá check-in y check-out de al menos un segmento para guardar la consulta.');
+      notify({
+        title: 'Fechas incompletas',
+        message: 'Completá check-in y check-out de al menos un segmento para guardar la consulta.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -643,28 +653,36 @@ export default function Consulta() {
       const outcome = await saveQueryAutomatically({ silent: false });
       if (!outcome?.ok) {
         if (outcome?.reason === 'busy') {
-          alert('Ya hay un guardado en curso. Esperá un momento e intentá de nuevo.');
+          notify({
+            title: 'Guardado en curso',
+            message: 'Ya hay un guardado en curso. Esperá un momento e intentá de nuevo.',
+            type: 'warning',
+          });
           return;
         }
         throw new Error(outcome?.reason || 'No se pudo guardar la consulta');
       }
 
       const queryId = outcome.result?.segments?.[0]?.id || currentQueryId;
-      alert(
-        queryId
+      notify({
+        title: 'Consulta guardada',
+        message: queryId
           ? `Consulta #${queryId} guardada. No se creó una reserva: la recuperás en Consultas y Reservas.`
-          : 'Consulta guardada. No se creó una reserva: la recuperás en Consultas y Reservas.'
-      );
-
-      // Ir al listado: deja claro que es Query recuperable, no Reservation pendiente
-      navigate('/consultas-reservas');
+          : 'Consulta guardada. No se creó una reserva: la recuperás en Consultas y Reservas.',
+        type: 'success',
+        onClose: () => navigate('/consultas-reservas'),
+      });
     } catch (error) {
       console.error('Error al guardar consulta:', error);
-      alert(`No se pudo guardar la consulta: ${error.message || 'Error desconocido'}`);
+      notify({
+        title: 'Error al guardar',
+        message: `No se pudo guardar la consulta: ${error.message || 'Error desconocido'}`,
+        type: 'error',
+      });
     } finally {
       setIsSavingConsulta(false);
     }
-  }, [formData.mainClient.id, segments, saveQueryAutomatically, currentQueryId, navigate]);
+  }, [formData.mainClient.id, segments, saveQueryAutomatically, currentQueryId, navigate, notify]);
 
   // Función para cargar clientes
   const loadClients = useCallback(async () => {
@@ -1054,7 +1072,11 @@ export default function Consulta() {
           })
           .catch(error => {
             console.error('❌ Error cargando query completa:', error);
-            alert('Error al cargar la consulta. Por favor, intenta de nuevo.');
+            notify({
+              title: 'Error al cargar',
+              message: 'No se pudo cargar la consulta. Intentá de nuevo.',
+              type: 'error',
+            });
             
             // Marcar como cargado para evitar loops
             dataLoadedRef.current = true;
@@ -1924,7 +1946,11 @@ export default function Consulta() {
   const handleSaveNewClient = async () => {
     // Validar que los campos requeridos estén completos
     if (!formData.mainClient.firstName || !formData.mainClient.lastName) {
-      alert('Por favor, completa al menos el nombre y apellido del cliente.');
+      notify({
+        title: 'Datos incompletos',
+        message: 'Completá al menos el nombre y apellido del cliente.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -1961,11 +1987,19 @@ export default function Consulta() {
         setShowNewClientForm(false);
       } else {
         const errorData = await response.json();
-        alert(`Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
+        notify({
+          title: 'Error al guardar cliente',
+          message: errorData.message || 'Error desconocido',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Error saving client:', error);
-      alert('Error al conectar con el servidor. Intenta nuevamente.');
+      notify({
+        title: 'Error de conexión',
+        message: 'No se pudo conectar con el servidor. Intentá nuevamente.',
+        type: 'error',
+      });
     }
   };
 
@@ -2822,13 +2856,18 @@ export default function Consulta() {
               <div className={styles.formGroup}>
                 <label> Cliente</label>
                 <div className={styles.selectedClientDisplay}>
-                  <span className={styles.clientName}>
+                  <button
+                    type="button"
+                    className={styles.clientNameLink}
+                    onClick={() => navigate(`/clients/${formData.mainClient.id}`)}
+                    title="Ver perfil del cliente"
+                  >
                     {formData.mainClient.firstName} {formData.mainClient.lastName}
-                  </span>
-                  <button 
-                    type="button" 
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
-                      // Eliminar el cliente de la consulta
+                      // Quitar cliente para poder elegir otro (mantiene la consulta actual)
                       setFormData(prev => ({
                         ...prev,
                         mainClient: {
@@ -2841,12 +2880,14 @@ export default function Consulta() {
                       }));
                       setSearchTerm('');
                       setFilteredClients([]);
-                      setCurrentQueryId(null);
+                      setShowNewClientForm(false);
+                      setLastClientId(null);
                     }}
                     className={styles.removeClientButton}
-                    title="Eliminar cliente de la consulta"
+                    title="Quitar cliente de la consulta"
+                    aria-label="Quitar cliente de la consulta"
                   >
-                    
+                    <FiX aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -3446,6 +3487,8 @@ export default function Consulta() {
         onConfirm={handleConfirmDeleteSegments}
         onCancel={handleCancelDeleteSegments}
       />
+
+      {noticeDialog}
     </div>
   );
 }

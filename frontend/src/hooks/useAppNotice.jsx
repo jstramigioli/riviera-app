@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import NotificationModal from '../components/NotificationModal';
 
 /**
  * Cartel in-app (reemplazo de window.alert) para feedback post-acción.
  * Uso: const { notify, noticeDialog } = useAppNotice();
  *      notify({ title: 'Listo', message: 'Cargo eliminado', type: 'success' });
+ *      notify({ message: '...', type: 'success', onClose: () => navigate('/...') });
  */
 export function useAppNotice() {
   const [notice, setNotice] = useState({
@@ -13,6 +14,7 @@ export function useAppNotice() {
     message: '',
     type: 'success',
   });
+  const onCloseRef = useRef(null);
 
   const notify = useCallback((options = {}) => {
     const message = typeof options === 'string' ? options : options.message || '';
@@ -26,6 +28,7 @@ export function useAppNotice() {
               ? 'Atención'
               : 'Aviso');
     const type = typeof options === 'string' ? 'info' : options.type || 'info';
+    onCloseRef.current = typeof options === 'object' && options?.onClose ? options.onClose : null;
 
     setNotice({
       isOpen: true,
@@ -37,6 +40,9 @@ export function useAppNotice() {
 
   const closeNotice = useCallback(() => {
     setNotice((prev) => ({ ...prev, isOpen: false }));
+    const cb = onCloseRef.current;
+    onCloseRef.current = null;
+    if (typeof cb === 'function') cb();
   }, []);
 
   const noticeDialog = (
