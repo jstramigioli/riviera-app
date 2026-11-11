@@ -32,6 +32,8 @@ const alojamientoRoutes = require('./routes/alojamientoRoutes');
 const calendarRoutes = require('./routes/calendar.routes');
 const authRoutes = require('./routes/auth.routes');
 const auditRoutes = require('./routes/audit.routes');
+const onlineCheckInRoutes = require('./routes/onlineCheckIn.routes');
+const publicCheckInRoutes = require('./routes/publicCheckIn.routes');
 const { requireAuth, requirePermission } = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -74,11 +76,15 @@ const auditoria = [requireAuth, requirePermission('auditoria')];
 app.use('/api/auth', authRoutes);
 app.use('/api/audit-logs', auditoria, auditRoutes);
 
+// Check-in online público (token en URL; sin sesión)
+app.use('/api/public/check-in', publicCheckInRoutes);
+
 // Rutas operativas
 app.use('/api/rooms', ops, roomRoutes);
 app.use('/api/room-types', ops, roomTypeRoutes);
 app.use('/api/tags', ops, tagRoutes);
 app.use('/api/clients', clientes, clientRoutes);
+app.use('/api/reservations/:id/check-in', reservas, onlineCheckInRoutes);
 app.use('/api/reservations', reservas, reservationRoutes);
 app.use('/api/guests', clientes, guestRoutes);
 app.use('/api/reservation-payments', finanzas, reservationPaymentsRoutes);

@@ -1090,6 +1090,31 @@ export async function fetchAuditEntities() {
   return res.json();
 }
 
+export async function getReservationCheckIn(reservationId) {
+  const res = await fetch(`${API_URL}/reservations/${reservationId}/check-in`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Error al obtener check-in');
+  }
+  return res.json();
+}
+
+export async function sendReservationCheckIn(reservationId, payload = {}) {
+  const res = await fetch(`${API_URL}/reservations/${reservationId}/check-in/send`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Error al enviar check-in');
+  }
+  return data;
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -1154,5 +1179,7 @@ export default {
   deleteCargo,
   fetchAuditLogs,
   fetchAuditLogById,
-  fetchAuditEntities
+  fetchAuditEntities,
+  getReservationCheckIn,
+  sendReservationCheckIn
 };

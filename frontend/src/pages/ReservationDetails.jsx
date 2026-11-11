@@ -11,7 +11,9 @@ import {
   getReservationFinancialSummary,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  getReservationCheckIn,
+  sendReservationCheckIn
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
@@ -20,6 +22,7 @@ import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
+import { FiMail, FiCopy, FiCheck } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetails.module.css';
@@ -47,6 +50,10 @@ const ReservationDetails = () => {
     location.state?.financialAction || null
   );
   
+  const [checkInInfo, setCheckInInfo] = useState(null);
+  const [sendingCheckIn, setSendingCheckIn] = useState(false);
+  const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
+
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
@@ -99,6 +106,90 @@ const ReservationDetails = () => {
       loadReservationData();
     }
   }, [reservationId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!reservationId) return;
+      try {
+        const data = await getReservationCheckIn(reservationId);
+        if (!cancelled) setCheckInInfo(data);
+      } catch (err) {
+        console.error('Error cargando check-in online:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reservationId]);
+
+  const handleSendCheckIn = async () => {
+    if (!reservation) return;
+    if (!reservation.mainClient?.email) {
+      await notify({
+        title: 'Sin email',
+        message: 'El cliente de la reserva no tiene email. Cargalo antes de enviar el check-in.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setSendingCheckIn(true);
+    try {
+      const result = await sendReservationCheckIn(reservation.id);
+      setCheckInInfo((prev) => ({
+        ...(prev || {}),
+        reservationId: reservation.id,
+        vehiclePlate: prev?.vehiclePlate || null,
+        checkIn: result.checkIn
+      }));
+
+      if (result.emailed) {
+        await notify({
+          title: 'Check-in enviado',
+          message: `Se envió el link a ${result.to}`,
+          type: 'success'
+        });
+      } else if (result.mailtoUrl) {
+        window.location.href = result.mailtoUrl;
+        await notify({
+          title: 'Link listo',
+          message: 'Se abrió el correo con el link de check-in. También podés copiar el enlace desde el panel.',
+          type: 'success'
+        });
+      } else {
+        await notify({
+          title: 'Link generado',
+          message: result.checkInUrl || 'Check-in generado',
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      await notify({
+        title: 'No se pudo enviar',
+        message: err.message || 'Error al enviar check-in',
+        type: 'error'
+      });
+    } finally {
+      setSendingCheckIn(false);
+    }
+  };
+
+  const handleCopyCheckInLink = async () => {
+    const url = checkInInfo?.checkIn?.checkInUrl;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCheckInLink(true);
+      setTimeout(() => setCopiedCheckInLink(false), 1500);
+    } catch {
+      await notify({
+        title: 'No se pudo copiar',
+        message: url,
+        type: 'warning'
+      });
+    }
+  };
 
   useEffect(() => {
     if (location.state?.isEditing) {
@@ -485,6 +576,20 @@ const ReservationDetails = () => {
                 {getStatusLabel(reservation.status)}
               </span>
             </div>
+            {(checkInInfo?.vehiclePlate || checkInInfo?.checkIn?.vehiclePlate) && (
+              <div className={styles.checkInMeta}>
+                Patente: {checkInInfo.vehiclePlate || checkInInfo.checkIn.vehiclePlate}
+              </div>
+            )}
+            {checkInInfo?.checkIn?.status && (
+              <div className={styles.checkInMeta}>
+                Check-in online: {checkInInfo.checkIn.status === 'COMPLETED'
+                  ? 'Completado'
+                  : checkInInfo.checkIn.status === 'SENT'
+                    ? 'Enviado'
+                    : checkInInfo.checkIn.status}
+              </div>
+            )}
           </div>
         </div>
 
@@ -513,6 +618,29 @@ const ReservationDetails = () => {
 
         {!isEditing && (
           <div className={styles.sidePanelFooter}>
+            <div className={styles.checkInActions}>
+              <button
+                type="button"
+                className={styles.checkInSendBtn}
+                onClick={handleSendCheckIn}
+                disabled={sendingCheckIn}
+                title="Enviar check-in por mail al cliente"
+              >
+                <FiMail aria-hidden />
+                {sendingCheckIn ? 'Enviando…' : 'Enviar check-in'}
+              </button>
+              {checkInInfo?.checkIn?.checkInUrl && (
+                <button
+                  type="button"
+                  className={styles.checkInCopyBtn}
+                  onClick={handleCopyCheckInLink}
+                  title="Copiar link de check-in"
+                  aria-label="Copiar link de check-in"
+                >
+                  {copiedCheckInLink ? <FiCheck aria-hidden /> : <FiCopy aria-hidden />}
+                </button>
+              )}
+            </div>
             <div className={styles.actionButtons}>
               <div className={styles.statusButtons}>
                 <ReservationStatusButtons
