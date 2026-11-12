@@ -12,6 +12,8 @@ import {
 import PaymentForm from '../PaymentForm';
 import LiquidacionPrint from './LiquidacionPrint';
 import styles from './ReservationTabs.module.css';
+import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const EstadoFinancieroTab = ({
   reservation,
@@ -26,6 +28,8 @@ const EstadoFinancieroTab = ({
   pendingAction = null,
   onPendingActionHandled
 }) => {
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [expandedFinancialRow, setExpandedFinancialRow] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showCargoModal, setShowCargoModal] = useState(false);
@@ -128,13 +132,13 @@ const EstadoFinancieroTab = ({
       if (editMontoOnly) {
         const monto = parseFloat(newCargo.monto);
         if (!(monto > 0)) {
-          alert('El monto debe ser mayor a 0');
+          notify({ title: 'Validación', message: 'El monto debe ser mayor a 0', type: 'warning' });
           return;
         }
         await onUpdateCargo(editingCargo.id, { monto });
       } else {
         if (!newCargo.subcategoriaCargoId) {
-          alert('Debe seleccionar una subcategoría');
+          notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
           return;
         }
         await onUpdateCargo(editingCargo.id, {
@@ -146,7 +150,7 @@ const EstadoFinancieroTab = ({
       }
     } else {
       if (!newCargo.subcategoriaCargoId) {
-        alert('Debe seleccionar una subcategoría');
+        notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
         return;
       }
       await onAddCargo({
@@ -163,16 +167,23 @@ const EstadoFinancieroTab = ({
 
   const handleClearOverride = async (cargo) => {
     if (!onUpdateCargo) return;
-    const ok = window.confirm(
-      '¿Quitar el valor manual y volver a la tarifa original de la reserva?'
-    );
+    const ok = await confirm({
+      title: 'Quitar valor manual',
+      message: '¿Quitar el valor manual y volver a la tarifa original de la reserva?',
+      confirmText: 'Quitar',
+      type: 'warning',
+    });
     if (!ok) return;
     await onUpdateCargo(cargo.id, { clearOverride: true });
   };
 
   const handleDeleteCargo = async (cargo) => {
     if (!onDeleteCargo) return;
-    const ok = window.confirm(`¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"?`);
+    const ok = await confirm({
+      title: 'Eliminar cargo',
+      message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"?`,
+      confirmText: 'Eliminar',
+    });
     if (!ok) return;
     await onDeleteCargo(cargo.id);
   };
@@ -184,12 +195,12 @@ const EstadoFinancieroTab = ({
 
   const handlePrintLiquidacion = () => {
     if (!financialSummary) {
-      alert('No hay datos financieros para imprimir');
+      notify({ title: 'Sin datos', message: 'No hay datos financieros para imprimir', type: 'warning' });
       return;
     }
     const printRoot = printRef.current?.closest('[data-print-root]') || printRef.current;
     if (!printRoot) {
-      alert('No se encontró el documento de liquidación');
+      notify({ title: 'Error', message: 'No se encontró el documento de liquidación', type: 'error' });
       return;
     }
     const placeholder = document.createComment('liquidacion-print-placeholder');
@@ -646,6 +657,8 @@ const EstadoFinancieroTab = ({
           </div>
         </div>
       )}
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

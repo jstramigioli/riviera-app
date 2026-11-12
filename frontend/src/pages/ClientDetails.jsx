@@ -4,10 +4,12 @@ import { fetchClients, fetchReservations, getClientBalance } from '../services/a
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
 import styles from './ClientDetails.module.css';
+import { useAppNotice } from '../hooks/useAppNotice';
 
 const ClientDetails = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const { notify, noticeDialog } = useAppNotice();
   const [client, setClient] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [clientBalance, setClientBalance] = useState(null);
@@ -67,17 +69,17 @@ const ClientDetails = () => {
 
   const handleEmailClick = () => {
     if (client.email) {
-      alert(`Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`);
+      notify({ title: 'Próximamente', message: `Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`, type: 'info' });
     } else {
-      alert('Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.');
+      notify({ title: 'Sin email', message: 'Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.', type: 'warning' });
     }
   };
 
   const handleWhatsAppClick = () => {
     if (client.phone) {
-      alert(`Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`);
+      notify({ title: 'Próximamente', message: `Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`, type: 'info' });
     } else {
-      alert('Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.');
+      notify({ title: 'Sin teléfono', message: 'Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.', type: 'warning' });
     }
   };
 
@@ -578,6 +580,7 @@ const ClientDetails = () => {
           client={client}
         />
       )}
+      {noticeDialog}
     </div>
   );
 };

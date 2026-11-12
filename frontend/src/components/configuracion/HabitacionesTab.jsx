@@ -82,7 +82,7 @@ function HabitacionesTab() {
       setEditForm({});
     } catch (error) {
       console.error('Error actualizando habitación:', error);
-      alert('Error al actualizar la habitación');
+      notify({ title: 'Error', message: 'Error al actualizar la habitación', type: 'error' });
     }
   };
 
@@ -122,7 +122,7 @@ function HabitacionesTab() {
 
   const handleSaveNewRoom = async () => {
     if (!newRoomForm.name.trim() || !newRoomForm.roomTypeId) {
-      alert('El nombre y tipo de habitación son obligatorios');
+      notify({ title: 'Validación', message: 'El nombre y tipo de habitación son obligatorios', type: 'warning' });
       return;
     }
 
@@ -139,7 +139,7 @@ function HabitacionesTab() {
       });
     } catch (error) {
       console.error('Error creando habitación:', error);
-      alert('Error al crear la habitación');
+      notify({ title: 'Error', message: 'Error al crear la habitación', type: 'error' });
     } finally {
       setSaving(false);
     }

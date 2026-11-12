@@ -2458,12 +2458,19 @@ export default function Consulta() {
       // Copiar al portapapeles
       await navigator.clipboard.writeText(texto);
       
-      // Mostrar confirmación visual
-      alert('Datos copiados al portapapeles');
+      notify({
+        title: 'Copiado',
+        message: 'Datos copiados al portapapeles.',
+        type: 'success',
+      });
       
     } catch (error) {
       console.error('Error al copiar datos:', error);
-      alert('Error al copiar datos al portapapeles');
+      notify({
+        title: 'Error al copiar',
+        message: 'No se pudieron copiar los datos al portapapeles.',
+        type: 'error',
+      });
     }
   };
 
@@ -2540,7 +2547,11 @@ export default function Consulta() {
           }
         } catch (clientError) {
           console.error('Error creando cliente:', clientError);
-          alert(`Error al crear el cliente: ${clientError.message}`);
+          notify({
+            title: 'Error al crear el cliente',
+            message: clientError.message || 'Error desconocido',
+            type: 'error',
+          });
           return;
         }
       } else {
@@ -2626,9 +2637,11 @@ export default function Consulta() {
       console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
       console.log('Datos completos de la reserva:', JSON.stringify(reservationData, null, 2));
       
-      const newReservation = await createReservation(reservationData);
+      const created = await createReservation(reservationData);
+      const createdReservation = created?.reservation || created;
+      const createdId = createdReservation?.id;
       
-      console.log('Reserva creada:', newReservation);
+      console.log('Reserva creada:', created);
       
       // Eliminar la consulta si existe (ya se convirtió en reserva)
       if (queryGroupIdRef.current) {
@@ -2637,7 +2650,7 @@ export default function Consulta() {
             method: 'DELETE'
           });
           if (response.ok) {
-            console.log('✅ Consulta eliminada después de crear reserva:', queryGroupIdRef.current);
+            console.log('Consulta eliminada después de crear reserva:', queryGroupIdRef.current);
             queryGroupIdRef.current = null;
             setCurrentQueryId(null);
           }
@@ -2647,19 +2660,34 @@ export default function Consulta() {
         }
       }
       
-      // Mostrar mensaje de éxito
-      alert('Reserva creada exitosamente');
-      
       // Cerrar modal y limpiar formulario
       setShowConfirmationModal(false);
       resetForm();
-      
-      // Navegar a los detalles de la reserva creada
-      navigate(`/reservations/${newReservation.id}`);
+
+      if (!createdId) {
+        notify({
+          title: 'Reserva creada',
+          message: 'La reserva se creó, pero no se pudo obtener su ID para abrir el detalle.',
+          type: 'warning',
+          onClose: () => navigate('/consultas-reservas'),
+        });
+        return;
+      }
+
+      notify({
+        title: 'Reserva creada',
+        message: `Reserva #${createdId} creada exitosamente.`,
+        type: 'success',
+        onClose: () => navigate(`/reservations/${createdId}`),
+      });
       
     } catch (error) {
       console.error('Error al crear la reserva:', error);
-      alert(`Error al crear la reserva: ${error.message}`);
+      notify({
+        title: 'Error al crear la reserva',
+        message: error.message || 'Error desconocido',
+        type: 'error',
+      });
     } finally {
       setIsCreatingReservation(false);
     }

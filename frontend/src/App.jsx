@@ -92,7 +92,7 @@ function ReservationsView() {
         // Validar fechas primero
         const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
         if (!dateValidation.isValid) {
-          alert(`Error de validación: ${dateValidation.message}`);
+          showNotification('Validación', dateValidation.message, 'warning');
           return;
         }
         
@@ -106,7 +106,8 @@ function ReservationsView() {
         );
         
         if (conflict.hasConflict) {
-          showConflictNotification(conflict.message);
+          const notice = showConflictNotification(conflict.message);
+          showNotification('Conflicto', notice.message, 'error');
           return;
         }
         
@@ -117,7 +118,7 @@ function ReservationsView() {
       } else {
         // Validar email antes de guardar
         if (editData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editData.email)) {
-          alert('Por favor, ingrese un formato de email válido');
+          showNotification('Validación', 'Por favor, ingrese un formato de email válido', 'warning');
           return;
         }
         
@@ -128,6 +129,7 @@ function ReservationsView() {
       }
     } catch (error) {
       console.error('Error saving:', error);
+      showNotification('Error', error.message || 'Error de conexión. Los cambios se han revertido.', 'error');
     }
   }
 
@@ -429,7 +431,7 @@ function ReservationsView() {
                   }}
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  onClick={() => alert('Panel de balance será implementado próximamente')}
+                  onClick={() => showNotification('Próximamente', 'Panel de balance será implementado próximamente', 'info')}
                   title="Ver detalles del balance"
                 >
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}> Balance:</span>

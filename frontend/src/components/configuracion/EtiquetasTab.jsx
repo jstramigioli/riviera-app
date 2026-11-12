@@ -36,7 +36,7 @@ function EtiquetasTab({ onDataChange }) {
       if (onDataChange) onDataChange(); // Notify parent component about data change
     } catch (error) {
       console.error('Error actualizando etiqueta:', error);
-      alert('Error al actualizar la etiqueta');
+      notify({ title: 'Error', message: 'Error al actualizar la etiqueta', type: 'error' });
     }
   };
 
@@ -67,7 +67,7 @@ function EtiquetasTab({ onDataChange }) {
       if (onDataChange) onDataChange(); // Notify parent component about data change
     } catch (error) {
       console.error('Error creando etiqueta:', error);
-      alert('Error al crear la etiqueta');
+      notify({ title: 'Error', message: 'Error al crear la etiqueta', type: 'error' });
     }
   };
 

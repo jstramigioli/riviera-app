@@ -54,19 +54,21 @@ describe('reservationUtils', () => {
       const result = showConflictNotification(message, position)
       
       expect(result).toEqual({
-        message,
+        message: 'Conflicto de reserva: Test conflict message',
         type: 'error',
         position
       })
     })
 
-    it('shows alert when no position provided', () => {
+    it('returns payload when no position provided', () => {
       const message = 'Test conflict message'
-      global.alert = vi.fn()
-      
-      showConflictNotification(message)
-      
-      expect(global.alert).toHaveBeenCalledWith('Conflicto de reserva: Test conflict message')
+      const result = showConflictNotification(message)
+
+      expect(result).toEqual({
+        message: 'Conflicto de reserva: Test conflict message',
+        type: 'error',
+        position: null
+      })
     })
   })
 

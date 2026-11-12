@@ -5,8 +5,10 @@ import { FaChevronLeft, FaChevronRight, FaHotel, FaTimes, FaDollarSign, FaCalend
 import DayEditPanel from '../components/DayEditPanel';
 import { fetchOpenDays, fetchRoomTypes, createOpenDay, updateOpenDay, deleteOpenDay } from '../services/api';
 import styles from '../styles/CalendarioGestion.module.css';
+import { useAppNotice } from '../hooks/useAppNotice';
 
 export default function CalendarioGestion() {
+  const { notify, noticeDialog } = useAppNotice();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayEditPanelOpen, setIsDayEditPanelOpen] = useState(false);
@@ -327,10 +329,11 @@ export default function CalendarioGestion() {
             setIsDayEditPanelOpen(false);
           } catch (error) {
             console.error('Error saving day data:', error);
-            alert('Error al guardar los datos del día');
+            notify({ title: 'Error', message: 'Error al guardar los datos del día', type: 'error' });
           }
         }}
       />
+      {noticeDialog}
     </div>
   );
 } 

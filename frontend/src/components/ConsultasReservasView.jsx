@@ -5,6 +5,7 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useAppNotice } from '../hooks/useAppNotice';
 import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
 import { deleteReservation, deleteQuery, deleteAllQueries } from '../services/api';
@@ -20,6 +21,7 @@ import styles from './ConsultasReservasView.module.css';
 function ConsultasReservasView() {
   const navigate = useNavigate();
   const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeSection, setActiveSection] = useState('consultas');
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -85,7 +87,7 @@ function ConsultasReservasView() {
         // Validar fechas primero
         const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
         if (!dateValidation.isValid) {
-          alert(`Error de validación: ${dateValidation.message}`);
+          notify({ title: 'Validación', message: dateValidation.message, type: 'warning' });
           return;
         }
         
@@ -99,7 +101,8 @@ function ConsultasReservasView() {
         );
         
         if (conflict.hasConflict) {
-          showConflictNotification(conflict.message);
+          const notice = showConflictNotification(conflict.message);
+          notify({ title: 'Conflicto', message: notice.message, type: 'error' });
           return;
         }
         
@@ -110,7 +113,7 @@ function ConsultasReservasView() {
       } else {
         // Validar email antes de guardar
         if (editData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editData.email)) {
-          alert('Por favor, ingrese un formato de email válido');
+          notify({ title: 'Validación', message: 'Por favor, ingrese un formato de email válido', type: 'warning' });
           return;
         }
         
@@ -121,6 +124,11 @@ function ConsultasReservasView() {
       }
     } catch (error) {
       console.error('Error saving:', error);
+      notify({
+        title: 'Error',
+        message: error.message || 'Error de conexión. Los cambios se han revertido.',
+        type: 'error',
+      });
     }
   }
 
@@ -136,7 +144,7 @@ function ConsultasReservasView() {
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
-      alert(`Error al eliminar la reserva: ${error.message}`);
+      notify({ title: 'Error', message: `Error al eliminar la reserva: ${error.message}`, type: 'error' });
     }
   };
 
@@ -158,7 +166,7 @@ function ConsultasReservasView() {
         errorMessage = `Error: ${error.message}`;
       }
       
-      alert(errorMessage);
+      notify({ title: 'Error', message: errorMessage, type: 'error' });
     }
   };
 
@@ -180,7 +188,11 @@ function ConsultasReservasView() {
       setQueries([]);
     } catch (error) {
       console.error('Error clearing queries:', error);
-      alert(error.message || 'Error al limpiar las consultas');
+      notify({
+        title: 'Error',
+        message: error.message || 'Error al limpiar las consultas',
+        type: 'error',
+      });
     } finally {
       setClearingAll(false);
     }
@@ -651,7 +663,7 @@ function ConsultasReservasView() {
                   }}
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#e9ecef'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  onClick={() => alert('Panel de balance será implementado próximamente')}
+                  onClick={() => notify({ title: 'Próximamente', message: 'Panel de balance será implementado próximamente', type: 'info' })}
                   title="Ver detalles del balance"
                 >
                   <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}> Balance:</span>
@@ -681,6 +693,7 @@ function ConsultasReservasView() {
         type="danger"
       />
       {confirmDialog}
+      {noticeDialog}
     </div>
   );
 }

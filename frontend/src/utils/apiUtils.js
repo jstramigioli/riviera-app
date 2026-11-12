@@ -9,7 +9,6 @@ export async function updateReservationOnServer(reservationId, updateData, setRe
     setReservations(prev => prev.map(r => r.id === reservationId ? updated : r));
     return updated;
   } catch (error) {
-    alert('Error de conexión. Los cambios se han revertido.');
     // Revertir
     const reservations = await fetchReservations();
     setReservations(reservations);
@@ -26,7 +25,6 @@ export async function updateReservationStatusOnServer(reservationId, newStatus, 
     setReservations(prev => prev.map(r => r.id === reservationId ? updated : r));
     return updated;
   } catch (error) {
-    alert('Error de conexión. Los cambios se han revertido.');
     // Revertir
     const reservations = await fetchReservations();
     setReservations(reservations);
@@ -74,7 +72,6 @@ export async function updateClientOnServer(clientId, updateData, setClients, set
     
     return updated;
   } catch (error) {
-    alert('Error de conexión. Los cambios se han revertido.');
     // Revertir
     const clients = await fetchClients();
     const reservations = await fetchReservations();
@@ -84,4 +81,4 @@ export async function updateClientOnServer(clientId, updateData, setClients, set
     }
     throw error;
   }
-} 
+}
