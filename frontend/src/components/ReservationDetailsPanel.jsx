@@ -7,6 +7,7 @@ import { FaPen } from 'react-icons/fa';
 import ReservationStatusButtons from './ReservationStatusButtons';
 import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
 import ClientContactLinks from './ClientContactLinks';
+import { sourceLabel } from '../constants/reservationSource';
 import styles from './ReservationDetailsPanel.module.css';
 
 const ReservationDetailsPanel = ({
@@ -304,6 +305,12 @@ const ReservationDetailsPanel = ({
         <div className={styles.statusSection}>
           <table className={styles.statusTable}>
             <tbody>
+              <tr>
+                <td className={styles.tableLabel}>Medio:</td>
+                <td className={styles.tableValue}>
+                  {sourceLabel(reservation.source)}
+                </td>
+              </tr>
               <tr>
                 <td className={styles.tableLabel}>Notas:</td>
                 <td className={styles.tableValue}>

@@ -30,6 +30,13 @@ import {
   howManyDaysFit,
   blockStyle
 } from '../utils/calendarGeometry';
+import {
+  RESERVATION_SOURCE_OPTIONS,
+  DEFAULT_SOURCE_COLORS,
+  loadSourceColors,
+  saveSourceColors,
+  sourceLabel
+} from '../constants/reservationSource';
 import styles from '../styles/LibroReservasBoard.module.css';
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -86,6 +93,7 @@ export default function LibroReservasBoard({
   const [roomTypeFilter, setRoomTypeFilter] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, left: 0 });
+  const [sourceColors, setSourceColors] = useState(() => loadSourceColors());
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -132,7 +140,26 @@ export default function LibroReservasBoard({
     });
   }, [rooms, roomTypeFilter]);
 
-  const filterActive = roomTypeFilter != null;
+  const colorsCustomized = useMemo(
+    () =>
+      RESERVATION_SOURCE_OPTIONS.some(
+        (opt) => sourceColors[opt.value] !== DEFAULT_SOURCE_COLORS[opt.value]
+      ),
+    [sourceColors]
+  );
+
+  const filterActive = roomTypeFilter != null || colorsCustomized;
+
+  function setSourceColor(sourceKey, color) {
+    setSourceColors((prev) => {
+      const next = { ...prev, [sourceKey]: color };
+      return saveSourceColors(next);
+    });
+  }
+
+  function resetSourceColors() {
+    setSourceColors(saveSourceColors({ ...DEFAULT_SOURCE_COLORS }));
+  }
 
   useEffect(() => {
     setTodayIso(todayIsoLocal());
@@ -522,10 +549,10 @@ export default function LibroReservasBoard({
                       ]
                         .filter(Boolean)
                         .join(' ')}
-                      aria-label="Filtrar por tipo de habitación"
+                      aria-label="Filtro del Libro: tipos y colores por medio"
                       aria-expanded={filterOpen}
                       aria-haspopup="menu"
-                      title="Filtrar por tipo"
+                      title="Filtro: tipos y colores por medio"
                       onClick={openFilterMenu}
                     >
                       <FiFilter size={13} aria-hidden="true" />
@@ -563,7 +590,7 @@ export default function LibroReservasBoard({
                             );
                           })
                         )}
-                        {filterActive ? (
+                        {roomTypeFilter != null ? (
                           <div className={styles.filterMenuFooter}>
                             <button
                               type="button"
@@ -571,6 +598,41 @@ export default function LibroReservasBoard({
                               onClick={() => setRoomTypeFilter(null)}
                             >
                               Mostrar todas
+                            </button>
+                          </div>
+                        ) : null}
+
+                        <div className={styles.filterMenuTitle}>Colores por medio</div>
+                        {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                          <label
+                            key={opt.value}
+                            className={styles.filterColorRow}
+                            role="menuitem"
+                          >
+                            <span
+                              className={styles.filterColorSwatch}
+                              style={{ backgroundColor: sourceColors[opt.value] }}
+                              aria-hidden="true"
+                            />
+                            <span className={styles.filterColorLabel}>{opt.label}</span>
+                            <input
+                              type="color"
+                              className={styles.filterColorInput}
+                              value={sourceColors[opt.value]}
+                              onChange={(e) => setSourceColor(opt.value, e.target.value)}
+                              aria-label={`Color para ${opt.label}`}
+                              title={`Color ${opt.label}`}
+                            />
+                          </label>
+                        ))}
+                        {colorsCustomized ? (
+                          <div className={styles.filterMenuFooter}>
+                            <button
+                              type="button"
+                              className={styles.filterClear}
+                              onClick={resetSourceColors}
+                            >
+                              Colores por defecto
                             </button>
                           </div>
                         ) : null}
@@ -644,13 +706,25 @@ export default function LibroReservasBoard({
                       style.width
                     );
                     const hovered = hoveredReservationId === b.reservationId;
+                    const sourceColor =
+                      b.source && sourceColors[b.source]
+                        ? sourceColors[b.source]
+                        : null;
+                    const barStyle = sourceColor
+                      ? {
+                          ...style,
+                          backgroundColor: sourceColor,
+                          borderColor: sourceColor
+                        }
+                      : style;
+                    const medio = sourceLabel(b.source);
                     return (
                       <button
                         type="button"
                         key={`${b.segmentId}-${b.startOffset}`}
                         className={`${styles.bar} ${hovered ? styles.barHovered : ''}`}
-                        style={style}
-                        title={`${label} · ${formatDateUi(b.startDate)} → ${formatDateUi(b.endDate)}`}
+                        style={barStyle}
+                        title={`${label} · ${medio} · ${formatDateUi(b.startDate)} → ${formatDateUi(b.endDate)}`}
                         onClick={() => handleBarClick(b)}
                         onMouseEnter={() => setHoveredReservationId(b.reservationId)}
                         onMouseLeave={() => setHoveredReservationId(null)}

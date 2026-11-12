@@ -150,11 +150,21 @@ model Guest {
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
 }
 
+/// Canal / medio por el que entró la consulta o reserva.
+enum ReservationSource {
+  WHATSAPP
+  MAIL
+  WEBSITE
+  BOOKING
+}
+
 model Reservation {
   id                  Int                    @id @default(autoincrement())
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
+  /// Medio de origen: WhatsApp, Mail, Sitio web o Booking.
+  source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
   parentReservationId Int?
   /// Patente del vehículo (estacionamiento), cargada vía check-in online o recepción.
@@ -173,6 +183,7 @@ model Reservation {
 
   @@index([createdAt])
   @@index([updatedAt])
+  @@index([source])
 }
 
 enum OnlineCheckInStatus {
@@ -211,12 +222,16 @@ model OnlineCheckIn {
 }
 
 model QueryGroup {
-  id           String   @id
+  id           String             @id
   mainClientId Int?
   notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  mainClient   Client?  @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
+  /// Medio de origen: WhatsApp, Mail, Sitio web o Booking.
+  source       ReservationSource?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  mainClient   Client?            @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
+
+  @@index([source])
 }
 
 model Query {

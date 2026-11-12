@@ -54,6 +54,7 @@ exports.createReservation = async (req, res) => {
     segments,
     status, 
     notes,
+    source,
     isMultiRoom = false
   } = req.body;
   
@@ -68,6 +69,7 @@ exports.createReservation = async (req, res) => {
       segments,
       status: status || 'active',
       notes,
+      source,
       isMultiRoom
     };
 
@@ -96,6 +98,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
     segments,
     status, 
     notes,
+    source,
     isMultiRoom = false
   } = req.body;
   
@@ -110,6 +113,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
       segments,
       status: status || 'active',
       notes,
+      source,
       isMultiRoom
     };
 

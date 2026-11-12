@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
@@ -286,6 +287,8 @@ export default function Consulta() {
   
   // Estado para notas/observaciones
   const [notes, setNotes] = useState('');
+  /** Medio de origen: WHATSAPP | MAIL | WEBSITE | BOOKING */
+  const [source, setSource] = useState('');
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
@@ -600,7 +603,8 @@ export default function Consulta() {
       const queryData = {
         mainClientId: clientId,
         segments: segmentsData,
-        notes: notes
+        notes: notes,
+        source: source || null
       };
 
       let result;
@@ -635,7 +639,7 @@ export default function Consulta() {
     } finally {
       isSavingRef.current = false;
     }
-  }, [formData.mainClient.id, segments, notes]);
+  }, [formData.mainClient.id, segments, notes, source]);
 
   // Guardar consulta explícitamente (sin crear reserva pendiente)
   const handleSaveConsulta = useCallback(async () => {
@@ -1033,6 +1037,7 @@ export default function Consulta() {
         }
 
         setNotes(full.notes || '');
+        setSource(full.source || '');
         setActiveBlockIndex(0);
         window.history.replaceState({}, document.title);
       } catch (error) {
@@ -1117,8 +1122,9 @@ export default function Consulta() {
               // NO sincronizamos roomId porque no lo guardamos
               // El usuario deberá buscar habitaciones manualmente si lo desea
               
-              // Cargar notas globales
+              // Cargar notas globales y medio
               setNotes(fullQueryData.notes || '');
+              setSource(fullQueryData.source || '');
               
               // Establecer el primer segmento como activo
               setActiveBlockIndex(0);
@@ -1176,6 +1182,7 @@ export default function Consulta() {
               }
               
               setNotes(fullQueryData.notes || '');
+              setSource(fullQueryData.source || '');
             }
             
             setCurrentQueryId(fullQueryData.id);
@@ -1257,7 +1264,7 @@ export default function Consulta() {
       console.log('🔄 Cancelando auto-guardado anterior (nuevo cambio detectado)');
       clearTimeout(timer);
     };
-  }, [segments, formData.mainClient.id, notes, saveQueryAutomatically]);
+  }, [segments, formData.mainClient.id, notes, source, saveQueryAutomatically]);
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -1979,8 +1986,9 @@ export default function Consulta() {
         fixed: seg.fixed || false
       })));
       
-      // Cargar notas globales
+      // Cargar notas globales y medio
       setNotes(query.notes || '');
+      setSource(query.source || '');
       
       // Establecer el primer segmento como activo
       setActiveBlockIndex(0);
@@ -2020,6 +2028,7 @@ export default function Consulta() {
       }
       
       setNotes(query.notes || '');
+      setSource(query.source || '');
     }
 
     setCurrentQueryId(query.id);
@@ -2760,6 +2769,7 @@ export default function Consulta() {
         }),
         status: status,
         notes: notes,
+        source: source || null,
         isMultiRoom: false
       };
 
@@ -2770,6 +2780,7 @@ export default function Consulta() {
           mainClientId: clientId,
           status: status || editingReservationStatus || 'PENDIENTE',
           notes: notes,
+          source: source || null,
           segments: reservationData.segments,
           applyRateChanges
         });
@@ -2883,6 +2894,7 @@ export default function Consulta() {
     setShowNewClientForm(false);
     setCurrentQueryId(null);
     setNotes('');
+    setSource('');
     setActiveBlockIndex(0);
     // Limpiar el ref de valores previos
     previousSegmentsRef.current = {};
@@ -3103,6 +3115,25 @@ export default function Consulta() {
                   {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
                     <option key={num} value={num}>
                       {num}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Medio de origen */}
+            <div className={styles.guestsFieldContainer}>
+              <div className={styles.formGroup}>
+                <label>Por qué medio</label>
+                <select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  aria-label="Por qué medio se hizo la consulta o reserva"
+                >
+                  <option value="">Sin especificar</option>
+                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -3592,7 +3623,8 @@ export default function Consulta() {
           dailyRates: dailyRates,
           tags: tags,
           allRooms: allRooms,
-          notes: notes
+          notes: notes,
+          source: source || null
         }}
         isLoading={isCreatingReservation}
       />

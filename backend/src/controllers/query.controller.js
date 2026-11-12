@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { normalizeReservationSource } = require('../constants/reservationSource');
 const prisma = new PrismaClient();
 
 // Obtener todas las consultas (agrupando multi-segmentos)
@@ -118,13 +119,14 @@ const getQueryById = async (req, res) => {
       return res.json({
         ...query,
         notes: queryGroup?.notes || null, // Notas desde QueryGroup
+        source: queryGroup?.source || null,
         segments: allSegments,
         isMultiSegment: true
       });
     }
     
     // Query antigua sin grupo - retornar como está (sin notas)
-    res.json({ ...query, notes: null, isMultiSegment: false });
+    res.json({ ...query, notes: null, source: null, isMultiSegment: false });
   } catch (error) {
     console.error('Error al obtener consulta:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -205,7 +207,8 @@ const createMultiSegmentQuery = async (req, res) => {
     const {
       mainClientId,
       segments = [],
-      notes
+      notes,
+      source
     } = req.body;
 
     if (!mainClientId) {
@@ -219,12 +222,13 @@ const createMultiSegmentQuery = async (req, res) => {
     // Generar un ID de grupo único
     const queryGroupId = `query-${mainClientId}-${Date.now()}`;
     
-    // Crear el QueryGroup con las notas
+    // Crear el QueryGroup con las notas y el medio de origen
     await prisma.queryGroup.create({
       data: {
         id: queryGroupId,
         mainClientId: parseInt(mainClientId),
-        notes: notes || null
+        notes: notes || null,
+        source: normalizeReservationSource(source)
       }
     });
     
@@ -298,7 +302,8 @@ const updateMultiSegmentQuery = async (req, res) => {
     const {
       mainClientId,
       segments = [],
-      notes
+      notes,
+      source
     } = req.body;
 
     // console.log('📝 updateMultiSegmentQuery - Params:', { queryGroupId, mainClientId, segmentCount: segments.length });
@@ -316,7 +321,9 @@ const updateMultiSegmentQuery = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere al menos un segmento' });
     }
 
-    // Actualizar o crear el QueryGroup con las notas
+    const normalizedSource = normalizeReservationSource(source);
+
+    // Actualizar o crear el QueryGroup con las notas y el medio
     const existingGroup = await prisma.queryGroup.findUnique({
       where: { id: queryGroupId }
     });
@@ -326,6 +333,7 @@ const updateMultiSegmentQuery = async (req, res) => {
         where: { id: queryGroupId },
         data: {
           notes: notes || null,
+          source: normalizedSource,
           mainClientId: parseInt(mainClientId)
         }
       });
@@ -334,7 +342,8 @@ const updateMultiSegmentQuery = async (req, res) => {
         data: {
           id: queryGroupId,
           mainClientId: parseInt(mainClientId),
-          notes: notes || null
+          notes: notes || null,
+          source: normalizedSource
         }
       });
     }

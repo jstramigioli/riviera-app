@@ -123,6 +123,7 @@ async function loadCalendar(startIso, days) {
       reservationId: seg.reservationId,
       roomId: seg.roomId,
       status: seg.reservation?.status || null,
+      source: seg.reservation?.source || null,
       guestName,
       guestFirstName: client?.firstName || null,
       guestLastName: client?.lastName || null,
