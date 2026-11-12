@@ -112,8 +112,8 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
         fecha: new Date().toISOString().split('T')[0]
       };
 
-      await createPago(reservaId, pagoData);
-      onSuccess?.();
+      const nuevoPago = await createPago(reservaId, pagoData);
+      onSuccess?.(nuevoPago);
       onClose();
     } catch (err) {
       setError(err.message || 'Error al crear el pago');

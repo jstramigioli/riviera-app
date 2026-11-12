@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
 import { getReservationsWithBalances, getAllPagos } from '../services/api';
+import { useAppNotice } from '../hooks/useAppNotice';
 import PaymentForm from '../components/PaymentForm';
 import styles from './CobrosPagos.module.css';
 
@@ -19,6 +20,7 @@ const STATUS_COLORS = {
 
 const CobrosPagos = () => {
   const navigate = useNavigate();
+  const { notify, noticeDialog } = useAppNotice();
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get('section');
   const clientIdParam = searchParams.get('clientId');
@@ -132,7 +134,14 @@ const CobrosPagos = () => {
     setSelectedReservation(null);
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (nuevoPago) => {
+    if (nuevoPago?.id != null) {
+      notify({
+        title: 'Pago registrado',
+        message: `Nº ${nuevoPago.id} — anotalo en el papelito. Reserva #${nuevoPago.reservaId || selectedReservation?.id || '—'}.`,
+        type: 'success',
+      });
+    }
     loadData();
   };
 
@@ -214,9 +223,10 @@ const CobrosPagos = () => {
                     <thead>
                       <tr>
                         <th>Reserva</th>
+                        <th>Nº pagos</th>
                         <th>Cliente</th>
                         <th>Cargos</th>
-                        <th>Pagos</th>
+                        <th>Pagado</th>
                         <th>Saldo</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -230,10 +240,26 @@ const CobrosPagos = () => {
                           : 'Sin cliente';
                         const statusColor =
                           STATUS_COLORS[reservation.estadoPago] || '#6b7280';
+                        const paymentIds = (reservation.pagos || [])
+                          .map((pago) => pago.id)
+                          .filter((id) => id != null);
 
                         return (
                           <tr key={reservation.id} className={styles.row}>
                             <td className={styles.idCell}>#{reservation.id}</td>
+                            <td>
+                              {paymentIds.length > 0 ? (
+                                <div className={styles.paymentIdList} title="Números de pago para papelitos">
+                                  {paymentIds.map((id) => (
+                                    <span key={id} className={styles.paymentId}>
+                                      Nº {id}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className={styles.meta}>Sin pagos</span>
+                              )}
+                            </td>
                             <td>
                               <button
                                 type="button"
@@ -298,13 +324,13 @@ const CobrosPagos = () => {
                   <table className={styles.table}>
                     <thead>
                       <tr>
+                        <th>Nº pago</th>
                         <th>Fecha</th>
                         <th>Reserva</th>
                         <th>Cliente</th>
                         <th>Método</th>
                         <th>Monto</th>
                         <th>ARS</th>
-                        <th>Referencia</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -320,6 +346,11 @@ const CobrosPagos = () => {
 
                         return (
                           <tr key={pago.id} className={styles.row}>
+                            <td>
+                              <span className={styles.paymentId} title="Número de identificación del pago">
+                                Nº {pago.id}
+                              </span>
+                            </td>
                             <td>{formatDateTime(pago.fecha)}</td>
                             <td className={styles.idCell}>
                               #{pago.reservaId || pago.reserva?.id || '—'}
@@ -341,9 +372,6 @@ const CobrosPagos = () => {
                             <td>{montoLabel}</td>
                             <td className={styles.amountCell}>
                               {formatPrice(pago.montoARS)}
-                            </td>
-                            <td className={styles.metaCell}>
-                              {pago.referencia || pago.notas || '—'}
                             </td>
                           </tr>
                         );
@@ -379,6 +407,7 @@ const CobrosPagos = () => {
           onSuccess={handlePaymentSuccess}
         />
       )}
+      {noticeDialog}
     </div>
   );
 };

@@ -843,6 +843,10 @@ exports.getReservasConSaldos = async (req, res) => {
         totalPagos,
         saldo,
         estadoPago,
+        // Nº de pago para papelitos / ubicación rápida (id estable)
+        pagos: (reserva.pagos || [])
+          .map((pago) => ({ id: pago.id, montoARS: pago.montoARS, fecha: pago.fecha }))
+          .sort((a, b) => a.id - b.id),
         createdAt: reserva.createdAt,
         updatedAt: reserva.updatedAt
       };
