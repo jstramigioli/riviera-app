@@ -287,7 +287,10 @@ export async function createClient(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creating client');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || errorData.details || 'Error creating client');
+  }
   return res.json();
 }
 

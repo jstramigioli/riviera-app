@@ -1986,10 +1986,10 @@ export default function Consulta() {
         // Cerrar el formulario de nuevo cliente
         setShowNewClientForm(false);
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         notify({
           title: 'Error al guardar cliente',
-          message: errorData.message || 'Error desconocido',
+          message: errorData.error || errorData.message || errorData.details || 'Error desconocido',
           type: 'error',
         });
       }
@@ -2542,8 +2542,8 @@ export default function Consulta() {
             clientId = createdClient.id;
             console.log('Cliente creado con ID:', clientId);
           } else {
-            const errorData = await newClient.json();
-            throw new Error(`Error al crear el cliente: ${errorData.error || errorData.message || 'Error desconocido'}`);
+            const errorData = await newClient.json().catch(() => ({}));
+            throw new Error(`Error al crear el cliente: ${errorData.error || errorData.message || errorData.details || 'Error desconocido'}`);
           }
         } catch (clientError) {
           console.error('Error creando cliente:', clientError);

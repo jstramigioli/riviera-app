@@ -48,29 +48,34 @@ exports.createClient = async (req, res) => {
   }
   
   try {
-    const newClient = await prisma.client.create({
-      data: { 
-        firstName, 
-        lastName, 
-        email: email || null, 
-        phone: phone || null, 
-        documentType: documentType || 'DNI',
-        documentNumber: documentNumber || null,
-        country: country || null,
-        province: province || null,
-        city: city || null,
-        notes: notes || null,
-        vehiclePlate: normalizePlate(vehiclePlate),
-        wantsPromotions: wantsPromotions || false
-      }
-    });
+    const data = {
+      firstName,
+      lastName,
+      email: email || null,
+      phone: phone || null,
+      documentType: documentType || 'DNI',
+      documentNumber: documentNumber || null,
+      country: country || null,
+      province: province || null,
+      city: city || null,
+      notes: notes || null,
+      wantsPromotions: wantsPromotions || false
+    };
+    // Solo incluir patente si vino en el body (evita romper creates legacy / client Prisma stale).
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'vehiclePlate')) {
+      data.vehiclePlate = normalizePlate(vehiclePlate);
+    }
+
+    const newClient = await prisma.client.create({ data });
     res.status(201).json(newClient);
   } catch (error) {
     console.error('Error creating client:', error);
     console.error('Request body:', req.body);
-    res.status(500).json({ 
+    const details = process.env.NODE_ENV !== 'production' ? error.message : undefined;
+    res.status(500).json({
       error: 'Error creating client',
-      details: process.env.NODE_ENV !== 'production' ? error.message : undefined
+      message: details || 'Error creating client',
+      details
     });
   }
 };
