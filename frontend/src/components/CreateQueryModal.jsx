@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTags } from '../hooks/useTags';
+import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import styles from '../styles/CreateQueryModal.module.css';
 
 export default function CreateQueryModal({ 
@@ -14,7 +15,8 @@ export default function CreateQueryModal({
     checkIn: format(new Date(), 'yyyy-MM-dd'),
     checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     requiredGuests: 1,
-    requiredTags: []
+    requiredTags: [],
+    source: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -79,7 +81,8 @@ export default function CreateQueryModal({
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           requiredGuests: formData.requiredGuests,
-          requiredTags: formData.requiredTags
+          requiredTags: formData.requiredTags,
+          source: formData.source || null
         }
       }
     });
@@ -90,7 +93,8 @@ export default function CreateQueryModal({
       checkIn: format(new Date(), 'yyyy-MM-dd'),
       checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       requiredGuests: 1,
-      requiredTags: []
+      requiredTags: [],
+      source: ''
     });
     setErrors({});
     onClose();
@@ -145,6 +149,23 @@ export default function CreateQueryModal({
               className={errors.requiredGuests ? styles.error : ''}
             />
             {errors.requiredGuests && <span className={styles.errorText}>{errors.requiredGuests}</span>}
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="source">Por qué medio</label>
+            <select
+              id="source"
+              value={formData.source}
+              onChange={(e) => handleInputChange('source', e.target.value)}
+              aria-label="Por qué medio se hizo la consulta"
+            >
+              <option value="">Sin especificar</option>
+              {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Selección de Etiquetas */}

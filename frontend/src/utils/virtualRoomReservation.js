@@ -47,6 +47,9 @@ export function roomSelectionPayload(room) {
 
 /**
  * Colapsa componentes físicos de una misma virtual (mismo rango) a un tramo de UI.
+ * Importante: expandVirtualRoomSegments guarda guestCount real solo en el primario
+ * y guestCount=1 en secundarios de bloqueo; sin colapsar, el panel muestra
+ * «A partir de…, 1 huéspedes» aunque sea un solo tramo lógico.
  */
 export function collapseSegmentsForEditUi(segments = []) {
   const active = segments.filter((s) => s.isActive !== false);
@@ -56,8 +59,8 @@ export function collapseSegmentsForEditUi(segments = []) {
   for (const seg of active) {
     const virtualId = seg.virtualRoomId != null ? parseInt(seg.virtualRoomId, 10) : null;
     if (virtualId) {
-      const start = String(seg.startDate || '').slice(0, 10);
-      const end = String(seg.endDate || '').slice(0, 10);
+      const start = String(seg.startDate || seg.checkIn || '').slice(0, 10);
+      const end = String(seg.endDate || seg.checkOut || '').slice(0, 10);
       const key = `${virtualId}|${start}|${end}`;
       if (seenVirtual.has(key)) continue;
       seenVirtual.add(key);
@@ -65,15 +68,27 @@ export function collapseSegmentsForEditUi(segments = []) {
       const sameGroup = active.filter(
         (s) =>
           parseInt(s.virtualRoomId, 10) === virtualId &&
-          String(s.startDate || '').slice(0, 10) === start &&
-          String(s.endDate || '').slice(0, 10) === end
+          String(s.startDate || s.checkIn || '').slice(0, 10) === start &&
+          String(s.endDate || s.checkOut || '').slice(0, 10) === end
       );
+      // Primario = el que cobra (baseRate>0); si empatan, el de mayor guestCount.
       const primary =
-        sameGroup.find((s) => Number(s.baseRate) > 0) || sameGroup[0] || seg;
+        sameGroup.find((s) => Number(s.baseRate) > 0) ||
+        sameGroup.reduce((best, s) =>
+          (Number(s.guestCount) || 0) > (Number(best?.guestCount) || 0) ? s : best
+        , sameGroup[0]) ||
+        seg;
       const virtualRoom = primary.virtualRoom || seg.virtualRoom || null;
+      const guestCount = Math.max(
+        ...sameGroup.map((s) => Number(s.guestCount) || 0),
+        Number(primary.guestCount) || 0,
+        1
+      );
 
       result.push({
         ...primary,
+        guestCount,
+        requiredGuests: guestCount,
         virtualRoomId: virtualId,
         virtualRoom,
         isVirtual: true,
@@ -92,6 +107,11 @@ export function collapseSegmentsForEditUi(segments = []) {
   }
 
   return result;
+}
+
+/** Segmentos lógicos para paneles/detalle (alias semántico del colapso). */
+export function getDisplaySegments(segments = []) {
+  return collapseSegmentsForEditUi(segments);
 }
 
 /** Arma el objeto "room" seleccionado a partir de un segmento colapsado. */

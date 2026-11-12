@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -7,18 +7,24 @@ import { FaPen } from 'react-icons/fa';
 import ReservationStatusButtons from './ReservationStatusButtons';
 import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
 import ClientContactLinks from './ClientContactLinks';
-import { sourceLabel } from '../constants/reservationSource';
+import {
+  RESERVATION_SOURCE_OPTIONS,
+  sourceLabel
+} from '../constants/reservationSource';
+import { getDisplaySegments } from '../utils/virtualRoomReservation';
 import styles from './ReservationDetailsPanel.module.css';
 
 const ReservationDetailsPanel = ({
   reservation,
   onStatusChange,
+  onSourceChange,
   onDelete,
   onOpenFullEdit,
   onClose
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [savingSource, setSavingSource] = useState(false);
   
   useEffect(() => {
     const loadServiceTypes = async () => {
@@ -35,6 +41,11 @@ const ReservationDetailsPanel = ({
     loadServiceTypes();
   }, []);
   
+  const displaySegments = useMemo(
+    () => getDisplaySegments(reservation?.segments || []),
+    [reservation]
+  );
+
   if (!reservation) return null;
 
   const formatDate = (dateString) => {
@@ -115,10 +126,24 @@ const ReservationDetailsPanel = ({
     }
   };
 
-  const guestCount = reservation.segments?.[0]?.guestCount || reservation.requiredGuests || 1;
-  const serviceId = reservation.segments?.[0]?.services?.[0] || reservation.reservationType || '';
-  const checkIn = reservation.segments?.[0]?.startDate || reservation.checkIn;
-  const checkOut = reservation.segments?.[reservation.segments?.length - 1]?.endDate || reservation.checkOut;
+  const guestCount =
+    displaySegments[0]?.guestCount ||
+    reservation.requiredGuests ||
+    1;
+  const serviceId =
+    displaySegments[0]?.services?.[0] ||
+    reservation.reservationType ||
+    '';
+  const checkIn = displaySegments[0]?.startDate || reservation.checkIn;
+  const checkOut =
+    displaySegments[displaySegments.length - 1]?.endDate || reservation.checkOut;
+  const roomLabel =
+    displaySegments[0]?.uiRoomName ||
+    reservation.room?.name ||
+    null;
+  const roomLinkId = displaySegments[0]?.isVirtual
+    ? null
+    : (displaySegments[0]?.roomId || reservation.room?.id);
 
   const goToFullPageEdit = () => {
     if (onOpenFullEdit) {
@@ -132,6 +157,18 @@ const ReservationDetailsPanel = ({
         reservationEdit: { id: reservation.id }
       }
     });
+  };
+
+  const handleSourceSelect = async (value) => {
+    if (!onSourceChange) return;
+    const next = value || null;
+    if ((reservation.source || null) === next) return;
+    try {
+      setSavingSource(true);
+      await onSourceChange(reservation.id, next);
+    } finally {
+      setSavingSource(false);
+    }
   };
 
   return (
@@ -210,12 +247,12 @@ const ReservationDetailsPanel = ({
                   {getServiceTypeLabel(serviceId || 'con_desayuno')}
                 </td>
               </tr>
-              {reservation.segments?.[0]?.services?.length > 0 && (
+              {displaySegments[0]?.services?.length > 0 && (
                 <tr>
                   <td className={styles.tableLabel}> Etiquetas:</td>
                   <td className={styles.tableValue}>
                     <div className={styles.tagsContainer}>
-                      {reservation.segments[0].services.map((service, index) => (
+                      {displaySegments[0].services.map((service, index) => (
                         <span key={index} className={styles.tag}>
                           {getServiceTypeLabel(service)}
                         </span>
@@ -251,12 +288,12 @@ const ReservationDetailsPanel = ({
               </tbody>
             </table>
             
-            {reservation.segments?.length > 1 && (
+            {displaySegments.length > 1 && (
               <div>
-                {reservation.segments.map((segment, index) => (
-                  index < reservation.segments.length - 1 && (
-                    <div key={`change-${segment.id}`} className={styles.changeIndicator}>
-                      {getChangeDescription(reservation.segments[index], reservation.segments[index + 1])}
+                {displaySegments.map((segment, index) => (
+                  index < displaySegments.length - 1 && (
+                    <div key={`change-${segment.id || index}`} className={styles.changeIndicator}>
+                      {getChangeDescription(displaySegments[index], displaySegments[index + 1])}
                     </div>
                   )
                 ))}
@@ -271,15 +308,19 @@ const ReservationDetailsPanel = ({
               <tr>
                 <td className={styles.tableLabel}>Habitación:</td>
                 <td className={styles.tableValue}>
-                  {reservation.room ? (
-                    <a 
-                      href={`/rooms/${reservation.room.id}`}
-                      onClick={(e) => { e.preventDefault(); navigate(`/rooms/${reservation.room.id}`); }}
-                      style={{ color: '#1976d2', textDecoration: 'underline', cursor: 'pointer' }}
-                      title={`Ver detalles de la habitación ${reservation.room.name}`}
-                    >
-                      {reservation.room.name}
-                    </a>
+                  {roomLabel ? (
+                    roomLinkId ? (
+                      <a 
+                        href={`/rooms/${roomLinkId}`}
+                        onClick={(e) => { e.preventDefault(); navigate(`/rooms/${roomLinkId}`); }}
+                        style={{ color: '#1976d2', textDecoration: 'underline', cursor: 'pointer' }}
+                        title={`Ver detalles de la habitación ${roomLabel}`}
+                      >
+                        {roomLabel}
+                      </a>
+                    ) : (
+                      roomLabel
+                    )
                   ) : (
                     'Sin habitación'
                   )}
@@ -308,7 +349,31 @@ const ReservationDetailsPanel = ({
               <tr>
                 <td className={styles.tableLabel}>Medio:</td>
                 <td className={styles.tableValue}>
-                  {sourceLabel(reservation.source)}
+                  {onSourceChange ? (
+                    <select
+                      value={reservation.source || ''}
+                      onChange={(e) => handleSourceSelect(e.target.value)}
+                      disabled={savingSource}
+                      aria-label="Medio de origen de la reserva"
+                      style={{
+                        width: '100%',
+                        maxWidth: 220,
+                        padding: '4px 8px',
+                        border: '1px solid #ced4da',
+                        borderRadius: 4,
+                        fontSize: '0.95rem'
+                      }}
+                    >
+                      <option value="">Sin especificar</option>
+                      {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    sourceLabel(reservation.source)
+                  )}
                 </td>
               </tr>
               <tr>

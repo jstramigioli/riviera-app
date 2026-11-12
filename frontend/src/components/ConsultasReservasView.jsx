@@ -10,6 +10,10 @@ import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
 import { deleteReservation, deleteQuery, deleteAllQueries } from '../services/api';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
+import {
+  RESERVATION_SOURCE_OPTIONS,
+  sourceLabel
+} from '../constants/reservationSource';
 import ReservationsTable from './ReservationsTable';
 import QueriesTable from './QueriesTable';
 import SidePanel from './SidePanel';
@@ -435,6 +439,28 @@ function ConsultasReservasView() {
                 </select>
               ) : (
                 getServiceTypeName(selectedReservation.segments?.[0]?.services?.[0])
+              )}
+            </div>
+
+            {/* Medio */}
+            <div style={{ marginBottom: 8 }}>
+              <b> Medio:</b>{' '}
+              {isEditing ? (
+                <select
+                  value={editData.source ?? selectedReservation.source ?? ''}
+                  onChange={(e) => handleEditChange('source', e.target.value || null)}
+                  style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  aria-label="Medio de origen de la reserva"
+                >
+                  <option value="">Sin especificar</option>
+                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                sourceLabel(selectedReservation.source)
               )}
             </div>
 

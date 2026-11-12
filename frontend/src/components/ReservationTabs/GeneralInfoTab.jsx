@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaPlus, FaTimes } from 'react-icons/fa';
 import useReservationStatuses from '../../hooks/useReservationStatuses';
 import { createClient } from '../../services/api.js';
+import {
+  RESERVATION_SOURCE_OPTIONS,
+  sourceLabel
+} from '../../constants/reservationSource';
+import { getDisplaySegments } from '../../utils/virtualRoomReservation';
 import styles from './ReservationTabs.module.css';
 
 const inputStyle = {
@@ -94,9 +99,13 @@ const GeneralInfoTab = ({
     if (!isEditing) resetNewClientForm();
   }, [isEditing]);
 
-  if (!reservation) return null;
-
   const data = isEditing && editData ? editData : reservation;
+  const displaySegments = useMemo(
+    () => getDisplaySegments(data?.segments || reservation?.segments || []),
+    [data?.segments, reservation?.segments]
+  );
+
+  if (!reservation) return null;
 
   const handleNewClientField = (field, value) => {
     setNewClient((prev) => ({ ...prev, [field]: value }));
@@ -133,14 +142,21 @@ const GeneralInfoTab = ({
       setSavingClient(false);
     }
   };
-
-  const checkIn = data.checkIn || data.segments?.[0]?.startDate;
-  const checkOut = data.checkOut || data.segments?.[data.segments?.length - 1]?.endDate;
+  const checkIn = data.checkIn || displaySegments[0]?.startDate;
+  const checkOut =
+    data.checkOut ||
+    displaySegments[displaySegments.length - 1]?.endDate;
   const nightsFromDates = civilNights(checkIn, checkOut);
   const nights = Number(data.days) > 0 ? Number(data.days) : nightsFromDates;
-  const guestCount = data.segments?.[0]?.guestCount || data.requiredGuests || 1;
-  const serviceId = data.segments?.[0]?.services?.[0] || data.reservationType || '';
+  const guestCount =
+    displaySegments[0]?.guestCount || data.requiredGuests || 1;
+  const serviceId =
+    displaySegments[0]?.services?.[0] || data.reservationType || '';
   const reservationTotal = resolveReservationTotal(reservation, nights);
+  const roomDisplayName =
+    displaySegments[0]?.uiRoomName ||
+    reservation.room?.name ||
+    null;
 
   const handleSegmentField = (field, value) => {
     if (!onEditChange) return;
@@ -370,17 +386,23 @@ const GeneralInfoTab = ({
                   </option>
                 ))}
               </select>
-            ) : reservation.room ? (
-              <a href={`/rooms/${reservation.room.id}`} className={styles.link}>
-                {reservation.room.name}
-              </a>
+            ) : roomDisplayName ? (
+              displaySegments[0]?.isVirtual ? (
+                roomDisplayName
+              ) : reservation.room ? (
+                <a href={`/rooms/${reservation.room.id}`} className={styles.link}>
+                  {roomDisplayName}
+                </a>
+              ) : (
+                roomDisplayName
+              )
             ) : (
               'Sin habitación'
             )}
           </span>
         </div>
         
-        {!isEditing && reservation.room && (
+        {!isEditing && reservation.room && !displaySegments[0]?.isVirtual && (
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Tipo:</span>
             <span className={styles.infoValue}>{reservation.room.roomType?.name || 'No especificado'}</span>
@@ -403,6 +425,29 @@ const GeneralInfoTab = ({
               </select>
             ) : (
               getServiceTypeLabel(serviceId)
+            )}
+          </span>
+        </div>
+
+        <div className={styles.infoItem}>
+          <span className={styles.infoLabel}>Medio:</span>
+          <span className={styles.infoValue}>
+            {isEditing ? (
+              <select
+                value={data.source ?? reservation.source ?? ''}
+                onChange={(e) => onEditChange('source', e.target.value || null)}
+                style={inputStyle}
+                aria-label="Medio de origen de la reserva"
+              >
+                <option value="">Sin especificar</option>
+                {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              sourceLabel(reservation.source)
             )}
           </span>
         </div>

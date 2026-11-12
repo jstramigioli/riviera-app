@@ -1206,7 +1206,7 @@ export default function Consulta() {
         
       } else {
         // Si es una nueva consulta desde el modal
-        const { checkIn, checkOut, requiredGuests, requiredTags } = queryData;
+        const { checkIn, checkOut, requiredGuests, requiredTags, source: incomingSource } = queryData;
         
         setFormData(prev => ({
           ...prev,
@@ -1219,6 +1219,10 @@ export default function Consulta() {
           requiredGuests,
           requiredTags
         }));
+
+        if (incomingSource) {
+          setSource(incomingSource);
+        }
         
         // Marcar como cargado y limpiar el state para evitar que se recargue en futuras navegaciones
         dataLoadedRef.current = true;
@@ -3037,6 +3041,25 @@ export default function Consulta() {
                 </select>
               </div>
             </div>
+
+            {/* Medio de origen (también sin cliente) */}
+            <div className={styles.sourceFieldContainer}>
+              <div className={styles.formGroup}>
+                <label>Por qué medio</label>
+                <select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  aria-label="Por qué medio se hizo la consulta o reserva"
+                >
+                  <option value="">Sin especificar</option>
+                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         )}
         
@@ -3122,7 +3145,7 @@ export default function Consulta() {
             </div>
 
             {/* Medio de origen */}
-            <div className={styles.guestsFieldContainer}>
+            <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
                 <label>Por qué medio</label>
                 <select

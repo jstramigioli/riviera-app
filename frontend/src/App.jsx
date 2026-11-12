@@ -24,7 +24,7 @@ import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
-import { deleteReservation } from './services/api.js';
+import { deleteReservation, updateReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
@@ -194,6 +194,34 @@ function ReservationsView() {
     }
   };
 
+  const handleSourceChange = async (reservationId, source) => {
+    try {
+      const updated = await updateReservation(reservationId, { source });
+      if (selectedReservation && selectedReservation.id === reservationId) {
+        setSelectedReservation((prev) => ({
+          ...(prev || {}),
+          ...(updated || {}),
+          source: updated?.source ?? source
+        }));
+      }
+      setReservations((prev) =>
+        (prev || []).map((r) =>
+          r.id === reservationId ? { ...r, source: updated?.source ?? source } : r
+        )
+      );
+      setCalendarRefreshToken((t) => t + 1);
+      showNotification('Medio actualizado', 'Se guardó el medio de origen.', 'success');
+    } catch (error) {
+      console.error('Error updating reservation source:', error);
+      showNotification(
+        'Error',
+        `No se pudo actualizar el medio: ${error.message}`,
+        'error'
+      );
+      throw error;
+    }
+  };
+
   if (loading) return <div className={styles.loading}> Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
@@ -217,6 +245,7 @@ function ReservationsView() {
           <ReservationDetailsPanel
             reservation={selectedReservation}
             onStatusChange={handleStatusChange}
+            onSourceChange={handleSourceChange}
             onDelete={() => setShowDeleteModal(true)}
             onClose={closePanel}
             onOpenFullEdit={(id) => {
