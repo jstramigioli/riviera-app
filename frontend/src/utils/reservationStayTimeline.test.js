@@ -11,7 +11,7 @@ const serviceLabel = (id) => {
 };
 
 describe('buildReservationStayTimeline', () => {
-  it('arma creación / check-in / check-out con etiqueta de tramo', () => {
+  it('arma creación / check-in / check-out con etiqueta solo en la estadía', () => {
     const timeline = buildReservationStayTimeline(
       {
         createdAt: '2026-11-01T12:00:00.000Z',
@@ -36,10 +36,13 @@ describe('buildReservationStayTimeline', () => {
 
     const nodes = timeline.items.filter((i) => i.type === 'node');
     const edges = timeline.items.filter((i) => i.type === 'edge');
+    const pre = edges.find((e) => e.id === 'edge-pre-checkin');
+    const stay = edges.find((e) => e.id === 'edge-stay');
 
     expect(nodes.map((n) => n.title)).toEqual(['Creación', 'Check-in', 'Check-out']);
     expect(edges).toHaveLength(2);
-    expect(edges.every((e) => e.label === '22 · desayuno')).toBe(true);
+    expect(pre).toMatchObject({ compact: true, label: null });
+    expect(stay.label).toBe('22 · desayuno');
     expect(timeline.isMultiSegment).toBe(false);
   });
 
@@ -99,11 +102,12 @@ describe('buildReservationStayTimeline', () => {
       'Check-out'
     ]);
     expect(edges.map((e) => e.label)).toEqual([
-      '22 · desayuno',
+      null,
       '22 · desayuno',
       '15 · desayuno',
       '15 · media pensión'
     ]);
+    expect(edges[0]).toMatchObject({ id: 'edge-pre-checkin', compact: true });
     expect(timeline.isMultiSegment).toBe(true);
   });
 
@@ -146,9 +150,9 @@ describe('buildReservationStayTimeline', () => {
     );
 
     expect(timeline.segments).toHaveLength(1);
-    expect(timeline.items.filter((i) => i.type === 'edge')[0].label).toBe(
-      '8-9 (cuadruple) · desayuno'
-    );
+    const stayEdge = timeline.items.find((i) => i.id === 'edge-stay');
+    expect(stayEdge.label).toBe('8-9 (cuadruple) · desayuno');
+    expect(timeline.items.find((i) => i.id === 'edge-pre-checkin').label).toBeNull();
     expect(timeline.isMultiSegment).toBe(false);
   });
 });
