@@ -19,6 +19,9 @@ router.get('/tipo-cambio-actual', controller.getTipoCambioActual);
 // RUTAS DE PAGOS
 // ============================================
 
+// Historial global de pagos
+router.get('/pagos', controller.getAllPagos);
+
 // Obtener todos los pagos de una reserva
 router.get('/reservas/:reservaId/pagos', controller.getPagosByReserva);
 

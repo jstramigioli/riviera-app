@@ -6,6 +6,35 @@ const { calculateReservationBalance } = require('../utils/reservationBalance');
 // CONTROLADORES DE PAGOS
 // ============================================
 
+// Obtener historial global de pagos (con reserva y cliente)
+exports.getAllPagos = async (req, res) => {
+  try {
+    const pagos = await prisma.pago.findMany({
+      include: {
+        reserva: {
+          select: {
+            id: true,
+            status: true,
+            mainClient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { fecha: 'desc' },
+    });
+    res.json(pagos);
+  } catch (error) {
+    console.error('Error obteniendo historial de pagos:', error);
+    res.status(500).json({ error: 'Error al obtener el historial de pagos', details: error.message });
+  }
+};
+
 // Obtener todos los pagos de una reserva
 exports.getPagosByReserva = async (req, res) => {
   const { reservaId } = req.params;
@@ -814,6 +843,10 @@ exports.getReservasConSaldos = async (req, res) => {
         totalPagos,
         saldo,
         estadoPago,
+        // Nº de pago para papelitos / ubicación rápida (id estable)
+        pagos: (reserva.pagos || [])
+          .map((pago) => ({ id: pago.id, montoARS: pago.montoARS, fecha: pago.fecha }))
+          .sort((a, b) => a.id - b.id),
         createdAt: reserva.createdAt,
         updatedAt: reserva.updatedAt
       };

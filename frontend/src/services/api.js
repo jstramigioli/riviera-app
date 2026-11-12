@@ -789,6 +789,13 @@ export async function getReservationsWithBalances() {
   return res.json();
 }
 
+// Historial global de pagos
+export async function getAllPagos() {
+  const res = await fetch(`${API_URL}/reservation-payments/pagos`);
+  if (!res.ok) throw new Error('Error fetching payment history');
+  return res.json();
+}
+
 // Pagos - Obtener todos los pagos de una reserva
 export async function getPagosByReserva(reservaId) {
   const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`);
@@ -1192,6 +1199,7 @@ export default {
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
+  getAllPagos,
   getPagosByReserva,
   createPago,
   updatePago,
