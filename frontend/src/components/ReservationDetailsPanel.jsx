@@ -124,7 +124,13 @@ const ReservationDetailsPanel = ({
       onOpenFullEdit(reservation.id);
       return;
     }
-    navigate(`/reservations/${reservation.id}`, { state: { isEditing: true } });
+    navigate('/consulta', {
+      state: {
+        isEditingReservation: true,
+        reservationId: reservation.id,
+        reservationEdit: { id: reservation.id }
+      }
+    });
   };
 
   return (

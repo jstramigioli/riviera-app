@@ -337,9 +337,14 @@ const ReservationDetails = () => {
       setIsEditing(false);
       return;
     }
-    setEditData(reservation);
-    setIsEditing(true);
-    setActiveTab('general');
+    // Editar = mismo flujo que crear (requisitos, selección, tarifas + toggle tarifa)
+    navigate('/consulta', {
+      state: {
+        isEditingReservation: true,
+        reservationId: reservation.id,
+        reservationEdit: { id: reservation.id }
+      }
+    });
   };
 
   const handleEditSave = async () => {

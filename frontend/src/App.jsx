@@ -221,7 +221,13 @@ function ReservationsView() {
             onClose={closePanel}
             onOpenFullEdit={(id) => {
               closePanel();
-              navigate(`/reservations/${id}`, { state: { isEditing: true } });
+              navigate('/consulta', {
+                state: {
+                  isEditingReservation: true,
+                  reservationId: id,
+                  reservationEdit: { id }
+                }
+              });
             }}
           />
         )}
