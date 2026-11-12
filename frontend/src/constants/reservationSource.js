@@ -66,6 +66,6 @@ export function saveSourceColors(colors) {
 }
 
 export function sourceLabel(value) {
-  if (!value) return 'Sin medio';
+  if (!value) return 'No especificado';
   return RESERVATION_SOURCE_LABELS[value] || value;
 }

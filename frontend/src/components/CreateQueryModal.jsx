@@ -159,7 +159,7 @@ export default function CreateQueryModal({
               onChange={(e) => handleInputChange('source', e.target.value)}
               aria-label="Por qué medio se hizo la consulta"
             >
-              <option value="">Sin especificar</option>
+              <option value="">No especificado</option>
               {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}

@@ -364,7 +364,7 @@ const ReservationDetailsPanel = ({
                         fontSize: '0.95rem'
                       }}
                     >
-                      <option value="">Sin especificar</option>
+                      <option value="">No especificado</option>
                       {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}

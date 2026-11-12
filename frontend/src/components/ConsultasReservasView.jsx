@@ -452,7 +452,7 @@ function ConsultasReservasView() {
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   aria-label="Medio de origen de la reserva"
                 >
-                  <option value="">Sin especificar</option>
+                  <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
