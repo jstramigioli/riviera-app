@@ -433,7 +433,10 @@ const EstadoFinancieroTab = ({
                           </div>
                           {(tipo.items || []).map((item) => (
                             <div key={item.id} className={styles.breakdownItem}>
-                              <span>{item.descripcion || 'Cargo'}</span>
+                              <span>
+                                {item.descripcion || 'Cargo'}
+                                {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
+                              </span>
                               {renderMonto(item)}
                             </div>
                           ))}
@@ -444,7 +447,10 @@ const EstadoFinancieroTab = ({
                     <ul className={styles.breakdownList}>
                       {cargoItems.map((item) => (
                         <li key={item.id} className={styles.breakdownItem}>
-                          <span>{item.descripcion || 'Cargo'}</span>
+                          <span>
+                            {item.descripcion || 'Cargo'}
+                            {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
+                          </span>
                           {renderMonto(item)}
                         </li>
                       ))}
