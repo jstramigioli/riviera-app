@@ -109,7 +109,21 @@ export async function updateReservation(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating reservation');
+  if (!res.ok) {
+    let message = 'Error updating reservation';
+    try {
+      const err = await res.json();
+      message = err.error || err.message || message;
+      if (Array.isArray(err.details) && err.details.length) {
+        message = `${message}: ${err.details.join('; ')}`;
+      } else if (err.details) {
+        message = `${message}: ${err.details}`;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 

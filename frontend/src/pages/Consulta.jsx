@@ -3,13 +3,18 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
 import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
+import {
+  roomSelectionPayload,
+  collapseSegmentsForEditUi,
+  selectedRoomFromCollapsedSegment
+} from '../utils/virtualRoomReservation';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -260,6 +265,12 @@ export default function Consulta() {
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
   // const [pricingError, setPricingError] = useState(null); // Ya no se usa
+
+  // Edición de reserva existente (mismo flujo que crear)
+  const [editingReservationId, setEditingReservationId] = useState(null);
+  const [editingReservationStatus, setEditingReservationStatus] = useState(null);
+  const [applyRateChanges, setApplyRateChanges] = useState(true);
+  const [originalBaseRatesByBlock, setOriginalBaseRatesByBlock] = useState({});
 
   // Estados para gestión de consultas
   const [currentQueryId, setCurrentQueryId] = useState(null);
@@ -939,11 +950,114 @@ export default function Consulta() {
     }
   }, [selectedRoomType, segments, serviceTypes]);
 
+  // Cargar reserva existente para editar (mismo flujo que crear)
+  useEffect(() => {
+    const reservationId = location.state?.reservationId || location.state?.reservationEdit?.id;
+    if (!reservationId || dataLoadedRef.current) return;
+    if (!location.state?.isEditingReservation && !location.state?.reservationEdit) return;
+
+    let cancelled = false;
+    dataLoadedRef.current = true;
+
+    (async () => {
+      try {
+        const full = await fetchReservation(reservationId);
+        if (cancelled || !full) return;
+
+        setEditingReservationId(full.id);
+        setEditingReservationStatus(full.status || 'PENDIENTE');
+        setApplyRateChanges(true);
+
+        if (full.mainClient) {
+          setFormData((prev) => ({
+            ...prev,
+            mainClient: {
+              id: full.mainClient.id,
+              firstName: full.mainClient.firstName || '',
+              lastName: full.mainClient.lastName || '',
+              email: full.mainClient.email || '',
+              phone: full.mainClient.phone || ''
+            }
+          }));
+        }
+
+        const collapsed = collapseSegmentsForEditUi(full.segments || []);
+        const loadedSegments = collapsed.map((seg, index) => ({
+          id: seg.id || Date.now() + index,
+          checkIn: String(seg.startDate || '').slice(0, 10),
+          checkOut: String(seg.endDate || '').slice(0, 10),
+          requiredGuests: seg.guestCount || full.requiredGuests || 1,
+          requiredTags: seg.requiredTags || [],
+          requiredRoomId: seg.requiredRoomId || null,
+          requirementsNotes: '',
+          serviceType: seg.services?.[0] || full.reservationType || '',
+          reservationType: seg.services?.[0] || full.reservationType || 'con_desayuno'
+        }));
+
+        setSegments(loadedSegments.length > 0 ? loadedSegments : [{
+          id: Date.now(),
+          checkIn: String(full.checkIn || '').slice(0, 10),
+          checkOut: String(full.checkOut || '').slice(0, 10),
+          requiredGuests: full.requiredGuests || 1,
+          requiredTags: [],
+          requiredRoomId: null,
+          requirementsNotes: '',
+          serviceType: full.reservationType || ''
+        }]);
+
+        const roomsByBlock = {};
+        const ratesByBlock = {};
+        collapsed.forEach((seg, index) => {
+          roomsByBlock[index] = selectedRoomFromCollapsedSegment(seg);
+          ratesByBlock[index] = Number(seg.baseRate) || 0;
+        });
+        setSelectedRoomsPerBlock(roomsByBlock);
+        setOriginalBaseRatesByBlock(ratesByBlock);
+
+        const first = collapsed[0];
+        if (first) {
+          setFormData((prev) => ({
+            ...prev,
+            checkIn: String(first.startDate || full.checkIn || '').slice(0, 10),
+            checkOut: String(first.endDate || full.checkOut || '').slice(0, 10)
+          }));
+          setRequirements({
+            requiredGuests: first.guestCount || full.requiredGuests || 1,
+            requiredTags: first.requiredTags || [],
+            requiredRoomId: first.requiredRoomId || null,
+            requirementsNotes: ''
+          });
+          if (roomsByBlock[0]?.roomType) {
+            setSelectedRoomType(roomsByBlock[0].roomType);
+          }
+        }
+
+        setNotes(full.notes || '');
+        setActiveBlockIndex(0);
+        window.history.replaceState({}, document.title);
+      } catch (error) {
+        console.error('Error cargando reserva para editar:', error);
+        notify({
+          title: 'Error al cargar',
+          message: 'No se pudo cargar la reserva para editar.',
+          type: 'error'
+        });
+        dataLoadedRef.current = false;
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [location.state?.reservationId, location.state?.reservationEdit?.id, location.state?.isEditingReservation]);
+
   // Cargar datos de la consulta desde el modal o desde la tabla de consultas
   useEffect(() => {
     console.log('🔍 useEffect de carga ejecutándose');
     console.log('🔍 location.state:', location.state);
     console.log('🔍 dataLoaded:', dataLoadedRef.current);
+
+    if (location.state?.isEditingReservation || location.state?.reservationEdit) {
+      return;
+    }
     
     if (location.state?.queryData && !dataLoadedRef.current) {
       const queryData = location.state.queryData;
@@ -1114,6 +1228,9 @@ export default function Consulta() {
 
   // Auto-guardado con debounce para evitar requests excesivos
   useEffect(() => {
+    if (editingReservationId) {
+      return;
+    }
     // Solo auto-guardar si hay un cliente seleccionado y hay segmentos válidos
     if (!formData.mainClient.id || segments.length === 0) {
       console.log('⏭️ Saltando auto-guardado: no hay cliente o segmentos');
@@ -1455,8 +1572,8 @@ export default function Consulta() {
 
 
   const searchAvailableRooms = async (customParams = null) => {
-    // Guardar/actualizar consulta antes de buscar habitaciones
-    if (formData.mainClient.id) {
+    // Guardar/actualizar consulta antes de buscar habitaciones (no en edición de reserva)
+    if (formData.mainClient.id && !editingReservationId) {
       await saveQueryAutomatically();
     }
     
@@ -1489,6 +1606,10 @@ export default function Consulta() {
           serviceType: activeBlock.serviceType || getAlternativeServiceType(activeBlock.serviceType)
       };
         // console.log('🔍 Usando parámetros del segmento activo:', params);
+      }
+
+      if (editingReservationId) {
+        params.excludeReservationId = editingReservationId;
       }
 
       const result = await findAvailableRooms(params);
@@ -2588,7 +2709,15 @@ export default function Consulta() {
           const nightlyRates = Array.isArray(ratesData?.rates) ? ratesData.rates : [];
           
           let baseRate = null;
-          if (totalAmount && totalAmount > 0) {
+          // En edición sin aplicar tarifas: conservar tarifa original de la reserva
+          if (editingReservationId && !applyRateChanges) {
+            const original = Number(originalBaseRatesByBlock[index]);
+            if (original > 0) {
+              baseRate = original;
+            } else if (roomPrice && roomPrice > 0) {
+              baseRate = roomPrice;
+            }
+          } else if (totalAmount && totalAmount > 0) {
             baseRate = totalAmount / nights;
           } else if (roomPrice && roomPrice > 0) {
             baseRate = roomPrice;
@@ -2612,9 +2741,12 @@ export default function Consulta() {
             seasonBlockName: rate.seasonBlockName || null
           }));
           
+          const roomPayload = roomSelectionPayload(selectedRoomsPerBlock[index]);
           return {
-            roomId: selectedRoomsPerBlock[index].id,
-            roomTypeId: selectedRoomsPerBlock[index].roomTypeId || selectedRoomsPerBlock[index].roomType?.id || null,
+            roomId: roomPayload.roomId,
+            virtualRoomId: roomPayload.virtualRoomId,
+            isVirtual: roomPayload.isVirtual,
+            roomTypeId: roomPayload.roomTypeId,
             startDate: segment.checkIn,
             endDate: segment.checkOut,
             requiredGuests: segment.requiredGuests,
@@ -2632,6 +2764,26 @@ export default function Consulta() {
       };
 
       console.log('Datos de reserva a enviar:', reservationData);
+
+      if (editingReservationId) {
+        await updateReservation(editingReservationId, {
+          mainClientId: clientId,
+          status: status || editingReservationStatus || 'PENDIENTE',
+          notes: notes,
+          segments: reservationData.segments,
+          applyRateChanges
+        });
+        setShowConfirmationModal(false);
+        notify({
+          title: 'Reserva actualizada',
+          message: applyRateChanges
+            ? `Reserva #${editingReservationId} guardada (tarifas actualizadas).`
+            : `Reserva #${editingReservationId} guardada sin cambiar tarifas.`,
+          type: 'success',
+          onClose: () => navigate(`/reservations/${editingReservationId}`),
+        });
+        return;
+      }
 
       // Crear la reserva en el backend
       console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
@@ -2682,9 +2834,9 @@ export default function Consulta() {
       });
       
     } catch (error) {
-      console.error('Error al crear la reserva:', error);
+      console.error('Error al crear/actualizar la reserva:', error);
       notify({
-        title: 'Error al crear la reserva',
+        title: editingReservationId ? 'Error al actualizar la reserva' : 'Error al crear la reserva',
         message: error.message || 'Error desconocido',
         type: 'error',
       });
@@ -3367,31 +3519,61 @@ export default function Consulta() {
             Copiar Datos
           </button>
 
-          {/* Guardar como Query/QueryGroup — no crea Reservation (ni pendiente) */}
-          <button
-            type="button"
-            className={styles.draftButton}
-            onClick={handleSaveConsulta}
-            disabled={isSavingConsulta || !formData.mainClient.id}
-            title={
-              !formData.mainClient.id
-                ? 'Seleccioná un cliente para guardar la consulta'
-                : 'Guardar datos como consulta recuperable, sin confirmar reserva'
-            }
-          >
-            {isSavingConsulta ? 'Guardando…' : '💾 Guardar consulta'}
-          </button>
+          {/* Guardar como Query — solo en flujo de consulta (no edición de reserva) */}
+          {!editingReservationId && (
+            <button
+              type="button"
+              className={styles.draftButton}
+              onClick={handleSaveConsulta}
+              disabled={isSavingConsulta || !formData.mainClient.id}
+              title={
+                !formData.mainClient.id
+                  ? 'Seleccioná un cliente para guardar la consulta'
+                  : 'Guardar datos como consulta recuperable, sin confirmar reserva'
+              }
+            >
+              {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
+            </button>
+          )}
 
-          {/* Botón de crear reserva - Solo si hay cliente */}
+          {editingReservationId && (
+            <label
+              className={styles.rateToggle}
+              title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                color: 'var(--color-text, #333)',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={applyRateChanges}
+                onChange={(e) => setApplyRateChanges(e.target.checked)}
+                data-testid="apply-rate-changes-toggle"
+              />
+              Aplicar cambios de tarifa
+            </label>
+          )}
+
+          {/* Crear o guardar reserva */}
           {formData.mainClient.firstName && formData.mainClient.lastName && (
             <button 
               type="button" 
               className={styles.confirmButton}
               onClick={() => setShowConfirmationModal(true)}
               disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
-              title={!segments.every((_, index) => selectedRoomsPerBlock[index]) ? 'Selecciona una habitación para cada segmento' : 'Crear la reserva'}
+              title={
+                !segments.every((_, index) => selectedRoomsPerBlock[index])
+                  ? 'Selecciona una habitación para cada segmento'
+                  : (editingReservationId ? 'Guardar cambios de la reserva' : 'Crear la reserva')
+              }
             >
-              Crear Reserva
+              {editingReservationId ? `Guardar reserva #${editingReservationId}` : 'Crear Reserva'}
             </button>
           )}
         </div>
