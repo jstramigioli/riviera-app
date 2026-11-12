@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { civilFromDb, daysBetweenCivil } = require('./calendarDates');
+const { normalizeReservationSource } = require('../constants/reservationSource');
 const prisma = new PrismaClient();
 const {
   toDateOnlyString,
@@ -246,6 +247,7 @@ function getReservationData(reservation) {
     totalAmount,
     status: reservation.status,
     notes: reservation.notes,
+    source: reservation.source || null,
     isMultiRoom: reservation.isMultiRoom,
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
@@ -378,6 +380,7 @@ async function createReservationWithSegments(reservationData) {
     segments,
     status = 'active',
     notes,
+    source,
     isMultiRoom = false,
     parentReservationId = null
   } = reservationData;
@@ -406,6 +409,7 @@ async function createReservationWithSegments(reservationData) {
       mainClientId: parseInt(mainClientId),
       status,
       notes,
+      source: normalizeReservationSource(source),
       isMultiRoom: logicalCount > 1 || isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
     }
@@ -483,6 +487,7 @@ async function createReservationWithSegment(reservationData) {
     status = 'active',
     reservationType = 'con_desayuno',
     notes,
+    source,
     requiredGuests = 1,
     isMultiRoom = false,
     parentReservationId = null
@@ -498,6 +503,7 @@ async function createReservationWithSegment(reservationData) {
       mainClientId: parseInt(mainClientId),
       status,
       notes,
+      source: normalizeReservationSource(source),
       isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
     }
@@ -591,6 +597,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
   const {
     status,
     notes,
+    source,
     segments,
     mainClientId,
     applyRateChanges = true
@@ -604,6 +611,9 @@ async function updateReservationWithSegments(reservationId, updateData) {
     data: {
       status: status || undefined,
       notes: notes !== undefined ? notes : undefined,
+      ...(source !== undefined
+        ? { source: normalizeReservationSource(source) }
+        : {}),
       ...(mainClientId != null ? { mainClientId: parseInt(mainClientId, 10) } : {})
     }
   });
