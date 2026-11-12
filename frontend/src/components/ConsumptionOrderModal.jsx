@@ -95,6 +95,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const dateRef = useRef(null);
   const reservationRef = useRef(null);
   const itemInputRefs = useRef({});
+  const itemCellRefs = useRef({});
   const dropdownListRefs = useRef({});
   const toastTimerRef = useRef(null);
   const pendingUndoRef = useRef(null);
@@ -383,6 +384,39 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     el?.scrollIntoView({ block: 'nearest' });
   }, [lines]);
 
+  // Clic afuera: cierra el menú y deja la fila sin ítem (cancelar apertura accidental)
+  useEffect(() => {
+    if (!open) return undefined;
+    const openLine = lines.find((l) => l.dropdownOpen);
+    if (!openLine) return undefined;
+
+    const onPointerDown = (e) => {
+      const cell = itemCellRefs.current[openLine.key];
+      if (cell?.contains(e.target)) return;
+      setLines((prev) =>
+        prev.map((l) =>
+          l.key === openLine.key
+            ? {
+                ...l,
+                menuItemId: null,
+                name: '',
+                category: null,
+                price: 0,
+                query: '',
+                dropdownOpen: false,
+                highlight: 0
+              }
+            : l.dropdownOpen
+              ? { ...l, dropdownOpen: false, highlight: 0 }
+              : l
+        )
+      );
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open, lines]);
+
   const showUndoToast = ({ message, cargoIds, snapshot }) => {
     clearToastTimer();
     pendingUndoRef.current = { cargoIds, snapshot };
@@ -656,7 +690,12 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
                         </button>
                       </div>
 
-                      <div className={styles.itemCell}>
+                      <div
+                        className={styles.itemCell}
+                        ref={(el) => {
+                          itemCellRefs.current[line.key] = el;
+                        }}
+                      >
                         <input
                           ref={(el) => {
                             itemInputRefs.current[line.key] = el;
@@ -740,18 +779,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
                     </li>
                   );
                 })}
+                <li className={styles.addRow}>
+                  <button
+                    type="button"
+                    className={styles.addRowBtn}
+                    disabled={!itemsEnabled}
+                    onClick={addRow}
+                    aria-label="Agregar fila"
+                    title="Agregar fila"
+                  >
+                    <FiPlus aria-hidden="true" />
+                  </button>
+                </li>
               </ul>
-
-              <button
-                type="button"
-                className={styles.addRowBtn}
-                disabled={!itemsEnabled}
-                onClick={addRow}
-                aria-label="Agregar fila"
-                title="Agregar fila"
-              >
-                <FiPlus aria-hidden="true" />
-              </button>
             </div>
           </div>
 
