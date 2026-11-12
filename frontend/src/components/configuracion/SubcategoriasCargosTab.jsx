@@ -94,7 +94,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
     e.preventDefault();
     
     if (!formData.nombre.trim()) {
-      alert('El nombre es requerido');
+      notify({ title: 'Validación', message: 'El nombre es requerido', type: 'warning' });
       return;
     }
 
@@ -128,9 +128,9 @@ const SubcategoriasCargosTab = ({ tipo }) => {
       resetForm();
       
       const action = editingSubcategoria ? 'actualizada' : 'creada';
-      alert(`Subcategoría ${action} exitosamente`);
+      notify({ title: 'Listo', message: `Subcategoría ${action} exitosamente`, type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 
@@ -147,9 +147,9 @@ const SubcategoriasCargosTab = ({ tipo }) => {
 
       await loadSubcategorias();
       const newState = !subcategoria.esActivo;
-      alert(`Subcategoría ${newState ? 'activada' : 'desactivada'} exitosamente`);
+      notify({ title: 'Listo', message: `Subcategoría ${newState ? 'activada' : 'desactivada'} exitosamente`, type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 

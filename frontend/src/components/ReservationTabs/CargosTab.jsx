@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const CargosTab = ({ 
   cargos,
@@ -12,6 +13,7 @@ const CargosTab = ({
   onUpdateCargo,
   onDeleteCargo
 }) => {
+  const { notify, noticeDialog } = useAppNotice();
   const [showAddModal, setShowAddModal] = useState(false);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
@@ -155,7 +157,7 @@ const CargosTab = ({
     e.preventDefault();
     
     if (!newCargo.subcategoriaCargoId) {
-      alert('Debe seleccionar una subcategoría');
+      notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
       return;
     }
     
@@ -204,7 +206,7 @@ const CargosTab = ({
   const handleEditCargo = (cargo) => {
     // Solo permitir editar cargos que tengan subcategoriaCargoId
     if (!cargo.subcategoriaCargoId) {
-      alert('Los cargos de alojamiento no se pueden editar manualmente. Se generan automáticamente con las reservas.');
+      notify({ title: 'No editable', message: 'Los cargos de alojamiento no se pueden editar manualmente. Se generan automáticamente con las reservas.', type: 'warning' });
       return;
     }
 
@@ -473,6 +475,7 @@ const CargosTab = ({
           </div>
         </div>
       )}
+      {noticeDialog}
     </div>
   );
 };

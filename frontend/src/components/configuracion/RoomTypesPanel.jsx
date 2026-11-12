@@ -69,7 +69,7 @@ const RoomTypesPanel = () => {
       }));
     } catch (error) {
       console.error('Error actualizando tipo de habitación:', error);
-      alert('Error al actualizar el tipo de habitación');
+      notify({ title: 'Error', message: 'Error al actualizar el tipo de habitación', type: 'error' });
     }
   };
 
@@ -107,12 +107,12 @@ const RoomTypesPanel = () => {
 
   const handleSaveNewType = async () => {
     if (!newTypeForm.name.trim()) {
-      alert('El nombre del tipo de habitación es obligatorio');
+      notify({ title: 'Validación', message: 'El nombre del tipo de habitación es obligatorio', type: 'warning' });
       return;
     }
 
     if (!newTypeForm.maxPeople || newTypeForm.maxPeople < 1) {
-      alert('La capacidad debe ser al menos 1 persona');
+      notify({ title: 'Validación', message: 'La capacidad debe ser al menos 1 persona', type: 'warning' });
       return;
     }
 
@@ -133,7 +133,7 @@ const RoomTypesPanel = () => {
       }));
     } catch (error) {
       console.error('Error creando tipo de habitación:', error);
-      alert(error.message || 'Error al crear el tipo de habitación');
+      notify({ title: 'Error', message: error.message || 'Error al crear el tipo de habitación', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -218,7 +218,7 @@ const RoomTypesPanel = () => {
       }));
     } catch (error) {
       console.error('Error actualizando orden de tipos de habitación:', error);
-      alert('Error al actualizar el orden de los tipos de habitación');
+      notify({ title: 'Error', message: 'Error al actualizar el orden de los tipos de habitación', type: 'error' });
       // Revertir cambios si hay error
       await loadRoomTypes();
     }

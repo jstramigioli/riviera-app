@@ -58,7 +58,7 @@ const CatalogosYTiposTab = () => {
 
   const handleEdit = (tipo) => {
     if (tipo.esHardcoded) {
-      alert('Los tipos hardcoded no pueden ser editados completamente');
+      notify({ title: 'Aviso', message: 'Los tipos hardcoded no pueden ser editados completamente', type: 'info' });
       return;
     }
     
@@ -76,7 +76,7 @@ const CatalogosYTiposTab = () => {
     e.preventDefault();
     
     if (!formData.nombre.trim()) {
-      alert('El nombre es requerido');
+      notify({ title: 'Validación', message: 'El nombre es requerido', type: 'warning' });
       return;
     }
 
@@ -110,9 +110,9 @@ const CatalogosYTiposTab = () => {
       resetForm();
       
       const action = editingTipo ? 'actualizado' : 'creado';
-      alert(`Tipo de cargo ${action} exitosamente`);
+      notify({ title: 'Listo', message: `Tipo de cargo ${action} exitosamente`, type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 
@@ -129,9 +129,9 @@ const CatalogosYTiposTab = () => {
 
       await loadTiposCargo();
       const newState = !tipo.esActivo;
-      alert(`Tipo ${newState ? 'activado' : 'desactivado'} exitosamente`);
+      notify({ title: 'Listo', message: `Tipo ${newState ? 'activado' : 'desactivado'} exitosamente`, type: 'success' });
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify({ title: 'Error', message: err.message, type: 'error' });
     }
   };
 

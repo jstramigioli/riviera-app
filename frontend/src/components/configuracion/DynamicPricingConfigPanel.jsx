@@ -4,6 +4,7 @@ import OccupancyFactorConfig from "./OccupancyFactorConfig";
 import AnticipationFactorConfig from "./AnticipationFactorConfig";
 import WeekendFactorConfig from "./WeekendFactorConfig";
 import EditablePercentage from "./EditablePercentage";
+import { useAppNotice } from "../../hooks/useAppNotice";
 
 const defaultConfig = {
   enabled: false,
@@ -54,6 +55,7 @@ const factorConfigs = {
 };
 
 export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" }) {
+  const { notify, noticeDialog } = useAppNotice();
   const [config, setConfig] = useState(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [maxAdjustments, setMaxAdjustments] = useState(null);
@@ -115,7 +117,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
       })
       .catch((error) => {
         console.error('DynamicPricingConfigPanel - Error loading config:', error);
-        alert(`Error al cargar la configuración: ${error.message}`);
+        notify({ title: 'Error', message: `Error al cargar la configuración: ${error.message}`, type: 'error' });
         setLoading(false);
       });
   }, [hotelId]);
@@ -197,11 +199,11 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
       } else {
         const errorText = await response.text();
         console.error('Error al guardar la configuración:', response.status, errorText);
-        alert(`Error al guardar la configuración: ${response.status} - ${errorText}`);
+        notify({ title: 'Error', message: `Error al guardar la configuración: ${response.status} - ${errorText}`, type: 'error' });
       }
     } catch (error) {
       console.error('Error al guardar la configuración:', error);
-      alert(`Error de conexión: ${error.message}`);
+      notify({ title: 'Error de conexión', message: error.message, type: 'error' });
     }
   };
 
@@ -580,6 +582,7 @@ export default function DynamicPricingConfigPanel({ hotelId = "default-hotel" })
           )}
         </>
       )}
+      {noticeDialog}
     </div>
   );
 } 

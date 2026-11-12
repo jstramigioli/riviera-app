@@ -360,7 +360,8 @@ const ReservationDetails = () => {
     );
 
     if (conflict.hasConflict) {
-      showConflictNotification(conflict.message);
+      const notice = showConflictNotification(conflict.message);
+      notify({ title: 'Conflicto', message: notice.message, type: 'error' });
       return;
     }
 

@@ -38,7 +38,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
       });
       setShowCreateForm(false);
     } catch (error) {
-      alert(error.message);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
@@ -57,7 +57,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
         adjustmentValue: 0
       });
     } catch (error) {
-      alert(error.message);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
@@ -101,7 +101,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
     try {
       await toggleBlockServiceType(id, !currentStatus);
     } catch (error) {
-      alert(error.message);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 

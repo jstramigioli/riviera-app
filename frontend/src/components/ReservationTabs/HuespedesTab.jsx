@@ -116,7 +116,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
 
         const newGuest = await response.json();
         setGuests([...guests, newGuest]);
-        alert('Acompañante agregado exitosamente');
+        notify({ title: 'Listo', message: 'Acompañante agregado exitosamente', type: 'success' });
       } else {
         // Actualizar huésped existente
         const guestId = guests[editingGuest]?.id;
@@ -134,14 +134,14 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
         const updatedGuests = [...guests];
         updatedGuests[editingGuest] = updatedGuest;
         setGuests(updatedGuests);
-        alert('Acompañante actualizado exitosamente');
+        notify({ title: 'Listo', message: 'Acompañante actualizado exitosamente', type: 'success' });
       }
 
       setShowModal(false);
       if (onGuestUpdate) onGuestUpdate();
     } catch (error) {
       console.error('Error guardando huésped:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     } finally {
       setLoading(false);
     }

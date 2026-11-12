@@ -31,21 +31,15 @@ export function validateReservationConflict(reservations, roomId, checkIn, check
   return { hasConflict: false };
 }
 
-// Función para mostrar notificación de conflicto
+// Función para armar notificación de conflicto (sin alert del navegador).
+// El caller debe mostrar el aviso in-app (useAppNotice / NotificationModal).
 export function showConflictNotification(message, position = null) {
   console.warn('Conflicto de reserva:', message);
-  
-  // Si no hay posición específica, usar alert como fallback
-  if (!position) {
-    alert(`Conflicto de reserva: ${message}`);
-    return;
-  }
-  
-  // Retornar información para la notificación flotante
+
   return {
-    message,
+    message: `Conflicto de reserva: ${message}`,
     type: 'error',
-    position
+    position: position || null
   };
 }
 

@@ -70,7 +70,7 @@ function VirtualRoomsPanel() {
       setEditForm({});
     } catch (error) {
       console.error('Error actualizando habitación virtual:', error);
-      alert('Error al actualizar la habitación virtual');
+      notify({ title: 'Error', message: 'Error al actualizar la habitación virtual', type: 'error' });
     }
   };
 
@@ -112,7 +112,7 @@ function VirtualRoomsPanel() {
 
   const handleSaveNewVirtualRoom = async () => {
     if (!newVirtualRoomForm.name.trim() || !newVirtualRoomForm.roomTypeId || newVirtualRoomForm.componentRoomIds.length === 0) {
-      alert('El nombre, tipo de habitación asignado y al menos una habitación componente son obligatorios');
+      notify({ title: 'Validación', message: 'El nombre, tipo de habitación asignado y al menos una habitación componente son obligatorios', type: 'warning' });
       return;
     }
 
@@ -130,7 +130,7 @@ function VirtualRoomsPanel() {
       setComponentInputs([{ id: 1, roomId: '' }]); // Reiniciar inputs dinámicos
     } catch (error) {
       console.error('Error creando habitación virtual:', error);
-      alert('Error al crear la habitación virtual');
+      notify({ title: 'Error', message: 'Error al crear la habitación virtual', type: 'error' });
     } finally {
       setSaving(false);
     }

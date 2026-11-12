@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { FiPlus, FiEdit, FiTrash2, FiMove, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
 import { useBlockServiceSelections } from '../../hooks/useBlockServiceSelections';
 import styles from './BlockServiceSelectionManager.module.css';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
+  const { notify, noticeDialog } = useAppNotice();
   const {
     selections,
     availableServices,
@@ -61,7 +63,7 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
       if (!currentSelection) {
         console.error('La selección no se encuentra en el estado actual:', editingSelection.id);
         console.log('Selecciones disponibles:', selections.map(s => ({ id: s.id, name: s.serviceType.name })));
-        alert('Error: La selección de servicio no se encuentra. Intentando recargar...');
+        notify({ title: 'Error', message: 'La selección de servicio no se encuentra. Intentando recargar...', type: 'error' });
         await reloadSelections();
         return;
       }
@@ -80,13 +82,13 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
     // Verificar si es el servicio base (no se puede desactivar)
     const selection = selections.find(s => s.id === id);
     if (selection && (selection.serviceTypeId === 'base-service' || selection.serviceType.name === 'Tarifa Base')) {
-      alert('No se puede desactivar el servicio base. Este servicio es obligatorio para todos los bloques.');
+      notify({ title: 'No permitido', message: 'No se puede desactivar el servicio base. Este servicio es obligatorio para todos los bloques.', type: 'warning' });
       return;
     }
 
     // Verificar si es el servicio "Solo Alojamiento" (no se puede desactivar)
     if (selection && selection.serviceType.name === 'Solo Alojamiento') {
-      alert('No se puede desactivar el servicio "Solo Alojamiento". Este servicio debe permanecer siempre activo.');
+      notify({ title: 'No permitido', message: 'No se puede desactivar el servicio "Solo Alojamiento". Este servicio debe permanecer siempre activo.', type: 'warning' });
       return;
     }
 
@@ -246,8 +248,7 @@ const BlockServiceSelectionManager = ({ seasonBlockId, onServiceAdded }) => {
           </div>
         )}
       </div>
-
-
+      {noticeDialog}
     </div>
   );
 };
