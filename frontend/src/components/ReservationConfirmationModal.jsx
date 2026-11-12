@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { sourceLabel } from '../constants/reservationSource';
 import styles from './ReservationConfirmationModal.module.css';
 
 const ReservationConfirmationModal = ({ 
@@ -323,6 +324,20 @@ const ReservationConfirmationModal = ({
               </table>
             </div>
           )}
+
+          {/* Medio de origen */}
+          <div className={styles.notesSection}>
+            <table className={styles.notesTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Medio:</td>
+                  <td className={styles.tableValue}>
+                    {sourceLabel(reservationData?.source)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           {/* Estado de la reserva */}
           <div className={styles.statusSection}>

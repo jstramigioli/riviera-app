@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaUser, FaTimes } from 'react-icons/fa';
 import { API_URL } from '../../services/api';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { getDisplaySegments } from '../../utils/virtualRoomReservation';
 
 const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -30,8 +31,13 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
     }
   }, [reservation]);
 
-  // Obtener la cantidad de huéspedes requeridos desde el primer segmento
-  const requiredGuests = reservation?.segments?.[0]?.guestCount || reservation?.requiredGuests || 1;
+  // Huéspedes del tramo lógico (colapsa componentes virtuales 8+9 → un bloque)
+  const displaySegments = useMemo(
+    () => getDisplaySegments(reservation?.segments || []),
+    [reservation?.segments]
+  );
+  const requiredGuests =
+    displaySegments[0]?.guestCount || reservation?.requiredGuests || 1;
   
   // Calcular cuántos acompañantes se necesitan (excluyendo el cliente principal)
   // Si requiredGuests = 1, no necesita acompañantes

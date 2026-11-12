@@ -363,6 +363,7 @@
   
   .selectedClientContainer,
   .guestsFieldContainer,
+  .sourceFieldContainer,
   .notesFieldContainer {
     flex: 1 1 auto;
     min-width: 100%;
@@ -602,6 +603,42 @@
 
 .guestsFieldContainer {
   flex: 0 0 150px;
+}
+
+.sourceFieldContainer {
+  flex: 0 0 180px;
+}
+
+.sourceFieldContainer .formGroup {
+  margin: 0;
+}
+
+.sourceFieldContainer label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.sourceFieldContainer select,
+.guestsFieldContainer select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+  height: 42px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.sourceFieldContainer select:focus,
+.guestsFieldContainer select:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 .selectedClientContainer {
