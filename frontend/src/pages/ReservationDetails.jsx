@@ -18,6 +18,7 @@ import {
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
+import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
@@ -663,6 +664,10 @@ const ReservationDetails = () => {
 
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
+          <ReservationStayTimeline
+            reservation={reservation}
+            getServiceTypeLabel={getServiceTypeLabel}
+          />
           {renderTabContent()}
         </div>
       </div>
