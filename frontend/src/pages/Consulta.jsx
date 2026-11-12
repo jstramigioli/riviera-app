@@ -268,10 +268,13 @@ export default function Consulta() {
   // const [pricingError, setPricingError] = useState(null); // Ya no se usa
 
   // Edición de reserva existente (mismo flujo que crear)
-  const [editingReservationId, setEditingReservationId] = useState(null);
+  const initialEditReservationId =
+    location.state?.reservationId || location.state?.reservationEdit?.id || null;
+  const [editingReservationId, setEditingReservationId] = useState(initialEditReservationId);
   const [editingReservationStatus, setEditingReservationStatus] = useState(null);
   const [applyRateChanges, setApplyRateChanges] = useState(true);
   const [originalBaseRatesByBlock, setOriginalBaseRatesByBlock] = useState({});
+  const [editPrefillReady, setEditPrefillReady] = useState(!initialEditReservationId);
 
   // Estados para gestión de consultas
   const [currentQueryId, setCurrentQueryId] = useState(null);
@@ -292,9 +295,14 @@ export default function Consulta() {
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
+  // Evita que efectos de reset borren el prefill durante la hidratación de edición
+  const hydratingEditRef = useRef(false);
   
   // Ref para rastrear los valores previos de los segmentos
   const previousSegmentsRef = useRef({});
+  const isEditingReservationNav = Boolean(
+    location.state?.isEditingReservation || location.state?.reservationEdit || editingReservationId
+  );
 
   // Función para toggle de detalles de habitación
   const toggleRoomDetails = (roomId) => {
@@ -957,33 +965,24 @@ export default function Consulta() {
   // Cargar reserva existente para editar (mismo flujo que crear)
   useEffect(() => {
     const reservationId = location.state?.reservationId || location.state?.reservationEdit?.id;
-    if (!reservationId || dataLoadedRef.current) return;
+    if (!reservationId) return;
     if (!location.state?.isEditingReservation && !location.state?.reservationEdit) return;
+    // Strict Mode remount: no marcar dataLoaded hasta aplicar el prefill con éxito
+    if (dataLoadedRef.current) return;
 
     let cancelled = false;
-    dataLoadedRef.current = true;
 
     (async () => {
       try {
         const full = await fetchReservation(reservationId);
         if (cancelled || !full) return;
 
+        hydratingEditRef.current = true;
+        dataLoadedRef.current = true;
+
         setEditingReservationId(full.id);
         setEditingReservationStatus(full.status || 'PENDIENTE');
         setApplyRateChanges(true);
-
-        if (full.mainClient) {
-          setFormData((prev) => ({
-            ...prev,
-            mainClient: {
-              id: full.mainClient.id,
-              firstName: full.mainClient.firstName || '',
-              lastName: full.mainClient.lastName || '',
-              email: full.mainClient.email || '',
-              phone: full.mainClient.phone || ''
-            }
-          }));
-        }
 
         const collapsed = collapseSegmentsForEditUi(full.segments || []);
         const loadedSegments = collapsed.map((seg, index) => ({
@@ -998,61 +997,119 @@ export default function Consulta() {
           reservationType: seg.services?.[0] || full.reservationType || 'con_desayuno'
         }));
 
+        const roomsByBlock = {};
+        const ratesByBlock = {};
+        const searchedByBlock = {};
+        collapsed.forEach((seg, index) => {
+          const room = selectedRoomFromCollapsedSegment(seg);
+          roomsByBlock[index] = room;
+          ratesByBlock[index] = Number(seg.baseRate) || 0;
+          searchedByBlock[index] = true;
+        });
+
+        const first = collapsed[0] || null;
+        const guestCount = first?.guestCount || full.requiredGuests || 1;
+        const serviceType = first?.services?.[0] || full.reservationType || '';
+        const checkIn = String(first?.startDate || full.checkIn || '').slice(0, 10);
+        const checkOut = String(first?.endDate || full.checkOut || '').slice(0, 10);
+
+        setFormData((prev) => ({
+          ...prev,
+          checkIn,
+          checkOut,
+          mainClient: full.mainClient
+            ? {
+                id: full.mainClient.id,
+                firstName: full.mainClient.firstName || '',
+                lastName: full.mainClient.lastName || '',
+                email: full.mainClient.email || '',
+                phone: full.mainClient.phone || ''
+              }
+            : prev.mainClient
+        }));
+
         setSegments(loadedSegments.length > 0 ? loadedSegments : [{
           id: Date.now(),
-          checkIn: String(full.checkIn || '').slice(0, 10),
-          checkOut: String(full.checkOut || '').slice(0, 10),
-          requiredGuests: full.requiredGuests || 1,
+          checkIn,
+          checkOut,
+          requiredGuests: guestCount,
           requiredTags: [],
           requiredRoomId: null,
           requirementsNotes: '',
-          serviceType: full.reservationType || ''
+          serviceType
         }]);
 
-        const roomsByBlock = {};
-        const ratesByBlock = {};
-        collapsed.forEach((seg, index) => {
-          roomsByBlock[index] = selectedRoomFromCollapsedSegment(seg);
-          ratesByBlock[index] = Number(seg.baseRate) || 0;
+        setRequirements({
+          requiredGuests: guestCount,
+          requiredTags: first?.requiredTags || [],
+          requiredRoomId: first?.requiredRoomId || null,
+          requirementsNotes: '',
+          serviceType
         });
+
         setSelectedRoomsPerBlock(roomsByBlock);
+        setAvailableRoomsPerBlock(
+          Object.fromEntries(
+            Object.entries(roomsByBlock).map(([idx, room]) => [idx, room ? [room] : []])
+          )
+        );
+        setHasSearchedPerBlock(searchedByBlock);
         setOriginalBaseRatesByBlock(ratesByBlock);
 
-        const first = collapsed[0];
-        if (first) {
-          setFormData((prev) => ({
-            ...prev,
-            checkIn: String(first.startDate || full.checkIn || '').slice(0, 10),
-            checkOut: String(first.endDate || full.checkOut || '').slice(0, 10)
-          }));
-          setRequirements({
-            requiredGuests: first.guestCount || full.requiredGuests || 1,
-            requiredTags: first.requiredTags || [],
-            requiredRoomId: first.requiredRoomId || null,
-            requirementsNotes: ''
-          });
-          if (roomsByBlock[0]?.roomType) {
-            setSelectedRoomType(roomsByBlock[0].roomType);
-          }
+        if (roomsByBlock[0]?.roomType) {
+          setSelectedRoomType(roomsByBlock[0].roomType);
         }
+
+        // Inicializar refs de segmentos para que no disparen reset de búsqueda
+        previousSegmentsRef.current = {};
+        (loadedSegments.length > 0 ? loadedSegments : [{ checkIn, checkOut, requiredTags: [], requiredRoomId: null, serviceType }])
+          .forEach((seg, index) => {
+            previousSegmentsRef.current[index] = {
+              checkIn: seg.checkIn,
+              checkOut: seg.checkOut,
+              requiredTags: JSON.stringify(seg.requiredTags || []),
+              requiredRoomId: seg.requiredRoomId || null,
+              serviceType: seg.serviceType || ''
+            };
+          });
 
         setNotes(full.notes || '');
         setSource(full.source || '');
         setActiveBlockIndex(0);
-        window.history.replaceState({}, document.title);
+        setEditPrefillReady(true);
+
+        // Mantener flags de edición en el history state (no vaciar: Strict Mode + HMR)
+        navigate('.', {
+          replace: true,
+          state: {
+            isEditingReservation: true,
+            reservationId: full.id,
+            reservationEdit: { id: full.id }
+          }
+        });
+
+        queueMicrotask(() => {
+          hydratingEditRef.current = false;
+        });
       } catch (error) {
         console.error('Error cargando reserva para editar:', error);
-        notify({
-          title: 'Error al cargar',
-          message: 'No se pudo cargar la reserva para editar.',
-          type: 'error'
-        });
-        dataLoadedRef.current = false;
+        if (!cancelled) {
+          notify({
+            title: 'Error al cargar',
+            message: 'No se pudo cargar la reserva para editar.',
+            type: 'error'
+          });
+          dataLoadedRef.current = false;
+          setEditPrefillReady(true);
+          hydratingEditRef.current = false;
+        }
       }
     })();
 
     return () => { cancelled = true; };
-  }, [location.state?.reservationId, location.state?.reservationEdit?.id, location.state?.isEditingReservation]);
+    // notify es estable vía useAppNotice; omitido a propósito para no re-disparar el prefill
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.reservationId, location.state?.reservationEdit?.id, location.state?.isEditingReservation, navigate]);
 
   // Cargar datos de la consulta desde el modal o desde la tabla de consultas
   useEffect(() => {
@@ -1340,14 +1397,14 @@ export default function Consulta() {
     loadClients();
     loadAllRooms();
     
-    // Solo cargar fechas por defecto si no estamos editando una consulta existente
-    if (!location.state?.isEditing) {
+    // No pisar fechas al editar consulta o reserva existente
+    if (!location.state?.isEditing && !isEditingReservationNav) {
       console.log('🔍 Cargando fechas por defecto');
       loadDefaultDates();
     } else {
       console.log('🔍 NO cargando fechas por defecto (editando)');
     }
-  }, [loadClients, loadAllRooms, loadDefaultDates]);
+  }, [loadClients, loadAllRooms, loadDefaultDates, location.state?.isEditing, isEditingReservationNav]);
 
   // NO sincronizamos roomId porque ya no lo guardamos en consultas
   // Las habitaciones se buscarán automáticamente con debouncing cuando se cumplan las condiciones
@@ -1527,6 +1584,10 @@ export default function Consulta() {
       if (hasChanged) {
         // Actualizar valores previos inmediatamente
         previousSegmentsRef.current[index] = currentValues;
+
+        if (hydratingEditRef.current) {
+          return;
+        }
         
         // Solo resetear si ya se había realizado una búsqueda
         if (hasSearchedPerBlock[index]) {
@@ -1552,6 +1613,8 @@ export default function Consulta() {
 
   // Resetear búsqueda en TODOS los bloques cuando cambie la cantidad global de huéspedes
   useEffect(() => {
+    if (hydratingEditRef.current) return;
+
     // Resetear todos los bloques que ya fueron buscados
     const blocksToReset = Object.keys(hasSearchedPerBlock).filter(index => hasSearchedPerBlock[index]);
     
@@ -2904,6 +2967,18 @@ export default function Consulta() {
     previousSegmentsRef.current = {};
   };
 
+  if (editingReservationId && !editPrefillReady) {
+    return (
+      <div className={styles.newLayout}>
+        <div className={styles.unifiedContainer}>
+          <div className={styles.sectionHeader}>
+            <h2>Cargando reserva #{editingReservationId}…</h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.newLayout}>
       {/* Contenedor unificado: Cliente + Pestañas */}
@@ -2911,11 +2986,11 @@ export default function Consulta() {
         {/* 1. Título de la consulta */}
         <div className={styles.sectionHeader}>
           <h2>
-            {!formData.mainClient.id ? (
-              'Consulta rápida'
-            ) : (
-              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`
-            )}
+            {editingReservationId
+              ? `Editar reserva #${editingReservationId}`
+              : !formData.mainClient.id
+                ? 'Consulta rápida'
+                : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`}
           </h2>
         </div>
         
@@ -3051,7 +3126,7 @@ export default function Consulta() {
                   onChange={(e) => setSource(e.target.value)}
                   aria-label="Por qué medio se hizo la consulta o reserva"
                 >
-                  <option value="">Sin especificar</option>
+                  <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
@@ -3153,7 +3228,7 @@ export default function Consulta() {
                   onChange={(e) => setSource(e.target.value)}
                   aria-label="Por qué medio se hizo la consulta o reserva"
                 >
-                  <option value="">Sin especificar</option>
+                  <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
