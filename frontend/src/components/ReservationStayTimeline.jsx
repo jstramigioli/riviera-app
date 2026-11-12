@@ -14,7 +14,7 @@ const circleClass = (kind) => {
 /**
  * Timeline de hitos de la estadía (arriba del detalle).
  * Nodos: creación, check-in, cambios multi-tramo, check-out.
- * Entre nodos: «habitación · servicio».
+ * Etiqueta «habitación · servicio» solo entre check-in y check-out.
  */
 const ReservationStayTimeline = ({ reservation, getServiceTypeLabel }) => {
   const timeline = useMemo(
@@ -33,10 +33,13 @@ const ReservationStayTimeline = ({ reservation, getServiceTypeLabel }) => {
       <div className={styles.track} role="list">
         {timeline.items.map((item) => {
           if (item.type === 'edge') {
+            const edgeClass = item.compact
+              ? `${styles.itemEdge} ${styles.itemEdgeCompact}`
+              : styles.itemEdge;
             return (
               <div
                 key={item.id}
-                className={styles.itemEdge}
+                className={edgeClass}
                 role="listitem"
                 data-testid={`timeline-edge-${item.id}`}
               >

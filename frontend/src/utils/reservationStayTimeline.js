@@ -71,7 +71,7 @@ const changeTitle = (kind) => {
 /**
  * Arma nodos + tramos del timeline de estadía para el detalle de reserva.
  * Nodos: creación, check-in, cambios (multi-tramo), check-out.
- * Entre nodos: «nº habitación · tipo servicio».
+ * Etiqueta «nº habitación · tipo servicio» solo entre check-in y check-out.
  */
 export function buildReservationStayTimeline(reservation, options = {}) {
   const getServiceTypeLabel = options.getServiceTypeLabel;
@@ -106,10 +106,12 @@ export function buildReservationStayTimeline(reservation, options = {}) {
   });
 
   const firstSeg = segments[0] || null;
+  // Tramo corto sin etiqueta: creación cerca de check-in a la izquierda.
   items.push({
     type: 'edge',
     id: 'edge-pre-checkin',
-    label: edgeLabel(firstSeg, getServiceTypeLabel)
+    compact: true,
+    label: null
   });
 
   items.push({
