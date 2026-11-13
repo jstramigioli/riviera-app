@@ -13,7 +13,7 @@ function civilLocalDate(dayIso) {
   return new Date(y, m - 1, d);
 }
 
-function OccupancyBar({ label, percentage, detail }) {
+function OccupancyBar({ label, percentage }) {
   const pct = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
   const display = pct.toFixed(1);
 
@@ -33,14 +33,11 @@ function OccupancyBar({ label, percentage, detail }) {
       >
         <div className={styles.occupancyFill} style={{ width: `${pct}%` }} />
       </div>
-      {detail ? <div className={styles.occupancyDetail}>{detail}</div> : null}
     </div>
   );
 }
 
 function MovementColumn({ title, total, names, variant, icon }) {
-  const empty = !names?.length;
-
   return (
     <section className={`${styles.movementCol} ${styles[variant]}`}>
       <header className={styles.movementHeader}>
@@ -53,16 +50,12 @@ function MovementColumn({ title, total, names, variant, icon }) {
         </div>
       </header>
       <ul className={styles.movementList}>
-        {empty ? (
-          <li className={styles.movementEmpty}>Sin movimientos</li>
-        ) : (
-          names.map((name, idx) => (
-            <li key={`${name}-${idx}`} className={styles.movementItem}>
-              <span className={styles.movementDot} aria-hidden="true" />
-              <span className={styles.movementName}>{name}</span>
-            </li>
-          ))
-        )}
+        {(names || []).map((name, idx) => (
+          <li key={`${name}-${idx}`} className={styles.movementItem}>
+            <span className={styles.movementDot} aria-hidden="true" />
+            <span className={styles.movementName}>{name}</span>
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -96,20 +89,15 @@ export default function DayInfoSidePanel({
   const formattedDate = format(dateForFormat, "EEEE, d 'de' MMMM 'de' yyyy", {
     locale: es
   });
-  const shortDate = format(dateForFormat, "d 'de' MMMM", { locale: es });
 
   return (
     <SidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Información del ${shortDate}`}
+      title={formattedDate}
       width={450}
     >
       <div className={styles.content}>
-        <div className={styles.dateHeader}>
-          <h3>{formattedDate}</h3>
-        </div>
-
         <div className={styles.movementsGrid}>
           <MovementColumn
             title="Ingresos"
@@ -132,12 +120,10 @@ export default function DayInfoSidePanel({
           <OccupancyBar
             label="Ocupación habitaciones"
             percentage={stats.roomOccupancyPercentage}
-            detail={`${stats.occupiedRooms} de ${stats.totalRooms} habitaciones`}
           />
           <OccupancyBar
             label="Ocupación pasajeros"
             percentage={stats.guestOccupancyPercentage}
-            detail={`${stats.totalGuests} de ${stats.totalGuestCapacity} plazas`}
           />
         </div>
       </div>

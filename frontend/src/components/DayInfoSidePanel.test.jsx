@@ -98,7 +98,8 @@ describe('DayInfoSidePanel', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText('Información del 2 de enero')).toBeInTheDocument();
+    expect(screen.getByText(/2 de enero de 2024/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Información del/i)).not.toBeInTheDocument();
   });
 
   it('muestra ingresos/salidas en columnas con nombres y ocupación en barras', () => {
@@ -129,8 +130,8 @@ describe('DayInfoSidePanel', () => {
     expect(screen.getByText('Ocupación pasajeros')).toBeInTheDocument();
     expect(screen.getByText('66.7%')).toBeInTheDocument();
     expect(screen.getByText('37.5%')).toBeInTheDocument();
-    expect(screen.getByText('2 de 3 habitaciones')).toBeInTheDocument();
-    expect(screen.getByText('3 de 8 plazas')).toBeInTheDocument();
+    expect(screen.queryByText(/de \d+ habitaciones/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/de \d+ plazas/i)).not.toBeInTheDocument();
 
     const roomBar = screen.getByRole('progressbar', { name: 'Ocupación habitaciones' });
     const guestBar = screen.getByRole('progressbar', { name: 'Ocupación pasajeros' });
@@ -148,9 +149,9 @@ describe('DayInfoSidePanel', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getAllByText('Sin movimientos')).toHaveLength(2);
+    expect(screen.queryByText('Sin movimientos')).not.toBeInTheDocument();
     expect(screen.getAllByText('0.0%').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('0 de 8 plazas')).toBeInTheDocument();
+    expect(screen.queryByText(/de \d+ plazas/i)).not.toBeInTheDocument();
   });
 
   it('should call onClose when close button is clicked', () => {

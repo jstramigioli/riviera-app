@@ -6,20 +6,6 @@
   overflow-y: auto;
 }
 
-.dateHeader {
-  margin-bottom: 1.25rem;
-  text-align: center;
-}
-
-.dateHeader h3 {
-  margin: 0;
-  color: #2c3e50;
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-  opacity: 0.85;
-  text-transform: capitalize;
-}
-
 .sectionTitle {
   margin: 0 0 0.85rem;
   color: #2c3e50;
@@ -136,13 +122,6 @@
   word-break: break-word;
 }
 
-.movementEmpty {
-  font-size: 0.82rem;
-  color: #868e96;
-  font-style: italic;
-  padding: 0.15rem 0;
-}
-
 /* —— Ocupación (barras horizontales) —— */
 .occupancySection {
   background: #ffffff;
@@ -188,12 +167,6 @@
   border-radius: inherit;
   background: var(--color-primary, #667eea);
   transition: width 0.25s ease;
-}
-
-.occupancyDetail {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
-  color: #868e96;
 }
 
 @media (max-width: 480px) {
