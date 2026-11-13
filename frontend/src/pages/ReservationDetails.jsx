@@ -15,6 +15,7 @@ import {
 } from '../services/api.js';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import { sourceLabel } from '../constants/reservationSource';
+import { copyReservationClientSummary } from '../utils/reservationClientSummary';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
@@ -54,6 +55,7 @@ const ReservationDetails = () => {
   const [checkInInfo, setCheckInInfo] = useState(null);
   const [sendingCheckIn, setSendingCheckIn] = useState(false);
   const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
@@ -184,6 +186,27 @@ const ReservationDetails = () => {
         title: 'No se pudo copiar',
         message: url,
         type: 'warning'
+      });
+    }
+  };
+
+  const handleCopyClientSummary = async () => {
+    if (!reservation) return;
+    try {
+      await copyReservationClientSummary(reservation, { getServiceTypeLabel });
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 1600);
+      notify({
+        title: 'Copiado',
+        message: 'Resumen de la reserva copiado al portapapeles.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error al copiar resumen de reserva:', error);
+      notify({
+        title: 'Error al copiar',
+        message: 'No se pudo copiar el resumen al portapapeles.',
+        type: 'error'
       });
     }
   };
@@ -535,15 +558,27 @@ const ReservationDetails = () => {
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleEditToggle}
-                  className={styles.headerIconBtn}
-                  title="Editar reserva"
-                  aria-label="Editar reserva"
-                >
-                  <FaPen />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCopyClientSummary}
+                    className={styles.headerIconBtn}
+                    title="Copiar resumen para el cliente"
+                    aria-label="Copiar resumen para el cliente"
+                    data-testid="details-copy-summary"
+                  >
+                    {copiedSummary ? <FiCheck /> : <FiCopy />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={styles.headerIconBtn}
+                    title="Editar reserva"
+                    aria-label="Editar reserva"
+                  >
+                    <FaPen />
+                  </button>
+                </>
               )}
             </div>
           </div>
