@@ -152,12 +152,12 @@ export default function CreateQueryModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="source">Por qué medio</label>
+            <label htmlFor="source">Medio de contacto:</label>
             <select
               id="source"
               value={formData.source}
               onChange={(e) => handleInputChange('source', e.target.value)}
-              aria-label="Por qué medio se hizo la consulta"
+              aria-label="Medio de contacto"
             >
               <option value="">No especificado</option>
               {RESERVATION_SOURCE_OPTIONS.map((opt) => (
