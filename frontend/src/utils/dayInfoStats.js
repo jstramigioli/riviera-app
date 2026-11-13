@@ -7,6 +7,10 @@
  * - Pasajeros alojados: por reserva (colapsando secundarios de virtual).
  * - Ocupación pasajeros % = totalGuests / Σ maxPeople * 100
  * - Ingresos/salidas (pasajeros): tamaño del grupo que llega/sale ese día civil.
+ * - Desayuno (fecha): start < day <= end (check-in NO; check-out SÍ).
+ * - Cena (fecha): start <= day < end (check-in SÍ; check-out NO).
+ * - Servicio: solo alojamiento → ninguna comida; solo desayuno → desayuno;
+ *   media pensión → ambas (siempre ∩ reglas de fecha).
  */
 
 function civilOf(value) {
@@ -43,6 +47,107 @@ function segmentsCoveringDay(segments, dayIso) {
     const end = civilOf(seg.endDate ?? seg.checkOut);
     return start && end && start <= dayIso && dayIso < end;
   });
+}
+
+function previousCivilDay(dayIso) {
+  const [y, m, d] = String(dayIso).split('-').map(Number);
+  if (![y, m, d].every(Number.isFinite)) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
+
+function normalizeServiceToken(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildServiceTypesById(serviceTypes) {
+  const map = new Map();
+  for (const st of serviceTypes || []) {
+    if (st?.id != null) map.set(String(st.id), st);
+  }
+  return map;
+}
+
+/** Ref de servicio de un segmento / reserva (ID, key o nombre). */
+export function primaryServiceRef(segs, reservation) {
+  for (const seg of segs || []) {
+    if (Array.isArray(seg.services) && seg.services[0]) return seg.services[0];
+    if (seg.serviceType) return seg.serviceType;
+    if (seg.reservationType) return seg.reservationType;
+  }
+  return (
+    reservation?.reservationType ||
+    reservation?.serviceType ||
+    (Array.isArray(reservation?.services) ? reservation.services[0] : null) ||
+    null
+  );
+}
+
+/**
+ * Flags de comida según servicio canónico / nombre.
+ * - media pensión → desayuno + cena
+ * - solo desayuno → desayuno
+ * - solo alojamiento / sin desayuno → ninguna
+ */
+export function mealFlagsFromServiceRef(ref, serviceTypesById = new Map()) {
+  if (ref == null || ref === '') {
+    return { breakfast: false, dinner: false };
+  }
+
+  const tokens = [String(ref)];
+  const st = serviceTypesById.get(String(ref));
+  if (st?.name) tokens.push(st.name);
+  if (st?.description) tokens.push(st.description);
+  if (st?.id) tokens.push(String(st.id));
+
+  const blob = tokens.map(normalizeServiceToken).filter(Boolean).join(' ');
+  if (!blob) return { breakfast: false, dinner: false };
+
+  // Media pensión primero (el nombre canónico incluye «desayuno»).
+  if (
+    blob.includes('media_pension') ||
+    blob.includes('half_board') ||
+    blob === 'half' ||
+    blob.includes('half')
+  ) {
+    return { breakfast: true, dinner: true };
+  }
+
+  if (
+    blob.includes('solo_alojamiento') ||
+    blob.includes('sin_desayuno') ||
+    blob === 'lodging' ||
+    blob === 'base' ||
+    (blob.includes('alojamiento') &&
+      !blob.includes('desayuno') &&
+      !blob.includes('pension'))
+  ) {
+    return { breakfast: false, dinner: false };
+  }
+
+  if (
+    blob.includes('desayuno') ||
+    blob.includes('breakfast') ||
+    blob.includes('con_desayuno')
+  ) {
+    return { breakfast: true, dinner: false };
+  }
+
+  return { breakfast: false, dinner: false };
+}
+
+function mealFlagsForSegments(segs, reservation, serviceTypesById) {
+  return mealFlagsFromServiceRef(
+    primaryServiceRef(segs, reservation),
+    serviceTypesById
+  );
 }
 
 /**
@@ -118,12 +223,106 @@ export function mainClientDisplayName(reservation) {
   return 'Sin nombre';
 }
 
-export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
+function buildRoomsById(rooms) {
+  const map = new Map();
+  for (const room of rooms || []) {
+    if (room?.id != null) map.set(room.id, room);
+  }
+  return map;
+}
+
+function segmentRoomLabel(seg, roomsById) {
+  if (!seg) return null;
+  if (seg.uiRoomName) {
+    return String(seg.uiRoomName).replace(/^Hab(?:itación)?\s+/i, '');
+  }
+  if (seg.room?.name) return String(seg.room.name);
+  if (seg.virtualRoom?.name) return String(seg.virtualRoom.name);
+  if (seg.roomId != null) {
+    const fromList = roomsById.get(seg.roomId);
+    if (fromList?.name) return String(fromList.name);
+    return String(seg.roomId);
+  }
+  return null;
+}
+
+/**
+ * Habitación(es) del movimiento: ingresos = segmentos que empiezan ese día;
+ * salidas = segmentos que terminan ese día.
+ */
+export function movementRoomLabel(reservation, segments, dayIso, kind, roomsById) {
+  const segs = Array.isArray(segments) ? segments : [];
+  let relevant = [];
+  if (kind === 'in') {
+    relevant = segs.filter(
+      (s) => civilOf(s.startDate ?? s.checkIn) === dayIso
+    );
+    if (!relevant.length) {
+      relevant = segmentsCoveringDay(segs, dayIso);
+    }
+  } else {
+    relevant = segs.filter(
+      (s) => civilOf(s.endDate ?? s.checkOut) === dayIso
+    );
+  }
+
+  const labels = [];
+  const seen = new Set();
+  for (const seg of relevant) {
+    const label = segmentRoomLabel(seg, roomsById);
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  }
+
+  if (!labels.length) {
+    const legacyId = reservation?.roomId;
+    if (legacyId != null) {
+      const fromList = roomsById.get(legacyId);
+      if (fromList?.name) return String(fromList.name);
+      return String(legacyId);
+    }
+    return '—';
+  }
+
+  return labels.join('/');
+}
+
+export function movementListLabel(roomLabel, guestName) {
+  return `${roomLabel || '—'} - ${guestName || 'Sin nombre'}`;
+}
+
+function movementItem(reservation, segments, dayIso, kind, roomsById) {
+  const guestName = mainClientDisplayName(reservation);
+  const room = movementRoomLabel(
+    reservation,
+    segments,
+    dayIso,
+    kind,
+    roomsById
+  );
+  return {
+    reservationId: reservation.id,
+    roomLabel: room,
+    guestName,
+    label: movementListLabel(room, guestName)
+  };
+}
+
+export function computeDayInfoStats(
+  dayIso,
+  rooms = [],
+  reservations = [],
+  serviceTypes = []
+) {
   const totalRooms = rooms?.length || 0;
   const totalGuestCapacity = (rooms || []).reduce(
     (sum, room) => sum + roomCapacity(room),
     0
   );
+  const roomsById = buildRoomsById(rooms);
+  const serviceTypesById = buildServiceTypesById(serviceTypes);
 
   if (!dayIso) {
     return {
@@ -131,12 +330,16 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
       checkOuts: 0,
       checkInNames: [],
       checkOutNames: [],
+      checkInItems: [],
+      checkOutItems: [],
       occupiedRooms: 0,
       totalRooms,
       totalGuestCapacity,
       roomOccupancyPercentage: 0,
       totalGuests: 0,
-      guestOccupancyPercentage: 0
+      guestOccupancyPercentage: 0,
+      breakfastGuests: 0,
+      dinnerGuests: 0
     };
   }
 
@@ -144,8 +347,11 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   let checkIns = 0;
   let checkOuts = 0;
   let totalGuests = 0;
-  const checkInNames = [];
-  const checkOutNames = [];
+  let breakfastGuests = 0;
+  let dinnerGuests = 0;
+  const checkInItems = [];
+  const checkOutItems = [];
+  const prevDay = previousCivilDay(dayIso);
 
   for (const reservation of reservations || []) {
     if (NON_OCCUPYING.has(reservation.status)) continue;
@@ -160,20 +366,61 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
         if (seg.roomId != null) occupiedRoomIds.add(seg.roomId);
       }
       if (covering.length) {
-        totalGuests += guestsForCoveringSegments(reservation, covering);
+        const nightGuests = guestsForCoveringSegments(reservation, covering);
+        totalGuests += nightGuests;
+        const dinnerFlags = mealFlagsForSegments(
+          covering,
+          reservation,
+          serviceTypesById
+        );
+        if (dinnerFlags.dinner) dinnerGuests += nightGuests;
       }
     } else if (start && end && start <= dayIso && dayIso < end) {
       occupiedRoomIds.add(reservation.roomId || reservation.id);
-      totalGuests += partySize(reservation, []);
+      const nightGuests = partySize(reservation, []);
+      totalGuests += nightGuests;
+      const dinnerFlags = mealFlagsForSegments([], reservation, serviceTypesById);
+      if (dinnerFlags.dinner) dinnerGuests += nightGuests;
+    }
+
+    // Desayuno: mañana del día civil (no check-in; sí check-out) ∩ servicio.
+    if (start && end && start < dayIso && dayIso <= end) {
+      const prevCovering = prevDay
+        ? segmentsCoveringDay(segments, prevDay)
+        : [];
+      const breakfastSegs = prevCovering.length
+        ? prevCovering
+        : segments.filter(
+            (s) => civilOf(s.endDate ?? s.checkOut) === dayIso
+          );
+      const breakfastFlags = mealFlagsForSegments(
+        breakfastSegs.length ? breakfastSegs : segments,
+        reservation,
+        serviceTypesById
+      );
+      if (breakfastFlags.breakfast) {
+        if (dayIso === end || !covering.length) {
+          breakfastGuests += partySize(
+            reservation,
+            breakfastSegs.length ? breakfastSegs : segments
+          );
+        } else {
+          breakfastGuests += guestsForCoveringSegments(reservation, covering);
+        }
+      }
     }
 
     if (start === dayIso) {
       checkIns += size;
-      checkInNames.push(mainClientDisplayName(reservation));
+      checkInItems.push(
+        movementItem(reservation, segments, dayIso, 'in', roomsById)
+      );
     }
     if (end === dayIso) {
       checkOuts += size;
-      checkOutNames.push(mainClientDisplayName(reservation));
+      checkOutItems.push(
+        movementItem(reservation, segments, dayIso, 'out', roomsById)
+      );
     }
   }
 
@@ -187,13 +434,17 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   return {
     checkIns,
     checkOuts,
-    checkInNames,
-    checkOutNames,
+    checkInNames: checkInItems.map((i) => i.label),
+    checkOutNames: checkOutItems.map((i) => i.label),
+    checkInItems,
+    checkOutItems,
     occupiedRooms,
     totalRooms,
     totalGuestCapacity,
     roomOccupancyPercentage,
     totalGuests,
-    guestOccupancyPercentage
+    guestOccupancyPercentage,
+    breakfastGuests,
+    dinnerGuests
   };
 }
