@@ -6,8 +6,10 @@ const { roleHasPermission } = require('../auth/permissions');
 const {
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
+  DEFAULT_PAGO_MOTIVO,
   methodRequiresBilling,
-  isCardMethod
+  isCardMethod,
+  normalizePagoMotivo
 } = require('../utils/billingConstants');
 const {
   ADJUNTO_TIPOS,
@@ -55,7 +57,24 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
     return { error: 'Tipo de factura inválido. Debe ser A o B' };
   }
 
-  const fecha = facturaInput.fecha ? new Date(facturaInput.fecha) : new Date();
+  let fecha = new Date();
+  if (facturaInput.fecha) {
+    const raw = String(facturaInput.fecha).trim();
+    const dayOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dayOnly) {
+      fecha = new Date(
+        Number(dayOnly[1]),
+        Number(dayOnly[2]) - 1,
+        Number(dayOnly[3]),
+        12,
+        0,
+        0,
+        0
+      );
+    } else {
+      fecha = new Date(raw);
+    }
+  }
   if (Number.isNaN(fecha.getTime())) {
     return { error: 'Fecha de factura inválida' };
   }
@@ -217,13 +236,19 @@ exports.createPago = async (req, res) => {
     empresa,
     referencia,
     notas,
-    fecha,
+    motivo,
     requiereFacturacion,
     factura
   } = req.body;
+  // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
+  }
+
+  const motivoPago = normalizePagoMotivo(motivo ?? DEFAULT_PAGO_MOTIVO);
+  if (!motivoPago) {
+    return res.status(400).json({ error: 'Motivo inválido. Debe ser Seña o Pago' });
   }
 
   if (monto <= 0) {
@@ -253,7 +278,11 @@ exports.createPago = async (req, res) => {
   const wantsBilling = billingForced || Boolean(requiereFacturacion);
   let facturaParsed = null;
   if (wantsBilling) {
-    facturaParsed = buildFacturaData(factura, metodo, numeroTarjeta);
+    facturaParsed = buildFacturaData(
+      { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
+      metodo,
+      numeroTarjeta
+    );
     if (facturaParsed.error) {
       return res.status(400).json({ error: facturaParsed.error });
     }
@@ -293,10 +322,7 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(monto);
     }
 
-    const fechaPago = fecha ? new Date(fecha) : new Date();
-    if (Number.isNaN(fechaPago.getTime())) {
-      return res.status(400).json({ error: 'Fecha de pago inválida' });
-    }
+    const fechaPago = new Date();
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
       const codigo = await allocateNextPagoCodigo(tx);
@@ -313,6 +339,7 @@ exports.createPago = async (req, res) => {
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
           referencia: referencia || null,
           notas: notas || null,
+          motivo: motivoPago,
           fecha: fechaPago,
           requiereFacturacion: wantsBilling,
           ...(wantsBilling

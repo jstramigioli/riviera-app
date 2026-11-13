@@ -2,7 +2,9 @@ const {
   methodRequiresBilling,
   isCardMethod,
   INVOICE_TYPES,
-  DEFAULT_IVA_CONDITION
+  DEFAULT_IVA_CONDITION,
+  normalizePagoMotivo,
+  DEFAULT_PAGO_MOTIVO
 } = require('../../src/utils/billingConstants');
 
 describe('billingConstants', () => {
@@ -21,5 +23,14 @@ describe('billingConstants', () => {
   test('tipos de factura y IVA default', () => {
     expect(INVOICE_TYPES).toEqual(['A', 'B']);
     expect(DEFAULT_IVA_CONDITION).toBe('Responsable Inscripto');
+  });
+
+  test('normalizePagoMotivo solo Seña|Pago', () => {
+    expect(normalizePagoMotivo(undefined)).toBe(DEFAULT_PAGO_MOTIVO);
+    expect(normalizePagoMotivo('')).toBe(DEFAULT_PAGO_MOTIVO);
+    expect(normalizePagoMotivo('Pago')).toBe('Pago');
+    expect(normalizePagoMotivo('Seña')).toBe('Seña');
+    expect(normalizePagoMotivo('Sena')).toBe('Seña');
+    expect(normalizePagoMotivo('otro')).toBeNull();
   });
 });

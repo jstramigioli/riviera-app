@@ -8,12 +8,15 @@ import {
   getTipoCambioActual
 } from '../services/api';
 import {
+  DEFAULT_PAGO_MOTIVO,
   DOCUMENT_TYPES_AR,
   IVA_CONDITIONS,
+  PAGO_MOTIVOS,
   emptyBillingForm,
   isCardMethod,
+  localDateInputToIso,
   methodRequiresBilling,
-  todayLocalDateTimeInputValue
+  todayLocalDateInputValue
 } from '../constants/billing';
 import styles from './PaymentForm.module.css';
 
@@ -40,6 +43,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
     moneda: 'ARS',
     tipoCambio: '',
     metodo: 'Efectivo',
+    motivo: DEFAULT_PAGO_MOTIVO,
     numeroTarjeta: '',
     empresa: '',
     referencia: '',
@@ -66,7 +70,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         emptyBillingForm({
           ...prev,
           tipo: profile.lastInvoiceType === 'A' ? 'A' : 'B',
-          fecha: todayLocalDateTimeInputValue(),
+          fecha: todayLocalDateInputValue(),
           firstName: profile.firstName || '',
           lastName: profile.lastName || '',
           documentType: profile.documentType || 'DNI',
@@ -228,7 +232,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         setError('Seleccioná Factura A o Factura B');
         return;
       }
-      if (!billing.fecha) {
+      if (!billing.fecha || !localDateInputToIso(billing.fecha)) {
         setError('La fecha de facturación es requerida');
         return;
       }
@@ -254,8 +258,8 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
       const facturaPayload = billingEnabled
         ? {
             tipo: billing.tipo,
-            fecha: new Date(billing.fecha).toISOString(),
-            motivo: billing.motivo || null,
+            fecha: localDateInputToIso(billing.fecha),
+            motivo: formData.motivo || DEFAULT_PAGO_MOTIVO,
             firstName: billing.firstName || null,
             lastName: billing.lastName || null,
             documentType: billing.documentType || null,
@@ -272,16 +276,17 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
           }
         : undefined;
 
+      // fecha del pago: la fija el servidor (ahora). Solo se envía fecha de facturación si aplica.
       const pagoData = {
         monto: parseFloat(formData.monto),
         moneda: formData.moneda,
         tipoCambio: formData.moneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
         metodo: formData.metodo,
+        motivo: formData.motivo || DEFAULT_PAGO_MOTIVO,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
         referencia: formData.referencia || null,
         notas: formData.notas || null,
-        fecha: new Date().toISOString(),
         requiereFacturacion: billingEnabled,
         factura: facturaPayload
       };
@@ -418,6 +423,24 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
             </div>
 
             <div className={styles.formGroup}>
+              <label htmlFor="payment-motivo">Motivo *</label>
+              <select
+                id="payment-motivo"
+                value={formData.motivo}
+                onChange={(e) => handleInputChange('motivo', e.target.value)}
+                required
+              >
+                {PAGO_MOTIVOS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
               <label htmlFor="payment-ref">Referencia</label>
               <input
                 id="payment-ref"
@@ -532,23 +555,13 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label htmlFor="billing-fecha">Fecha *</label>
+                  <label htmlFor="billing-fecha">Fecha de facturación *</label>
                   <input
                     id="billing-fecha"
-                    type="datetime-local"
+                    type="date"
                     value={billing.fecha}
                     onChange={(e) => handleBillingChange('fecha', e.target.value)}
                     required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="billing-motivo">Motivo</label>
-                  <input
-                    id="billing-motivo"
-                    type="text"
-                    value={billing.motivo}
-                    onChange={(e) => handleBillingChange('motivo', e.target.value)}
-                    placeholder="Concepto / motivo"
                   />
                 </div>
               </div>

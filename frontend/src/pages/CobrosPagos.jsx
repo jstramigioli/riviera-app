@@ -33,7 +33,6 @@ const SECTIONS = {
 const FACTURA_B_COLUMNS = [
   { key: 'codigo', label: 'Código' },
   { key: 'fecha', label: 'Fecha' },
-  { key: 'motivo', label: 'Motivo' },
   { key: 'firstName', label: 'Nombre' },
   { key: 'lastName', label: 'Apellido' },
   { key: 'documentType', label: 'Tipo doc.' },
@@ -46,7 +45,6 @@ const FACTURA_B_COLUMNS = [
 const FACTURA_A_COLUMNS = [
   { key: 'codigo', label: 'Código' },
   { key: 'fecha', label: 'Fecha' },
-  { key: 'motivo', label: 'Motivo' },
   { key: 'businessName', label: 'Razón social' },
   { key: 'cuit', label: 'CUIT' },
   { key: 'commercialAddress', label: 'Dom. comercial' },
@@ -57,7 +55,8 @@ const FACTURA_A_COLUMNS = [
 
 function facturaCellValue(pago, key) {
   if (key === 'codigo') return paymentCodeLabel(pago);
-  if (key === 'fecha') return formatDisplayDateTime(pago?.factura?.fecha || pago?.fecha);
+  // Solo día (sin hora): fecha de facturación, que puede diferir de la del pago.
+  if (key === 'fecha') return formatDisplayDate(pago?.factura?.fecha || pago?.fecha);
   const raw = pago?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
@@ -84,6 +83,7 @@ const EMPTY_PAY_FILTERS = {
   montoMin: '',
   montoMax: '',
   metodo: '',
+  motivo: '',
   referencia: '',
 };
 
@@ -94,6 +94,7 @@ const PAY_COLUMN_KEYS = {
   cliente: ['cliente'],
   monto: ['montoMin', 'montoMax'],
   metodo: ['metodo'],
+  motivo: ['motivo'],
   referencia: ['referencia'],
 };
 
@@ -292,15 +293,19 @@ const CobrosPagos = () => {
     setSearchParams(next, { replace: true });
   };
 
+  const facturacionSortMs = (pago) => {
+    const raw = pago?.factura?.fecha || pago?.fecha;
+    return raw ? new Date(raw).getTime() : 0;
+  };
+
   const facturacionPagosA = useMemo(
     () =>
       (payments || [])
         .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'A')
         .slice()
         .sort((a, b) => {
-          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
-          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
-          if (db !== da) return db - da;
+          const diff = facturacionSortMs(b) - facturacionSortMs(a);
+          if (diff !== 0) return diff;
           return Number(b.id) - Number(a.id);
         }),
     [payments]
@@ -312,9 +317,8 @@ const CobrosPagos = () => {
         .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'B')
         .slice()
         .sort((a, b) => {
-          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
-          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
-          if (db !== da) return db - da;
+          const diff = facturacionSortMs(b) - facturacionSortMs(a);
+          if (diff !== 0) return diff;
           return Number(b.id) - Number(a.id);
         }),
     [payments]
@@ -536,6 +540,7 @@ const CobrosPagos = () => {
     const clienteNeedle = payFilters.cliente.trim();
     const referenciaNeedle = payFilters.referencia.trim();
     const metodoNeedle = payFilters.metodo;
+    const motivoNeedle = payFilters.motivo;
     const montoMin =
       payFilters.montoMin === '' ? null : Number(payFilters.montoMin);
     const montoMax =
@@ -583,6 +588,10 @@ const CobrosPagos = () => {
         }
 
         if (metodoNeedle && pago.metodo !== metodoNeedle) {
+          return false;
+        }
+
+        if (motivoNeedle && (pago.motivo || 'Pago') !== motivoNeedle) {
           return false;
         }
 
@@ -1069,6 +1078,7 @@ const CobrosPagos = () => {
                         { key: 'cliente', label: 'Cliente' },
                         { key: 'monto', label: 'Monto' },
                         { key: 'metodo', label: 'Método' },
+                        { key: 'motivo', label: 'Motivo' },
                         { key: 'referencia', label: 'Referencia' },
                       ].map(({ key, label }) => {
                         const isOpen = openPayColumn === key;
@@ -1101,7 +1111,7 @@ const CobrosPagos = () => {
                   <tbody>
                     {filteredPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className={styles.emptyCell}>
+                        <td colSpan={10} className={styles.emptyCell}>
                           No hay pagos con los filtros actuales
                         </td>
                       </tr>
@@ -1143,6 +1153,7 @@ const CobrosPagos = () => {
                             </td>
                             <td className={styles.amountCell}>{formatPrice(amount)}</td>
                             <td className={styles.metaCell}>{pago.metodo || '—'}</td>
+                            <td className={styles.metaCell}>{pago.motivo || 'Pago'}</td>
                             <td className={styles.metaCell}>
                               {pago.referencia || pago.empresa || '—'}
                             </td>
@@ -1379,6 +1390,19 @@ const CobrosPagos = () => {
                   {metodo}
                 </option>
               ))}
+            </select>
+          )}
+          {openPayColumn === 'motivo' && (
+            <select
+              className={styles.columnFilter}
+              aria-label="Filtrar por motivo"
+              autoFocus
+              value={payFilters.motivo}
+              onChange={(e) => setPayFilter('motivo', e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="Pago">Pago</option>
+              <option value="Seña">Seña</option>
             </select>
           )}
           {openPayColumn === 'referencia' && (

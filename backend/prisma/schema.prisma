@@ -556,6 +556,8 @@ model Pago {
   empresa              String?      // Empresa de la tarjeta (solo para métodos de tarjeta)
   referencia           String?      // Número de comprobante, referencia bancaria, etc.
   notas                String?
+  /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación)
+  motivo               String       @default("Pago")
   requiereFacturacion  Boolean      @default(false)
   /// Dinero/papel físico retirado (no aplica a Transferencia)
   retirado             Boolean      @default(false)
@@ -588,7 +590,7 @@ model PagoFactura {
   pago              Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
   /// A | B
   tipo              String
-  /// Fecha de la factura («marca temporal» = Fecha)
+  /// Fecha de facturación (día; puede diferir de Pago.fecha)
   fecha             DateTime @default(now())
   motivo            String?
   firstName         String?
