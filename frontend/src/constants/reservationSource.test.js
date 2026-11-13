@@ -17,6 +17,10 @@ describe('contrastTextColor', () => {
     expect(contrastTextColor(DEFAULT_SOURCE_COLORS.MAIL)).toBe('#ffffff')
   })
 
+  it('Mostrador slate → texto blanco', () => {
+    expect(contrastTextColor(DEFAULT_SOURCE_COLORS.MOSTRADOR)).toBe('#ffffff')
+  })
+
   it('acepta #rgb corto y valores inválidos con fallback oscuro', () => {
     expect(contrastTextColor('#000')).toBe('#ffffff')
     expect(contrastTextColor('#fff')).toBe('#1a1a1a')

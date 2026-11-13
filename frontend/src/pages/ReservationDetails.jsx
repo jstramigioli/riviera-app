@@ -607,7 +607,7 @@ const ReservationDetails = () => {
               />
             </div>
             <div className={styles.sourceMeta} data-testid="side-panel-source">
-              Medio: {sourceLabel(reservation.source)}
+              Reservado por: {sourceLabel(reservation.source)}
             </div>
             <div className={styles.metaDates} data-testid="side-panel-dates">
               <div>Fecha de creación: {formatDateTime(reservation.createdAt)}</div>

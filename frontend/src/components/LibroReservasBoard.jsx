@@ -602,7 +602,7 @@ export default function LibroReservasBoard({
                           </div>
                         ) : null}
 
-                        <div className={styles.filterMenuTitle}>Colores por medio</div>
+                        <div className={styles.filterMenuTitle}>Colores · Reservado por</div>
                         {RESERVATION_SOURCE_OPTIONS.map((opt) => (
                           <label
                             key={opt.value}
