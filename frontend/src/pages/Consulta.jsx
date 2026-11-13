@@ -320,9 +320,10 @@ export default function Consulta() {
   // Funciones para manejar bloques de estadía
   const addNewBlock = () => {
     const newBlockId = Date.now();
-    const lastBlock = segments[segments.length - 1];
+    const lastBlockIndex = segments.length - 1;
+    const lastBlock = segments[lastBlockIndex];
     
-    // Calcular fechas del nuevo bloque
+    // Calcular fechas del nuevo bloque (únicas; no se heredan del tramo anterior)
     let checkInDate;
     let checkOutDate;
     
@@ -338,19 +339,25 @@ export default function Consulta() {
       checkOutDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
     }
     
+    // Heredar habitación, servicio y requisitos del tramo anterior (no fechas)
     const newBlock = {
       id: newBlockId,
       checkIn: checkInDate,
       checkOut: checkOutDate,
-      requiredGuests: requirements.requiredGuests, // Usar la cantidad global
-      requiredTags: [],
-      requiredRoomId: null,
-      serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+      requiredGuests: lastBlock?.requiredGuests ?? requirements.requiredGuests ?? 1,
+      requiredTags: [...(lastBlock?.requiredTags || [])],
+      requiredRoomId: lastBlock?.requiredRoomId ?? null,
+      serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
+      requirementsNotes: lastBlock?.requirementsNotes || '',
+      reservationType: lastBlock?.reservationType || lastBlock?.serviceType || 'con_desayuno',
+      fixed: lastBlock?.fixed || false
     };
     
     console.log('➕ Nuevo bloque agregado:', {
       checkIn: checkInDate,
       checkOut: checkOutDate,
+      inheritedRoomId: newBlock.requiredRoomId,
+      inheritedService: newBlock.serviceType,
       diasEntreFechas: Math.ceil((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24))
     });
     
@@ -358,6 +365,16 @@ export default function Consulta() {
     
     setSegments(prev => [...prev, newBlock]);
     setActiveBlockIndex(newBlockIndex);
+
+    // Conservar la habitación elegida del tramo anterior como preferencia del nuevo
+    setSelectedRoomsPerBlock(prev => {
+      const priorRoom = prev[lastBlockIndex];
+      if (!priorRoom) return prev;
+      return {
+        ...prev,
+        [newBlockIndex]: priorRoom
+      };
+    });
     
     // El ref de valores previos se inicializará automáticamente en el useEffect
     // cuando se detecte el cambio de activeBlockIndex
