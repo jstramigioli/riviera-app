@@ -12,6 +12,7 @@ const {
   isVirtualBlockingSegment,
   collapseVirtualGroupsForTimeline
 } = require('./virtualRoomSegments');
+const { normalizeBedPreference } = require('./bedConfig');
 
 async function resolveHotelId(serviceTypeId) {
   if (serviceTypeId) {
@@ -286,12 +287,12 @@ async function getReservationWithData(reservationId) {
       // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
         include: {
-          room: true,
+          room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
           roomType: true,
           virtualRoom: {
             include: {
               roomType: true,
-              components: { include: { room: true }, orderBy: { orderIndex: 'asc' } }
+              components: { include: { room: { include: { beds: { orderBy: { orderIndex: 'asc' } } } } }, orderBy: { orderIndex: 'asc' } }
             }
           }
         },
@@ -301,12 +302,12 @@ async function getReservationWithData(reservationId) {
         include: {
           segments: {
             include: {
-              room: true,
+              room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
               roomType: true,
               virtualRoom: {
                 include: {
                   roomType: true,
-                  components: { include: { room: true }, orderBy: { orderIndex: 'asc' } }
+                  components: { include: { room: { include: { beds: { orderBy: { orderIndex: 'asc' } } } } }, orderBy: { orderIndex: 'asc' } }
                 }
               }
             },
@@ -334,12 +335,12 @@ async function getAllReservationsWithData() {
       guests: true,
       segments: {
         include: {
-          room: true,
+          room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
           roomType: true,
           virtualRoom: {
             include: {
               roomType: true,
-              components: { include: { room: true }, orderBy: { orderIndex: 'asc' } }
+              components: { include: { room: { include: { beds: { orderBy: { orderIndex: 'asc' } } } } }, orderBy: { orderIndex: 'asc' } }
             }
           }
         },
@@ -349,12 +350,12 @@ async function getAllReservationsWithData() {
         include: {
           segments: {
             include: {
-              room: true,
+              room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
               roomType: true,
               virtualRoom: {
                 include: {
                   roomType: true,
-                  components: { include: { room: true }, orderBy: { orderIndex: 'asc' } }
+                  components: { include: { room: { include: { beds: { orderBy: { orderIndex: 'asc' } } } } }, orderBy: { orderIndex: 'asc' } }
                 }
               }
             },
@@ -445,12 +446,13 @@ async function createReservationWithSegments(reservationData) {
         guestCount: parseInt(segmentData.guestCount),
         requiredTags: segmentData.requiredTags || [],
         requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
+        ...normalizeBedPreference(segmentData),
         reason: segmentData.reason || 'Segmento de reserva',
         notes: segmentData.notes || 'Segmento creado automáticamente',
         isActive: true
       },
       include: {
-        room: true,
+        room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
         roomType: true,
         virtualRoom: true
       }
@@ -673,12 +675,13 @@ async function updateReservationWithSegments(reservationId, updateData) {
           requiredRoomId: segmentData.requiredRoomId
             ? parseInt(segmentData.requiredRoomId, 10)
             : null,
+          ...normalizeBedPreference(segmentData),
           reason: segmentData.reason,
           notes: segmentData.notes,
           isActive: true
         },
         include: {
-          room: true,
+          room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
           roomType: true,
           virtualRoom: true
         }

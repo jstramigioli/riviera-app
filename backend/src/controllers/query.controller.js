@@ -1,6 +1,16 @@
 const { PrismaClient } = require('@prisma/client');
 const { normalizeReservationSource } = require('../constants/reservationSource');
+const { normalizeBedPreference } = require('../utils/bedConfig');
 const prisma = new PrismaClient();
+
+function bedPreferenceFields(source = {}) {
+  const pref = normalizeBedPreference(source);
+  return {
+    bedPreferenceNone: pref.bedPreferenceNone,
+    preferredDoubleBeds: pref.preferredDoubleBeds,
+    preferredSingleBeds: pref.preferredSingleBeds
+  };
+}
 
 // Obtener todas las consultas (agrupando multi-segmentos)
 const getAllQueries = async (req, res) => {
@@ -150,6 +160,9 @@ const createQuery = async (req, res) => {
       requiredRoomId,
       requiredTags = [],
       requirementsNotes,
+      bedPreferenceNone,
+      preferredDoubleBeds,
+      preferredSingleBeds,
       guests = []
     } = req.body;
 
@@ -169,6 +182,7 @@ const createQuery = async (req, res) => {
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
         requirementsNotes,
+        ...bedPreferenceFields({ bedPreferenceNone, preferredDoubleBeds, preferredSingleBeds }),
         guests: {
           create: guests.map(guest => ({
             firstName: guest.firstName || null,
@@ -255,6 +269,7 @@ const createMultiSegmentQuery = async (req, res) => {
           requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
           requiredTags: segment.requiredTags || [],
           requirementsNotes: segment.requirementsNotes || null,
+          ...bedPreferenceFields(segment),
           guests: {
             create: (segment.guests || []).map(guest => ({
               firstName: guest.firstName || null,
@@ -385,7 +400,8 @@ const updateMultiSegmentQuery = async (req, res) => {
         requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
         requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
         requiredTags: segment.requiredTags || [],
-        requirementsNotes: segment.requirementsNotes || null
+        requirementsNotes: segment.requirementsNotes || null,
+        ...bedPreferenceFields(segment)
       };
       
       // console.log(`📝 QueryData preparado para segmento ${i}:`, queryData);
@@ -513,7 +529,10 @@ const updateQuery = async (req, res) => {
       requiredGuests,
       requiredRoomId,
       requiredTags,
-      requirementsNotes
+      requirementsNotes,
+      bedPreferenceNone,
+      preferredDoubleBeds,
+      preferredSingleBeds
     } = req.body;
 
     const query = await prisma.query.update({
@@ -531,7 +550,8 @@ const updateQuery = async (req, res) => {
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
-        requirementsNotes
+        requirementsNotes,
+        ...bedPreferenceFields({ bedPreferenceNone, preferredDoubleBeds, preferredSingleBeds })
       },
       include: {
         guests: {

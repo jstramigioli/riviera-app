@@ -25,6 +25,8 @@ import {
   resolveEditReservationId
 } from '../utils/consultaNavigation';
 import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
+import { roomCanSatisfyBedPreference, normalizeBedPreference } from '../utils/bedConfig';
+import BedPreferenceFields from '../components/BedPreferenceFields';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -222,6 +224,9 @@ export default function Consulta() {
   const [requirements, setRequirements] = useState({
     requiredGuests: 1,
     requiredTags: [],
+    bedPreferenceNone: true,
+    preferredDoubleBeds: 0,
+    preferredSingleBeds: 0,
     requiredRoomId: null,
     serviceType: ''
   });
@@ -234,10 +239,15 @@ export default function Consulta() {
       checkOut: '',
       requiredGuests: 1,
       requiredTags: [],
+      bedPreferenceNone: true,
+      preferredDoubleBeds: 0,
+      preferredSingleBeds: 0,
       requiredRoomId: null,
       serviceType: ''
     }
   ]);
+
+  const bedFieldsFrom = (source = {}) => normalizeBedPreference(source);
 
   // Estado para clientes
   const [clients, setClients] = useState([]);
@@ -367,6 +377,7 @@ export default function Consulta() {
       checkOut: checkOutDate,
       requiredGuests: lastBlock?.requiredGuests ?? requirements.requiredGuests ?? 1,
       requiredTags: [...(lastBlock?.requiredTags || [])],
+      ...bedFieldsFrom(lastBlock || requirements),
       requiredRoomId: lastBlock?.requiredRoomId ?? null,
       serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
       requirementsNotes: lastBlock?.requirementsNotes || '',
@@ -640,6 +651,7 @@ export default function Consulta() {
           requiredGuests: segment.requiredGuests || 1,
           requiredRoomId: segment.requiredRoomId || null,
           requiredTags: segment.requiredTags || [],
+          ...bedFieldsFrom(segment),
           serviceType: segment.serviceType || '',
           requirementsNotes: segment.requirementsNotes || '',
           // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
@@ -1055,6 +1067,7 @@ export default function Consulta() {
           checkOut: String(seg.endDate || '').slice(0, 10),
           requiredGuests: seg.guestCount || full.requiredGuests || 1,
           requiredTags: seg.requiredTags || [],
+          ...bedFieldsFrom(seg),
           requiredRoomId: seg.requiredRoomId || null,
           requirementsNotes: '',
           serviceType: seg.services?.[0] || full.reservationType || '',
@@ -1098,6 +1111,7 @@ export default function Consulta() {
           checkOut,
           requiredGuests: guestCount,
           requiredTags: [],
+          ...bedFieldsFrom(first || {}),
           requiredRoomId: null,
           requirementsNotes: '',
           serviceType
@@ -1106,6 +1120,7 @@ export default function Consulta() {
         setRequirements({
           requiredGuests: guestCount,
           requiredTags: first?.requiredTags || [],
+          ...bedFieldsFrom(first || {}),
           requiredRoomId: first?.requiredRoomId || null,
           requirementsNotes: '',
           serviceType
@@ -1248,6 +1263,7 @@ export default function Consulta() {
                 checkOut: seg.checkOut ? seg.checkOut.split('T')[0] : '',
                 requiredGuests: seg.requiredGuests || 1,
                 requiredTags: seg.requiredTags || [],
+                ...bedFieldsFrom(seg),
                 requiredRoomId: seg.requiredRoomId || null,
                 requirementsNotes: seg.requirementsNotes || '',
                 serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -1280,6 +1296,7 @@ export default function Consulta() {
               setRequirements({
                 requiredGuests: firstSegment.requiredGuests || 1,
                 requiredTags: firstSegment.requiredTags || [],
+                ...bedFieldsFrom(firstSegment),
                 requiredRoomId: firstSegment.requiredRoomId || null,
                 requirementsNotes: firstSegment.requirementsNotes || ''
               });
@@ -1299,6 +1316,7 @@ export default function Consulta() {
               setRequirements({
                 requiredGuests: fullQueryData.requiredGuests || 1,
                 requiredTags: fullQueryData.requiredTags || [],
+                ...bedFieldsFrom(fullQueryData),
                 requiredRoomId: fullQueryData.requiredRoomId || null,
                 requirementsNotes: fullQueryData.requirementsNotes || ''
               });
@@ -1311,6 +1329,7 @@ export default function Consulta() {
                   checkOut: fullQueryData.checkOut.split('T')[0],
                   requiredGuests: fullQueryData.requiredGuests || 1,
                   requiredTags: fullQueryData.requiredTags || [],
+                  ...bedFieldsFrom(fullQueryData),
                   requiredRoomId: fullQueryData.requiredRoomId || null,
                   requirementsNotes: fullQueryData.requirementsNotes || '',
                   serviceType: fullQueryData.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
@@ -2350,9 +2369,22 @@ export default function Consulta() {
   const checkRequirementsCompliance = (room) => {
     const activeBlock = segments[activeBlockIndex];
     if (!activeBlock) {
-      return { complies: true, message: 'No hay bloque activo', score: 0 };
+      return { complies: true, message: 'No hay bloque activo', score: 0, bedWarning: null };
     }
-    return roomRequirementsCompliance(room, activeBlock.requiredTags || []);
+    const tagsCompliance = roomRequirementsCompliance(room, activeBlock.requiredTags || []);
+    const bedCompliance = roomCanSatisfyBedPreference(room?.beds || [], activeBlock);
+    const complies = tagsCompliance.complies && bedCompliance.complies;
+    const messages = [];
+    if (!tagsCompliance.complies) messages.push(tagsCompliance.message);
+    if (!bedCompliance.complies) messages.push(bedCompliance.message);
+    return {
+      complies,
+      message: complies
+        ? [tagsCompliance.message, bedCompliance.message].filter(Boolean).join(' · ')
+        : messages.join(' · '),
+      score: tagsCompliance.score,
+      bedWarning: bedCompliance.complies ? null : bedCompliance.message
+    };
   };
 
   // Funciones para manejar segmentos
@@ -2907,6 +2939,7 @@ export default function Consulta() {
             services: [segment.serviceType],
             requiredTags: segment.requiredTags || [],
             requiredRoomId: segment.requiredRoomId || null,
+            ...bedFieldsFrom(segment),
             baseRate: baseRate,
             nightRates,
             guestCount: segment.requiredGuests
@@ -3016,6 +3049,9 @@ export default function Consulta() {
     setRequirements({
       requiredGuests: 1,
       requiredTags: [],
+      bedPreferenceNone: true,
+      preferredDoubleBeds: 0,
+      preferredSingleBeds: 0,
       requiredRoomId: null,
       serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
     });
@@ -3026,6 +3062,9 @@ export default function Consulta() {
         checkOut: '',
         requiredGuests: 1,
         requiredTags: [],
+        bedPreferenceNone: true,
+        preferredDoubleBeds: 0,
+        preferredSingleBeds: 0,
         requiredRoomId: null,
         serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
       }
@@ -3193,6 +3232,16 @@ export default function Consulta() {
                   ))}
                 </select>
               </div>
+              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
+                <BedPreferenceFields
+                  value={requirements}
+                  maxGuests={maxGuestCapacity}
+                  onChange={(pref) => {
+                    setRequirements((prev) => ({ ...prev, ...pref }));
+                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+                  }}
+                />
+              </div>
             </div>
 
             {/* Reservado por (también sin cliente) */}
@@ -3294,6 +3343,16 @@ export default function Consulta() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
+                <BedPreferenceFields
+                  value={requirements}
+                  maxGuests={maxGuestCapacity}
+                  onChange={(pref) => {
+                    setRequirements((prev) => ({ ...prev, ...pref }));
+                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+                  }}
+                />
               </div>
             </div>
 
@@ -3643,6 +3702,22 @@ export default function Consulta() {
                                 <div className={styles.roomDescription}>
                                   {room.description || 'Descripción no disponible'}
                                 </div>
+                                {compliance.bedWarning && (
+                                  <div
+                                    role="status"
+                                    style={{
+                                      marginTop: '6px',
+                                      fontSize: '12px',
+                                      color: '#9a3412',
+                                      background: '#fff7ed',
+                                      border: '1px solid #fed7aa',
+                                      borderRadius: '6px',
+                                      padding: '4px 8px'
+                                    }}
+                                  >
+                                    Aviso camas: {compliance.bedWarning}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             

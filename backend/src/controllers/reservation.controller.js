@@ -504,7 +504,8 @@ exports.findAvailableRooms = async (req, res) => {
       },
       include: {
         roomType: true,
-        tags: true
+        tags: true,
+        beds: { orderBy: { orderIndex: 'asc' } }
       }
     });
 

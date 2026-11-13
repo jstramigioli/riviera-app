@@ -46,6 +46,24 @@ model RoomType {
   cargos                 Cargo[]                 // Relación con cargos de alojamiento
 }
 
+enum BedType {
+  double
+  single
+}
+
+/// Cama física de una habitación. Matrimonial (double) puede ser separable en 2 individuales.
+model RoomBed {
+  id          Int     @id @default(autoincrement())
+  roomId      Int
+  bedType     BedType
+  /// Solo aplica a matrimoniales: si true, puede usarse como 2 individuales.
+  isSeparable Boolean @default(false)
+  orderIndex  Int     @default(0)
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
 model Room {
   id                    Int                    @id @default(autoincrement())
   name                  String
@@ -54,6 +72,7 @@ model Room {
   status                String
   orderIndex            Int                    @default(0)
   roomTypeId            Int
+  beds                  RoomBed[]
   segments              ReservationSegment[]
   roomType              RoomType               @relation(fields: [roomTypeId], references: [id])
   gapPromotions         RoomGapPromotion[]
@@ -260,25 +279,29 @@ model QueryGroup {
 }
 
 model Query {
-  id                Int              @id @default(autoincrement())
-  mainClientId      Int?
-  checkIn           DateTime?
-  checkOut          DateTime?
-  totalAmount       Float?
-  reservationType   String?          @default("con_desayuno")
-  serviceType       String?          @default("base")
-  fixed             Boolean?         @default(false)
-  requiredGuests    Int?
-  requiredRoomId    Int?
-  requirementsNotes String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  queryGroupId      String?
-  segmentIndex      Int?
-  requiredTags      Int[]
-  mainClient        Client?          @relation("ClientQueries", fields: [mainClientId], references: [id])
-  guests            QueryGuest[]
-  nightRates        QueryNightRate[]
+  id                   Int              @id @default(autoincrement())
+  mainClientId         Int?
+  checkIn              DateTime?
+  checkOut             DateTime?
+  totalAmount          Float?
+  reservationType      String?          @default("con_desayuno")
+  serviceType          String?          @default("base")
+  fixed                Boolean?         @default(false)
+  requiredGuests       Int?
+  requiredRoomId       Int?
+  requirementsNotes    String?
+  /// Preferencia de camas independiente de la config física. true = Sin preferencia.
+  bedPreferenceNone    Boolean          @default(true)
+  preferredDoubleBeds  Int              @default(0)
+  preferredSingleBeds  Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  queryGroupId         String?
+  segmentIndex         Int?
+  requiredTags         Int[]
+  mainClient           Client?          @relation("ClientQueries", fields: [mainClientId], references: [id])
+  guests               QueryGuest[]
+  nightRates           QueryNightRate[]
 
   @@index([queryGroupId])
   @@index([createdAt])
@@ -516,29 +539,33 @@ model BlockServiceSelection {
 }
 
 model ReservationSegment {
-  id                 Int          @id @default(autoincrement())
-  reservationId      Int
-  startDate          DateTime
-  endDate            DateTime
-  roomId             Int
-  roomTypeId         Int?
-  virtualRoomId      Int?
-  services           String[]
-  serviceAdjustments Json?
-  baseRate           Float
-  rateAdjustments    Json?
-  guestCount         Int
-  reason             String?
-  notes              String?
-  isActive           Boolean      @default(true)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  requiredRoomId     Int?
-  requiredTags       Int[]        @default([])
-  reservation        Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  room               Room         @relation(fields: [roomId], references: [id])
-  roomType           RoomType?    @relation(fields: [roomTypeId], references: [id])
-  virtualRoom        VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
+  id                   Int          @id @default(autoincrement())
+  reservationId        Int
+  startDate            DateTime
+  endDate              DateTime
+  roomId               Int
+  roomTypeId           Int?
+  virtualRoomId        Int?
+  services             String[]
+  serviceAdjustments   Json?
+  baseRate             Float
+  rateAdjustments      Json?
+  guestCount           Int
+  reason               String?
+  notes                String?
+  isActive             Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  requiredRoomId       Int?
+  requiredTags         Int[]        @default([])
+  /// Preferencia de camas independiente de la config física. true = Sin preferencia.
+  bedPreferenceNone    Boolean      @default(true)
+  preferredDoubleBeds  Int          @default(0)
+  preferredSingleBeds  Int          @default(0)
+  reservation          Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room                 Room         @relation(fields: [roomId], references: [id])
+  roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])
+  virtualRoom          VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
 }
 
 model Pago {
