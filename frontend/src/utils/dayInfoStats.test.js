@@ -169,4 +169,92 @@ describe('computeDayInfoStats', () => {
     expect(stats.totalGuests).toBe(2);
     expect(stats.guestOccupancyPercentage).toBeCloseTo(25, 5);
   });
+
+  it('desayuno/cena: check-in no desayuna y sí cena; check-out al revés', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-02',
+            endDate: '2024-01-04',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 2,
+        status: 'CONFIRMADA',
+        requiredGuests: 3,
+        segments: [
+          {
+            roomId: 3,
+            startDate: '2024-01-01',
+            endDate: '2024-01-02',
+            guestCount: 3,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 3,
+        status: 'CONFIRMADA',
+        requiredGuests: 4,
+        segments: [
+          {
+            roomId: 2,
+            startDate: '2024-01-01',
+            endDate: '2024-01-05',
+            guestCount: 4,
+            isActive: true
+          }
+        ]
+      }
+    ];
+
+    // Día 2: check-in #1 (2), check-out #2 (3), middle #3 (4)
+    const stats = computeDayInfoStats('2024-01-02', rooms, reservations);
+    expect(stats.totalGuests).toBe(6); // noche: check-in 2 + middle 4
+    expect(stats.occupiedRooms).toBe(2);
+    expect(stats.dinnerGuests).toBe(6); // = pasajeros noche
+    expect(stats.breakfastGuests).toBe(7); // check-out 3 + middle 4 (sin check-in)
+  });
+
+  it('desayuno en día medio y cena nula el día de check-out', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-01',
+            endDate: '2024-01-03',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+
+    const checkInDay = computeDayInfoStats('2024-01-01', rooms, reservations);
+    expect(checkInDay.breakfastGuests).toBe(0);
+    expect(checkInDay.dinnerGuests).toBe(2);
+    expect(checkInDay.totalGuests).toBe(2);
+
+    const middleDay = computeDayInfoStats('2024-01-02', rooms, reservations);
+    expect(middleDay.breakfastGuests).toBe(2);
+    expect(middleDay.dinnerGuests).toBe(2);
+
+    const checkOutDay = computeDayInfoStats('2024-01-03', rooms, reservations);
+    expect(checkOutDay.breakfastGuests).toBe(2);
+    expect(checkOutDay.dinnerGuests).toBe(0);
+    expect(checkOutDay.totalGuests).toBe(0);
+    expect(checkOutDay.occupiedRooms).toBe(0);
+  });
 });

@@ -7,6 +7,8 @@
  * - Pasajeros alojados: por reserva (colapsando secundarios de virtual).
  * - Ocupación pasajeros % = totalGuests / Σ maxPeople * 100
  * - Ingresos/salidas (pasajeros): tamaño del grupo que llega/sale ese día civil.
+ * - Desayuno: start < day <= end (check-in NO; check-out SÍ).
+ * - Cena: start <= day < end (check-in SÍ; check-out NO) = misma base que pasajeros noche.
  */
 
 function civilOf(value) {
@@ -136,7 +138,9 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
       totalGuestCapacity,
       roomOccupancyPercentage: 0,
       totalGuests: 0,
-      guestOccupancyPercentage: 0
+      guestOccupancyPercentage: 0,
+      breakfastGuests: 0,
+      dinnerGuests: 0
     };
   }
 
@@ -144,6 +148,7 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   let checkIns = 0;
   let checkOuts = 0;
   let totalGuests = 0;
+  let breakfastGuests = 0;
   const checkInNames = [];
   const checkOutNames = [];
 
@@ -167,6 +172,15 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
       totalGuests += partySize(reservation, []);
     }
 
+    // Desayuno: mañana del día civil (no check-in; sí check-out).
+    if (start && end && start < dayIso && dayIso <= end) {
+      if (dayIso === end || !covering.length) {
+        breakfastGuests += partySize(reservation, segments);
+      } else {
+        breakfastGuests += guestsForCoveringSegments(reservation, covering);
+      }
+    }
+
     if (start === dayIso) {
       checkIns += size;
       checkInNames.push(mainClientDisplayName(reservation));
@@ -183,6 +197,8 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   // Correcto: pasajeros / capacidad (Σ maxPeople). Antes se dividía por totalRooms.
   const guestOccupancyPercentage =
     totalGuestCapacity > 0 ? (totalGuests / totalGuestCapacity) * 100 : 0;
+  // Cena = noche hotelera = pasajeros alojados esa noche.
+  const dinnerGuests = totalGuests;
 
   return {
     checkIns,
@@ -194,6 +210,8 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
     totalGuestCapacity,
     roomOccupancyPercentage,
     totalGuests,
-    guestOccupancyPercentage
+    guestOccupancyPercentage,
+    breakfastGuests,
+    dinnerGuests
   };
 }

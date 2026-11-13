@@ -125,6 +125,21 @@ describe('DayInfoSidePanel', () => {
     expect(ingresos).toHaveTextContent('1');
     expect(salidas).toHaveTextContent('3');
 
+    // Conteos del día (sin palabra «Total»)
+    // Día 2: noche Juan(2)+María(1)=3; habs 2; desayuno Juan(2)+Carlos(3)=5; cena=3
+    expect(screen.getByText('Pasajeros')).toBeInTheDocument();
+    expect(screen.getByText('Habitaciones ocupadas')).toBeInTheDocument();
+    expect(screen.getByText('Desayuno')).toBeInTheDocument();
+    expect(screen.getByText('Cena')).toBeInTheDocument();
+    expect(screen.queryByText(/Total/i)).not.toBeInTheDocument();
+
+    expect(screen.getByText('Pasajeros').parentElement).toHaveTextContent(/^Pasajeros\s*3$/);
+    expect(screen.getByText('Habitaciones ocupadas').parentElement).toHaveTextContent(
+      /^Habitaciones ocupadas\s*2$/
+    );
+    expect(screen.getByText('Desayuno').parentElement).toHaveTextContent(/^Desayuno\s*5$/);
+    expect(screen.getByText('Cena').parentElement).toHaveTextContent(/^Cena\s*3$/);
+
     // Barras de ocupación con %
     expect(screen.getByText('Ocupación habitaciones')).toBeInTheDocument();
     expect(screen.getByText('Ocupación pasajeros')).toBeInTheDocument();

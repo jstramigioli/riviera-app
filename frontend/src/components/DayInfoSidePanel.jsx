@@ -115,6 +115,27 @@ export default function DayInfoSidePanel({
           />
         </div>
 
+        <div className={styles.countsSection}>
+          <div className={styles.countsGrid}>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Pasajeros</span>
+              <span className={styles.countValue}>{stats.totalGuests}</span>
+            </div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Habitaciones ocupadas</span>
+              <span className={styles.countValue}>{stats.occupiedRooms}</span>
+            </div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Desayuno</span>
+              <span className={styles.countValue}>{stats.breakfastGuests}</span>
+            </div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Cena</span>
+              <span className={styles.countValue}>{stats.dinnerGuests}</span>
+            </div>
+          </div>
+        </div>
+
         <div className={styles.occupancySection}>
           <h4 className={styles.sectionTitle}>Ocupación</h4>
           <OccupancyBar
