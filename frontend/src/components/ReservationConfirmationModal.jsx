@@ -11,7 +11,8 @@ const ReservationConfirmationModal = ({
   onClose, 
   onConfirm, 
   reservationData,
-  isLoading = false
+  isLoading = false,
+  isEditing = false
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -377,7 +378,9 @@ const ReservationConfirmationModal = ({
             className={styles.confirmButton}
             disabled={isLoading}
           >
-            {isLoading ? 'Creando...' : 'Crear Reserva'}
+            {isLoading
+              ? (isEditing ? 'Modificando...' : 'Creando...')
+              : (isEditing ? 'Modificar reserva' : 'Crear Reserva')}
           </button>
         </div>
       </div>

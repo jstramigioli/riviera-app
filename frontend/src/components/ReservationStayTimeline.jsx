@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import styles from './ReservationStayTimeline.module.css';
 
@@ -57,6 +58,14 @@ const SegmentCard = ({ card, vertical }) => {
       <div className={styles.segmentCard} data-testid="timeline-segment-card">
         <span className={styles.segmentRoom}>
           Habitación: {card.room} - {card.roomType || '—'}
+          {card.roomFixed ? (
+            <FiLock
+              className={styles.roomFixedIcon}
+              aria-label="Habitación fijada"
+              title="Habitación fijada"
+              data-testid="timeline-room-fixed-icon"
+            />
+          ) : null}
         </span>
         <span className={styles.segmentService}>{card.service}</span>
         <span className={styles.segmentMeta}>{guestsLabel}</span>

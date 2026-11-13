@@ -51,7 +51,8 @@ describe('buildReservationStayTimeline', () => {
       roomType: 'Doble',
       service: 'Desayuno',
       guests: 2,
-      nights: 4
+      nights: 4,
+      roomFixed: false
     });
     expect(timeline.header).toEqual({
       clientName: 'Ana Pérez',
@@ -198,5 +199,31 @@ describe('buildReservationStayTimeline', () => {
       nights: 2
     });
     expect(timeline.isMultiSegment).toBe(false);
+  });
+
+  it('marca roomFixed cuando el tramo tiene habitación específica', () => {
+    const timeline = buildReservationStayTimeline(
+      {
+        checkIn: '2026-11-10',
+        checkOut: '2026-11-12',
+        segments: [
+          {
+            id: 1,
+            startDate: '2026-11-10',
+            endDate: '2026-11-12',
+            roomId: 22,
+            requiredRoomId: 22,
+            room: { name: '22', roomType: { name: 'Doble' } },
+            services: ['breakfast'],
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      { getServiceTypeLabel: serviceLabel }
+    );
+
+    const stay = timeline.items.find((i) => i.id === 'edge-stay');
+    expect(stay.card.roomFixed).toBe(true);
   });
 });
