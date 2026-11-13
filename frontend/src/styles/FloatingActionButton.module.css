@@ -2,7 +2,8 @@
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
-  z-index: 1000;
+  /* Debajo del overlay (999) y SidePanel (1000) del día / reserva */
+  z-index: 900;
   display: flex;
   flex-direction: column;
   align-items: flex-end;

@@ -14,6 +14,7 @@ import {
   sendReservationCheckIn
 } from '../services/api.js';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
+import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
 import { sourceLabel } from '../constants/reservationSource';
 import { copyReservationClientSummary } from '../utils/reservationClientSummary';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
@@ -355,12 +356,9 @@ const ReservationDetails = () => {
       return;
     }
     // Editar = mismo flujo que crear (requisitos, selección, tarifas + toggle tarifa)
-    navigate('/consulta', {
-      state: {
-        isEditingReservation: true,
-        reservationId: reservation.id,
-        reservationEdit: { id: reservation.id }
-      }
+    // El id va en la URL para que Consulta hidrate aunque se pierda location.state
+    navigate(buildConsultaEditPath(reservation.id), {
+      state: buildConsultaEditState(reservation.id)
     });
   };
 

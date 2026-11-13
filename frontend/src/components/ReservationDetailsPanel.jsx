@@ -9,6 +9,7 @@ import ClientContactLinks from './ClientContactLinks';
 import ReservationStayTimeline from './ReservationStayTimeline';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import { copyReservationClientSummary } from '../utils/reservationClientSummary';
+import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
 import { sourceLabel } from '../constants/reservationSource';
 import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetailsPanel.module.css';
@@ -84,12 +85,8 @@ const ReservationDetailsPanel = ({
       onOpenFullEdit(reservation.id);
       return;
     }
-    navigate('/consulta', {
-      state: {
-        isEditingReservation: true,
-        reservationId: reservation.id,
-        reservationEdit: { id: reservation.id }
-      }
+    navigate(buildConsultaEditPath(reservation.id), {
+      state: buildConsultaEditState(reservation.id)
     });
   };
 
