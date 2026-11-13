@@ -69,3 +69,29 @@ export function sourceLabel(value) {
   if (!value) return 'No especificado';
   return RESERVATION_SOURCE_LABELS[value] || value;
 }
+
+/**
+ * Texto legible sobre un color de fondo (#RRGGBB).
+ * Usa luminancia relativa sRGB (WCAG): fondos oscuros → blanco.
+ */
+export function contrastTextColor(backgroundHex, {
+  light = '#ffffff',
+  dark = '#1a1a1a'
+} = {}) {
+  if (typeof backgroundHex !== 'string') return dark;
+  const hex = backgroundHex.trim().replace(/^#/, '');
+  const full =
+    hex.length === 3
+      ? hex.split('').map((c) => c + c).join('')
+      : hex;
+  if (!/^[0-9A-Fa-f]{6}$/.test(full)) return dark;
+
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const toLinear = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const luminance =
+    0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+
+  return luminance < 0.45 ? light : dark;
+}

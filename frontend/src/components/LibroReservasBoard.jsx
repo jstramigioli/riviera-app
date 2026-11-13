@@ -35,7 +35,8 @@ import {
   DEFAULT_SOURCE_COLORS,
   loadSourceColors,
   saveSourceColors,
-  sourceLabel
+  sourceLabel,
+  contrastTextColor
 } from '../constants/reservationSource';
 import styles from '../styles/LibroReservasBoard.module.css';
 
@@ -713,7 +714,8 @@ export default function LibroReservasBoard({
                       ? {
                           ...style,
                           backgroundColor: sourceColor,
-                          borderColor: sourceColor
+                          borderColor: sourceColor,
+                          color: contrastTextColor(sourceColor)
                         }
                       : style;
                     const medio = sourceLabel(b.source);
