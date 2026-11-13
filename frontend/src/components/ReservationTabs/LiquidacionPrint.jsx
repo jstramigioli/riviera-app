@@ -58,7 +58,12 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
   const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
   const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
-  const saldo = totalCargos - totalPagos;
+  const totalDescuentos = Number(financialSummary?.resumen?.totalDescuentos) || 0;
+  const descuentoItems = financialSummary?.descuentos?.items || [];
+  const saldo =
+    financialSummary?.resumen?.saldo != null
+      ? Number(financialSummary.resumen.saldo)
+      : totalCargos - totalPagos - totalDescuentos;
   const emittedAt = new Date();
 
   const tiposOrdenados = [
@@ -250,6 +255,41 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
           <strong>{formatCurrency(totalPagos)}</strong>
         </div>
       </section>
+
+      {(totalDescuentos !== 0 || descuentoItems.length > 0) && (
+        <section className={`${styles.block} ${styles.pagosBlock}`}>
+          <h2>Descuentos por medio de pago</h2>
+          {descuentoItems.length > 0 ? (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Detalle</th>
+                  <th className={styles.num}>Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {descuentoItems.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.tipo || 'Descuento'}</td>
+                    <td>
+                      {d.porcentaje != null ? `${Number(d.porcentaje)}%` : '—'}
+                      {d.notas ? ` · ${d.notas}` : ''}
+                    </td>
+                    <td className={styles.num}>{formatCurrency(d.montoARS)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className={styles.empty}>Sin descuentos registrados.</p>
+          )}
+          <div className={styles.subtotal}>
+            <span>Total descuentos</span>
+            <strong>{formatCurrency(totalDescuentos)}</strong>
+          </div>
+        </section>
+      )}
 
       <section className={`${styles.closing} ${styles.keepTogether}`}>
         <div className={`${styles.block} ${styles.saldoBlock}`}>

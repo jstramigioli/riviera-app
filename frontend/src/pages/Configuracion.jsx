@@ -6,6 +6,7 @@ import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
+import MediosPagoTab from '../components/configuracion/MediosPagoTab';
 import Auditoria from './Auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './Configuracion.module.css';
@@ -21,23 +22,32 @@ const SETTINGS_TABS = [
   { id: 'sistema', label: 'Sistema' }
 ];
 
+const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
 const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
 
 function ConfiguracionView() {
   const [searchParams] = useSearchParams();
   const { can } = useAuth();
   const canSettings = can('settings');
+  const canMediosPago = can('mediosPago');
   const canAuditoria = can('auditoria');
 
   const tabs = useMemo(() => {
     const next = [];
     if (canSettings) next.push(...SETTINGS_TABS);
+    if (canMediosPago) next.push(MEDIOS_PAGO_TAB);
     if (canAuditoria) next.push(AUDITORIA_TAB);
     return next;
-  }, [canSettings, canAuditoria]);
+  }, [canSettings, canMediosPago, canAuditoria]);
 
   const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
-  const defaultTab = canSettings ? 'habitaciones' : (canAuditoria ? 'auditoria' : 'habitaciones');
+  const defaultTab = canSettings
+    ? 'habitaciones'
+    : canMediosPago
+      ? 'medios-pago'
+      : canAuditoria
+        ? 'auditoria'
+        : 'habitaciones';
 
   const [activeTab, setActiveTab] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
@@ -78,6 +88,8 @@ function ConfiguracionView() {
         return <CalendarioTab />;
       case 'tipo-cambio':
         return <TipoCambioConfig />;
+      case 'medios-pago':
+        return <MediosPagoTab />;
       case 'usuarios':
         return (
           <div className={styles.placeholder}>
@@ -95,7 +107,9 @@ function ConfiguracionView() {
       case 'auditoria':
         return <Auditoria />;
       default:
-        return canSettings ? <HabitacionesTab /> : <Auditoria />;
+        if (canSettings) return <HabitacionesTab />;
+        if (canMediosPago) return <MediosPagoTab />;
+        return <Auditoria />;
     }
   };
 

@@ -918,6 +918,68 @@ export async function createAccountPago(accountId, data) {
   return res.json();
 }
 
+export async function fetchPaymentMethodConfigs({ all = false } = {}) {
+  const qs = all ? '?all=1' : '';
+  const res = await fetch(`${API_URL}/payment-method-configs${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando medios de pago');
+  }
+  return res.json();
+}
+
+export async function updatePaymentMethodConfig(id, data) {
+  const res = await fetch(`${API_URL}/payment-method-configs/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error actualizando medio de pago');
+  }
+  return res.json();
+}
+
+export async function createPaymentMethodConfig(data) {
+  const res = await fetch(`${API_URL}/payment-method-configs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando medio de pago');
+  }
+  return res.json();
+}
+
+export async function fetchAccountResumen(accountId) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/resumen`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando resumen de cuenta');
+  }
+  return res.json();
+}
+
+export async function fetchAccountPagos(accountId) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando pagos de la cuenta');
+  }
+  return res.json();
+}
+
 // Historial global de pagos
 export async function getAllPagos() {
   const res = await fetch(`${API_URL}/reservation-payments/pagos`, {

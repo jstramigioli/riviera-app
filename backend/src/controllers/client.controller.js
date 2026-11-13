@@ -258,6 +258,7 @@ exports.getClientBalance = async (req, res) => {
             reservation: { select: { id: true, status: true } },
             cargos: { select: { monto: true } },
             pagos: { select: { montoARS: true } },
+            discountApplications: { select: { montoARS: true } },
           },
         },
       },
