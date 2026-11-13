@@ -25,8 +25,10 @@ const toDateInput = (dateString) => {
 
 /**
  * Información general reducida: fechas, estado, tipo de habitación y notas.
- * Cliente / noches / total / habitación·servicio·huéspedes viven en el timeline;
- * medio/origen vive en el panel azul.
+ * Cliente / noches / total viven en el header del panel Libro (fuera del marco
+ * timeline) o en el header del timeline en la página de detalle;
+ * habitación·servicio·huéspedes viven en las cards del timeline;
+ * medio/origen se edita en el formulario de edición y se muestra solo lectura en el panel.
  */
 const GeneralInfoTab = ({
   reservation,

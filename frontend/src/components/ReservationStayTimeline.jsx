@@ -74,6 +74,7 @@ const SegmentCard = ({ card, vertical }) => {
  * orientation:
  * - auto (default): horizontal en ancho, vertical en viewport ≤720px
  * - vertical / horizontal: fuerza el layout
+ * hideHeader: omite cliente/noches/total (el panel Libro los muestra fuera del marco)
  */
 const ReservationStayTimeline = ({
   reservation,
@@ -81,7 +82,8 @@ const ReservationStayTimeline = ({
   formatCurrency = defaultFormatCurrency,
   onClientClick,
   orientation = 'auto',
-  compact = false
+  compact = false,
+  hideHeader = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -105,7 +107,8 @@ const ReservationStayTimeline = ({
   const rootClass = [
     styles.timeline,
     isVertical ? styles.timelineVertical : styles.timelineHorizontal,
-    compact ? styles.timelineCompact : ''
+    compact ? styles.timelineCompact : '',
+    hideHeader ? styles.timelineNoHeader : ''
   ]
     .filter(Boolean)
     .join(' ');
@@ -117,28 +120,30 @@ const ReservationStayTimeline = ({
       data-testid="reservation-stay-timeline"
       data-orientation={isVertical ? 'vertical' : 'horizontal'}
     >
-      <header className={styles.header} data-testid="timeline-header">
-        <div className={styles.headerMain}>
-          {canOpenClient ? (
-            <button
-              type="button"
-              className={styles.clientNameButton}
-              onClick={() => onClientClick(header.clientId)}
-              title="Ver perfil del cliente"
-              data-testid="timeline-client-link"
-            >
-              {header.clientName}
-            </button>
-          ) : (
-            <h2 className={styles.clientName}>{header.clientName}</h2>
-          )}
-          <p className={styles.totalNights}>{nightsLabel}</p>
-        </div>
-        <div className={styles.totalBlock} data-testid="timeline-total">
-          <span className={styles.totalLabel}>Total</span>
-          <span className={styles.totalAmount}>{totalLabel}</span>
-        </div>
-      </header>
+      {!hideHeader ? (
+        <header className={styles.header} data-testid="timeline-header">
+          <div className={styles.headerMain}>
+            {canOpenClient ? (
+              <button
+                type="button"
+                className={styles.clientNameButton}
+                onClick={() => onClientClick(header.clientId)}
+                title="Ver perfil del cliente"
+                data-testid="timeline-client-link"
+              >
+                {header.clientName}
+              </button>
+            ) : (
+              <h2 className={styles.clientName}>{header.clientName}</h2>
+            )}
+            <p className={styles.totalNights}>{nightsLabel}</p>
+          </div>
+          <div className={styles.totalBlock} data-testid="timeline-total">
+            <span className={styles.totalLabel}>Total</span>
+            <span className={styles.totalAmount}>{totalLabel}</span>
+          </div>
+        </header>
+      ) : null}
 
       <div className={styles.track} role="list">
         {timeline.items.map((item) => {
