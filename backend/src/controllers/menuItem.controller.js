@@ -1,8 +1,12 @@
 const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
+const {
+  listMenuGroups,
+  normalizeCategory,
+  ensureCanonicalConsumoGroups
+} = require('../utils/menuGroups');
 
-const MENU_CATEGORIES = ['BEBIDAS', 'MINUTAS', 'CAFETERIA'];
-
+/** Fallback de labels para mensajes (comanda) cuando el grupo aún no cargó. */
 const CATEGORY_LABELS = {
   BEBIDAS: 'Bebidas',
   MINUTAS: 'Minutas',
@@ -12,12 +16,6 @@ const CATEGORY_LABELS = {
 const varietyInclude = {
   varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] }
 };
-
-function normalizeCategory(value) {
-  if (!value) return null;
-  const upper = String(value).trim().toUpperCase();
-  return MENU_CATEGORIES.includes(upper) ? upper : null;
-}
 
 function parsePrice(value) {
   const num = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
@@ -66,30 +64,58 @@ async function replaceVarieties(tx, menuItemId, varieties) {
   });
 }
 
-exports.listCategories = async (_req, res) => {
-  res.json({
-    success: true,
-    data: MENU_CATEGORIES.map((code) => ({
-      code,
-      label: CATEGORY_LABELS[code]
-    }))
+async function ensureSubgroupExists(tx, category, subgroup) {
+  if (!subgroup) return;
+  const existing = await tx.menuSubgroup.findUnique({
+    where: { category_name: { category, name: subgroup } }
   });
+  if (existing) return;
+  await tx.menuSubgroup.create({
+    data: { category, name: subgroup, ordenIndex: 0 }
+  });
+}
+
+exports.listCategories = async (_req, res) => {
+  try {
+    const groups = await listMenuGroups({ includeInactive: false });
+    res.json({
+      success: true,
+      data: groups.map((g) => ({
+        code: g.code,
+        label: g.label,
+        id: g.id,
+        ordenIndex: g.ordenIndex,
+        isCanonical: g.isCanonical
+      }))
+    });
+  } catch (error) {
+    console.error('Error listando categorías de menú:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al listar categorías',
+      details: error.message
+    });
+  }
 };
 
 exports.listMenuItems = async (req, res) => {
   try {
+    await ensureCanonicalConsumoGroups();
     const { category, q, active } = req.query;
     const where = {};
 
-    const cat = normalizeCategory(category);
-    if (category && !cat) {
-      return res.status(400).json({
-        success: false,
-        error: 'Categoría inválida',
-        message: `Usá una de: ${MENU_CATEGORIES.join(', ')}`
-      });
+    if (category) {
+      const cat = await normalizeCategory(category);
+      if (!cat) {
+        const groups = await listMenuGroups({ includeInactive: false });
+        return res.status(400).json({
+          success: false,
+          error: 'Categoría inválida',
+          message: `Usá una de: ${groups.map((g) => g.code).join(', ')}`
+        });
+      }
+      where.category = cat;
     }
-    if (cat) where.category = cat;
 
     if (active === 'true') where.isActive = true;
     if (active === 'false') where.isActive = false;
@@ -122,7 +148,7 @@ exports.listMenuItems = async (req, res) => {
 
 exports.createMenuItem = async (req, res) => {
   try {
-    const category = normalizeCategory(req.body.category);
+    const category = await normalizeCategory(req.body.category);
     const name = String(req.body.name || '').trim();
     const subgroup = req.body.subgroup != null && String(req.body.subgroup).trim()
       ? String(req.body.subgroup).trim()
@@ -135,10 +161,11 @@ exports.createMenuItem = async (req, res) => {
     const varietiesNorm = normalizeVarieties(req.body.varieties);
 
     if (!category) {
+      const groups = await listMenuGroups({ includeInactive: false });
       return res.status(400).json({
         success: false,
         error: 'Categoría requerida',
-        message: `Usá una de: ${MENU_CATEGORIES.join(', ')}`
+        message: `Usá una de: ${groups.map((g) => g.code).join(', ')}`
       });
     }
     if (!name) {
@@ -156,6 +183,7 @@ exports.createMenuItem = async (req, res) => {
       varieties.length > 0 ? varieties[0].price : price;
 
     const item = await prisma.$transaction(async (tx) => {
+      await ensureSubgroupExists(tx, category, subgroup);
       const created = await tx.menuItem.create({
         data: {
           category,
@@ -201,12 +229,13 @@ exports.updateMenuItem = async (req, res) => {
 
     const data = {};
     if (req.body.category !== undefined) {
-      const category = normalizeCategory(req.body.category);
+      const category = await normalizeCategory(req.body.category);
       if (!category) {
+        const groups = await listMenuGroups({ includeInactive: false });
         return res.status(400).json({
           success: false,
           error: 'Categoría inválida',
-          message: `Usá una de: ${MENU_CATEGORIES.join(', ')}`
+          message: `Usá una de: ${groups.map((g) => g.code).join(', ')}`
         });
       }
       data.category = category;
@@ -248,6 +277,9 @@ exports.updateMenuItem = async (req, res) => {
     }
 
     const item = await prisma.$transaction(async (tx) => {
+      const nextCategory = data.category || existing.category;
+      const nextSubgroup = data.subgroup !== undefined ? data.subgroup : existing.subgroup;
+      await ensureSubgroupExists(tx, nextCategory, nextSubgroup);
       if (Array.isArray(varietiesNorm)) {
         await replaceVarieties(tx, id, varietiesNorm);
         if (varietiesNorm.length > 0 && req.body.price === undefined) {
@@ -301,7 +333,6 @@ exports.toggleMenuItem = async (req, res) => {
 
 /**
  * Baja lógica: desactiva el ítem (no borra la fila).
- * Los cargos históricos ya guardan descripción/monto en Cargo; el catálogo sigue trazable.
  * Query ?hard=true permite borrado físico (solo settings / uso excepcional).
  */
 exports.deleteMenuItem = async (req, res) => {
@@ -339,5 +370,4 @@ exports.deleteMenuItem = async (req, res) => {
   }
 };
 
-exports.MENU_CATEGORIES = MENU_CATEGORIES;
 exports.CATEGORY_LABELS = CATEGORY_LABELS;

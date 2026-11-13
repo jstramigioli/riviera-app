@@ -1168,6 +1168,138 @@ export async function deleteMenuItem(id, { hard = false } = {}) {
   return res.json();
 }
 
+export async function fetchMenuCategories() {
+  const res = await fetch(`${API_URL}/menu-items/categories`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar categorías del menú');
+  }
+  return res.json();
+}
+
+export async function fetchMenuGroups({ includeInactive = false } = {}) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set('includeInactive', 'true');
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items/groups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar grupos del menú');
+  }
+  return res.json();
+}
+
+export async function createMenuGroup(data) {
+  const res = await fetch(`${API_URL}/menu-items/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear grupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuGroup(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar grupo');
+  }
+  return res.json();
+}
+
+export async function toggleMenuGroup(id) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}/toggle`, {
+    method: 'PUT',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del grupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuGroup(id) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar grupo');
+  }
+  return res.json();
+}
+
+export async function fetchMenuSubgroups({ category } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items/subgroups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar subgrupos');
+  }
+  return res.json();
+}
+
+export async function createMenuSubgroup(data) {
+  const res = await fetch(`${API_URL}/menu-items/subgroups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear subgrupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuSubgroup(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/subgroups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar subgrupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuSubgroup(id, { clearItems = false } = {}) {
+  const qs = clearItems ? '?clearItems=true' : '';
+  const res = await fetch(`${API_URL}/menu-items/subgroups/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar subgrupo');
+  }
+  return res.json();
+}
+
 /** Reservas ocupadas en una fecha civil YYYY-MM-DD (default: hoy en el backend). */
 export async function fetchOccupiedRoomsToday(date) {
   const params = new URLSearchParams();

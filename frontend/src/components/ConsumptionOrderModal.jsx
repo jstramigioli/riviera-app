@@ -5,13 +5,14 @@ import {
   fetchOccupiedRoomsToday,
   fetchCuentasParaPago,
   fetchMenuItems,
+  fetchMenuCategories,
   createConsumptionOrder,
   deleteCargo
 } from '../services/api';
 import styles from '../styles/ConsumptionOrderModal.module.css';
 
-const CATEGORY_ORDER = ['BEBIDAS', 'MINUTAS', 'CAFETERIA'];
-const CATEGORY_LABELS = {
+const FALLBACK_CATEGORY_ORDER = ['BEBIDAS', 'MINUTAS', 'CAFETERIA'];
+const FALLBACK_CATEGORY_LABELS = {
   BEBIDAS: 'Bebidas',
   MINUTAS: 'Minutas',
   CAFETERIA: 'Cafetería'
@@ -130,19 +131,23 @@ function cloneLine(line) {
   };
 }
 
-function filterMenuItems(menuItems, query) {
+function filterMenuItems(menuItems, query, categoryMeta = {}) {
+  const labels = categoryMeta.labels || FALLBACK_CATEGORY_LABELS;
+  const order = categoryMeta.order || FALLBACK_CATEGORY_ORDER;
   const q = query.trim().toLowerCase();
   let list = expandMenuOptions(menuItems);
   if (q) {
     list = list.filter((i) => {
-      const hay = `${i.displayName} ${i.name} ${i.varietyName || ''} ${i.subgroup || ''} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
+      const hay = `${i.displayName} ${i.name} ${i.varietyName || ''} ${i.subgroup || ''} ${labels[i.category] || i.category}`.toLowerCase();
       return hay.includes(q);
     });
   }
   return [...list].sort((a, b) => {
-    const ca = CATEGORY_ORDER.indexOf(a.category);
-    const cb = CATEGORY_ORDER.indexOf(b.category);
-    if (ca !== cb) return ca - cb;
+    const ca = order.indexOf(a.category);
+    const cb = order.indexOf(b.category);
+    const ia = ca === -1 ? 999 : ca;
+    const ib = cb === -1 ? 999 : cb;
+    if (ia !== ib) return ia - ib;
     const bySub = subgroupSortValue(a.subgroup).localeCompare(subgroupSortValue(b.subgroup), 'es');
     if (bySub !== 0) return bySub;
     const byOrden = (a.ordenIndex || 0) - (b.ordenIndex || 0);
@@ -153,8 +158,8 @@ function filterMenuItems(menuItems, query) {
   });
 }
 
-function optionGroupLabel(item) {
-  const cat = CATEGORY_LABELS[item.category] || item.category || '';
+function optionGroupLabel(item, labels = FALLBACK_CATEGORY_LABELS) {
+  const cat = labels[item.category] || item.category || '';
   if (item.subgroup) return `${cat} · ${item.subgroup}`;
   return cat;
 }
@@ -191,6 +196,10 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   const [fecha, setFecha] = useState(todayLocalIso);
   const [reservations, setReservations] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [categoryMeta, setCategoryMeta] = useState({
+    order: FALLBACK_CATEGORY_ORDER,
+    labels: FALLBACK_CATEGORY_LABELS
+  });
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingReservations, setLoadingReservations] = useState(false);
   const [selectionKey, setSelectionKey] = useState('');
@@ -239,8 +248,18 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
   const loadMenu = useCallback(async () => {
     try {
-      const itemsRes = await fetchMenuItems({ active: true });
+      const [itemsRes, catsRes] = await Promise.all([
+        fetchMenuItems({ active: true }),
+        fetchMenuCategories().catch(() => null)
+      ]);
       setMenuItems(itemsRes.data || itemsRes || []);
+      const cats = catsRes?.data || [];
+      if (cats.length) {
+        setCategoryMeta({
+          order: cats.map((c) => c.code),
+          labels: Object.fromEntries(cats.map((c) => [c.code, c.label]))
+        });
+      }
     } catch (err) {
       setError(err.message || 'No se pudo cargar el menú');
     }
@@ -462,7 +481,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   };
 
   const onItemKeyDown = (e, line) => {
-    const options = filterMenuItems(menuItems, line.query);
+    const options = filterMenuItems(menuItems, line.query, categoryMeta);
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -785,7 +804,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
               <ul className={styles.lines}>
                 {lines.map((line) => {
-                  const options = filterMenuItems(menuItems, line.query);
+                  const options = filterMenuItems(menuItems, line.query, categoryMeta);
                   return (
                     <li key={line.key} className={styles.line}>
                       <div className={styles.qtyGroup}>
@@ -885,7 +904,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                                   <li key={item.optionKey} className={styles.dropdownOptionWrap}>
                                     {showGroup ? (
                                       <div className={styles.dropdownGroup} aria-hidden="true">
-                                        {optionGroupLabel(item)}
+                                        {optionGroupLabel(item, categoryMeta.labels)}
                                       </div>
                                     ) : null}
                                     <button

@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiEdit2, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiX, FiCheck } from 'react-icons/fi';
 import {
   fetchMenuItems,
+  fetchMenuCategories,
+  fetchMenuSubgroups,
   createMenuItem,
   updateMenuItem,
   toggleMenuItem,
@@ -9,9 +11,10 @@ import {
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import MenuTaxonomyPanel from './MenuTaxonomyPanel';
 import styles from './MenuConsumosTab.module.css';
 
-const CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   { code: 'BEBIDAS', label: 'Bebidas' },
   { code: 'MINUTAS', label: 'Minutas' },
   { code: 'CAFETERIA', label: 'Cafetería' }
@@ -19,8 +22,8 @@ const CATEGORIES = [
 
 const emptyVariety = () => ({ key: `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: '', price: '' });
 
-const emptyForm = {
-  category: 'BEBIDAS',
+const emptyForm = (defaultCategory = 'BEBIDAS') => ({
+  category: defaultCategory,
   subgroup: '',
   name: '',
   price: '',
@@ -28,7 +31,7 @@ const emptyForm = {
   ordenIndex: 0,
   isActive: true,
   varieties: []
-};
+});
 
 function subgroupLabel(value) {
   const s = String(value || '').trim();
@@ -52,10 +55,10 @@ function formatPriceCell(item) {
     .join(' · ');
 }
 
-function sortValue(item, field) {
+function sortValue(item, field, categories) {
   switch (field) {
     case 'category': {
-      const label = CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
+      const label = categories.find((c) => c.code === item.category)?.label || item.category;
       return String(label).toLowerCase();
     }
     case 'subgroup': {
@@ -79,6 +82,8 @@ export default function MenuConsumosTab() {
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+  const [catalogSubgroups, setCatalogSubgroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('ALL');
@@ -86,8 +91,26 @@ export default function MenuConsumosTab() {
   const [sortField, setSortField] = useState('subgroup');
   const [sortDirection, setSortDirection] = useState('asc');
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => emptyForm());
   const [saving, setSaving] = useState(false);
+
+  const loadTaxonomy = useCallback(async () => {
+    try {
+      const [catRes, subRes] = await Promise.all([
+        fetchMenuCategories(),
+        fetchMenuSubgroups({})
+      ]);
+      const nextCats = catRes.data?.length ? catRes.data : FALLBACK_CATEGORIES;
+      setCategories(nextCats);
+      setCatalogSubgroups(subRes.data || []);
+      setForm((f) => {
+        if (nextCats.some((c) => c.code === f.category)) return f;
+        return { ...f, category: nextCats[0]?.code || 'BEBIDAS' };
+      });
+    } catch {
+      /* keep fallback */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,12 +118,13 @@ export default function MenuConsumosTab() {
     try {
       const res = await fetchMenuItems({});
       setItems(res.data || []);
+      await loadTaxonomy();
     } catch (err) {
       setError(err.message || 'Error al cargar el menú');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadTaxonomy]);
 
   useEffect(() => {
     load();
@@ -133,12 +157,12 @@ export default function MenuConsumosTab() {
     return [...rows].sort((a, b) => {
       // Orden canónico: categoría → subgrupo → orden → nombre
       if (sortField === 'subgroup' || sortField === 'ordenIndex') {
-        const ca = sortValue(a, 'category');
-        const cb = sortValue(b, 'category');
+        const ca = sortValue(a, 'category', categories);
+        const cb = sortValue(b, 'category', categories);
         if (ca !== cb) return ca < cb ? -1 : 1;
       }
-      const aValue = sortValue(a, sortField);
-      const bValue = sortValue(b, sortField);
+      const aValue = sortValue(a, sortField, categories);
+      const bValue = sortValue(b, sortField, categories);
       if (aValue < bValue) return -1 * dir;
       if (aValue > bValue) return 1 * dir;
       if (sortField === 'subgroup') {
@@ -149,10 +173,15 @@ export default function MenuConsumosTab() {
       if (byName !== 0) return byName;
       return (a.id || 0) - (b.id || 0);
     });
-  }, [items, filterCategory, query, sortField, sortDirection]);
+  }, [items, filterCategory, query, sortField, sortDirection, categories]);
 
   const subgroupSuggestions = useMemo(() => {
     const set = new Set();
+    const cat = form.category || (filterCategory !== 'ALL' ? filterCategory : null);
+    for (const sub of catalogSubgroups) {
+      if (cat && sub.category !== cat) continue;
+      if (sub.name) set.add(sub.name);
+    }
     for (const item of items) {
       if (filterCategory !== 'ALL' && item.category !== filterCategory) continue;
       const s = String(item.subgroup || '').trim();
@@ -166,13 +195,14 @@ export default function MenuConsumosTab() {
       }
     }
     return [...set].sort((a, b) => a.localeCompare(b, 'es'));
-  }, [items, filterCategory, form.category]);
+  }, [items, filterCategory, form.category, catalogSubgroups]);
 
   const openCreate = () => {
+    const defaultCat =
+      filterCategory === 'ALL' ? (categories[0]?.code || 'BEBIDAS') : filterCategory;
     setEditing('new');
     setForm({
-      ...emptyForm,
-      category: filterCategory === 'ALL' ? 'BEBIDAS' : filterCategory,
+      ...emptyForm(defaultCat),
       varieties: []
     });
   };
@@ -198,7 +228,7 @@ export default function MenuConsumosTab() {
 
   const closeForm = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm(emptyForm(categories[0]?.code || 'BEBIDAS'));
   };
 
   const addVarietyRow = () => {
@@ -326,6 +356,13 @@ export default function MenuConsumosTab() {
         </button>
       </div>
 
+      <MenuTaxonomyPanel
+        onChanged={async () => {
+          await loadTaxonomy();
+          await load();
+        }}
+      />
+
       <div className={styles.filters}>
         <div className={styles.tabs} role="tablist" aria-label="Categorías">
           <button
@@ -337,7 +374,7 @@ export default function MenuConsumosTab() {
           >
             Todas
           </button>
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.code}
               type="button"
@@ -474,7 +511,7 @@ export default function MenuConsumosTab() {
             <tbody>
               {filtered.map((item, idx) => {
                 const catLabel =
-                  CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
+                  categories.find((c) => c.code === item.category)?.label || item.category;
                 const prev = idx > 0 ? filtered[idx - 1] : null;
                 const showGroupRow =
                   sortField === 'subgroup' &&
@@ -558,7 +595,7 @@ export default function MenuConsumosTab() {
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               >
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.label}
                   </option>
