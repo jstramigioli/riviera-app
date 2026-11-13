@@ -139,8 +139,9 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 
 /**
  * Carga una comanda de consumos sobre una reserva.
- * Body: { reservationId, items: [{ menuItemId, quantity }], fecha?: YYYY-MM-DD, notes? }
+ * Body: { reservationId, items: [{ menuItemId, quantity, varietyId? }], fecha?: YYYY-MM-DD, notes? }
  * Cada cargo usa Cargo.fecha (propiedad del consumo).
+ * Si el ítem tiene variedades, varietyId es obligatorio y fija el precio.
  */
 exports.createConsumptionOrder = async (req, res) => {
   try {
@@ -176,21 +177,36 @@ exports.createConsumptionOrder = async (req, res) => {
     for (const row of rawItems) {
       const menuItemId = Number(row.menuItemId);
       const quantity = Number(row.quantity);
+      const varietyIdRaw = row.varietyId ?? row.menuItemVarietyId;
+      const varietyId =
+        varietyIdRaw == null || varietyIdRaw === ''
+          ? null
+          : Number(varietyIdRaw);
       if (!Number.isFinite(menuItemId) || !Number.isFinite(quantity) || quantity <= 0) {
         return res.status(400).json({
           success: false,
           error: 'Cada ítem necesita menuItemId y quantity > 0'
         });
       }
+      if (varietyIdRaw != null && varietyIdRaw !== '' && !Number.isFinite(varietyId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'varietyId inválido'
+        });
+      }
       normalized.push({
         menuItemId,
+        varietyId,
         quantity: Math.min(999, Math.floor(quantity))
       });
     }
 
     const menuIds = [...new Set(normalized.map((i) => i.menuItemId))];
     const menuItems = await prisma.menuItem.findMany({
-      where: { id: { in: menuIds }, isActive: true }
+      where: { id: { in: menuIds }, isActive: true },
+      include: {
+        varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] }
+      }
     });
     if (menuItems.length !== menuIds.length) {
       return res.status(400).json({
@@ -199,6 +215,32 @@ exports.createConsumptionOrder = async (req, res) => {
       });
     }
     const menuById = new Map(menuItems.map((m) => [m.id, m]));
+
+    for (const row of normalized) {
+      const item = menuById.get(row.menuItemId);
+      const varieties = item.varieties || [];
+      if (varieties.length > 0) {
+        if (row.varietyId == null) {
+          return res.status(400).json({
+            success: false,
+            error: `Elegí variedad para “${item.name}” (${varieties.map((v) => v.name).join(' / ')})`
+          });
+        }
+        const variety = varieties.find((v) => v.id === row.varietyId);
+        if (!variety) {
+          return res.status(400).json({
+            success: false,
+            error: `Variedad inválida para “${item.name}”`
+          });
+        }
+        row.variety = variety;
+      } else if (row.varietyId != null) {
+        return res.status(400).json({
+          success: false,
+          error: `“${item.name}” no tiene variedades`
+        });
+      }
+    }
 
     const categories = [...new Set(menuItems.map((m) => m.category))];
     const subcats = await prisma.subcategoriaCargo.findMany({
@@ -226,11 +268,12 @@ exports.createConsumptionOrder = async (req, res) => {
       for (const row of normalized) {
         const item = menuById.get(row.menuItemId);
         const sub = subcatByCode.get(item.category);
-        const unit = new Decimal(item.price);
+        const variety = row.variety || null;
+        const unit = new Decimal(variety ? variety.price : item.price);
         const qty = row.quantity;
         const monto = unit.mul(qty);
-        const descripcion =
-          qty === 1 ? item.name : `${item.name} x${qty}`;
+        const label = variety ? `${item.name} (${variety.name})` : item.name;
+        const descripcion = qty === 1 ? label : `${label} x${qty}`;
 
         const cargo = await tx.cargo.create({
           data: {
@@ -246,6 +289,8 @@ exports.createConsumptionOrder = async (req, res) => {
         cargos.push({
           ...cargo,
           menuItemId: item.id,
+          varietyId: variety ? variety.id : null,
+          varietyName: variety ? variety.name : null,
           quantity: qty,
           unitPrice: unit
         });

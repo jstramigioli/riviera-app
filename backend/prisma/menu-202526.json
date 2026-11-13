@@ -1,0 +1,896 @@
+[
+  {
+    "category": "CAFETERIA",
+    "name": "Café Jarrito",
+    "price": 4000.0,
+    "description": null,
+    "ordenIndex": 10,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Café con leche",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 20,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Café doble",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 30,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Té",
+    "price": 4000.0,
+    "description": null,
+    "ordenIndex": 40,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Té con leche",
+    "price": 5000.0,
+    "description": null,
+    "ordenIndex": 50,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Chocolatada",
+    "price": 4200.0,
+    "description": null,
+    "ordenIndex": 60,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Jugo de naranja",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 70,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Yogur bebible",
+    "price": 4200.0,
+    "description": null,
+    "ordenIndex": 80,
+    "section": "Cafetería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Medialuna",
+    "price": 1800.0,
+    "description": null,
+    "ordenIndex": 90,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Medialuna con jamón y queso",
+    "price": 5000.0,
+    "description": null,
+    "ordenIndex": 100,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Porción de torta",
+    "price": 9400.0,
+    "description": null,
+    "ordenIndex": 110,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Porción de budín",
+    "price": 9400.0,
+    "description": null,
+    "ordenIndex": 120,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Tostado",
+    "price": 11500.0,
+    "description": null,
+    "ordenIndex": 130,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Tostadas",
+    "price": 5000.0,
+    "description": "con manteca, queso blanco, dulce de leche, mermelada",
+    "ordenIndex": 140,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Porción de mermelada casera",
+    "price": 3200.0,
+    "description": null,
+    "ordenIndex": 150,
+    "section": "Pastelería",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Ananá",
+    "price": 6500.0,
+    "description": null,
+    "ordenIndex": 160,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Banana",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 170,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Durazno",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 180,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Frutilla",
+    "price": 6500.0,
+    "description": null,
+    "ordenIndex": 190,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Kiwi",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 200,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "CAFETERIA",
+    "name": "Manzana",
+    "price": 6000.0,
+    "description": null,
+    "ordenIndex": 210,
+    "section": "Licuados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Caesar",
+    "price": 13000.0,
+    "description": "Lechuga, pollo grillado, salsa Cesar, croutons, parmesano",
+    "ordenIndex": 10,
+    "section": "Ensaladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 13000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 16000.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Giardino",
+    "price": 13000.0,
+    "description": "Lechuga, tomate, huevo duro, muzzarella, atún, aceitunas, zanahoria",
+    "ordenIndex": 20,
+    "section": "Ensaladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 13000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 16000.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Tonno",
+    "price": 13000.0,
+    "description": "Arroz, atún, rúcula, tomate, alcaparra",
+    "ordenIndex": 30,
+    "section": "Ensaladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 13000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 16000.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Gradara",
+    "price": 13000.0,
+    "description": "Arroz, atún, tomate, aceitunas y choclo",
+    "ordenIndex": 40,
+    "section": "Ensaladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 13000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 16000.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Riviera",
+    "price": 13000.0,
+    "description": "Palta, palmitos, camarones, tomate, salsa golf o mayonesa",
+    "ordenIndex": 50,
+    "section": "Ensaladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 13000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 16000.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Mermelada",
+    "price": 7000.0,
+    "description": null,
+    "ordenIndex": 60,
+    "section": "Mermeladas",
+    "varieties": [
+      {
+        "name": "Chica",
+        "price": 7000.0,
+        "ordenIndex": 10
+      },
+      {
+        "name": "Grande",
+        "price": 10500.0,
+        "ordenIndex": 20
+      }
+    ]
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Lomito",
+    "price": 14000.0,
+    "description": null,
+    "ordenIndex": 70,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Lomito completo",
+    "price": 19000.0,
+    "description": null,
+    "ordenIndex": 80,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Milanesa",
+    "price": 14000.0,
+    "description": null,
+    "ordenIndex": 90,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Milanesa napolitana",
+    "price": 17000.0,
+    "description": null,
+    "ordenIndex": 100,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Milanesa completa",
+    "price": 19000.0,
+    "description": null,
+    "ordenIndex": 110,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Suprema",
+    "price": 14000.0,
+    "description": null,
+    "ordenIndex": 120,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Suprema napoliltana",
+    "price": 17000.0,
+    "description": null,
+    "ordenIndex": 130,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Suprema completa",
+    "price": 19000.0,
+    "description": null,
+    "ordenIndex": 140,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Hamburguesa",
+    "price": 11000.0,
+    "description": null,
+    "ordenIndex": 150,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Hamburguesa completa",
+    "price": 14000.0,
+    "description": null,
+    "ordenIndex": 160,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Sandwich de jamón y queso",
+    "price": 11500.0,
+    "description": null,
+    "ordenIndex": 170,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Sandwich completo",
+    "price": 16000.0,
+    "description": null,
+    "ordenIndex": 180,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Pollo grillé",
+    "price": 17000.0,
+    "description": null,
+    "ordenIndex": 190,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Pancho",
+    "price": 4500.0,
+    "description": null,
+    "ordenIndex": 200,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Nuggets de pollo",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 210,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Adicional",
+    "price": 1500.0,
+    "description": "tomate - lechuga - queso - jamón - huevo - cebolla",
+    "ordenIndex": 220,
+    "section": "Carnes",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Rabas",
+    "price": 22000.0,
+    "description": null,
+    "ordenIndex": 230,
+    "section": "Pescados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Merluza despinada",
+    "price": 14000.0,
+    "description": null,
+    "ordenIndex": 240,
+    "section": "Pescados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Cornalitos",
+    "price": 19000.0,
+    "description": null,
+    "ordenIndex": 250,
+    "section": "Pescados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Picada marina",
+    "price": 35000.0,
+    "description": null,
+    "ordenIndex": 260,
+    "section": "Pescados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Picada marina grande",
+    "price": 54000.0,
+    "description": null,
+    "ordenIndex": 270,
+    "section": "Pescados",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Fileto",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 280,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Pesto",
+    "price": 8500.0,
+    "description": "verde o negro",
+    "ordenIndex": 290,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Vongole",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 300,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Crema",
+    "price": 8500.0,
+    "description": null,
+    "ordenIndex": 310,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Manteca",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 320,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Salsa Blanco",
+    "price": 7000.0,
+    "description": null,
+    "ordenIndex": 330,
+    "section": "Salsas",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Papas fritas",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 340,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Papas fritas con cheddar",
+    "price": 10000.0,
+    "description": null,
+    "ordenIndex": 350,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Omelette",
+    "price": 12000.0,
+    "description": null,
+    "ordenIndex": 360,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Huevos revueltos",
+    "price": 4000.0,
+    "description": null,
+    "ordenIndex": 370,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Tortilla de papas",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 380,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Arroz",
+    "price": 6500.0,
+    "description": null,
+    "ordenIndex": 390,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Pure",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 400,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Picada",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 410,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Pizza Muzzarella",
+    "price": 18000.0,
+    "description": null,
+    "ordenIndex": 420,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Pizza Jamón Morrón y queso",
+    "price": 20000.0,
+    "description": null,
+    "ordenIndex": 430,
+    "section": null,
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Ensalada de frutas",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 440,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Frutas de estación",
+    "price": 3500.0,
+    "description": null,
+    "ordenIndex": 450,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Compotas",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 460,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Flan con crema, dulce de leche o mixto",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 470,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Budín de pan con crema, dulce de leche o mixto",
+    "price": 8000.0,
+    "description": null,
+    "ordenIndex": 480,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Tiramisú",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 490,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Helado",
+    "price": 8000.0,
+    "description": "bombón suizo, escocés, almendrado o tres sabores",
+    "ordenIndex": 500,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Frutillas con crema",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 510,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Mousse de chocolate",
+    "price": 8500.0,
+    "description": null,
+    "ordenIndex": 520,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "MINUTAS",
+    "name": "Queso y Dulce",
+    "price": 5000.0,
+    "description": null,
+    "ordenIndex": 530,
+    "section": "Postres",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Agua mineral",
+    "price": 4100.0,
+    "description": null,
+    "ordenIndex": 10,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Gaseosas",
+    "price": 4100.0,
+    "description": null,
+    "ordenIndex": 20,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Aguas saborizadas",
+    "price": 4100.0,
+    "description": null,
+    "ordenIndex": 30,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Limonada 1l",
+    "price": 9600.0,
+    "description": null,
+    "ordenIndex": 40,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Quilmes 1 litro",
+    "price": 11500.0,
+    "description": null,
+    "ordenIndex": 50,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Quilmes lata",
+    "price": 6500.0,
+    "description": null,
+    "ordenIndex": 60,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Stella Artois 975ml",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 70,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Peroni Nastro Azurro",
+    "price": 9000.0,
+    "description": null,
+    "ordenIndex": 80,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Corona 330ml",
+    "price": 6500.0,
+    "description": null,
+    "ordenIndex": 90,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Fernet Branca",
+    "price": 11000.0,
+    "description": null,
+    "ordenIndex": 100,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Campari",
+    "price": 11000.0,
+    "description": null,
+    "ordenIndex": 110,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Gancia",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 120,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Gin",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 130,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Whisky Blenders Pride",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 140,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Whisky Chivas-Regal",
+    "price": 38000.0,
+    "description": null,
+    "ordenIndex": 150,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Cognac Reserva San Juan",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 160,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Liquore Strega",
+    "price": 38000.0,
+    "description": null,
+    "ordenIndex": 170,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  },
+  {
+    "category": "BEBIDAS",
+    "name": "Negroni",
+    "price": 13000.0,
+    "description": null,
+    "ordenIndex": 180,
+    "section": "Bebidas sin alcohol",
+    "varieties": []
+  }
+]
