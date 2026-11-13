@@ -48,11 +48,16 @@ const PAY_COLUMN_KEYS = {
 /** Reservas actualmente alojadas (check-in hecho, aún en casa). */
 const ALOJADAS_STATUS = 'INGRESADA';
 
+function foldAccents(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function includesNormalized(haystack, needle) {
   if (!needle) return true;
-  return String(haystack || '')
-    .toLowerCase()
-    .includes(String(needle).toLowerCase().trim());
+  return foldAccents(haystack).includes(foldAccents(String(needle).trim()));
 }
 
 function toDateInputValue(value) {
