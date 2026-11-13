@@ -1,11 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import SidePanel from './SidePanel';
 import styles from '../styles/DayInfoSidePanel.module.css';
 import { isoDate } from '../utils/calendarDates';
 import { computeDayInfoStats } from '../utils/dayInfoStats';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /** date-fns format() usa TZ local: construir Date civil local evita corrimiento UTC. */
 function civilLocalDate(dayIso) {
@@ -37,7 +40,7 @@ function OccupancyBar({ label, percentage }) {
   );
 }
 
-function MovementColumn({ title, total, names, variant, icon }) {
+function MovementColumn({ title, total, items, variant, icon, onOpenReservation }) {
   return (
     <section className={`${styles.movementCol} ${styles[variant]}`}>
       <header className={styles.movementHeader}>
@@ -50,10 +53,16 @@ function MovementColumn({ title, total, names, variant, icon }) {
         </div>
       </header>
       <ul className={styles.movementList}>
-        {(names || []).map((name, idx) => (
-          <li key={`${name}-${idx}`} className={styles.movementItem}>
+        {(items || []).map((item, idx) => (
+          <li key={`${item.reservationId}-${idx}`} className={styles.movementItem}>
             <span className={styles.movementDot} aria-hidden="true" />
-            <span className={styles.movementName}>{name}</span>
+            <button
+              type="button"
+              className={styles.movementLink}
+              onClick={() => onOpenReservation?.(item.reservationId)}
+            >
+              {item.label}
+            </button>
           </li>
         ))}
       </ul>
@@ -66,8 +75,36 @@ export default function DayInfoSidePanel({
   rooms,
   reservations,
   isOpen,
-  onClose
+  onClose,
+  serviceTypes: serviceTypesProp
 }) {
+  const navigate = useNavigate();
+  const [serviceTypesLoaded, setServiceTypesLoaded] = useState([]);
+
+  useEffect(() => {
+    if (serviceTypesProp != null || !isOpen) return undefined;
+    let cancelled = false;
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/service-types?hotelId=default-hotel`
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) setServiceTypesLoaded(data.data || []);
+      } catch (error) {
+        console.error('Error loading service types for day info:', error);
+      }
+    };
+    loadServiceTypes();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, serviceTypesProp]);
+
+  const serviceTypes =
+    serviceTypesProp != null ? serviceTypesProp : serviceTypesLoaded;
+
   const dayIso = useMemo(() => {
     if (!selectedDate) return null;
     if (typeof selectedDate === 'string') return selectedDate.slice(0, 10);
@@ -79,9 +116,15 @@ export default function DayInfoSidePanel({
   }, [selectedDate]);
 
   const stats = useMemo(
-    () => computeDayInfoStats(dayIso, rooms, reservations),
-    [dayIso, rooms, reservations]
+    () => computeDayInfoStats(dayIso, rooms, reservations, serviceTypes),
+    [dayIso, rooms, reservations, serviceTypes]
   );
+
+  const openReservation = (reservationId) => {
+    if (reservationId == null) return;
+    onClose?.();
+    navigate(`/reservations/${reservationId}`);
+  };
 
   if (!selectedDate || !dayIso) return null;
 
@@ -102,16 +145,18 @@ export default function DayInfoSidePanel({
           <MovementColumn
             title="Ingresos"
             total={stats.checkIns}
-            names={stats.checkInNames}
+            items={stats.checkInItems}
             variant="arrivals"
             icon={<FiArrowDown />}
+            onOpenReservation={openReservation}
           />
           <MovementColumn
             title="Salidas"
             total={stats.checkOuts}
-            names={stats.checkOutNames}
+            items={stats.checkOutItems}
             variant="departures"
             icon={<FiArrowUp />}
+            onOpenReservation={openReservation}
           />
         </div>
 

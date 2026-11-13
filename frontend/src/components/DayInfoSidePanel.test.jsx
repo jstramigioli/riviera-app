@@ -1,7 +1,18 @@
 /* eslint-env jest */
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DayInfoSidePanel from './DayInfoSidePanel';
+
+const navigateMock = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock
+  };
+});
 
 vi.mock('./SidePanel', () => ({
   default: ({ children, title, open, onClose }) => {
@@ -16,11 +27,15 @@ vi.mock('./SidePanel', () => ({
   }
 }));
 
+function renderPanel(ui) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe('DayInfoSidePanel', () => {
   const mockRooms = [
-    { id: 1, name: 'Habitación 1', maxPeople: 2 },
-    { id: 2, name: 'Habitación 2', maxPeople: 2 },
-    { id: 3, name: 'Departamento A', maxPeople: 4 }
+    { id: 1, name: '12', maxPeople: 2 },
+    { id: 2, name: '15', maxPeople: 2 },
+    { id: 3, name: '8', maxPeople: 4 }
   ]; // capacidad = 8
 
   const mockReservations = [
@@ -30,6 +45,7 @@ describe('DayInfoSidePanel', () => {
       checkOut: '2024-01-03T10:00:00Z',
       roomId: 1,
       requiredGuests: 2,
+      reservationType: 'media_pension',
       mainClient: { firstName: 'Juan', lastName: 'Pérez' }
     },
     {
@@ -38,6 +54,7 @@ describe('DayInfoSidePanel', () => {
       checkOut: '2024-01-04T10:00:00Z',
       roomId: 2,
       requiredGuests: 1,
+      reservationType: 'media_pension',
       mainClient: { firstName: 'María', lastName: 'García' }
     },
     {
@@ -46,6 +63,7 @@ describe('DayInfoSidePanel', () => {
       checkOut: '2024-01-02T10:00:00Z',
       roomId: 3,
       requiredGuests: 3,
+      reservationType: 'media_pension',
       mainClient: { firstName: 'Carlos', lastName: 'López' }
     }
   ];
@@ -63,11 +81,12 @@ describe('DayInfoSidePanel', () => {
   });
 
   it('should return null when no selectedDate is provided', () => {
-    const { container } = render(
+    const { container } = renderPanel(
       <DayInfoSidePanel
         selectedDate={null}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen
         onClose={vi.fn()}
       />
@@ -76,11 +95,12 @@ describe('DayInfoSidePanel', () => {
   });
 
   it('should render side panel when selectedDate is provided', () => {
-    render(
+    renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen
         onClose={vi.fn()}
       />
@@ -89,11 +109,12 @@ describe('DayInfoSidePanel', () => {
   });
 
   it('should display correct date format in title', () => {
-    render(
+    renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen
         onClose={vi.fn()}
       />
@@ -102,28 +123,34 @@ describe('DayInfoSidePanel', () => {
     expect(screen.queryByText(/Información del/i)).not.toBeInTheDocument();
   });
 
-  it('muestra ingresos/salidas en columnas con nombres y ocupación en barras', () => {
-    render(
+  it('muestra ingresos/salidas en columnas con habitación - huésped y ocupación', () => {
+    const onClose = vi.fn();
+    renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen
-        onClose={vi.fn()}
+        onClose={onClose}
       />
     );
 
-    // Día 2: ingreso María (1), salida Carlos (3)
+    // Día 2: ingreso María hab 15, salida Carlos hab 8
     expect(screen.getByText('Ingresos')).toBeInTheDocument();
     expect(screen.getByText('Salidas')).toBeInTheDocument();
-    expect(screen.getByText('María García')).toBeInTheDocument();
-    expect(screen.getByText('Carlos López')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '15 - María García' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '8 - Carlos López' })).toBeInTheDocument();
 
     // Totales: el total de ingresos es 1, salidas 3
     const ingresos = screen.getByText('Ingresos').closest('section');
     const salidas = screen.getByText('Salidas').closest('section');
     expect(ingresos).toHaveTextContent('1');
     expect(salidas).toHaveTextContent('3');
+
+    screen.getByRole('button', { name: '15 - María García' }).click();
+    expect(onClose).toHaveBeenCalled();
+    expect(navigateMock).toHaveBeenCalledWith('/reservations/2');
 
     // Conteos del día (sin palabra «Total»)
     // Día 2: noche Juan(2)+María(1)=3; habs 2; desayuno Juan(2)+Carlos(3)=5; cena=3
@@ -155,11 +182,12 @@ describe('DayInfoSidePanel', () => {
   });
 
   it('should handle empty reservations', () => {
-    render(
+    renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={[]}
+        serviceTypes={[]}
         isOpen
         onClose={vi.fn()}
       />
@@ -171,11 +199,12 @@ describe('DayInfoSidePanel', () => {
 
   it('should call onClose when close button is clicked', () => {
     const mockOnClose = vi.fn();
-    render(
+    renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen
         onClose={mockOnClose}
       />
@@ -185,11 +214,12 @@ describe('DayInfoSidePanel', () => {
   });
 
   it('should not render when isOpen is false', () => {
-    const { container } = render(
+    const { container } = renderPanel(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
         rooms={mockRooms}
         reservations={mockReservations}
+        serviceTypes={[]}
         isOpen={false}
         onClose={vi.fn()}
       />

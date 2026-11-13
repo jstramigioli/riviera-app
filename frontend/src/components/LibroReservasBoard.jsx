@@ -478,7 +478,8 @@ export default function LibroReservasBoard({
         const r = byId.get(b.reservationId);
         r.segments.push({
           id: b.segmentId,
-          roomId: b.roomId,
+          roomId: b.roomId ?? room.id,
+          room: { id: room.id, name: room.name },
           startDate: b.startDate,
           endDate: b.endDate,
           isActive: true
