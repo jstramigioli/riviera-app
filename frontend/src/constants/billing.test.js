@@ -3,6 +3,7 @@ import {
   methodRequiresBilling,
   isCardMethod,
   emptyBillingForm,
+  localDateInputToIso,
   DEFAULT_IVA_CONDITION
 } from './billing'
 
@@ -21,10 +22,19 @@ describe('billing constants', () => {
     expect(isCardMethod('Transferencia')).toBe(false)
   })
 
-  it('emptyBillingForm usa Factura B e IVA default', () => {
+  it('emptyBillingForm usa Factura B, IVA default y fecha solo día', () => {
     const form = emptyBillingForm()
     expect(form.tipo).toBe('B')
     expect(form.ivaCondition).toBe(DEFAULT_IVA_CONDITION)
-    expect(form.fecha).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    expect(form.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('localDateInputToIso interpreta YYYY-MM-DD en zona local', () => {
+    const iso = localDateInputToIso('2026-03-15')
+    expect(iso).toBeTruthy()
+    const d = new Date(iso)
+    expect(d.getFullYear()).toBe(2026)
+    expect(d.getMonth()).toBe(2)
+    expect(d.getDate()).toBe(15)
   })
 })

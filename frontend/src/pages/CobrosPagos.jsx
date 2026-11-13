@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiFilter, FiCheck, FiSquare } from 'react-icons/fi';
+import { FiPlus, FiFilter, FiCheck, FiSquare, FiX } from 'react-icons/fi';
 import {
   getReservationsWithBalances,
   getAllPagos,
   updatePago,
   uploadPagoAdjuntos,
+  deletePagoAdjunto,
   downloadPagoAdjunto,
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentForm from '../components/PaymentForm';
 import styles from './CobrosPagos.module.css';
@@ -33,7 +35,6 @@ const SECTIONS = {
 const FACTURA_B_COLUMNS = [
   { key: 'codigo', label: 'Código' },
   { key: 'fecha', label: 'Fecha' },
-  { key: 'motivo', label: 'Motivo' },
   { key: 'firstName', label: 'Nombre' },
   { key: 'lastName', label: 'Apellido' },
   { key: 'documentType', label: 'Tipo doc.' },
@@ -46,7 +47,6 @@ const FACTURA_B_COLUMNS = [
 const FACTURA_A_COLUMNS = [
   { key: 'codigo', label: 'Código' },
   { key: 'fecha', label: 'Fecha' },
-  { key: 'motivo', label: 'Motivo' },
   { key: 'businessName', label: 'Razón social' },
   { key: 'cuit', label: 'CUIT' },
   { key: 'commercialAddress', label: 'Dom. comercial' },
@@ -57,7 +57,8 @@ const FACTURA_A_COLUMNS = [
 
 function facturaCellValue(pago, key) {
   if (key === 'codigo') return paymentCodeLabel(pago);
-  if (key === 'fecha') return formatDisplayDateTime(pago?.factura?.fecha || pago?.fecha);
+  // Solo día (sin hora): fecha de facturación, que puede diferir de la del pago.
+  if (key === 'fecha') return formatDisplayDate(pago?.factura?.fecha || pago?.fecha);
   const raw = pago?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
@@ -84,6 +85,7 @@ const EMPTY_PAY_FILTERS = {
   montoMin: '',
   montoMax: '',
   metodo: '',
+  motivo: '',
   referencia: '',
 };
 
@@ -94,6 +96,7 @@ const PAY_COLUMN_KEYS = {
   cliente: ['cliente'],
   monto: ['montoMin', 'montoMax'],
   metodo: ['metodo'],
+  motivo: ['motivo'],
   referencia: ['referencia'],
 };
 
@@ -161,6 +164,7 @@ const CobrosPagos = () => {
   const { can } = useAuth();
   const canFacturacion = can('facturacion');
   const { notify, noticeDialog } = useAppNotice();
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const sectionParam = searchParams.get('section');
@@ -178,6 +182,9 @@ const CobrosPagos = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [uploadingPagoId, setUploadingPagoId] = useState(null);
+  const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
+  /** Pagos con comprobante subido en esta visita a Facturación (se ocultan al salir/recargar). */
+  const [facturacionSessionDone, setFacturacionSessionDone] = useState(() => new Set());
   const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -292,32 +299,52 @@ const CobrosPagos = () => {
     setSearchParams(next, { replace: true });
   };
 
+  const facturacionSortMs = (pago) => {
+    const raw = pago?.factura?.fecha || pago?.fecha;
+    return raw ? new Date(raw).getTime() : 0;
+  };
+
+  const isFacturacionRowVisible = useCallback(
+    (pago) => {
+      const hasComprobante = adjuntosOf(pago, ADJUNTO_FACTURA).length > 0;
+      if (!hasComprobante) return true;
+      return facturacionSessionDone.has(pago.id);
+    },
+    [facturacionSessionDone]
+  );
+
+  useEffect(() => {
+    if (activeSection !== SECTIONS.facturacion) {
+      setFacturacionSessionDone(new Set());
+    }
+  }, [activeSection]);
+
   const facturacionPagosA = useMemo(
     () =>
       (payments || [])
         .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'A')
+        .filter(isFacturacionRowVisible)
         .slice()
         .sort((a, b) => {
-          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
-          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
-          if (db !== da) return db - da;
+          const diff = facturacionSortMs(b) - facturacionSortMs(a);
+          if (diff !== 0) return diff;
           return Number(b.id) - Number(a.id);
         }),
-    [payments]
+    [payments, isFacturacionRowVisible]
   );
 
   const facturacionPagosB = useMemo(
     () =>
       (payments || [])
         .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'B')
+        .filter(isFacturacionRowVisible)
         .slice()
         .sort((a, b) => {
-          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
-          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
-          if (db !== da) return db - da;
+          const diff = facturacionSortMs(b) - facturacionSortMs(a);
+          if (diff !== 0) return diff;
           return Number(b.id) - Number(a.id);
         }),
-    [payments]
+    [payments, isFacturacionRowVisible]
   );
 
   const handleCopyCell = async (value) => {
@@ -359,36 +386,48 @@ const CobrosPagos = () => {
     );
   };
 
+  const renderAdjuntoFileRow = (pago, file, { showCheck = false, canDelete = false } = {}) => {
+    const busyDelete = deletingAdjuntoId === file.id;
+    return (
+      <div key={file.id} className={styles.fileRow}>
+        <button
+          type="button"
+          className={styles.fileLink}
+          onClick={() => handleDownloadAdjunto(pago, file)}
+          title="Descargar"
+        >
+          {file.originalName || `Archivo ${file.id}`}
+        </button>
+        {showCheck ? (
+          <span className={styles.fileDoneMark} aria-label="Subido" title="Subido">
+            <FiCheck aria-hidden="true" />
+          </span>
+        ) : null}
+        {canDelete ? (
+          <button
+            type="button"
+            className={styles.fileDeleteBtn}
+            aria-label="Eliminar comprobante"
+            title="Eliminar"
+            disabled={busyDelete}
+            onClick={() => handleDeleteAdjunto(pago, file)}
+          >
+            <FiX aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderFacturaPdfCell = (pago) => {
     const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
     const busyUpload = uploadingPagoId === pago.id;
     if (facturaFiles.length > 0) {
       return (
         <div className={styles.fileList}>
-          {facturaFiles.map((file) => (
-            <button
-              key={file.id}
-              type="button"
-              className={styles.fileLink}
-              onClick={() => handleDownloadAdjunto(pago, file)}
-              title="Descargar factura"
-            >
-              {file.originalName || `Factura ${file.id}`}
-            </button>
-          ))}
-          <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              multiple
-              disabled={busyUpload}
-              onChange={(e) => {
-                handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
-                e.target.value = '';
-              }}
-            />
-            {busyUpload ? 'Subiendo…' : '+ PDF'}
-          </label>
+          {facturaFiles.map((file) =>
+            renderAdjuntoFileRow(pago, file, { showCheck: true, canDelete: true })
+          )}
         </div>
       );
     }
@@ -411,7 +450,7 @@ const CobrosPagos = () => {
             e.target.value = '';
           }}
         />
-        {busyUpload ? 'Subiendo…' : 'Subir PDF'}
+        {busyUpload ? 'Subiendo…' : 'Subir comprobante'}
       </label>
     );
   };
@@ -428,14 +467,14 @@ const CobrosPagos = () => {
               {columns.map((col) => (
                 <th key={col.key}>{col.label}</th>
               ))}
-              <th>PDF</th>
+              <th>Comprobante</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + 1} className={styles.emptyCell}>
-                  No hay pagos con Factura {tipo}
+                  No hay pagos pendientes de Factura {tipo}
                 </td>
               </tr>
             ) : (
@@ -536,6 +575,7 @@ const CobrosPagos = () => {
     const clienteNeedle = payFilters.cliente.trim();
     const referenciaNeedle = payFilters.referencia.trim();
     const metodoNeedle = payFilters.metodo;
+    const motivoNeedle = payFilters.motivo;
     const montoMin =
       payFilters.montoMin === '' ? null : Number(payFilters.montoMin);
     const montoMax =
@@ -586,6 +626,10 @@ const CobrosPagos = () => {
           return false;
         }
 
+        if (motivoNeedle && (pago.motivo || 'Pago') !== motivoNeedle) {
+          return false;
+        }
+
         if (referenciaNeedle) {
           const refText = `${pago.referencia || ''} ${pago.empresa || ''}`.trim();
           if (!includesNormalized(refText, referenciaNeedle)) return false;
@@ -608,6 +652,16 @@ const CobrosPagos = () => {
         if (pago.id !== pagoId) return pago;
         const existing = Array.isArray(pago.adjuntos) ? pago.adjuntos : [];
         return { ...pago, adjuntos: [...existing, ...nuevos] };
+      })
+    );
+  };
+
+  const removePagoAdjuntoLocal = (pagoId, adjuntoId) => {
+    setPayments((prev) =>
+      prev.map((pago) => {
+        if (pago.id !== pagoId) return pago;
+        const existing = Array.isArray(pago.adjuntos) ? pago.adjuntos : [];
+        return { ...pago, adjuntos: existing.filter((a) => a.id !== adjuntoId) };
       })
     );
   };
@@ -649,7 +703,7 @@ const CobrosPagos = () => {
       notify({
         title: 'Archivo no permitido',
         message: acceptPdfOnly
-          ? 'Solo PDF para facturas'
+          ? 'Solo PDF para comprobantes de facturación'
           : 'Solo JPG, PNG o PDF para comprobantes',
         type: 'error',
       });
@@ -658,7 +712,15 @@ const CobrosPagos = () => {
     setUploadingPagoId(pago.id);
     try {
       const created = await uploadPagoAdjuntos(pago.id, tipo, files);
-      mergePagoAdjuntos(pago.id, Array.isArray(created) ? created : [created]);
+      const list = Array.isArray(created) ? created : [created];
+      mergePagoAdjuntos(pago.id, list);
+      if (tipo === ADJUNTO_FACTURA) {
+        setFacturacionSessionDone((prev) => {
+          const next = new Set(prev);
+          next.add(pago.id);
+          return next;
+        });
+      }
     } catch (err) {
       notify({
         title: 'No se pudo subir',
@@ -679,6 +741,54 @@ const CobrosPagos = () => {
         message: err?.message || 'Error al descargar',
         type: 'error',
       });
+    }
+  };
+
+  const handleDeleteAdjunto = async (pago, adjunto) => {
+    if (!pago?.id || !adjunto?.id) return;
+    if (adjunto.tipo === ADJUNTO_FACTURA && !canFacturacion) {
+      notify({
+        title: 'Sin permiso',
+        message: 'Solo administración puede eliminar comprobantes de facturación',
+        type: 'error',
+      });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Eliminar comprobante',
+      message: `¿Eliminar «${adjunto.originalName || 'archivo'}»?`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
+    setDeletingAdjuntoId(adjunto.id);
+    try {
+      await deletePagoAdjunto(pago.id, adjunto.id);
+      removePagoAdjuntoLocal(pago.id, adjunto.id);
+      if (adjunto.tipo === ADJUNTO_FACTURA) {
+        const remaining = adjuntosOf(
+          {
+            ...pago,
+            adjuntos: (pago.adjuntos || []).filter((a) => a.id !== adjunto.id),
+          },
+          ADJUNTO_FACTURA
+        );
+        if (remaining.length === 0) {
+          setFacturacionSessionDone((prev) => {
+            const next = new Set(prev);
+            next.delete(pago.id);
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      notify({
+        title: 'No se pudo eliminar',
+        message: err?.message || 'Error al eliminar',
+        type: 'error',
+      });
+    } finally {
+      setDeletingAdjuntoId(null);
     }
   };
 
@@ -1069,6 +1179,7 @@ const CobrosPagos = () => {
                         { key: 'cliente', label: 'Cliente' },
                         { key: 'monto', label: 'Monto' },
                         { key: 'metodo', label: 'Método' },
+                        { key: 'motivo', label: 'Motivo' },
                         { key: 'referencia', label: 'Referencia' },
                       ].map(({ key, label }) => {
                         const isOpen = openPayColumn === key;
@@ -1101,7 +1212,7 @@ const CobrosPagos = () => {
                   <tbody>
                     {filteredPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className={styles.emptyCell}>
+                        <td colSpan={10} className={styles.emptyCell}>
                           No hay pagos con los filtros actuales
                         </td>
                       </tr>
@@ -1143,6 +1254,7 @@ const CobrosPagos = () => {
                             </td>
                             <td className={styles.amountCell}>{formatPrice(amount)}</td>
                             <td className={styles.metaCell}>{pago.metodo || '—'}</td>
+                            <td className={styles.metaCell}>{pago.motivo || 'Pago'}</td>
                             <td className={styles.metaCell}>
                               {pago.referencia || pago.empresa || '—'}
                             </td>
@@ -1151,17 +1263,12 @@ const CobrosPagos = () => {
                                 <span className={styles.dashMuted}>—</span>
                               ) : facturaFiles.length > 0 ? (
                                 <div className={styles.fileList}>
-                                  {facturaFiles.map((file) => (
-                                    <button
-                                      key={file.id}
-                                      type="button"
-                                      className={styles.fileLink}
-                                      onClick={() => handleDownloadAdjunto(pago, file)}
-                                      title="Descargar factura"
-                                    >
-                                      {file.originalName || `Factura ${file.id}`}
-                                    </button>
-                                  ))}
+                                  {facturaFiles.map((file) =>
+                                    renderAdjuntoFileRow(pago, file, {
+                                      showCheck: false,
+                                      canDelete: canFacturacion,
+                                    })
+                                  )}
                                 </div>
                               ) : (
                                 <span className={styles.facturaPendiente}>Pendiente</span>
@@ -1171,17 +1278,12 @@ const CobrosPagos = () => {
                               {transfer ? (
                                 comprobanteFiles.length > 0 ? (
                                   <div className={styles.fileList}>
-                                    {comprobanteFiles.map((file) => (
-                                      <button
-                                        key={file.id}
-                                        type="button"
-                                        className={styles.fileLink}
-                                        onClick={() => handleDownloadAdjunto(pago, file)}
-                                        title="Descargar comprobante"
-                                      >
-                                        {file.originalName || `Comprobante ${file.id}`}
-                                      </button>
-                                    ))}
+                                    {comprobanteFiles.map((file) =>
+                                      renderAdjuntoFileRow(pago, file, {
+                                        showCheck: false,
+                                        canDelete: true,
+                                      })
+                                    )}
                                     <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
                                       <input
                                         type="file"
@@ -1381,6 +1483,19 @@ const CobrosPagos = () => {
               ))}
             </select>
           )}
+          {openPayColumn === 'motivo' && (
+            <select
+              className={styles.columnFilter}
+              aria-label="Filtrar por motivo"
+              autoFocus
+              value={payFilters.motivo}
+              onChange={(e) => setPayFilter('motivo', e.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="Pago">Pago</option>
+              <option value="Seña">Seña</option>
+            </select>
+          )}
           {openPayColumn === 'referencia' && (
             <input
               type="search"
@@ -1395,6 +1510,7 @@ const CobrosPagos = () => {
         </div>
       )}
       {noticeDialog}
+      {confirmDialog}
     </div>
   );
 };

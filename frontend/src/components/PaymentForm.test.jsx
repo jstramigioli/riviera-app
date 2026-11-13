@@ -59,7 +59,9 @@ describe('PaymentForm facturación', () => {
     expect(toggle).toBeDisabled()
 
     expect(screen.getByRole('button', { name: 'Factura B' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Fecha/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Fecha de facturación/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Motivo/i)).toHaveValue('Pago')
+    expect(screen.queryByPlaceholderText(/Concepto/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^Nombre/i)).toHaveValue('Ana')
     expect(screen.getByLabelText(/^Apellido/i)).toHaveValue('Pérez')
   })
