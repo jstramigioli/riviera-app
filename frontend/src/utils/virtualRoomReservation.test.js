@@ -61,6 +61,25 @@ describe('virtualRoomReservation room selection', () => {
     const room = selectedRoomFromCollapsedSegment(seg)
     expect(room.id).toBe(7)
     expect(room.name).toBe('Suite Lago')
+    expect(room.tags).toEqual([])
+  })
+
+  it('selectedRoomFromCollapsedSegment propaga tags (evita crash de compliance en edición)', () => {
+    const seg = {
+      roomId: 13,
+      guestCount: 3,
+      baseRate: 100,
+      requiredTags: ['tag-a'],
+      room: {
+        name: 'Hab 13',
+        maxPeople: 3,
+        tags: [{ id: 'tag-a', name: 'Vista' }]
+      }
+    }
+    const room = selectedRoomFromCollapsedSegment(seg)
+    expect(room.tags).toEqual([{ id: 'tag-a', name: 'Vista' }])
+    // Simula el acceso que antes crasheaba con room.tags undefined
+    expect(room.tags.filter((t) => t.id === 'tag-a')).toHaveLength(1)
   })
 
   it('collapse + selectedRoom prefills virtual primaria', () => {

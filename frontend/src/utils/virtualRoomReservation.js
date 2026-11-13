@@ -162,6 +162,7 @@ export function selectedRoomFromCollapsedSegment(seg) {
       virtualRoomId: virtualId,
       roomType: vr?.roomType || seg.roomType || null,
       roomTypeId: vr?.roomTypeId || seg.roomTypeId || vr?.roomType?.id || null,
+      tags: vr?.tags || seg.room?.tags || [],
       price: Number(seg.baseRate) || 0,
       ratesData: {
         totalAmount: null,
@@ -183,6 +184,7 @@ export function selectedRoomFromCollapsedSegment(seg) {
     virtualRoomId: null,
     roomType: seg.roomType || seg.room?.roomType || null,
     roomTypeId: seg.roomTypeId || seg.room?.roomTypeId || seg.room?.roomType?.id || null,
+    tags: seg.room?.tags || [],
     price: Number(seg.baseRate) || 0,
     ratesData: {
       totalAmount: null,

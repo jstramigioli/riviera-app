@@ -415,7 +415,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: var(--color-text-dark);
+  /* Hereda el color del botón (.bar); contraste lo fija JS según medio */
+  color: inherit;
 }
 
 .emptyState {

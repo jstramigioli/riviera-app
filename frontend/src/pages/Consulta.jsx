@@ -24,6 +24,7 @@ import {
   isConsultaEditIntent,
   resolveEditReservationId
 } from '../utils/consultaNavigation';
+import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -311,6 +312,8 @@ export default function Consulta() {
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
+  // Id ya hidratado (permite re-prefill al navegar /consulta/:a → /consulta/:b sin remount)
+  const hydratedEditIdRef = useRef(null);
   // Evita que efectos de reset borren el prefill durante la hidratación de edición
   const hydratingEditRef = useRef(false);
   // Selección actual legible desde callbacks async (re-búsqueda por servicio, etc.)
@@ -1019,10 +1022,12 @@ export default function Consulta() {
     ) {
       return;
     }
-    // Strict Mode remount: no marcar dataLoaded hasta aplicar el prefill con éxito
-    if (dataLoadedRef.current) return;
+    // Evitar re-fetch de la misma reserva; permitir cambiar de /consulta/:a → :b
+    if (dataLoadedRef.current && hydratedEditIdRef.current === reservationId) return;
 
     let cancelled = false;
+    dataLoadedRef.current = false;
+    setEditPrefillReady(false);
 
     (async () => {
       try {
@@ -1031,12 +1036,19 @@ export default function Consulta() {
 
         hydratingEditRef.current = true;
         dataLoadedRef.current = true;
+        hydratedEditIdRef.current = full.id ?? reservationId;
 
         setEditingReservationId(full.id);
         setEditingReservationStatus(full.status || 'PENDIENTE');
         setApplyRateChanges(true);
 
-        const collapsed = collapseSegmentsForEditUi(full.segments || []);
+        // Canceladas / no-show: segmentos inactivos; igual hay que hidratar la UI
+        let collapsed = collapseSegmentsForEditUi(full.segments || []);
+        if (collapsed.length === 0 && (full.segments || []).length > 0) {
+          collapsed = collapseSegmentsForEditUi(
+            (full.segments || []).map((seg) => ({ ...seg, isActive: true }))
+          );
+        }
         const loadedSegments = collapsed.map((seg, index) => ({
           id: seg.id || Date.now() + index,
           checkIn: String(seg.startDate || '').slice(0, 10),
@@ -1146,6 +1158,7 @@ export default function Consulta() {
             type: 'error'
           });
           dataLoadedRef.current = false;
+          hydratedEditIdRef.current = null;
           setEditPrefillReady(true);
           hydratingEditRef.current = false;
         }
@@ -2335,44 +2348,11 @@ export default function Consulta() {
 
 
   const checkRequirementsCompliance = (room) => {
-    // Obtener las etiquetas requeridas del bloque activo
     const activeBlock = segments[activeBlockIndex];
     if (!activeBlock) {
       return { complies: true, message: 'No hay bloque activo', score: 0 };
     }
-    
-    const requiredTagIds = activeBlock.requiredTags || [];
-    
-    if (requiredTagIds.length === 0) {
-      return { complies: true, message: 'No hay etiquetas requeridas', score: 0 };
-    }
-    
-    // Obtener las etiquetas de la habitación
-    const roomTagIds = room.tags ? room.tags.map(tag => tag.id) : [];
-    
-    // Verificar si la habitación tiene todas las etiquetas requeridas
-    const missingTags = requiredTagIds.filter(tagId => !roomTagIds.includes(tagId));
-    const matchingTags = room.tags.filter(tag => requiredTagIds.includes(tag.id));
-    
-    const complianceScore = matchingTags.length / requiredTagIds.length;
-    
-    if (missingTags.length === 0) {
-      // La habitación cumple con todos los requerimientos
-      const tagNames = matchingTags.map(tag => tag.name);
-      return { 
-        complies: true, 
-        message: tagNames.length > 0 ? tagNames.join(', ') : 'Cumple con todos los requerimientos',
-        score: complianceScore
-      };
-    } else {
-      // La habitación no cumple con todos los requerimientos
-      const tagNames = matchingTags.map(tag => tag.name);
-      return { 
-        complies: false, 
-        message: tagNames.length > 0 ? tagNames.join(', ') : 'No cumple con los requerimientos',
-        score: complianceScore
-      };
-    }
+    return roomRequirementsCompliance(room, activeBlock.requiredTags || []);
   };
 
   // Funciones para manejar segmentos
@@ -3510,7 +3490,7 @@ export default function Consulta() {
                             key={tag.id}
                             type="button"
                             className={`${styles.tagButton} ${
-                              segments[activeBlockIndex]?.requiredTags.includes(tag.id) ? styles.tagSelected : ''
+                              (segments[activeBlockIndex]?.requiredTags || []).includes(tag.id) ? styles.tagSelected : ''
                             }`}
                             onClick={() => segments[activeBlockIndex] && handleSegmentTagToggle(segments[activeBlockIndex].id, tag.id)}
                               disabled={!!segments[activeBlockIndex]?.requiredRoomId}
