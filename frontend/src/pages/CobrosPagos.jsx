@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiPlus, FiFilter, FiCheck, FiSquare, FiX } from 'react-icons/fi';
 import {
-  getReservationsWithBalances,
+  getAccountsWithBalances,
   getAllPagos,
   updatePago,
   uploadPagoAdjuntos,
   deletePagoAdjunto,
   downloadPagoAdjunto,
+  createExternalAccount,
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -191,6 +192,10 @@ const CobrosPagos = () => {
 
   const [statusFilters, setStatusFilters] = useState(DEFAULT_STATUS_FILTERS);
   const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
+  const [origenFilter, setOrigenFilter] = useState('todas'); // todas | reserva | externa
+  const [showExternalForm, setShowExternalForm] = useState(false);
+  const [externalLabel, setExternalLabel] = useState('');
+  const [creatingExternal, setCreatingExternal] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
@@ -274,7 +279,7 @@ const CobrosPagos = () => {
       setLoading(true);
       setError(null);
       const [balancesData, paymentsData] = await Promise.all([
-        getReservationsWithBalances(),
+        getAccountsWithBalances('ALL'),
         getAllPagos().catch(() => []),
       ]);
       setReservationsWithBalances(balancesData || []);
@@ -282,7 +287,7 @@ const CobrosPagos = () => {
     } catch (err) {
       console.error('Error cargando datos:', err);
       const detail = (err?.message || '').replace(
-        /^Error fetching reservations with balances:?\s*/,
+        /^Error fetching (?:reservations|accounts) with balances:?\s*/,
         ''
       );
       setError(detail ? `Error al cargar los datos (${detail})` : 'Error al cargar los datos');
@@ -514,8 +519,17 @@ const CobrosPagos = () => {
       const payStatus = reservation.estadoPago || 'PENDIENTE';
       if (!statusFilters[payStatus]) return false;
 
-      if (scopeFilter === 'alojadas' && reservation.status !== ALOJADAS_STATUS) {
-        return false;
+      const origen = reservation.origen || reservation.accountKind || 'RESERVA';
+      const isExterna = origen === 'EXTERNA' || origen === 'EXTERNAL';
+      if (origenFilter === 'reserva' && isExterna) return false;
+      if (origenFilter === 'externa' && !isExterna) return false;
+
+      if (scopeFilter === 'alojadas') {
+        if (isExterna) {
+          if (reservation.accountStatus && reservation.accountStatus !== 'OPEN') return false;
+        } else if (reservation.status !== ALOJADAS_STATUS) {
+          return false;
+        }
       }
 
       if (clientId != null && !Number.isNaN(clientId)) {
@@ -545,6 +559,7 @@ const CobrosPagos = () => {
     reservationsWithBalances,
     statusFilters,
     scopeFilter,
+    origenFilter,
     dateFrom,
     dateTo,
     clientIdParam,
@@ -812,6 +827,30 @@ const CobrosPagos = () => {
     setSelectedReservation(null);
   };
 
+  const handleCreateExternalAccount = async () => {
+    const label = String(externalLabel || '').trim();
+    if (!label) {
+      notify({ title: 'Falta etiqueta', message: 'Indicá un nombre para la cuenta externa.', type: 'error' });
+      return;
+    }
+    try {
+      setCreatingExternal(true);
+      await createExternalAccount({ label });
+      setExternalLabel('');
+      setShowExternalForm(false);
+      notify({ title: 'Cuenta creada', message: `Cuenta externa “${label}” lista.`, type: 'success' });
+      await loadData();
+    } catch (err) {
+      notify({
+        title: 'No se pudo crear',
+        message: err?.message || 'Error al crear cuenta externa',
+        type: 'error',
+      });
+    } finally {
+      setCreatingExternal(false);
+    }
+  };
+
   const handlePaymentSuccess = (nuevoPago) => {
     if (nuevoPago?.id != null) {
       notify({
@@ -881,9 +920,73 @@ const CobrosPagos = () => {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <h2>Cuentas pendientes</h2>
+                <div className={styles.sectionActions}>
+                  <button
+                    type="button"
+                    className={styles.createButton}
+                    onClick={() => setShowExternalForm((v) => !v)}
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Cuenta externa
+                  </button>
+                </div>
               </div>
 
+              {showExternalForm && (
+                <div className={styles.filters} aria-label="Alta cuenta externa">
+                  <div className={styles.filterGroup}>
+                    <span className={styles.filterLabel}>Etiqueta</span>
+                    <input
+                      type="text"
+                      value={externalLabel}
+                      onChange={(e) => setExternalLabel(e.target.value)}
+                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                      aria-label="Etiqueta de cuenta externa"
+                    />
+                    <button
+                      type="button"
+                      className={styles.createButton}
+                      disabled={creatingExternal}
+                      onClick={handleCreateExternalAccount}
+                    >
+                      {creatingExternal ? 'Creando…' : 'Crear'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className={styles.filters} aria-label="Filtros de cuentas">
+                <div className={styles.filterGroup}>
+                  <span className={styles.filterLabel}>Origen</span>
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name="origen"
+                      checked={origenFilter === 'todas'}
+                      onChange={() => setOrigenFilter('todas')}
+                    />
+                    Todas
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name="origen"
+                      checked={origenFilter === 'reserva'}
+                      onChange={() => setOrigenFilter('reserva')}
+                    />
+                    Reserva
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name="origen"
+                      checked={origenFilter === 'externa'}
+                      onChange={() => setOrigenFilter('externa')}
+                    />
+                    Externa
+                  </label>
+                </div>
+
                 <div className={styles.filterGroup}>
                   <span className={styles.filterLabel}>Alcance</span>
                   <label className={styles.check}>
@@ -1001,7 +1104,8 @@ const CobrosPagos = () => {
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th>Reserva</th>
+                        <th>Origen</th>
+                        <th>Cuenta</th>
                         <th>Estado</th>
                         <th>Códigos</th>
                         <th>Cliente</th>
@@ -1016,9 +1120,14 @@ const CobrosPagos = () => {
                     <tbody>
                       {filteredAccounts.map((reservation) => {
                         const client = reservation.mainClient;
+                        const isExterna =
+                          reservation.origen === 'EXTERNA' ||
+                          reservation.accountKind === 'EXTERNAL';
                         const clientName = client
                           ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-                          : 'Sin cliente';
+                          : isExterna
+                            ? reservation.accountLabel || 'Cuenta externa'
+                            : 'Sin cliente';
                         const statusColor =
                           STATUS_COLORS[reservation.estadoPago] || '#6b7280';
                         const paymentList = (reservation.pagos || [])
@@ -1040,11 +1149,22 @@ const CobrosPagos = () => {
                             : reservation.createdAt
                               ? new Date(reservation.createdAt)
                               : null);
+                        const rowKey = reservation.accountId || `r-${reservation.id}`;
+                        const cuentaLabel = isExterna
+                          ? reservation.accountLabel || `Externa #${reservation.accountId}`
+                          : `#${reservation.reservationId || reservation.id}`;
 
                         return (
-                          <tr key={reservation.id} className={styles.row}>
-                            <td className={styles.idCell}>#{reservation.id}</td>
-                            <td className={styles.metaCell}>{reservation.status || '—'}</td>
+                          <tr key={rowKey} className={styles.row}>
+                            <td className={styles.metaCell}>
+                              {isExterna ? 'Externa' : 'Reserva'}
+                            </td>
+                            <td className={styles.idCell}>{cuentaLabel}</td>
+                            <td className={styles.metaCell}>
+                              {isExterna
+                                ? reservation.accountStatus || reservation.status || '—'
+                                : reservation.status || '—'}
+                            </td>
                             <td>
                               {paymentList.length > 0 ? (
                                 <div
@@ -1374,7 +1494,20 @@ const CobrosPagos = () => {
 
       {showPaymentForm && (
         <PaymentForm
-          reservaId={selectedReservation?.id ?? null}
+          reservaId={
+            selectedReservation &&
+            selectedReservation.origen !== 'EXTERNA' &&
+            selectedReservation.accountKind !== 'EXTERNAL'
+              ? selectedReservation.reservationId || selectedReservation.id
+              : null
+          }
+          accountId={
+            selectedReservation &&
+            (selectedReservation.origen === 'EXTERNA' ||
+              selectedReservation.accountKind === 'EXTERNAL')
+              ? selectedReservation.accountId
+              : null
+          }
           onClose={handleClosePaymentForm}
           onSuccess={handlePaymentSuccess}
         />

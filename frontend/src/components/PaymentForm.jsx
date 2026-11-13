@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiDollarSign, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
+  createAccountPago,
   fetchReservation,
-  fetchReservasParaPago,
+  fetchCuentasParaPago,
   getClientBillingProfile,
   getTipoCambioActual
 } from '../services/api';
@@ -25,28 +26,65 @@ const MODE_DEVOLUCION = 'devolucion';
 
 function reservationOptionLabel(row) {
   if (row.label) return row.label;
+  if (row.accountKind === 'EXTERNAL' || row.origen === 'EXTERNA') {
+    return row.label || `Externa #${row.accountId}`;
+  }
   const room = row.roomName || 'Hab.';
   const apellido = row.clientLastName || (row.clientName || '').split(/\s+/).pop() || 'Sin apellido';
   return `${room} - ${apellido}`;
 }
 
-const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) => {
-  const needsReservationPick = reservaIdProp == null;
+function optionKey(row) {
+  if (row.accountId != null) return `a:${row.accountId}`;
+  if (row.reservationId != null) return `r:${row.reservationId}`;
+  return '';
+}
+
+const PaymentForm = ({
+  reservaId: reservaIdProp = null,
+  accountId: accountIdProp = null,
+  onClose,
+  onSuccess
+}) => {
+  const needsAccountPick = reservaIdProp == null && accountIdProp == null;
   const [reservationOptions, setReservationOptions] = useState([]);
-  const [pickedReservationId, setPickedReservationId] = useState('');
+  const [pickedOptionKey, setPickedOptionKey] = useState('');
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [mode, setMode] = useState(MODE_PAGO);
   const [esSena, setEsSena] = useState(false);
 
-  const reservaId = needsReservationPick
-    ? (pickedReservationId ? Number(pickedReservationId) : null)
-    : Number(reservaIdProp);
+  const pickedRow = useMemo(() => {
+    if (!needsAccountPick || !pickedOptionKey) return null;
+    return reservationOptions.find((r) => optionKey(r) === pickedOptionKey) || null;
+  }, [needsAccountPick, pickedOptionKey, reservationOptions]);
+
+  const isExternalAccount = needsAccountPick
+    ? pickedRow?.accountKind === 'EXTERNAL' || pickedRow?.origen === 'EXTERNA'
+    : accountIdProp != null && reservaIdProp == null;
+
+  const reservaId = needsAccountPick
+    ? pickedRow?.reservationId
+      ? Number(pickedRow.reservationId)
+      : null
+    : reservaIdProp != null
+      ? Number(reservaIdProp)
+      : null;
+
+  const accountId = needsAccountPick
+    ? pickedRow?.accountId
+      ? Number(pickedRow.accountId)
+      : null
+    : accountIdProp != null
+      ? Number(accountIdProp)
+      : null;
 
   const isDevolucion = mode === MODE_DEVOLUCION;
+  // Seña solo en Account de reserva (decisión PGH-130).
+  const canUseSena = !isExternalAccount;
   const motivoActual = isDevolucion
     ? MOTIVO_DEVOLUCION
-    : esSena
+    : esSena && canUseSena
       ? 'Seña'
       : DEFAULT_PAGO_MOTIVO;
 
@@ -115,13 +153,17 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
   }, [billingForced]);
 
   useEffect(() => {
+    if (!canUseSena && esSena) setEsSena(false);
+  }, [canUseSena, esSena]);
+
+  useEffect(() => {
     let cancelled = false;
     async function boot() {
       setLoadingMeta(true);
       setError(null);
       try {
-        if (needsReservationPick) {
-          const optionsRes = await fetchReservasParaPago();
+        if (needsAccountPick) {
+          const optionsRes = await fetchCuentasParaPago();
           const list = optionsRes.data || optionsRes || [];
           if (!cancelled) setReservationOptions(Array.isArray(list) ? list : []);
         } else if (reservaIdProp) {
@@ -142,17 +184,14 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
     return () => {
       cancelled = true;
     };
-  }, [needsReservationPick, reservaIdProp, applyBillingPrefill]);
+  }, [needsAccountPick, reservaIdProp, applyBillingPrefill]);
 
   useEffect(() => {
-    if (!needsReservationPick || !pickedReservationId) return;
-    const row = reservationOptions.find(
-      (r) => String(r.reservationId) === String(pickedReservationId)
-    );
-    const cid = row?.clientId || null;
+    if (!needsAccountPick || !pickedRow) return;
+    const cid = pickedRow?.clientId || null;
     setClientId(cid);
     if (cid) applyBillingPrefill(cid);
-  }, [needsReservationPick, pickedReservationId, reservationOptions, applyBillingPrefill]);
+  }, [needsAccountPick, pickedRow, applyBillingPrefill]);
 
   const loadTipoCambioGlobal = async () => {
     try {
@@ -203,19 +242,23 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
   };
 
   const occupiedOptions = useMemo(() => {
-    const byReservation = new Map();
+    const byKey = new Map();
     for (const row of reservationOptions) {
-      const key = String(row.reservationId);
-      if (!byReservation.has(key)) byReservation.set(key, row);
+      const key = optionKey(row);
+      if (key && !byKey.has(key)) byKey.set(key, row);
     }
-    return Array.from(byReservation.values());
+    return Array.from(byKey.values());
   }, [reservationOptions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!reservaId) {
-      setError('Seleccioná una reserva');
+    if (!reservaId && !accountId) {
+      setError('Seleccioná una cuenta');
+      return;
+    }
+    if (esSena && isExternalAccount) {
+      setError('La seña solo se registra en la cuenta de una reserva');
       return;
     }
 
@@ -305,7 +348,12 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         factura: facturaPayload
       };
 
-      const nuevoPago = await createPago(reservaId, pagoData);
+      let nuevoPago;
+      if (isExternalAccount || (accountId && !reservaId)) {
+        nuevoPago = await createAccountPago(accountId, pagoData);
+      } else {
+        nuevoPago = await createPago(reservaId, pagoData);
+      }
       onSuccess?.(nuevoPago);
       onClose();
     } catch (err) {
@@ -367,14 +415,14 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          {needsReservationPick && (
+          {needsAccountPick && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label htmlFor="payment-reservation">Reserva *</label>
+                <label htmlFor="payment-reservation">Cuenta *</label>
                 <select
                   id="payment-reservation"
-                  value={pickedReservationId}
-                  onChange={(e) => setPickedReservationId(e.target.value)}
+                  value={pickedOptionKey}
+                  onChange={(e) => setPickedOptionKey(e.target.value)}
                   required
                   disabled={loadingMeta || loading}
                 >
@@ -382,12 +430,14 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
                     {loadingMeta
                       ? 'Cargando…'
                       : occupiedOptions.length === 0
-                        ? 'Sin reservas activas'
-                        : 'Seleccionar habitación / huésped…'}
+                        ? 'Sin cuentas abiertas'
+                        : 'Seleccionar reserva o cuenta externa…'}
                   </option>
                   {occupiedOptions.map((row) => (
-                    <option key={row.reservationId} value={row.reservationId}>
-                      {reservationOptionLabel(row)}
+                    <option key={optionKey(row)} value={optionKey(row)}>
+                      {row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
+                        ? `Externa · ${reservationOptionLabel(row)}`
+                        : `Reserva · ${reservationOptionLabel(row)}`}
                     </option>
                   ))}
                 </select>
@@ -467,7 +517,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
               </select>
             </div>
 
-            {!isDevolucion && (
+            {!isDevolucion && canUseSena && (
               <div className={styles.formGroup}>
                 <span className={styles.fieldLabel} id="payment-sena-label">
                   Seña
@@ -763,7 +813,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
                 </div>
               )}
 
-              {clientId == null && needsReservationPick && (
+              {clientId == null && needsAccountPick && (
                 <p className={styles.helpText}>
                   Elegí una reserva para prellenar datos del cliente.
                 </p>

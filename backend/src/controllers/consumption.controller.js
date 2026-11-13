@@ -3,6 +3,13 @@ const { Decimal } = require('@prisma/client/runtime/library');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { CATEGORY_LABELS } = require('./menuItem.controller');
 const { civilFromDb, isoDate, toDateOnlyUtc } = require('../utils/calendarDates');
+const {
+  ensureReservationAccount,
+  dualWriteReservationRefs,
+  dualWriteExternalRefs,
+  syncAccountStatusFromBalance
+} = require('../utils/accountHelpers');
+const { calculateAccountBalance } = require('../utils/accountBalance');
 
 function todayCivil() {
   const now = new Date();
@@ -138,14 +145,20 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 };
 
 /**
- * Carga una comanda de consumos sobre una reserva.
- * Body: { reservationId, items: [{ menuItemId, quantity, varietyId? }], fecha?: YYYY-MM-DD, notes? }
- * Cada cargo usa Cargo.fecha (propiedad del consumo).
- * Si el ítem tiene variedades, varietyId es obligatorio y fija el precio.
+ * Carga una comanda de consumos sobre una reserva o cuenta externa.
+ * Body: { reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD, notes? }
+ * Si viene reservationId → Account 1:1. Si accountId EXTERNAL → sin reserva.
  */
 exports.createConsumptionOrder = async (req, res) => {
   try {
-    const reservationId = Number(req.body.reservationId);
+    const reservationIdRaw = req.body.reservationId;
+    const accountIdRaw = req.body.accountId;
+    const reservationId =
+      reservationIdRaw == null || reservationIdRaw === ''
+        ? null
+        : Number(reservationIdRaw);
+    const accountId =
+      accountIdRaw == null || accountIdRaw === '' ? null : Number(accountIdRaw);
     const notes = req.body.notes ? String(req.body.notes).trim() : null;
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
     const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date);
@@ -156,21 +169,60 @@ exports.createConsumptionOrder = async (req, res) => {
         error: 'fecha inválida; usá YYYY-MM-DD'
       });
     }
-    if (!Number.isFinite(reservationId)) {
+    if (reservationId == null && accountId == null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Indicá reservationId o accountId'
+      });
+    }
+    if (reservationId != null && !Number.isFinite(reservationId)) {
       return res.status(400).json({ success: false, error: 'reservationId inválido' });
+    }
+    if (accountId != null && !Number.isFinite(accountId)) {
+      return res.status(400).json({ success: false, error: 'accountId inválido' });
     }
     if (rawItems.length === 0) {
       return res.status(400).json({ success: false, error: 'Agregá al menos un ítem' });
     }
 
-    const reservation = await prisma.reservation.findUnique({
-      where: { id: reservationId },
-      include: {
-        mainClient: { select: { id: true, firstName: true, lastName: true } }
+    let reservation = null;
+    let account = null;
+    let financialRefs = null;
+    let clientName = '';
+
+    if (reservationId != null) {
+      reservation = await prisma.reservation.findUnique({
+        where: { id: reservationId },
+        include: {
+          mainClient: { select: { id: true, firstName: true, lastName: true } }
+        }
+      });
+      if (!reservation) {
+        return res.status(404).json({ success: false, error: 'Reserva no encontrada' });
       }
-    });
-    if (!reservation) {
-      return res.status(404).json({ success: false, error: 'Reserva no encontrada' });
+      account = await ensureReservationAccount(prisma, reservationId, reservation.mainClientId);
+      financialRefs = dualWriteReservationRefs(account, reservationId);
+      clientName = clientDisplayName(reservation.mainClient);
+    } else {
+      account = await prisma.account.findUnique({
+        where: { id: accountId },
+        include: {
+          client: { select: { id: true, firstName: true, lastName: true } }
+        }
+      });
+      if (!account) {
+        return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
+      }
+      if (account.kind !== 'EXTERNAL') {
+        return res.status(400).json({
+          success: false,
+          error: 'Para cuentas de reserva usá reservationId'
+        });
+      }
+      financialRefs = dualWriteExternalRefs(account);
+      clientName = account.client
+        ? clientDisplayName(account.client)
+        : account.label || `Cuenta #${account.id}`;
     }
 
     const normalized = [];
@@ -277,7 +329,7 @@ exports.createConsumptionOrder = async (req, res) => {
 
         const cargo = await tx.cargo.create({
           data: {
-            reservaId: reservationId,
+            ...financialRefs,
             subcategoriaCargoId: sub.id,
             descripcion,
             monto,
@@ -295,6 +347,14 @@ exports.createConsumptionOrder = async (req, res) => {
           unitPrice: unit
         });
       }
+
+      const [allCargos, allPagos] = await Promise.all([
+        tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
+        tx.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } })
+      ]);
+      const { saldo } = calculateAccountBalance(allCargos, allPagos);
+      await syncAccountStatusFromBalance(tx, account.id, saldo);
+
       return cargos;
     });
 
@@ -306,9 +366,11 @@ exports.createConsumptionOrder = async (req, res) => {
     res.status(201).json({
       success: true,
       data: {
-        reservationId,
+        accountId: account.id,
+        accountKind: account.kind,
+        reservationId: reservationId ?? account.reservationId ?? null,
         fecha: fechaCivil,
-        clientName: clientDisplayName(reservation.mainClient),
+        clientName,
         cargos: created,
         total,
         count: created.length

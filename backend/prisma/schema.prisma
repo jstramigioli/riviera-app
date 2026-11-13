@@ -148,6 +148,7 @@ model Client {
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
+  accounts        Account[]
   /// Datos de facturación aparte del perfil (reutilizables en próximos pagos).
   billingProfile  ClientBillingProfile?
 
@@ -224,10 +225,46 @@ model Reservation {
   pagos               Pago[]
   cargos              Cargo[]
   onlineCheckIns      OnlineCheckIn[]
+  /// Folio financiero 1:1 (Account kind=RESERVATION).
+  account             Account?
 
   @@index([createdAt])
   @@index([updatedAt])
   @@index([source])
+}
+
+enum AccountKind {
+  RESERVATION
+  EXTERNAL
+}
+
+enum AccountStatus {
+  OPEN
+  CLOSED
+}
+
+/// Contenedor financiero (folio). 1:1 con Reservation o cuenta externa (walk-in / bar / city ledger).
+model Account {
+  id            Int           @id @default(autoincrement())
+  kind          AccountKind
+  /// Solo RESERVATION: obligatorio y unique.
+  reservationId Int?          @unique
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  /// Titular opcional; en EXTERNAL el label suele bastar.
+  clientId      Int?
+  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  label         String?
+  /// OPEN mientras haya saldo pendiente; CLOSED cuando saldo = 0 (cierre operativo).
+  status        AccountStatus @default(OPEN)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  cargos        Cargo[]
+  pagos         Pago[]
+
+  @@index([kind, status])
+  @@index([clientId])
+  @@index([createdAt])
 }
 
 enum OnlineCheckInStatus {
@@ -571,8 +608,12 @@ model ReservationSegment {
 model Pago {
   id                   Int          @id @default(autoincrement())
   codigo               String       @unique // A000…A999, B000… (papelitos / Estado de cuentas)
-  reservaId            Int
-  reserva              Reservation  @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  /// FK financiera canónica (Account).
+  accountId            Int
+  account              Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Dual-write legado: obligatorio en cuentas RESERVATION; null en EXTERNAL.
+  reservaId            Int?
+  reserva              Reservation? @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   fecha                DateTime     @default(now())
   monto                Decimal      @db.Decimal(10, 2)
   moneda               String       @default("ARS") // ARS o USD
@@ -583,7 +624,7 @@ model Pago {
   empresa              String?      // Empresa de la tarjeta (solo para métodos de tarjeta)
   referencia           String?      // Número de comprobante, referencia bancaria, etc.
   notas                String?
-  /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación)
+  /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación). Solo en Account de reserva.
   motivo               String       @default("Pago")
   requiereFacturacion  Boolean      @default(false)
   /// Dinero/papel físico retirado (no aplica a Transferencia)
@@ -592,6 +633,9 @@ model Pago {
   adjuntos             PagoAdjunto[]
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+
+  @@index([accountId])
+  @@index([reservaId])
 }
 
 /// Archivos de factura PDF o comprobante de transferencia (JPG/PNG/PDF).
@@ -656,7 +700,11 @@ model SubcategoriaCargo {
 
 model Cargo {
   id                  Int                @id @default(autoincrement())
-  reservaId           Int
+  /// FK financiera canónica (Account).
+  accountId           Int
+  account             Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Dual-write legado: obligatorio en cuentas RESERVATION; null en EXTERNAL.
+  reservaId           Int?
   
   // Para cargos de alojamiento (campos directos - dinámicos)
   roomTypeId          Int?               // Tipo de habitación para cargos de alojamiento
@@ -666,7 +714,7 @@ model Cargo {
   subcategoriaCargoId Int?               // Servicios, Consumos, Otros
   
   // Relaciones
-  reserva             Reservation        @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  reserva             Reservation?       @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   subcategoriaCargo   SubcategoriaCargo? @relation(fields: [subcategoriaCargoId], references: [id], onDelete: Restrict)
   roomType            RoomType?          @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   serviceType         ServiceType?       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
@@ -681,6 +729,9 @@ model Cargo {
   notas               String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+
+  @@index([accountId])
+  @@index([reservaId])
 }
 
 enum UserRole {

@@ -177,12 +177,27 @@ export async function createReservation(data) {
   return res.json();
 }
 
-export async function deleteReservation(id) {
-  const res = await fetch(`${API_URL}/reservations/${id}`, {
-    method: 'DELETE'
+export async function deleteReservation(id, { confirmFinancialWipe = false } = {}) {
+  const qs = confirmFinancialWipe ? '?confirmFinancial=true' : '';
+  const res = await fetch(`${API_URL}/reservations/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
   });
-  if (!res.ok) throw new Error('Error deleting reservation');
-  return res.ok;
+  if (res.status === 204) return true;
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (res.status === 409 && body?.code === 'ACCOUNT_HAS_FINANCIALS') {
+    const err = new Error(body.warning || body.error || 'La cuenta tiene pagos o cargos');
+    err.code = body.code;
+    err.financial = body.financial;
+    err.requiresConfirm = true;
+    throw err;
+  }
+  throw new Error(body?.error || 'Error deleting reservation');
 }
 
 export async function updateClient(id, data) {
@@ -813,7 +828,7 @@ export async function getReservationFinancialSummary(reservaId) {
   return res.json();
 }
 
-// Obtener todas las reservas con saldos
+// Obtener todas las reservas con saldos (alias Account RESERVATION)
 export async function getReservationsWithBalances() {
   const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`, {
     credentials: 'include'
@@ -832,6 +847,25 @@ export async function getReservationsWithBalances() {
   return res.json();
 }
 
+/** Accounts con saldos (RESERVATION + EXTERNAL). kind: ALL|RESERVATION|EXTERNAL */
+export async function getAccountsWithBalances(kind = 'ALL') {
+  const qs = kind && kind !== 'ALL' ? `?kind=${encodeURIComponent(kind)}` : '';
+  const res = await fetch(`${API_URL}/accounts/saldos${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore
+    }
+    throw new Error(`Error fetching accounts with balances${details ? `: ${details}` : ''}`);
+  }
+  return res.json();
+}
+
 /** Reservas activas para el Select del modal Nuevo pago (incluye futuras / señas). */
 export async function fetchReservasParaPago() {
   const res = await fetch(`${API_URL}/reservation-payments/reservas-para-pago`, {
@@ -840,6 +874,46 @@ export async function fetchReservasParaPago() {
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.error || 'Error al listar reservas para pago');
+  }
+  return res.json();
+}
+
+/** Cuentas para cobro: reservas activas + externas OPEN. */
+export async function fetchCuentasParaPago() {
+  const res = await fetch(`${API_URL}/accounts/para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar cuentas para pago');
+  }
+  return res.json();
+}
+
+export async function createExternalAccount(data) {
+  const res = await fetch(`${API_URL}/accounts/external`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando cuenta externa');
+  }
+  return res.json();
+}
+
+export async function createAccountPago(accountId, data) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creating pago');
   }
   return res.json();
 }

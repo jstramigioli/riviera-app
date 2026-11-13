@@ -24,7 +24,6 @@ import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
 import { buildConsultaEditPath, buildConsultaEditState } from './utils/consultaNavigation.js';
-import { deleteReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
@@ -52,6 +51,7 @@ function RoomsToHabitacionesRedirect() {
 function ReservationsView() {
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteFinancialWarning, setDeleteFinancialWarning] = useState(null);
   const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const [consumptionPreset, setConsumptionPreset] = useState(null);
@@ -169,12 +169,29 @@ function ReservationsView() {
   const handleDeleteConfirm = async () => {
     if (!selectedReservation) return;
     try {
-      await deleteReservation(selectedReservation.id);
+      const { deleteReservation } = await import('./services/api.js');
+      const wipe = Boolean(deleteFinancialWarning);
+      try {
+        await deleteReservation(selectedReservation.id, { confirmFinancialWipe: wipe });
+      } catch (err) {
+        if (err?.requiresConfirm && !wipe) {
+          setDeleteFinancialWarning(
+            err.message ||
+              'La reserva tiene pagos o cargos. Al eliminar se borrará la cuenta y esos movimientos.'
+          );
+          setShowDeleteModal(true);
+          return;
+        }
+        throw err;
+      }
+      setDeleteFinancialWarning(null);
+      setShowDeleteModal(false);
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
       setCalendarRefreshToken((t) => t + 1);
       closePanel();
     } catch (error) {
       console.error('Error deleting reservation:', error);
+      setDeleteFinancialWarning(null);
       showNotification(
         "Error",
         `Error al eliminar la reserva: ${error.message}`,
@@ -506,11 +523,17 @@ function ReservationsView() {
 
       <ConfirmationModal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteFinancialWarning(null);
+        }}
         onConfirm={handleDeleteConfirm}
-        title="Eliminar Reserva"
-        message="¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
+        title={deleteFinancialWarning ? 'Eliminar cuenta con movimientos' : 'Eliminar Reserva'}
+        message={
+          deleteFinancialWarning ||
+          '¿Estás seguro de que deseas eliminar esta reserva? Esta acción no se puede deshacer.'
+        }
+        confirmText={deleteFinancialWarning ? 'Eliminar igual' : 'Eliminar'}
         cancelText="Cancelar"
         type="danger"
       />

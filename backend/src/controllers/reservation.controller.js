@@ -336,23 +336,62 @@ exports.updateReservationStatus = async (req, res) => {
   }
 };
 
-// Eliminar una reserva
+// Eliminar una reserva (cascade Account → cargos/pagos). Warning si hay folio financiero.
 exports.deleteReservation = async (req, res) => {
   const { id } = req.params;
+  const reservationId = parseInt(id, 10);
+  const confirmFinancialWipe =
+    req.query.confirmFinancial === '1' ||
+    req.query.confirmFinancial === 'true' ||
+    req.body?.confirmFinancialWipe === true ||
+    req.body?.confirmFinancial === true;
+
   try {
+    const account = await prisma.account.findUnique({
+      where: { reservationId },
+      select: { id: true }
+    });
+
+    let financial = { cargos: 0, pagos: 0, hasFinancials: false };
+    if (account) {
+      const [cargos, pagos] = await Promise.all([
+        prisma.cargo.count({ where: { accountId: account.id } }),
+        prisma.pago.count({ where: { accountId: account.id } })
+      ]);
+      financial = { cargos, pagos, hasFinancials: cargos > 0 || pagos > 0 };
+    } else {
+      const [cargos, pagos] = await Promise.all([
+        prisma.cargo.count({ where: { reservaId: reservationId } }),
+        prisma.pago.count({ where: { reservaId: reservationId } })
+      ]);
+      financial = { cargos, pagos, hasFinancials: cargos > 0 || pagos > 0 };
+    }
+
+    if (financial.hasFinancials && !confirmFinancialWipe) {
+      return res.status(409).json({
+        error: 'La reserva tiene pagos o cargos en su cuenta',
+        code: 'ACCOUNT_HAS_FINANCIALS',
+        warning:
+          `Al eliminar se borrará la cuenta y ${financial.cargos} cargo(s) / ${financial.pagos} pago(s).`,
+        financial,
+        accountId: account?.id || null,
+        requiresConfirm: true
+      });
+    }
+
     // Primero eliminar las tarifas por noche relacionadas
     await prisma.reservationNightRate.deleteMany({
-      where: { reservationId: parseInt(id) }
+      where: { reservationId }
     });
 
     // Luego eliminar los huéspedes relacionados
     await prisma.guest.deleteMany({
-      where: { reservationId: parseInt(id) }
+      where: { reservationId }
     });
 
-    // Finalmente eliminar la reserva
+    // Cascade: Reservation → Account → Cargo/Pago
     await prisma.reservation.delete({
-      where: { id: parseInt(id) }
+      where: { id: reservationId }
     });
     
     res.status(204).send();
