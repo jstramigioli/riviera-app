@@ -1,6 +1,6 @@
 import { FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
@@ -18,6 +18,12 @@ import {
   roomsMatch,
   preserveSelectedRoomInList
 } from '../utils/virtualRoomReservation';
+import {
+  buildConsultaEditPath,
+  buildConsultaEditState,
+  isConsultaEditIntent,
+  resolveEditReservationId
+} from '../utils/consultaNavigation';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -32,6 +38,10 @@ const RoomAvailabilityStatus = {
 export default function Consulta() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { reservationId: reservationIdParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const reservationIdQuery =
+    searchParams.get('reservaId') || searchParams.get('reservationId');
   const { tags } = useTags();
   const { notify, noticeDialog } = useAppNotice();
 
@@ -269,9 +279,13 @@ export default function Consulta() {
   const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
   // const [pricingError, setPricingError] = useState(null); // Ya no se usa
 
-  // Edición de reserva existente (mismo flujo que crear)
-  const initialEditReservationId =
-    location.state?.reservationId || location.state?.reservationEdit?.id || null;
+  // Edición de reserva existente (mismo flujo que crear).
+  // Prioridad: path `/consulta/:id` > query `?reservaId=` > location.state
+  const initialEditReservationId = resolveEditReservationId({
+    paramId: reservationIdParam,
+    queryId: reservationIdQuery,
+    state: location.state
+  });
   const [editingReservationId, setEditingReservationId] = useState(initialEditReservationId);
   const [editingReservationStatus, setEditingReservationStatus] = useState(null);
   const [applyRateChanges, setApplyRateChanges] = useState(true);
@@ -306,7 +320,11 @@ export default function Consulta() {
   // Ref para rastrear los valores previos de los segmentos
   const previousSegmentsRef = useRef({});
   const isEditingReservationNav = Boolean(
-    location.state?.isEditingReservation || location.state?.reservationEdit || editingReservationId
+    isConsultaEditIntent({
+      paramId: reservationIdParam,
+      queryId: reservationIdQuery,
+      state: location.state
+    }) || editingReservationId
   );
 
   // Función para toggle de detalles de habitación
@@ -986,9 +1004,21 @@ export default function Consulta() {
 
   // Cargar reserva existente para editar (mismo flujo que crear)
   useEffect(() => {
-    const reservationId = location.state?.reservationId || location.state?.reservationEdit?.id;
+    const reservationId = resolveEditReservationId({
+      paramId: reservationIdParam,
+      queryId: reservationIdQuery,
+      state: location.state
+    });
     if (!reservationId) return;
-    if (!location.state?.isEditingReservation && !location.state?.reservationEdit) return;
+    if (
+      !isConsultaEditIntent({
+        paramId: reservationIdParam,
+        queryId: reservationIdQuery,
+        state: location.state
+      })
+    ) {
+      return;
+    }
     // Strict Mode remount: no marcar dataLoaded hasta aplicar el prefill con éxito
     if (dataLoadedRef.current) return;
 
@@ -1100,14 +1130,10 @@ export default function Consulta() {
         setActiveBlockIndex(0);
         setEditPrefillReady(true);
 
-        // Mantener flags de edición en el history state (no vaciar: Strict Mode + HMR)
-        navigate('.', {
+        // Canonicalizar URL con id + flags de edición (sobrevive refresh / Strict Mode / HMR)
+        navigate(buildConsultaEditPath(full.id), {
           replace: true,
-          state: {
-            isEditingReservation: true,
-            reservationId: full.id,
-            reservationEdit: { id: full.id }
-          }
+          state: buildConsultaEditState(full.id)
         });
         // hydratingEditRef se baja en un effect con setTimeout(0) para que
         // Strict Mode / resets de huéspedes no borren la habitación sembrada.
@@ -1129,7 +1155,14 @@ export default function Consulta() {
     return () => { cancelled = true; };
     // notify es estable vía useAppNotice; omitido a propósito para no re-disparar el prefill
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state?.reservationId, location.state?.reservationEdit?.id, location.state?.isEditingReservation, navigate]);
+  }, [
+    reservationIdParam,
+    reservationIdQuery,
+    location.state?.reservationId,
+    location.state?.reservationEdit?.id,
+    location.state?.isEditingReservation,
+    navigate
+  ]);
 
   // Liberar hidratación solo después de que los effects del commit (y el double-invoke
   // de Strict Mode) hayan corrido; queueMicrotask era demasiado temprano y el reset
@@ -1148,7 +1181,13 @@ export default function Consulta() {
     console.log('🔍 location.state:', location.state);
     console.log('🔍 dataLoaded:', dataLoadedRef.current);
 
-    if (location.state?.isEditingReservation || location.state?.reservationEdit) {
+    if (
+      isConsultaEditIntent({
+        paramId: reservationIdParam,
+        queryId: reservationIdQuery,
+        state: location.state
+      })
+    ) {
       return;
     }
     

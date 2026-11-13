@@ -457,8 +457,6 @@ export default function LibroReservasBoard({
     setDayInfoOpen(true);
   }
 
-  const selectedDate = selectedDateIso ? parseISO(selectedDateIso) : null;
-
   // Reservas sintéticas desde blocks para DayInfo si no hay lista completa
   const dayInfoReservations = useMemo(() => {
     if (reservationsForDayInfo?.length) return reservationsForDayInfo;
@@ -741,7 +739,7 @@ export default function LibroReservasBoard({
       </div>
 
       <DayInfoSidePanel
-        selectedDate={selectedDate}
+        selectedDate={selectedDateIso}
         rooms={rooms}
         reservations={dayInfoReservations}
         isOpen={dayInfoOpen}
@@ -751,12 +749,14 @@ export default function LibroReservasBoard({
         }}
       />
 
-      <FloatingActionButton
-        onToday={jumpToToday}
-        onCreateQuery={() => navigate('/consulta')}
-        onCreateReservation={() => navigate('/consulta?modo=reserva')}
-        onCreateConsumption={() => setConsumptionOpen(true)}
-      />
+      {!dayInfoOpen ? (
+        <FloatingActionButton
+          onToday={jumpToToday}
+          onCreateQuery={() => navigate('/consulta')}
+          onCreateReservation={() => navigate('/consulta?modo=reserva')}
+          onCreateConsumption={() => setConsumptionOpen(true)}
+        />
+      ) : null}
 
       <ConsumptionOrderModal
         open={consumptionOpen}

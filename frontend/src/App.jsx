@@ -24,6 +24,7 @@ import { useAppData } from './hooks/useAppData.js';
 import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
+import { buildConsultaEditPath, buildConsultaEditState } from './utils/consultaNavigation.js';
 import { deleteReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
@@ -221,12 +222,8 @@ function ReservationsView() {
             onClose={closePanel}
             onOpenFullEdit={(id) => {
               closePanel();
-              navigate('/consulta', {
-                state: {
-                  isEditingReservation: true,
-                  reservationId: id,
-                  reservationEdit: { id }
-                }
+              navigate(buildConsultaEditPath(id), {
+                state: buildConsultaEditState(id)
               });
             }}
           />
@@ -532,7 +529,7 @@ function App() {
               )}
             />
             <Route
-              path="/consulta"
+              path="/consulta/:reservationId?"
               element={(
                 <ProtectedRoute permission="reservas">
                   <AppShell><Consulta /></AppShell>
