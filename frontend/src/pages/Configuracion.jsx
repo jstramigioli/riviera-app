@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FiHome, FiGrid, FiDollarSign, FiCalendar, FiRefreshCw, FiUsers, FiSettings, FiClipboard, FiCoffee } from 'react-icons/fi';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
@@ -12,17 +11,17 @@ import { useAuth } from '../contexts/AuthContext';
 import styles from './Configuracion.module.css';
 
 const SETTINGS_TABS = [
-  { id: 'hotel', label: 'Hotel', icon: FiHome },
-  { id: 'habitaciones', label: 'Habitaciones', icon: FiGrid },
-  { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: FiDollarSign },
-  { id: 'menu-consumos', label: 'Menú', icon: FiCoffee },
-  { id: 'calendario', label: 'Calendario', icon: FiCalendar },
-  { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: FiRefreshCw },
-  { id: 'usuarios', label: 'Usuarios', icon: FiUsers },
-  { id: 'sistema', label: 'Sistema', icon: FiSettings }
+  { id: 'hotel', label: 'Hotel' },
+  { id: 'habitaciones', label: 'Habitaciones' },
+  { id: 'cargos-tarifas', label: 'Cargos y Tarifas' },
+  { id: 'menu-consumos', label: 'Menú' },
+  { id: 'calendario', label: 'Calendario' },
+  { id: 'tipo-cambio', label: 'Tipo de Cambio' },
+  { id: 'usuarios', label: 'Usuarios' },
+  { id: 'sistema', label: 'Sistema' }
 ];
 
-const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría', icon: FiClipboard };
+const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
 
 function ConfiguracionView() {
   const [searchParams] = useSearchParams();
@@ -101,26 +100,31 @@ function ConfiguracionView() {
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.toolbar}>
-        <h1 className={styles.title}>Configuración</h1>
-        <nav className={styles.tabs} aria-label="Secciones de configuración">
+    <div className={styles.newLayout}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>Configuración</h2>
+        </div>
+        <nav className={styles.sectionMenu} aria-label="Secciones de configuración">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+              className={`${styles.sectionButton} ${activeTab === tab.id ? styles.active : ''}`}
             >
-              <span className={styles.tabIcon} aria-hidden="true"><tab.icon /></span>
               {tab.label}
             </button>
           ))}
         </nav>
-      </div>
+      </aside>
 
-      <div className={styles.content}>
-        <div className={styles.panel}>{renderTabContent()}</div>
+      <div className={styles.mainContent}>
+        <div className={styles.mainContentBody}>
+          <section className={styles.section}>
+            <div className={styles.panel}>{renderTabContent()}</div>
+          </section>
+        </div>
       </div>
     </div>
   );
