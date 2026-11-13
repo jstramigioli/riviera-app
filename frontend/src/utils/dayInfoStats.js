@@ -108,6 +108,16 @@ function reservationStayBounds(reservation, segments) {
   };
 }
 
+/** Nombre del cliente principal de una reserva (para listas del panel). */
+export function mainClientDisplayName(reservation) {
+  const c = reservation?.mainClient;
+  if (!c) return 'Sin nombre';
+  const full = `${c.firstName || ''} ${c.lastName || ''}`.trim();
+  if (full) return full;
+  if (typeof c.name === 'string' && c.name.trim()) return c.name.trim();
+  return 'Sin nombre';
+}
+
 export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   const totalRooms = rooms?.length || 0;
   const totalGuestCapacity = (rooms || []).reduce(
@@ -119,6 +129,8 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
     return {
       checkIns: 0,
       checkOuts: 0,
+      checkInNames: [],
+      checkOutNames: [],
       occupiedRooms: 0,
       totalRooms,
       totalGuestCapacity,
@@ -132,6 +144,8 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   let checkIns = 0;
   let checkOuts = 0;
   let totalGuests = 0;
+  const checkInNames = [];
+  const checkOutNames = [];
 
   for (const reservation of reservations || []) {
     if (NON_OCCUPYING.has(reservation.status)) continue;
@@ -153,8 +167,14 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
       totalGuests += partySize(reservation, []);
     }
 
-    if (start === dayIso) checkIns += size;
-    if (end === dayIso) checkOuts += size;
+    if (start === dayIso) {
+      checkIns += size;
+      checkInNames.push(mainClientDisplayName(reservation));
+    }
+    if (end === dayIso) {
+      checkOuts += size;
+      checkOutNames.push(mainClientDisplayName(reservation));
+    }
   }
 
   const occupiedRooms = occupiedRoomIds.size;
@@ -167,6 +187,8 @@ export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   return {
     checkIns,
     checkOuts,
+    checkInNames,
+    checkOutNames,
     occupiedRooms,
     totalRooms,
     totalGuestCapacity,

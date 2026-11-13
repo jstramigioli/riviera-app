@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FiDownload, FiUpload, FiHome, FiBarChart2, FiUsers, FiGrid } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import SidePanel from './SidePanel';
@@ -11,6 +11,61 @@ import { computeDayInfoStats } from '../utils/dayInfoStats';
 function civilLocalDate(dayIso) {
   const [y, m, d] = dayIso.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+function OccupancyBar({ label, percentage, detail }) {
+  const pct = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
+  const display = pct.toFixed(1);
+
+  return (
+    <div className={styles.occupancyRow}>
+      <div className={styles.occupancyHeader}>
+        <span className={styles.occupancyLabel}>{label}</span>
+        <span className={styles.occupancyPct}>{display}%</span>
+      </div>
+      <div
+        className={styles.occupancyTrack}
+        role="progressbar"
+        aria-valuenow={Number(display)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div className={styles.occupancyFill} style={{ width: `${pct}%` }} />
+      </div>
+      {detail ? <div className={styles.occupancyDetail}>{detail}</div> : null}
+    </div>
+  );
+}
+
+function MovementColumn({ title, total, names, variant, icon }) {
+  const empty = !names?.length;
+
+  return (
+    <section className={`${styles.movementCol} ${styles[variant]}`}>
+      <header className={styles.movementHeader}>
+        <span className={styles.movementIcon} aria-hidden="true">
+          {icon}
+        </span>
+        <div className={styles.movementTitleBlock}>
+          <div className={styles.movementTitle}>{title}</div>
+          <div className={styles.movementTotal}>{total}</div>
+        </div>
+      </header>
+      <ul className={styles.movementList}>
+        {empty ? (
+          <li className={styles.movementEmpty}>Sin movimientos</li>
+        ) : (
+          names.map((name, idx) => (
+            <li key={`${name}-${idx}`} className={styles.movementItem}>
+              <span className={styles.movementDot} aria-hidden="true" />
+              <span className={styles.movementName}>{name}</span>
+            </li>
+          ))
+        )}
+      </ul>
+    </section>
+  );
 }
 
 export default function DayInfoSidePanel({
@@ -55,103 +110,35 @@ export default function DayInfoSidePanel({
           <h3>{formattedDate}</h3>
         </div>
 
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiDownload /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.checkIns}</div>
-              <div className={styles.statLabel}>Ingresos de Pasajeros</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiUpload /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.checkOuts}</div>
-              <div className={styles.statLabel}>Salidas de Pasajeros</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiHome /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.occupiedRooms}</div>
-              <div className={styles.statLabel}>Habitaciones Ocupadas</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiBarChart2 /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>
-                {stats.roomOccupancyPercentage.toFixed(1)}%
-              </div>
-              <div className={styles.statLabel}>Ocupación (Habitaciones)</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiUsers /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>
-                {stats.guestOccupancyPercentage.toFixed(1)}%
-              </div>
-              <div className={styles.statLabel}>Ocupación (Pasajeros)</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon} aria-hidden="true"><FiGrid /></div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.totalGuests}</div>
-              <div className={styles.statLabel}>Pasajeros Alojados</div>
-            </div>
-          </div>
+        <div className={styles.movementsGrid}>
+          <MovementColumn
+            title="Ingresos"
+            total={stats.checkIns}
+            names={stats.checkInNames}
+            variant="arrivals"
+            icon={<FiArrowDown />}
+          />
+          <MovementColumn
+            title="Salidas"
+            total={stats.checkOuts}
+            names={stats.checkOutNames}
+            variant="departures"
+            icon={<FiArrowUp />}
+          />
         </div>
 
-        <div className={styles.summary}>
-          <h4>Resumen del Día</h4>
-          <p>
-            El {shortDate} se registraron{' '}
-            <strong>{stats.checkIns} ingresos</strong> y{' '}
-            <strong>{stats.checkOuts} salidas</strong> de pasajeros. La ocupación de
-            habitaciones fue del{' '}
-            <strong>{stats.roomOccupancyPercentage.toFixed(1)}%</strong> y la de
-            pasajeros del{' '}
-            <strong>{stats.guestOccupancyPercentage.toFixed(1)}%</strong> (
-            <strong>{stats.totalGuests}</strong> de{' '}
-            <strong>{stats.totalGuestCapacity}</strong> plazas).
-          </p>
-        </div>
-
-        <div className={styles.details}>
-          <h4>Detalles</h4>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Total de habitaciones:</span>
-            <span className={styles.detailValue}>{stats.totalRooms}</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Habitaciones disponibles:</span>
-            <span className={styles.detailValue}>
-              {stats.totalRooms - stats.occupiedRooms}
-            </span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Capacidad de pasajeros:</span>
-            <span className={styles.detailValue}>{stats.totalGuestCapacity}</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Tasa ocupación habitaciones:</span>
-            <span className={styles.detailValue}>
-              {stats.roomOccupancyPercentage.toFixed(1)}%
-            </span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Tasa ocupación pasajeros:</span>
-            <span className={styles.detailValue}>
-              {stats.guestOccupancyPercentage.toFixed(1)}%
-            </span>
-          </div>
+        <div className={styles.occupancySection}>
+          <h4 className={styles.sectionTitle}>Ocupación</h4>
+          <OccupancyBar
+            label="Ocupación habitaciones"
+            percentage={stats.roomOccupancyPercentage}
+            detail={`${stats.occupiedRooms} de ${stats.totalRooms} habitaciones`}
+          />
+          <OccupancyBar
+            label="Ocupación pasajeros"
+            percentage={stats.guestOccupancyPercentage}
+            detail={`${stats.totalGuests} de ${stats.totalGuestCapacity} plazas`}
+          />
         </div>
       </div>
     </SidePanel>

@@ -42,6 +42,7 @@ describe('computeDayInfoStats', () => {
         id: 1,
         status: 'CONFIRMADA',
         requiredGuests: 2,
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
         segments: [
           {
             roomId: 1,
@@ -56,6 +57,7 @@ describe('computeDayInfoStats', () => {
         id: 2,
         status: 'CONFIRMADA',
         requiredGuests: 4,
+        mainClient: { firstName: 'Luis', lastName: 'Mora' },
         segments: [
           {
             roomId: 3,
@@ -71,6 +73,8 @@ describe('computeDayInfoStats', () => {
     const stats = computeDayInfoStats('2024-01-02', rooms, reservations);
     expect(stats.checkIns).toBe(2);
     expect(stats.checkOuts).toBe(4);
+    expect(stats.checkInNames).toEqual(['Ana Ruiz']);
+    expect(stats.checkOutNames).toEqual(['Luis Mora']);
     expect(stats.totalGuests).toBe(2);
     expect(stats.occupiedRooms).toBe(1);
   });

@@ -16,10 +16,6 @@ vi.mock('./SidePanel', () => ({
   }
 }));
 
-function valueForLabel(label) {
-  return screen.getByText(label).previousSibling;
-}
-
 describe('DayInfoSidePanel', () => {
   const mockRooms = [
     { id: 1, name: 'Habitación 1', maxPeople: 2 },
@@ -105,7 +101,7 @@ describe('DayInfoSidePanel', () => {
     expect(screen.getByText('Información del 2 de enero')).toBeInTheDocument();
   });
 
-  it('should calculate room and guest occupancy with correct denominators', () => {
+  it('muestra ingresos/salidas en columnas con nombres y ocupación en barras', () => {
     render(
       <DayInfoSidePanel
         selectedDate={mockSelectedDate}
@@ -116,15 +112,30 @@ describe('DayInfoSidePanel', () => {
       />
     );
 
-    // Día 2: reservas 1 y 2 ocupan (2 hab / 3 = 66.7%)
-    // Pasajeros: 2+1=3 de 8 plazas = 37.5%
-    expect(valueForLabel('Habitaciones Ocupadas')).toHaveTextContent('2');
-    expect(valueForLabel('Pasajeros Alojados')).toHaveTextContent('3');
-    expect(valueForLabel('Ocupación (Habitaciones)')).toHaveTextContent('66.7%');
-    expect(valueForLabel('Ocupación (Pasajeros)')).toHaveTextContent('37.5%');
-    expect(valueForLabel('Ingresos de Pasajeros')).toHaveTextContent('1');
-    expect(valueForLabel('Salidas de Pasajeros')).toHaveTextContent('3');
-    expect(screen.getByText('Capacidad de pasajeros:').nextSibling).toHaveTextContent('8');
+    // Día 2: ingreso María (1), salida Carlos (3)
+    expect(screen.getByText('Ingresos')).toBeInTheDocument();
+    expect(screen.getByText('Salidas')).toBeInTheDocument();
+    expect(screen.getByText('María García')).toBeInTheDocument();
+    expect(screen.getByText('Carlos López')).toBeInTheDocument();
+
+    // Totales: el total de ingresos es 1, salidas 3
+    const ingresos = screen.getByText('Ingresos').closest('section');
+    const salidas = screen.getByText('Salidas').closest('section');
+    expect(ingresos).toHaveTextContent('1');
+    expect(salidas).toHaveTextContent('3');
+
+    // Barras de ocupación con %
+    expect(screen.getByText('Ocupación habitaciones')).toBeInTheDocument();
+    expect(screen.getByText('Ocupación pasajeros')).toBeInTheDocument();
+    expect(screen.getByText('66.7%')).toBeInTheDocument();
+    expect(screen.getByText('37.5%')).toBeInTheDocument();
+    expect(screen.getByText('2 de 3 habitaciones')).toBeInTheDocument();
+    expect(screen.getByText('3 de 8 plazas')).toBeInTheDocument();
+
+    const roomBar = screen.getByRole('progressbar', { name: 'Ocupación habitaciones' });
+    const guestBar = screen.getByRole('progressbar', { name: 'Ocupación pasajeros' });
+    expect(roomBar).toHaveAttribute('aria-valuenow', '66.7');
+    expect(guestBar).toHaveAttribute('aria-valuenow', '37.5');
   });
 
   it('should handle empty reservations', () => {
@@ -137,9 +148,9 @@ describe('DayInfoSidePanel', () => {
         onClose={vi.fn()}
       />
     );
-    expect(valueForLabel('Habitaciones Ocupadas')).toHaveTextContent('0');
-    expect(valueForLabel('Pasajeros Alojados')).toHaveTextContent('0');
-    expect(valueForLabel('Ocupación (Pasajeros)')).toHaveTextContent('0.0%');
+    expect(screen.getAllByText('Sin movimientos')).toHaveLength(2);
+    expect(screen.getAllByText('0.0%').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('0 de 8 plazas')).toBeInTheDocument();
   });
 
   it('should call onClose when close button is clicked', () => {
