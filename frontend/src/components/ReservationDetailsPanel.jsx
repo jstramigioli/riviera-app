@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
@@ -6,23 +6,26 @@ import ReservationStatusButtons from './ReservationStatusButtons';
 import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
 import ClientContactLinks from './ClientContactLinks';
 import ReservationStayTimeline from './ReservationStayTimeline';
-import {
-  RESERVATION_SOURCE_OPTIONS,
-  sourceLabel
-} from '../constants/reservationSource';
+import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
+import { sourceLabel } from '../constants/reservationSource';
 import styles from './ReservationDetailsPanel.module.css';
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2
+  }).format(amount);
 
 const ReservationDetailsPanel = ({
   reservation,
   onStatusChange,
-  onSourceChange,
   onDelete,
   onOpenFullEdit,
   onClose
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [savingSource, setSavingSource] = useState(false);
 
   useEffect(() => {
     const loadServiceTypes = async () => {
@@ -41,13 +44,18 @@ const ReservationDetailsPanel = ({
     loadServiceTypes();
   }, []);
 
-  if (!reservation) return null;
-
   const getServiceTypeLabel = (serviceTypeId) => {
     if (!serviceTypeId) return 'No especificado';
     const serviceType = serviceTypes.find((st) => st.id === serviceTypeId);
     return serviceType ? serviceType.name : serviceTypeId;
   };
+
+  const stayHeader = useMemo(() => {
+    if (!reservation) return null;
+    return buildReservationStayTimeline(reservation).header;
+  }, [reservation]);
+
+  if (!reservation) return null;
 
   const getStatusColor = (status) => {
     const statusColors = {
@@ -80,17 +88,14 @@ const ReservationDetailsPanel = ({
     });
   };
 
-  const handleSourceSelect = async (value) => {
-    if (!onSourceChange) return;
-    const next = value || null;
-    if ((reservation.source || null) === next) return;
-    try {
-      setSavingSource(true);
-      await onSourceChange(reservation.id, next);
-    } finally {
-      setSavingSource(false);
-    }
-  };
+  const clientName = stayHeader?.clientName || '—';
+  const clientId = stayHeader?.clientId || reservation.mainClient?.id || null;
+  const nightsLabel = stayHeader?.totalNights
+    ? `${stayHeader.totalNights} noche${stayHeader.totalNights === 1 ? '' : 's'}`
+    : '—';
+  const totalLabel =
+    stayHeader?.totalAmount > 0 ? formatCurrency(stayHeader.totalAmount) : '—';
+  const canOpenClient = Boolean(clientId);
 
   return (
     <div className={styles.panel}>
@@ -146,19 +151,39 @@ const ReservationDetailsPanel = ({
       </div>
 
       <div className={styles.body}>
-        <div className={styles.contactSection}>
-          <ClientContactLinks
-            phone={reservation.mainClient?.phone}
-            email={reservation.mainClient?.email}
-          />
+        <div className={styles.guestSection} data-testid="panel-guest-header">
+          <div className={styles.guestMain}>
+            {canOpenClient ? (
+              <button
+                type="button"
+                className={styles.guestNameButton}
+                onClick={() => handleClientClick(clientId)}
+                title="Ver perfil del cliente"
+                data-testid="panel-client-link"
+              >
+                {clientName}
+              </button>
+            ) : (
+              <h3 className={styles.guestName}>{clientName}</h3>
+            )}
+            <p className={styles.guestNights}>{nightsLabel}</p>
+            <ClientContactLinks
+              phone={reservation.mainClient?.phone}
+              email={reservation.mainClient?.email}
+            />
+          </div>
+          <div className={styles.guestTotal} data-testid="panel-guest-total">
+            <span className={styles.guestTotalLabel}>Total</span>
+            <span className={styles.guestTotalAmount}>{totalLabel}</span>
+          </div>
         </div>
 
         <ReservationStayTimeline
           reservation={reservation}
           getServiceTypeLabel={getServiceTypeLabel}
-          onClientClick={handleClientClick}
           orientation="vertical"
           compact
+          hideHeader
         />
 
         <div className={styles.metaSection}>
@@ -166,26 +191,7 @@ const ReservationDetailsPanel = ({
             <tbody>
               <tr>
                 <td className={styles.tableLabel}>Medio:</td>
-                <td className={styles.tableValue}>
-                  {onSourceChange ? (
-                    <select
-                      value={reservation.source || ''}
-                      onChange={(e) => handleSourceSelect(e.target.value)}
-                      disabled={savingSource}
-                      aria-label="Medio de origen de la reserva"
-                      className={styles.sourceSelect}
-                    >
-                      <option value="">No especificado</option>
-                      {RESERVATION_SOURCE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    sourceLabel(reservation.source)
-                  )}
-                </td>
+                <td className={styles.tableValue}>{sourceLabel(reservation.source)}</td>
               </tr>
               <tr>
                 <td className={styles.tableLabel}>Notas:</td>

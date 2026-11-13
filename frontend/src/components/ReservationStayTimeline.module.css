@@ -12,6 +12,14 @@
   padding: 14px 14px 16px;
 }
 
+.timelineNoHeader {
+  padding-top: 16px;
+}
+
+.timelineCompact.timelineNoHeader {
+  padding-top: 12px;
+}
+
 .header {
   display: flex;
   align-items: flex-start;

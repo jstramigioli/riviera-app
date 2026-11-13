@@ -125,8 +125,91 @@
   overflow-y: auto;
 }
 
-.contactSection {
-  margin-bottom: 12px;
+.guestSection {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.guestMain {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.guestName,
+.guestNameButton {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary-dark, #334d70);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.guestNameButton {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(51, 77, 112, 0.35);
+}
+
+.guestNameButton:hover,
+.guestNameButton:focus-visible {
+  color: var(--color-primary, #3f5f8a);
+  text-decoration-color: currentColor;
+}
+
+.guestNameButton:focus-visible {
+  outline: 2px solid var(--color-primary, #3f5f8a);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.guestNights {
+  margin: 4px 0 0;
+  font-size: var(--font-size-small, 12px);
+  font-weight: 500;
+  color: var(--color-text-muted, #6b7280);
+  line-height: 1.3;
+}
+
+.guestTotal {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 104px;
+  padding: 8px 12px;
+  background: var(--color-primary-light, #e8eef5);
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+}
+
+.guestTotalLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.guestTotalAmount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-primary-dark, #334d70);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .metaSection {
@@ -144,15 +227,6 @@
 
 .metaTable tbody tr:last-child {
   border-bottom: none;
-}
-
-.sourceSelect {
-  width: 100%;
-  max-width: 220px;
-  padding: 4px 8px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 0.95rem;
 }
 
 .tableLabel {
