@@ -1,16 +1,18 @@
-/** Medios / canales de origen de consultas y reservas. */
+/** Canales / quién reservó (consultas y reservas). */
 export const RESERVATION_SOURCES = Object.freeze([
   'WHATSAPP',
   'MAIL',
   'WEBSITE',
-  'BOOKING'
+  'BOOKING',
+  'MOSTRADOR'
 ]);
 
 export const RESERVATION_SOURCE_LABELS = Object.freeze({
   WHATSAPP: 'WhatsApp',
   MAIL: 'Mail',
   WEBSITE: 'Sitio web',
-  BOOKING: 'Booking'
+  BOOKING: 'Booking',
+  MOSTRADOR: 'Mostrador'
 });
 
 export const RESERVATION_SOURCE_OPTIONS = RESERVATION_SOURCES.map((value) => ({
@@ -23,7 +25,8 @@ export const DEFAULT_SOURCE_COLORS = Object.freeze({
   WHATSAPP: '#25D366',
   MAIL: '#EA4335',
   WEBSITE: '#4285F4',
-  BOOKING: '#003580'
+  BOOKING: '#003580',
+  MOSTRADOR: '#64748B'
 });
 
 const STORAGE_KEY = 'libro.sourceColors.v1';

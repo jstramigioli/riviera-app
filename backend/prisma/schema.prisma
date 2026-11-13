@@ -174,12 +174,13 @@ model Guest {
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
 }
 
-/// Canal / medio por el que entró la consulta o reserva.
+/// Canal / quién reservó (consulta o reserva).
 enum ReservationSource {
   WHATSAPP
   MAIL
   WEBSITE
   BOOKING
+  MOSTRADOR
 }
 
 model Reservation {
@@ -187,7 +188,7 @@ model Reservation {
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
-  /// Medio de origen: WhatsApp, Mail, Sitio web o Booking.
+  /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
   source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
   parentReservationId Int?
@@ -249,7 +250,7 @@ model QueryGroup {
   id           String             @id
   mainClientId Int?
   notes        String?
-  /// Medio de origen: WhatsApp, Mail, Sitio web o Booking.
+  /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
   source       ReservationSource?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt

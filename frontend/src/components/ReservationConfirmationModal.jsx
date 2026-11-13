@@ -326,12 +326,12 @@ const ReservationConfirmationModal = ({
             </div>
           )}
 
-          {/* Medio de origen */}
+          {/* Reservado por */}
           <div className={styles.notesSection}>
             <table className={styles.notesTable}>
               <tbody>
                 <tr>
-                  <td className={styles.tableLabel}>Medio:</td>
+                  <td className={styles.tableLabel}>Reservado por:</td>
                   <td className={styles.tableValue}>
                     {sourceLabel(reservationData?.source)}
                   </td>

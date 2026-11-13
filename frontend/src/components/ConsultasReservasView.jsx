@@ -442,15 +442,15 @@ function ConsultasReservasView() {
               )}
             </div>
 
-            {/* Medio */}
+            {/* Reservado por */}
             <div style={{ marginBottom: 8 }}>
-              <b> Medio:</b>{' '}
+              <b> Reservado por:</b>{' '}
               {isEditing ? (
                 <select
                   value={editData.source ?? selectedReservation.source ?? ''}
                   onChange={(e) => handleEditChange('source', e.target.value || null)}
                   style={{ fontSize: '1rem', width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  aria-label="Medio de origen de la reserva"
+                  aria-label="Reservado por"
                 >
                   <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (

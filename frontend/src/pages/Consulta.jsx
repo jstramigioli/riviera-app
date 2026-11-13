@@ -307,7 +307,7 @@ export default function Consulta() {
   
   // Estado para notas/observaciones
   const [notes, setNotes] = useState('');
-  /** Medio de origen: WHATSAPP | MAIL | WEBSITE | BOOKING */
+  /** Reservado por: WHATSAPP | MAIL | WEBSITE | BOOKING | MOSTRADOR */
   const [source, setSource] = useState('');
   
   // Flag para evitar cargar datos múltiples veces
@@ -3195,14 +3195,14 @@ export default function Consulta() {
               </div>
             </div>
 
-            {/* Medio de origen (también sin cliente) */}
+            {/* Reservado por (también sin cliente) */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Medio de contacto:</label>
+                <label>Reservado por:</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  aria-label="Medio de contacto"
+                  aria-label="Reservado por"
                 >
                   <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
@@ -3297,14 +3297,14 @@ export default function Consulta() {
               </div>
             </div>
 
-            {/* Medio de origen */}
+            {/* Reservado por */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Medio de contacto:</label>
+                <label>Reservado por:</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  aria-label="Medio de contacto"
+                  aria-label="Reservado por"
                 >
                   <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (

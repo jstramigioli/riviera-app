@@ -223,7 +223,7 @@ const ReservationDetailsPanel = ({
           <table className={styles.metaTable}>
             <tbody>
               <tr>
-                <td className={styles.tableLabel}>Medio:</td>
+                <td className={styles.tableLabel}>Reservado por:</td>
                 <td className={styles.tableValue}>{sourceLabel(reservation.source)}</td>
               </tr>
               <tr>

@@ -1,16 +1,18 @@
-/** Medios / canales de origen de consultas y reservas. */
+/** Canales / quién reservó (consultas y reservas). */
 const RESERVATION_SOURCES = Object.freeze([
   'WHATSAPP',
   'MAIL',
   'WEBSITE',
-  'BOOKING'
+  'BOOKING',
+  'MOSTRADOR'
 ]);
 
 const RESERVATION_SOURCE_LABELS = Object.freeze({
   WHATSAPP: 'WhatsApp',
   MAIL: 'Mail',
   WEBSITE: 'Sitio web',
-  BOOKING: 'Booking'
+  BOOKING: 'Booking',
+  MOSTRADOR: 'Mostrador'
 });
 
 const RESERVATION_SOURCE_OPTIONS = RESERVATION_SOURCES.map((value) => ({
