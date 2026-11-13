@@ -862,6 +862,7 @@ export async function updatePago(pagoId, data) {
   const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -881,6 +882,55 @@ export async function deletePago(pagoId) {
     throw new Error(error.error || 'Error deleting pago');
   }
   return res.json();
+}
+
+/** Sube adjuntos FACTURA (PDF) o COMPROBANTE (JPG/PNG/PDF) a un pago. */
+export async function uploadPagoAdjuntos(pagoId, tipo, files) {
+  const form = new FormData();
+  for (const file of files) {
+    form.append('files', file);
+  }
+  const res = await fetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${encodeURIComponent(tipo)}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      body: form
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error subiendo adjuntos';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export function getPagoAdjuntoDownloadUrl(pagoId, adjuntoId) {
+  return `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}/download`;
+}
+
+export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
+  const res = await fetch(getPagoAdjuntoDownloadUrl(pagoId, adjuntoId), {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    throw new Error('Error descargando adjunto');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename || `adjunto-${adjuntoId}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 // Cargos - Obtener todos los cargos de una reserva
@@ -1256,6 +1306,9 @@ export default {
   createPago,
   updatePago,
   deletePago,
+  uploadPagoAdjuntos,
+  getPagoAdjuntoDownloadUrl,
+  downloadPagoAdjunto,
   getCargosByReserva,
   createCargo,
   updateCargo,

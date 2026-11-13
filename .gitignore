@@ -2,6 +2,7 @@ node_modules/
 
 # Archivos temporales y de prueba
 backups/
+backend/uploads/
 *.test.js
 test-*.js
 check-*.js

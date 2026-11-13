@@ -8,6 +8,25 @@ const {
   methodRequiresBilling,
   isCardMethod
 } = require('../utils/billingConstants');
+const {
+  ADJUNTO_TIPOS,
+  assertAdjuntoTipo,
+  assertMimeForTipo,
+  saveUploadedFile,
+  absolutePath,
+  deleteStoredFile,
+  toPublicAdjunto
+} = require('../utils/pagoAdjuntos');
+
+const PAGO_ADJUNTO_INCLUDE = {
+  adjuntos: {
+    orderBy: { createdAt: 'asc' }
+  }
+};
+
+function isTransferencia(metodo) {
+  return String(metodo || '').trim().toLowerCase() === 'transferencia';
+}
 
 function normalizeOptionalString(value) {
   if (value == null) return null;
@@ -133,6 +152,7 @@ exports.getAllPagos = async (req, res) => {
     const pagos = await prisma.pago.findMany({
       include: {
         factura: true,
+        ...PAGO_ADJUNTO_INCLUDE,
         reserva: {
           select: {
             id: true,
@@ -163,7 +183,7 @@ exports.getPagosByReserva = async (req, res) => {
   try {
     const pagos = await prisma.pago.findMany({
       where: { reservaId: parseInt(reservaId) },
-      include: { factura: true },
+      include: { factura: true, ...PAGO_ADJUNTO_INCLUDE },
       orderBy: { fecha: 'desc' }
     });
     res.json(pagos);
@@ -292,7 +312,7 @@ exports.createPago = async (req, res) => {
               }
             : {})
         },
-        include: { factura: true }
+        include: { factura: true, ...PAGO_ADJUNTO_INCLUDE }
       });
 
       if (wantsBilling) {
@@ -319,7 +339,19 @@ exports.createPago = async (req, res) => {
 // Actualizar un pago existente
 exports.updatePago = async (req, res) => {
   const { id } = req.params;
-  const { monto, moneda, tipoCambio, metodo, tipoTarjeta, numeroTarjeta, empresa, referencia, notas, fecha } = req.body;
+  const {
+    monto,
+    moneda,
+    tipoCambio,
+    metodo,
+    tipoTarjeta,
+    numeroTarjeta,
+    empresa,
+    referencia,
+    notas,
+    fecha,
+    retirado
+  } = req.body;
 
   try {
     // Obtener el pago actual para validaciones
@@ -396,9 +428,20 @@ exports.updatePago = async (req, res) => {
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
 
+    if (retirado !== undefined) {
+      const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
+      if (isTransferencia(metodoFinal)) {
+        return res.status(400).json({
+          error: 'Retirado no aplica a pagos por Transferencia'
+        });
+      }
+      dataToUpdate.retirado = Boolean(retirado);
+    }
+
     const pagoActualizado = await prisma.pago.update({
       where: { id: parseInt(id) },
-      data: dataToUpdate
+      data: dataToUpdate,
+      include: { factura: true, ...PAGO_ADJUNTO_INCLUDE }
     });
     res.json(pagoActualizado);
   } catch (error) {
@@ -424,6 +467,95 @@ exports.deletePago = async (req, res) => {
     }
     console.error('Error eliminando pago:', error);
     res.status(500).json({ error: 'Error al eliminar el pago', details: error.message });
+  }
+};
+
+// ============================================
+// ADJUNTOS DE FACTURA / COMPROBANTE
+// ============================================
+
+exports.uploadPagoAdjuntos = async (req, res) => {
+  const pagoId = parseInt(req.params.id, 10);
+  const tipoResult = assertAdjuntoTipo(req.params.tipo || req.body?.tipo);
+  if (tipoResult.error) {
+    return res.status(400).json({ error: tipoResult.error });
+  }
+  const tipo = tipoResult.tipo;
+
+  try {
+    const pago = await prisma.pago.findUnique({ where: { id: pagoId } });
+    if (!pago) {
+      return res.status(404).json({ error: 'Pago no encontrado' });
+    }
+
+    if (tipo === ADJUNTO_TIPOS.FACTURA && !pago.requiereFacturacion) {
+      return res.status(400).json({
+        error: 'Este pago no requiere facturación'
+      });
+    }
+    if (tipo === ADJUNTO_TIPOS.COMPROBANTE && !isTransferencia(pago.metodo)) {
+      return res.status(400).json({
+        error: 'Los comprobantes solo aplican a Transferencia'
+      });
+    }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'Subí al menos un archivo' });
+    }
+
+    const created = [];
+    for (const file of files) {
+      const mimeCheck = assertMimeForTipo(tipo, file.mimetype);
+      if (mimeCheck.error) {
+        for (const row of created) {
+          deleteStoredFile(pagoId, row.storedName);
+        }
+        return res.status(400).json({ error: mimeCheck.error });
+      }
+      const saved = saveUploadedFile(pagoId, file, tipo);
+      const row = await prisma.pagoAdjunto.create({
+        data: {
+          pagoId,
+          tipo: saved.tipo,
+          originalName: saved.originalName,
+          storedName: saved.storedName,
+          mimeType: saved.mimeType,
+          sizeBytes: saved.sizeBytes
+        }
+      });
+      created.push(row);
+    }
+
+    res.status(201).json(created.map(toPublicAdjunto));
+  } catch (error) {
+    console.error('Error subiendo adjuntos de pago:', error);
+    res.status(500).json({ error: 'Error al subir adjuntos', details: error.message });
+  }
+};
+
+exports.downloadPagoAdjunto = async (req, res) => {
+  const pagoId = parseInt(req.params.id, 10);
+  const adjuntoId = parseInt(req.params.adjuntoId, 10);
+
+  try {
+    const adjunto = await prisma.pagoAdjunto.findFirst({
+      where: { id: adjuntoId, pagoId }
+    });
+    if (!adjunto) {
+      return res.status(404).json({ error: 'Adjunto no encontrado' });
+    }
+
+    const filePath = absolutePath(pagoId, adjunto.storedName);
+    res.download(filePath, adjunto.originalName, (err) => {
+      if (err && !res.headersSent) {
+        console.error('Error descargando adjunto:', err);
+        res.status(404).json({ error: 'Archivo no encontrado en disco' });
+      }
+    });
+  } catch (error) {
+    console.error('Error descargando adjunto de pago:', error);
+    res.status(500).json({ error: 'Error al descargar adjunto', details: error.message });
   }
 };
 

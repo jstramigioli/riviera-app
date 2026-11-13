@@ -1,10 +1,27 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiFilter } from 'react-icons/fi';
-import { getReservationsWithBalances, getAllPagos } from '../services/api';
+import { FiPlus, FiFilter, FiCheck } from 'react-icons/fi';
+import {
+  getReservationsWithBalances,
+  getAllPagos,
+  updatePago,
+  uploadPagoAdjuntos,
+  downloadPagoAdjunto,
+} from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import PaymentForm from '../components/PaymentForm';
 import styles from './CobrosPagos.module.css';
+
+const ADJUNTO_FACTURA = 'FACTURA';
+const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
+
+function isTransferencia(metodo) {
+  return String(metodo || '').trim().toLowerCase() === 'transferencia';
+}
+
+function adjuntosOf(pago, tipo) {
+  return (pago?.adjuntos || []).filter((a) => a.tipo === tipo);
+}
 
 const SECTIONS = {
   cuentas: 'cuentas',
@@ -118,6 +135,8 @@ const CobrosPagos = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [uploadingPagoId, setUploadingPagoId] = useState(null);
+  const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
 
@@ -367,6 +386,86 @@ const CobrosPagos = () => {
         return Number(b.id) - Number(a.id);
       });
   }, [payments, payFilters, clientIdParam]);
+
+  const mergePagoAdjuntos = (pagoId, nuevos) => {
+    setPayments((prev) =>
+      prev.map((pago) => {
+        if (pago.id !== pagoId) return pago;
+        const existing = Array.isArray(pago.adjuntos) ? pago.adjuntos : [];
+        return { ...pago, adjuntos: [...existing, ...nuevos] };
+      })
+    );
+  };
+
+  const handleToggleRetirado = async (pago) => {
+    if (!pago?.id || isTransferencia(pago.metodo) || togglingRetiradoId === pago.id) return;
+    const next = !pago.retirado;
+    setTogglingRetiradoId(pago.id);
+    try {
+      const updated = await updatePago(pago.id, { retirado: next });
+      setPayments((prev) =>
+        prev.map((row) =>
+          row.id === pago.id
+            ? { ...row, retirado: updated?.retirado ?? next, adjuntos: updated?.adjuntos ?? row.adjuntos }
+            : row
+        )
+      );
+    } catch (err) {
+      notify({
+        title: 'No se pudo actualizar',
+        message: err?.message || 'Error al marcar retirado',
+        type: 'error',
+      });
+    } finally {
+      setTogglingRetiradoId(null);
+    }
+  };
+
+  const handleUploadAdjuntos = async (pago, tipo, fileList) => {
+    if (!pago?.id || !fileList?.length) return;
+    const files = Array.from(fileList);
+    const acceptPdfOnly = tipo === ADJUNTO_FACTURA;
+    const invalid = files.filter((file) => {
+      const mime = file.type || '';
+      if (acceptPdfOnly) return mime !== 'application/pdf';
+      return !['application/pdf', 'image/jpeg', 'image/png'].includes(mime);
+    });
+    if (invalid.length) {
+      notify({
+        title: 'Archivo no permitido',
+        message: acceptPdfOnly
+          ? 'Solo PDF para facturas'
+          : 'Solo JPG, PNG o PDF para comprobantes',
+        type: 'error',
+      });
+      return;
+    }
+    setUploadingPagoId(pago.id);
+    try {
+      const created = await uploadPagoAdjuntos(pago.id, tipo, files);
+      mergePagoAdjuntos(pago.id, Array.isArray(created) ? created : [created]);
+    } catch (err) {
+      notify({
+        title: 'No se pudo subir',
+        message: err?.message || 'Error al subir archivos',
+        type: 'error',
+      });
+    } finally {
+      setUploadingPagoId(null);
+    }
+  };
+
+  const handleDownloadAdjunto = async (pago, adjunto) => {
+    try {
+      await downloadPagoAdjunto(pago.id, adjunto.id, adjunto.originalName);
+    } catch (err) {
+      notify({
+        title: 'No se pudo descargar',
+        message: err?.message || 'Error al descargar',
+        type: 'error',
+      });
+    }
+  };
 
   const handleClientClick = (client) => {
     if (!client?.id) return;
@@ -767,12 +866,14 @@ const CobrosPagos = () => {
                           </th>
                         );
                       })}
+                      <th>Factura</th>
+                      <th>Retirado</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className={styles.emptyCell}>
+                        <td colSpan={9} className={styles.emptyCell}>
                           No hay pagos con los filtros actuales
                         </td>
                       </tr>
@@ -784,6 +885,10 @@ const CobrosPagos = () => {
                           : 'Sin cliente';
                         const amount =
                           pago.montoARS != null ? pago.montoARS : pago.monto;
+                        const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
+                        const comprobanteFiles = adjuntosOf(pago, ADJUNTO_COMPROBANTE);
+                        const transfer = isTransferencia(pago.metodo);
+                        const busyUpload = uploadingPagoId === pago.id;
 
                         return (
                           <tr key={pago.id} className={styles.row}>
@@ -812,6 +917,154 @@ const CobrosPagos = () => {
                             <td className={styles.metaCell}>{pago.metodo || '—'}</td>
                             <td className={styles.metaCell}>
                               {pago.referencia || pago.empresa || '—'}
+                            </td>
+                            <td className={styles.facturaCell}>
+                              {!pago.requiereFacturacion ? (
+                                <span className={styles.dashMuted}>—</span>
+                              ) : facturaFiles.length > 0 ? (
+                                <div className={styles.fileList}>
+                                  {facturaFiles.map((file) => (
+                                    <button
+                                      key={file.id}
+                                      type="button"
+                                      className={styles.fileLink}
+                                      onClick={() => handleDownloadAdjunto(pago, file)}
+                                      title="Descargar factura"
+                                    >
+                                      {file.originalName || `Factura ${file.id}`}
+                                    </button>
+                                  ))}
+                                  <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
+                                    <input
+                                      type="file"
+                                      accept="application/pdf,.pdf"
+                                      multiple
+                                      disabled={busyUpload}
+                                      onChange={(e) => {
+                                        handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                    {busyUpload ? 'Subiendo…' : '+ PDF'}
+                                  </label>
+                                </div>
+                              ) : (
+                                <div className={styles.facturaPending}>
+                                  <span className={styles.pendingLabel}>Pendiente</span>
+                                  <label
+                                    className={`${styles.dropzone} ${busyUpload ? styles.dropzoneBusy : ''}`}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      handleUploadAdjuntos(
+                                        pago,
+                                        ADJUNTO_FACTURA,
+                                        e.dataTransfer.files
+                                      );
+                                    }}
+                                  >
+                                    <input
+                                      type="file"
+                                      accept="application/pdf,.pdf"
+                                      multiple
+                                      disabled={busyUpload}
+                                      onChange={(e) => {
+                                        handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                    {busyUpload
+                                      ? 'Subiendo…'
+                                      : 'Arrastrá PDF o hacé clic'}
+                                  </label>
+                                </div>
+                              )}
+                            </td>
+                            <td className={styles.retiradoCell}>
+                              {transfer ? (
+                                comprobanteFiles.length > 0 ? (
+                                  <div className={styles.fileList}>
+                                    {comprobanteFiles.map((file) => (
+                                      <button
+                                        key={file.id}
+                                        type="button"
+                                        className={styles.fileLink}
+                                        onClick={() => handleDownloadAdjunto(pago, file)}
+                                        title="Descargar comprobante"
+                                      >
+                                        {file.originalName || `Comprobante ${file.id}`}
+                                      </button>
+                                    ))}
+                                    <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
+                                      <input
+                                        type="file"
+                                        accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
+                                        multiple
+                                        disabled={busyUpload}
+                                        onChange={(e) => {
+                                          handleUploadAdjuntos(
+                                            pago,
+                                            ADJUNTO_COMPROBANTE,
+                                            e.target.files
+                                          );
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                      {busyUpload ? 'Subiendo…' : '+ archivo'}
+                                    </label>
+                                  </div>
+                                ) : (
+                                  <div className={styles.facturaPending}>
+                                    <span className={styles.pendingLabel}>Agregar comprobante</span>
+                                    <label
+                                      className={`${styles.dropzone} ${busyUpload ? styles.dropzoneBusy : ''}`}
+                                      onDragOver={(e) => e.preventDefault()}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        handleUploadAdjuntos(
+                                          pago,
+                                          ADJUNTO_COMPROBANTE,
+                                          e.dataTransfer.files
+                                        );
+                                      }}
+                                    >
+                                      <input
+                                        type="file"
+                                        accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
+                                        multiple
+                                        disabled={busyUpload}
+                                        onChange={(e) => {
+                                          handleUploadAdjuntos(
+                                            pago,
+                                            ADJUNTO_COMPROBANTE,
+                                            e.target.files
+                                          );
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                      {busyUpload
+                                        ? 'Subiendo…'
+                                        : 'JPG / PNG / PDF'}
+                                    </label>
+                                  </div>
+                                )
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`${styles.retiradoToggle} ${pago.retirado ? styles.retiradoOn : styles.retiradoOff}`}
+                                  aria-pressed={Boolean(pago.retirado)}
+                                  aria-label={pago.retirado ? 'Marcado como retirado' : 'No retirado'}
+                                  title={pago.retirado ? 'Retirado (clic para desmarcar)' : 'No retirado (clic para marcar)'}
+                                  disabled={togglingRetiradoId === pago.id}
+                                  onClick={() => handleToggleRetirado(pago)}
+                                >
+                                  {pago.retirado ? (
+                                    <FiCheck aria-hidden="true" />
+                                  ) : (
+                                    <span aria-hidden="true">—</span>
+                                  )}
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
