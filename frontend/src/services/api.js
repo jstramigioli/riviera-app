@@ -784,14 +784,28 @@ export async function getReservationFinancialSummary(reservaId) {
 
 // Obtener todas las reservas con saldos
 export async function getReservationsWithBalances() {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`);
-  if (!res.ok) throw new Error('Error fetching reservations with balances');
+  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore parse errors
+    }
+    const suffix = details ? `: ${details}` : ` (${res.status})`;
+    throw new Error(`Error fetching reservations with balances${suffix}`);
+  }
   return res.json();
 }
 
 // Historial global de pagos
 export async function getAllPagos() {
-  const res = await fetch(`${API_URL}/reservation-payments/pagos`);
+  const res = await fetch(`${API_URL}/reservation-payments/pagos`, {
+    credentials: 'include'
+  });
   if (!res.ok) throw new Error('Error fetching payment history');
   return res.json();
 }
