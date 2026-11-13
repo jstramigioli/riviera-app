@@ -671,9 +671,26 @@ model MenuItem {
   ordenIndex  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  varieties   MenuItemVariety[]
 
   @@index([category, isActive])
   @@index([name])
+}
+
+/// Variedad de un ítem (ej. Chica / Grande) con precio propio.
+/// Si el ítem no tiene variedades, se usa MenuItem.price.
+model MenuItemVariety {
+  id         Int      @id @default(autoincrement())
+  menuItemId Int
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  ordenIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@unique([menuItemId, name])
 }
 
 enum ServiceAdjustmentMode {

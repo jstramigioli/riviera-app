@@ -9,6 +9,10 @@ const CATEGORY_LABELS = {
   CAFETERIA: 'Cafetería'
 };
 
+const varietyInclude = {
+  varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] }
+};
+
 function normalizeCategory(value) {
   if (!value) return null;
   const upper = String(value).trim().toUpperCase();
@@ -19,6 +23,47 @@ function parsePrice(value) {
   const num = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
   if (!Number.isFinite(num) || num < 0) return null;
   return new Decimal(num);
+}
+
+function normalizeVarieties(raw) {
+  if (raw === undefined) return undefined;
+  if (raw === null) return [];
+  if (!Array.isArray(raw)) return null;
+
+  const out = [];
+  const seen = new Set();
+  for (let i = 0; i < raw.length; i += 1) {
+    const row = raw[i] || {};
+    const name = String(row.name || '').trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      return { error: `Variedad duplicada: ${name}` };
+    }
+    seen.add(key);
+    const price = parsePrice(row.price);
+    if (price === null) {
+      return { error: `Precio inválido en variedad “${name}”` };
+    }
+    const ordenIndex = Number.isFinite(Number(row.ordenIndex))
+      ? Number(row.ordenIndex)
+      : (i + 1) * 10;
+    out.push({ name, price, ordenIndex });
+  }
+  return out;
+}
+
+async function replaceVarieties(tx, menuItemId, varieties) {
+  await tx.menuItemVariety.deleteMany({ where: { menuItemId } });
+  if (!varieties.length) return;
+  await tx.menuItemVariety.createMany({
+    data: varieties.map((v) => ({
+      menuItemId,
+      name: v.name,
+      price: v.price,
+      ordenIndex: v.ordenIndex
+    }))
+  });
 }
 
 exports.listCategories = async (_req, res) => {
@@ -55,6 +100,7 @@ exports.listMenuItems = async (req, res) => {
 
     const items = await prisma.menuItem.findMany({
       where,
+      include: varietyInclude,
       orderBy: [
         { category: 'asc' },
         { ordenIndex: 'asc' },
@@ -82,6 +128,7 @@ exports.createMenuItem = async (req, res) => {
     const ordenIndex = Number.isFinite(Number(req.body.ordenIndex))
       ? Number(req.body.ordenIndex)
       : 0;
+    const varietiesNorm = normalizeVarieties(req.body.varieties);
 
     if (!category) {
       return res.status(400).json({
@@ -96,16 +143,32 @@ exports.createMenuItem = async (req, res) => {
     if (price === null) {
       return res.status(400).json({ success: false, error: 'Precio inválido' });
     }
+    if (varietiesNorm && varietiesNorm.error) {
+      return res.status(400).json({ success: false, error: varietiesNorm.error });
+    }
 
-    const item = await prisma.menuItem.create({
-      data: {
-        category,
-        name,
-        price,
-        description,
-        ordenIndex,
-        isActive: req.body.isActive !== false
+    const varieties = Array.isArray(varietiesNorm) ? varietiesNorm : [];
+    const basePrice =
+      varieties.length > 0 ? varieties[0].price : price;
+
+    const item = await prisma.$transaction(async (tx) => {
+      const created = await tx.menuItem.create({
+        data: {
+          category,
+          name,
+          price: basePrice,
+          description,
+          ordenIndex,
+          isActive: req.body.isActive !== false
+        }
+      });
+      if (varieties.length) {
+        await replaceVarieties(tx, created.id, varieties);
       }
+      return tx.menuItem.findUnique({
+        where: { id: created.id },
+        include: varietyInclude
+      });
     });
 
     res.status(201).json({ success: true, data: item });
@@ -169,7 +232,25 @@ exports.updateMenuItem = async (req, res) => {
       data.isActive = Boolean(req.body.isActive);
     }
 
-    const item = await prisma.menuItem.update({ where: { id }, data });
+    const varietiesNorm = normalizeVarieties(req.body.varieties);
+    if (varietiesNorm && varietiesNorm.error) {
+      return res.status(400).json({ success: false, error: varietiesNorm.error });
+    }
+
+    const item = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(varietiesNorm)) {
+        await replaceVarieties(tx, id, varietiesNorm);
+        if (varietiesNorm.length > 0 && req.body.price === undefined) {
+          data.price = varietiesNorm[0].price;
+        }
+      }
+      await tx.menuItem.update({ where: { id }, data });
+      return tx.menuItem.findUnique({
+        where: { id },
+        include: varietyInclude
+      });
+    });
+
     res.json({ success: true, data: item });
   } catch (error) {
     console.error('Error actualizando ítem de menú:', error);
@@ -184,14 +265,18 @@ exports.updateMenuItem = async (req, res) => {
 exports.toggleMenuItem = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = await prisma.menuItem.findUnique({ where: { id } });
+    const existing = await prisma.menuItem.findUnique({
+      where: { id },
+      include: varietyInclude
+    });
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Ítem no encontrado' });
     }
 
     const item = await prisma.menuItem.update({
       where: { id },
-      data: { isActive: !existing.isActive }
+      data: { isActive: !existing.isActive },
+      include: varietyInclude
     });
     res.json({ success: true, data: item });
   } catch (error) {
@@ -225,7 +310,8 @@ exports.deleteMenuItem = async (req, res) => {
 
     const item = await prisma.menuItem.update({
       where: { id },
-      data: { isActive: false }
+      data: { isActive: false },
+      include: varietyInclude
     });
     res.json({
       success: true,

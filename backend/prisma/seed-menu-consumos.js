@@ -1,11 +1,13 @@
 /**
- * Seed idempotente del menú de consumos (bebidas / minutas / cafetería).
+ * Seed del menú de consumos desde precios reales (Excel hoja 202526).
  * - Asegura subcategorías CONSUMO canónicas (BEBIDAS, MINUTAS, CAFETERIA)
- * - Inserta ítems base solo si no existe ya el mismo nombre+categoría
+ * - Upsert por categoría+nombre: actualiza precio/descripción/orden/variedades
+ * - Desactiva ítems demo viejos que no están en el catálogo Excel
  *
  * Uso: node prisma/seed-menu-consumos.js
- * No pisa precios ni descripciones ya editados.
  */
+const fs = require('fs');
+const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -37,19 +39,30 @@ const SUBCATEGORIES = [
   }
 ];
 
-const MENU_ITEMS = [
-  { category: 'BEBIDAS', name: 'Agua mineral', price: 1500, ordenIndex: 10 },
-  { category: 'BEBIDAS', name: 'Gaseosa', price: 2000, ordenIndex: 20 },
-  { category: 'BEBIDAS', name: 'Cerveza', price: 3500, ordenIndex: 30 },
-  { category: 'BEBIDAS', name: 'Vino copa', price: 4000, ordenIndex: 40 },
-  { category: 'MINUTAS', name: 'Sandwich jamón y queso', price: 5500, ordenIndex: 10 },
-  { category: 'MINUTAS', name: 'Ensalada mixta', price: 6000, ordenIndex: 20 },
-  { category: 'MINUTAS', name: 'Milanesa con guarnición', price: 9500, ordenIndex: 30 },
-  { category: 'CAFETERIA', name: 'Café', price: 1800, ordenIndex: 10 },
-  { category: 'CAFETERIA', name: 'Café con leche', price: 2200, ordenIndex: 20 },
-  { category: 'CAFETERIA', name: 'Té', price: 1600, ordenIndex: 30 },
-  { category: 'CAFETERIA', name: 'Medialuna', price: 1200, ordenIndex: 40 }
+/** Demo v1 — se desactivan si no coinciden con el catálogo Excel. */
+const LEGACY_DEMO_NAMES = [
+  'Agua mineral',
+  'Gaseosa',
+  'Cerveza',
+  'Vino copa',
+  'Sandwich jamón y queso',
+  'Ensalada mixta',
+  'Milanesa con guarnición',
+  'Café',
+  'Café con leche',
+  'Té',
+  'Medialuna'
 ];
+
+function loadMenuCatalog() {
+  const jsonPath = path.join(__dirname, 'menu-202526.json');
+  const raw = fs.readFileSync(jsonPath, 'utf8');
+  const rows = JSON.parse(raw);
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(`Catálogo vacío o inválido: ${jsonPath}`);
+  }
+  return rows;
+}
 
 async function ensureSubcategories() {
   let created = 0;
@@ -69,37 +82,124 @@ async function ensureSubcategories() {
   return created;
 }
 
-async function ensureMenuItems() {
+async function syncVarieties(menuItemId, varieties) {
+  const desired = Array.isArray(varieties) ? varieties : [];
+  const existing = await prisma.menuItemVariety.findMany({
+    where: { menuItemId }
+  });
+  const byName = new Map(
+    existing.map((v) => [String(v.name).trim().toLowerCase(), v])
+  );
+  const keepIds = new Set();
+
+  for (const row of desired) {
+    const name = String(row.name || '').trim();
+    if (!name) continue;
+    const price = Number(row.price);
+    if (!Number.isFinite(price) || price < 0) continue;
+    const ordenIndex = Number.isFinite(Number(row.ordenIndex))
+      ? Number(row.ordenIndex)
+      : 0;
+    const key = name.toLowerCase();
+    const found = byName.get(key);
+    if (found) {
+      await prisma.menuItemVariety.update({
+        where: { id: found.id },
+        data: { name, price, ordenIndex }
+      });
+      keepIds.add(found.id);
+    } else {
+      const created = await prisma.menuItemVariety.create({
+        data: { menuItemId, name, price, ordenIndex }
+      });
+      keepIds.add(created.id);
+    }
+  }
+
+  const toDelete = existing.filter((v) => !keepIds.has(v.id));
+  if (toDelete.length) {
+    await prisma.menuItemVariety.deleteMany({
+      where: { id: { in: toDelete.map((v) => v.id) } }
+    });
+  }
+}
+
+async function upsertMenuItems(catalog) {
   let created = 0;
-  for (const row of MENU_ITEMS) {
+  let updated = 0;
+  const catalogKeys = new Set();
+
+  for (const row of catalog) {
+    const category = row.category;
+    const name = String(row.name || '').trim();
+    if (!category || !name) continue;
+    catalogKeys.add(`${category}::${name.toLowerCase()}`);
+
     const existing = await prisma.menuItem.findFirst({
       where: {
-        category: row.category,
-        name: { equals: row.name, mode: 'insensitive' }
+        category,
+        name: { equals: name, mode: 'insensitive' }
       }
     });
-    if (existing) continue;
-    await prisma.menuItem.create({
-      data: {
-        category: row.category,
-        name: row.name,
-        price: row.price,
-        isActive: true,
-        ordenIndex: row.ordenIndex
-      }
-    });
-    created += 1;
+
+    const data = {
+      category,
+      name,
+      price: row.price,
+      description: row.description || null,
+      ordenIndex: Number(row.ordenIndex) || 0,
+      isActive: true
+    };
+
+    let itemId;
+    if (existing) {
+      await prisma.menuItem.update({ where: { id: existing.id }, data });
+      itemId = existing.id;
+      updated += 1;
+    } else {
+      const createdItem = await prisma.menuItem.create({ data });
+      itemId = createdItem.id;
+      created += 1;
+    }
+
+    await syncVarieties(itemId, row.varieties || []);
   }
-  return created;
+
+  return { created, updated, catalogKeys };
+}
+
+async function deactivateLegacyDemo(catalogKeys) {
+  let deactivated = 0;
+  for (const name of LEGACY_DEMO_NAMES) {
+    const items = await prisma.menuItem.findMany({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        isActive: true
+      }
+    });
+    for (const item of items) {
+      const key = `${item.category}::${item.name.toLowerCase()}`;
+      if (catalogKeys.has(key)) continue;
+      await prisma.menuItem.update({
+        where: { id: item.id },
+        data: { isActive: false }
+      });
+      deactivated += 1;
+    }
+  }
+  return deactivated;
 }
 
 async function main() {
-  console.log('Seed menú consumos…');
+  console.log('Seed menú consumos (Excel 202526)…');
+  const catalog = loadMenuCatalog();
   const subCreated = await ensureSubcategories();
-  const itemsCreated = await ensureMenuItems();
-  const totalItems = await prisma.menuItem.count();
+  const { created, updated, catalogKeys } = await upsertMenuItems(catalog);
+  const deactivated = await deactivateLegacyDemo(catalogKeys);
+  const totalItems = await prisma.menuItem.count({ where: { isActive: true } });
+  const totalVarieties = await prisma.menuItemVariety.count();
   console.log(
-    `Listo. Subcategorías nuevas: ${subCreated}. Ítems nuevos: ${itemsCreated}. Total ítems: ${totalItems}.`
+    `Listo. Subcategorías nuevas: ${subCreated}. Ítems creados: ${created}, actualizados: ${updated}, demo desactivados: ${deactivated}. Activos: ${totalItems}. Variedades: ${totalVarieties}.`
   );
 }
 

@@ -51,6 +51,8 @@ function newLine() {
   return {
     key: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     menuItemId: null,
+    varietyId: null,
+    varietyName: null,
     name: '',
     category: null,
     price: 0,
@@ -59,6 +61,43 @@ function newLine() {
     dropdownOpen: false,
     highlight: 0
   };
+}
+
+/** Expande ítems con variedades a opciones elegibles (Chica/Grande, etc.). */
+function expandMenuOptions(menuItems) {
+  const out = [];
+  for (const item of menuItems) {
+    if (item.isActive === false) continue;
+    const varieties = Array.isArray(item.varieties) ? item.varieties : [];
+    if (varieties.length === 0) {
+      out.push({
+        optionKey: `item-${item.id}`,
+        menuItemId: item.id,
+        varietyId: null,
+        varietyName: null,
+        name: item.name,
+        displayName: item.name,
+        category: item.category,
+        price: Number(item.price),
+        ordenIndex: item.ordenIndex || 0
+      });
+      continue;
+    }
+    for (const variety of varieties) {
+      out.push({
+        optionKey: `item-${item.id}-var-${variety.id}`,
+        menuItemId: item.id,
+        varietyId: variety.id,
+        varietyName: variety.name,
+        name: item.name,
+        displayName: `${item.name} — ${variety.name}`,
+        category: item.category,
+        price: Number(variety.price),
+        ordenIndex: item.ordenIndex || 0
+      });
+    }
+  }
+  return out;
 }
 
 function cloneLine(line) {
@@ -72,10 +111,10 @@ function cloneLine(line) {
 
 function filterMenuItems(menuItems, query) {
   const q = query.trim().toLowerCase();
-  let list = menuItems.filter((i) => i.isActive !== false);
+  let list = expandMenuOptions(menuItems);
   if (q) {
     list = list.filter((i) => {
-      const hay = `${i.name} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
+      const hay = `${i.displayName} ${i.name} ${i.varietyName || ''} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
       return hay.includes(q);
     });
   }
@@ -83,7 +122,11 @@ function filterMenuItems(menuItems, query) {
     const ca = CATEGORY_ORDER.indexOf(a.category);
     const cb = CATEGORY_ORDER.indexOf(b.category);
     if (ca !== cb) return ca - cb;
-    return (a.ordenIndex || 0) - (b.ordenIndex || 0) || a.name.localeCompare(b.name, 'es');
+    const byOrden = (a.ordenIndex || 0) - (b.ordenIndex || 0);
+    if (byOrden !== 0) return byOrden;
+    const byName = a.name.localeCompare(b.name, 'es');
+    if (byName !== 0) return byName;
+    return String(a.varietyName || '').localeCompare(String(b.varietyName || ''), 'es');
   });
 }
 
@@ -314,6 +357,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
    * Asegura fila en blanco después de `lineKey` y enfoca su campo ítem.
    * Si `selectedItem` viene, aplica la selección en el mismo setState (Enter).
    */
+  const applySelection = (line, selectedItem) => ({
+    ...line,
+    menuItemId: selectedItem.menuItemId ?? selectedItem.id,
+    varietyId: selectedItem.varietyId ?? null,
+    varietyName: selectedItem.varietyName ?? null,
+    name: selectedItem.name,
+    category: selectedItem.category,
+    price: Number(selectedItem.price),
+    query: selectedItem.displayName || selectedItem.name,
+    dropdownOpen: false,
+    highlight: 0
+  });
+
   const advanceAfterItem = (lineKey, selectedItem = null) => {
     const blank = newLine();
     let focusKey = blank.key;
@@ -322,16 +378,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
       const withSelection = selectedItem
         ? prev.map((l) =>
             l.key === lineKey
-              ? {
-                  ...l,
-                  menuItemId: selectedItem.id,
-                  name: selectedItem.name,
-                  category: selectedItem.category,
-                  price: Number(selectedItem.price),
-                  query: selectedItem.name,
-                  dropdownOpen: false,
-                  highlight: 0
-                }
+              ? applySelection(l, selectedItem)
               : l.dropdownOpen
                 ? { ...l, dropdownOpen: false, highlight: 0 }
                 : l
@@ -365,20 +412,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
       return;
     }
     setLines((prev) =>
-      prev.map((l) =>
-        l.key === lineKey
-          ? {
-              ...l,
-              menuItemId: item.id,
-              name: item.name,
-              category: item.category,
-              price: Number(item.price),
-              query: item.name,
-              dropdownOpen: false,
-              highlight: 0
-            }
-          : l
-      )
+      prev.map((l) => (l.key === lineKey ? applySelection(l, item) : l))
     );
   };
 
@@ -441,6 +475,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
             ? {
                 ...l,
                 menuItemId: null,
+                varietyId: null,
+                varietyName: null,
                 name: '',
                 category: null,
                 price: 0,
@@ -531,15 +567,17 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
     setSubmitting(true);
     try {
-      // Agrupar filas del mismo ítem por si el usuario repitió
+      // Agrupar filas del mismo ítem+variedad por si el usuario repitió
       const merged = new Map();
       for (const line of filledLines) {
-        const prev = merged.get(line.menuItemId);
+        const mergeKey = `${line.menuItemId}:${line.varietyId ?? ''}`;
+        const prev = merged.get(mergeKey);
         if (prev) {
           prev.quantity = Math.min(999, prev.quantity + Number(line.quantity));
         } else {
-          merged.set(line.menuItemId, {
+          merged.set(mergeKey, {
             menuItemId: line.menuItemId,
+            varietyId: line.varietyId ?? null,
             quantity: Number(line.quantity)
           });
         }
@@ -759,6 +797,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                               highlight: 0,
                               // Si edita el texto, invalidar selección previa
                               menuItemId: null,
+                              varietyId: null,
+                              varietyName: null,
                               name: '',
                               category: null,
                               price: 0
@@ -781,7 +821,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                               <li className={styles.dropdownEmpty}>Sin resultados</li>
                             ) : (
                               options.map((item, idx) => (
-                                <li key={item.id}>
+                                <li key={item.optionKey}>
                                   <button
                                     type="button"
                                     role="option"
@@ -794,7 +834,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                                     <span className={styles.itemCat}>
                                       {CATEGORY_LABELS[item.category] || item.category}
                                     </span>
-                                    <span className={styles.itemName}>{item.name}</span>
+                                    <span className={styles.itemName}>{item.displayName}</span>
                                     <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
                                   </button>
                                 </li>
