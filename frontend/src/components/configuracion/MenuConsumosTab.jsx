@@ -46,6 +46,25 @@ function formatPriceCell(item) {
     .join(' · ');
 }
 
+function sortValue(item, field) {
+  switch (field) {
+    case 'category': {
+      const label = CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
+      return String(label).toLowerCase();
+    }
+    case 'name':
+      return String(item.name || '').toLowerCase();
+    case 'price':
+      return Number(item.price) || 0;
+    case 'estado':
+      return item.isActive ? 0 : 1;
+    case 'ordenIndex':
+      return Number(item.ordenIndex) || 0;
+    default:
+      return '';
+  }
+}
+
 export default function MenuConsumosTab() {
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
@@ -54,6 +73,8 @@ export default function MenuConsumosTab() {
   const [error, setError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [query, setQuery] = useState('');
+  const [sortField, setSortField] = useState('ordenIndex');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -75,15 +96,41 @@ export default function MenuConsumosTab() {
     load();
   }, [load]);
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortIndicator = (field) => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter((item) => {
+    const rows = items.filter((item) => {
       if (filterCategory !== 'ALL' && item.category !== filterCategory) return false;
       if (!q) return true;
       const hay = `${item.name} ${item.description || ''}`;
       return hay.toLowerCase().includes(q);
     });
-  }, [items, filterCategory, query]);
+
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const aValue = sortValue(a, sortField);
+      const bValue = sortValue(b, sortField);
+      if (aValue < bValue) return -1 * dir;
+      if (aValue > bValue) return 1 * dir;
+      // Desempate estable: nombre, luego id (estado isActive no se altera)
+      const byName = String(a.name || '').localeCompare(String(b.name || ''), 'es');
+      if (byName !== 0) return byName;
+      return (a.id || 0) - (b.id || 0);
+    });
+  }, [items, filterCategory, query, sortField, sortDirection]);
 
   const openCreate = () => {
     setEditing('new');
@@ -283,71 +330,148 @@ export default function MenuConsumosTab() {
       ) : null}
 
       {!loading && filtered.length > 0 ? (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Categoría</th>
-              <th>Nombre</th>
-              <th>Precio</th>
-              <th>Estado</th>
-              <th>Orden</th>
-              <th aria-label="Acciones" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((item) => {
-              const catLabel =
-                CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
-              return (
-                <tr key={item.id} className={item.isActive ? '' : styles.inactiveRow}>
-                  <td>{catLabel}</td>
-                  <td>
-                    <div className={styles.nameCell}>{item.name}</div>
-                    {item.description ? (
-                      <div className={styles.desc}>{item.description}</div>
-                    ) : null}
-                  </td>
-                  <td className={styles.num}>{formatPriceCell(item)}</td>
-                  <td>
-                    <span className={item.isActive ? styles.badgeOn : styles.badgeOff}>
-                      {item.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className={styles.num}>{item.ordenIndex}</td>
-                  <td className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      title={item.isActive ? 'Desactivar' : 'Activar'}
-                      aria-label={item.isActive ? 'Desactivar' : 'Activar'}
-                      onClick={() => onToggle(item)}
-                    >
-                      {item.isActive ? <FiToggleRight /> : <FiToggleLeft />}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      title="Editar"
-                      aria-label="Editar"
-                      onClick={() => openEdit(item)}
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      title="Desactivar"
-                      aria-label="Desactivar"
-                      onClick={() => onDelete(item)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('category')}
+                    aria-sort={
+                      sortField === 'category'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Categoría{sortIndicator('category')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('name')}
+                    aria-sort={
+                      sortField === 'name'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Nombre{sortIndicator('name')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('price')}
+                    aria-sort={
+                      sortField === 'price'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Precio{sortIndicator('price')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('estado')}
+                    aria-sort={
+                      sortField === 'estado'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Estado{sortIndicator('estado')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('ordenIndex')}
+                    aria-sort={
+                      sortField === 'ordenIndex'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Orden{sortIndicator('ordenIndex')}
+                  </button>
+                </th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item) => {
+                const catLabel =
+                  CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
+                return (
+                  <tr key={item.id} className={item.isActive ? '' : styles.inactiveRow}>
+                    <td>{catLabel}</td>
+                    <td>
+                      <div className={styles.nameCell}>{item.name}</div>
+                      {item.description ? (
+                        <div className={styles.desc}>{item.description}</div>
+                      ) : null}
+                    </td>
+                    <td className={styles.num}>{formatPriceCell(item)}</td>
+                    <td>
+                      <span className={item.isActive ? styles.badgeOn : styles.badgeOff}>
+                        {item.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className={styles.num}>{item.ordenIndex}</td>
+                    <td className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        title={item.isActive ? 'Desactivar' : 'Activar'}
+                        aria-label={item.isActive ? 'Desactivar' : 'Activar'}
+                        onClick={() => onToggle(item)}
+                      >
+                        {item.isActive ? <FiToggleRight /> : <FiToggleLeft />}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        title="Editar"
+                        aria-label="Editar"
+                        onClick={() => openEdit(item)}
+                      >
+                        <FiEdit2 />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.iconBtn}
+                        title="Desactivar"
+                        aria-label="Desactivar"
+                        onClick={() => onDelete(item)}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       {editing ? (
