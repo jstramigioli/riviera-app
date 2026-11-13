@@ -39,6 +39,48 @@
   gap: 8px;
 }
 
+.modeTabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+}
+
+.modeTab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 12px 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.modeTab:hover:not(:disabled) {
+  color: #1f2937;
+}
+
+.modeTabActive {
+  color: #1d4ed8;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+
+.modeTab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fieldLabel {
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+}
+
 .closeButton {
   background: none;
   border: none;

@@ -11,7 +11,7 @@ import {
   DEFAULT_PAGO_MOTIVO,
   DOCUMENT_TYPES_AR,
   IVA_CONDITIONS,
-  PAGO_MOTIVOS,
+  MOTIVO_DEVOLUCION,
   emptyBillingForm,
   isCardMethod,
   localDateInputToIso,
@@ -19,6 +19,9 @@ import {
   todayLocalDateInputValue
 } from '../constants/billing';
 import styles from './PaymentForm.module.css';
+
+const MODE_PAGO = 'pago';
+const MODE_DEVOLUCION = 'devolucion';
 
 function reservationOptionLabel(row) {
   if (row.label) return row.label;
@@ -33,17 +36,25 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
   const [pickedReservationId, setPickedReservationId] = useState('');
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
+  const [mode, setMode] = useState(MODE_PAGO);
+  const [esSena, setEsSena] = useState(false);
 
   const reservaId = needsReservationPick
     ? (pickedReservationId ? Number(pickedReservationId) : null)
     : Number(reservaIdProp);
+
+  const isDevolucion = mode === MODE_DEVOLUCION;
+  const motivoActual = isDevolucion
+    ? MOTIVO_DEVOLUCION
+    : esSena
+      ? 'Seña'
+      : DEFAULT_PAGO_MOTIVO;
 
   const [formData, setFormData] = useState({
     monto: '',
     moneda: 'ARS',
     tipoCambio: '',
     metodo: 'Efectivo',
-    motivo: DEFAULT_PAGO_MOTIVO,
     numeroTarjeta: '',
     empresa: '',
     referencia: '',
@@ -259,7 +270,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         ? {
             tipo: billing.tipo,
             fecha: localDateInputToIso(billing.fecha),
-            motivo: formData.motivo || DEFAULT_PAGO_MOTIVO,
+            motivo: motivoActual,
             firstName: billing.firstName || null,
             lastName: billing.lastName || null,
             documentType: billing.documentType || null,
@@ -277,12 +288,13 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         : undefined;
 
       // fecha del pago: la fija el servidor (ahora). Solo se envía fecha de facturación si aplica.
+      // Devolución: monto positivo en UI; el backend lo guarda negativo en el saldo.
       const pagoData = {
         monto: parseFloat(formData.monto),
         moneda: formData.moneda,
         tipoCambio: formData.moneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
         metodo: formData.metodo,
-        motivo: formData.motivo || DEFAULT_PAGO_MOTIVO,
+        motivo: motivoActual,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
         referencia: formData.referencia || null,
@@ -314,7 +326,7 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
         <div className={styles.header}>
           <h2 id="payment-form-title">
             <FiDollarSign />
-            Nuevo pago
+            {isDevolucion ? 'Nueva devolución' : 'Nuevo pago'}
           </h2>
           <button
             type="button"
@@ -324,6 +336,31 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
             aria-label="Cerrar"
           >
             <FiX />
+          </button>
+        </div>
+
+        <div className={styles.modeTabs} role="tablist" aria-label="Tipo de movimiento">
+          <button
+            type="button"
+            role="tab"
+            id="tab-nuevo-pago"
+            aria-selected={!isDevolucion}
+            className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
+            onClick={() => setMode(MODE_PAGO)}
+            disabled={loading}
+          >
+            Nuevo pago
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-nueva-devolucion"
+            aria-selected={isDevolucion}
+            className={`${styles.modeTab} ${isDevolucion ? styles.modeTabActive : ''}`}
+            onClick={() => setMode(MODE_DEVOLUCION)}
+            disabled={loading}
+          >
+            Nueva devolución
           </button>
         </div>
 
@@ -404,7 +441,9 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label htmlFor="payment-metodo">Método de pago *</label>
+              <label htmlFor="payment-metodo">
+                {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+              </label>
               <select
                 id="payment-metodo"
                 value={formData.metodo}
@@ -422,21 +461,24 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
               </select>
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-motivo">Motivo *</label>
-              <select
-                id="payment-motivo"
-                value={formData.motivo}
-                onChange={(e) => handleInputChange('motivo', e.target.value)}
-                required
-              >
-                {PAGO_MOTIVOS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!isDevolucion && (
+              <div className={styles.formGroup}>
+                <span className={styles.fieldLabel} id="payment-sena-label">
+                  Seña
+                </span>
+                <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                  <input
+                    id="payment-sena-toggle"
+                    type="checkbox"
+                    checked={esSena}
+                    disabled={loading}
+                    aria-labelledby="payment-sena-label"
+                    onChange={(e) => setEsSena(e.target.checked)}
+                  />
+                  <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                </label>
+              </div>
+            )}
           </div>
 
           <div className={styles.formRow}>
@@ -724,10 +766,15 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
           )}
 
           <div className={styles.paymentSummary}>
-            <h3>Resumen del pago</h3>
+            <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del pago'}</h3>
+            <div className={styles.summaryRow}>
+              <span>Motivo:</span>
+              <span>{motivoActual}</span>
+            </div>
             <div className={styles.summaryRow}>
               <span>Monto original:</span>
-              <span className={styles.amount}>
+              <span className={isDevolucion ? styles.amountARS : styles.amount}>
+                {isDevolucion ? '−' : ''}
                 {formData.moneda === 'USD'
                   ? formatPriceUSD(parseFloat(formData.monto) || 0)
                   : formatPrice(parseFloat(formData.monto) || 0)}
@@ -741,7 +788,10 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
             )}
             <div className={styles.summaryRow}>
               <span>Equivalente en ARS:</span>
-              <span className={styles.amountARS}>{formatPrice(montoARS)}</span>
+              <span className={styles.amountARS}>
+                {isDevolucion ? '−' : ''}
+                {formatPrice(montoARS)}
+              </span>
             </div>
           </div>
 
@@ -758,7 +808,11 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
             </button>
             <button type="submit" className={styles.submitButton} disabled={loading}>
               <FiSave />
-              {loading ? 'Guardando...' : 'Guardar pago'}
+              {loading
+                ? 'Guardando...'
+                : isDevolucion
+                  ? 'Guardar devolución'
+                  : 'Guardar pago'}
             </button>
           </div>
         </form>

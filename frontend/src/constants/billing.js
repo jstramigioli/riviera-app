@@ -27,9 +27,10 @@ export const IVA_CONDITIONS = [
 
 export const DEFAULT_IVA_CONDITION = 'Responsable Inscripto';
 
-/** Concepto del cobro en Nuevo pago (no texto libre). */
-export const PAGO_MOTIVOS = ['Pago', 'Seña'];
+/** Concepto del cobro en Nuevo pago / devolución (no texto libre). */
+export const PAGO_MOTIVOS = ['Pago', 'Seña', 'Devolución'];
 export const DEFAULT_PAGO_MOTIVO = 'Pago';
+export const MOTIVO_DEVOLUCION = 'Devolución';
 
 export function methodRequiresBilling(metodo) {
   return BILLING_REQUIRED_METHODS.includes(metodo);

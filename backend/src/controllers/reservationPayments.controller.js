@@ -9,6 +9,7 @@ const {
   DEFAULT_PAGO_MOTIVO,
   methodRequiresBilling,
   isCardMethod,
+  isDevolucionMotivo,
   normalizePagoMotivo
 } = require('../utils/billingConstants');
 const {
@@ -248,12 +249,15 @@ exports.createPago = async (req, res) => {
 
   const motivoPago = normalizePagoMotivo(motivo ?? DEFAULT_PAGO_MOTIVO);
   if (!motivoPago) {
-    return res.status(400).json({ error: 'Motivo inválido. Debe ser Seña o Pago' });
+    return res.status(400).json({ error: 'Motivo inválido. Debe ser Pago, Seña o Devolución' });
   }
 
-  if (monto <= 0) {
+  const montoAbs = Math.abs(Number(monto));
+  if (!Number.isFinite(montoAbs) || montoAbs <= 0) {
     return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
   }
+  // Devolución reduce el saldo pagado de la reserva (monto/montoARS negativos).
+  const montoSigned = isDevolucionMotivo(motivoPago) ? -montoAbs : montoAbs;
 
   // Validar campos de tarjeta si el método es Tarjeta Debito o Credito
   if (['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
@@ -314,12 +318,12 @@ exports.createPago = async (req, res) => {
   }
 
   try {
-    // Calcular monto en ARS
+    // Calcular monto en ARS (negativo si es devolución)
     let montoARS;
     if (monedaFinal === 'USD') {
-      montoARS = new Decimal(monto).mul(new Decimal(tipoCambioFinal));
+      montoARS = new Decimal(montoSigned).mul(new Decimal(tipoCambioFinal));
     } else {
-      montoARS = new Decimal(monto);
+      montoARS = new Decimal(montoSigned);
     }
 
     const fechaPago = new Date();
@@ -330,7 +334,7 @@ exports.createPago = async (req, res) => {
         data: {
           codigo,
           reservaId: parseInt(reservaId),
-          monto: new Decimal(monto),
+          monto: new Decimal(montoSigned),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
           montoARS: montoARS,
