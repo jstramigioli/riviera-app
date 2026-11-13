@@ -317,8 +317,8 @@ function ConsultasReservasView() {
                 </select>
               ) : (
                 <a
-                  href={`/rooms/${selectedReservation.room?.id}`}
-                  onClick={(e) => { e.preventDefault(); window.location.href = `/rooms/${selectedReservation.room?.id}`; }}
+                  href={`/habitaciones/${selectedReservation.room?.id}`}
+                  onClick={(e) => { e.preventDefault(); window.location.href = `/habitaciones/${selectedReservation.room?.id}`; }}
                   style={{ cursor: 'pointer', color: '#1976d2', textDecoration: 'underline' }}
                   title={`Ver detalles de la habitación ${selectedReservation.room?.name}`}
                 >

@@ -177,7 +177,7 @@ export default function ReservationsTable({
   // Función para manejar el clic en el nombre de habitación
   const handleRoomClick = (e, roomId) => {
     e.stopPropagation(); // Evitar que se active el clic de la fila
-    navigate(`/rooms/${roomId}`);
+    navigate(`/habitaciones/${roomId}`);
   };
 
   // Función para manejar el clic en el nombre del cliente

@@ -62,6 +62,14 @@ function Header() {
               Consultas y Reservas
             </Link>
           ) : null}
+          {can('reservas') ? (
+            <Link
+              to="/habitaciones"
+              className={`${styles.navLink} ${location.pathname.startsWith('/habitaciones') || location.pathname.startsWith('/rooms/') ? styles.active : ''}`}
+            >
+              Habitaciones
+            </Link>
+          ) : null}
           {can('finanzas') ? (
             <Link
               to="/estado-de-cuentas"
