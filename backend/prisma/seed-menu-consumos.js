@@ -70,7 +70,19 @@ async function ensureSubcategories() {
     const existing = await prisma.subcategoriaCargo.findUnique({
       where: { tipo_codigo: { tipo: row.tipo, codigo: row.codigo } }
     });
-    if (existing) continue;
+    if (existing) {
+      await prisma.subcategoriaCargo.update({
+        where: { id: existing.id },
+        data: {
+          esActivo: true,
+          nombre: row.nombre,
+          descripcion: row.descripcion,
+          color: row.color,
+          ordenIndex: row.ordenIndex
+        }
+      });
+      continue;
+    }
     await prisma.subcategoriaCargo.create({
       data: {
         ...row,
@@ -79,6 +91,13 @@ async function ensureSubcategories() {
     });
     created += 1;
   }
+
+  // Liquidación / menú: sin Snacks hardcoded
+  await prisma.subcategoriaCargo.updateMany({
+    where: { tipo: 'CONSUMO', codigo: 'SNACKS' },
+    data: { esActivo: false }
+  });
+
   return created;
 }
 
@@ -167,6 +186,14 @@ async function upsertMenuItems(catalog) {
     }
 
     await syncVarieties(itemId, row.varieties || []);
+
+    if (subgroup) {
+      await prisma.menuSubgroup.upsert({
+        where: { category_name: { category, name: subgroup } },
+        create: { category, name: subgroup, ordenIndex: Number(row.ordenIndex) || 0 },
+        update: {}
+      });
+    }
   }
 
   return { created, updated, catalogKeys };
