@@ -9,7 +9,8 @@ export default function FloatingActionButton({
   onToday,
   onCreateQuery,
   onCreateReservation,
-  onCreateConsumption
+  onCreateConsumption,
+  onCreatePayment
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -55,6 +56,11 @@ export default function FloatingActionButton({
       key: 'consumo',
       label: '+ Consumo',
       onSelect: onCreateConsumption
+    },
+    {
+      key: 'pago',
+      label: '+ Pago',
+      onSelect: onCreatePayment
     }
   ];
 

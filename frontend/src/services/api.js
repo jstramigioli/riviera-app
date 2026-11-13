@@ -245,6 +245,31 @@ export async function getClientBalance(clientId) {
   return res.json();
 }
 
+export async function getClientBillingProfile(clientId) {
+  const res = await fetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error fetching billing profile');
+  }
+  return res.json();
+}
+
+export async function upsertClientBillingProfile(clientId, data) {
+  const res = await fetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error saving billing profile');
+  }
+  return res.json();
+}
+
 // Funciones para tarifas diarias
 export const getRates = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -822,6 +847,7 @@ export async function createPago(reservaId, data) {
   const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -1186,6 +1212,8 @@ export default {
   createPayment,
   createConsumptionCharge,
   getClientBalance,
+  getClientBillingProfile,
+  upsertClientBillingProfile,
   getRates,
   createRates,
   updateRate,

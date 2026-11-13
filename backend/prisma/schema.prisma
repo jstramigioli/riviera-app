@@ -129,9 +129,33 @@ model Client {
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
+  /// Datos de facturación aparte del perfil (reutilizables en próximos pagos).
+  billingProfile  ClientBillingProfile?
 
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+/// Perfil de facturación del cliente (no modifica el perfil personal).
+model ClientBillingProfile {
+  id                Int      @id @default(autoincrement())
+  clientId          Int      @unique
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Último tipo usado: A | B
+  lastInvoiceType   String?
+  firstName         String?
+  lastName          String?
+  documentType      String?
+  documentNumber    String?
+  address           String?
+  email             String?
+  businessName      String?
+  cuit              String?
+  commercialAddress String?
+  ivaCondition      String?  @default("Responsable Inscripto")
+  cardNumber        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Guest {
@@ -517,22 +541,49 @@ model ReservationSegment {
 }
 
 model Pago {
-  id         Int         @id @default(autoincrement())
-  codigo     String      @unique // A000…A999, B000… (papelitos / Estado de cuentas)
-  reservaId  Int
-  reserva    Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
-  fecha      DateTime    @default(now())
-  monto      Decimal     @db.Decimal(10, 2)
-  moneda     String      @default("ARS") // ARS o USD
-  tipoCambio Decimal?    @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
-  montoARS   Decimal     @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
-  metodo     String      // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
-  numeroTarjeta String?  // Número de tarjeta (solo para métodos de tarjeta)
-  empresa    String?     // Empresa de la tarjeta (solo para métodos de tarjeta)
-  referencia String?     // Número de comprobante, referencia bancaria, etc.
-  notas      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id                   Int          @id @default(autoincrement())
+  codigo               String       @unique // A000…A999, B000… (papelitos / Estado de cuentas)
+  reservaId            Int
+  reserva              Reservation  @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  fecha                DateTime     @default(now())
+  monto                Decimal      @db.Decimal(10, 2)
+  moneda               String       @default("ARS") // ARS o USD
+  tipoCambio           Decimal?     @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
+  montoARS             Decimal      @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
+  metodo               String       // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
+  numeroTarjeta        String?      // Número de tarjeta (solo para métodos de tarjeta)
+  empresa              String?      // Empresa de la tarjeta (solo para métodos de tarjeta)
+  referencia           String?      // Número de comprobante, referencia bancaria, etc.
+  notas                String?
+  requiereFacturacion  Boolean      @default(false)
+  factura              PagoFactura?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+/// Snapshot de facturación asociado a un pago (Factura A o B).
+model PagoFactura {
+  id                Int      @id @default(autoincrement())
+  pagoId            Int      @unique
+  pago              Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// A | B
+  tipo              String
+  /// Fecha de la factura («marca temporal» = Fecha)
+  fecha             DateTime @default(now())
+  motivo            String?
+  firstName         String?
+  lastName          String?
+  documentType      String?
+  documentNumber    String?
+  address           String?
+  email             String?
+  businessName      String?
+  cuit              String?
+  commercialAddress String?
+  ivaCondition      String?
+  cardNumber        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model SubcategoriaCargo {

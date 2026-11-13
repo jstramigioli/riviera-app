@@ -5,6 +5,8 @@ const AUDITED_ENTITIES = new Set([
   'Client',
   'Guest',
   'Pago',
+  'PagoFactura',
+  'ClientBillingProfile',
   'Cargo',
   'Query',
   'QueryGroup',

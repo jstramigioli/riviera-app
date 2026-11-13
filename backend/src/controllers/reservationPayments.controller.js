@@ -2,6 +2,126 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
+const {
+  INVOICE_TYPES,
+  DEFAULT_IVA_CONDITION,
+  methodRequiresBilling,
+  isCardMethod
+} = require('../utils/billingConstants');
+
+function normalizeOptionalString(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
+function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
+  if (!facturaInput || typeof facturaInput !== 'object') {
+    return { error: 'Datos de facturación requeridos' };
+  }
+
+  const tipo = String(facturaInput.tipo || '').toUpperCase();
+  if (!INVOICE_TYPES.includes(tipo)) {
+    return { error: 'Tipo de factura inválido. Debe ser A o B' };
+  }
+
+  const fecha = facturaInput.fecha ? new Date(facturaInput.fecha) : new Date();
+  if (Number.isNaN(fecha.getTime())) {
+    return { error: 'Fecha de factura inválida' };
+  }
+
+  const cardFromPayment = isCardMethod(metodo)
+    ? normalizeOptionalString(numeroTarjetaPago)
+    : null;
+  const cardNumber =
+    cardFromPayment ||
+    normalizeOptionalString(facturaInput.cardNumber || facturaInput.tarjetaNumero);
+
+  const base = {
+    tipo,
+    fecha,
+    motivo: normalizeOptionalString(facturaInput.motivo),
+    cardNumber,
+    email: normalizeOptionalString(facturaInput.email)
+  };
+
+  if (tipo === 'B') {
+    return {
+      data: {
+        ...base,
+        firstName: normalizeOptionalString(facturaInput.firstName || facturaInput.nombre),
+        lastName: normalizeOptionalString(facturaInput.lastName || facturaInput.apellido),
+        documentType: normalizeOptionalString(facturaInput.documentType || facturaInput.tipoDocumento) || 'DNI',
+        documentNumber: normalizeOptionalString(facturaInput.documentNumber || facturaInput.numeroDocumento),
+        address: normalizeOptionalString(facturaInput.address || facturaInput.domicilio),
+        businessName: null,
+        cuit: null,
+        commercialAddress: null,
+        ivaCondition: null
+      }
+    };
+  }
+
+  return {
+    data: {
+      ...base,
+      firstName: null,
+      lastName: null,
+      documentType: null,
+      documentNumber: null,
+      address: null,
+      businessName: normalizeOptionalString(facturaInput.businessName || facturaInput.razonSocial),
+      cuit: normalizeOptionalString(facturaInput.cuit),
+      commercialAddress: normalizeOptionalString(
+        facturaInput.commercialAddress || facturaInput.domicilioComercial
+      ),
+      ivaCondition:
+        normalizeOptionalString(facturaInput.ivaCondition || facturaInput.condicionIva) ||
+        DEFAULT_IVA_CONDITION
+    }
+  };
+}
+
+function buildBillingProfileUpsert(clientId, facturaData) {
+  const isB = facturaData.tipo === 'B';
+  return {
+    where: { clientId },
+    create: {
+      clientId,
+      lastInvoiceType: facturaData.tipo,
+      firstName: isB ? facturaData.firstName : undefined,
+      lastName: isB ? facturaData.lastName : undefined,
+      documentType: isB ? facturaData.documentType : undefined,
+      documentNumber: isB ? facturaData.documentNumber : undefined,
+      address: isB ? facturaData.address : undefined,
+      email: facturaData.email,
+      businessName: !isB ? facturaData.businessName : undefined,
+      cuit: !isB ? facturaData.cuit : undefined,
+      commercialAddress: !isB ? facturaData.commercialAddress : undefined,
+      ivaCondition: !isB ? facturaData.ivaCondition : DEFAULT_IVA_CONDITION,
+      cardNumber: facturaData.cardNumber
+    },
+    update: {
+      lastInvoiceType: facturaData.tipo,
+      email: facturaData.email,
+      cardNumber: facturaData.cardNumber,
+      ...(isB
+        ? {
+            firstName: facturaData.firstName,
+            lastName: facturaData.lastName,
+            documentType: facturaData.documentType,
+            documentNumber: facturaData.documentNumber,
+            address: facturaData.address
+          }
+        : {
+            businessName: facturaData.businessName,
+            cuit: facturaData.cuit,
+            commercialAddress: facturaData.commercialAddress,
+            ivaCondition: facturaData.ivaCondition
+          })
+    }
+  };
+}
 
 // ============================================
 // CONTROLADORES DE PAGOS
@@ -12,6 +132,7 @@ exports.getAllPagos = async (req, res) => {
   try {
     const pagos = await prisma.pago.findMany({
       include: {
+        factura: true,
         reserva: {
           select: {
             id: true,
@@ -42,6 +163,7 @@ exports.getPagosByReserva = async (req, res) => {
   try {
     const pagos = await prisma.pago.findMany({
       where: { reservaId: parseInt(reservaId) },
+      include: { factura: true },
       orderBy: { fecha: 'desc' }
     });
     res.json(pagos);
@@ -54,7 +176,20 @@ exports.getPagosByReserva = async (req, res) => {
 // Crear un nuevo pago para una reserva
 exports.createPago = async (req, res) => {
   const { reservaId } = req.params;
-  const { monto, moneda, tipoCambio, metodo, tipoTarjeta, numeroTarjeta, empresa, referencia, notas, fecha } = req.body;
+  const {
+    monto,
+    moneda,
+    tipoCambio,
+    metodo,
+    tipoTarjeta,
+    numeroTarjeta,
+    empresa,
+    referencia,
+    notas,
+    fecha,
+    requiereFacturacion,
+    factura
+  } = req.body;
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -81,6 +216,16 @@ exports.createPago = async (req, res) => {
     return res.status(400).json({ 
       error: `Moneda inválida. Debe ser una de: ${monedasValidas.join(', ')}` 
     });
+  }
+
+  const billingForced = methodRequiresBilling(metodo);
+  const wantsBilling = billingForced || Boolean(requiereFacturacion);
+  let facturaParsed = null;
+  if (wantsBilling) {
+    facturaParsed = buildFacturaData(factura, metodo, numeroTarjeta);
+    if (facturaParsed.error) {
+      return res.status(400).json({ error: facturaParsed.error });
+    }
   }
 
   // Si es USD, obtener tipo de cambio (del request o global)
@@ -124,7 +269,7 @@ exports.createPago = async (req, res) => {
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
       const codigo = await allocateNextPagoCodigo(tx);
-      return tx.pago.create({
+      const pago = await tx.pago.create({
         data: {
           codigo,
           reservaId: parseInt(reservaId),
@@ -138,8 +283,31 @@ exports.createPago = async (req, res) => {
           referencia: referencia || null,
           notas: notas || null,
           fecha: fechaPago,
+          requiereFacturacion: wantsBilling,
+          ...(wantsBilling
+            ? {
+                factura: {
+                  create: facturaParsed.data
+                }
+              }
+            : {})
         },
+        include: { factura: true }
       });
+
+      if (wantsBilling) {
+        const reserva = await tx.reservation.findUnique({
+          where: { id: parseInt(reservaId) },
+          select: { mainClientId: true }
+        });
+        if (reserva?.mainClientId) {
+          await tx.clientBillingProfile.upsert(
+            buildBillingProfileUpsert(reserva.mainClientId, facturaParsed.data)
+          );
+        }
+      }
+
+      return pago;
     });
     res.status(201).json(nuevoPago);
   } catch (error) {

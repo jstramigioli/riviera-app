@@ -1,5 +1,12 @@
 const prisma = require('../utils/prisma');
 const { aggregateReservationsBalance } = require('../utils/reservationBalance');
+const { DEFAULT_IVA_CONDITION } = require('../utils/billingConstants');
+
+function normalizeBillingString(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
 
 function normalizePlate(value) {
   if (value == null) return null;
@@ -131,6 +138,103 @@ exports.deleteClient = async (req, res) => {
     res.status(204).send();
   } catch (error) {
     res.status(404).json({ error: 'Client not found' });
+  }
+};
+
+/** Prefill de facturación: perfil de billing (si hay) + defaults del cliente. */
+exports.getClientBillingProfile = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const clientId = parseInt(id, 10);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        documentType: true,
+        documentNumber: true,
+        city: true,
+        province: true,
+        country: true,
+        billingProfile: true
+      }
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const profile = client.billingProfile;
+    const addressFallback = [client.city, client.province, client.country]
+      .filter(Boolean)
+      .join(', ');
+
+    res.json({
+      clientId: client.id,
+      lastInvoiceType: profile?.lastInvoiceType || 'B',
+      firstName: profile?.firstName || client.firstName || '',
+      lastName: profile?.lastName || client.lastName || '',
+      documentType: profile?.documentType || client.documentType || 'DNI',
+      documentNumber: profile?.documentNumber || client.documentNumber || '',
+      address: profile?.address || addressFallback || '',
+      email: profile?.email || client.email || '',
+      businessName: profile?.businessName || '',
+      cuit: profile?.cuit || '',
+      commercialAddress: profile?.commercialAddress || profile?.address || addressFallback || '',
+      ivaCondition: profile?.ivaCondition || DEFAULT_IVA_CONDITION,
+      cardNumber: profile?.cardNumber || '',
+      hasSavedProfile: Boolean(profile)
+    });
+  } catch (error) {
+    console.error('Error fetching client billing profile:', error);
+    res.status(500).json({ error: 'Error fetching billing profile' });
+  }
+};
+
+exports.upsertClientBillingProfile = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body || {};
+  try {
+    const clientId = parseInt(id, 10);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const data = {
+      lastInvoiceType: normalizeBillingString(body.lastInvoiceType || body.tipo),
+      firstName: normalizeBillingString(body.firstName || body.nombre),
+      lastName: normalizeBillingString(body.lastName || body.apellido),
+      documentType: normalizeBillingString(body.documentType || body.tipoDocumento),
+      documentNumber: normalizeBillingString(body.documentNumber || body.numeroDocumento),
+      address: normalizeBillingString(body.address || body.domicilio),
+      email: normalizeBillingString(body.email),
+      businessName: normalizeBillingString(body.businessName || body.razonSocial),
+      cuit: normalizeBillingString(body.cuit),
+      commercialAddress: normalizeBillingString(
+        body.commercialAddress || body.domicilioComercial
+      ),
+      ivaCondition:
+        normalizeBillingString(body.ivaCondition || body.condicionIva) ||
+        DEFAULT_IVA_CONDITION,
+      cardNumber: normalizeBillingString(body.cardNumber || body.tarjetaNumero)
+    };
+
+    const profile = await prisma.clientBillingProfile.upsert({
+      where: { clientId },
+      create: { clientId, ...data },
+      update: data
+    });
+
+    res.json(profile);
+  } catch (error) {
+    console.error('Error upserting client billing profile:', error);
+    res.status(500).json({ error: 'Error saving billing profile' });
   }
 };
 
