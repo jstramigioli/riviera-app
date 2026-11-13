@@ -19,7 +19,6 @@ const pagoDetalle = (pago) => {
   if (pago.empresa) parts.push(pago.empresa);
   if (pago.tipoTarjeta) parts.push(pago.tipoTarjeta);
   if (pago.numeroTarjeta) parts.push(`****${String(pago.numeroTarjeta).slice(-4)}`);
-  if (pago.referencia) parts.push(`Ref. ${pago.referencia}`);
   if (pago.moneda && pago.moneda !== 'ARS') {
     const original = Number(pago.monto);
     const tc = Number(pago.tipoCambio);

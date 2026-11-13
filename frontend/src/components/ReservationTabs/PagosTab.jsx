@@ -66,7 +66,6 @@ const PagosTab = ({
                     <th> Moneda</th>
                     <th> Método</th>
                     <th> Detalles</th>
-                    <th> Referencia</th>
                     <th> Notas</th>
                     <th> Acciones</th>
                   </tr>
@@ -102,7 +101,6 @@ const PagosTab = ({
                         )}
                         {!['Tarjeta Debito', 'Tarjeta Credito'].includes(pago.metodo) && '-'}
                       </td>
-                      <td>{pago.referencia || '-'}</td>
                       <td className={styles.notasCell}>{pago.notas || '-'}</td>
                       <td>
                         <button

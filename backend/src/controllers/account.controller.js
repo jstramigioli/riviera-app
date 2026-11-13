@@ -540,7 +540,6 @@ exports.createAccountPago = async (req, res) => {
     metodo,
     numeroTarjeta,
     empresa,
-    referencia,
     notas,
     motivo,
     requiereFacturacion,
@@ -647,7 +646,6 @@ exports.createAccountPago = async (req, res) => {
             ? numeroTarjeta
             : null,
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
-          referencia: referencia || null,
           notas: notas || null,
           motivo: motivoPago,
           fecha: new Date(),
