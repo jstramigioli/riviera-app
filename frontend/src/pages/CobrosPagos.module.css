@@ -210,6 +210,45 @@
   color: var(--color-text-dark, #3a4250);
 }
 
+.filterRow th {
+  padding: 6px 8px 10px;
+  border-bottom: 1px solid var(--color-border, #d8dde6);
+  background: var(--color-bg, #f5f6f8);
+  vertical-align: top;
+  font-weight: 400;
+  white-space: normal;
+}
+
+.columnFilter {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-sm, 4px);
+  padding: 4px 8px;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-dark, #3a4250);
+  background: white;
+}
+
+.columnFilter:focus {
+  outline: 2px solid rgba(63, 95, 138, 0.35);
+  outline-offset: 1px;
+}
+
+.columnFilterStack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.emptyCell {
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  padding: 28px 12px !important;
+}
+
 .row:hover {
   background: rgba(63, 95, 138, 0.04);
 }
