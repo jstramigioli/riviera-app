@@ -8,6 +8,8 @@ const PERMISSIONS = {
   users: [ROLES.ADMIN],
   settings: [ROLES.ADMIN],
   tarifas: [ROLES.ADMIN],
+  /** Submenú Facturación A/B + subida PDF de factura. */
+  facturacion: [ROLES.ADMIN],
   reportes: [ROLES.ADMIN, ROLES.GERENCIA],
   auditoria: [ROLES.ADMIN, ROLES.GERENCIA],
   reservas: [ROLES.ADMIN, ROLES.GERENCIA, ROLES.RECEPCION],
