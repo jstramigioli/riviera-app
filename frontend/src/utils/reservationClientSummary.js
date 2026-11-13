@@ -21,18 +21,17 @@ const formatMoney = (amount) =>
     minimumFractionDigits: 2
   }).format(Number(amount) || 0);
 
-const roomLine = (card) => {
+/** Solo tipo de habitación (el nombre/número puede cambiar). */
+const roomTypeLine = (card) => {
   if (!card) return '—';
-  if (card.roomType && card.roomType !== '—') {
-    return `${card.room} - ${card.roomType}`;
-  }
-  return card.room || '—';
+  if (card.roomType && card.roomType !== '—') return card.roomType;
+  return '—';
 };
 
 /**
  * Resumen estructurado para el huésped (WhatsApp / mail).
- * Incluye: huésped, fechas, noches, huéspedes, habitación, servicio, total.
- * NO incluye: notas internas, medio/origen, ni metadatos internos.
+ * Incluye: título con nombre, fechas, noches, huéspedes, tipo de habitación, servicio, total.
+ * NO incluye: nº de reserva, nombre/número de habitación, notas, medio/origen.
  */
 export function formatReservationClientSummary(reservation, options = {}) {
   if (!reservation) return '';
@@ -41,6 +40,7 @@ export function formatReservationClientSummary(reservation, options = {}) {
   const timeline = buildReservationStayTimeline(reservation, { getServiceTypeLabel });
   const { header } = timeline;
   const displaySegments = getDisplaySegments(reservation.segments || []);
+  const guestName = header.clientName || '—';
 
   const checkIn =
     reservation.checkIn ||
@@ -69,15 +69,8 @@ export function formatReservationClientSummary(reservation, options = {}) {
     .map((item) => item.card);
 
   const lines = [];
-  lines.push('RESERVA');
-  if (reservation.id != null) {
-    lines.push(`Nº ${reservation.id}`);
-  }
+  lines.push(`Reserva - ${guestName}`);
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('');
-
-  lines.push('HUÉSPED');
-  lines.push(header.clientName || '—');
   lines.push('');
 
   lines.push('ESTANCIA');
@@ -90,20 +83,18 @@ export function formatReservationClientSummary(reservation, options = {}) {
   if (segmentCards.length <= 1) {
     const card = segmentCards[0] || null;
     lines.push('HABITACIÓN');
-    lines.push(roomLine(card));
+    lines.push(roomTypeLine(card));
     lines.push(`Servicio: ${card?.service || '—'}`);
   } else {
-    lines.push('TRAMOS');
-    lines.push('');
     displaySegments.forEach((seg, index) => {
       const card = segmentCards[index];
       const start = seg.startDate || seg.checkIn;
       const end = seg.endDate || seg.checkOut;
-      lines.push(`${index + 1}. ${formatClientDate(start)} → ${formatClientDate(end)}`);
-      lines.push(`   Habitación: ${roomLine(card)}`);
-      lines.push(`   Servicio: ${card?.service || '—'}`);
+      lines.push(`${formatClientDate(start)} → ${formatClientDate(end)}`);
+      lines.push(`Habitación: ${roomTypeLine(card)}`);
+      lines.push(`Servicio: ${card?.service || '—'}`);
       const segNights = card?.nights || civilNights(start, end);
-      if (segNights) lines.push(`   Noches: ${segNights}`);
+      if (segNights) lines.push(`Noches: ${segNights}`);
       lines.push('');
     });
   }

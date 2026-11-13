@@ -23,7 +23,7 @@ describe('formatClientDate', () => {
 });
 
 describe('formatReservationClientSummary', () => {
-  it('arma resumen de huésped sin notas ni medio', () => {
+  it('arma resumen de huésped sin nº, sin notas ni medio, solo tipo de habitación', () => {
     const text = formatReservationClientSummary(
       {
         id: 42,
@@ -51,14 +51,15 @@ describe('formatReservationClientSummary', () => {
       { getServiceTypeLabel: serviceLabel }
     );
 
-    expect(text).toContain('RESERVA');
-    expect(text).toContain('Nº 42');
-    expect(text).toContain('Ana Pérez');
+    expect(text).toContain('Reserva - Ana Pérez');
+    expect(text).not.toContain('Nº 42');
+    expect(text).not.toContain('HUÉSPED');
     expect(text).toContain('Check-in: 10/11/2026');
     expect(text).toContain('Check-out: 14/11/2026');
     expect(text).toContain('Noches: 4');
     expect(text).toContain('Huéspedes: 2');
-    expect(text).toContain('22 - Doble');
+    expect(text).toContain('Doble');
+    expect(text).not.toMatch(/\b22\b/);
     expect(text).toContain('Servicio: Desayuno');
     expect(text).toMatch(/TOTAL:.*40/);
     expect(text).not.toContain('VIP');
@@ -67,7 +68,7 @@ describe('formatReservationClientSummary', () => {
     expect(text).not.toContain('NOTAS');
   });
 
-  it('lista tramos en multi-segmento', () => {
+  it('lista tramos multi-segmento sin título ni numeración, solo tipo', () => {
     const text = formatReservationClientSummary(
       {
         id: 7,
@@ -103,9 +104,16 @@ describe('formatReservationClientSummary', () => {
       { getServiceTypeLabel: serviceLabel }
     );
 
-    expect(text).toContain('TRAMOS');
-    expect(text).toContain('22 - Doble');
-    expect(text).toContain('31 - Triple');
+    expect(text).toContain('Reserva - Luis Gómez');
+    expect(text).not.toContain('TRAMOS');
+    expect(text).not.toContain('1.');
+    expect(text).not.toContain('2.');
+    expect(text).toContain('10/11/2026 → 12/11/2026');
+    expect(text).toContain('12/11/2026 → 16/11/2026');
+    expect(text).toContain('Habitación: Doble');
+    expect(text).toContain('Habitación: Triple');
+    expect(text).not.toMatch(/\b22\b/);
+    expect(text).not.toMatch(/\b31\b/);
     expect(text).toContain('Media pensión');
     expect(text).not.toContain('interno');
     expect(text).not.toContain('MAIL');
