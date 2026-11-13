@@ -175,28 +175,29 @@
 }
 
 .deleteButton {
-  background: #dc3545;
-  color: white;
+  background: transparent;
+  color: #9ca3af;
   border: none;
   border-radius: 4px;
-  padding: 6px 10px;
+  padding: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: bold;
-  transition: background-color 0.2s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
 }
 
 .deleteButton:hover {
-  background: #c82333;
+  color: #6b7280;
+  background: #f3f4f6;
 }
 
 .deleteButton:active {
-  background: #bd2130;
+  color: #4b5563;
+  background: #e5e7eb;
 }
 
 /* Responsive design */
