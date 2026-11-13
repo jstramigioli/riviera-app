@@ -363,6 +363,13 @@
   flex-shrink: 0;
 }
 
+.sourceMeta {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .checkInMeta {
   margin-top: 6px;
   font-size: 0.78rem;

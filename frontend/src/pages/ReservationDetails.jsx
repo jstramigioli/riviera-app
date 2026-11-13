@@ -4,8 +4,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
   fetchReservations,
-  fetchRooms,
-  fetchClients,
   updateReservation,
   API_URL,
   getReservationFinancialSummary,
@@ -17,6 +15,7 @@ import {
 } from '../services/api.js';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
+import { sourceLabel } from '../constants/reservationSource';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
@@ -37,8 +36,6 @@ const ReservationDetails = () => {
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
-  const [rooms, setRooms] = useState([]);
-  const [clients, setClients] = useState([]);
   const [allReservations, setAllReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,10 +70,8 @@ const ReservationDetails = () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, clientsData, serviceTypesResponse] = await Promise.all([
+        const [reservationsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
-          fetchRooms(),
-          fetchClients(),
           fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
@@ -91,8 +86,6 @@ const ReservationDetails = () => {
         setReservation(foundReservation);
         setEditData(foundReservation);
         setAllReservations(reservationsData);
-        setRooms(roomsData);
-        setClients(clientsData);
         setServiceTypes(serviceTypesResponse.data || []);
         
         setLoading(false);
@@ -317,21 +310,6 @@ const ReservationDetails = () => {
     setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
   };
 
-  const handleClientCreated = (createdClient) => {
-    if (!createdClient?.id) return;
-    setClients((prev) => {
-      if (prev.some((c) => c.id === createdClient.id)) return prev;
-      return [...prev, createdClient].sort((a, b) =>
-        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'es')
-      );
-    });
-    setEditData((prev) => ({
-      ...(prev || reservation),
-      mainClientId: createdClient.id,
-      mainClient: createdClient
-    }));
-  };
-
   const handleEditToggle = () => {
     if (isEditing) {
       setEditData(reservation);
@@ -449,14 +427,8 @@ const ReservationDetails = () => {
             reservation={reservation}
             editData={editData}
             isEditing={isEditing}
-            rooms={rooms}
-            clients={clients}
-            serviceTypes={serviceTypes}
             onEditChange={handleEditChange}
-            onClientCreated={handleClientCreated}
             formatDate={formatDate}
-            formatCurrency={formatCurrency}
-            getServiceTypeLabel={getServiceTypeLabel}
             getStatusLabel={getStatusLabel}
           />
         );
@@ -583,6 +555,9 @@ const ReservationDetails = () => {
                 {getStatusLabel(reservation.status)}
               </span>
             </div>
+            <div className={styles.sourceMeta} data-testid="side-panel-source">
+              Medio: {sourceLabel(reservation.source)}
+            </div>
             {(checkInInfo?.vehiclePlate || checkInInfo?.checkIn?.vehiclePlate) && (
               <div className={styles.checkInMeta}>
                 Patente: {checkInInfo.vehiclePlate || checkInInfo.checkIn.vehiclePlate}
@@ -667,6 +642,7 @@ const ReservationDetails = () => {
           <ReservationStayTimeline
             reservation={reservation}
             getServiceTypeLabel={getServiceTypeLabel}
+            formatCurrency={formatCurrency}
           />
           {renderTabContent()}
         </div>

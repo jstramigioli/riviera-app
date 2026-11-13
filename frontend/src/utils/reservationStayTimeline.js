@@ -12,6 +12,39 @@ const formatShortDate = (value) => {
   return `${d}/${m}`;
 };
 
+/** Noches civiles entre YYYY-MM-DD (evita desfases por timezone). */
+export const civilNights = (checkIn, checkOut) => {
+  if (!checkIn || !checkOut) return 0;
+  const start = dateKey(checkIn);
+  const end = dateKey(checkOut);
+  const [ys, ms, ds] = start.split('-').map(Number);
+  const [ye, me, de] = end.split('-').map(Number);
+  if (![ys, ms, ds, ye, me, de].every(Number.isFinite)) return 0;
+  const msDiff = Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds);
+  return Math.max(0, Math.round(msDiff / 86400000));
+};
+
+/** Total de la estadía: nunca confundir con tarifa/noche (baseRate). */
+export const resolveReservationTotal = (reservation, nights) => {
+  const explicit = Number(reservation?.totalAmount);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const activeSegments = (reservation?.segments || []).filter((s) => s.isActive !== false);
+  const segments = activeSegments.length > 0 ? activeSegments : (reservation?.segments || []);
+  if (segments.length > 0) {
+    const fromSegments = segments.reduce((sum, segment) => {
+      const segNights = civilNights(segment.startDate, segment.endDate) || nights || 1;
+      const rate = Number(segment.baseRate) || 0;
+      return sum + rate * segNights;
+    }, 0);
+    if (fromSegments > 0) return fromSegments;
+  }
+
+  const nightly = Number(reservation?.averageRate || reservation?.segments?.[0]?.baseRate) || 0;
+  if (nightly > 0 && nights > 0) return nightly * nights;
+  return 0;
+};
+
 const roomKey = (seg) => {
   if (!seg) return '';
   if (seg.virtualRoomId != null || seg.isVirtual) {
@@ -39,17 +72,36 @@ const roomLabel = (seg) => {
 
 const serviceLabelFor = (seg, getServiceTypeLabel) => {
   const id = serviceKey(seg);
-  if (!id) return 'sin servicio';
+  if (!id) return 'Sin servicio';
   if (typeof getServiceTypeLabel === 'function') {
     const label = getServiceTypeLabel(id);
-    if (label && label !== 'No especificado') return String(label).toLowerCase();
+    if (label && label !== 'No especificado') return String(label);
   }
-  return String(id).toLowerCase();
+  return String(id);
 };
 
+const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
+  if (!seg) return null;
+  const start = seg.startDate || seg.checkIn;
+  const end = seg.endDate || seg.checkOut;
+  const guests = Number(seg.guestCount) > 0
+    ? Number(seg.guestCount)
+    : (Number(fallbackGuests) > 0 ? Number(fallbackGuests) : 1);
+  const nights = civilNights(start, end);
+  return {
+    room: roomLabel(seg),
+    service: serviceLabelFor(seg, getServiceTypeLabel),
+    guests,
+    nights
+  };
+};
+
+/** Etiqueta corta legacy (tests / compat): «habitación · servicio». */
 const edgeLabel = (seg, getServiceTypeLabel) => {
   if (!seg) return null;
-  return `${roomLabel(seg)} · ${serviceLabelFor(seg, getServiceTypeLabel)}`;
+  const card = edgeCard(seg, getServiceTypeLabel);
+  if (!card) return null;
+  return `${card.room} · ${String(card.service).toLowerCase()}`;
 };
 
 const changeKind = (prev, next) => {
@@ -71,7 +123,7 @@ const changeTitle = (kind) => {
 /**
  * Arma nodos + tramos del timeline de estadía para el detalle de reserva.
  * Nodos: creación, check-in, cambios (multi-tramo), check-out.
- * Etiqueta «nº habitación · tipo servicio» solo entre check-in y check-out.
+ * Cards de tramo (habitación / servicio / huéspedes / noches) solo entre check-in y check-out.
  */
 export function buildReservationStayTimeline(reservation, options = {}) {
   const getServiceTypeLabel = options.getServiceTypeLabel;
@@ -94,6 +146,12 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     segments[segments.length - 1]?.checkOut ||
     null;
 
+  const nightsFromDates = civilNights(checkIn, checkOut);
+  const totalNights = Number(reservation?.days) > 0 ? Number(reservation.days) : nightsFromDates;
+  const fallbackGuests = reservation?.requiredGuests || 1;
+  const clientName = `${reservation?.mainClient?.firstName || ''} ${reservation?.mainClient?.lastName || ''}`.trim();
+  const totalAmount = resolveReservationTotal(reservation, totalNights);
+
   const items = [];
 
   items.push({
@@ -106,12 +164,13 @@ export function buildReservationStayTimeline(reservation, options = {}) {
   });
 
   const firstSeg = segments[0] || null;
-  // Tramo corto sin etiqueta: creación cerca de check-in a la izquierda.
+  // Tramo corto sin card: creación cerca de check-in a la izquierda.
   items.push({
     type: 'edge',
     id: 'edge-pre-checkin',
     compact: true,
-    label: null
+    label: null,
+    card: null
   });
 
   items.push({
@@ -127,7 +186,8 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     items.push({
       type: 'edge',
       id: 'edge-stay',
-      label: edgeLabel(firstSeg, getServiceTypeLabel)
+      label: edgeLabel(firstSeg, getServiceTypeLabel),
+      card: edgeCard(firstSeg, getServiceTypeLabel, fallbackGuests)
     });
   } else {
     for (let i = 0; i < segments.length; i += 1) {
@@ -135,7 +195,8 @@ export function buildReservationStayTimeline(reservation, options = {}) {
       items.push({
         type: 'edge',
         id: `edge-seg-${i}`,
-        label: edgeLabel(seg, getServiceTypeLabel)
+        label: edgeLabel(seg, getServiceTypeLabel),
+        card: edgeCard(seg, getServiceTypeLabel, fallbackGuests)
       });
 
       if (i < segments.length - 1) {
@@ -166,6 +227,11 @@ export function buildReservationStayTimeline(reservation, options = {}) {
   return {
     items,
     segments,
-    isMultiSegment: segments.length > 1
+    isMultiSegment: segments.length > 1,
+    header: {
+      clientName: clientName || '—',
+      totalNights,
+      totalAmount
+    }
   };
 }
