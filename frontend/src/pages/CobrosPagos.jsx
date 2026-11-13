@@ -1494,6 +1494,7 @@ const CobrosPagos = () => {
               <option value="">Todos</option>
               <option value="Pago">Pago</option>
               <option value="Seña">Seña</option>
+              <option value="Devolución">Devolución</option>
             </select>
           )}
           {openPayColumn === 'referencia' && (

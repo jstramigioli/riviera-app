@@ -60,7 +60,8 @@ describe('PaymentForm facturación', () => {
 
     expect(screen.getByRole('button', { name: 'Factura B' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Fecha de facturación/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Motivo/i)).toHaveValue('Pago')
+    expect(screen.queryByLabelText(/^Motivo/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^Seña$/i)).not.toBeChecked()
     expect(screen.queryByPlaceholderText(/Concepto/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^Nombre/i)).toHaveValue('Ana')
     expect(screen.getByLabelText(/^Apellido/i)).toHaveValue('Pérez')
@@ -79,6 +80,57 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByLabelText(/Razón social/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Condición frente al IVA/i)).toHaveValue(
       'Responsable Inscripto'
+    )
+  })
+
+  it('tabs Nuevo pago / Nueva devolución y toggle Seña sin desplegable Motivo', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    expect(screen.getByRole('tab', { name: 'Nuevo pago' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    expect(screen.getByRole('tab', { name: 'Nueva devolución' })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    )
+    expect(screen.queryByLabelText(/^Motivo/i)).not.toBeInTheDocument()
+
+    const sena = screen.getByLabelText(/^Seña$/i)
+    expect(sena).not.toBeChecked()
+    fireEvent.click(sena)
+    expect(sena).toBeChecked()
+
+    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '1500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({ monto: 1500, motivo: 'Seña' })
+      )
+    )
+  })
+
+  it('Nueva devolución envía motivo Devolución', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Nueva devolución' }))
+    expect(screen.getByRole('heading', { name: /Nueva devolución/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Seña$/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
+
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({ monto: 500, motivo: 'Devolución' })
+      )
     )
   })
 })

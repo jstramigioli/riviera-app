@@ -25,12 +25,14 @@ describe('billingConstants', () => {
     expect(DEFAULT_IVA_CONDITION).toBe('Responsable Inscripto');
   });
 
-  test('normalizePagoMotivo solo Seña|Pago', () => {
+  test('normalizePagoMotivo solo Pago|Seña|Devolución', () => {
     expect(normalizePagoMotivo(undefined)).toBe(DEFAULT_PAGO_MOTIVO);
     expect(normalizePagoMotivo('')).toBe(DEFAULT_PAGO_MOTIVO);
     expect(normalizePagoMotivo('Pago')).toBe('Pago');
     expect(normalizePagoMotivo('Seña')).toBe('Seña');
     expect(normalizePagoMotivo('Sena')).toBe('Seña');
+    expect(normalizePagoMotivo('Devolución')).toBe('Devolución');
+    expect(normalizePagoMotivo('devolucion')).toBe('Devolución');
     expect(normalizePagoMotivo('otro')).toBeNull();
   });
 });
