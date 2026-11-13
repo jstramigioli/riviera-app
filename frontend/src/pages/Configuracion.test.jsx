@@ -62,17 +62,21 @@ describe('Configuracion', () => {
 
   it('renders the configuration page title', () => {
     renderConfig()
-    expect(screen.getByText('Configuración')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
   })
 
-  it('renders navigation tabs including Auditoría', () => {
+  it('renders text-only sidebar sections including Auditoría', () => {
     renderConfig()
-    expect(screen.getByText('Habitaciones')).toBeInTheDocument()
-    expect(screen.getByText('Cargos y Tarifas')).toBeInTheDocument()
-    expect(screen.getByText('Menú')).toBeInTheDocument()
-    expect(screen.getByText('Usuarios')).toBeInTheDocument()
-    expect(screen.getByText('Sistema')).toBeInTheDocument()
-    expect(screen.getByText('Auditoría')).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Secciones de configuración' })
+    expect(nav).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hotel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Habitaciones' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cargos y Tarifas' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Menú' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sistema' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Auditoría' })).toBeInTheDocument()
+    expect(nav.querySelector('svg')).toBeNull()
   })
 
   it('shows habitaciones tab by default', () => {
