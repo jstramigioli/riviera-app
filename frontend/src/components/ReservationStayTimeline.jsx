@@ -26,8 +26,9 @@ const SegmentCard = ({ card }) => {
     <div className={styles.segmentStack}>
       <span className={styles.segmentConnector} aria-hidden />
       <div className={styles.segmentCard} data-testid="timeline-segment-card">
-        <span className={styles.segmentRoom}>Habitación: {card.room}</span>
-        <span className={styles.segmentMeta}>Tipo: {card.roomType || '—'}</span>
+        <span className={styles.segmentRoom}>
+          Habitación: {card.room} - {card.roomType || '—'}
+        </span>
         <span className={styles.segmentService}>{card.service}</span>
         <span className={styles.segmentMeta}>{guestsLabel}</span>
         <span className={styles.segmentMeta}>{nightsLabel}</span>
