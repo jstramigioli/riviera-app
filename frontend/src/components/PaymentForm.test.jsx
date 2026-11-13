@@ -7,6 +7,66 @@ vi.mock('../services/api', () => ({
   createAccountPago: vi.fn(),
   uploadPagoAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
+  fetchPaymentMethodConfigs: vi.fn().mockResolvedValue([
+    {
+      id: 1,
+      code: 'EFECTIVO',
+      label: 'Efectivo',
+      requiereFacturacion: false,
+      descuentoActivo: true,
+      descuentoValor: 10,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true
+    },
+    {
+      id: 2,
+      code: 'TRANSFERENCIA',
+      label: 'Transferencia',
+      requiereFacturacion: true,
+      descuentoActivo: false,
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true
+    },
+    {
+      id: 3,
+      code: 'TARJETA_DEBITO',
+      label: 'Tarjeta Debito',
+      requiereFacturacion: true,
+      descuentoActivo: false,
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true
+    },
+    {
+      id: 4,
+      code: 'TARJETA_CREDITO',
+      label: 'Tarjeta Credito',
+      requiereFacturacion: true,
+      descuentoActivo: false,
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true
+    }
+  ]),
+  fetchAccountResumen: vi.fn().mockResolvedValue({ resumen: { saldo: 100000 } }),
+  fetchAccountPagos: vi.fn().mockResolvedValue([]),
+  getReservationFinancialSummary: vi.fn().mockResolvedValue({
+    resumen: { saldo: 100000, totalCargos: 100000, totalPagos: 0, totalDescuentos: 0 },
+    pagos: {
+      items: [
+        {
+          id: 77,
+          codigo: 'A010',
+          metodo: 'Efectivo',
+          motivo: 'Pago',
+          montoARS: 90000,
+          discountApplication: { id: 1, montoARS: 10000, activo: true }
+        }
+      ]
+    },
+    descuentos: { items: [] }
+  }),
   fetchCuentasParaPago: vi.fn().mockResolvedValue({
     data: [
       {
@@ -135,13 +195,21 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByRole('heading', { name: /Nueva devolución/i })).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Seña$/i)).not.toBeInTheDocument()
 
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
     fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
 
     await waitFor(() =>
       expect(createPago).toHaveBeenCalledWith(
         22,
-        expect.objectContaining({ monto: 500, motivo: 'Devolución' })
+        expect.objectContaining({
+          monto: 500,
+          motivo: 'Devolución',
+          pagoOrigenId: 77
+        })
       )
     )
   })

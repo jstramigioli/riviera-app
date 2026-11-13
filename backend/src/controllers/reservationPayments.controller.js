@@ -21,6 +21,14 @@ const {
   normalizePagoMotivo
 } = require('../utils/billingConstants');
 const {
+  resolvePaymentMethodConfig,
+  loadAccountFinancialParts,
+  createForwardDiscount,
+  createReversalDiscount,
+  sumDevolucionesOnOrigen
+} = require('../utils/paymentMethodService');
+const { toNumber, roundMoney } = require('../utils/paymentDiscount');
+const {
   ADJUNTO_TIPOS,
   assertAdjuntoTipo,
   assertMimeForTipo,
@@ -241,6 +249,8 @@ exports.createPago = async (req, res) => {
     moneda,
     tipoCambio,
     metodo,
+    paymentMethodConfigId,
+    pagoOrigenId,
     tipoTarjeta,
     numeroTarjeta,
     empresa,
@@ -265,7 +275,14 @@ exports.createPago = async (req, res) => {
     return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
   }
   // Devolución reduce el saldo pagado de la reserva (monto/montoARS negativos).
-  const montoSigned = isDevolucionMotivo(motivoPago) ? -montoAbs : montoAbs;
+  const isDev = isDevolucionMotivo(motivoPago);
+  const montoSigned = isDev ? -montoAbs : montoAbs;
+
+  if (isDev && (pagoOrigenId == null || pagoOrigenId === '')) {
+    return res.status(400).json({
+      error: 'La devolución requiere seleccionar el pago de origen (pagoOrigenId)'
+    });
+  }
 
   // Validar campos de tarjeta si el método es Tarjeta Debito o Credito
   if (['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
@@ -286,13 +303,20 @@ exports.createPago = async (req, res) => {
     });
   }
 
-  const billingForced = methodRequiresBilling(metodo);
+  const methodConfig = await resolvePaymentMethodConfig(prisma, {
+    paymentMethodConfigId,
+    metodo
+  });
+  const metodoFinal = methodConfig?.label || metodo;
+  const billingForced = methodConfig
+    ? Boolean(methodConfig.requiereFacturacion)
+    : methodRequiresBilling(metodoFinal);
   const wantsBilling = billingForced || Boolean(requiereFacturacion);
   let facturaParsed = null;
   if (wantsBilling) {
     facturaParsed = buildFacturaData(
       { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
-      metodo,
+      metodoFinal,
       numeroTarjeta
     );
     if (facturaParsed.error) {
@@ -335,22 +359,55 @@ exports.createPago = async (req, res) => {
     }
 
     const fechaPago = new Date();
+    const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
       const account = await ensureReservationAccount(tx, reservaId);
       const financialRefs = dualWriteReservationRefs(account, reservaId);
+
+      let pagoOrigen = null;
+      if (isDev) {
+        const origenId = parseInt(pagoOrigenId, 10);
+        pagoOrigen = await tx.pago.findUnique({ where: { id: origenId } });
+        if (!pagoOrigen || pagoOrigen.accountId !== account.id) {
+          throw Object.assign(new Error('Pago de origen no encontrado en esta cuenta'), {
+            statusCode: 400
+          });
+        }
+        if (isDevolucionMotivo(pagoOrigen.motivo) || toNumber(pagoOrigen.montoARS) <= 0) {
+          throw Object.assign(new Error('El pago de origen debe ser un cobro positivo'), {
+            statusCode: 400
+          });
+        }
+        const yaDevuelto = await sumDevolucionesOnOrigen(tx, pagoOrigen.id);
+        const disponible = roundMoney(toNumber(pagoOrigen.montoARS) - yaDevuelto);
+        if (montoARSAbs - disponible > 0.009) {
+          throw Object.assign(
+            new Error(
+              `La devolución supera el saldo disponible del pago origen (máx ${disponible.toFixed(2)} ARS)`
+            ),
+            { statusCode: 400 }
+          );
+        }
+      }
+
+      const { balance: balanceAntes } = await loadAccountFinancialParts(tx, account.id);
       const codigo = await allocateNextPagoCodigo(tx);
       const pago = await tx.pago.create({
         data: {
           codigo,
           ...financialRefs,
+          paymentMethodConfigId: methodConfig?.id ?? null,
+          pagoOrigenId: pagoOrigen?.id ?? null,
           monto: new Decimal(montoSigned),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
           montoARS: montoARS,
-          metodo,
-          numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? numeroTarjeta : null,
-          empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
+          metodo: metodoFinal,
+          numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
+            ? numeroTarjeta
+            : null,
+          empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
           notas: notas || null,
           motivo: motivoPago,
           fecha: fechaPago,
@@ -363,8 +420,32 @@ exports.createPago = async (req, res) => {
               }
             : {})
         },
-        include: { factura: true, ...PAGO_ADJUNTO_INCLUDE }
+        include: {
+          factura: true,
+          discountApplication: true,
+          ...PAGO_ADJUNTO_INCLUDE
+        }
       });
+
+      if (isDev && pagoOrigen) {
+        await createReversalDiscount(tx, {
+          accountId: account.id,
+          devolucionPagoId: pago.id,
+          pagoOrigen,
+          devolucionMontoARSAbs: montoARSAbs
+        });
+      } else if (!isDev) {
+        await createForwardDiscount(tx, {
+          accountId: account.id,
+          pagoId: pago.id,
+          config: methodConfig,
+          motivo: motivoPago,
+          dineroARS: montoARSAbs,
+          monedaPago: monedaFinal,
+          tipoCambio: tipoCambioFinal,
+          saldoPendienteAntes: balanceAntes.saldo
+        });
+      }
 
       if (wantsBilling) {
         const reserva = await tx.reservation.findUnique({
@@ -378,17 +459,23 @@ exports.createPago = async (req, res) => {
         }
       }
 
-      const [cargos, pagos] = await Promise.all([
-        tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
-        tx.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } })
-      ]);
-      const { saldo } = calculateAccountBalance(cargos, pagos);
-      await syncAccountStatusFromBalance(tx, account.id, saldo);
+      const { balance } = await loadAccountFinancialParts(tx, account.id);
+      await syncAccountStatusFromBalance(tx, account.id, balance.saldo);
 
-      return pago;
+      return tx.pago.findUnique({
+        where: { id: pago.id },
+        include: {
+          factura: true,
+          discountApplication: true,
+          ...PAGO_ADJUNTO_INCLUDE
+        }
+      });
     });
     res.status(201).json(nuevoPago);
   } catch (error) {
+    if (error.statusCode === 400) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Error creando pago:', error);
     res.status(500).json({ error: 'Error al crear el pago', details: error.message });
   }
@@ -513,13 +600,31 @@ exports.updatePago = async (req, res) => {
 exports.deletePago = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.pago.delete({
-      where: { id: parseInt(id) }
+    const pagoId = parseInt(id, 10);
+    const existing = await prisma.pago.findUnique({
+      where: { id: pagoId },
+      select: { id: true, accountId: true }
     });
+    if (!existing) {
+      return res.status(404).json({ error: 'Pago no encontrado' });
+    }
+
+    await prisma.pago.delete({ where: { id: pagoId } });
+
+    if (existing.accountId) {
+      const { balance } = await loadAccountFinancialParts(prisma, existing.accountId);
+      await syncAccountStatusFromBalance(prisma, existing.accountId, balance.saldo);
+    }
+
     res.json({ message: 'Pago eliminado exitosamente' });
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Pago no encontrado' });
+    }
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        error: 'No se puede eliminar: hay devoluciones vinculadas a este pago'
+      });
     }
     console.error('Error eliminando pago:', error);
     res.status(500).json({ error: 'Error al eliminar el pago', details: error.message });
@@ -794,12 +899,8 @@ exports.createCargo = async (req, res) => {
       include: includeClause
     });
 
-    const [cargos, pagos] = await Promise.all([
-      prisma.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
-      prisma.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } })
-    ]);
-    const { saldo } = calculateAccountBalance(cargos, pagos);
-    await syncAccountStatusFromBalance(prisma, account.id, saldo);
+    const { balance } = await loadAccountFinancialParts(prisma, account.id);
+    await syncAccountStatusFromBalance(prisma, account.id, balance.saldo);
 
     res.status(201).json(nuevoCargo);
   } catch (error) {
@@ -1047,9 +1148,10 @@ exports.getResumenFinanciero = async (req, res) => {
   
   try {
     const account = await ensureReservationAccount(prisma, reservaId);
-    const [pagos, cargos, reserva] = await Promise.all([
+    const [pagos, cargos, discounts, reserva] = await Promise.all([
       prisma.pago.findMany({
-        where: { accountId: account.id }
+        where: { accountId: account.id },
+        include: { discountApplication: true }
       }),
       prisma.cargo.findMany({
         where: { accountId: account.id },
@@ -1058,6 +1160,9 @@ exports.getResumenFinanciero = async (req, res) => {
           roomType: true,
           serviceType: true
         }
+      }),
+      prisma.discountApplication.findMany({
+        where: { accountId: account.id }
       }),
       prisma.reservation.findUnique({
         where: { id: parseInt(reservaId) },
@@ -1078,7 +1183,11 @@ exports.getResumenFinanciero = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    const { totalCargos, totalPagos, saldo, estadoPago } = calculateAccountBalance(cargos, pagos);
+    const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
+      cargos,
+      pagos,
+      discounts
+    );
 
     // Agrupar cargos por tipo principal y subcategoría (enfoque híbrido)
     const cargosPorTipo = cargos.reduce((acc, cargo) => {
@@ -1173,6 +1282,7 @@ exports.getResumenFinanciero = async (req, res) => {
       resumen: {
         totalCargos,
         totalPagos,
+        totalDescuentos,
         saldo,
         estadoPago
       },
@@ -1187,6 +1297,11 @@ exports.getResumenFinanciero = async (req, res) => {
         cantidad: pagos.length,
         porMetodo: pagosPorMetodo,
         items: pagos
+      },
+      descuentos: {
+        total: totalDescuentos,
+        cantidad: discounts.length,
+        items: discounts
       }
     });
   } catch (error) {
@@ -1330,7 +1445,8 @@ exports.getReservasConSaldos = async (req, res) => {
           }
         },
         cargos: { select: { monto: true } },
-        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } }
+        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } },
+        discountApplications: { select: { montoARS: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -1339,10 +1455,8 @@ exports.getReservasConSaldos = async (req, res) => {
       .filter((account) => account.reservation)
       .map((account) => {
         const reserva = account.reservation;
-        const { totalCargos, totalPagos, saldo, estadoPago } = calculateAccountBalance(
-          account.cargos,
-          account.pagos
-        );
+        const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } =
+          calculateAccountBalance(account.cargos, account.pagos, account.discountApplications);
 
         return {
           id: reserva.id,
@@ -1356,6 +1470,7 @@ exports.getReservasConSaldos = async (req, res) => {
           cantidadHuespedes: reserva._count?.guests ?? 0,
           totalCargos,
           totalPagos,
+          totalDescuentos,
           saldo,
           estadoPago,
           pagos: (account.pagos || [])

@@ -1,6 +1,6 @@
 /**
- * Fuente única de saldo de una reserva: cargos − pagos (montoARS).
- * Usada por resumen de reserva, listado de saldos y balance de cliente/huésped.
+ * Fuente única de saldo de una reserva/Account:
+ * cargos − pagos (montoARS) − descuentos aplicados (montoARS).
  */
 
 const EXCLUDED_RESERVATION_STATUSES = new Set([
@@ -23,14 +23,26 @@ function sumPagos(pagos = []) {
   return pagos.reduce((sum, pago) => sum + toAmount(pago.montoARS), 0);
 }
 
-function calculateReservationBalance(cargos = [], pagos = []) {
+/** Suma créditos de descuento (filas positivas y reversiones negativas). */
+function sumDescuentos(discounts = []) {
+  return discounts.reduce((sum, d) => sum + toAmount(d.montoARS), 0);
+}
+
+/**
+ * @param {Array} cargos
+ * @param {Array} pagos
+ * @param {Array} discounts DiscountApplication[] (todas las filas; reversión = monto negativo)
+ */
+function calculateReservationBalance(cargos = [], pagos = [], discounts = []) {
   const totalCargos = sumCargos(cargos);
   const totalPagos = sumPagos(pagos);
-  const saldo = totalCargos - totalPagos;
+  const totalDescuentos = sumDescuentos(discounts);
+  const saldo = totalCargos - totalPagos - totalDescuentos;
 
   return {
     totalCargos,
     totalPagos,
+    totalDescuentos,
     saldo,
     estadoPago: saldo > 0 ? 'PENDIENTE' : saldo < 0 ? 'A_FAVOR' : 'PAGADO',
   };
@@ -46,12 +58,14 @@ function aggregateReservationsBalance(reservations = []) {
     .filter(isReservationIncludedInClientBalance)
     .reduce(
       (acc, reservation) => {
-        const { totalCargos, totalPagos, saldo } = calculateReservationBalance(
+        const { totalCargos, totalPagos, totalDescuentos, saldo } = calculateReservationBalance(
           reservation.cargos || [],
-          reservation.pagos || []
+          reservation.pagos || [],
+          reservation.discountApplications || reservation.descuentos || []
         );
         acc.totalCharges += totalCargos;
         acc.totalPayments += totalPagos;
+        acc.totalDiscounts += totalDescuentos;
         acc.balance += saldo;
         acc.reservationCount += 1;
         acc.reservations.push({
@@ -59,6 +73,7 @@ function aggregateReservationsBalance(reservations = []) {
           status: reservation.status,
           totalCargos,
           totalPagos,
+          totalDescuentos,
           saldo,
         });
         return acc;
@@ -66,6 +81,7 @@ function aggregateReservationsBalance(reservations = []) {
       {
         totalCharges: 0,
         totalPayments: 0,
+        totalDiscounts: 0,
         balance: 0,
         reservationCount: 0,
         reservations: [],
@@ -73,9 +89,9 @@ function aggregateReservationsBalance(reservations = []) {
     );
 }
 
-/** Alias: misma fórmula aplicada a un Account (cargos/pagos del folio). */
-function calculateAccountBalance(cargos = [], pagos = []) {
-  return calculateReservationBalance(cargos, pagos);
+/** Alias: misma fórmula aplicada a un Account (cargos/pagos/descuentos del folio). */
+function calculateAccountBalance(cargos = [], pagos = [], discounts = []) {
+  return calculateReservationBalance(cargos, pagos, discounts);
 }
 
 module.exports = {
@@ -86,4 +102,5 @@ module.exports = {
   isReservationIncludedInClientBalance,
   sumCargos,
   sumPagos,
+  sumDescuentos,
 };

@@ -377,6 +377,57 @@
 }
 
 /* Responsive */
+.discountPreview {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.discountTitle {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.discountList {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #334155;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.settleRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.settleButton {
+  border: 1px solid #1d4ed8;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.settleButton:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.settleButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .modal {
     width: 95%;

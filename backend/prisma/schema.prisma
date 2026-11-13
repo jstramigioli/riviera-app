@@ -259,12 +259,81 @@ model Account {
   notes         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  cargos        Cargo[]
-  pagos         Pago[]
+  cargos                Cargo[]
+  pagos                 Pago[]
+  discountApplications  DiscountApplication[]
 
   @@index([kind, status])
   @@index([clientId])
   @@index([createdAt])
+}
+
+enum PaymentDiscountTipo {
+  PERCENT
+  FIXED
+}
+
+enum DiscountApplicationTipo {
+  PAYMENT_METHOD
+  MANUAL
+  REVERSAL
+}
+
+/// Catálogo administrable de medios de pago + regla de descuento.
+model PaymentMethodConfig {
+  id                  Int                  @id @default(autoincrement())
+  code                String               @unique
+  label               String
+  activo              Boolean              @default(true)
+  ordenIndex          Int                  @default(0)
+  requiereFacturacion Boolean              @default(false)
+  descuentoActivo     Boolean              @default(false)
+  descuentoTipo       PaymentDiscountTipo  @default(PERCENT)
+  /// Ej. 10 = 10% (PERCENT). MVP solo PERCENT.
+  descuentoValor      Decimal              @default(0) @db.Decimal(10, 4)
+  aplicaEnParcial     Boolean              @default(true)
+  aplicaEnSeña        Boolean              @default(true)
+  notas               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pagos               Pago[]
+  discountApplications DiscountApplication[]
+
+  @@index([activo, ordenIndex])
+}
+
+/// Crédito de folio por descuento de medio de pago (o su reversión).
+model DiscountApplication {
+  id                     Int                     @id @default(autoincrement())
+  accountId              Int
+  account                Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Pago que originó (o revierte) el descuento. Unique = 1 aplicación primaria por pago en MVP.
+  pagoId                 Int                     @unique
+  pago                   Pago                    @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  paymentMethodConfigId  Int?
+  paymentMethodConfig    PaymentMethodConfig?    @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
+  tipo                   DiscountApplicationTipo @default(PAYMENT_METHOD)
+  /// Monto del pago (ARS, abs) sobre el que se calculó / snapshot.
+  baseCalculoARS         Decimal                 @db.Decimal(10, 2)
+  porcentaje             Decimal?                @db.Decimal(10, 4)
+  valorFijo              Decimal?                @db.Decimal(10, 2)
+  /// Crédito positivo que baja el saldo; reversión = negativo.
+  montoARS               Decimal                 @db.Decimal(10, 2)
+  monedaPago             String?
+  tipoCambio             Decimal?                @db.Decimal(10, 4)
+  /// Si es reversión, apunta a la aplicación original.
+  reversoDeId            Int?
+  reversoDe              DiscountApplication?    @relation("DiscountReversal", fields: [reversoDeId], references: [id], onDelete: SetNull)
+  reversiones            DiscountApplication[]   @relation("DiscountReversal")
+  activo                 Boolean                 @default(true)
+  notas                  String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@index([accountId])
+  @@index([paymentMethodConfigId])
+  @@index([reversoDeId])
+  @@index([activo])
 }
 
 enum OnlineCheckInStatus {
@@ -606,36 +675,46 @@ model ReservationSegment {
 }
 
 model Pago {
-  id                   Int          @id @default(autoincrement())
-  codigo               String       @unique // A000…A999, B000… (papelitos / Estado de cuentas)
+  id                      Int                   @id @default(autoincrement())
+  codigo                  String                @unique // A000…A999, B000… (papelitos / Estado de cuentas)
   /// FK financiera canónica (Account).
-  accountId            Int
-  account              Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId               Int
+  account                 Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   /// Dual-write legado: obligatorio en cuentas RESERVATION; null en EXTERNAL.
-  reservaId            Int?
-  reserva              Reservation? @relation(fields: [reservaId], references: [id], onDelete: Cascade)
-  fecha                DateTime     @default(now())
-  monto                Decimal      @db.Decimal(10, 2)
-  moneda               String       @default("ARS") // ARS o USD
-  tipoCambio           Decimal?     @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
-  montoARS             Decimal      @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
-  metodo               String       // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
-  numeroTarjeta        String?      // Número de tarjeta (solo para métodos de tarjeta)
-  empresa              String?      // Empresa de la tarjeta (solo para métodos de tarjeta)
-  referencia           String?      // Número de comprobante, referencia bancaria, etc.
-  notas                String?
+  reservaId               Int?
+  reserva                 Reservation?          @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  /// FK al catálogo de medios (MVP). `metodo` sigue siendo label para listados.
+  paymentMethodConfigId   Int?
+  paymentMethodConfig     PaymentMethodConfig?  @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
+  /// Devolución: pago original obligatorio (bloquea devolución libre).
+  pagoOrigenId            Int?
+  pagoOrigen              Pago?                 @relation("PagoDevolucion", fields: [pagoOrigenId], references: [id], onDelete: Restrict)
+  devoluciones            Pago[]                @relation("PagoDevolucion")
+  fecha                   DateTime              @default(now())
+  monto                   Decimal               @db.Decimal(10, 2)
+  moneda                  String                @default("ARS") // ARS o USD
+  tipoCambio              Decimal?              @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
+  montoARS                Decimal               @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
+  metodo                  String                // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
+  numeroTarjeta           String?               // Número de tarjeta (solo para métodos de tarjeta)
+  empresa                 String?               // Empresa de la tarjeta (solo para métodos de tarjeta)
+  referencia              String?               // Número de comprobante, referencia bancaria, etc.
+  notas                   String?
   /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación). Solo en Account de reserva.
-  motivo               String       @default("Pago")
-  requiereFacturacion  Boolean      @default(false)
+  motivo                  String                @default("Pago")
+  requiereFacturacion     Boolean               @default(false)
   /// Dinero/papel físico retirado (no aplica a Transferencia)
-  retirado             Boolean      @default(false)
-  factura              PagoFactura?
-  adjuntos             PagoAdjunto[]
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  retirado                Boolean               @default(false)
+  factura                 PagoFactura?
+  adjuntos                PagoAdjunto[]
+  discountApplication     DiscountApplication?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
   @@index([accountId])
   @@index([reservaId])
+  @@index([paymentMethodConfigId])
+  @@index([pagoOrigenId])
 }
 
 /// Archivos de factura PDF o comprobante de transferencia (JPG/PNG/PDF).

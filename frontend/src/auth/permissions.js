@@ -12,6 +12,8 @@ const PERMISSIONS = {
   facturacion: [ROLES.ADMIN],
   reportes: [ROLES.ADMIN, ROLES.GERENCIA],
   auditoria: [ROLES.ADMIN, ROLES.GERENCIA],
+  /** Medios de pago / % descuento (PGH-135). */
+  mediosPago: [ROLES.ADMIN, ROLES.GERENCIA],
   reservas: [ROLES.ADMIN, ROLES.GERENCIA, ROLES.RECEPCION],
   clientes: [ROLES.ADMIN, ROLES.GERENCIA, ROLES.RECEPCION],
   finanzas: [ROLES.ADMIN, ROLES.GERENCIA, ROLES.RECEPCION]

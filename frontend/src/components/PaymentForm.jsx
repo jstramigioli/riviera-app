@@ -5,6 +5,10 @@ import {
   createAccountPago,
   fetchReservation,
   fetchCuentasParaPago,
+  fetchPaymentMethodConfigs,
+  fetchAccountResumen,
+  fetchAccountPagos,
+  getReservationFinancialSummary,
   getClientBillingProfile,
   getTipoCambioActual,
   uploadPagoAdjuntos
@@ -20,6 +24,12 @@ import {
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
+import {
+  computeCashToSettle,
+  computeDiscountFromReceived,
+  formatArs,
+  roundMoney
+} from '../utils/paymentDiscount';
 import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
@@ -105,9 +115,7 @@ const PaymentForm = ({
     notas: ''
   });
 
-  const billingForced = methodRequiresBilling(formData.metodo);
   const [requiereFacturacion, setRequiereFacturacion] = useState(false);
-  const billingEnabled = billingForced || requiereFacturacion;
   const [billing, setBilling] = useState(() => emptyBillingForm());
   const [comprobanteFiles, setComprobanteFiles] = useState([]);
 
@@ -115,7 +123,43 @@ const PaymentForm = ({
   const [montoARS, setMontoARS] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [methodConfigs, setMethodConfigs] = useState([]);
+  const [saldoPendiente, setSaldoPendiente] = useState(null);
+  const [pagosOrigen, setPagosOrigen] = useState([]);
+  const [pagoOrigenId, setPagoOrigenId] = useState('');
   const showComprobanteField = isTransferencia(formData.metodo);
+
+  const selectedMethodConfig = useMemo(() => {
+    const label = String(formData.metodo || '').trim().toLowerCase();
+    return (
+      methodConfigs.find((c) => String(c.label).trim().toLowerCase() === label) || null
+    );
+  }, [methodConfigs, formData.metodo]);
+
+  const billingForced =
+    selectedMethodConfig != null
+      ? Boolean(selectedMethodConfig.requiereFacturacion)
+      : methodRequiresBilling(formData.metodo);
+  const billingEnabled = billingForced || requiereFacturacion;
+
+  const discountPreview = useMemo(() => {
+    if (isDevolucion) return null;
+    return computeDiscountFromReceived({
+      dineroARS: montoARS,
+      config: selectedMethodConfig,
+      motivo: motivoActual,
+      saldoPendiente
+    });
+  }, [isDevolucion, montoARS, selectedMethodConfig, motivoActual, saldoPendiente]);
+
+  const settlePreview = useMemo(() => {
+    if (isDevolucion || saldoPendiente == null) return null;
+    return computeCashToSettle({
+      saldoPendiente,
+      config: selectedMethodConfig,
+      motivo: motivoActual
+    });
+  }, [isDevolucion, saldoPendiente, selectedMethodConfig, motivoActual]);
 
   const showInvoiceCardField = billingEnabled && !isCardMethod(formData.metodo);
 
@@ -151,6 +195,28 @@ const PaymentForm = ({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await fetchPaymentMethodConfigs();
+        if (!cancelled && Array.isArray(rows) && rows.length > 0) {
+          setMethodConfigs(rows);
+          setFormData((prev) => {
+            const stillValid = rows.some((c) => c.label === prev.metodo);
+            if (stillValid) return prev;
+            return { ...prev, metodo: rows[0].label };
+          });
+        }
+      } catch (err) {
+        console.error('Error cargando medios de pago:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     calculateMontoARS();
   }, [formData.monto, formData.moneda, formData.tipoCambio]);
 
@@ -163,6 +229,57 @@ const PaymentForm = ({
   useEffect(() => {
     if (!canUseSena && esSena) setEsSena(false);
   }, [canUseSena, esSena]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFolioMeta() {
+      const resolvedAccountId = accountId;
+      const resolvedReservaId = reservaId;
+      if (!resolvedAccountId && !resolvedReservaId) {
+        setSaldoPendiente(null);
+        setPagosOrigen([]);
+        setPagoOrigenId('');
+        return;
+      }
+      try {
+        let saldo = null;
+        let pagos = [];
+        if (resolvedAccountId) {
+          const [resumenRes, pagosRes] = await Promise.all([
+            fetchAccountResumen(resolvedAccountId),
+            fetchAccountPagos(resolvedAccountId)
+          ]);
+          saldo = resumenRes?.resumen?.saldo;
+          pagos = Array.isArray(pagosRes) ? pagosRes : [];
+        } else if (resolvedReservaId) {
+          const summary = await getReservationFinancialSummary(resolvedReservaId);
+          saldo = summary?.resumen?.saldo;
+          pagos = Array.isArray(summary?.pagos?.items) ? summary.pagos.items : [];
+        }
+        if (cancelled) return;
+        setSaldoPendiente(saldo != null ? Number(saldo) : null);
+        const cobros = (pagos || []).filter(
+          (p) =>
+            String(p.motivo || 'Pago') !== MOTIVO_DEVOLUCION &&
+            Number(p.montoARS) > 0
+        );
+        setPagosOrigen(cobros);
+        setPagoOrigenId((prev) =>
+          prev && cobros.some((p) => String(p.id) === String(prev)) ? prev : ''
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error cargando saldo/pagos del folio:', err);
+          setSaldoPendiente(null);
+          setPagosOrigen([]);
+        }
+      }
+    }
+    loadFolioMeta();
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, reservaId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -284,6 +401,11 @@ const PaymentForm = ({
       return;
     }
 
+    if (isDevolucion && !pagoOrigenId) {
+      setError('Seleccioná el pago de origen a devolver');
+      return;
+    }
+
     if (formData.moneda === 'USD' && (!formData.tipoCambio || parseFloat(formData.tipoCambio) <= 0)) {
       setError('Para pagos en USD, el tipo de cambio es requerido');
       return;
@@ -356,6 +478,8 @@ const PaymentForm = ({
         moneda: formData.moneda,
         tipoCambio: formData.moneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
         metodo: formData.metodo,
+        paymentMethodConfigId: selectedMethodConfig?.id ?? undefined,
+        pagoOrigenId: isDevolucion ? Number(pagoOrigenId) : undefined,
         motivo: motivoActual,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
@@ -550,14 +674,22 @@ const PaymentForm = ({
                 onChange={(e) => handleInputChange('metodo', e.target.value)}
                 required
               >
-                <option value="Efectivo">Efectivo</option>
-                <option value="Tarjeta Debito">Tarjeta Débito</option>
-                <option value="Tarjeta Credito">Tarjeta Crédito</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Mercadopago">Mercadopago</option>
-                <option value="Cuenta DNI">Cuenta DNI</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Otro">Otro</option>
+                {(methodConfigs.length > 0
+                  ? methodConfigs
+                  : [
+                      { id: 'ef', label: 'Efectivo' },
+                      { id: 'td', label: 'Tarjeta Debito' },
+                      { id: 'tc', label: 'Tarjeta Credito' },
+                      { id: 'tr', label: 'Transferencia' }
+                    ]
+                ).map((m) => (
+                  <option key={m.id} value={m.label}>
+                    {m.label}
+                    {m.descuentoActivo && Number(m.descuentoValor) > 0
+                      ? ` (−${Number(m.descuentoValor)}%)`
+                      : ''}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -580,6 +712,100 @@ const PaymentForm = ({
               </div>
             )}
           </div>
+
+          {isDevolucion && (
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label htmlFor="payment-origen">Pago de origen *</label>
+                <select
+                  id="payment-origen"
+                  value={pagoOrigenId}
+                  onChange={(e) => setPagoOrigenId(e.target.value)}
+                  required
+                  disabled={loading || pagosOrigen.length === 0}
+                >
+                  <option value="">
+                    {pagosOrigen.length === 0
+                      ? 'No hay cobros disponibles'
+                      : 'Seleccionar cobro…'}
+                  </option>
+                  {pagosOrigen.map((p) => {
+                    const disc = p.discountApplication?.montoARS;
+                    const discLabel =
+                      disc != null && Number(disc) > 0
+                        ? ` · desc. ${formatArs(disc)}`
+                        : '';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.codigo || `#${p.id}`} — {p.metodo || 'Pago'} —{' '}
+                        {formatArs(p.montoARS)} ARS{discLabel}
+                      </option>
+                    );
+                  })}
+                </select>
+                <span className={styles.helpText}>
+                  Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {!isDevolucion && discountPreview?.aplica && (
+            <div className={styles.discountPreview} role="status">
+              <p className={styles.discountTitle}>
+                Descuento {discountPreview.porcentaje}% ({selectedMethodConfig?.label})
+              </p>
+              <ul className={styles.discountList}>
+                <li>
+                  Recibe / registra: <strong>$ {formatArs(discountPreview.dineroARS)}</strong>
+                </li>
+                <li>
+                  Descuento aplicado: <strong>$ {formatArs(discountPreview.descuentoARS)}</strong>
+                </li>
+                <li>
+                  Crédito a cuenta: <strong>$ {formatArs(discountPreview.creditoARS)}</strong>
+                </li>
+                {saldoPendiente != null && (
+                  <li>
+                    Saldo restante proyectado:{' '}
+                    <strong>
+                      ${' '}
+                      {formatArs(
+                        roundMoney(saldoPendiente - discountPreview.creditoARS)
+                      )}
+                    </strong>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {!isDevolucion &&
+            settlePreview?.aplica &&
+            saldoPendiente != null &&
+            saldoPendiente > 0 && (
+              <div className={styles.settleRow}>
+                <button
+                  type="button"
+                  className={styles.settleButton}
+                  disabled={loading}
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      moneda: 'ARS',
+                      monto: String(settlePreview.dineroARS)
+                    }));
+                  }}
+                >
+                  Cobrar saldo con este medio ($ {formatArs(settlePreview.dineroARS)})
+                </button>
+                <span className={styles.helpText}>
+                  Cancela $ {formatArs(settlePreview.saldoARS)} pidiendo ${' '}
+                  {formatArs(settlePreview.dineroARS)} (desc. ${' '}
+                  {formatArs(settlePreview.descuentoARS)})
+                </span>
+              </div>
+            )}
 
           {showComprobanteField && (
             <div className={styles.formRow}>

@@ -8,6 +8,7 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.ADMIN, 'facturacion')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'reportes')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'auditoria')).toBe(true);
+    expect(roleHasPermission(ROLES.ADMIN, 'mediosPago')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'reservas')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'finanzas')).toBe(true);
   });
@@ -19,6 +20,7 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.GERENCIA, 'facturacion')).toBe(false);
     expect(roleHasPermission(ROLES.GERENCIA, 'reportes')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'auditoria')).toBe(true);
+    expect(roleHasPermission(ROLES.GERENCIA, 'mediosPago')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'reservas')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'finanzas')).toBe(true);
   });
@@ -30,8 +32,10 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.RECEPCION, 'facturacion')).toBe(false);
     expect(roleHasPermission(ROLES.RECEPCION, 'reportes')).toBe(false);
     expect(roleHasPermission(ROLES.RECEPCION, 'auditoria')).toBe(false);
+    expect(roleHasPermission(ROLES.RECEPCION, 'mediosPago')).toBe(false);
     expect(roleHasPermission(ROLES.RECEPCION, 'reservas')).toBe(true);
     expect(roleHasPermission(ROLES.RECEPCION, 'clientes')).toBe(true);
     expect(roleHasPermission(ROLES.RECEPCION, 'finanzas')).toBe(true);
   });
 });
+
