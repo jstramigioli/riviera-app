@@ -3179,11 +3179,11 @@ export default function Consulta() {
             {/* Medio de origen (también sin cliente) */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Por qué medio</label>
+                <label>Medio de contacto:</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  aria-label="Por qué medio se hizo la consulta o reserva"
+                  aria-label="Medio de contacto"
                 >
                   <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
@@ -3281,11 +3281,11 @@ export default function Consulta() {
             {/* Medio de origen */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Por qué medio</label>
+                <label>Medio de contacto:</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  aria-label="Por qué medio se hizo la consulta o reserva"
+                  aria-label="Medio de contacto"
                 >
                   <option value="">No especificado</option>
                   {RESERVATION_SOURCE_OPTIONS.map((opt) => (
