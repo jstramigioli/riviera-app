@@ -4,7 +4,13 @@ import useReservationStatuses from '../hooks/useReservationStatuses';
 import { getStatusLabel, isDangerStatus } from '../utils/reservationStatusUtils';
 import styles from './ReservationStatusButtons.module.css';
 
-const ReservationStatusButtons = ({ reservation, onStatusChange, onDelete, variant = 'light' }) => {
+const ReservationStatusButtons = ({
+  reservation,
+  onStatusChange,
+  onDelete,
+  variant = 'light',
+  menuPlacement = 'above'
+}) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const { statuses } = useReservationStatuses();
@@ -63,7 +69,10 @@ const ReservationStatusButtons = ({ reservation, onStatusChange, onDelete, varia
       </button>
 
       {open && (
-        <div className={styles.dropdownMenu} role="menu">
+        <div
+          className={`${styles.dropdownMenu} ${menuPlacement === 'below' ? styles.dropdownMenuBelow : ''}`}
+          role="menu"
+        >
           {options.map((option) => {
             const isCurrent = option.value === reservation.status;
             return (

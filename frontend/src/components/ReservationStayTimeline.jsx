@@ -23,24 +23,29 @@ const SegmentCard = ({ card }) => {
   const guestsLabel = `${card.guests} huésped${card.guests === 1 ? '' : 'es'}`;
   const nightsLabel = `${card.nights} noche${card.nights === 1 ? '' : 's'}`;
   return (
-    <div className={styles.segmentCard} data-testid="timeline-segment-card">
-      <span className={styles.segmentRoom}>{card.room}</span>
-      <span className={styles.segmentService}>{card.service}</span>
-      <span className={styles.segmentMeta}>{guestsLabel}</span>
-      <span className={styles.segmentMeta}>{nightsLabel}</span>
+    <div className={styles.segmentStack}>
+      <span className={styles.segmentConnector} aria-hidden />
+      <div className={styles.segmentCard} data-testid="timeline-segment-card">
+        <span className={styles.segmentRoom}>Habitación: {card.room}</span>
+        <span className={styles.segmentMeta}>Tipo: {card.roomType || '—'}</span>
+        <span className={styles.segmentService}>{card.service}</span>
+        <span className={styles.segmentMeta}>{guestsLabel}</span>
+        <span className={styles.segmentMeta}>{nightsLabel}</span>
+      </div>
     </div>
   );
 };
 
 /**
  * Timeline de hitos de la estadía — contenido principal del detalle.
- * Header: cliente, noches totales, monto total.
+ * Header: cliente (clickeable), noches totales, monto total.
  * Cards de tramo entre check-in y check-out.
  */
 const ReservationStayTimeline = ({
   reservation,
   getServiceTypeLabel,
-  formatCurrency = defaultFormatCurrency
+  formatCurrency = defaultFormatCurrency,
+  onClientClick
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -55,6 +60,7 @@ const ReservationStayTimeline = ({
   const nightsLabel = header.totalNights
     ? `${header.totalNights} noche${header.totalNights === 1 ? '' : 's'}`
     : '—';
+  const canOpenClient = Boolean(header.clientId && onClientClick);
 
   return (
     <section
@@ -64,7 +70,19 @@ const ReservationStayTimeline = ({
     >
       <header className={styles.header} data-testid="timeline-header">
         <div className={styles.headerMain}>
-          <h2 className={styles.clientName}>{header.clientName}</h2>
+          {canOpenClient ? (
+            <button
+              type="button"
+              className={styles.clientNameButton}
+              onClick={() => onClientClick(header.clientId)}
+              title="Ver perfil del cliente"
+              data-testid="timeline-client-link"
+            >
+              {header.clientName}
+            </button>
+          ) : (
+            <h2 className={styles.clientName}>{header.clientName}</h2>
+          )}
           <p className={styles.totalNights}>{nightsLabel}</p>
         </div>
         <div className={styles.totalBlock} data-testid="timeline-total">

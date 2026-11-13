@@ -13,12 +13,10 @@ import {
   getReservationCheckIn,
   sendReservationCheckIn
 } from '../services/api.js';
-import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import { sourceLabel } from '../constants/reservationSource';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
-import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
@@ -26,6 +24,11 @@ import { FiMail, FiCopy, FiCheck } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetails.module.css';
+
+const resolveInitialTab = (activeTab) => {
+  if (activeTab === 'financiero' || activeTab === 'huespedes') return activeTab;
+  return null;
+};
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
@@ -42,7 +45,7 @@ const ReservationDetails = () => {
   
   // Estado de pestañas (puede venir del panel del Libro vía location.state)
   const [activeTab, setActiveTab] = useState(
-    location.state?.activeTab === 'financiero' ? 'financiero' : 'general'
+    resolveInitialTab(location.state?.activeTab)
   );
   const [pendingFinancialAction, setPendingFinancialAction] = useState(
     location.state?.financialAction || null
@@ -188,7 +191,6 @@ const ReservationDetails = () => {
   useEffect(() => {
     if (location.state?.isEditing) {
       setIsEditing(true);
-      setActiveTab('general');
     }
   }, [location.state?.isEditing]);
 
@@ -282,6 +284,18 @@ const ReservationDetails = () => {
     }
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'No especificada';
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        return formatDate(dateString);
+      }
+      return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: es });
+    } catch {
+      return dateString;
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -300,9 +314,10 @@ const ReservationDetails = () => {
     navigate(-1);
   };
 
-  const handleClientClick = () => {
-    if (reservation?.mainClient?.id) {
-      navigate(`/clients/${reservation.mainClient.id}`);
+  const handleClientClick = (clientId) => {
+    const id = clientId || reservation?.mainClient?.id;
+    if (id) {
+      navigate(`/clients/${id}`);
     }
   };
 
@@ -421,17 +436,6 @@ const ReservationDetails = () => {
   // Renderizar contenido de cada pestaña
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'general':
-        return (
-          <GeneralInfoTab
-            reservation={reservation}
-            editData={editData}
-            isEditing={isEditing}
-            onEditChange={handleEditChange}
-            formatDate={formatDate}
-            getStatusLabel={getStatusLabel}
-          />
-        );
       case 'financiero':
         return (
           <EstadoFinancieroTab
@@ -544,25 +548,22 @@ const ReservationDetails = () => {
             </div>
           </div>
           <div className={styles.guestInfo}>
-            <div className={styles.guestName}>
-              {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
-            </div>
-            <div className={styles.guestDates}>
-              {formatDate(reservation.checkIn)} / {formatDate(reservation.checkOut)}
-            </div>
-            <div className={styles.guestStatus}>
-              <span className={`${styles.statusValue} ${styles[reservation.status]}`}>
-                {getStatusLabel(reservation.status)}
-              </span>
+            <div className={styles.statusDropdown} data-testid="side-panel-status">
+              <ReservationStatusButtons
+                reservation={reservation}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDeleteReservation}
+                variant="dark"
+                menuPlacement="below"
+              />
             </div>
             <div className={styles.sourceMeta} data-testid="side-panel-source">
               Medio: {sourceLabel(reservation.source)}
             </div>
-            {(checkInInfo?.vehiclePlate || checkInInfo?.checkIn?.vehiclePlate) && (
-              <div className={styles.checkInMeta}>
-                Patente: {checkInInfo.vehiclePlate || checkInInfo.checkIn.vehiclePlate}
-              </div>
-            )}
+            <div className={styles.metaDates} data-testid="side-panel-dates">
+              <div>Fecha de creación: {formatDateTime(reservation.createdAt)}</div>
+              <div>Última modificación: {formatDateTime(reservation.updatedAt)}</div>
+            </div>
             {checkInInfo?.checkIn?.status && (
               <div className={styles.checkInMeta}>
                 Check-in online: {checkInInfo.checkIn.status === 'COMPLETED'
@@ -577,12 +578,6 @@ const ReservationDetails = () => {
 
         <div className={styles.sidePanelContent}>
           <div className={styles.sectionMenu}>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'general' ? styles.active : ''}`}
-              onClick={() => setActiveTab('general')}
-            >
-              Información general
-            </button>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'financiero' ? styles.active : ''}`}
               onClick={() => setActiveTab('financiero')}
@@ -623,16 +618,6 @@ const ReservationDetails = () => {
                 </button>
               )}
             </div>
-            <div className={styles.actionButtons}>
-              <div className={styles.statusButtons}>
-                <ReservationStatusButtons
-                  reservation={reservation}
-                  onStatusChange={handleStatusChange}
-                  onDelete={handleDeleteReservation}
-                  variant="dark"
-                />
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -643,6 +628,7 @@ const ReservationDetails = () => {
             reservation={reservation}
             getServiceTypeLabel={getServiceTypeLabel}
             formatCurrency={formatCurrency}
+            onClientClick={handleClientClick}
           />
           {renderTabContent()}
         </div>
