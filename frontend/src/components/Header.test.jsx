@@ -22,7 +22,7 @@ describe('Header', () => {
     render(<Header />)
     expect(screen.getByText('Libro de Reservas')).toBeInTheDocument()
     expect(screen.getByText('Consultas y Reservas')).toBeInTheDocument()
-    expect(screen.getByText('Cobros y Pagos')).toBeInTheDocument()
+    expect(screen.getByText('Estado de cuentas')).toBeInTheDocument()
     expect(screen.getByText('Estadísticas')).toBeInTheDocument()
   })
 

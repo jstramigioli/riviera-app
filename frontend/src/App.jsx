@@ -606,12 +606,16 @@ function App() {
               element={<Navigate to="/configuracion?tab=cargos-tarifas" replace />}
             />
             <Route
-              path="/cobros-pagos"
+              path="/estado-de-cuentas"
               element={(
                 <ProtectedRoute permission="finanzas">
                   <AppShell><CobrosPagosView /></AppShell>
                 </ProtectedRoute>
               )}
+            />
+            <Route
+              path="/cobros-pagos"
+              element={<Navigate to="/estado-de-cuentas" replace />}
             />
             <Route
               path="/estadisticas"

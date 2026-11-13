@@ -9,7 +9,8 @@ const usePageTitle = () => {
       '/': 'Libro de Reservas',
       '/libro-de-reservas': 'Libro de Reservas',
       '/consultas-reservas': 'Consultas y Reservas',
-      '/cobros-pagos': 'Cobros y Pagos',
+      '/cobros-pagos': 'Estado de cuentas',
+      '/estado-de-cuentas': 'Estado de cuentas',
       '/estadisticas': 'Estadísticas',
       '/configuracion': 'Configuración'
     };

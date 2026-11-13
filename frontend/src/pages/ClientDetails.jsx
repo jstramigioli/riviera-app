@@ -206,7 +206,7 @@ const ClientDetails = () => {
       <div className={styles.newLayout}>
         <div className={styles.errorContainer}>
           <div className={styles.error}> Cliente no encontrado</div>
-          <button onClick={() => navigate('/cobros-pagos')} className={styles.retryButton}>
+          <button onClick={() => navigate('/estado-de-cuentas')} className={styles.retryButton}>
             Volver
           </button>
         </div>

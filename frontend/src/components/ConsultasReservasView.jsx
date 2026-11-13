@@ -390,8 +390,8 @@ function ConsultasReservasView() {
                 />
               ) : (
                 <a 
-                  href={`/cobros-pagos?clientId=${selectedReservation.mainClientId}`}
-                  onClick={(e) => { e.preventDefault(); window.location.href = `/cobros-pagos?clientId=${selectedReservation.mainClientId}`; }}
+                  href={`/estado-de-cuentas?clientId=${selectedReservation.mainClientId}`}
+                  onClick={(e) => { e.preventDefault(); window.location.href = `/estado-de-cuentas?clientId=${selectedReservation.mainClientId}`; }}
                   style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', fontWeight: 'bold' }}
                   title="Ver detalles de cobros y pagos"
                 >

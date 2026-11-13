@@ -809,26 +809,35 @@ exports.getTipoCambioActual = async (req, res) => {
   }
 };
 
-// Obtener listado de todas las reservas con sus saldos
+// Obtener listado de todas las reservas con sus saldos.
+// Solo pedimos campos necesarios para el cálculo/UI: un include anidado
+// (subcategoria/roomType/serviceType/guests) hacía fallar toda la página
+// ante desfase schema↔DB (p.ej. columnas nuevas en Pago/Cargo).
 exports.getReservasConSaldos = async (req, res) => {
   try {
     const reservas = await prisma.reservation.findMany({
-      include: {
-        mainClient: true,
-        pagos: true,
-        cargos: {
-          include: {
-            subcategoriaCargo: true,
-            roomType: true,
-            serviceType: true
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        mainClient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
           }
         },
-        guests: true
+        cargos: { select: { monto: true } },
+        pagos: { select: { id: true, montoARS: true, fecha: true } },
+        _count: { select: { guests: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    const reservasConSaldos = reservas.map(reserva => {
+    const reservasConSaldos = reservas.map((reserva) => {
       const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(
         reserva.cargos,
         reserva.pagos
@@ -838,7 +847,7 @@ exports.getReservasConSaldos = async (req, res) => {
         id: reserva.id,
         status: reserva.status,
         mainClient: reserva.mainClient,
-        cantidadHuespedes: reserva.guests.length,
+        cantidadHuespedes: reserva._count?.guests ?? 0,
         totalCargos,
         totalPagos,
         saldo,

@@ -64,10 +64,10 @@ function Header() {
           ) : null}
           {can('finanzas') ? (
             <Link
-              to="/cobros-pagos"
-              className={`${styles.navLink} ${location.pathname === '/cobros-pagos' ? styles.active : ''}`}
+              to="/estado-de-cuentas"
+              className={`${styles.navLink} ${location.pathname === '/estado-de-cuentas' || location.pathname === '/cobros-pagos' ? styles.active : ''}`}
             >
-              Cobros y Pagos
+              Estado de cuentas
             </Link>
           ) : null}
           {can('reportes') ? (
