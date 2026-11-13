@@ -1,13 +1,13 @@
 /* DayInfoSidePanel.module.css */
 .content {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   background: #f8f9fa;
   height: 100%;
   overflow-y: auto;
 }
 
 .dateHeader {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   text-align: center;
 }
 
@@ -16,218 +16,196 @@
   color: #2c3e50;
   font-size: var(--font-size-medium);
   font-weight: 600;
-  opacity: 0.8;
+  opacity: 0.85;
+  text-transform: capitalize;
 }
 
-.statsGrid {
+.sectionTitle {
+  margin: 0 0 0.85rem;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* —— Ingresos / Salidas (2 columnas, estilo timeline) —— */
+.movementsGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
-.statCard {
+.movementCol {
   background: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   border: 1px solid #e9ecef;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.statCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-color: var(--color-primary);
-}
-
-.statIcon {
-  font-size: var(--font-size-large);
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  border-radius: 10px;
-  color: white;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  flex-shrink: 0;
-}
-
-.statInfo {
-  flex: 1;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 0.85rem 0.75rem;
   min-width: 0;
 }
 
-.statValue {
-  font-size: var(--font-size-large);
-  font-weight: 700;
-  color: #2c3e50;
-  margin-bottom: 0.25rem;
-  line-height: 1;
-}
-
-.statLabel {
-  font-size: 0.85rem;
-  color: #6c757d;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
-.summary {
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  border: 1px solid #e9ecef;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.summary h4 {
-  margin: 0 0 1rem 0;
-  color: #2c3e50;
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-}
-
-.summary p {
-  margin: 0;
-  color: #495057;
-  line-height: 1.6;
-  font-size: 0.95rem;
-}
-
-.summary strong {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.details {
-  background: #ffffff;
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.details h4 {
-  margin: 0 0 1rem 0;
-  color: #2c3e50;
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-}
-
-.detailItem {
+.movementHeader {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.55rem;
   border-bottom: 1px solid #f1f3f4;
 }
 
-.detailItem:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.movementIcon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
 }
 
-.detailLabel {
+.arrivals .movementIcon {
+  color: var(--color-success-dark, #2b8a3e);
+  background: var(--color-success-light, #d3f9d8);
+}
+
+.departures .movementIcon {
+  color: var(--color-danger-dark, #c92a2a);
+  background: var(--color-danger-light, #ffe3e3);
+}
+
+.movementTitleBlock {
+  min-width: 0;
+}
+
+.movementTitle {
+  font-size: 0.78rem;
+  font-weight: 600;
   color: #6c757d;
-  font-size: 0.9rem;
-  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.2;
 }
 
-.detailValue {
+.movementTotal {
+  font-size: 1.35rem;
+  font-weight: 700;
   color: #2c3e50;
+  line-height: 1.15;
+}
+
+.movementList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.movementItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  position: relative;
+  padding-left: 0.1rem;
+}
+
+.movementDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+  background: #adb5bd;
+}
+
+.arrivals .movementDot {
+  background: var(--color-success, #2f9e44);
+}
+
+.departures .movementDot {
+  background: var(--color-danger, #e03131);
+}
+
+.movementName {
+  font-size: 0.88rem;
+  color: #343a40;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.movementEmpty {
+  font-size: 0.82rem;
+  color: #868e96;
+  font-style: italic;
+  padding: 0.15rem 0;
+}
+
+/* —— Ocupación (barras horizontales) —— */
+.occupancySection {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.occupancyRow + .occupancyRow {
+  margin-top: 1rem;
+}
+
+.occupancyHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.occupancyLabel {
   font-size: 0.9rem;
   font-weight: 600;
+  color: #2c3e50;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .content {
-    padding: 1rem;
-  }
-  
-  .statCard {
-    padding: 1rem;
-  }
-  
-  .statIcon {
-    width: 45px;
-    height: 45px;
-    font-size: var(--font-size-large);
-  }
-  
-  .statValue {
-    font-size: var(--font-size-large);
-  }
-  
-  .statLabel {
-    font-size: 0.8rem;
-  }
-  
-  .summary,
-  .details {
-    padding: 1rem;
-  }
-  
-  .summary h4,
-  .details h4 {
-    font-size: 1rem;
-  }
-  
-  .summary p {
-    font-size: 0.9rem;
-  }
+.occupancyPct {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2c3e50;
+  font-variant-numeric: tabular-nums;
+}
+
+.occupancyTrack {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #e9ecef;
+  overflow: hidden;
+}
+
+.occupancyFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary, #667eea);
+  transition: width 0.25s ease;
+}
+
+.occupancyDetail {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #868e96;
 }
 
 @media (max-width: 480px) {
   .content {
-    padding: 0.75rem;
+    padding: 1rem;
   }
-  
-  .statCard {
-    padding: 0.75rem;
+
+  .movementsGrid {
+    grid-template-columns: 1fr;
   }
-  
-  .statIcon {
-    width: 40px;
-    height: 40px;
-    font-size: var(--font-size-large);
+
+  .occupancySection {
+    padding: 0.9rem;
   }
-  
-  .statValue {
-    font-size: var(--font-size-large);
-  }
-  
-  .statLabel {
-    font-size: 0.75rem;
-  }
-  
-  .summary,
-  .details {
-    padding: 0.75rem;
-  }
-  
-  .summary h4,
-  .details h4 {
-    font-size: 0.95rem;
-  }
-  
-  .summary p {
-    font-size: 0.85rem;
-  }
-  
-  .detailItem {
-    padding: 0.5rem 0;
-  }
-  
-  .detailLabel,
-  .detailValue {
-    font-size: 0.85rem;
-  }
-} 
+}
