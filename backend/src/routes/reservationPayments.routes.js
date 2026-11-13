@@ -26,6 +26,9 @@ function requireFacturaUploadIfNeeded(req, res, next) {
 // Obtener todas las reservas con sus saldos
 router.get('/reservas-saldos', controller.getReservasConSaldos);
 
+// Opciones Select del modal Nuevo pago (activas, no solo ocupación de hoy)
+router.get('/reservas-para-pago', controller.getReservasParaPago);
+
 // Obtener resumen financiero de una reserva específica
 router.get('/reservas/:reservaId/resumen', controller.getResumenFinanciero);
 
