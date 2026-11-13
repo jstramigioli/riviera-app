@@ -557,9 +557,28 @@ model Pago {
   referencia           String?      // Número de comprobante, referencia bancaria, etc.
   notas                String?
   requiereFacturacion  Boolean      @default(false)
+  /// Dinero/papel físico retirado (no aplica a Transferencia)
+  retirado             Boolean      @default(false)
   factura              PagoFactura?
+  adjuntos             PagoAdjunto[]
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+}
+
+/// Archivos de factura PDF o comprobante de transferencia (JPG/PNG/PDF).
+model PagoAdjunto {
+  id           Int      @id @default(autoincrement())
+  pagoId       Int
+  pago         Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// FACTURA | COMPROBANTE
+  tipo         String
+  originalName String
+  storedName   String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  @@index([pagoId, tipo])
 }
 
 /// Snapshot de facturación asociado a un pago (Factura A o B).

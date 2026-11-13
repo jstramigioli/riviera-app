@@ -1,6 +1,12 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const controller = require('../controllers/reservationPayments.controller');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 20 }
+});
 
 // ============================================
 // RUTAS DE RESUMEN Y LISTADOS GENERALES
@@ -33,6 +39,14 @@ router.put('/pagos/:id', controller.updatePago);
 
 // Eliminar un pago
 router.delete('/pagos/:id', controller.deletePago);
+
+// Adjuntos factura (PDF) / comprobante transferencia (JPG/PNG/PDF)
+router.post(
+  '/pagos/:id/adjuntos/:tipo',
+  upload.array('files', 20),
+  controller.uploadPagoAdjuntos
+);
+router.get('/pagos/:id/adjuntos/:adjuntoId/download', controller.downloadPagoAdjunto);
 
 // ============================================
 // RUTAS DE CARGOS

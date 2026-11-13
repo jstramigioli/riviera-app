@@ -355,6 +355,131 @@
   white-space: nowrap;
 }
 
+.dashMuted {
+  color: var(--color-text-muted, #9aa3b2);
+}
+
+.facturaCell,
+.retiradoCell {
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.facturaPending {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.pendingLabel {
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
+  color: #b7791f;
+}
+
+.dropzone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border, #c5ccd8);
+  border-radius: 6px;
+  background: var(--color-bg, #f5f6f8);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary, #3f5f8a);
+  color: var(--color-primary-dark, #334d70);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.dropzone input {
+  display: none;
+}
+
+.dropzoneCompact {
+  width: auto;
+  min-height: 0;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+
+.dropzoneBusy {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.fileLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary, #3f5f8a);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.fileLink:hover {
+  color: var(--color-primary-dark, #334d70);
+}
+
+.retiradoToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.retiradoToggle:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.retiradoOn {
+  color: #2f9e44;
+  border-color: rgba(47, 158, 68, 0.35);
+  background: rgba(47, 158, 68, 0.08);
+}
+
+.retiradoOff {
+  color: #9aa3b2;
+  border-color: transparent;
+}
+
+.retiradoOff:hover {
+  border-color: var(--color-border, #d8dde6);
+  background: var(--color-bg, #f5f6f8);
+}
+
 .meta {
   font-size: var(--font-size-small, 0.846rem);
   color: var(--color-text-muted, #6b7280);
