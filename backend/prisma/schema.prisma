@@ -765,6 +765,8 @@ enum MenuCategory {
 model MenuItem {
   id          Int          @id @default(autoincrement())
   category    MenuCategory
+  /// Subgrupo dentro de la categoría (Excel: Ensaladas, Licuados, etc.)
+  subgroup    String?
   name        String
   price       Decimal      @db.Decimal(10, 2)
   description String?
@@ -775,6 +777,7 @@ model MenuItem {
   varieties   MenuItemVariety[]
 
   @@index([category, isActive])
+  @@index([category, subgroup])
   @@index([name])
 }
 

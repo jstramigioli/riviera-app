@@ -103,6 +103,7 @@ exports.listMenuItems = async (req, res) => {
       include: varietyInclude,
       orderBy: [
         { category: 'asc' },
+        { subgroup: 'asc' },
         { ordenIndex: 'asc' },
         { name: 'asc' }
       ]
@@ -123,6 +124,9 @@ exports.createMenuItem = async (req, res) => {
   try {
     const category = normalizeCategory(req.body.category);
     const name = String(req.body.name || '').trim();
+    const subgroup = req.body.subgroup != null && String(req.body.subgroup).trim()
+      ? String(req.body.subgroup).trim()
+      : null;
     const price = parsePrice(req.body.price);
     const description = req.body.description ? String(req.body.description).trim() : null;
     const ordenIndex = Number.isFinite(Number(req.body.ordenIndex))
@@ -156,6 +160,7 @@ exports.createMenuItem = async (req, res) => {
         data: {
           category,
           name,
+          subgroup,
           price: basePrice,
           description,
           ordenIndex,
@@ -212,6 +217,11 @@ exports.updateMenuItem = async (req, res) => {
         return res.status(400).json({ success: false, error: 'El nombre es requerido' });
       }
       data.name = name;
+    }
+    if (req.body.subgroup !== undefined) {
+      data.subgroup = req.body.subgroup != null && String(req.body.subgroup).trim()
+        ? String(req.body.subgroup).trim()
+        : null;
     }
     if (req.body.price !== undefined) {
       const price = parsePrice(req.body.price);

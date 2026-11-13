@@ -557,7 +557,7 @@
     "price": 9000.0,
     "description": null,
     "ordenIndex": 340,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -566,7 +566,7 @@
     "price": 10000.0,
     "description": null,
     "ordenIndex": 350,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -575,7 +575,7 @@
     "price": 12000.0,
     "description": null,
     "ordenIndex": 360,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -584,7 +584,7 @@
     "price": 4000.0,
     "description": null,
     "ordenIndex": 370,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -593,7 +593,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 380,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -602,7 +602,7 @@
     "price": 6500.0,
     "description": null,
     "ordenIndex": 390,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -611,7 +611,7 @@
     "price": 9000.0,
     "description": null,
     "ordenIndex": 400,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -620,7 +620,7 @@
     "price": 9000.0,
     "description": null,
     "ordenIndex": 410,
-    "section": null,
+    "section": "Guarniciones",
     "varieties": []
   },
   {
@@ -629,7 +629,7 @@
     "price": 18000.0,
     "description": null,
     "ordenIndex": 420,
-    "section": null,
+    "section": "Pizzas",
     "varieties": []
   },
   {
@@ -638,7 +638,7 @@
     "price": 20000.0,
     "description": null,
     "ordenIndex": 430,
-    "section": null,
+    "section": "Pizzas",
     "varieties": []
   },
   {
@@ -773,7 +773,7 @@
     "price": 11500.0,
     "description": null,
     "ordenIndex": 50,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -782,7 +782,7 @@
     "price": 6500.0,
     "description": null,
     "ordenIndex": 60,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -791,7 +791,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 70,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -800,7 +800,7 @@
     "price": 9000.0,
     "description": null,
     "ordenIndex": 80,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -809,7 +809,7 @@
     "price": 6500.0,
     "description": null,
     "ordenIndex": 90,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -818,7 +818,7 @@
     "price": 11000.0,
     "description": null,
     "ordenIndex": 100,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -827,7 +827,7 @@
     "price": 11000.0,
     "description": null,
     "ordenIndex": 110,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -836,7 +836,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 120,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -845,7 +845,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 130,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -854,7 +854,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 140,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -863,7 +863,7 @@
     "price": 38000.0,
     "description": null,
     "ordenIndex": 150,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -872,7 +872,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 160,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -881,7 +881,7 @@
     "price": 38000.0,
     "description": null,
     "ordenIndex": 170,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   },
   {
@@ -890,7 +890,7 @@
     "price": 13000.0,
     "description": null,
     "ordenIndex": 180,
-    "section": "Bebidas sin alcohol",
+    "section": "Bebidas con alcohol",
     "varieties": []
   }
 ]

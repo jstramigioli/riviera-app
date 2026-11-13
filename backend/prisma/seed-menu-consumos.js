@@ -142,9 +142,13 @@ async function upsertMenuItems(catalog) {
       }
     });
 
+    const subgroupRaw = row.section ?? row.subgroup ?? null;
+    const subgroup = subgroupRaw ? String(subgroupRaw).trim() || null : null;
+
     const data = {
       category,
       name,
+      subgroup,
       price: row.price,
       description: row.description || null,
       ordenIndex: Number(row.ordenIndex) || 0,

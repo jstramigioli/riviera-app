@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiEdit2, FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiX, FiCheck } from 'react-icons/fi';
 import {
   fetchMenuItems,
@@ -21,6 +21,7 @@ const emptyVariety = () => ({ key: `v-${Date.now()}-${Math.random().toString(36)
 
 const emptyForm = {
   category: 'BEBIDAS',
+  subgroup: '',
   name: '',
   price: '',
   description: '',
@@ -28,6 +29,11 @@ const emptyForm = {
   isActive: true,
   varieties: []
 };
+
+function subgroupLabel(value) {
+  const s = String(value || '').trim();
+  return s || 'Sin subgrupo';
+}
 
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('es-AR', {
@@ -52,6 +58,10 @@ function sortValue(item, field) {
       const label = CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
       return String(label).toLowerCase();
     }
+    case 'subgroup': {
+      const s = String(item.subgroup || '').trim().toLowerCase();
+      return s || '\uffff';
+    }
     case 'name':
       return String(item.name || '').toLowerCase();
     case 'price':
@@ -73,7 +83,7 @@ export default function MenuConsumosTab() {
   const [error, setError] = useState(null);
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [query, setQuery] = useState('');
-  const [sortField, setSortField] = useState('ordenIndex');
+  const [sortField, setSortField] = useState('subgroup');
   const [sortDirection, setSortDirection] = useState('asc');
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -115,22 +125,48 @@ export default function MenuConsumosTab() {
     const rows = items.filter((item) => {
       if (filterCategory !== 'ALL' && item.category !== filterCategory) return false;
       if (!q) return true;
-      const hay = `${item.name} ${item.description || ''}`;
+      const hay = `${item.name} ${item.description || ''} ${item.subgroup || ''}`;
       return hay.toLowerCase().includes(q);
     });
 
     const dir = sortDirection === 'asc' ? 1 : -1;
     return [...rows].sort((a, b) => {
+      // Orden canónico: categoría → subgrupo → orden → nombre
+      if (sortField === 'subgroup' || sortField === 'ordenIndex') {
+        const ca = sortValue(a, 'category');
+        const cb = sortValue(b, 'category');
+        if (ca !== cb) return ca < cb ? -1 : 1;
+      }
       const aValue = sortValue(a, sortField);
       const bValue = sortValue(b, sortField);
       if (aValue < bValue) return -1 * dir;
       if (aValue > bValue) return 1 * dir;
-      // Desempate estable: nombre, luego id (estado isActive no se altera)
+      if (sortField === 'subgroup') {
+        const byOrden = (Number(a.ordenIndex) || 0) - (Number(b.ordenIndex) || 0);
+        if (byOrden !== 0) return byOrden;
+      }
       const byName = String(a.name || '').localeCompare(String(b.name || ''), 'es');
       if (byName !== 0) return byName;
       return (a.id || 0) - (b.id || 0);
     });
   }, [items, filterCategory, query, sortField, sortDirection]);
+
+  const subgroupSuggestions = useMemo(() => {
+    const set = new Set();
+    for (const item of items) {
+      if (filterCategory !== 'ALL' && item.category !== filterCategory) continue;
+      const s = String(item.subgroup || '').trim();
+      if (s) set.add(s);
+    }
+    if (form.category) {
+      for (const item of items) {
+        if (item.category !== form.category) continue;
+        const s = String(item.subgroup || '').trim();
+        if (s) set.add(s);
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [items, filterCategory, form.category]);
 
   const openCreate = () => {
     setEditing('new');
@@ -146,6 +182,7 @@ export default function MenuConsumosTab() {
     const varieties = Array.isArray(item.varieties) ? item.varieties : [];
     setForm({
       category: item.category,
+      subgroup: item.subgroup || '',
       name: item.name,
       price: String(item.price),
       description: item.description || '',
@@ -221,6 +258,7 @@ export default function MenuConsumosTab() {
     try {
       const payload = {
         category: form.category,
+        subgroup: form.subgroup.trim() || null,
         name: form.name.trim(),
         price,
         description: form.description.trim() || null,
@@ -279,7 +317,7 @@ export default function MenuConsumosTab() {
         <div>
           <h2 className={styles.title}>Menú de consumos</h2>
           <p className={styles.hint}>
-            Ítems para la comanda del Libro (Bebidas, Minutas, Cafetería). Soporta variedades (ej. Chica / Grande).
+            Ítems para la comanda del Libro (Bebidas, Minutas, Cafetería), agrupados por subgrupo (Ensaladas, Licuados, etc.). Soporta variedades (ej. Chica / Grande).
           </p>
         </div>
         <button type="button" className={styles.primaryBtn} onClick={openCreate}>
@@ -354,6 +392,22 @@ export default function MenuConsumosTab() {
                   <button
                     type="button"
                     className={styles.sortableHeader}
+                    onClick={() => handleSort('subgroup')}
+                    aria-sort={
+                      sortField === 'subgroup'
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    Subgrupo{sortIndicator('subgroup')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={styles.sortableHeader}
                     onClick={() => handleSort('name')}
                     aria-sort={
                       sortField === 'name'
@@ -418,55 +472,69 @@ export default function MenuConsumosTab() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => {
+              {filtered.map((item, idx) => {
                 const catLabel =
                   CATEGORIES.find((c) => c.code === item.category)?.label || item.category;
+                const prev = idx > 0 ? filtered[idx - 1] : null;
+                const showGroupRow =
+                  sortField === 'subgroup' &&
+                  (!prev ||
+                    prev.category !== item.category ||
+                    String(prev.subgroup || '').trim() !== String(item.subgroup || '').trim());
                 return (
-                  <tr key={item.id} className={item.isActive ? '' : styles.inactiveRow}>
-                    <td>{catLabel}</td>
-                    <td>
-                      <div className={styles.nameCell}>{item.name}</div>
-                      {item.description ? (
-                        <div className={styles.desc}>{item.description}</div>
-                      ) : null}
-                    </td>
-                    <td className={styles.num}>{formatPriceCell(item)}</td>
-                    <td>
-                      <span className={item.isActive ? styles.badgeOn : styles.badgeOff}>
-                        {item.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className={styles.num}>{item.ordenIndex}</td>
-                    <td className={styles.actions}>
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title={item.isActive ? 'Desactivar' : 'Activar'}
-                        aria-label={item.isActive ? 'Desactivar' : 'Activar'}
-                        onClick={() => onToggle(item)}
-                      >
-                        {item.isActive ? <FiToggleRight /> : <FiToggleLeft />}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title="Editar"
-                        aria-label="Editar"
-                        onClick={() => openEdit(item)}
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title="Desactivar"
-                        aria-label="Desactivar"
-                        onClick={() => onDelete(item)}
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={item.id}>
+                    {showGroupRow ? (
+                      <tr className={styles.groupRow}>
+                        <td colSpan={7}>{subgroupLabel(item.subgroup)}</td>
+                      </tr>
+                    ) : null}
+                    <tr className={item.isActive ? '' : styles.inactiveRow}>
+                      <td>{catLabel}</td>
+                      <td className={styles.subgroupCell}>{item.subgroup || '—'}</td>
+                      <td>
+                        <div className={styles.nameCell}>{item.name}</div>
+                        {item.description ? (
+                          <div className={styles.desc}>{item.description}</div>
+                        ) : null}
+                      </td>
+                      <td className={styles.num}>{formatPriceCell(item)}</td>
+                      <td>
+                        <span className={item.isActive ? styles.badgeOn : styles.badgeOff}>
+                          {item.isActive ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className={styles.num}>{item.ordenIndex}</td>
+                      <td className={styles.actions}>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title={item.isActive ? 'Desactivar' : 'Activar'}
+                          aria-label={item.isActive ? 'Desactivar' : 'Activar'}
+                          onClick={() => onToggle(item)}
+                        >
+                          {item.isActive ? <FiToggleRight /> : <FiToggleLeft />}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title="Editar"
+                          aria-label="Editar"
+                          onClick={() => openEdit(item)}
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          title="Desactivar"
+                          aria-label="Desactivar"
+                          onClick={() => onDelete(item)}
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -496,6 +564,21 @@ export default function MenuConsumosTab() {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className={styles.field}>
+              <span>Subgrupo</span>
+              <input
+                list="menu-subgroup-suggestions"
+                value={form.subgroup}
+                onChange={(e) => setForm((f) => ({ ...f, subgroup: e.target.value }))}
+                placeholder="Ej. Ensaladas, Licuados…"
+              />
+              <datalist id="menu-subgroup-suggestions">
+                {subgroupSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </label>
 
             <label className={styles.field}>

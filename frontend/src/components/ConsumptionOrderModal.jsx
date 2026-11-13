@@ -63,12 +63,24 @@ function newLine() {
   };
 }
 
+function subgroupKey(value) {
+  const s = String(value || '').trim();
+  return s || '';
+}
+
+function subgroupSortValue(value) {
+  const s = subgroupKey(value);
+  // Sin subgrupo al final del grupo de categoría
+  return s || '\uffff';
+}
+
 /** Expande ítems con variedades a opciones elegibles (Chica/Grande, etc.). */
 function expandMenuOptions(menuItems) {
   const out = [];
   for (const item of menuItems) {
     if (item.isActive === false) continue;
     const varieties = Array.isArray(item.varieties) ? item.varieties : [];
+    const subgroup = subgroupKey(item.subgroup);
     if (varieties.length === 0) {
       out.push({
         optionKey: `item-${item.id}`,
@@ -78,6 +90,7 @@ function expandMenuOptions(menuItems) {
         name: item.name,
         displayName: item.name,
         category: item.category,
+        subgroup,
         price: Number(item.price),
         ordenIndex: item.ordenIndex || 0
       });
@@ -92,6 +105,7 @@ function expandMenuOptions(menuItems) {
         name: item.name,
         displayName: `${item.name} — ${variety.name}`,
         category: item.category,
+        subgroup,
         price: Number(variety.price),
         ordenIndex: item.ordenIndex || 0
       });
@@ -114,7 +128,7 @@ function filterMenuItems(menuItems, query) {
   let list = expandMenuOptions(menuItems);
   if (q) {
     list = list.filter((i) => {
-      const hay = `${i.displayName} ${i.name} ${i.varietyName || ''} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
+      const hay = `${i.displayName} ${i.name} ${i.varietyName || ''} ${i.subgroup || ''} ${CATEGORY_LABELS[i.category] || i.category}`.toLowerCase();
       return hay.includes(q);
     });
   }
@@ -122,12 +136,20 @@ function filterMenuItems(menuItems, query) {
     const ca = CATEGORY_ORDER.indexOf(a.category);
     const cb = CATEGORY_ORDER.indexOf(b.category);
     if (ca !== cb) return ca - cb;
+    const bySub = subgroupSortValue(a.subgroup).localeCompare(subgroupSortValue(b.subgroup), 'es');
+    if (bySub !== 0) return bySub;
     const byOrden = (a.ordenIndex || 0) - (b.ordenIndex || 0);
     if (byOrden !== 0) return byOrden;
     const byName = a.name.localeCompare(b.name, 'es');
     if (byName !== 0) return byName;
     return String(a.varietyName || '').localeCompare(String(b.varietyName || ''), 'es');
   });
+}
+
+function optionGroupLabel(item) {
+  const cat = CATEGORY_LABELS[item.category] || item.category || '';
+  if (item.subgroup) return `${cat} · ${item.subgroup}`;
+  return cat;
 }
 
 function resolvePresetKey(list, preset) {
@@ -820,25 +842,34 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                             {options.length === 0 ? (
                               <li className={styles.dropdownEmpty}>Sin resultados</li>
                             ) : (
-                              options.map((item, idx) => (
-                                <li key={item.optionKey}>
-                                  <button
-                                    type="button"
-                                    role="option"
-                                    data-idx={idx}
-                                    aria-selected={idx === line.highlight}
-                                    className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
-                                    onMouseEnter={() => updateLine(line.key, { highlight: idx })}
-                                    onClick={() => selectItem(line.key, item)}
-                                  >
-                                    <span className={styles.itemCat}>
-                                      {CATEGORY_LABELS[item.category] || item.category}
-                                    </span>
-                                    <span className={styles.itemName}>{item.displayName}</span>
-                                    <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
-                                  </button>
-                                </li>
-                              ))
+                              options.map((item, idx) => {
+                                const prev = idx > 0 ? options[idx - 1] : null;
+                                const showGroup =
+                                  !prev ||
+                                  prev.category !== item.category ||
+                                  subgroupKey(prev.subgroup) !== subgroupKey(item.subgroup);
+                                return (
+                                  <li key={item.optionKey} className={styles.dropdownOptionWrap}>
+                                    {showGroup ? (
+                                      <div className={styles.dropdownGroup} aria-hidden="true">
+                                        {optionGroupLabel(item)}
+                                      </div>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      role="option"
+                                      data-idx={idx}
+                                      aria-selected={idx === line.highlight}
+                                      className={`${styles.dropdownItem} ${idx === line.highlight ? styles.dropdownItemActive : ''}`}
+                                      onMouseEnter={() => updateLine(line.key, { highlight: idx })}
+                                      onClick={() => selectItem(line.key, item)}
+                                    >
+                                      <span className={styles.itemName}>{item.displayName}</span>
+                                      <span className={styles.itemPrice}>{formatMoney(item.price)}</span>
+                                    </button>
+                                  </li>
+                                );
+                              })
                             )}
                           </ul>
                         ) : null}
