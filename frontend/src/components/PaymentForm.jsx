@@ -109,7 +109,7 @@ const PaymentForm = ({ reservaId, onClose, onSuccess }) => {
         empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(formData.metodo) ? formData.empresa : undefined,
         referencia: formData.referencia || null,
         notas: formData.notas || null,
-        fecha: new Date().toISOString().split('T')[0]
+        fecha: new Date().toISOString()
       };
 
       const nuevoPago = await createPago(reservaId, pagoData);

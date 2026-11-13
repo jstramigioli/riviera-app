@@ -518,6 +518,7 @@ model ReservationSegment {
 
 model Pago {
   id         Int         @id @default(autoincrement())
+  codigo     String      @unique // A000…A999, B000… (papelitos / Estado de cuentas)
   reservaId  Int
   reserva    Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   fecha      DateTime    @default(now())
