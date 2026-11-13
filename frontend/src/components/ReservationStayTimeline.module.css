@@ -22,13 +22,41 @@
   flex: 1 1 auto;
 }
 
-.clientName {
+.clientName,
+.clientNameButton {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--color-primary-dark, #334d70);
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
+
+.clientNameButton {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(51, 77, 112, 0.35);
+}
+
+.clientNameButton:hover,
+.clientNameButton:focus-visible {
+  color: var(--color-primary, #3f5f8a);
+  text-decoration-color: currentColor;
+}
+
+.clientNameButton:focus-visible {
+  outline: 2px solid var(--color-primary, #3f5f8a);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .totalNights {
@@ -139,7 +167,6 @@
   gap: 10px;
 }
 
-/* Creación + check-in juntos a la izquierda; el tramo de estadía empuja check-out a la derecha. */
 .itemEdgeCompact {
   flex: 0 0 28px;
   min-width: 28px;
@@ -157,6 +184,24 @@
   background: var(--color-primary, #3f5f8a);
   opacity: 0.45;
   border-radius: 1px;
+}
+
+.segmentStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 180px;
+}
+
+.segmentConnector {
+  width: 2px;
+  height: 12px;
+  margin-top: -10px;
+  background: var(--color-primary, #3f5f8a);
+  opacity: 0.4;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
 .segmentCard {
@@ -211,7 +256,8 @@
     width: 100%;
   }
 
-  .clientName {
+  .clientName,
+  .clientNameButton {
     font-size: 1.2rem;
   }
 

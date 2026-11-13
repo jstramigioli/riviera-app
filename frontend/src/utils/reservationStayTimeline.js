@@ -80,6 +80,17 @@ const serviceLabelFor = (seg, getServiceTypeLabel) => {
   return String(id);
 };
 
+const roomTypeLabel = (seg) => {
+  if (!seg) return '—';
+  const type =
+    seg.roomType?.name ||
+    seg.room?.roomType?.name ||
+    seg.virtualRoom?.roomType?.name ||
+    null;
+  if (type) return String(type);
+  return '—';
+};
+
 const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
   if (!seg) return null;
   const start = seg.startDate || seg.checkIn;
@@ -90,6 +101,7 @@ const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
   const nights = civilNights(start, end);
   return {
     room: roomLabel(seg),
+    roomType: roomTypeLabel(seg),
     service: serviceLabelFor(seg, getServiceTypeLabel),
     guests,
     nights
@@ -122,8 +134,8 @@ const changeTitle = (kind) => {
 
 /**
  * Arma nodos + tramos del timeline de estadía para el detalle de reserva.
- * Nodos: creación, check-in, cambios (multi-tramo), check-out.
- * Cards de tramo (habitación / servicio / huéspedes / noches) solo entre check-in y check-out.
+ * Nodos: check-in, cambios (multi-tramo), check-out.
+ * Cards de tramo (habitación / tipo / servicio / huéspedes / noches) solo entre check-in y check-out.
  */
 export function buildReservationStayTimeline(reservation, options = {}) {
   const getServiceTypeLabel = options.getServiceTypeLabel;
@@ -134,7 +146,6 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     return aStart.localeCompare(bStart);
   });
 
-  const createdAt = reservation?.createdAt || null;
   const checkIn =
     reservation?.checkIn ||
     segments[0]?.startDate ||
@@ -150,28 +161,11 @@ export function buildReservationStayTimeline(reservation, options = {}) {
   const totalNights = Number(reservation?.days) > 0 ? Number(reservation.days) : nightsFromDates;
   const fallbackGuests = reservation?.requiredGuests || 1;
   const clientName = `${reservation?.mainClient?.firstName || ''} ${reservation?.mainClient?.lastName || ''}`.trim();
+  const clientId = reservation?.mainClient?.id || null;
   const totalAmount = resolveReservationTotal(reservation, totalNights);
 
   const items = [];
-
-  items.push({
-    type: 'node',
-    id: 'creation',
-    kind: 'creation',
-    title: 'Creación',
-    date: createdAt,
-    dateLabel: formatShortDate(createdAt)
-  });
-
   const firstSeg = segments[0] || null;
-  // Tramo corto sin card: creación cerca de check-in a la izquierda.
-  items.push({
-    type: 'edge',
-    id: 'edge-pre-checkin',
-    compact: true,
-    label: null,
-    card: null
-  });
 
   items.push({
     type: 'node',
@@ -230,6 +224,7 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     isMultiSegment: segments.length > 1,
     header: {
       clientName: clientName || '—',
+      clientId,
       totalNights,
       totalAmount
     }
