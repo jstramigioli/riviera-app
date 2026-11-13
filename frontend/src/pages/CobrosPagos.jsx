@@ -42,6 +42,22 @@ function formatDisplayDate(value) {
   return iso.split('-').reverse().join('/');
 }
 
+function formatDisplayDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function paymentCodeLabel(pago) {
+  return pago?.codigo || (pago?.id != null ? `Nº ${pago.id}` : '—');
+}
+
 function startOfDay(isoDate) {
   if (!isoDate) return null;
   const date = new Date(`${isoDate}T00:00:00`);
@@ -270,12 +286,7 @@ const CobrosPagos = () => {
           {activeSection === SECTIONS.cuentas && (
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
-                <div>
-                  <h2>Cuentas pendientes</h2>
-                  <p className={styles.sectionHint}>
-                    Saldos por reserva. Por defecto solo alojadas ahora (ingresadas).
-                  </p>
-                </div>
+                <h2>Cuentas pendientes</h2>
               </div>
 
               <div className={styles.filters} aria-label="Filtros de cuentas">
@@ -332,17 +343,17 @@ const CobrosPagos = () => {
                 <div className={styles.filterGroup}>
                   <span className={styles.filterLabel}>Fechas</span>
                   <label className={styles.dateField}>
-                    Desde
                     <input
                       type="date"
+                      aria-label="Fecha desde"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
                     />
                   </label>
                   <label className={styles.dateField}>
-                    Hasta
                     <input
                       type="date"
+                      aria-label="Fecha hasta"
                       value={dateTo}
                       min={dateFrom || undefined}
                       onChange={(e) => setDateTo(e.target.value)}
@@ -398,7 +409,7 @@ const CobrosPagos = () => {
                       <tr>
                         <th>Reserva</th>
                         <th>Estado</th>
-                        <th>Nº pagos</th>
+                        <th>Códigos</th>
                         <th>Cliente</th>
                         <th>Cargos</th>
                         <th>Pagado</th>
@@ -444,11 +455,11 @@ const CobrosPagos = () => {
                               {paymentList.length > 0 ? (
                                 <div
                                   className={styles.paymentIdList}
-                                  title="Números de pago para papelitos"
+                                  title="Códigos de pago para papelitos"
                                 >
                                   {paymentList.map((pago) => (
                                     <span key={pago.id} className={styles.paymentId}>
-                                      Nº {pago.id}
+                                      {paymentCodeLabel(pago)}
                                     </span>
                                   ))}
                                 </div>
@@ -513,29 +524,24 @@ const CobrosPagos = () => {
           {activeSection === SECTIONS.pagos && (
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
-                <div>
-                  <h2>Pagos</h2>
-                  <p className={styles.sectionHint}>
-                    Cada pago es una fila. Una misma reserva puede aparecer varias veces.
-                  </p>
-                </div>
+                <h2>Pagos</h2>
               </div>
 
               <div className={styles.filters} aria-label="Filtros de pagos">
                 <div className={styles.filterGroup}>
                   <span className={styles.filterLabel}>Fechas</span>
                   <label className={styles.dateField}>
-                    Desde
                     <input
                       type="date"
+                      aria-label="Fecha desde"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
                     />
                   </label>
                   <label className={styles.dateField}>
-                    Hasta
                     <input
                       type="date"
+                      aria-label="Fecha hasta"
                       value={dateTo}
                       min={dateFrom || undefined}
                       onChange={(e) => setDateTo(e.target.value)}
@@ -589,7 +595,7 @@ const CobrosPagos = () => {
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th>Nº pago</th>
+                        <th>Código</th>
                         <th>Fecha</th>
                         <th>Reserva</th>
                         <th>Cliente</th>
@@ -609,9 +615,9 @@ const CobrosPagos = () => {
 
                         return (
                           <tr key={pago.id} className={styles.row}>
-                            <td className={styles.idCell}>Nº {pago.id}</td>
+                            <td className={styles.idCell}>{paymentCodeLabel(pago)}</td>
                             <td className={styles.metaCell}>
-                              {formatDisplayDate(pago.fecha)}
+                              {formatDisplayDateTime(pago.fecha)}
                             </td>
                             <td className={styles.idCell}>
                               #{pago.reservaId || pago.reserva?.id || '—'}

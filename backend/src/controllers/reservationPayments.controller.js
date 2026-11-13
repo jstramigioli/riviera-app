@@ -1,6 +1,7 @@
 const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
+const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
 
 // ============================================
 // CONTROLADORES DE PAGOS
@@ -116,20 +117,29 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(monto);
     }
 
-    const nuevoPago = await prisma.pago.create({
-      data: {
-        reservaId: parseInt(reservaId),
-        monto: new Decimal(monto),
-        moneda: monedaFinal,
-        tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
-        montoARS: montoARS,
-        metodo,
-        numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? numeroTarjeta : null,
-        empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
-        referencia: referencia || null,
-        notas: notas || null,
-        fecha: fecha ? new Date(fecha) : new Date()
-      }
+    const fechaPago = fecha ? new Date(fecha) : new Date();
+    if (Number.isNaN(fechaPago.getTime())) {
+      return res.status(400).json({ error: 'Fecha de pago inválida' });
+    }
+
+    const nuevoPago = await prisma.$transaction(async (tx) => {
+      const codigo = await allocateNextPagoCodigo(tx);
+      return tx.pago.create({
+        data: {
+          codigo,
+          reservaId: parseInt(reservaId),
+          monto: new Decimal(monto),
+          moneda: monedaFinal,
+          tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
+          montoARS: montoARS,
+          metodo,
+          numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? numeroTarjeta : null,
+          empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
+          referencia: referencia || null,
+          notas: notas || null,
+          fecha: fechaPago,
+        },
+      });
     });
     res.status(201).json(nuevoPago);
   } catch (error) {
@@ -831,7 +841,7 @@ exports.getReservasConSaldos = async (req, res) => {
           }
         },
         cargos: { select: { monto: true } },
-        pagos: { select: { id: true, montoARS: true, fecha: true } },
+        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } },
         _count: { select: { guests: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -852,9 +862,14 @@ exports.getReservasConSaldos = async (req, res) => {
         totalPagos,
         saldo,
         estadoPago,
-        // Nº de pago para papelitos / ubicación rápida (id estable)
+        // Código de pago (A000…) para papelitos / ubicación rápida
         pagos: (reserva.pagos || [])
-          .map((pago) => ({ id: pago.id, montoARS: pago.montoARS, fecha: pago.fecha }))
+          .map((pago) => ({
+            id: pago.id,
+            codigo: pago.codigo,
+            montoARS: pago.montoARS,
+            fecha: pago.fecha,
+          }))
           .sort((a, b) => a.id - b.id),
         createdAt: reserva.createdAt,
         updatedAt: reserva.updatedAt
