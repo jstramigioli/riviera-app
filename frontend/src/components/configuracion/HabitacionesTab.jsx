@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRooms, fetchRoomTypes, updateRoomOnServer, createRoom, deleteRoom } from '../../services/api';
 import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
+import { defaultBedsForCapacity, formatBedsSummary, validateBedsAgainstCapacity } from '../../utils/bedConfig';
 import { useTags } from '../../hooks/useTags';
 import RoomTypesPanel from './RoomTypesPanel';
 import EtiquetasTab from './EtiquetasTab';
 import VirtualRoomsPanel from './VirtualRoomsPanel';
+import RoomBedsEditor from './RoomBedsEditor';
 import '../../styles/variables.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
@@ -23,7 +25,8 @@ function HabitacionesTab() {
     name: '',
     description: '',
     roomTypeId: '',
-    tagIds: []
+    tagIds: [],
+    beds: []
   });
   const [saving, setSaving] = useState(false);
 
@@ -59,11 +62,20 @@ function HabitacionesTab() {
 
   const handleEdit = (room) => {
     setEditingRoom(room.id);
+    const capacity = room.maxPeople || getRoomTypeById(room.roomTypeId)?.maxPeople || 1;
     setEditForm({
       name: room.name,
       description: room.description || '',
       roomTypeId: room.roomTypeId,
-      tagIds: room.tags ? room.tags.map(tag => tag.id) : []
+      tagIds: room.tags ? room.tags.map(tag => tag.id) : [],
+      beds: Array.isArray(room.beds) && room.beds.length > 0
+        ? room.beds.map((b, i) => ({
+            id: b.id,
+            bedType: b.bedType,
+            isSeparable: Boolean(b.isSeparable),
+            orderIndex: b.orderIndex ?? i
+          }))
+        : defaultBedsForCapacity(capacity)
     });
   };
 
@@ -73,6 +85,13 @@ function HabitacionesTab() {
   };
 
   const handleSaveEdit = async (roomId) => {
+    const roomType = getRoomTypeById(editForm.roomTypeId);
+    const maxPeople = roomType?.maxPeople || 1;
+    const bedsCheck = validateBedsAgainstCapacity(editForm.beds || [], maxPeople);
+    if (!bedsCheck.ok) {
+      notify({ title: 'Validación', message: bedsCheck.message, type: 'warning' });
+      return;
+    }
     try {
       const updatedRoom = await updateRoomOnServer(roomId, editForm);
       setRooms(prev => prev.map(room => 
@@ -82,31 +101,47 @@ function HabitacionesTab() {
       setEditForm({});
     } catch (error) {
       console.error('Error actualizando habitación:', error);
-      notify({ title: 'Error', message: 'Error al actualizar la habitación', type: 'error' });
+      notify({ title: 'Error', message: error.message || 'Error al actualizar la habitación', type: 'error' });
     }
   };
 
   const handleInputChange = (field, value) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setEditForm(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'roomTypeId') {
+        const type = roomTypes.find(t => t.id === Number(value));
+        const maxPeople = type?.maxPeople || 1;
+        const current = prev.beds || [];
+        const check = validateBedsAgainstCapacity(current, maxPeople);
+        if (!check.ok || current.length === 0) {
+          next.beds = defaultBedsForCapacity(maxPeople);
+        }
+      }
+      return next;
+    });
   };
 
   const handleNewRoomInputChange = (field, value) => {
-    setNewRoomForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setNewRoomForm(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'roomTypeId') {
+        const type = roomTypes.find(t => t.id === Number(value));
+        next.beds = defaultBedsForCapacity(type?.maxPeople || 1);
+      }
+      return next;
+    });
   };
 
   const handleAddRoom = () => {
     setShowAddModal(true);
+    const initialTypeId = roomTypes.length > 0 ? roomTypes[0].id : '';
+    const maxPeople = roomTypes.find(t => t.id === initialTypeId)?.maxPeople || 1;
     setNewRoomForm({
       name: '',
       description: '',
-      roomTypeId: roomTypes.length > 0 ? roomTypes[0].id : '',
-      tagIds: []
+      roomTypeId: initialTypeId,
+      tagIds: [],
+      beds: defaultBedsForCapacity(maxPeople)
     });
   };
 
@@ -116,13 +151,21 @@ function HabitacionesTab() {
       name: '',
       description: '',
       roomTypeId: '',
-      tagIds: []
+      tagIds: [],
+      beds: []
     });
   };
 
   const handleSaveNewRoom = async () => {
     if (!newRoomForm.name.trim() || !newRoomForm.roomTypeId) {
       notify({ title: 'Validación', message: 'El nombre y tipo de habitación son obligatorios', type: 'warning' });
+      return;
+    }
+    const roomType = getRoomTypeById(newRoomForm.roomTypeId);
+    const maxPeople = roomType?.maxPeople || 1;
+    const bedsCheck = validateBedsAgainstCapacity(newRoomForm.beds || [], maxPeople);
+    if (!bedsCheck.ok) {
+      notify({ title: 'Validación', message: bedsCheck.message, type: 'warning' });
       return;
     }
 
@@ -135,11 +178,12 @@ function HabitacionesTab() {
         name: '',
         description: '',
         roomTypeId: '',
-        tagIds: []
+        tagIds: [],
+        beds: []
       });
     } catch (error) {
       console.error('Error creando habitación:', error);
-      notify({ title: 'Error', message: 'Error al crear la habitación', type: 'error' });
+      notify({ title: 'Error', message: error.message || 'Error al crear la habitación', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -332,6 +376,16 @@ function HabitacionesTab() {
                     color: 'var(--color-text-main)',
                     fontSize: 'var(--font-size-small)'
                   }}>
+                    Camas
+                  </th>
+                  <th style={{ 
+                    padding: '12px', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid var(--color-border)',
+                    fontWeight: '600',
+                    color: 'var(--color-text-main)',
+                    fontSize: 'var(--font-size-small)'
+                  }}>
                     Etiquetas
                   </th>
                   <th style={{ 
@@ -410,6 +464,19 @@ function HabitacionesTab() {
                             fontWeight: '500'
                           }}>
                             {roomType ? getRoomTypeLabel(roomType.name) : 'Sin tipo'}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', minWidth: '220px' }}>
+                        {editingRoom === room.id ? (
+                          <RoomBedsEditor
+                            beds={editForm.beds || []}
+                            maxPeople={getRoomTypeById(editForm.roomTypeId)?.maxPeople || room.maxPeople || 1}
+                            onChange={(beds) => handleInputChange('beds', beds)}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
+                            {formatBedsSummary(room.beds)}
                           </span>
                         )}
                       </td>
@@ -741,6 +808,13 @@ function HabitacionesTab() {
                   placeholder="Descripción de la habitación..."
                 />
               </div>
+
+              {/* Camas */}
+              <RoomBedsEditor
+                beds={newRoomForm.beds || []}
+                maxPeople={getRoomTypeById(newRoomForm.roomTypeId)?.maxPeople || 1}
+                onChange={(beds) => handleNewRoomInputChange('beds', beds)}
+              />
 
               {/* Etiquetas */}
               <div>

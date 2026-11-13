@@ -339,7 +339,10 @@ export async function updateRoomOnServer(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating room');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error updating room');
+  }
   return res.json();
 }
 
@@ -349,7 +352,10 @@ export async function createRoom(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creando habitación');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error creando habitación');
+  }
   return res.json();
 }
 

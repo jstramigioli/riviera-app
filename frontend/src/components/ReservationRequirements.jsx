@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTags } from '../hooks/useTags';
 import { fetchRooms } from '../services/api';
+import BedPreferenceFields from './BedPreferenceFields';
+import { roomCanSatisfyBedPreference } from '../utils/bedConfig';
 import '../styles/variables.css';
 
 function ReservationRequirements({ 
@@ -62,6 +64,11 @@ function ReservationRequirements({
     });
   };
 
+  const selectedRoom = rooms.find((r) => r.id === requirements.requiredRoomId);
+  const bedWarning = selectedRoom
+    ? roomCanSatisfyBedPreference(selectedRoom.beds || [], requirements)
+    : { complies: true };
+
   return (
     <div style={{
       backgroundColor: 'var(--color-bg)',
@@ -113,6 +120,14 @@ function ReservationRequirements({
         </select>
       </div>
 
+      <div style={{ marginBottom: '20px' }}>
+        <BedPreferenceFields
+          value={requirements}
+          maxGuests={requirements.requiredGuests || 8}
+          onChange={(pref) => onRequirementsChange({ ...requirements, ...pref })}
+        />
+      </div>
+
       {/* Habitación Específica */}
       <div style={{ marginBottom: '20px' }}>
         <label style={{
@@ -147,6 +162,11 @@ function ReservationRequirements({
             ))
           )}
         </select>
+        {!bedWarning.complies && (
+          <div role="status" style={{ marginTop: '8px', color: '#9a3412', fontSize: 'var(--font-size-small)' }}>
+            Aviso camas: {bedWarning.message}
+          </div>
+        )}
       </div>
 
       {/* Requerimientos */}
