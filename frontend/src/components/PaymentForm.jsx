@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiDollarSign, FiSave, FiX } from 'react-icons/fi';
+import { FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
   createAccountPago,
   fetchReservation,
   fetchCuentasParaPago,
   getClientBillingProfile,
-  getTipoCambioActual
+  getTipoCambioActual,
+  uploadPagoAdjuntos
 } from '../services/api';
 import {
   DEFAULT_PAGO_MOTIVO,
@@ -23,6 +24,12 @@ import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
 const MODE_DEVOLUCION = 'devolucion';
+const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
+const COMPROBANTE_ACCEPT = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png';
+
+function isTransferencia(metodo) {
+  return String(metodo || '').trim().toLowerCase() === 'transferencia';
+}
 
 function reservationOptionLabel(row) {
   if (row.label) return row.label;
@@ -95,7 +102,6 @@ const PaymentForm = ({
     metodo: 'Efectivo',
     numeroTarjeta: '',
     empresa: '',
-    referencia: '',
     notas: ''
   });
 
@@ -103,11 +109,13 @@ const PaymentForm = ({
   const [requiereFacturacion, setRequiereFacturacion] = useState(false);
   const billingEnabled = billingForced || requiereFacturacion;
   const [billing, setBilling] = useState(() => emptyBillingForm());
+  const [comprobanteFiles, setComprobanteFiles] = useState([]);
 
   const [tipoCambioGlobal, setTipoCambioGlobal] = useState(null);
   const [montoARS, setMontoARS] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const showComprobanteField = isTransferencia(formData.metodo);
 
   const showInvoiceCardField = billingEnabled && !isCardMethod(formData.metodo);
 
@@ -224,16 +232,25 @@ const PaymentForm = ({
 
   const handleInputChange = (field, value) => {
     setError(null);
-    if (field === 'metodo' && !isCardMethod(value)) {
-      setFormData((prev) => ({
-        ...prev,
-        metodo: value,
-        numeroTarjeta: '',
-        empresa: ''
-      }));
-      return;
+    if (field === 'metodo') {
+      if (!isTransferencia(value)) setComprobanteFiles([]);
+      if (!isCardMethod(value)) {
+        setFormData((prev) => ({
+          ...prev,
+          metodo: value,
+          numeroTarjeta: '',
+          empresa: ''
+        }));
+        return;
+      }
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleComprobanteChange = (fileList) => {
+    setError(null);
+    const next = Array.from(fileList || []);
+    setComprobanteFiles(next);
   };
 
   const handleBillingChange = (field, value) => {
@@ -342,7 +359,6 @@ const PaymentForm = ({
         motivo: motivoActual,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
-        referencia: formData.referencia || null,
         notas: formData.notas || null,
         requiereFacturacion: billingEnabled,
         factura: facturaPayload
@@ -354,6 +370,35 @@ const PaymentForm = ({
       } else {
         nuevoPago = await createPago(reservaId, pagoData);
       }
+
+      if (
+        showComprobanteField &&
+        comprobanteFiles.length > 0 &&
+        nuevoPago?.id != null
+      ) {
+        try {
+          const adjuntos = await uploadPagoAdjuntos(
+            nuevoPago.id,
+            ADJUNTO_COMPROBANTE,
+            comprobanteFiles
+          );
+          nuevoPago = {
+            ...nuevoPago,
+            adjuntos: [...(nuevoPago.adjuntos || []), ...(adjuntos || [])]
+          };
+        } catch (uploadErr) {
+          // El pago ya quedó creado; el comprobante se puede adjuntar luego en Pagos.
+          setError(
+            uploadErr.message
+              ? `Pago guardado, pero falló el comprobante: ${uploadErr.message}. Podés adjuntarlo luego en Pagos.`
+              : 'Pago guardado, pero falló el comprobante. Podés adjuntarlo luego en Pagos.'
+          );
+          onSuccess?.(nuevoPago);
+          setLoading(false);
+          return;
+        }
+      }
+
       onSuccess?.(nuevoPago);
       onClose();
     } catch (err) {
@@ -375,7 +420,6 @@ const PaymentForm = ({
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
         <div className={styles.header}>
           <h2 id="payment-form-title">
-            <FiDollarSign />
             {isDevolucion ? 'Nueva devolución' : 'Nuevo pago'}
           </h2>
           <button
@@ -537,18 +581,42 @@ const PaymentForm = ({
             )}
           </div>
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-ref">Referencia</label>
-              <input
-                id="payment-ref"
-                type="text"
-                value={formData.referencia}
-                onChange={(e) => handleInputChange('referencia', e.target.value)}
-                placeholder="Número de comprobante, referencia bancaria, etc."
-              />
+          {showComprobanteField && (
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
+                <label
+                  className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
+                  htmlFor="payment-comprobante"
+                >
+                  <input
+                    id="payment-comprobante"
+                    type="file"
+                    accept={COMPROBANTE_ACCEPT}
+                    multiple
+                    disabled={loading}
+                    onChange={(e) => {
+                      handleComprobanteChange(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                  {comprobanteFiles.length > 0
+                    ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
+                    : 'Adjuntar JPG, PNG o PDF (también se puede después en Pagos)'}
+                </label>
+                {comprobanteFiles.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.comprobanteClear}
+                    disabled={loading}
+                    onClick={() => setComprobanteFiles([])}
+                  >
+                    Quitar archivos
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {isCardMethod(formData.metodo) && (
             <div className={styles.formRow}>

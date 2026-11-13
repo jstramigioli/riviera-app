@@ -4,11 +4,14 @@ import PaymentForm from './PaymentForm'
 
 vi.mock('../services/api', () => ({
   createPago: vi.fn(),
+  createAccountPago: vi.fn(),
+  uploadPagoAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
-  fetchReservasParaPago: vi.fn().mockResolvedValue({
+  fetchCuentasParaPago: vi.fn().mockResolvedValue({
     data: [
       {
         reservationId: 11,
+        accountId: 101,
         roomName: '101',
         clientId: 5,
         clientLastName: 'Pérez',
@@ -37,12 +40,18 @@ vi.mock('../services/api', () => ({
   })
 }))
 
-import { createPago, fetchReservasParaPago, getClientBillingProfile } from '../services/api'
+import {
+  createPago,
+  fetchCuentasParaPago,
+  getClientBillingProfile,
+  uploadPagoAdjuntos
+} from '../services/api'
 
 describe('PaymentForm facturación', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    createPago.mockResolvedValue({ id: 1, codigo: 'A001' })
+    createPago.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
+    uploadPagoAdjuntos.mockResolvedValue([])
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
@@ -97,6 +106,8 @@ describe('PaymentForm facturación', () => {
       'false'
     )
     expect(screen.queryByLabelText(/^Motivo/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Referencia/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Nuevo pago' })).toBeInTheDocument()
 
     const sena = screen.getByLabelText(/^Seña$/i)
     expect(sena).not.toBeChecked()
@@ -112,6 +123,7 @@ describe('PaymentForm facturación', () => {
         expect.objectContaining({ monto: 1500, motivo: 'Seña' })
       )
     )
+    expect(createPago.mock.calls[0][1]).not.toHaveProperty('referencia')
   })
 
   it('Nueva devolución envía motivo Devolución', async () => {
@@ -134,15 +146,44 @@ describe('PaymentForm facturación', () => {
     )
   })
 
-  it('sin reservaId carga Select con reservas para pago (no occupied-today)', async () => {
+  it('sin reservaId carga Select con cuentas para pago', async () => {
     render(<PaymentForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
-    await waitFor(() => expect(fetchReservasParaPago).toHaveBeenCalled())
+    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
 
-    const select = screen.getByLabelText(/Reserva/i)
+    const select = screen.getByLabelText(/Cuenta/i)
     expect(select).toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: '101 - Pérez' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
     })
+  })
+
+  it('Transferencia muestra comprobante opcional y lo sube tras crear', async () => {
+    const file = new File(['pdf'], 'comp.pdf', { type: 'application/pdf' })
+    uploadPagoAdjuntos.mockResolvedValue([
+      { id: 9, tipo: 'COMPROBANTE', originalName: 'comp.pdf' }
+    ])
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+
+    const input = screen.getByLabelText(/Comprobante \(opcional\)/i)
+    expect(input).toBeInTheDocument()
+    fireEvent.change(input, { target: { files: [file] } })
+
+    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '2000' } })
+    fireEvent.change(screen.getByLabelText(/Fecha de facturación/i), {
+      target: { value: '2026-11-13' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+
+    await waitFor(() => expect(createPago).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(uploadPagoAdjuntos).toHaveBeenCalledWith(1, 'COMPROBANTE', [file])
+    )
   })
 })

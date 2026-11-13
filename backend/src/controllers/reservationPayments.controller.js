@@ -244,7 +244,6 @@ exports.createPago = async (req, res) => {
     tipoTarjeta,
     numeroTarjeta,
     empresa,
-    referencia,
     notas,
     motivo,
     requiereFacturacion,
@@ -352,7 +351,6 @@ exports.createPago = async (req, res) => {
           metodo,
           numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? numeroTarjeta : null,
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo) ? empresa : null,
-          referencia: referencia || null,
           notas: notas || null,
           motivo: motivoPago,
           fecha: fechaPago,
@@ -407,7 +405,6 @@ exports.updatePago = async (req, res) => {
     tipoTarjeta,
     numeroTarjeta,
     empresa,
-    referencia,
     notas,
     fecha,
     retirado
@@ -484,7 +481,6 @@ exports.updatePago = async (req, res) => {
     if (metodo !== undefined) dataToUpdate.metodo = metodo;
     if (numeroTarjeta !== undefined) dataToUpdate.numeroTarjeta = numeroTarjeta;
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
-    if (referencia !== undefined) dataToUpdate.referencia = referencia;
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
 

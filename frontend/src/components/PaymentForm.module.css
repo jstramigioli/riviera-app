@@ -157,6 +157,58 @@
   gap: 4px;
 }
 
+.comprobanteDropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px dashed #c5ccd8;
+  border-radius: 6px;
+  background: #f5f6f8;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+}
+
+.comprobanteDropzone:hover {
+  border-color: #3f5f8a;
+  color: #334d70;
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.comprobanteDropzone input {
+  display: none;
+}
+
+.comprobanteDropzoneBusy {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.comprobanteClear {
+  margin-top: 6px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #6b7280;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.comprobanteClear:hover:not(:disabled) {
+  color: #374151;
+}
+
+.comprobanteClear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .paymentSummary {
   background-color: #f9fafb;
   border: 1px solid #e5e7eb;

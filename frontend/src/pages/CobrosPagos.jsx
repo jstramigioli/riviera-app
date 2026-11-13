@@ -48,6 +48,7 @@ const FACTURA_B_COLUMNS = [
 const FACTURA_A_COLUMNS = [
   { key: 'codigo', label: 'Código' },
   { key: 'fecha', label: 'Fecha' },
+  { key: 'montoSinIva', label: 'Monto sin IVA' },
   { key: 'businessName', label: 'Razón social' },
   { key: 'cuit', label: 'CUIT' },
   { key: 'commercialAddress', label: 'Dom. comercial' },
@@ -56,10 +57,24 @@ const FACTURA_A_COLUMNS = [
   { key: 'cardNumber', label: 'Tarjeta / N°' },
 ];
 
+/** Neto: total con IVA / 1.21 (solo Factura A). */
+function montoSinIvaFromPago(pago) {
+  const total = Number(pago?.montoARS != null ? pago.montoARS : pago?.monto) || 0;
+  return Math.abs(total) / 1.21;
+}
+
+function formatCurrencyARS(price) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+  }).format(Number(price) || 0);
+}
+
 function facturaCellValue(pago, key) {
   if (key === 'codigo') return paymentCodeLabel(pago);
   // Solo día (sin hora): fecha de facturación, que puede diferir de la del pago.
   if (key === 'fecha') return formatDisplayDate(pago?.factura?.fecha || pago?.fecha);
+  if (key === 'montoSinIva') return formatCurrencyARS(montoSinIvaFromPago(pago));
   const raw = pago?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
@@ -486,7 +501,16 @@ const CobrosPagos = () => {
               rows.map((pago) => (
                 <tr key={pago.id} className={styles.row}>
                   {columns.map((col) => (
-                    <td key={col.key} className={col.key === 'codigo' ? styles.idCell : styles.metaCell}>
+                    <td
+                      key={col.key}
+                      className={
+                        col.key === 'codigo'
+                          ? styles.idCell
+                          : col.key === 'montoSinIva'
+                            ? styles.amountCell
+                            : styles.metaCell
+                      }
+                    >
                       {renderCopyCell(facturaCellValue(pago, col.key))}
                     </td>
                   ))}
