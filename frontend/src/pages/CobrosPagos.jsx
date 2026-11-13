@@ -579,13 +579,6 @@ const CobrosPagos = () => {
                 )}
               </div>
 
-              <div className={styles.panelHeader}>
-                <h3>
-                  {filteredPayments.length} pago
-                  {filteredPayments.length === 1 ? '' : 's'}
-                </h3>
-              </div>
-
               {filteredPayments.length === 0 ? (
                 <div className={styles.emptyState}>
                   <p>No hay pagos con los filtros actuales</p>
