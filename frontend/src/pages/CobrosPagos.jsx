@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiFilter, FiCheck } from 'react-icons/fi';
+import { FiPlus, FiFilter, FiCheck, FiSquare } from 'react-icons/fi';
 import {
   getReservationsWithBalances,
   getAllPagos,
@@ -949,35 +949,30 @@ const CobrosPagos = () => {
                                   </label>
                                 </div>
                               ) : (
-                                <div className={styles.facturaPending}>
-                                  <span className={styles.pendingLabel}>Pendiente</span>
-                                  <label
-                                    className={`${styles.dropzone} ${busyUpload ? styles.dropzoneBusy : ''}`}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => {
-                                      e.preventDefault();
-                                      handleUploadAdjuntos(
-                                        pago,
-                                        ADJUNTO_FACTURA,
-                                        e.dataTransfer.files
-                                      );
+                                <label
+                                  className={`${styles.dropzone} ${styles.dropzonePending} ${busyUpload ? styles.dropzoneBusy : ''}`}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    handleUploadAdjuntos(
+                                      pago,
+                                      ADJUNTO_FACTURA,
+                                      e.dataTransfer.files
+                                    );
+                                  }}
+                                >
+                                  <input
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    multiple
+                                    disabled={busyUpload}
+                                    onChange={(e) => {
+                                      handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+                                      e.target.value = '';
                                     }}
-                                  >
-                                    <input
-                                      type="file"
-                                      accept="application/pdf,.pdf"
-                                      multiple
-                                      disabled={busyUpload}
-                                      onChange={(e) => {
-                                        handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
-                                        e.target.value = '';
-                                      }}
-                                    />
-                                    {busyUpload
-                                      ? 'Subiendo…'
-                                      : 'Arrastrá PDF o hacé clic'}
-                                  </label>
-                                </div>
+                                  />
+                                  {busyUpload ? 'Subiendo…' : 'Pendiente'}
+                                </label>
                               )}
                             </td>
                             <td className={styles.retiradoCell}>
@@ -1014,39 +1009,34 @@ const CobrosPagos = () => {
                                     </label>
                                   </div>
                                 ) : (
-                                  <div className={styles.facturaPending}>
-                                    <span className={styles.pendingLabel}>Agregar comprobante</span>
-                                    <label
-                                      className={`${styles.dropzone} ${busyUpload ? styles.dropzoneBusy : ''}`}
-                                      onDragOver={(e) => e.preventDefault()}
-                                      onDrop={(e) => {
-                                        e.preventDefault();
+                                  <label
+                                    className={`${styles.dropzone} ${styles.dropzonePending} ${busyUpload ? styles.dropzoneBusy : ''}`}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      handleUploadAdjuntos(
+                                        pago,
+                                        ADJUNTO_COMPROBANTE,
+                                        e.dataTransfer.files
+                                      );
+                                    }}
+                                  >
+                                    <input
+                                      type="file"
+                                      accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
+                                      multiple
+                                      disabled={busyUpload}
+                                      onChange={(e) => {
                                         handleUploadAdjuntos(
                                           pago,
                                           ADJUNTO_COMPROBANTE,
-                                          e.dataTransfer.files
+                                          e.target.files
                                         );
+                                        e.target.value = '';
                                       }}
-                                    >
-                                      <input
-                                        type="file"
-                                        accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
-                                        multiple
-                                        disabled={busyUpload}
-                                        onChange={(e) => {
-                                          handleUploadAdjuntos(
-                                            pago,
-                                            ADJUNTO_COMPROBANTE,
-                                            e.target.files
-                                          );
-                                          e.target.value = '';
-                                        }}
-                                      />
-                                      {busyUpload
-                                        ? 'Subiendo…'
-                                        : 'JPG / PNG / PDF'}
-                                    </label>
-                                  </div>
+                                    />
+                                    {busyUpload ? 'Subiendo…' : 'Agregar comprobante'}
+                                  </label>
                                 )
                               ) : (
                                 <button
@@ -1061,7 +1051,7 @@ const CobrosPagos = () => {
                                   {pago.retirado ? (
                                     <FiCheck aria-hidden="true" />
                                   ) : (
-                                    <span aria-hidden="true">—</span>
+                                    <FiSquare aria-hidden="true" />
                                   )}
                                 </button>
                               )}
