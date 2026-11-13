@@ -2,12 +2,15 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
+import { FiCopy, FiCheck } from 'react-icons/fi';
 import ReservationStatusButtons from './ReservationStatusButtons';
 import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
 import ClientContactLinks from './ClientContactLinks';
 import ReservationStayTimeline from './ReservationStayTimeline';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
+import { copyReservationClientSummary } from '../utils/reservationClientSummary';
 import { sourceLabel } from '../constants/reservationSource';
+import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetailsPanel.module.css';
 
 const formatCurrency = (amount) =>
@@ -25,7 +28,9 @@ const ReservationDetailsPanel = ({
   onClose
 }) => {
   const navigate = useNavigate();
+  const { notify, noticeDialog } = useAppNotice();
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   useEffect(() => {
     const loadServiceTypes = async () => {
@@ -88,6 +93,26 @@ const ReservationDetailsPanel = ({
     });
   };
 
+  const handleCopyClientSummary = async () => {
+    try {
+      await copyReservationClientSummary(reservation, { getServiceTypeLabel });
+      setCopiedSummary(true);
+      window.setTimeout(() => setCopiedSummary(false), 1600);
+      notify({
+        title: 'Copiado',
+        message: 'Resumen de la reserva copiado al portapapeles.',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error al copiar resumen de reserva:', error);
+      notify({
+        title: 'Error al copiar',
+        message: 'No se pudo copiar el resumen al portapapeles.',
+        type: 'error'
+      });
+    }
+  };
+
   const clientName = stayHeader?.clientName || '—';
   const clientId = stayHeader?.clientId || reservation.mainClient?.id || null;
   const nightsLabel = stayHeader?.totalNights
@@ -127,6 +152,16 @@ const ReservationDetailsPanel = ({
           </div>
         </div>
         <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.headerIconBtn}
+            onClick={handleCopyClientSummary}
+            title="Copiar resumen para el cliente"
+            aria-label="Copiar resumen para el cliente"
+            data-testid="panel-copy-summary"
+          >
+            {copiedSummary ? <FiCheck /> : <FiCopy />}
+          </button>
           <button
             type="button"
             className={styles.headerIconBtn}
@@ -214,6 +249,7 @@ const ReservationDetailsPanel = ({
         </div>
         <ReservationPanelMoreMenu reservation={reservation} />
       </div>
+      {noticeDialog}
     </div>
   );
 };
