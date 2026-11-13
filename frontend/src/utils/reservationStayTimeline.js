@@ -91,6 +91,9 @@ const roomTypeLabel = (seg) => {
   return '—';
 };
 
+/** Habitación fijada / no reasignable (requerimiento de habitación específica). */
+const isRoomFixed = (seg) => Boolean(seg?.requiredRoomId || seg?.fixed);
+
 const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
   if (!seg) return null;
   const start = seg.startDate || seg.checkIn;
@@ -104,7 +107,8 @@ const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
     roomType: roomTypeLabel(seg),
     service: serviceLabelFor(seg, getServiceTypeLabel),
     guests,
-    nights
+    nights,
+    roomFixed: isRoomFixed(seg)
   };
 };
 

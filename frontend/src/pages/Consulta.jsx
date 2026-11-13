@@ -3758,10 +3758,10 @@ export default function Consulta() {
               title={
                 !segments.every((_, index) => selectedRoomsPerBlock[index])
                   ? 'Selecciona una habitación para cada segmento'
-                  : (editingReservationId ? 'Guardar cambios de la reserva' : 'Crear la reserva')
+                  : (editingReservationId ? 'Modificar la reserva' : 'Crear la reserva')
               }
             >
-              {editingReservationId ? `Guardar reserva #${editingReservationId}` : 'Crear Reserva'}
+              {editingReservationId ? 'Modificar reserva' : 'Crear Reserva'}
             </button>
           )}
         </div>
@@ -3772,6 +3772,7 @@ export default function Consulta() {
         isOpen={showConfirmationModal}
         onClose={() => setShowConfirmationModal(false)}
         onConfirm={handleCreateReservation}
+        isEditing={Boolean(editingReservationId)}
         reservationData={{
           mainClient: formData.mainClient,
           selectedRoomsPerBlock: selectedRoomsPerBlock,

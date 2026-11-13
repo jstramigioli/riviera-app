@@ -240,10 +240,23 @@
 }
 
 .segmentRoom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--color-primary-dark, #334d70);
   line-height: 1.25;
+}
+
+.roomFixedIcon {
+  flex: 0 0 auto;
+  width: 0.85em;
+  height: 0.85em;
+  color: var(--color-text-muted, #6b7280);
+  vertical-align: middle;
 }
 
 .segmentService {
