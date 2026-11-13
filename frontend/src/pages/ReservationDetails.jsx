@@ -23,9 +23,11 @@ import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
-import { FiMail, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiMail, FiCopy, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { useTags } from '../hooks/useTags';
+import { collectReservationPanelRequirements } from '../utils/reservationPanelRequirements';
 import styles from './ReservationDetails.module.css';
 
 function firstRoomIdFromReservation(reservation) {
@@ -46,6 +48,7 @@ const ReservationDetails = () => {
   const location = useLocation();
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
+  const { tags } = useTags();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
@@ -540,6 +543,8 @@ const ReservationDetails = () => {
     );
   }
 
+  const panelRequirements = collectReservationPanelRequirements(reservation, tags);
+
   // Render principal
   return (
     <div className={styles.newLayout}>
@@ -547,7 +552,21 @@ const ReservationDetails = () => {
       <div className={styles.sidePanel}>
         <div className={styles.sidePanelHeader}>
           <div className={styles.sidePanelHeaderTop}>
-            <h2>Reserva #{reservation.id}</h2>
+            <div className={styles.titleWithInfo}>
+              <h2>Reserva #{reservation.id}</h2>
+              <span
+                className={styles.infoDates}
+                tabIndex={0}
+                data-testid="side-panel-dates-info"
+                aria-label={`Fecha de creación: ${formatDateTime(reservation.createdAt)}. Última modificación: ${formatDateTime(reservation.updatedAt)}`}
+              >
+                <FiInfo aria-hidden />
+                <span className={styles.infoDatesTooltip} role="tooltip" data-testid="side-panel-dates">
+                  <span>Fecha de creación: {formatDateTime(reservation.createdAt)}</span>
+                  <span>Última modificación: {formatDateTime(reservation.updatedAt)}</span>
+                </span>
+              </span>
+            </div>
             <div className={styles.headerActions}>
               {isEditing ? (
                 <>
@@ -609,10 +628,29 @@ const ReservationDetails = () => {
             <div className={styles.sourceMeta} data-testid="side-panel-source">
               Reservado por: {sourceLabel(reservation.source)}
             </div>
-            <div className={styles.metaDates} data-testid="side-panel-dates">
-              <div>Fecha de creación: {formatDateTime(reservation.createdAt)}</div>
-              <div>Última modificación: {formatDateTime(reservation.updatedAt)}</div>
-            </div>
+            {panelRequirements.hasAny && (
+              <div className={styles.requirementsMeta} data-testid="side-panel-requirements">
+                {panelRequirements.fixedRooms.map((room) => (
+                  <div key={room.key} className={styles.requirementRow}>
+                    <FiLock aria-hidden className={styles.requirementIcon} />
+                    <span>Habitación fijada: {room.name}</span>
+                  </div>
+                ))}
+                {panelRequirements.selectedTags.length > 0 && (
+                  <div className={styles.requirementTags}>
+                    {panelRequirements.selectedTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className={styles.requirementTag}
+                        style={tag.color ? { backgroundColor: tag.color } : undefined}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {checkInInfo?.checkIn?.status && (
               <div className={styles.checkInMeta}>
                 Check-in online: {checkInInfo.checkIn.status === 'COMPLETED'
