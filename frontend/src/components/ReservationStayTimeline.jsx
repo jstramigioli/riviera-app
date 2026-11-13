@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import styles from './ReservationStayTimeline.module.css';
+
+const NARROW_MQ = '(max-width: 720px)';
 
 const circleClass = (kind) => {
   if (kind === 'checkin') return `${styles.circle} ${styles.circleCheckin}`;
@@ -18,13 +20,40 @@ const defaultFormatCurrency = (amount) =>
     minimumFractionDigits: 2
   }).format(amount);
 
-const SegmentCard = ({ card }) => {
+const useIsNarrow = (enabled) => {
+  const [matches, setMatches] = useState(() => {
+    if (!enabled || typeof window === 'undefined' || !window.matchMedia) {
+      return false;
+    }
+    return window.matchMedia(NARROW_MQ).matches;
+  });
+
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined' || !window.matchMedia) {
+      setMatches(false);
+      return undefined;
+    }
+    const mq = window.matchMedia(NARROW_MQ);
+    const sync = () => setMatches(mq.matches);
+    sync();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', sync);
+      return () => mq.removeEventListener('change', sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
+  }, [enabled]);
+
+  return matches;
+};
+
+const SegmentCard = ({ card, vertical }) => {
   if (!card) return null;
   const guestsLabel = `${card.guests} huésped${card.guests === 1 ? '' : 'es'}`;
   const nightsLabel = `${card.nights} noche${card.nights === 1 ? '' : 's'}`;
   return (
     <div className={styles.segmentStack}>
-      <span className={styles.segmentConnector} aria-hidden />
+      {!vertical ? <span className={styles.segmentConnector} aria-hidden /> : null}
       <div className={styles.segmentCard} data-testid="timeline-segment-card">
         <span className={styles.segmentRoom}>
           Habitación: {card.room} - {card.roomType || '—'}
@@ -38,20 +67,30 @@ const SegmentCard = ({ card }) => {
 };
 
 /**
- * Timeline de hitos de la estadía — contenido principal del detalle.
+ * Timeline de hitos de la estadía — contenido principal del detalle / panel Libro.
  * Header: cliente (clickeable), noches totales, monto total.
  * Cards de tramo entre check-in y check-out.
+ *
+ * orientation:
+ * - auto (default): horizontal en ancho, vertical en viewport ≤720px
+ * - vertical / horizontal: fuerza el layout
  */
 const ReservationStayTimeline = ({
   reservation,
   getServiceTypeLabel,
   formatCurrency = defaultFormatCurrency,
-  onClientClick
+  onClientClick,
+  orientation = 'auto',
+  compact = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
     [reservation, getServiceTypeLabel]
   );
+
+  const isNarrow = useIsNarrow(orientation === 'auto');
+  const isVertical =
+    orientation === 'vertical' || (orientation === 'auto' && isNarrow);
 
   if (!reservation) return null;
 
@@ -63,11 +102,20 @@ const ReservationStayTimeline = ({
     : '—';
   const canOpenClient = Boolean(header.clientId && onClientClick);
 
+  const rootClass = [
+    styles.timeline,
+    isVertical ? styles.timelineVertical : styles.timelineHorizontal,
+    compact ? styles.timelineCompact : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <section
-      className={styles.timeline}
+      className={rootClass}
       aria-label="Timeline de la reserva"
       data-testid="reservation-stay-timeline"
+      data-orientation={isVertical ? 'vertical' : 'horizontal'}
     >
       <header className={styles.header} data-testid="timeline-header">
         <div className={styles.headerMain}>
@@ -110,7 +158,9 @@ const ReservationStayTimeline = ({
                 data-testid={`timeline-edge-${item.id}`}
               >
                 <div className={styles.line} aria-hidden />
-                {item.card ? <SegmentCard card={item.card} /> : null}
+                {item.card ? (
+                  <SegmentCard card={item.card} vertical={isVertical} />
+                ) : null}
               </div>
             );
           }
@@ -123,10 +173,12 @@ const ReservationStayTimeline = ({
               data-testid={`timeline-node-${item.id}`}
             >
               <span className={circleClass(item.kind)} aria-hidden />
-              <span className={styles.title}>{item.title}</span>
-              {item.dateLabel ? (
-                <span className={styles.date}>{item.dateLabel}</span>
-              ) : null}
+              <div className={styles.nodeText}>
+                <span className={styles.title}>{item.title}</span>
+                {item.dateLabel ? (
+                  <span className={styles.date}>{item.dateLabel}</span>
+                ) : null}
+              </div>
             </div>
           );
         })}
