@@ -32,13 +32,13 @@ function parsePagoCodigo(codigo) {
  * @param {import('@prisma/client').PrismaClient | import('@prisma/client').Prisma.TransactionClient} db
  */
 async function allocateNextPagoCodigo(db) {
+  // `codigo` es NOT NULL; no filtrar con `{ not: null }` (Prisma 6 lo rechaza).
   const last = await db.pago.findFirst({
-    where: { codigo: { not: null } },
     orderBy: { codigo: 'desc' },
     select: { codigo: true },
   });
 
-  const nextIndex = last?.codigo != null
+  const nextIndex = last?.codigo
     ? (parsePagoCodigo(last.codigo) ?? -1) + 1
     : 0;
 

@@ -8,6 +8,7 @@ describe('FloatingActionButton hub', () => {
     const onCreateQuery = vi.fn()
     const onCreateReservation = vi.fn()
     const onCreateConsumption = vi.fn()
+    const onCreatePayment = vi.fn()
 
     render(
       <FloatingActionButton
@@ -15,6 +16,7 @@ describe('FloatingActionButton hub', () => {
         onCreateQuery={onCreateQuery}
         onCreateReservation={onCreateReservation}
         onCreateConsumption={onCreateConsumption}
+        onCreatePayment={onCreatePayment}
       />
     )
 
@@ -26,13 +28,16 @@ describe('FloatingActionButton hub', () => {
     const consulta = screen.getByRole('menuitem', { name: '+ Consulta' })
     const reserva = screen.getByRole('menuitem', { name: '+ Reserva' })
     const consumo = screen.getByRole('menuitem', { name: '+ Consumo' })
+    const pago = screen.getByRole('menuitem', { name: '+ Pago' })
 
     expect(consulta).toHaveTextContent('+ Consulta')
     expect(reserva).toHaveTextContent('+ Reserva')
     expect(consumo).toHaveTextContent('+ Consumo')
+    expect(pago).toHaveTextContent('+ Pago')
     expect(consulta.querySelector('svg')).toBeNull()
     expect(reserva.querySelector('svg')).toBeNull()
     expect(consumo.querySelector('svg')).toBeNull()
+    expect(pago.querySelector('svg')).toBeNull()
 
     fireEvent.click(consulta)
     expect(onCreateQuery).toHaveBeenCalledTimes(1)
@@ -44,5 +49,9 @@ describe('FloatingActionButton hub', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
     fireEvent.click(screen.getByRole('menuitem', { name: '+ Consumo' }))
     expect(onCreateConsumption).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ Pago' }))
+    expect(onCreatePayment).toHaveBeenCalledTimes(1)
   })
 })

@@ -76,7 +76,8 @@ export default function LibroReservasBoard({
   onReservationClick,
   reservationsForDayInfo = [],
   refreshToken = 0,
-  onCreateConsumption
+  onCreateConsumption,
+  onCreatePayment
 }) {
   const [todayIso, setTodayIso] = useState(() => todayIsoLocal());
   const [days, setDays] = useState([]);
@@ -757,6 +758,7 @@ export default function LibroReservasBoard({
           onCreateQuery={() => navigate('/consulta')}
           onCreateReservation={() => navigate('/consulta?modo=reserva')}
           onCreateConsumption={() => onCreateConsumption?.()}
+          onCreatePayment={() => onCreatePayment?.()}
         />
       ) : null}
     </>

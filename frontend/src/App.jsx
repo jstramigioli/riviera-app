@@ -30,6 +30,7 @@ import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
 import ConsumptionOrderModal from './components/ConsumptionOrderModal';
+import PaymentForm from './components/PaymentForm';
 import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
@@ -49,6 +50,7 @@ function ReservationsView() {
   const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const [consumptionPreset, setConsumptionPreset] = useState(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
     title: '',
@@ -65,6 +67,9 @@ function ReservationsView() {
     setConsumptionOpen(false);
     setConsumptionPreset(null);
   };
+
+  const openPaymentModal = () => setPaymentOpen(true);
+  const closePaymentModal = () => setPaymentOpen(false);
 
   const showNotification = (title, message, type = 'success') => {
     setNotificationModal({
@@ -226,6 +231,7 @@ function ReservationsView() {
           reservationsForDayInfo={reservations}
           refreshToken={calendarRefreshToken}
           onCreateConsumption={() => openConsumptionModal(null)}
+          onCreatePayment={openPaymentModal}
         />
       </div>
       <ConsumptionOrderModal
@@ -234,6 +240,13 @@ function ReservationsView() {
         onClose={closeConsumptionModal}
         onSaved={() => setCalendarRefreshToken((n) => n + 1)}
       />
+      {paymentOpen && (
+        <PaymentForm
+          reservaId={null}
+          onClose={closePaymentModal}
+          onSuccess={() => setCalendarRefreshToken((n) => n + 1)}
+        />
+      )}
       <SidePanel
         open={sidePanelOpen}
         onClose={closePanel}
