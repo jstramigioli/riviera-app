@@ -915,6 +915,27 @@ export function getPagoAdjuntoDownloadUrl(pagoId, adjuntoId) {
   return `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}/download`;
 }
 
+export async function deletePagoAdjunto(pagoId, adjuntoId) {
+  const res = await fetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}`,
+    {
+      method: 'DELETE',
+      credentials: 'include'
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error eliminando adjunto';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
   const res = await fetch(getPagoAdjuntoDownloadUrl(pagoId, adjuntoId), {
     credentials: 'include'
@@ -1307,6 +1328,7 @@ export default {
   updatePago,
   deletePago,
   uploadPagoAdjuntos,
+  deletePagoAdjunto,
   getPagoAdjuntoDownloadUrl,
   downloadPagoAdjunto,
   getCargosByReserva,

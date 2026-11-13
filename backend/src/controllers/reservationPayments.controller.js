@@ -597,6 +597,32 @@ exports.downloadPagoAdjunto = async (req, res) => {
   }
 };
 
+exports.deletePagoAdjunto = async (req, res) => {
+  const pagoId = parseInt(req.params.id, 10);
+  const adjuntoId = parseInt(req.params.adjuntoId, 10);
+
+  try {
+    const adjunto = await prisma.pagoAdjunto.findFirst({
+      where: { id: adjuntoId, pagoId }
+    });
+    if (!adjunto) {
+      return res.status(404).json({ error: 'Adjunto no encontrado' });
+    }
+
+    if (adjunto.tipo === ADJUNTO_TIPOS.FACTURA && !canSeeFacturacion(req.user)) {
+      return res.status(403).json({ error: 'No autorizado a eliminar comprobantes de facturación' });
+    }
+
+    await prisma.pagoAdjunto.delete({ where: { id: adjunto.id } });
+    deleteStoredFile(pagoId, adjunto.storedName);
+
+    res.json({ ok: true, id: adjunto.id });
+  } catch (error) {
+    console.error('Error eliminando adjunto de pago:', error);
+    res.status(500).json({ error: 'Error al eliminar adjunto', details: error.message });
+  }
+};
+
 // ============================================
 // CONTROLADORES DE CARGOS
 // ============================================

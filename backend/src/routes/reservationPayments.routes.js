@@ -59,6 +59,7 @@ router.post(
   controller.uploadPagoAdjuntos
 );
 router.get('/pagos/:id/adjuntos/:adjuntoId/download', controller.downloadPagoAdjunto);
+router.delete('/pagos/:id/adjuntos/:adjuntoId', controller.deletePagoAdjunto);
 
 // ============================================
 // RUTAS DE CARGOS

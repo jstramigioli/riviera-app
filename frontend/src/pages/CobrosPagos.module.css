@@ -455,6 +455,13 @@
   align-items: flex-start;
 }
 
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
 .fileLink {
   background: none;
   border: none;
@@ -471,6 +478,40 @@
 
 .fileLink:hover {
   color: var(--color-primary-dark, #334d70);
+}
+
+.fileDoneMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f9e44;
+  flex-shrink: 0;
+}
+
+.fileDeleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #868e96;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fileDeleteBtn:hover:not(:disabled) {
+  color: #c92a2a;
+  border-color: rgba(201, 42, 42, 0.35);
+  background: rgba(201, 42, 42, 0.06);
+}
+
+.fileDeleteBtn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .retiradoToggle {
