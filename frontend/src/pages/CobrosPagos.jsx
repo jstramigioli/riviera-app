@@ -854,21 +854,27 @@ const CobrosPagos = () => {
           )}
           {openPayColumn === 'fecha' && (
             <div className={styles.columnFilterStack}>
-              <input
-                type="date"
-                className={styles.columnFilter}
-                aria-label="Fecha desde"
-                value={payFilters.fechaFrom}
-                onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
-              />
-              <input
-                type="date"
-                className={styles.columnFilter}
-                aria-label="Fecha hasta"
-                value={payFilters.fechaTo}
-                min={payFilters.fechaFrom || undefined}
-                onChange={(e) => setPayFilter('fechaTo', e.target.value)}
-              />
+              <label className={styles.columnFilterRow}>
+                <span className={styles.columnFilterLabel}>Desde</span>
+                <input
+                  type="date"
+                  className={styles.columnFilter}
+                  aria-label="Fecha desde"
+                  value={payFilters.fechaFrom}
+                  onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
+                />
+              </label>
+              <label className={styles.columnFilterRow}>
+                <span className={styles.columnFilterLabel}>Hasta</span>
+                <input
+                  type="date"
+                  className={styles.columnFilter}
+                  aria-label="Fecha hasta"
+                  value={payFilters.fechaTo}
+                  min={payFilters.fechaFrom || undefined}
+                  onChange={(e) => setPayFilter('fechaTo', e.target.value)}
+                />
+              </label>
             </div>
           )}
           {openPayColumn === 'reserva' && (
