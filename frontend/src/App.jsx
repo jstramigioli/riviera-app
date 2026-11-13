@@ -29,22 +29,42 @@ import { deleteReservation } from './services/api.js';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
+import ConsumptionOrderModal from './components/ConsumptionOrderModal';
 import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import RoomDetails from './pages/RoomDetails';
 import PublicCheckIn from './pages/PublicCheckIn';
 
+function firstRoomIdFromReservation(reservation) {
+  const segments = reservation?.segments;
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  const withRoom = segments.find((s) => s?.roomId != null);
+  return withRoom?.roomId ?? null;
+}
+
 function ReservationsView() {
   const navigate = useNavigate();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
+  const [consumptionOpen, setConsumptionOpen] = useState(false);
+  const [consumptionPreset, setConsumptionPreset] = useState(null);
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
     title: '',
     message: '',
     type: 'success'
   });
+
+  const openConsumptionModal = (preset = null) => {
+    setConsumptionPreset(preset);
+    setConsumptionOpen(true);
+  };
+
+  const closeConsumptionModal = () => {
+    setConsumptionOpen(false);
+    setConsumptionPreset(null);
+  };
 
   const showNotification = (title, message, type = 'success') => {
     setNotificationModal({
@@ -205,8 +225,15 @@ function ReservationsView() {
           onReservationClick={handleReservationClick}
           reservationsForDayInfo={reservations}
           refreshToken={calendarRefreshToken}
+          onCreateConsumption={() => openConsumptionModal(null)}
         />
       </div>
+      <ConsumptionOrderModal
+        open={consumptionOpen}
+        preset={consumptionPreset}
+        onClose={closeConsumptionModal}
+        onSaved={() => setCalendarRefreshToken((n) => n + 1)}
+      />
       <SidePanel
         open={sidePanelOpen}
         onClose={closePanel}
@@ -220,6 +247,12 @@ function ReservationsView() {
             onStatusChange={handleStatusChange}
             onDelete={() => setShowDeleteModal(true)}
             onClose={closePanel}
+            onAddConsumo={(res) => {
+              openConsumptionModal({
+                reservationId: res.id,
+                roomId: firstRoomIdFromReservation(res)
+              });
+            }}
             onOpenFullEdit={(id) => {
               closePanel();
               navigate(buildConsultaEditPath(id), {

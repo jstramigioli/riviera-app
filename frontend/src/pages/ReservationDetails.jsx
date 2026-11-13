@@ -19,6 +19,7 @@ import { sourceLabel } from '../constants/reservationSource';
 import { copyReservationClientSummary } from '../utils/reservationClientSummary';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
+import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
@@ -26,6 +27,13 @@ import { FiMail, FiCopy, FiCheck } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
 import styles from './ReservationDetails.module.css';
+
+function firstRoomIdFromReservation(reservation) {
+  const segments = reservation?.segments;
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  const withRoom = segments.find((s) => s?.roomId != null);
+  return withRoom?.roomId ?? null;
+}
 
 const resolveInitialTab = (activeTab) => {
   if (activeTab === 'financiero' || activeTab === 'huespedes') return activeTab;
@@ -52,7 +60,10 @@ const ReservationDetails = () => {
   const [pendingFinancialAction, setPendingFinancialAction] = useState(
     location.state?.financialAction || null
   );
-  
+  const [consumptionOpen, setConsumptionOpen] = useState(
+    location.state?.financialAction === 'add-consumo'
+  );
+
   const [checkInInfo, setCheckInInfo] = useState(null);
   const [sendingCheckIn, setSendingCheckIn] = useState(false);
   const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
@@ -221,8 +232,12 @@ const ReservationDetails = () => {
   useEffect(() => {
     if (location.state?.activeTab === 'financiero' || location.state?.financialAction) {
       setActiveTab('financiero');
-      if (location.state?.financialAction) {
-        setPendingFinancialAction(location.state.financialAction);
+      const action = location.state?.financialAction || null;
+      if (action === 'add-consumo') {
+        setConsumptionOpen(true);
+        setPendingFinancialAction(null);
+      } else if (action) {
+        setPendingFinancialAction(action);
       }
       // Limpiar state para no re-disparar al volver con el historial
       navigate(location.pathname, { replace: true, state: {} });
@@ -471,6 +486,7 @@ const ReservationDetails = () => {
             onDeleteCargo={handleDeleteCargo}
             pendingAction={pendingFinancialAction}
             onPendingActionHandled={() => setPendingFinancialAction(null)}
+            onRequestConsumo={() => setConsumptionOpen(true)}
           />
         );
       case 'huespedes':
@@ -666,6 +682,22 @@ const ReservationDetails = () => {
           {renderTabContent()}
         </div>
       </div>
+
+      <ConsumptionOrderModal
+        open={consumptionOpen}
+        preset={
+          reservation
+            ? {
+                reservationId: reservation.id,
+                roomId: firstRoomIdFromReservation(reservation)
+              }
+            : null
+        }
+        onClose={() => setConsumptionOpen(false)}
+        onSaved={() => {
+          loadFinancialData();
+        }}
+      />
 
       {confirmDialog}
       {noticeDialog}

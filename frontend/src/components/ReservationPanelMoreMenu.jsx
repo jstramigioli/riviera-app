@@ -17,9 +17,9 @@ const MENU_ITEMS = [
 
 /**
  * Kebab (⋮) al lado del dropdown de estado en el panel del Libro.
- * Dispara los flujos financieros existentes de la página de reserva.
+ * "Agregar consumo" abre la comanda POS si hay onAddConsumo; el resto navega a la página financiera.
  */
-const ReservationPanelMoreMenu = ({ reservation }) => {
+const ReservationPanelMoreMenu = ({ reservation, onAddConsumo }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -49,6 +49,10 @@ const ReservationPanelMoreMenu = ({ reservation }) => {
 
   const handleAction = (financialAction) => {
     setOpen(false);
+    if (financialAction === FINANCIAL_ACTIONS.ADD_CONSUMO && typeof onAddConsumo === 'function') {
+      onAddConsumo(reservation);
+      return;
+    }
     navigate(`/reservations/${reservation.id}`, {
       state: {
         activeTab: 'financiero',

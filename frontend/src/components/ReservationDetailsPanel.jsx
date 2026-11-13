@@ -26,7 +26,8 @@ const ReservationDetailsPanel = ({
   onStatusChange,
   onDelete,
   onOpenFullEdit,
-  onClose
+  onClose,
+  onAddConsumo
 }) => {
   const navigate = useNavigate();
   const { notify, noticeDialog } = useAppNotice();
@@ -244,7 +245,10 @@ const ReservationDetailsPanel = ({
             onDelete={onDelete}
           />
         </div>
-        <ReservationPanelMoreMenu reservation={reservation} />
+        <ReservationPanelMoreMenu
+          reservation={reservation}
+          onAddConsumo={onAddConsumo}
+        />
       </div>
       {noticeDialog}
     </div>
