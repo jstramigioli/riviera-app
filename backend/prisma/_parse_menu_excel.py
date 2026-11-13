@@ -24,6 +24,8 @@ SECTION_MAP = {
     "pescados": "MINUTAS",
     "pastas": "MINUTAS",
     "salsas": "MINUTAS",
+    "guarniciones": "MINUTAS",
+    "pizzas": "MINUTAS",
     "postres": "MINUTAS",
     "bebidas sin alcohol": "BEBIDAS",
     "bebidas con alcohol": "BEBIDAS",
@@ -41,6 +43,31 @@ def norm(s):
     return re.sub(r"\s+", " ", str(s or "").strip())
 
 
+def is_section_header(name, c, d):
+    """Header de sección Excel: nombre en SECTION_MAP y sin precio útil en C/D."""
+    if not name:
+        return False
+    key = name.lower()
+    if key not in SECTION_MAP:
+        return False
+    # Variedad headers: Ensaladas | Chica | Grande
+    if isinstance(c, str) and isinstance(d, str):
+        return True
+    # Precio numérico > 0 → es ítem, no header
+    if isinstance(c, (int, float)) and c > 0:
+        return False
+    if isinstance(d, (int, float)) and d > 0:
+        return False
+    return True
+
+
+def resolve_subgroup(current_section, short_name):
+    """Asigna subgrupo; pizzas sueltas van a Pizzas."""
+    if short_name.lower().startswith("pizza"):
+        return "Pizzas"
+    return current_section
+
+
 def main():
     wb = openpyxl.load_workbook(EXCEL, data_only=True)
     ws = wb["202526"]
@@ -56,31 +83,21 @@ def main():
         d = ws.cell(i, 4).value
         name = norm(b) if b else ""
 
-        # Fila vacía: corta subsección (p.ej. Salsas → guarniciones) sin cambiar categoría
+        # Fila vacía: corta subsección (p.ej. Salsas → Guarniciones) sin cambiar categoría
         if not name and c is None and d is None:
             if current_section and current_section.lower() == "salsas":
-                current_section = None
+                current_section = "Guarniciones"
             variety_mode = None
             continue
 
-        if name and isinstance(c, str) and isinstance(d, str):
+        if is_section_header(name, c, d):
             key = name.lower()
-            if key in SECTION_MAP:
-                current_cat = SECTION_MAP[key]
-                current_section = name
-                variety_mode = (norm(c), norm(d))
-            continue
-
-        key = name.lower() if name else ""
-        if (
-            name
-            and key in SECTION_MAP
-            and not isinstance(c, (int, float))
-            and not isinstance(d, (int, float))
-        ):
             current_cat = SECTION_MAP[key]
             current_section = name
-            variety_mode = None
+            if isinstance(c, str) and isinstance(d, str):
+                variety_mode = (norm(c), norm(d))
+            else:
+                variety_mode = None
             continue
 
         # Mermeladas: precios sin nombre en fila siguiente
@@ -129,6 +146,8 @@ def main():
             if not short.lower().startswith("salsa"):
                 short = f"Salsa {short}"
 
+        section = resolve_subgroup(current_section, short)
+
         orden[current_cat] += 10
         entry = {
             "category": current_cat,
@@ -136,7 +155,7 @@ def main():
             "price": float(c) if has_c else float(d),
             "description": desc,
             "ordenIndex": orden[current_cat],
-            "section": current_section,
+            "section": section,
             "varieties": [],
         }
         if (
@@ -156,14 +175,13 @@ def main():
     OUT.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
     by_cat = {k: sum(1 for i in items if i["category"] == k) for k in orden}
     with_var = sum(1 for i in items if i["varieties"])
-    print(f"Wrote {OUT} count={len(items)} byCat={by_cat} withVar={with_var}")
+    by_sec = {}
     for it in items:
-        vars_s = ""
-        if it["varieties"]:
-            vars_s = " | " + ", ".join(
-                f"{v['name']}:{v['price']}" for v in it["varieties"]
-            )
-        print(f"{it['category']:10} {it['ordenIndex']:4} {it['name']} ${it['price']}{vars_s}")
+        key = (it["category"], it.get("section") or "(sin)")
+        by_sec[key] = by_sec.get(key, 0) + 1
+    print(f"Wrote {OUT} count={len(items)} byCat={by_cat} withVar={with_var}")
+    for k, n in sorted(by_sec.items(), key=lambda x: (x[0][0], x[0][1] or "")):
+        print(f"  {k[0]:10} {k[1]}: {n}")
 
 
 if __name__ == "__main__":
