@@ -308,8 +308,26 @@
 .columnFilterStack {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 110px;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.columnFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.columnFilterLabel {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-dark, #3a4250);
+}
+
+.columnFilterRow .columnFilter {
+  flex: 1 1 auto;
 }
 
 .emptyCell {
