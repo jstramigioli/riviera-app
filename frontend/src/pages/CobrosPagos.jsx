@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiFilter } from 'react-icons/fi';
 import { getReservationsWithBalances, getAllPagos } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import PaymentForm from '../components/PaymentForm';
@@ -35,14 +35,29 @@ const EMPTY_PAY_FILTERS = {
   referencia: '',
 };
 
+const PAY_COLUMN_KEYS = {
+  codigo: ['codigo'],
+  fecha: ['fechaFrom', 'fechaTo'],
+  reserva: ['reserva'],
+  cliente: ['cliente'],
+  monto: ['montoMin', 'montoMax'],
+  metodo: ['metodo'],
+  referencia: ['referencia'],
+};
+
 /** Reservas actualmente alojadas (check-in hecho, aún en casa). */
 const ALOJADAS_STATUS = 'INGRESADA';
 
+function foldAccents(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function includesNormalized(haystack, needle) {
   if (!needle) return true;
-  return String(haystack || '')
-    .toLowerCase()
-    .includes(String(needle).toLowerCase().trim());
+  return foldAccents(haystack).includes(foldAccents(String(needle).trim()));
 }
 
 function toDateInputValue(value) {
@@ -111,10 +126,62 @@ const CobrosPagos = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
+  const [openPayColumn, setOpenPayColumn] = useState(null);
+  const [payFilterMenuPos, setPayFilterMenuPos] = useState({ top: 0, left: 0 });
+  const payFilterMenuRef = useRef(null);
+  const payFilterBtnRefs = useRef({});
 
   const setPayFilter = (key, value) => {
     setPayFilters((prev) => ({ ...prev, [key]: value }));
   };
+
+  const isPayColumnActive = useCallback(
+    (column) =>
+      (PAY_COLUMN_KEYS[column] || []).some(
+        (key) => String(payFilters[key] || '').trim() !== ''
+      ),
+    [payFilters]
+  );
+
+  const syncPayFilterMenuPos = useCallback((column) => {
+    const btn = payFilterBtnRefs.current[column];
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setPayFilterMenuPos({ top: rect.bottom + 4, left: rect.left });
+  }, []);
+
+  const togglePayColumn = (column) => {
+    setOpenPayColumn((prev) => {
+      if (prev === column) return null;
+      syncPayFilterMenuPos(column);
+      return column;
+    });
+  };
+
+  useEffect(() => {
+    if (!openPayColumn) return;
+    syncPayFilterMenuPos(openPayColumn);
+    const onPointerDown = (e) => {
+      const btn = payFilterBtnRefs.current[openPayColumn];
+      if (payFilterMenuRef.current?.contains(e.target)) return;
+      if (btn?.contains(e.target)) return;
+      setOpenPayColumn(null);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpenPayColumn(null);
+    };
+    const onReposition = () => syncPayFilterMenuPos(openPayColumn);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [openPayColumn, syncPayFilterMenuPos]);
 
   useEffect(() => {
     loadData();
@@ -307,7 +374,12 @@ const CobrosPagos = () => {
   };
 
   const handleAddPayment = (reservation) => {
-    setSelectedReservation(reservation);
+    setSelectedReservation(reservation || null);
+    setShowPaymentForm(true);
+  };
+
+  const handleNewPayment = () => {
+    setSelectedReservation(null);
     setShowPaymentForm(true);
   };
 
@@ -610,22 +682,34 @@ const CobrosPagos = () => {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <h2>Pagos</h2>
-                {hasActivePayFilters && (
+                <div className={styles.sectionActions}>
+                  {hasActivePayFilters && (
+                    <button
+                      type="button"
+                      className={styles.clearDates}
+                      onClick={() => {
+                        setPayFilters(EMPTY_PAY_FILTERS);
+                        setOpenPayColumn(null);
+                        if (clientIdParam) {
+                          const next = new URLSearchParams(searchParams);
+                          next.delete('clientId');
+                          setSearchParams(next, { replace: true });
+                        }
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className={styles.clearDates}
-                    onClick={() => {
-                      setPayFilters(EMPTY_PAY_FILTERS);
-                      if (clientIdParam) {
-                        const next = new URLSearchParams(searchParams);
-                        next.delete('clientId');
-                        setSearchParams(next, { replace: true });
-                      }
-                    }}
+                    className={styles.createButton}
+                    onClick={handleNewPayment}
+                    title="Crear nuevo pago"
                   >
-                    Limpiar filtros
+                    <FiPlus aria-hidden="true" />
+                    Pago
                   </button>
-                )}
+                </div>
               </div>
 
               {clientIdParam && (
@@ -651,109 +735,38 @@ const CobrosPagos = () => {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Código</th>
-                      <th>Fecha</th>
-                      <th>Reserva</th>
-                      <th>Cliente</th>
-                      <th>Monto</th>
-                      <th>Método</th>
-                      <th>Referencia</th>
-                    </tr>
-                    <tr className={styles.filterRow}>
-                      <th>
-                        <input
-                          type="search"
-                          className={styles.columnFilter}
-                          aria-label="Filtrar por código"
-                          placeholder="Buscar…"
-                          value={payFilters.codigo}
-                          onChange={(e) => setPayFilter('codigo', e.target.value)}
-                        />
-                      </th>
-                      <th>
-                        <div className={styles.columnFilterStack}>
-                          <input
-                            type="date"
-                            className={styles.columnFilter}
-                            aria-label="Fecha desde"
-                            value={payFilters.fechaFrom}
-                            onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
-                          />
-                          <input
-                            type="date"
-                            className={styles.columnFilter}
-                            aria-label="Fecha hasta"
-                            value={payFilters.fechaTo}
-                            min={payFilters.fechaFrom || undefined}
-                            onChange={(e) => setPayFilter('fechaTo', e.target.value)}
-                          />
-                        </div>
-                      </th>
-                      <th>
-                        <input
-                          type="search"
-                          className={styles.columnFilter}
-                          aria-label="Filtrar por reserva"
-                          placeholder="# reserva"
-                          value={payFilters.reserva}
-                          onChange={(e) => setPayFilter('reserva', e.target.value)}
-                        />
-                      </th>
-                      <th>
-                        <input
-                          type="search"
-                          className={styles.columnFilter}
-                          aria-label="Buscar cliente"
-                          placeholder="Buscar cliente…"
-                          value={payFilters.cliente}
-                          onChange={(e) => setPayFilter('cliente', e.target.value)}
-                        />
-                      </th>
-                      <th>
-                        <div className={styles.columnFilterStack}>
-                          <input
-                            type="number"
-                            className={styles.columnFilter}
-                            aria-label="Monto mínimo"
-                            placeholder="Mín"
-                            value={payFilters.montoMin}
-                            onChange={(e) => setPayFilter('montoMin', e.target.value)}
-                          />
-                          <input
-                            type="number"
-                            className={styles.columnFilter}
-                            aria-label="Monto máximo"
-                            placeholder="Máx"
-                            value={payFilters.montoMax}
-                            onChange={(e) => setPayFilter('montoMax', e.target.value)}
-                          />
-                        </div>
-                      </th>
-                      <th>
-                        <select
-                          className={styles.columnFilter}
-                          aria-label="Filtrar por método de pago"
-                          value={payFilters.metodo}
-                          onChange={(e) => setPayFilter('metodo', e.target.value)}
-                        >
-                          <option value="">Todos</option>
-                          {paymentMethods.map((metodo) => (
-                            <option key={metodo} value={metodo}>
-                              {metodo}
-                            </option>
-                          ))}
-                        </select>
-                      </th>
-                      <th>
-                        <input
-                          type="search"
-                          className={styles.columnFilter}
-                          aria-label="Filtrar por referencia"
-                          placeholder="Buscar…"
-                          value={payFilters.referencia}
-                          onChange={(e) => setPayFilter('referencia', e.target.value)}
-                        />
-                      </th>
+                      {[
+                        { key: 'codigo', label: 'Código' },
+                        { key: 'fecha', label: 'Fecha' },
+                        { key: 'reserva', label: 'Reserva' },
+                        { key: 'cliente', label: 'Cliente' },
+                        { key: 'monto', label: 'Monto' },
+                        { key: 'metodo', label: 'Método' },
+                        { key: 'referencia', label: 'Referencia' },
+                      ].map(({ key, label }) => {
+                        const isOpen = openPayColumn === key;
+                        const isActive = isPayColumnActive(key);
+                        return (
+                          <th key={key} className={styles.columnHeader}>
+                            <div className={styles.columnHeaderInner}>
+                              <span>{label}</span>
+                              <button
+                                type="button"
+                                ref={(el) => {
+                                  payFilterBtnRefs.current[key] = el;
+                                }}
+                                className={`${styles.filterBtn} ${isOpen ? styles.filterBtnOpen : ''} ${isActive ? styles.filterBtnActive : ''}`}
+                                aria-label={`Filtrar ${label}`}
+                                aria-expanded={isOpen}
+                                aria-haspopup="dialog"
+                                onClick={() => togglePayColumn(key)}
+                              >
+                                <FiFilter size={13} aria-hidden="true" />
+                              </button>
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -812,12 +825,123 @@ const CobrosPagos = () => {
         </div>
       </div>
 
-      {showPaymentForm && selectedReservation && (
+      {showPaymentForm && (
         <PaymentForm
-          reservaId={selectedReservation.id}
+          reservaId={selectedReservation?.id ?? null}
           onClose={handleClosePaymentForm}
           onSuccess={handlePaymentSuccess}
         />
+      )}
+
+      {openPayColumn && (
+        <div
+          ref={payFilterMenuRef}
+          className={styles.filterMenu}
+          role="dialog"
+          aria-label={`Filtro ${openPayColumn}`}
+          style={{ top: payFilterMenuPos.top, left: payFilterMenuPos.left }}
+        >
+          {openPayColumn === 'codigo' && (
+            <input
+              type="search"
+              className={styles.columnFilter}
+              aria-label="Filtrar por código"
+              placeholder="Buscar…"
+              autoFocus
+              value={payFilters.codigo}
+              onChange={(e) => setPayFilter('codigo', e.target.value)}
+            />
+          )}
+          {openPayColumn === 'fecha' && (
+            <div className={styles.columnFilterStack}>
+              <input
+                type="date"
+                className={styles.columnFilter}
+                aria-label="Fecha desde"
+                value={payFilters.fechaFrom}
+                onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
+              />
+              <input
+                type="date"
+                className={styles.columnFilter}
+                aria-label="Fecha hasta"
+                value={payFilters.fechaTo}
+                min={payFilters.fechaFrom || undefined}
+                onChange={(e) => setPayFilter('fechaTo', e.target.value)}
+              />
+            </div>
+          )}
+          {openPayColumn === 'reserva' && (
+            <input
+              type="search"
+              className={styles.columnFilter}
+              aria-label="Filtrar por reserva"
+              placeholder="# reserva"
+              autoFocus
+              value={payFilters.reserva}
+              onChange={(e) => setPayFilter('reserva', e.target.value)}
+            />
+          )}
+          {openPayColumn === 'cliente' && (
+            <input
+              type="search"
+              className={styles.columnFilter}
+              aria-label="Buscar cliente"
+              placeholder="Buscar cliente…"
+              autoFocus
+              value={payFilters.cliente}
+              onChange={(e) => setPayFilter('cliente', e.target.value)}
+            />
+          )}
+          {openPayColumn === 'monto' && (
+            <div className={styles.columnFilterStack}>
+              <input
+                type="number"
+                className={styles.columnFilter}
+                aria-label="Monto mínimo"
+                placeholder="Mín"
+                autoFocus
+                value={payFilters.montoMin}
+                onChange={(e) => setPayFilter('montoMin', e.target.value)}
+              />
+              <input
+                type="number"
+                className={styles.columnFilter}
+                aria-label="Monto máximo"
+                placeholder="Máx"
+                value={payFilters.montoMax}
+                onChange={(e) => setPayFilter('montoMax', e.target.value)}
+              />
+            </div>
+          )}
+          {openPayColumn === 'metodo' && (
+            <select
+              className={styles.columnFilter}
+              aria-label="Filtrar por método de pago"
+              autoFocus
+              value={payFilters.metodo}
+              onChange={(e) => setPayFilter('metodo', e.target.value)}
+            >
+              <option value="">Todos</option>
+              {paymentMethods.map((metodo) => (
+                <option key={metodo} value={metodo}>
+                  {metodo}
+                </option>
+              ))}
+            </select>
+          )}
+          {openPayColumn === 'referencia' && (
+            <input
+              type="search"
+              className={styles.columnFilter}
+              aria-label="Filtrar por referencia"
+              placeholder="Buscar…"
+              autoFocus
+              value={payFilters.referencia}
+              onChange={(e) => setPayFilter('referencia', e.target.value)}
+            />
+          )}
+        </div>
       )}
       {noticeDialog}
     </div>
