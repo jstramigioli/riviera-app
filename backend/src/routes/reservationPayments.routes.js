@@ -23,11 +23,16 @@ function requireFacturaUploadIfNeeded(req, res, next) {
 // RUTAS DE RESUMEN Y LISTADOS GENERALES
 // ============================================
 
-// Obtener todas las reservas con sus saldos
+// Obtener todas las reservas con sus saldos (alias Account RESERVATION)
 router.get('/reservas-saldos', controller.getReservasConSaldos);
 
 // Opciones Select del modal Nuevo pago (activas, no solo ocupación de hoy)
 router.get('/reservas-para-pago', controller.getReservasParaPago);
+
+// Alias Account: listado unificado y opciones de cobro
+const accountController = require('../controllers/account.controller');
+router.get('/accounts-saldos', accountController.getAccountsConSaldos);
+router.get('/cuentas-para-pago', accountController.getCuentasParaPago);
 
 // Obtener resumen financiero de una reserva específica
 router.get('/reservas/:reservaId/resumen', controller.getResumenFinanciero);

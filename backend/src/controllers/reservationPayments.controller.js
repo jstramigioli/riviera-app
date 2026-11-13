@@ -1,10 +1,16 @@
 const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
+const { calculateAccountBalance } = require('../utils/accountBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb } = require('../utils/calendarDates');
+const {
+  ensureReservationAccount,
+  dualWriteReservationRefs,
+  syncAccountStatusFromBalance
+} = require('../utils/accountHelpers');
 const {
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
@@ -214,8 +220,9 @@ exports.getAllPagos = async (req, res) => {
 exports.getPagosByReserva = async (req, res) => {
   const { reservaId } = req.params;
   try {
+    const account = await ensureReservationAccount(prisma, reservaId);
     const pagos = await prisma.pago.findMany({
-      where: { reservaId: parseInt(reservaId) },
+      where: { accountId: account.id },
       include: { factura: true, ...PAGO_ADJUNTO_INCLUDE },
       orderBy: { fecha: 'desc' }
     });
@@ -331,11 +338,13 @@ exports.createPago = async (req, res) => {
     const fechaPago = new Date();
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
+      const account = await ensureReservationAccount(tx, reservaId);
+      const financialRefs = dualWriteReservationRefs(account, reservaId);
       const codigo = await allocateNextPagoCodigo(tx);
       const pago = await tx.pago.create({
         data: {
           codigo,
-          reservaId: parseInt(reservaId),
+          ...financialRefs,
           monto: new Decimal(montoSigned),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
@@ -370,6 +379,13 @@ exports.createPago = async (req, res) => {
           );
         }
       }
+
+      const [cargos, pagos] = await Promise.all([
+        tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
+        tx.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } })
+      ]);
+      const { saldo } = calculateAccountBalance(cargos, pagos);
+      await syncAccountStatusFromBalance(tx, account.id, saldo);
 
       return pago;
     });
@@ -637,8 +653,9 @@ exports.deletePagoAdjunto = async (req, res) => {
 exports.getCargosByReserva = async (req, res) => {
   const { reservaId } = req.params;
   try {
+    const account = await ensureReservationAccount(prisma, reservaId);
     const cargos = await prisma.cargo.findMany({
-      where: { reservaId: parseInt(reservaId) },
+      where: { accountId: account.id },
       include: {
         // Para subcategorías personalizables (servicios, consumos, otros)
         subcategoriaCargo: true,
@@ -682,8 +699,11 @@ exports.createCargo = async (req, res) => {
   // 1. Si tiene roomTypeId + serviceTypeId → Es alojamiento (campos directos)
   // 2. Si tiene subcategoriaCargoId → Es otro tipo (subcategoría personalizable)
   
+  const account = await ensureReservationAccount(prisma, reservaId);
+  const financialRefs = dualWriteReservationRefs(account, reservaId);
+
   let cargoData = {
-    reservaId: parseInt(reservaId),
+    ...financialRefs,
     descripcion,
     monto: new Decimal(monto),
     notas: notas || null,
@@ -777,6 +797,13 @@ exports.createCargo = async (req, res) => {
       data: cargoData,
       include: includeClause
     });
+
+    const [cargos, pagos] = await Promise.all([
+      prisma.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
+      prisma.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } })
+    ]);
+    const { saldo } = calculateAccountBalance(cargos, pagos);
+    await syncAccountStatusFromBalance(prisma, account.id, saldo);
 
     res.status(201).json(nuevoCargo);
   } catch (error) {
@@ -1023,12 +1050,13 @@ exports.getResumenFinanciero = async (req, res) => {
   const { reservaId } = req.params;
   
   try {
+    const account = await ensureReservationAccount(prisma, reservaId);
     const [pagos, cargos, reserva] = await Promise.all([
       prisma.pago.findMany({
-        where: { reservaId: parseInt(reservaId) }
+        where: { accountId: account.id }
       }),
       prisma.cargo.findMany({
-        where: { reservaId: parseInt(reservaId) },
+        where: { accountId: account.id },
         include: {
           subcategoriaCargo: true,
           roomType: true,
@@ -1054,7 +1082,7 @@ exports.getResumenFinanciero = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(cargos, pagos);
+    const { totalCargos, totalPagos, saldo, estadoPago } = calculateAccountBalance(cargos, pagos);
 
     // Agrupar cargos por tipo principal y subcategoría (enfoque híbrido)
     const cargosPorTipo = cargos.reduce((acc, cargo) => {
@@ -1132,6 +1160,13 @@ exports.getResumenFinanciero = async (req, res) => {
     }, {});
 
     res.json({
+      account: {
+        id: account.id,
+        kind: account.kind,
+        status: account.status,
+        reservationId: account.reservationId,
+        label: account.label
+      },
       reserva: {
         id: reserva.id,
         status: reserva.status,
@@ -1269,56 +1304,76 @@ exports.getReservasParaPago = async (req, res) => {
 // ante desfase schema↔DB (p.ej. columnas nuevas en Pago/Cargo).
 exports.getReservasConSaldos = async (req, res) => {
   try {
-    const reservas = await prisma.reservation.findMany({
+    // Compat alias: lista Accounts RESERVATION con forma histórica de “reservas-saldos”.
+    const accounts = await prisma.account.findMany({
+      where: { kind: 'RESERVATION', reservationId: { not: null } },
       select: {
         id: true,
+        kind: true,
         status: true,
+        label: true,
+        reservationId: true,
         createdAt: true,
         updatedAt: true,
-        mainClient: {
+        reservation: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            mainClient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true
+              }
+            },
+            _count: { select: { guests: true } }
           }
         },
         cargos: { select: { monto: true } },
-        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } },
-        _count: { select: { guests: true } }
+        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    const reservasConSaldos = reservas.map((reserva) => {
-      const { totalCargos, totalPagos, saldo, estadoPago } = calculateReservationBalance(
-        reserva.cargos,
-        reserva.pagos
-      );
+    const reservasConSaldos = accounts
+      .filter((account) => account.reservation)
+      .map((account) => {
+        const reserva = account.reservation;
+        const { totalCargos, totalPagos, saldo, estadoPago } = calculateAccountBalance(
+          account.cargos,
+          account.pagos
+        );
 
-      return {
-        id: reserva.id,
-        status: reserva.status,
-        mainClient: reserva.mainClient,
-        cantidadHuespedes: reserva._count?.guests ?? 0,
-        totalCargos,
-        totalPagos,
-        saldo,
-        estadoPago,
-        // Código de pago (A000…) para papelitos / ubicación rápida
-        pagos: (reserva.pagos || [])
-          .map((pago) => ({
-            id: pago.id,
-            codigo: pago.codigo,
-            montoARS: pago.montoARS,
-            fecha: pago.fecha,
-          }))
-          .sort((a, b) => a.id - b.id),
-        createdAt: reserva.createdAt,
-        updatedAt: reserva.updatedAt
-      };
-    });
+        return {
+          id: reserva.id,
+          accountId: account.id,
+          accountKind: account.kind,
+          accountStatus: account.status,
+          accountLabel: account.label,
+          origen: 'RESERVA',
+          status: reserva.status,
+          mainClient: reserva.mainClient,
+          cantidadHuespedes: reserva._count?.guests ?? 0,
+          totalCargos,
+          totalPagos,
+          saldo,
+          estadoPago,
+          pagos: (account.pagos || [])
+            .map((pago) => ({
+              id: pago.id,
+              codigo: pago.codigo,
+              montoARS: pago.montoARS,
+              fecha: pago.fecha,
+            }))
+            .sort((a, b) => a.id - b.id),
+          createdAt: reserva.createdAt,
+          updatedAt: reserva.updatedAt
+        };
+      });
 
     res.json(reservasConSaldos);
   } catch (error) {

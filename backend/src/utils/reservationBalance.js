@@ -73,9 +73,15 @@ function aggregateReservationsBalance(reservations = []) {
     );
 }
 
+/** Alias: misma fórmula aplicada a un Account (cargos/pagos del folio). */
+function calculateAccountBalance(cargos = [], pagos = []) {
+  return calculateReservationBalance(cargos, pagos);
+}
+
 module.exports = {
   EXCLUDED_RESERVATION_STATUSES,
   calculateReservationBalance,
+  calculateAccountBalance,
   aggregateReservationsBalance,
   isReservationIncludedInClientBalance,
   sumCargos,

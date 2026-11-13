@@ -8,7 +8,8 @@ import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
-import { deleteReservation, deleteQuery, deleteAllQueries } from '../services/api';
+import { deleteQuery, deleteAllQueries } from '../services/api';
+import { deleteReservationWithWarning } from '../utils/deleteReservationWithWarning';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import {
   RESERVATION_SOURCE_OPTIONS,
@@ -143,7 +144,9 @@ function ConsultasReservasView() {
   const handleDeleteConfirm = async () => {
     if (!selectedReservation) return;
     try {
-      await deleteReservation(selectedReservation.id);
+      setShowDeleteModal(false);
+      const deleted = await deleteReservationWithWarning(selectedReservation.id, confirm);
+      if (!deleted) return;
       setReservations(reservations.filter(r => r.id !== selectedReservation.id));
       closePanel();
     } catch (error) {

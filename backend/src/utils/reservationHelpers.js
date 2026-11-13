@@ -13,6 +13,10 @@ const {
   collapseVirtualGroupsForTimeline
 } = require('./virtualRoomSegments');
 const { normalizeBedPreference } = require('./bedConfig');
+const {
+  ensureReservationAccount,
+  dualWriteReservationRefs
+} = require('./accountHelpers');
 
 async function resolveHotelId(serviceTypeId) {
   if (serviceTypeId) {
@@ -37,9 +41,15 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
     return { totalNights: 0 };
   }
 
+  const account = await ensureReservationAccount(prisma, reservaId);
+  const financialRefs = dualWriteReservationRefs(account, reservaId);
+
   // Conservar overrides manuales por fecha civil antes de regenerar
   const existingLodging = await prisma.cargo.findMany({
-    where: { reservaId, subcategoriaCargoId: null }
+    where: {
+      OR: [{ reservaId }, { accountId: account.id }],
+      subcategoriaCargoId: null
+    }
   });
   const overrideByDate = new Map();
   for (const cargo of existingLodging) {
@@ -54,7 +64,7 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
 
   await prisma.cargo.deleteMany({
     where: {
-      reservaId,
+      OR: [{ reservaId }, { accountId: account.id }],
       subcategoriaCargoId: null
     }
   });
@@ -135,7 +145,7 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
 
       await prisma.cargo.create({
         data: {
-          reservaId,
+          ...financialRefs,
           roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
           serviceTypeId: serviceTypeId || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
@@ -404,7 +414,7 @@ async function createReservationWithSegments(reservationData) {
 
   const logicalCount = collapseVirtualGroupsForTimeline(resolvedSegments).length;
 
-  // Crear la reserva
+  // Crear la reserva + Account 1:1 en la misma secuencia
   const reservation = await prisma.reservation.create({
     data: {
       mainClientId: parseInt(mainClientId),
@@ -415,6 +425,7 @@ async function createReservationWithSegments(reservationData) {
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
     }
   });
+  await ensureReservationAccount(prisma, reservation.id, mainClientId);
 
   // Crear todos los segmentos; si falla, borrar la reserva huérfana
   const createdSegments = [];
@@ -499,7 +510,7 @@ async function createReservationWithSegment(reservationData) {
   const days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
   const baseRate = totalAmount / days;
 
-  // Crear la reserva
+  // Crear la reserva + Account 1:1
   const reservation = await prisma.reservation.create({
     data: {
       mainClientId: parseInt(mainClientId),
@@ -510,6 +521,8 @@ async function createReservationWithSegment(reservationData) {
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
     }
   });
+  const account = await ensureReservationAccount(prisma, reservation.id, mainClientId);
+  const financialRefs = dualWriteReservationRefs(account, reservation.id);
 
   // Crear el segmento inicial
   const segment = await prisma.reservationSegment.create({
@@ -556,7 +569,7 @@ async function createReservationWithSegment(reservationData) {
 
       await prisma.cargo.create({
         data: {
-          reservaId: reservation.id,
+          ...financialRefs,
           roomTypeId: room?.roomTypeId || null,
           serviceTypeId: serviceType?.id || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,

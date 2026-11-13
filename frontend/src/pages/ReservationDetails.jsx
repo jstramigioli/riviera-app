@@ -428,18 +428,16 @@ const ReservationDetails = () => {
     if (!ok) return;
 
     try {
-      const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar la reserva');
-      }
-
-      navigate(-1);
+      const { deleteReservationWithWarning } = await import('../utils/deleteReservationWithWarning');
+      const deleted = await deleteReservationWithWarning(reservationId, confirm);
+      if (deleted) navigate(-1);
     } catch (error) {
       console.error('Error eliminando reserva:', error);
-      notify({ title: 'Error', message: 'Error al eliminar la reserva', type: 'error' });
+      notify({
+        title: 'Error',
+        message: error.message || 'Error al eliminar la reserva',
+        type: 'error',
+      });
     }
   };
 

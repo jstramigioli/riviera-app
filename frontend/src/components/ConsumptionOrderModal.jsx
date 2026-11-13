@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { FiMinus, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
 import {
   fetchOccupiedRoomsToday,
+  fetchCuentasParaPago,
   fetchMenuItems,
   createConsumptionOrder,
   deleteCargo
@@ -37,10 +38,16 @@ function todayLocalIso() {
 }
 
 function reservationOptionKey(row) {
+  if (row.accountKind === 'EXTERNAL' || row.origen === 'EXTERNA') {
+    return `ext:${row.accountId}`;
+  }
   return `${row.reservationId}:${row.roomId}`;
 }
 
 function reservationOptionLabel(row) {
+  if (row.accountKind === 'EXTERNAL' || row.origen === 'EXTERNA') {
+    return `Externa · ${row.label || `Cuenta #${row.accountId}`}`;
+  }
   if (row.label) return row.label;
   const room = row.roomName || 'Hab.';
   const apellido = row.clientLastName || (row.clientName || '').split(/\s+/).pop() || 'Sin apellido';
@@ -243,8 +250,24 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     setLoadingReservations(true);
     setError(null);
     try {
-      const roomsRes = await fetchOccupiedRoomsToday(dateCivil);
-      const list = roomsRes.data || roomsRes || [];
+      const [roomsRes, cuentasRes] = await Promise.all([
+        fetchOccupiedRoomsToday(dateCivil),
+        fetchCuentasParaPago().catch(() => ({ data: [] }))
+      ]);
+      const occupied = roomsRes.data || roomsRes || [];
+      const cuentas = cuentasRes.data || cuentasRes || [];
+      const externas = (Array.isArray(cuentas) ? cuentas : [])
+        .filter((c) => c.accountKind === 'EXTERNAL' || c.origen === 'EXTERNA')
+        .map((c) => ({
+          ...c,
+          reservationId: null,
+          roomId: `ext-${c.accountId}`,
+          accountId: c.accountId,
+          accountKind: 'EXTERNAL',
+          origen: 'EXTERNA',
+          label: c.label
+        }));
+      const list = [...occupied, ...externas];
       setReservations(list);
       setSelectionKey((prev) => {
         if (preferPreset) {
@@ -564,8 +587,16 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   const submit = async ({ continueAfter }) => {
     setError(null);
 
-    if (!selectedReservation?.reservationId) {
-      setError('Seleccioná una reserva');
+    const isExternal =
+      selectedReservation?.accountKind === 'EXTERNAL' ||
+      selectedReservation?.origen === 'EXTERNA';
+    if (!isExternal && !selectedReservation?.reservationId) {
+      setError('Seleccioná una reserva o cuenta externa');
+      reservationRef.current?.focus();
+      return;
+    }
+    if (isExternal && !selectedReservation?.accountId) {
+      setError('Seleccioná una cuenta externa');
       reservationRef.current?.focus();
       return;
     }
@@ -606,7 +637,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
       }
 
       const result = await createConsumptionOrder({
-        reservationId: selectedReservation.reservationId,
+        ...(isExternal
+          ? { accountId: selectedReservation.accountId }
+          : { reservationId: selectedReservation.reservationId }),
         fecha,
         items: [...merged.values()]
       });

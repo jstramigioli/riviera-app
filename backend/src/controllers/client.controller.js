@@ -1,5 +1,6 @@
 const prisma = require('../utils/prisma');
 const { aggregateReservationsBalance } = require('../utils/reservationBalance');
+const { aggregateAccountsBalance } = require('../utils/accountBalance');
 const { DEFAULT_IVA_CONDITION } = require('../utils/billingConstants');
 
 function normalizeBillingString(value) {
@@ -238,17 +239,25 @@ exports.upsertClientBillingProfile = async (req, res) => {
   }
 };
 
-// Calcular balance de un cliente (misma fuente que resumen de reserva: cargos − pagos)
+// Balance total del cliente: Accounts RESERVATION (excl. canceladas) + EXTERNAL del titular.
 exports.getClientBalance = async (req, res) => {
   const { id } = req.params;
   try {
+    const clientId = parseInt(id, 10);
     const client = await prisma.client.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: clientId },
       include: {
         reservations: {
           include: {
             cargos: true,
             pagos: true,
+          },
+        },
+        accounts: {
+          include: {
+            reservation: { select: { id: true, status: true } },
+            cargos: { select: { monto: true } },
+            pagos: { select: { montoARS: true } },
           },
         },
       },
@@ -258,17 +267,27 @@ exports.getClientBalance = async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    const aggregated = aggregateReservationsBalance(client.reservations);
+    // Preferir Accounts; fallback legacy a reservations si aún no hay folio.
+    const accounts = (client.accounts || []).map((account) => ({
+      ...account,
+      reservationId: account.reservationId || account.reservation?.id || null,
+    }));
+
+    const byAccount = aggregateAccountsBalance(accounts);
+    const byReservation = aggregateReservationsBalance(client.reservations);
+    const useAccounts = accounts.length > 0;
 
     res.json({
       clientId: client.id,
       clientName: `${client.firstName} ${client.lastName}`,
-      totalCharges: aggregated.totalCharges,
-      totalPayments: aggregated.totalPayments,
-      balance: aggregated.balance,
-      isDebtor: aggregated.balance > 0,
-      reservationCount: aggregated.reservationCount,
-      reservations: aggregated.reservations,
+      totalCharges: useAccounts ? byAccount.totalCharges : byReservation.totalCharges,
+      totalPayments: useAccounts ? byAccount.totalPayments : byReservation.totalPayments,
+      balance: useAccounts ? byAccount.balance : byReservation.balance,
+      isDebtor: (useAccounts ? byAccount.balance : byReservation.balance) > 0,
+      reservationCount: useAccounts ? byAccount.reservationCount : byReservation.reservationCount,
+      accountCount: useAccounts ? byAccount.accountCount : byReservation.reservationCount,
+      accounts: useAccounts ? byAccount.accounts : [],
+      reservations: useAccounts ? byAccount.reservations : byReservation.reservations,
     });
   } catch (error) {
     console.error('Error calculating client balance:', error);
