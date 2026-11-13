@@ -2,7 +2,7 @@
  * Seed del menú de consumos desde precios reales (Excel hoja 202526).
  * - Asegura subcategorías CONSUMO canónicas (BEBIDAS, MINUTAS, CAFETERIA)
  * - Upsert por categoría+nombre: actualiza precio/descripción/orden/variedades
- * - Desactiva ítems demo viejos que no están en el catálogo Excel
+ * - Elimina ítems del seed demo viejo (y otros inactivos) que no estén en el Excel
  *
  * Uso: node prisma/seed-menu-consumos.js
  */
@@ -168,26 +168,29 @@ async function upsertMenuItems(catalog) {
   return { created, updated, catalogKeys };
 }
 
-async function deactivateLegacyDemo(catalogKeys) {
-  let deactivated = 0;
-  for (const name of LEGACY_DEMO_NAMES) {
-    const items = await prisma.menuItem.findMany({
-      where: {
-        name: { equals: name, mode: 'insensitive' },
-        isActive: true
-      }
-    });
-    for (const item of items) {
-      const key = `${item.category}::${item.name.toLowerCase()}`;
-      if (catalogKeys.has(key)) continue;
-      await prisma.menuItem.update({
-        where: { id: item.id },
-        data: { isActive: false }
-      });
-      deactivated += 1;
-    }
-  }
-  return deactivated;
+/**
+ * Quita del catálogo los ítems del seed demo viejo (y leftovers inactivos)
+ * que no coinciden con el Excel 202526. Cascada borra variedades.
+ */
+async function removeLegacyNotInCatalog(catalogKeys) {
+  const legacyNameSet = new Set(LEGACY_DEMO_NAMES.map((n) => n.toLowerCase()));
+  const candidates = await prisma.menuItem.findMany({
+    select: { id: true, category: true, name: true, isActive: true }
+  });
+
+  const toDelete = candidates.filter((item) => {
+    const key = `${item.category}::${item.name.trim().toLowerCase()}`;
+    if (catalogKeys.has(key)) return false;
+    const isLegacyName = legacyNameSet.has(item.name.trim().toLowerCase());
+    return isLegacyName || item.isActive === false;
+  });
+
+  if (!toDelete.length) return 0;
+
+  const result = await prisma.menuItem.deleteMany({
+    where: { id: { in: toDelete.map((i) => i.id) } }
+  });
+  return result.count;
 }
 
 async function main() {
@@ -195,11 +198,12 @@ async function main() {
   const catalog = loadMenuCatalog();
   const subCreated = await ensureSubcategories();
   const { created, updated, catalogKeys } = await upsertMenuItems(catalog);
-  const deactivated = await deactivateLegacyDemo(catalogKeys);
+  const removed = await removeLegacyNotInCatalog(catalogKeys);
   const totalItems = await prisma.menuItem.count({ where: { isActive: true } });
+  const totalAll = await prisma.menuItem.count();
   const totalVarieties = await prisma.menuItemVariety.count();
   console.log(
-    `Listo. Subcategorías nuevas: ${subCreated}. Ítems creados: ${created}, actualizados: ${updated}, demo desactivados: ${deactivated}. Activos: ${totalItems}. Variedades: ${totalVarieties}.`
+    `Listo. Subcategorías nuevas: ${subCreated}. Ítems creados: ${created}, actualizados: ${updated}, legacy eliminados: ${removed}. Activos: ${totalItems}/${totalAll}. Variedades: ${totalVarieties}.`
   );
 }
 
