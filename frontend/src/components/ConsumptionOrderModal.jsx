@@ -87,10 +87,25 @@ function filterMenuItems(menuItems, query) {
   });
 }
 
+function resolvePresetKey(list, preset) {
+  if (!preset?.reservationId || !Array.isArray(list) || list.length === 0) return '';
+  const reservationId = Number(preset.reservationId);
+  if (preset.roomId != null) {
+    const exact = list.find(
+      (r) =>
+        Number(r.reservationId) === reservationId && Number(r.roomId) === Number(preset.roomId)
+    );
+    if (exact) return reservationOptionKey(exact);
+  }
+  const first = list.find((r) => Number(r.reservationId) === reservationId);
+  return first ? reservationOptionKey(first) : '';
+}
+
 /**
  * Modal POS de comanda: fecha → reservas ocupadas ese día → filas de ítems.
+ * preset opcional: { reservationId, roomId?, fecha? } para abrir desde el panel.
  */
-export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
+export default function ConsumptionOrderModal({ open, onClose, onSaved, preset = null }) {
   const titleId = useId();
   const dateRef = useRef(null);
   const reservationRef = useRef(null);
@@ -99,6 +114,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const dropdownListRefs = useRef({});
   const toastTimerRef = useRef(null);
   const pendingUndoRef = useRef(null);
+  const presetRef = useRef(preset);
 
   const [fecha, setFecha] = useState(todayLocalIso);
   const [reservations, setReservations] = useState([]);
@@ -110,6 +126,10 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    presetRef.current = preset;
+  }, [preset]);
 
   const selectedReservation = useMemo(
     () => reservations.find((r) => reservationOptionKey(r) === selectionKey) || null,
@@ -154,7 +174,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     }
   }, []);
 
-  const loadReservations = useCallback(async (dateCivil) => {
+  const loadReservations = useCallback(async (dateCivil, { preferPreset = false } = {}) => {
     setLoadingReservations(true);
     setError(null);
     try {
@@ -162,13 +182,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
       const list = roomsRes.data || roomsRes || [];
       setReservations(list);
       setSelectionKey((prev) => {
+        if (preferPreset) {
+          const fromPreset = resolvePresetKey(list, presetRef.current);
+          if (fromPreset) return fromPreset;
+        }
         if (!prev) return '';
         return list.some((r) => reservationOptionKey(r) === prev) ? prev : '';
       });
+      return list;
     } catch (err) {
       setReservations([]);
       setSelectionKey('');
       setError(err.message || 'No se pudo cargar las reservas');
+      return [];
     } finally {
       setLoadingReservations(false);
     }
@@ -176,16 +202,32 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
 
   useEffect(() => {
     if (!open) return undefined;
-    const today = todayLocalIso();
-    setFecha(today);
+    const initialFecha =
+      preset?.fecha && /^\d{4}-\d{2}-\d{2}$/.test(preset.fecha)
+        ? preset.fecha
+        : todayLocalIso();
+    setFecha(initialFecha);
     resetOrder();
     dismissToast();
     setLoadingMeta(true);
-    Promise.all([loadMenu(), loadReservations(today)]).finally(() => {
-      setLoadingMeta(false);
-    });
-    const t = window.setTimeout(() => dateRef.current?.focus(), 40);
+    Promise.all([loadMenu(), loadReservations(initialFecha, { preferPreset: true })]).finally(
+      () => {
+        setLoadingMeta(false);
+      }
+    );
+    const hasPreset = Boolean(preset?.reservationId);
+    const t = window.setTimeout(() => {
+      if (hasPreset) {
+        const firstKey = Object.keys(itemInputRefs.current)[0];
+        const firstInput = firstKey ? itemInputRefs.current[firstKey] : null;
+        (firstInput || reservationRef.current)?.focus();
+      } else {
+        dateRef.current?.focus();
+      }
+    }, 40);
     return () => window.clearTimeout(t);
+    // Solo al abrir: no re-disparar si cambia la referencia de preset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, loadMenu, loadReservations, resetOrder, dismissToast]);
 
   useEffect(() => () => clearToastTimer(), [clearToastTimer]);
@@ -214,7 +256,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved }) {
     setFecha(value);
     setSelectionKey('');
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      loadReservations(value);
+      loadReservations(value, { preferPreset: false });
     }
   };
 

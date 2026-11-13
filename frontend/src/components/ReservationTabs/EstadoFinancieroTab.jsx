@@ -26,7 +26,8 @@ const EstadoFinancieroTab = ({
   onUpdateCargo,
   onDeleteCargo,
   pendingAction = null,
-  onPendingActionHandled
+  onPendingActionHandled,
+  onRequestConsumo
 }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
@@ -243,9 +244,14 @@ const EstadoFinancieroTab = ({
     if (loadingFinancial || loadingCategorias) return;
 
     if (pendingAction === 'add-consumo') {
-      if (subcategorias.length === 0) return;
       pendingHandledRef.current = pendingAction;
-      openCreateCargo();
+      if (typeof onRequestConsumo === 'function') {
+        onRequestConsumo();
+      } else if (subcategorias.length > 0) {
+        openCreateCargo();
+      } else {
+        return;
+      }
       onPendingActionHandled?.();
       return;
     }
@@ -271,7 +277,8 @@ const EstadoFinancieroTab = ({
     loadingCategorias,
     financialSummary,
     subcategorias.length,
-    onPendingActionHandled
+    onPendingActionHandled,
+    onRequestConsumo
   ]);
 
   if (!reservation) return null;

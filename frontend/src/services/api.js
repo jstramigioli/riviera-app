@@ -901,7 +901,9 @@ export async function fetchMenuItems({ category, q, active } = {}) {
   if (active === true) params.set('active', 'true');
   if (active === false) params.set('active', 'false');
   const qs = params.toString();
-  const res = await fetch(`${API_URL}/menu-items${qs ? `?${qs}` : ''}`);
+  const res = await fetch(`${API_URL}/menu-items${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.error || 'Error al cargar el menú');
@@ -913,6 +915,7 @@ export async function createMenuItem(data) {
   const res = await fetch(`${API_URL}/menu-items`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -926,6 +929,7 @@ export async function updateMenuItem(id, data) {
   const res = await fetch(`${API_URL}/menu-items/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -937,7 +941,8 @@ export async function updateMenuItem(id, data) {
 
 export async function toggleMenuItem(id) {
   const res = await fetch(`${API_URL}/menu-items/${id}/toggle`, {
-    method: 'PUT'
+    method: 'PUT',
+    credentials: 'include'
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -946,13 +951,16 @@ export async function toggleMenuItem(id) {
   return res.json();
 }
 
-export async function deleteMenuItem(id) {
-  const res = await fetch(`${API_URL}/menu-items/${id}`, {
-    method: 'DELETE'
+/** Baja lógica (desactiva). Pasá { hard: true } solo para borrado físico excepcional. */
+export async function deleteMenuItem(id, { hard = false } = {}) {
+  const qs = hard ? '?hard=true' : '';
+  const res = await fetch(`${API_URL}/menu-items/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error al eliminar ítem');
+    throw new Error(error.error || 'Error al desactivar ítem');
   }
   return res.json();
 }
@@ -963,7 +971,8 @@ export async function fetchOccupiedRoomsToday(date) {
   if (date) params.set('date', date);
   const qs = params.toString();
   const res = await fetch(
-    `${API_URL}/consumptions/occupied-rooms${qs ? `?${qs}` : ''}`
+    `${API_URL}/consumptions/occupied-rooms${qs ? `?${qs}` : ''}`,
+    { credentials: 'include' }
   );
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
@@ -976,6 +985,7 @@ export async function createConsumptionOrder(data) {
   const res = await fetch(`${API_URL}/consumptions/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {

@@ -204,6 +204,11 @@ exports.toggleMenuItem = async (req, res) => {
   }
 };
 
+/**
+ * Baja lógica: desactiva el ítem (no borra la fila).
+ * Los cargos históricos ya guardan descripción/monto en Cargo; el catálogo sigue trazable.
+ * Query ?hard=true permite borrado físico (solo settings / uso excepcional).
+ */
 exports.deleteMenuItem = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -212,8 +217,22 @@ exports.deleteMenuItem = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Ítem no encontrado' });
     }
 
-    await prisma.menuItem.delete({ where: { id } });
-    res.json({ success: true, message: 'Ítem eliminado' });
+    const hard = String(req.query.hard || '').toLowerCase() === 'true';
+    if (hard) {
+      await prisma.menuItem.delete({ where: { id } });
+      return res.json({ success: true, message: 'Ítem eliminado', hard: true });
+    }
+
+    const item = await prisma.menuItem.update({
+      where: { id },
+      data: { isActive: false }
+    });
+    res.json({
+      success: true,
+      message: 'Ítem desactivado',
+      data: item,
+      hard: false
+    });
   } catch (error) {
     console.error('Error eliminando ítem de menú:', error);
     res.status(500).json({

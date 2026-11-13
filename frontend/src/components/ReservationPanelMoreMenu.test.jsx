@@ -46,4 +46,19 @@ describe('ReservationPanelMoreMenu', () => {
       }
     });
   });
+
+  it('usa onAddConsumo para la comanda sin navegar', async () => {
+    const user = userEvent.setup();
+    const onAddConsumo = vi.fn();
+    const reservation = { id: 7, segments: [{ roomId: 3 }] };
+    render(
+      <ReservationPanelMoreMenu reservation={reservation} onAddConsumo={onAddConsumo} />
+    );
+
+    await user.click(screen.getByTestId('reservation-panel-more-menu'));
+    await user.click(screen.getByTestId(`panel-action-${FINANCIAL_ACTIONS.ADD_CONSUMO}`));
+
+    expect(onAddConsumo).toHaveBeenCalledWith(reservation);
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
 });

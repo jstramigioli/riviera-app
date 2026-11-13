@@ -146,9 +146,9 @@ export default function MenuConsumosTab() {
 
   const onDelete = async (item) => {
     const ok = await confirm({
-      title: 'Eliminar ítem',
-      message: `¿Eliminar “${item.name}” del menú?`,
-      confirmText: 'Eliminar',
+      title: 'Desactivar ítem',
+      message: `¿Desactivar “${item.name}” del menú? Dejará de aparecer en la comanda; se puede reactivar después.`,
+      confirmText: 'Desactivar',
       type: 'danger'
     });
     if (!ok) return;
@@ -156,7 +156,7 @@ export default function MenuConsumosTab() {
       await deleteMenuItem(item.id);
       await load();
     } catch (err) {
-      notify({ title: 'Error', message: err.message || 'No se pudo eliminar' });
+      notify({ title: 'Error', message: err.message || 'No se pudo desactivar' });
     }
   };
 
@@ -273,8 +273,8 @@ export default function MenuConsumosTab() {
                     <button
                       type="button"
                       className={styles.iconBtn}
-                      title="Eliminar"
-                      aria-label="Eliminar"
+                      title="Desactivar"
+                      aria-label="Desactivar"
                       onClick={() => onDelete(item)}
                     >
                       <FiTrash2 />
