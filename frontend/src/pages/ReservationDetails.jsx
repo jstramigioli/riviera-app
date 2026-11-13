@@ -197,9 +197,9 @@ const ReservationDetails = () => {
       setCopiedSummary(true);
       setTimeout(() => setCopiedSummary(false), 1600);
       notify({
-        title: 'Copiado',
         message: 'Resumen de la reserva copiado al portapapeles.',
-        type: 'success'
+        type: 'success',
+        autoDismiss: true,
       });
     } catch (error) {
       console.error('Error al copiar resumen de reserva:', error);

@@ -1,11 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import NotificationModal from '../components/NotificationModal';
+import AppToast from '../components/AppToast';
+
+const DEFAULT_TOAST_MS = 2800;
 
 /**
  * Cartel in-app (reemplazo de window.alert) para feedback post-acción.
  * Uso: const { notify, noticeDialog } = useAppNotice();
  *      notify({ title: 'Listo', message: 'Cargo eliminado', type: 'success' });
  *      notify({ message: '...', type: 'success', onClose: () => navigate('/...') });
+ *      notify({ message: 'Copiado', type: 'success', autoDismiss: true }); // toast abajo
  */
 export function useAppNotice() {
   const [notice, setNotice] = useState({
@@ -13,6 +17,8 @@ export function useAppNotice() {
     title: '',
     message: '',
     type: 'success',
+    autoDismiss: false,
+    duration: DEFAULT_TOAST_MS,
   });
   const onCloseRef = useRef(null);
 
@@ -28,13 +34,22 @@ export function useAppNotice() {
               ? 'Atención'
               : 'Aviso');
     const type = typeof options === 'string' ? 'info' : options.type || 'info';
-    onCloseRef.current = typeof options === 'object' && options?.onClose ? options.onClose : null;
+    const autoDismiss =
+      typeof options === 'object' && Boolean(options?.autoDismiss);
+    const duration =
+      typeof options === 'object' && Number.isFinite(options?.duration)
+        ? options.duration
+        : DEFAULT_TOAST_MS;
+    onCloseRef.current =
+      typeof options === 'object' && options?.onClose ? options.onClose : null;
 
     setNotice({
       isOpen: true,
       title,
       message,
       type,
+      autoDismiss,
+      duration,
     });
   }, []);
 
@@ -45,7 +60,15 @@ export function useAppNotice() {
     if (typeof cb === 'function') cb();
   }, []);
 
-  const noticeDialog = (
+  const noticeDialog = notice.autoDismiss ? (
+    <AppToast
+      isOpen={notice.isOpen}
+      message={notice.message || notice.title}
+      type={notice.type}
+      duration={notice.duration}
+      onClose={closeNotice}
+    />
+  ) : (
     <NotificationModal
       isOpen={notice.isOpen}
       onClose={closeNotice}
