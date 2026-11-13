@@ -14,7 +14,9 @@ import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
 import {
   roomSelectionPayload,
   collapseSegmentsForEditUi,
-  selectedRoomFromCollapsedSegment
+  selectedRoomFromCollapsedSegment,
+  roomsMatch,
+  preserveSelectedRoomInList
 } from '../utils/virtualRoomReservation';
 import styles from '../styles/Consulta.module.css';
 
@@ -297,6 +299,9 @@ export default function Consulta() {
   const dataLoadedRef = useRef(false);
   // Evita que efectos de reset borren el prefill durante la hidratación de edición
   const hydratingEditRef = useRef(false);
+  // Selección actual legible desde callbacks async (re-búsqueda por servicio, etc.)
+  const selectedRoomsPerBlockRef = useRef(selectedRoomsPerBlock);
+  selectedRoomsPerBlockRef.current = selectedRoomsPerBlock;
   
   // Ref para rastrear los valores previos de los segmentos
   const previousSegmentsRef = useRef({});
@@ -1087,10 +1092,8 @@ export default function Consulta() {
             reservationEdit: { id: full.id }
           }
         });
-
-        queueMicrotask(() => {
-          hydratingEditRef.current = false;
-        });
+        // hydratingEditRef se baja en un effect con setTimeout(0) para que
+        // Strict Mode / resets de huéspedes no borren la habitación sembrada.
       } catch (error) {
         console.error('Error cargando reserva para editar:', error);
         if (!cancelled) {
@@ -1110,6 +1113,17 @@ export default function Consulta() {
     // notify es estable vía useAppNotice; omitido a propósito para no re-disparar el prefill
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.reservationId, location.state?.reservationEdit?.id, location.state?.isEditingReservation, navigate]);
+
+  // Liberar hidratación solo después de que los effects del commit (y el double-invoke
+  // de Strict Mode) hayan corrido; queueMicrotask era demasiado temprano y el reset
+  // por requiredGuests borraba la habitación prefilleada.
+  useEffect(() => {
+    if (!editPrefillReady || !editingReservationId || !hydratingEditRef.current) return;
+    const t = setTimeout(() => {
+      hydratingEditRef.current = false;
+    }, 0);
+    return () => clearTimeout(t);
+  }, [editPrefillReady, editingReservationId]);
 
   // Cargar datos de la consulta desde el modal o desde la tabla de consultas
   useEffect(() => {
@@ -1480,31 +1494,33 @@ export default function Consulta() {
     }
   }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags, requirements.requiredRoomId, requirements.requirementsNotes, location.state?.isEditing, segments.length]);
 
-  // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada para el bloque activo
+  // Seleccionar automáticamente la primera habitación disponible solo si el bloque
+  // no tiene ya una habitación elegida/prefilleada (no pisar edición ni cambio de servicio).
   useEffect(() => {
+    if (hydratingEditRef.current) return;
+
     const availableRooms = availableRoomsPerBlock[activeBlockIndex] || [];
     const selectedRoomForBlock = selectedRoomsPerBlock[activeBlockIndex];
-    
-    if (availableRooms.length > 0 && !selectedRoomForBlock) {
-      // Buscar primero una habitación con capacidad exacta
-      const exactCapacityRoom = availableRooms.find(room => room.maxPeople === requirements.requiredGuests);
-      
-      if (exactCapacityRoom) {
-        setSelectedRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: exactCapacityRoom
-        }));
-        setSelectedRoomType(exactCapacityRoom.roomType);
-        // NO actualizamos roomId en el segmento
-      } else {
-        // Si no hay capacidad exacta, seleccionar la primera disponible
-        setSelectedRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: availableRooms[0]
-        }));
-        setSelectedRoomType(availableRooms[0].roomType);
-        // NO actualizamos roomId en el segmento
-      }
+
+    if (availableRooms.length === 0) return;
+
+    if (selectedRoomForBlock) {
+      const stillListed = availableRooms.some((room) => roomsMatch(room, selectedRoomForBlock));
+      if (stillListed) return;
+      // Hay selección previa fuera del listado (p. ej. aún cargando tarifas): no defaultar.
+      return;
+    }
+
+    const exactCapacityRoom = availableRooms.find(
+      (room) => room.maxPeople === requirements.requiredGuests
+    );
+    const roomToSelect = exactCapacityRoom || availableRooms[0];
+    setSelectedRoomsPerBlock((prev) => ({
+      ...prev,
+      [activeBlockIndex]: roomToSelect
+    }));
+    if (roomToSelect.roomType) {
+      setSelectedRoomType(roomToSelect.roomType);
     }
   }, [availableRoomsPerBlock, activeBlockIndex, requirements.requiredGuests, selectedRoomsPerBlock]);
 
@@ -1573,13 +1589,14 @@ export default function Consulta() {
         return;
       }
       
-      // Comparar valores actuales con previos
-      const hasChanged = 
+      const occupancyChanged =
         prevSegment.checkIn !== currentValues.checkIn ||
         prevSegment.checkOut !== currentValues.checkOut ||
         prevSegment.requiredTags !== currentValues.requiredTags ||
-        prevSegment.requiredRoomId !== currentValues.requiredRoomId ||
-        prevSegment.serviceType !== currentValues.serviceType;
+        prevSegment.requiredRoomId !== currentValues.requiredRoomId;
+      const serviceOnlyChanged =
+        !occupancyChanged && prevSegment.serviceType !== currentValues.serviceType;
+      const hasChanged = occupancyChanged || serviceOnlyChanged;
       
       if (hasChanged) {
         // Actualizar valores previos inmediatamente
@@ -1591,7 +1608,8 @@ export default function Consulta() {
         
         // Solo resetear si ya se había realizado una búsqueda
         if (hasSearchedPerBlock[index]) {
-          // Los parámetros cambiaron realmente, resetear este bloque
+          // Fechas/tags/filtro de hab: invalidar listado y selección.
+          // Solo servicio: re-buscar tarifas pero conservar la habitación elegida.
           setHasSearchedPerBlock(prev => ({
             ...prev,
             [index]: false
@@ -1600,12 +1618,13 @@ export default function Consulta() {
             ...prev,
             [index]: []
           }));
-          setSelectedRoomsPerBlock(prev => {
-            const newSelected = { ...prev };
-            delete newSelected[index];
-            return newSelected;
-          });
-          // NO limpiamos roomId porque ya no lo usamos
+          if (occupancyChanged) {
+            setSelectedRoomsPerBlock(prev => {
+              const newSelected = { ...prev };
+              delete newSelected[index];
+              return newSelected;
+            });
+          }
         }
       }
     });
@@ -1843,17 +1862,40 @@ export default function Consulta() {
             [activeBlockIndex]: []
           }));
         } else {
+          const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+          const { rooms: finalRooms, selected: keptSelected } = preserveSelectedRoomInList(
+            roomsToShow,
+            priorSelected
+          );
           setAvailableRoomsPerBlock(prev => ({
             ...prev,
-            [activeBlockIndex]: roomsToShow
+            [activeBlockIndex]: finalRooms
           }));
+          if (keptSelected) {
+            setSelectedRoomsPerBlock(prev => ({
+              ...prev,
+              [activeBlockIndex]: keptSelected
+            }));
+            if (keptSelected.roomType) {
+              setSelectedRoomType(keptSelected.roomType);
+            }
+          }
         }
       } else {
         console.log('No se encontraron habitaciones disponibles');
-        setAvailableRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: []
-        }));
+        const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+        if (priorSelected) {
+          // Cambio de servicio / re-búsqueda vacía: mantener la habitación ya elegida visible
+          setAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [activeBlockIndex]: [priorSelected]
+          }));
+        } else {
+          setAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [activeBlockIndex]: []
+          }));
+        }
       }
     } catch (error) {
       console.error('Error buscando habitaciones disponibles:', error);
@@ -3529,7 +3571,7 @@ export default function Consulta() {
                     
                     return roomsToShow;
                   })().map(({ room, compliance }) => {
-                      const isSelected = selectedRoomsPerBlock[activeBlockIndex] && selectedRoomsPerBlock[activeBlockIndex].id === room.id;
+                      const isSelected = roomsMatch(selectedRoomsPerBlock[activeBlockIndex], room);
                       const showDetails = showRoomDetails[room.id] || false;
                       
                       return (

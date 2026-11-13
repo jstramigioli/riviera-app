@@ -114,6 +114,39 @@ export function getDisplaySegments(segments = []) {
   return collapseSegmentsForEditUi(segments);
 }
 
+/** Compara dos habitaciones (físicas o virtuales) por identidad estable. */
+export function roomsMatch(a, b) {
+  if (!a || !b) return false;
+  const aVirtual = parseVirtualRoomId(a.virtualRoomId ?? (a.isVirtual ? a.id : null));
+  const bVirtual = parseVirtualRoomId(b.virtualRoomId ?? (b.isVirtual ? b.id : null));
+  if (aVirtual && bVirtual) return aVirtual === bVirtual;
+  if (aVirtual || bVirtual) return false;
+  if (a.id == null || b.id == null) return false;
+  return String(a.id) === String(b.id);
+}
+
+/** Busca en un listado la habitación equivalente a la selección actual. */
+export function findMatchingRoom(rooms, selected) {
+  if (!selected || !Array.isArray(rooms) || rooms.length === 0) return null;
+  return rooms.find((room) => roomsMatch(room, selected)) || null;
+}
+
+/**
+ * Tras re-buscar disponibilidad (p. ej. cambio de servicio), conserva la
+ * habitación ya elegida: rebind a la del listado (tarifas nuevas) o la
+ * antepone si el backend no la devolvió.
+ */
+export function preserveSelectedRoomInList(rooms, selected) {
+  const list = Array.isArray(rooms) ? [...rooms] : [];
+  if (!selected) return { rooms: list, selected: null };
+  const match = findMatchingRoom(list, selected);
+  if (match) return { rooms: list, selected: match };
+  return {
+    rooms: [selected, ...list.filter((room) => !roomsMatch(room, selected))],
+    selected
+  };
+}
+
 /** Arma el objeto "room" seleccionado a partir de un segmento colapsado. */
 export function selectedRoomFromCollapsedSegment(seg) {
   if (!seg) return null;
@@ -138,15 +171,18 @@ export function selectedRoomFromCollapsedSegment(seg) {
     };
   }
 
+  const roomId = seg.roomId ?? seg.uiRoomId ?? seg.room?.id ?? null;
+  if (roomId == null) return null;
+
   return {
-    id: seg.roomId,
-    name: seg.room?.name || seg.uiRoomName,
+    id: roomId,
+    name: seg.room?.name || seg.uiRoomName || `Hab ${roomId}`,
     description: seg.room?.description || '',
     maxPeople: seg.room?.maxPeople || seg.guestCount || 1,
     isVirtual: false,
     virtualRoomId: null,
     roomType: seg.roomType || seg.room?.roomType || null,
-    roomTypeId: seg.roomTypeId || seg.room?.roomTypeId || null,
+    roomTypeId: seg.roomTypeId || seg.room?.roomTypeId || seg.room?.roomType?.id || null,
     price: Number(seg.baseRate) || 0,
     ratesData: {
       totalAmount: null,
