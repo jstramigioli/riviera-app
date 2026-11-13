@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import LibroReservasBoard from './components/LibroReservasBoard';
-import RoomList from './components/RoomList';
 import SidePanel from './components/SidePanel';
 import EditPanel from './components/EditPanel';
 import ConfirmationModal from './components/ConfirmationModal';
@@ -34,6 +33,7 @@ import PaymentForm from './components/PaymentForm';
 import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
+import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
 import PublicCheckIn from './pages/PublicCheckIn';
 
@@ -42,6 +42,11 @@ function firstRoomIdFromReservation(reservation) {
   if (!Array.isArray(segments) || segments.length === 0) return null;
   const withRoom = segments.find((s) => s?.roomId != null);
   return withRoom?.roomId ?? null;
+}
+
+function RoomsToHabitacionesRedirect() {
+  const { roomId } = useParams();
+  return <Navigate to={`/habitaciones/${roomId}`} replace />;
 }
 
 function ReservationsView() {
@@ -599,12 +604,24 @@ function App() {
               )}
             />
             <Route
-              path="/rooms/:roomId"
+              path="/habitaciones"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><Habitaciones /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/habitaciones/:roomId"
               element={(
                 <ProtectedRoute permission="reservas">
                   <AppShell><RoomDetails /></AppShell>
                 </ProtectedRoute>
               )}
+            />
+            <Route
+              path="/rooms/:roomId"
+              element={<RoomsToHabitacionesRedirect />}
             />
             <Route
               path="/tarifas"

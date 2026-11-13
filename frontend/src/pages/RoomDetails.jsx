@@ -1,9 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { fetchRooms, fetchReservations } from '../services/api';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { fetchReservations, fetchRooms } from '../services/api';
+import { getStatusLabel } from '../utils/reservationStatusUtils';
+import {
+  INACTIVE_ROOM_STATUSES,
+  occupancyLabel,
+  reservationTouchesRoom,
+  stayBoundsForRoom,
+} from '../utils/roomOccupancy';
 import styles from './RoomDetails.module.css';
 
-const RoomDetails = () => {
+const TABS = [
+  { id: 'overview', label: 'Resumen general' },
+  { id: 'calendar', label: 'Calendario ocupación' },
+  { id: 'reservations', label: 'Historial reservas' },
+  { id: 'notes', label: 'Notificaciones / observaciones' },
+];
+
+function formatDate(dateValue) {
+  if (!dateValue) return '—';
+  const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function RoomDetails() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
@@ -19,478 +44,320 @@ const RoomDetails = () => {
 
       const [roomsData, reservationsData] = await Promise.all([
         fetchRooms(),
-        fetchReservations()
+        fetchReservations(),
       ]);
 
-      const foundRoom = roomsData.find(r => r.id === parseInt(roomId));
+      const foundRoom = (roomsData || []).find((item) => item.id === parseInt(roomId, 10));
       if (!foundRoom) {
         throw new Error('Habitación no encontrada');
       }
-      
-      // Filtrar reservas que involucren esta habitación
-      const roomReservations = reservationsData.filter(r => 
-        r.roomId === parseInt(roomId)
+
+      const roomReservations = (reservationsData || []).filter((reservation) =>
+        reservationTouchesRoom(reservation, roomId)
       );
 
       setRoom(foundRoom);
       setReservations(roomReservations);
     } catch (err) {
       console.error('Error cargando datos de la habitación:', err);
-      setError('Error al cargar los datos de la habitación');
+      setError(err.message === 'Habitación no encontrada'
+        ? 'Habitación no encontrada'
+        : 'Error al cargar los datos de la habitación');
     } finally {
       setLoading(false);
     }
   }, [roomId]);
 
   useEffect(() => {
-    if (roomId) {
-      loadRoomData();
-    }
+    if (roomId) loadRoomData();
   }, [roomId, loadRoomData]);
 
-  const handleBackClick = () => {
-    navigate('/reservations');
-  };
+  const sortedReservations = useMemo(() => {
+    return [...reservations].sort((a, b) => {
+      const aStart = stayBoundsForRoom(a, roomId).start?.getTime() || 0;
+      const bStart = stayBoundsForRoom(b, roomId).start?.getTime() || 0;
+      return bStart - aStart;
+    });
+  }, [reservations, roomId]);
 
-  // Funciones auxiliares
-  const getCurrentStatus = () => {
+  const upcomingReservations = useMemo(() => {
     const now = new Date();
-    const currentReservation = reservations.find(r => {
-      const checkIn = new Date(r.checkIn);
-      const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut && !['cancelled', 'checked_out'].includes(r.status);
-    });
-    
-    if (currentReservation) {
-      return 'Ocupada';
-    }
-    
-    // Verificar si hay reservas próximas
-    const upcomingReservations = reservations.filter(r => {
-      const checkIn = new Date(r.checkIn);
-      return checkIn > now && !['cancelled'].includes(r.status);
-    });
-    
-    if (upcomingReservations.length > 0) {
-      const nextReservation = upcomingReservations.sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn))[0];
-      const daysUntilOccupied = Math.ceil((new Date(nextReservation.checkIn) - now) / (1000 * 60 * 60 * 24));
-      
-      if (daysUntilOccupied <= 1) {
-        return 'Llega mañana';
-      } else if (daysUntilOccupied <= 3) {
-        return `Llega en ${daysUntilOccupied} días`;
-      } else {
-        return 'Disponible';
-      }
-    }
-    
-    return 'Disponible';
-  };
+    return sortedReservations
+      .filter((reservation) => {
+        if (INACTIVE_ROOM_STATUSES.has(reservation.status)) return false;
+        const { start } = stayBoundsForRoom(reservation, roomId);
+        return start && start > now;
+      })
+      .slice(0, 8);
+  }, [sortedReservations, roomId]);
 
-  const getCurrentGuest = () => {
+  const currentGuest = useMemo(() => {
     const now = new Date();
-    const currentReservation = reservations.find(r => {
-      const checkIn = new Date(r.checkIn);
-      const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut && !['cancelled', 'checked_out'].includes(r.status);
+    const current = reservations.find((reservation) => {
+      if (INACTIVE_ROOM_STATUSES.has(reservation.status)) return false;
+      const { start, end } = stayBoundsForRoom(reservation, roomId);
+      return start && end && now >= start && now < end;
     });
-    
-    return currentReservation?.mainClient || null;
-  };
+    return current?.mainClient || null;
+  }, [reservations, roomId]);
 
-  const getUpcomingReservations = () => {
-    const now = new Date();
-    return reservations.filter(r => {
-      const checkIn = new Date(r.checkIn);
-      return checkIn > now && !['cancelled'].includes(r.status);
-    }).sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn)).slice(0, 3);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'ARS'
-    }).format(amount);
-  };
-
-  const getStatusLabel = (status) => {
-    const statusLabels = {
-      'confirmed': 'Confirmada',
-      'checked_in': 'Check-in',
-      'checked_out': 'Check-out',
-      'cancelled': 'Cancelada'
-    };
-    return statusLabels[status] || status;
-  };
+  const currentStatus = useMemo(
+    () => (room ? occupancyLabel(room.id, reservations) : '—'),
+    [room, reservations]
+  );
 
   if (loading) {
-    return (
-      <div className={styles.newLayout}>
-        <div className={styles.loadingContainer}>
-          <div className={styles.loading}> Cargando datos de la habitación...</div>
-        </div>
-      </div>
-    );
+    return <div className={styles.loading}>Cargando datos de la habitación...</div>;
   }
 
   if (error) {
     return (
-      <div className={styles.newLayout}>
-        <div className={styles.errorContainer}>
-          <div className={styles.error}>{error}</div>
-          <button onClick={loadRoomData} className={styles.retryButton}>
+      <div className={styles.errorState}>
+        <div className={styles.error}>{error}</div>
+        <div className={styles.errorActions}>
+          <button type="button" onClick={loadRoomData} className={styles.retryButton}>
             Reintentar
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!room) {
-    return (
-      <div className={styles.newLayout}>
-        <div className={styles.errorContainer}>
-          <div className={styles.error}> Habitación no encontrada</div>
-          <button onClick={handleBackClick} className={styles.retryButton}>
-            Volver
+          <button
+            type="button"
+            onClick={() => navigate('/habitaciones')}
+            className={styles.retryButton}
+          >
+            Volver al listado
           </button>
         </div>
       </div>
     );
   }
 
-  const currentStatus = getCurrentStatus();
-  const currentGuest = getCurrentGuest();
-  const upcomingReservations = getUpcomingReservations();
+  if (!room) return null;
+
+  const tags = (room.tags || [])
+    .map((tag) => tag.name || tag)
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
-      <div className={styles.sidePanel}>
-        {/* Header del side panel */}
-        <div className={styles.sidePanelHeader}>
-          <h2> Habitación #{room.number}</h2>
-          <div className={styles.roomInfo}>
-            <div className={styles.roomName}>
-              {room.name}
-            </div>
-            <div className={styles.roomType}>
-              {room.roomType?.name || 'Sin tipo'}
-            </div>
-            <div className={styles.roomStatus}>
-              <span className={styles.statusValue}>
-                {currentStatus}
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>{room.name}</h2>
+          <div className={styles.roomMeta}>
+            <span>{room.roomType?.name || 'Sin tipo'}</span>
+            <span className={styles.statusChip}>{currentStatus}</span>
+            {currentGuest ? (
+              <span className={styles.guestChip}>
+                {currentGuest.firstName} {currentGuest.lastName}
               </span>
-            </div>
-            {currentGuest && (
-              <div className={styles.currentGuest}>
-                <span className={styles.guestValue}>
-                  {currentGuest.firstName} {currentGuest.lastName}
-                </span>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
-        <div className={styles.sidePanelContent}>
-          <div className={styles.sectionMenu}>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'overview' ? styles.active : ''}`}
-              onClick={() => setActiveSection('overview')}
+        <nav className={styles.sectionMenu} aria-label="Secciones del perfil de habitación">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`${styles.sectionButton} ${activeSection === tab.id ? styles.active : ''}`}
+              onClick={() => setActiveSection(tab.id)}
             >
-              Resumen General
+              {tab.label}
             </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'calendar' ? styles.active : ''}`}
-              onClick={() => setActiveSection('calendar')}
-            >
-              Calendario de Ocupación
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'maintenance' ? styles.active : ''}`}
-              onClick={() => setActiveSection('maintenance')}
-            >
-              Estado de Limpieza
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'reservations' ? styles.active : ''}`}
-              onClick={() => setActiveSection('reservations')}
-            >
-              Historial de Reservas
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'notes' ? styles.active : ''}`}
-              onClick={() => setActiveSection('notes')}
-            >
-              Notas y Observaciones
-            </button>
-          </div>
-        </div>
+          ))}
+        </nav>
 
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button 
-              className={styles.backButton}
-              onClick={handleBackClick}
-            >
-              ← Volver a Reservas
-            </button>
-          </div>
+        <div className={styles.sidebarFooter}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate('/habitaciones')}
+          >
+            ← Volver al listado
+          </button>
         </div>
-      </div>
+      </aside>
 
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
-        {/* Contenido principal */}
         <div className={styles.mainContentBody}>
-          {/* Sección de Resumen General */}
           {activeSection === 'overview' && (
-            <div className={styles.section}>
-              <h2> Resumen General</h2>
-              <div className={styles.overviewContainer}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Resumen general</h2>
+              </div>
+              <div className={styles.panelBody}>
                 <div className={styles.overviewGrid}>
-                  <div className={styles.overviewCard}>
-                    <h3> Información Básica</h3>
-                    <div className={styles.infoList}>
+                  <div className={styles.infoBlock}>
+                    <h3>Información básica</h3>
+                    <dl className={styles.infoList}>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Número:</span>
-                        <span className={styles.value}>{room.number}</span>
+                        <dt>Nombre</dt>
+                        <dd>{room.name}</dd>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Nombre:</span>
-                        <span className={styles.value}>{room.name}</span>
+                        <dt>Tipo</dt>
+                        <dd>{room.roomType?.name || 'Sin tipo'}</dd>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Tipo:</span>
-                        <span className={styles.value}>{room.roomType?.name || 'Sin tipo'}</span>
+                        <dt>Capacidad</dt>
+                        <dd>{room.maxPeople ?? 'No especificada'}</dd>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Capacidad:</span>
-                        <span className={styles.value}>{room.capacity || 'No especificada'}</span>
+                        <dt>Etiquetas</dt>
+                        <dd>{tags || '—'}</dd>
                       </div>
-                    </div>
+                    </dl>
                   </div>
-                  
-                  <div className={styles.overviewCard}>
-                    <h3> Estado Actual</h3>
-                    <div className={styles.infoList}>
+
+                  <div className={styles.infoBlock}>
+                    <h3>Estado actual</h3>
+                    <dl className={styles.infoList}>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Estado:</span>
-                        <span className={styles.value}>{currentStatus}</span>
-                      </div>
-                      {currentGuest && (
-                        <div className={styles.infoItem}>
-                          <span className={styles.label}> Huésped actual:</span>
-                          <span className={styles.value}>
-                            {currentGuest.firstName} {currentGuest.lastName}
-                          </span>
-                        </div>
-                      )}
-                      <div className={styles.infoItem}>
-                        <span className={styles.label}> Reservas totales:</span>
-                        <span className={styles.value}>{reservations.length}</span>
+                        <dt>Ocupación</dt>
+                        <dd>{currentStatus}</dd>
                       </div>
                       <div className={styles.infoItem}>
-                        <span className={styles.label}> Próximas reservas:</span>
-                        <span className={styles.value}>{upcomingReservations.length}</span>
+                        <dt>Huésped actual</dt>
+                        <dd>
+                          {currentGuest
+                            ? `${currentGuest.firstName} ${currentGuest.lastName}`
+                            : '—'}
+                        </dd>
                       </div>
-                    </div>
+                      <div className={styles.infoItem}>
+                        <dt>Reservas totales</dt>
+                        <dd>{reservations.length}</dd>
+                      </div>
+                      <div className={styles.infoItem}>
+                        <dt>Próximas reservas</dt>
+                        <dd>{upcomingReservations.length}</dd>
+                      </div>
+                    </dl>
                   </div>
                 </div>
+                {room.description ? (
+                  <div className={styles.descriptionBlock}>
+                    <h3>Descripción</h3>
+                    <p>{room.description}</p>
+                  </div>
+                ) : null}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Sección de Calendario de Ocupación */}
           {activeSection === 'calendar' && (
-            <div className={styles.section}>
-              <h2> Calendario de Ocupación</h2>
-              <div className={styles.calendarContainer}>
-                <div className={styles.calendarInfo}>
-                  <h3> Próximas Reservas</h3>
-                  {upcomingReservations.length === 0 ? (
-                    <div className={styles.noDataMessage}>
-                      No hay reservas próximas para esta habitación
-                    </div>
-                  ) : (
-                    <div className={styles.upcomingList}>
-                      {upcomingReservations.map(reservation => (
-                        <div key={reservation.id} className={styles.upcomingItem}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Calendario ocupación</h2>
+              </div>
+              <div className={styles.panelBody}>
+                {upcomingReservations.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    No hay reservas próximas para esta habitación
+                  </div>
+                ) : (
+                  <ul className={styles.upcomingList}>
+                    {upcomingReservations.map((reservation) => {
+                      const { start, end } = stayBoundsForRoom(reservation, roomId);
+                      return (
+                        <li key={reservation.id} className={styles.upcomingItem}>
                           <div className={styles.upcomingDates}>
-                            <strong>{formatDate(reservation.checkIn)}</strong> - <strong>{formatDate(reservation.checkOut)}</strong>
+                            <strong>{formatDate(start)}</strong>
+                            {' — '}
+                            <strong>{formatDate(end)}</strong>
                           </div>
-                          <div className={styles.upcomingGuest}>
-                            {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
+                          <div>
+                            {reservation.mainClient?.firstName}{' '}
+                            {reservation.mainClient?.lastName}
                           </div>
                           <div className={styles.upcomingStatus}>
-                            <span className={`${styles.statusBadge} ${styles[reservation.status]}`}>
-                              {getStatusLabel(reservation.status)}
-                            </span>
+                            {getStatusLabel(reservation.status)}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Sección de Estado de Limpieza */}
-          {activeSection === 'maintenance' && (
-            <div className={styles.section}>
-              <h2> Estado de Limpieza y Mantenimiento</h2>
-              <div className={styles.maintenanceContainer}>
-                <div className={styles.maintenanceGrid}>
-                  <div className={styles.maintenanceCard}>
-                    <h3> Estado de Limpieza</h3>
-                    <div className={styles.cleaningStatus}>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Limpieza general:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpia</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Baño:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpio</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Ropa de cama:</span>
-                        <span className={`${styles.statusIndicator} ${styles.needsCleaning}`}> Cambio pendiente</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Toallas:</span>
-                        <span className={`${styles.statusIndicator} ${styles.clean}`}> Limpias</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.maintenanceCard}>
-                    <h3> Mantenimiento</h3>
-                    <div className={styles.maintenanceStatus}>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Aire acondicionado:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Televisión:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> WiFi:</span>
-                        <span className={`${styles.statusIndicator} ${styles.working}`}> Funcionando</span>
-                      </div>
-                      <div className={styles.statusItem}>
-                        <span className={styles.statusLabel}> Iluminación:</span>
-                        <span className={`${styles.statusIndicator} ${styles.needsRepair}`}> Revisar</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sección de Historial de Reservas */}
           {activeSection === 'reservations' && (
-            <div className={styles.section}>
-              <h2> Historial de Reservas</h2>
-              {reservations.length === 0 ? (
-                <div className={styles.noDataMessage}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Historial reservas</h2>
+              </div>
+              {sortedReservations.length === 0 ? (
+                <div className={styles.emptyState}>
                   Esta habitación no tiene reservas registradas
                 </div>
               ) : (
-                <div className={styles.tableContainer}>
-                  <table className={styles.reservationsTable}>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th> ID</th>
-                        <th> Huésped</th>
-                        <th> Check-in</th>
-                        <th> Check-out</th>
-                        <th> Estado</th>
-                        <th> Total</th>
-                        <th> Acciones</th>
+                        <th>ID</th>
+                        <th>Huésped</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Estado</th>
+                        <th />
                       </tr>
                     </thead>
                     <tbody>
-                      {reservations.map(reservation => (
-                        <tr 
-                          key={reservation.id} 
-                          className={styles.reservationRow}
-                          onClick={() => navigate(`/reservations/${reservation.id}`)}
-                        >
-                          <td>#{reservation.id}</td>
-                          <td>{reservation.mainClient?.firstName} {reservation.mainClient?.lastName}</td>
-                          <td>{formatDate(reservation.checkIn)}</td>
-                          <td>{formatDate(reservation.checkOut)}</td>
-                          <td>
-                            <span className={`${styles.statusValue} ${styles[reservation.status]}`}>
-                              {getStatusLabel(reservation.status)}
-                            </span>
-                          </td>
-                          <td className={styles.totalAmount}>
-                            {formatPrice(reservation.totalAmount || 0)}
-                          </td>
-                          <td>
-                            <button 
-                              className={styles.viewButton}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/reservations/${reservation.id}`);
-                              }}
-                            >
-                              Ver Detalles
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {sortedReservations.map((reservation) => {
+                        const { start, end } = stayBoundsForRoom(reservation, roomId);
+                        return (
+                          <tr key={reservation.id}>
+                            <td>#{reservation.id}</td>
+                            <td>
+                              {reservation.mainClient?.firstName}{' '}
+                              {reservation.mainClient?.lastName}
+                            </td>
+                            <td>{formatDate(start)}</td>
+                            <td>{formatDate(end)}</td>
+                            <td>{getStatusLabel(reservation.status)}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className={styles.linkButton}
+                                onClick={() => navigate(`/reservations/${reservation.id}`)}
+                              >
+                                Ver
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Sección de Notas y Observaciones */}
           {activeSection === 'notes' && (
-            <div className={styles.section}>
-              <h2> Notas y Observaciones</h2>
-              <div className={styles.notesContainer}>
-                <div className={styles.notesCard}>
-                  <h3> Notas Generales</h3>
-                  <div className={styles.notesContent}>
-                    <p> Esta habitación tiene una excelente vista al jardín y es muy silenciosa durante la noche.</p>
-                    <p> El aire acondicionado funciona mejor en el modo automático.</p>
-                    <p> La cama king size es muy cómoda según feedback de huéspedes.</p>
-                  </div>
-                </div>
-                
-                <div className={styles.notesCard}>
-                  <h3> Observaciones de Mantenimiento</h3>
-                  <div className={styles.notesContent}>
-                    <p>Última limpieza profunda: 15/01/2024</p>
-                    <p> Revisión de aire acondicionado: 10/01/2024</p>
-                    <p> Cambio de cortinas: Pendiente</p>
-                  </div>
-                </div>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Notificaciones / observaciones</h2>
               </div>
-            </div>
+              <div className={styles.panelBody}>
+                {room.description ? (
+                  <div className={styles.notesBlock}>
+                    <h3>Observaciones</h3>
+                    <p>{room.description}</p>
+                  </div>
+                ) : (
+                  <div className={styles.emptyState}>
+                    Sin notificaciones ni observaciones registradas
+                  </div>
+                )}
+              </div>
+            </section>
           )}
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default RoomDetails;
-
