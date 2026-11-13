@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { FiX } from 'react-icons/fi';
 import ConfirmationModal from './ConfirmationModal';
 import styles from '../styles/QueriesTable.module.css';
 
@@ -191,15 +192,17 @@ function QueriesTable({ queries, onDeleteQuery }) {
                 {query.updatedAt ? format(new Date(query.updatedAt), 'dd/MM/yyyy HH:mm') : 'Sin fecha'}
               </td>
               <td className={styles.actionCell}>
-                <button 
+                <button
+                  type="button"
                   className={styles.deleteButton}
                   onClick={(e) => {
                     e.stopPropagation(); // Evitar que se active el clic de la fila
                     handleDeleteQuery(query);
                   }}
                   title="Eliminar consulta"
+                  aria-label="Eliminar consulta"
                 >
-                  
+                  <FiX aria-hidden="true" size={16} />
                 </button>
               </td>
             </tr>
