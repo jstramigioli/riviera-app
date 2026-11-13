@@ -832,6 +832,18 @@ export async function getReservationsWithBalances() {
   return res.json();
 }
 
+/** Reservas activas para el Select del modal Nuevo pago (incluye futuras / señas). */
+export async function fetchReservasParaPago() {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas-para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar reservas para pago');
+  }
+  return res.json();
+}
+
 // Historial global de pagos
 export async function getAllPagos() {
   const res = await fetch(`${API_URL}/reservation-payments/pagos`, {

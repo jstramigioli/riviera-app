@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiDollarSign, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
-  fetchOccupiedRoomsToday,
   fetchReservation,
+  fetchReservasParaPago,
   getClientBillingProfile,
   getTipoCambioActual
 } from '../services/api';
@@ -32,7 +32,7 @@ function reservationOptionLabel(row) {
 
 const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) => {
   const needsReservationPick = reservaIdProp == null;
-  const [occupied, setOccupied] = useState([]);
+  const [reservationOptions, setReservationOptions] = useState([]);
   const [pickedReservationId, setPickedReservationId] = useState('');
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -121,9 +121,9 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
       setError(null);
       try {
         if (needsReservationPick) {
-          const roomsRes = await fetchOccupiedRoomsToday();
-          const list = roomsRes.data || roomsRes || [];
-          if (!cancelled) setOccupied(list);
+          const optionsRes = await fetchReservasParaPago();
+          const list = optionsRes.data || optionsRes || [];
+          if (!cancelled) setReservationOptions(Array.isArray(list) ? list : []);
         } else if (reservaIdProp) {
           const reservation = await fetchReservation(reservaIdProp);
           const cid = reservation?.mainClient?.id || reservation?.mainClientId || null;
@@ -146,11 +146,13 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
 
   useEffect(() => {
     if (!needsReservationPick || !pickedReservationId) return;
-    const row = occupied.find((r) => String(r.reservationId) === String(pickedReservationId));
+    const row = reservationOptions.find(
+      (r) => String(r.reservationId) === String(pickedReservationId)
+    );
     const cid = row?.clientId || null;
     setClientId(cid);
     if (cid) applyBillingPrefill(cid);
-  }, [needsReservationPick, pickedReservationId, occupied, applyBillingPrefill]);
+  }, [needsReservationPick, pickedReservationId, reservationOptions, applyBillingPrefill]);
 
   const loadTipoCambioGlobal = async () => {
     try {
@@ -202,12 +204,12 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
 
   const occupiedOptions = useMemo(() => {
     const byReservation = new Map();
-    for (const row of occupied) {
+    for (const row of reservationOptions) {
       const key = String(row.reservationId);
       if (!byReservation.has(key)) byReservation.set(key, row);
     }
     return Array.from(byReservation.values());
-  }, [occupied]);
+  }, [reservationOptions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -377,7 +379,11 @@ const PaymentForm = ({ reservaId: reservaIdProp = null, onClose, onSuccess }) =>
                   disabled={loadingMeta || loading}
                 >
                   <option value="">
-                    {loadingMeta ? 'Cargando…' : 'Seleccionar habitación / huésped…'}
+                    {loadingMeta
+                      ? 'Cargando…'
+                      : occupiedOptions.length === 0
+                        ? 'Sin reservas activas'
+                        : 'Seleccionar habitación / huésped…'}
                   </option>
                   {occupiedOptions.map((row) => (
                     <option key={row.reservationId} value={row.reservationId}>

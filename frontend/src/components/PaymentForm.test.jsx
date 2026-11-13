@@ -5,7 +5,7 @@ import PaymentForm from './PaymentForm'
 vi.mock('../services/api', () => ({
   createPago: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
-  fetchOccupiedRoomsToday: vi.fn().mockResolvedValue({
+  fetchReservasParaPago: vi.fn().mockResolvedValue({
     data: [
       {
         reservationId: 11,
@@ -37,7 +37,7 @@ vi.mock('../services/api', () => ({
   })
 }))
 
-import { createPago, getClientBillingProfile } from '../services/api'
+import { createPago, fetchReservasParaPago, getClientBillingProfile } from '../services/api'
 
 describe('PaymentForm facturación', () => {
   beforeEach(() => {
@@ -132,5 +132,17 @@ describe('PaymentForm facturación', () => {
         expect.objectContaining({ monto: 500, motivo: 'Devolución' })
       )
     )
+  })
+
+  it('sin reservaId carga Select con reservas para pago (no occupied-today)', async () => {
+    render(<PaymentForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(fetchReservasParaPago).toHaveBeenCalled())
+
+    const select = screen.getByLabelText(/Reserva/i)
+    expect(select).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: '101 - Pérez' })).toBeInTheDocument()
+    })
   })
 })

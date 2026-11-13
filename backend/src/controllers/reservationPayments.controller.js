@@ -3,6 +3,8 @@ const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
 const { roleHasPermission } = require('../auth/permissions');
+const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
+const { civilFromDb } = require('../utils/calendarDates');
 const {
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
@@ -1184,6 +1186,80 @@ exports.getTipoCambioActual = async (req, res) => {
   } catch (error) {
     console.error('Error obteniendo tipo de cambio:', error);
     res.status(500).json({ error: 'Error al obtener el tipo de cambio', details: error.message });
+  }
+};
+
+/**
+ * Opciones para el Select del modal Nuevo pago / devolución.
+ * Incluye reservas activas (no canceladas / no-show), con o sin estadía hoy —
+ * p.ej. señas sobre reservas futuras. No reusa occupied-rooms (solo día civil).
+ */
+exports.getReservasParaPago = async (req, res) => {
+  try {
+    const reservas = await prisma.reservation.findMany({
+      where: {
+        status: { in: OCCUPYING_STATUSES },
+        segments: { some: { isActive: true } }
+      },
+      select: {
+        id: true,
+        status: true,
+        mainClient: {
+          select: { id: true, firstName: true, lastName: true }
+        },
+        segments: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            room: { select: { id: true, name: true, orderIndex: true } }
+          },
+          orderBy: [{ startDate: 'asc' }, { room: { orderIndex: 'asc' } }]
+        }
+      },
+      orderBy: { id: 'desc' }
+    });
+
+    const data = reservas.map((reserva) => {
+      const seg = reserva.segments[0] || null;
+      const roomName = seg?.room?.name || null;
+      const lastName = String(reserva.mainClient?.lastName || '').trim();
+      const firstName = String(reserva.mainClient?.firstName || '').trim();
+      const clientName = `${firstName} ${lastName}`.trim();
+      const apellido = lastName || 'Sin apellido';
+      const roomLabel = roomName || `Reserva #${reserva.id}`;
+      return {
+        reservationId: reserva.id,
+        status: reserva.status,
+        roomId: seg?.room?.id || null,
+        roomName,
+        clientId: reserva.mainClient?.id || null,
+        clientName,
+        clientLastName: lastName,
+        label: `${roomLabel} - ${apellido}`,
+        segmentId: seg?.id || null,
+        startDate: seg ? civilFromDb(seg.startDate) : null,
+        endDate: seg ? civilFromDb(seg.endDate) : null
+      };
+    });
+
+    data.sort((a, b) => {
+      const byName = String(a.clientLastName).localeCompare(String(b.clientLastName), 'es');
+      if (byName !== 0) return byName;
+      return String(a.roomName || '').localeCompare(String(b.roomName || ''), 'es', {
+        numeric: true
+      });
+    });
+
+    res.json({ success: true, data, count: data.length });
+  } catch (error) {
+    console.error('Error listando reservas para pago:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al listar reservas para pago',
+      details: error.message
+    });
   }
 };
 
