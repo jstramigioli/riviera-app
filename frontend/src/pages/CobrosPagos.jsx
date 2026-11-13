@@ -23,8 +23,27 @@ const DEFAULT_STATUS_FILTERS = {
   A_FAVOR: false,
 };
 
+const EMPTY_PAY_FILTERS = {
+  codigo: '',
+  fechaFrom: '',
+  fechaTo: '',
+  reserva: '',
+  cliente: '',
+  montoMin: '',
+  montoMax: '',
+  metodo: '',
+  referencia: '',
+};
+
 /** Reservas actualmente alojadas (check-in hecho, aún en casa). */
 const ALOJADAS_STATUS = 'INGRESADA';
+
+function includesNormalized(haystack, needle) {
+  if (!needle) return true;
+  return String(haystack || '')
+    .toLowerCase()
+    .includes(String(needle).toLowerCase().trim());
+}
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -91,6 +110,11 @@ const CobrosPagos = () => {
   const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
+
+  const setPayFilter = (key, value) => {
+    setPayFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   useEffect(() => {
     loadData();
@@ -186,10 +210,35 @@ const CobrosPagos = () => {
     clientIdParam,
   ]);
 
+  const paymentMethods = useMemo(() => {
+    const methods = new Set();
+    for (const pago of payments || []) {
+      if (pago?.metodo) methods.add(pago.metodo);
+    }
+    if (payFilters.metodo) methods.add(payFilters.metodo);
+    return Array.from(methods).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [payments, payFilters.metodo]);
+
+  const hasActivePayFilters = useMemo(
+    () =>
+      Object.values(payFilters).some((value) => String(value || '').trim() !== '') ||
+      Boolean(clientIdParam),
+    [payFilters, clientIdParam]
+  );
+
   const filteredPayments = useMemo(() => {
-    const from = startOfDay(dateFrom);
-    const to = endOfDay(dateTo);
+    const from = startOfDay(payFilters.fechaFrom);
+    const to = endOfDay(payFilters.fechaTo);
     const clientId = clientIdParam ? Number(clientIdParam) : null;
+    const codigoNeedle = payFilters.codigo.trim();
+    const reservaNeedle = payFilters.reserva.trim().replace(/^#/, '');
+    const clienteNeedle = payFilters.cliente.trim();
+    const referenciaNeedle = payFilters.referencia.trim();
+    const metodoNeedle = payFilters.metodo;
+    const montoMin =
+      payFilters.montoMin === '' ? null : Number(payFilters.montoMin);
+    const montoMax =
+      payFilters.montoMax === '' ? null : Number(payFilters.montoMax);
 
     return (payments || [])
       .filter((pago) => {
@@ -199,12 +248,48 @@ const CobrosPagos = () => {
             Number(pago.reserva?.mainClientId) === clientId;
           if (!matchesClient) return false;
         }
+
+        if (codigoNeedle && !includesNormalized(paymentCodeLabel(pago), codigoNeedle)) {
+          return false;
+        }
+
         if (from || to) {
           const refDate = pago.fecha ? new Date(pago.fecha) : null;
           if (!refDate || Number.isNaN(refDate.getTime())) return false;
           if (from && refDate < from) return false;
           if (to && refDate > to) return false;
         }
+
+        if (reservaNeedle) {
+          const reservaId = String(pago.reservaId || pago.reserva?.id || '');
+          if (!includesNormalized(reservaId, reservaNeedle)) return false;
+        }
+
+        if (clienteNeedle) {
+          const client = pago.reserva?.mainClient;
+          const clientName = client
+            ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
+            : 'Sin cliente';
+          if (!includesNormalized(clientName, clienteNeedle)) return false;
+        }
+
+        const amount = Number(pago.montoARS != null ? pago.montoARS : pago.monto) || 0;
+        if (montoMin != null && !Number.isNaN(montoMin) && amount < montoMin) {
+          return false;
+        }
+        if (montoMax != null && !Number.isNaN(montoMax) && amount > montoMax) {
+          return false;
+        }
+
+        if (metodoNeedle && pago.metodo !== metodoNeedle) {
+          return false;
+        }
+
+        if (referenciaNeedle) {
+          const refText = `${pago.referencia || ''} ${pago.empresa || ''}`.trim();
+          if (!includesNormalized(refText, referenciaNeedle)) return false;
+        }
+
         return true;
       })
       .slice()
@@ -214,7 +299,7 @@ const CobrosPagos = () => {
         if (db !== da) return db - da;
         return Number(b.id) - Number(a.id);
       });
-  }, [payments, dateFrom, dateTo, clientIdParam]);
+  }, [payments, payFilters, clientIdParam]);
 
   const handleClientClick = (client) => {
     if (!client?.id) return;
@@ -525,43 +610,26 @@ const CobrosPagos = () => {
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <h2>Pagos</h2>
+                {hasActivePayFilters && (
+                  <button
+                    type="button"
+                    className={styles.clearDates}
+                    onClick={() => {
+                      setPayFilters(EMPTY_PAY_FILTERS);
+                      if (clientIdParam) {
+                        const next = new URLSearchParams(searchParams);
+                        next.delete('clientId');
+                        setSearchParams(next, { replace: true });
+                      }
+                    }}
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
               </div>
 
-              <div className={styles.filters} aria-label="Filtros de pagos">
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Fechas</span>
-                  <label className={styles.dateField}>
-                    <input
-                      type="date"
-                      aria-label="Fecha desde"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                  </label>
-                  <label className={styles.dateField}>
-                    <input
-                      type="date"
-                      aria-label="Fecha hasta"
-                      value={dateTo}
-                      min={dateFrom || undefined}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                  </label>
-                  {(dateFrom || dateTo) && (
-                    <button
-                      type="button"
-                      className={styles.clearDates}
-                      onClick={() => {
-                        setDateFrom('');
-                        setDateTo('');
-                      }}
-                    >
-                      Limpiar fechas
-                    </button>
-                  )}
-                </div>
-
-                {clientIdParam && (
+              {clientIdParam && (
+                <div className={styles.filters} aria-label="Filtro de cliente por URL">
                   <div className={styles.filterGroup}>
                     <span className={styles.meta}>Filtro cliente #{clientIdParam}</span>
                     <button
@@ -576,29 +644,127 @@ const CobrosPagos = () => {
                       Quitar filtro de cliente
                     </button>
                   </div>
-                )}
-              </div>
-
-              {filteredPayments.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>No hay pagos con los filtros actuales</p>
                 </div>
-              ) : (
-                <div className={styles.tableContainer}>
-                  <table className={styles.table}>
-                    <thead>
+              )}
+
+              <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Fecha</th>
+                      <th>Reserva</th>
+                      <th>Cliente</th>
+                      <th>Monto</th>
+                      <th>Método</th>
+                      <th>Referencia</th>
+                    </tr>
+                    <tr className={styles.filterRow}>
+                      <th>
+                        <input
+                          type="search"
+                          className={styles.columnFilter}
+                          aria-label="Filtrar por código"
+                          placeholder="Buscar…"
+                          value={payFilters.codigo}
+                          onChange={(e) => setPayFilter('codigo', e.target.value)}
+                        />
+                      </th>
+                      <th>
+                        <div className={styles.columnFilterStack}>
+                          <input
+                            type="date"
+                            className={styles.columnFilter}
+                            aria-label="Fecha desde"
+                            value={payFilters.fechaFrom}
+                            onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
+                          />
+                          <input
+                            type="date"
+                            className={styles.columnFilter}
+                            aria-label="Fecha hasta"
+                            value={payFilters.fechaTo}
+                            min={payFilters.fechaFrom || undefined}
+                            onChange={(e) => setPayFilter('fechaTo', e.target.value)}
+                          />
+                        </div>
+                      </th>
+                      <th>
+                        <input
+                          type="search"
+                          className={styles.columnFilter}
+                          aria-label="Filtrar por reserva"
+                          placeholder="# reserva"
+                          value={payFilters.reserva}
+                          onChange={(e) => setPayFilter('reserva', e.target.value)}
+                        />
+                      </th>
+                      <th>
+                        <input
+                          type="search"
+                          className={styles.columnFilter}
+                          aria-label="Buscar cliente"
+                          placeholder="Buscar cliente…"
+                          value={payFilters.cliente}
+                          onChange={(e) => setPayFilter('cliente', e.target.value)}
+                        />
+                      </th>
+                      <th>
+                        <div className={styles.columnFilterStack}>
+                          <input
+                            type="number"
+                            className={styles.columnFilter}
+                            aria-label="Monto mínimo"
+                            placeholder="Mín"
+                            value={payFilters.montoMin}
+                            onChange={(e) => setPayFilter('montoMin', e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            className={styles.columnFilter}
+                            aria-label="Monto máximo"
+                            placeholder="Máx"
+                            value={payFilters.montoMax}
+                            onChange={(e) => setPayFilter('montoMax', e.target.value)}
+                          />
+                        </div>
+                      </th>
+                      <th>
+                        <select
+                          className={styles.columnFilter}
+                          aria-label="Filtrar por método de pago"
+                          value={payFilters.metodo}
+                          onChange={(e) => setPayFilter('metodo', e.target.value)}
+                        >
+                          <option value="">Todos</option>
+                          {paymentMethods.map((metodo) => (
+                            <option key={metodo} value={metodo}>
+                              {metodo}
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+                      <th>
+                        <input
+                          type="search"
+                          className={styles.columnFilter}
+                          aria-label="Filtrar por referencia"
+                          placeholder="Buscar…"
+                          value={payFilters.referencia}
+                          onChange={(e) => setPayFilter('referencia', e.target.value)}
+                        />
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPayments.length === 0 ? (
                       <tr>
-                        <th>Código</th>
-                        <th>Fecha</th>
-                        <th>Reserva</th>
-                        <th>Cliente</th>
-                        <th>Monto</th>
-                        <th>Método</th>
-                        <th>Referencia</th>
+                        <td colSpan={7} className={styles.emptyCell}>
+                          No hay pagos con los filtros actuales
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPayments.map((pago) => {
+                    ) : (
+                      filteredPayments.map((pago) => {
                         const client = pago.reserva?.mainClient;
                         const clientName = client
                           ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
@@ -636,11 +802,11 @@ const CobrosPagos = () => {
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
         </div>
