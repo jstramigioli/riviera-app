@@ -9,6 +9,8 @@ const PERMISSIONS = {
   users: [ROLES.ADMIN],
   settings: [ROLES.ADMIN],
   tarifas: [ROLES.ADMIN],
+  /** Submenú Facturación A/B + datos/subida PDF de factura. */
+  facturacion: [ROLES.ADMIN],
   reportes: [ROLES.ADMIN, ROLES.GERENCIA],
   /** Historial de cambios (PGH-44): admin y gerencia. */
   auditoria: [ROLES.ADMIN, ROLES.GERENCIA],

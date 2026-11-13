@@ -2,6 +2,7 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
+const { roleHasPermission } = require('../auth/permissions');
 const {
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
@@ -17,6 +18,16 @@ const {
   deleteStoredFile,
   toPublicAdjunto
 } = require('../utils/pagoAdjuntos');
+
+function canSeeFacturacion(user) {
+  return roleHasPermission(user?.role, 'facturacion');
+}
+
+/** Datos de PagoFactura solo para admin; el resto recibe factura: null. */
+function redactFacturaIfNeeded(pagos, user) {
+  if (canSeeFacturacion(user)) return pagos;
+  return (pagos || []).map((pago) => ({ ...pago, factura: null }));
+}
 
 const PAGO_ADJUNTO_INCLUDE = {
   adjuntos: {
@@ -170,7 +181,7 @@ exports.getAllPagos = async (req, res) => {
       },
       orderBy: { fecha: 'desc' },
     });
-    res.json(pagos);
+    res.json(redactFacturaIfNeeded(pagos, req.user));
   } catch (error) {
     console.error('Error obteniendo historial de pagos:', error);
     res.status(500).json({ error: 'Error al obtener el historial de pagos', details: error.message });
@@ -186,7 +197,7 @@ exports.getPagosByReserva = async (req, res) => {
       include: { factura: true, ...PAGO_ADJUNTO_INCLUDE },
       orderBy: { fecha: 'desc' }
     });
-    res.json(pagos);
+    res.json(redactFacturaIfNeeded(pagos, req.user));
   } catch (error) {
     console.error('Error obteniendo pagos:', error);
     res.status(500).json({ error: 'Error al obtener los pagos', details: error.message });

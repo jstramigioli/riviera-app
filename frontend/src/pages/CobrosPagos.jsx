@@ -9,6 +9,7 @@ import {
   downloadPagoAdjunto,
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { useAuth } from '../contexts/AuthContext';
 import PaymentForm from '../components/PaymentForm';
 import styles from './CobrosPagos.module.css';
 
@@ -26,7 +27,41 @@ function adjuntosOf(pago, tipo) {
 const SECTIONS = {
   cuentas: 'cuentas',
   pagos: 'pagos',
+  facturacion: 'facturacion',
 };
+
+const FACTURA_B_COLUMNS = [
+  { key: 'codigo', label: 'Código' },
+  { key: 'fecha', label: 'Fecha' },
+  { key: 'motivo', label: 'Motivo' },
+  { key: 'firstName', label: 'Nombre' },
+  { key: 'lastName', label: 'Apellido' },
+  { key: 'documentType', label: 'Tipo doc.' },
+  { key: 'documentNumber', label: 'N° documento' },
+  { key: 'address', label: 'Domicilio' },
+  { key: 'email', label: 'Email' },
+  { key: 'cardNumber', label: 'Tarjeta / N°' },
+];
+
+const FACTURA_A_COLUMNS = [
+  { key: 'codigo', label: 'Código' },
+  { key: 'fecha', label: 'Fecha' },
+  { key: 'motivo', label: 'Motivo' },
+  { key: 'businessName', label: 'Razón social' },
+  { key: 'cuit', label: 'CUIT' },
+  { key: 'commercialAddress', label: 'Dom. comercial' },
+  { key: 'ivaCondition', label: 'Cond. IVA' },
+  { key: 'email', label: 'Email' },
+  { key: 'cardNumber', label: 'Tarjeta / N°' },
+];
+
+function facturaCellValue(pago, key) {
+  if (key === 'codigo') return paymentCodeLabel(pago);
+  if (key === 'fecha') return formatDisplayDateTime(pago?.factura?.fecha || pago?.fecha);
+  const raw = pago?.factura?.[key];
+  if (raw == null || String(raw).trim() === '') return '';
+  return String(raw);
+}
 
 const STATUS_COLORS = {
   PENDIENTE: '#e03131',
@@ -123,14 +158,21 @@ function endOfDay(isoDate) {
 
 const CobrosPagos = () => {
   const navigate = useNavigate();
+  const { can } = useAuth();
+  const canFacturacion = can('facturacion');
   const { notify, noticeDialog } = useAppNotice();
   const [searchParams, setSearchParams] = useSearchParams();
   const clientIdParam = searchParams.get('clientId');
   const sectionParam = searchParams.get('section');
 
-  const [activeSection, setActiveSection] = useState(
-    SECTIONS[sectionParam] ? sectionParam : SECTIONS.cuentas
-  );
+  const initialSection =
+    sectionParam === SECTIONS.facturacion && !canFacturacion
+      ? SECTIONS.cuentas
+      : SECTIONS[sectionParam]
+        ? sectionParam
+        : SECTIONS.cuentas;
+
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [reservationsWithBalances, setReservationsWithBalances] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -207,10 +249,18 @@ const CobrosPagos = () => {
   }, []);
 
   useEffect(() => {
-    if (SECTIONS[sectionParam] && sectionParam !== activeSection) {
+    if (!SECTIONS[sectionParam]) return;
+    if (sectionParam === SECTIONS.facturacion && !canFacturacion) {
+      if (activeSection !== SECTIONS.cuentas) setActiveSection(SECTIONS.cuentas);
+      const next = new URLSearchParams(searchParams);
+      next.set('section', SECTIONS.cuentas);
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    if (sectionParam !== activeSection) {
       setActiveSection(sectionParam);
     }
-  }, [sectionParam, activeSection]);
+  }, [sectionParam, activeSection, canFacturacion, searchParams, setSearchParams]);
 
   const loadData = async () => {
     try {
@@ -235,11 +285,176 @@ const CobrosPagos = () => {
   };
 
   const selectSection = (section) => {
+    if (section === SECTIONS.facturacion && !canFacturacion) return;
     setActiveSection(section);
     const next = new URLSearchParams(searchParams);
     next.set('section', section);
     setSearchParams(next, { replace: true });
   };
+
+  const facturacionPagosA = useMemo(
+    () =>
+      (payments || [])
+        .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'A')
+        .slice()
+        .sort((a, b) => {
+          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
+          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
+          if (db !== da) return db - da;
+          return Number(b.id) - Number(a.id);
+        }),
+    [payments]
+  );
+
+  const facturacionPagosB = useMemo(
+    () =>
+      (payments || [])
+        .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'B')
+        .slice()
+        .sort((a, b) => {
+          const da = a.fecha ? new Date(a.fecha).getTime() : 0;
+          const db = b.fecha ? new Date(b.fecha).getTime() : 0;
+          if (db !== da) return db - da;
+          return Number(b.id) - Number(a.id);
+        }),
+    [payments]
+  );
+
+  const handleCopyCell = async (value) => {
+    const text = String(value || '').trim();
+    if (!text || text === '—') return;
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Portapapeles no disponible');
+      }
+      await navigator.clipboard.writeText(text);
+      notify({
+        message: 'Copiado al portapapeles',
+        type: 'success',
+        autoDismiss: true,
+      });
+    } catch (err) {
+      notify({
+        title: 'No se pudo copiar',
+        message: err?.message || 'Error al copiar',
+        type: 'error',
+      });
+    }
+  };
+
+  const renderCopyCell = (value) => {
+    const text = String(value || '').trim();
+    if (!text || text === '—') {
+      return <span className={styles.dashMuted}>—</span>;
+    }
+    return (
+      <button
+        type="button"
+        className={styles.copyCell}
+        onClick={() => handleCopyCell(text)}
+        title="Clic para copiar"
+      >
+        {text}
+      </button>
+    );
+  };
+
+  const renderFacturaPdfCell = (pago) => {
+    const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
+    const busyUpload = uploadingPagoId === pago.id;
+    if (facturaFiles.length > 0) {
+      return (
+        <div className={styles.fileList}>
+          {facturaFiles.map((file) => (
+            <button
+              key={file.id}
+              type="button"
+              className={styles.fileLink}
+              onClick={() => handleDownloadAdjunto(pago, file)}
+              title="Descargar factura"
+            >
+              {file.originalName || `Factura ${file.id}`}
+            </button>
+          ))}
+          <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              multiple
+              disabled={busyUpload}
+              onChange={(e) => {
+                handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+                e.target.value = '';
+              }}
+            />
+            {busyUpload ? 'Subiendo…' : '+ PDF'}
+          </label>
+        </div>
+      );
+    }
+    return (
+      <label
+        className={`${styles.dropzone} ${styles.dropzonePending} ${busyUpload ? styles.dropzoneBusy : ''}`}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.dataTransfer.files);
+        }}
+      >
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple
+          disabled={busyUpload}
+          onChange={(e) => {
+            handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+            e.target.value = '';
+          }}
+        />
+        {busyUpload ? 'Subiendo…' : 'Subir PDF'}
+      </label>
+    );
+  };
+
+  const renderFacturacionTable = (tipo, columns, rows) => (
+    <div className={styles.billingBlock}>
+      <div className={styles.panelHeader}>
+        <h3>Factura {tipo}</h3>
+      </div>
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col.key}>{col.label}</th>
+              ))}
+              <th>PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + 1} className={styles.emptyCell}>
+                  No hay pagos con Factura {tipo}
+                </td>
+              </tr>
+            ) : (
+              rows.map((pago) => (
+                <tr key={pago.id} className={styles.row}>
+                  {columns.map((col) => (
+                    <td key={col.key} className={col.key === 'codigo' ? styles.idCell : styles.metaCell}>
+                      {renderCopyCell(facturaCellValue(pago, col.key))}
+                    </td>
+                  ))}
+                  <td className={styles.facturaCell}>{renderFacturaPdfCell(pago)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   const formatPrice = (price) =>
     new Intl.NumberFormat('es-AR', {
@@ -534,11 +749,24 @@ const CobrosPagos = () => {
           >
             Pagos
           </button>
+          {canFacturacion ? (
+            <button
+              type="button"
+              className={`${styles.sectionButton} ${activeSection === SECTIONS.facturacion ? styles.active : ''}`}
+              onClick={() => selectSection(SECTIONS.facturacion)}
+            >
+              Facturación
+            </button>
+          ) : null}
         </nav>
       </aside>
 
       <div className={styles.mainContent}>
-        <div className={styles.mainContentBody}>
+        <div
+          className={`${styles.mainContentBody} ${
+            activeSection === SECTIONS.facturacion ? styles.mainContentBodyWide : ''
+          }`}
+        >
           {activeSection === SECTIONS.cuentas && (
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
@@ -934,45 +1162,9 @@ const CobrosPagos = () => {
                                       {file.originalName || `Factura ${file.id}`}
                                     </button>
                                   ))}
-                                  <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
-                                    <input
-                                      type="file"
-                                      accept="application/pdf,.pdf"
-                                      multiple
-                                      disabled={busyUpload}
-                                      onChange={(e) => {
-                                        handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
-                                        e.target.value = '';
-                                      }}
-                                    />
-                                    {busyUpload ? 'Subiendo…' : '+ PDF'}
-                                  </label>
                                 </div>
                               ) : (
-                                <label
-                                  className={`${styles.dropzone} ${styles.dropzonePending} ${busyUpload ? styles.dropzoneBusy : ''}`}
-                                  onDragOver={(e) => e.preventDefault()}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    handleUploadAdjuntos(
-                                      pago,
-                                      ADJUNTO_FACTURA,
-                                      e.dataTransfer.files
-                                    );
-                                  }}
-                                >
-                                  <input
-                                    type="file"
-                                    accept="application/pdf,.pdf"
-                                    multiple
-                                    disabled={busyUpload}
-                                    onChange={(e) => {
-                                      handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                  {busyUpload ? 'Subiendo…' : 'Pendiente'}
-                                </label>
+                                <span className={styles.facturaPendiente}>Pendiente</span>
                               )}
                             </td>
                             <td className={styles.retiradoCell}>
@@ -1063,6 +1255,16 @@ const CobrosPagos = () => {
                   </tbody>
                 </table>
               </div>
+            </section>
+          )}
+
+          {activeSection === SECTIONS.facturacion && canFacturacion && (
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Facturación</h2>
+              </div>
+              {renderFacturacionTable('A', FACTURA_A_COLUMNS, facturacionPagosA)}
+              {renderFacturacionTable('B', FACTURA_B_COLUMNS, facturacionPagosB)}
             </section>
           )}
         </div>

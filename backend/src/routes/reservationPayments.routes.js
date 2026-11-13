@@ -2,11 +2,22 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const controller = require('../controllers/reservationPayments.controller');
+const { requirePermission } = require('../middlewares/auth');
+const { ADJUNTO_TIPOS } = require('../utils/pagoAdjuntos');
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024, files: 20 }
 });
+
+/** Subida de PDF de factura: solo admin (permiso facturacion). */
+function requireFacturaUploadIfNeeded(req, res, next) {
+  const tipo = String(req.params.tipo || '').toUpperCase();
+  if (tipo === ADJUNTO_TIPOS.FACTURA) {
+    return requirePermission('facturacion')(req, res, next);
+  }
+  return next();
+}
 
 // ============================================
 // RUTAS DE RESUMEN Y LISTADOS GENERALES
@@ -40,9 +51,10 @@ router.put('/pagos/:id', controller.updatePago);
 // Eliminar un pago
 router.delete('/pagos/:id', controller.deletePago);
 
-// Adjuntos factura (PDF) / comprobante transferencia (JPG/PNG/PDF)
+// Adjuntos factura (PDF, admin) / comprobante transferencia (JPG/PNG/PDF)
 router.post(
   '/pagos/:id/adjuntos/:tipo',
+  requireFacturaUploadIfNeeded,
   upload.array('files', 20),
   controller.uploadPagoAdjuntos
 );
