@@ -313,6 +313,26 @@ function ruleToSettlementConfig(rule) {
     };
   }
   const benefitType = rule.benefitType || 'PERCENT';
+  if (benefitType === 'FREE_NIGHTS') {
+    return {
+      descuentoActivo: false,
+      descuentoTipo: 'PERCENT',
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true,
+      benefitType,
+      benefitBase: rule.benefitBase || 'RATE_NIGHT',
+      benefitCapARS: null,
+      promotionRuleId: rule.id,
+      promotionCode: rule.code,
+      promotionLabel: rule.label,
+      stacking: rule.stacking || 'EXCLUSIVE',
+      stackingGroup: rule.stackingGroup || null,
+      prioridad: rule.prioridad ?? 100,
+      modality: rule.modality,
+      layer: rule.layer || 'RATE'
+    };
+  }
   return {
     descuentoActivo: true,
     descuentoTipo: benefitType === 'FIXED' || benefitType === 'FIXED_PER_NIGHT' ? 'FIXED' : 'PERCENT',
@@ -579,10 +599,119 @@ function evaluateSettlementRules(rules, ctx) {
 }
 
 /**
+ * FREE_NIGHTS: benefitValue = noches que paga (paga N queda N+1).
+ * Cantidad de noches gratis = floor(totalNights / (N + 1)).
+ */
+function computeFreeNightCount(rule, nights) {
+  const paga = Math.max(0, Math.floor(toNumber(rule.benefitValue)));
+  if (paga <= 0) return 0;
+  const total = Math.max(0, Math.floor(Number(nights) || 0));
+  return Math.floor(total / (paga + 1));
+}
+
+/**
+ * Índices de las noches más baratas (empate → índice menor).
+ */
+function pickCheapestNightIndices(nightPrices, freeCount) {
+  const count = Math.max(0, Math.floor(Number(freeCount) || 0));
+  if (count <= 0 || !Array.isArray(nightPrices) || !nightPrices.length) return [];
+  const ranked = nightPrices
+    .map((price, index) => ({ index, price: toNumber(price) }))
+    .sort((a, b) => {
+      if (a.price !== b.price) return a.price - b.price;
+      return a.index - b.index;
+    });
+  return ranked.slice(0, Math.min(count, ranked.length)).map((r) => r.index);
+}
+
+/**
+ * Evalúa reglas FREE_NIGHTS a nivel estadía (no por noche aislada).
+ * Devuelve byIndex: { [nightIndex]: { discountARS, finalARS, promotionRuleId, percent } }.
+ */
+function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
+  const prices = Array.isArray(nightPrices) ? nightPrices.map(toNumber) : [];
+  const nights = Math.max(prices.length, Number(ctx.nights) || 0);
+  const freeRules = (rules || []).filter((r) => r && r.benefitType === 'FREE_NIGHTS');
+  const matched = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: true });
+  const suggestions = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: false }).filter(
+    (r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)
+  );
+
+  const benefitFn = (rule) => {
+    const freeCount = computeFreeNightCount(rule, nights);
+    const indices = pickCheapestNightIndices(prices, freeCount);
+    const descuentoARS = roundMoney(indices.reduce((sum, i) => sum + toNumber(prices[i]), 0));
+    return { descuentoARS, freeCount, indices };
+  };
+
+  const selected = selectByStacking(matched, benefitFn);
+  const byIndex = {};
+  const appliedRules = [];
+  let totalDiscount = 0;
+  const claimed = new Set();
+
+  for (const rule of selected) {
+    const preview = benefitFn(rule);
+    const available = preview.indices.filter((i) => !claimed.has(i));
+    let ruleDiscount = 0;
+    for (const index of available) {
+      const original = toNumber(prices[index]);
+      claimed.add(index);
+      ruleDiscount = roundMoney(ruleDiscount + original);
+      byIndex[index] = {
+        originalARS: original,
+        discountARS: original,
+        finalARS: 0,
+        percent: 100,
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        freeNight: true
+      };
+    }
+    if (ruleDiscount > 0) {
+      totalDiscount = roundMoney(totalDiscount + ruleDiscount);
+      appliedRules.push({
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: 'FREE_NIGHTS',
+        benefitValue: toNumber(rule.benefitValue),
+        freeNightCount: available.length,
+        nightIndices: available,
+        montoARS: ruleDiscount,
+        porcentaje: 100
+      });
+    }
+  }
+
+  return {
+    aplica: totalDiscount > 0,
+    discountARS: totalDiscount,
+    freeNightCount: Object.keys(byIndex).length,
+    byIndex,
+    selectedRules: selected,
+    suggestions,
+    appliedRules,
+    promotionRuleId: selected[0]?.id ?? null
+  };
+}
+
+/**
  * Ajuste RATE sobre precio de una noche.
+ * FREE_NIGHTS no aplica aquí (requiere estadía completa → evaluateFreeNightsForStay).
  */
 function applyRateBenefit(rule, nightPrice, nights = 1) {
   const base = toNumber(nightPrice);
+  if (rule.benefitType === 'FREE_NIGHTS') {
+    return {
+      originalARS: base,
+      discountARS: 0,
+      finalARS: base,
+      percent: null,
+      promotionRuleId: rule.id
+    };
+  }
   const value = toNumber(rule.benefitValue);
   let discount = 0;
   let percent = null;
@@ -606,7 +735,50 @@ function applyRateBenefit(rule, nightPrice, nights = 1) {
 }
 
 function evaluateRateRules(rules, ctx) {
-  const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true });
+  const nightPrices = Array.isArray(ctx.nightPrices) ? ctx.nightPrices.map(toNumber) : null;
+  if (nightPrices && nightPrices.length) {
+    const freeEval = evaluateFreeNightsForStay(rules, ctx, nightPrices);
+    const nonFreeRules = (rules || []).filter((r) => r && r.benefitType !== 'FREE_NIGHTS');
+    const perNight = nightPrices.map((price, index) => {
+      if (freeEval.byIndex[index]) {
+        return { ...freeEval.byIndex[index], nightIndex: index };
+      }
+      const nightEval = evaluateRateRules(nonFreeRules, {
+        ...ctx,
+        nightPrices: undefined,
+        nightPrice: price,
+        nights: nightPrices.length
+      });
+      return {
+        nightIndex: index,
+        originalARS: price,
+        discountARS: nightEval.discountARS || 0,
+        finalARS: nightEval.finalARS,
+        percent: nightEval.promotionPercent,
+        promotionRuleId: nightEval.promotionRuleId || null,
+        freeNight: false,
+        appliedRules: nightEval.appliedRules
+      };
+    });
+    const discountARS = roundMoney(perNight.reduce((s, n) => s + toNumber(n.discountARS), 0));
+    const finalARS = roundMoney(perNight.reduce((s, n) => s + toNumber(n.finalARS), 0));
+    return {
+      aplica: discountARS > 0,
+      originalARS: roundMoney(nightPrices.reduce((s, p) => s + toNumber(p), 0)),
+      discountARS,
+      finalARS,
+      nights: perNight,
+      freeNights: freeEval,
+      selectedRules: freeEval.selectedRules,
+      suggestions: freeEval.suggestions,
+      appliedRules: freeEval.appliedRules,
+      promotionRuleId: freeEval.promotionRuleId
+    };
+  }
+
+  const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true }).filter(
+    (r) => r.benefitType !== 'FREE_NIGHTS'
+  );
   const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: false }).filter(
     (r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)
   );
@@ -720,6 +892,9 @@ module.exports = {
   selectByStacking,
   filterEligibleRules,
   evaluateSettlementRules,
+  computeFreeNightCount,
+  pickCheapestNightIndices,
+  evaluateFreeNightsForStay,
   applyRateBenefit,
   evaluateRateRules,
   loadActivePromotionRules,

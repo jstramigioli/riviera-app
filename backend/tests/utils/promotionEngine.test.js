@@ -5,7 +5,10 @@ const {
   evaluateRateRules,
   applyRateBenefit,
   selectByStacking,
-  isRuleVigente
+  isRuleVigente,
+  computeFreeNightCount,
+  pickCheapestNightIndices,
+  evaluateFreeNightsForStay
 } = require('../../src/utils/promotionEngine');
 
 const efectivoRule = {
@@ -327,5 +330,47 @@ describe('promotionEngine rate + stacking', () => {
       nights: 2
     });
     expect(miss.aplica).toBe(false);
+  });
+
+  it('FREE_NIGHTS paga 4 queda 5 elige la noche más barata', () => {
+    const rule = {
+      id: 30,
+      code: 'PAGA4_QUEDA5',
+      label: 'Paga 4 queda 5',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'FREE_NIGHTS',
+      benefitValue: 4,
+      conditions: [{ type: 'NIGHTS', params: { op: 'gte', value: 5 } }]
+    };
+
+    expect(computeFreeNightCount(rule, 4)).toBe(0);
+    expect(computeFreeNightCount(rule, 5)).toBe(1);
+    expect(computeFreeNightCount(rule, 10)).toBe(2);
+    expect(pickCheapestNightIndices([50000, 40000, 60000, 45000, 70000], 1)).toEqual([1]);
+
+    const prices = [50000, 40000, 60000, 45000, 70000];
+    const free = evaluateFreeNightsForStay([rule], { layer: 'RATE', nights: 5 }, prices);
+    expect(free.aplica).toBe(true);
+    expect(free.freeNightCount).toBe(1);
+    expect(free.byIndex[1].finalARS).toBe(0);
+    expect(free.byIndex[1].discountARS).toBe(40000);
+    expect(free.discountARS).toBe(40000);
+
+    const stay = evaluateRateRules([rule], {
+      layer: 'RATE',
+      nights: 5,
+      nightPrices: prices
+    });
+    expect(stay.aplica).toBe(true);
+    expect(stay.nights[1].freeNight).toBe(true);
+    expect(stay.nights[1].finalARS).toBe(0);
+    expect(stay.finalARS).toBe(50000 + 0 + 60000 + 45000 + 70000);
+
+    const short = evaluateFreeNightsForStay([rule], { layer: 'RATE', nights: 4 }, [1, 2, 3, 4]);
+    expect(short.aplica).toBe(false);
   });
 });

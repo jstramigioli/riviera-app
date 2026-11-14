@@ -304,6 +304,11 @@ function formatBenefit(row) {
   if (row.benefitType === 'PERCENT') {
     return `${Number.isFinite(value) ? value : row.benefitValue}%`;
   }
+  if (row.benefitType === 'FREE_NIGHTS') {
+    const paga = Number.isFinite(value) ? Math.floor(value) : row.benefitValue;
+    const queda = Number.isFinite(value) ? Math.floor(value) + 1 : '…';
+    return `Paga ${paga} queda ${queda}`;
+  }
   if (row.benefitType === 'FIXED_PER_NIGHT') {
     return `${Number.isFinite(value) ? value : row.benefitValue} ARS / noche`;
   }
@@ -424,6 +429,10 @@ function validatePromoForm(form) {
   const benefit = Number(form.benefitValue);
   if (form.benefitValue === '' || Number.isNaN(benefit)) {
     errors.benefitValue = 'Indicá el valor del beneficio';
+  } else if (form.benefitType === 'FREE_NIGHTS') {
+    if (!Number.isInteger(benefit) || benefit < 1) {
+      errors.benefitValue = 'Indicá cuántas noches paga (entero ≥ 1; ej. 4 → queda 5)';
+    }
   } else if (benefit < 0) {
     errors.benefitValue = 'El beneficio no puede ser negativo';
   } else if (form.benefitType === 'PERCENT' && benefit > 100) {
@@ -618,6 +627,7 @@ function PromocionesTab() {
       type: c.type,
       params: paramsFromCondition(c)
     }));
+    const isFreeNights = form.benefitType === 'FREE_NIGHTS';
     return {
       code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
@@ -625,7 +635,7 @@ function PromocionesTab() {
       activo: Boolean(form.activo),
       prioridad: 100,
       modality: form.modality,
-      layer: 'SETTLEMENT',
+      layer: isFreeNights ? 'RATE' : 'SETTLEMENT',
       stacking: 'EXCLUSIVE',
       stackingGroup: null,
       vigenteDesde: null,
@@ -634,7 +644,7 @@ function PromocionesTab() {
       aplicaEnSeña: true,
       benefitType: form.benefitType,
       benefitValue: Number(form.benefitValue) || 0,
-      benefitBase: 'DEBT_CANCELLED',
+      benefitBase: isFreeNights ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
       descripcionInterna: String(form.descripcionInterna || '').trim() || null,
       conditions
@@ -1162,32 +1172,61 @@ function PromocionesTab() {
                   Beneficio
                   <select
                     value={form.benefitType}
-                    onChange={(e) => setField('benefitType', e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        benefitType: next,
+                        benefitValue:
+                          next === 'FREE_NIGHTS' && prev.benefitType !== 'FREE_NIGHTS'
+                            ? '4'
+                            : prev.benefitValue
+                      }));
+                    }}
                   >
                     <option value="PERCENT">Porcentaje</option>
                     <option value="FIXED">Fijo ARS</option>
                     <option value="FIXED_PER_NIGHT">Fijo / noche</option>
+                    <option value="FREE_NIGHTS">Noches sin cargo</option>
                   </select>
                 </label>
-                <label className={`${styles.field} ${styles.benefitValueField}`}>
-                  Valor
+                <label
+                  className={`${styles.field} ${styles.benefitValueField} ${
+                    form.benefitType === 'FREE_NIGHTS' ? styles.benefitValueFreeNights : ''
+                  }`}
+                >
+                  {form.benefitType === 'FREE_NIGHTS' ? 'Paga' : 'Valor'}
                   <span className={styles.valueWithSuffix}>
                     <input
                       type="number"
-                      step="0.01"
+                      step={form.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                      min={form.benefitType === 'FREE_NIGHTS' ? '1' : undefined}
                       value={form.benefitValue}
                       onChange={(e) => setField('benefitValue', e.target.value)}
-                      aria-label="Valor del beneficio"
+                      aria-label={
+                        form.benefitType === 'FREE_NIGHTS'
+                          ? 'Noches que paga el huésped'
+                          : 'Valor del beneficio'
+                      }
                       aria-invalid={Boolean(formErrors.benefitValue) || undefined}
                       className={formErrors.benefitValue ? styles.fieldInvalid : undefined}
                       title={formErrors.benefitValue}
                     />
                     <span className={styles.valueSuffix} aria-hidden="true">
-                      {form.benefitType === 'PERCENT' ? '%' : '$'}
+                      {form.benefitType === 'PERCENT'
+                        ? '%'
+                        : form.benefitType === 'FREE_NIGHTS'
+                          ? `queda ${Math.max(1, Math.floor(Number(form.benefitValue) || 0) + 1)}`
+                          : '$'}
                     </span>
                   </span>
                 </label>
               </div>
+              {form.benefitType === 'FREE_NIGHTS' && (
+                <p className={styles.fieldHint}>
+                  La noche sin cargo es la más barata de la estadía (si hay tarifas distintas).
+                </p>
+              )}
             </div>
 
             <div className={styles.formFlags}>

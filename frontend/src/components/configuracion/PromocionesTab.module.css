@@ -424,6 +424,14 @@ button.switch {
   width: 6.5rem;
 }
 
+.benefitValueFreeNights {
+  width: 11.5rem;
+}
+
+.benefitValueFreeNights .valueWithSuffix input {
+  width: 3.5rem;
+}
+
 .valueWithSuffix {
   display: flex;
   align-items: center;
