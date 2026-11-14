@@ -958,6 +958,75 @@ export async function createPaymentMethodConfig(data) {
   return res.json();
 }
 
+export async function fetchPromotionRules({ all = false, layer } = {}) {
+  const params = new URLSearchParams();
+  if (all) params.set('all', '1');
+  if (layer) params.set('layer', layer);
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await fetch(`${API_URL}/promotion-rules${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando promociones');
+  }
+  return res.json();
+}
+
+export async function createPromotionRule(data) {
+  const res = await fetch(`${API_URL}/promotion-rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando promoción');
+  }
+  return res.json();
+}
+
+export async function updatePromotionRule(id, data) {
+  const res = await fetch(`${API_URL}/promotion-rules/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error actualizando promoción');
+  }
+  return res.json();
+}
+
+export async function deletePromotionRule(id) {
+  const res = await fetch(`${API_URL}/promotion-rules/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error desactivando promoción');
+  }
+  return res.json();
+}
+
+export async function previewPromotion(data) {
+  const res = await fetch(`${API_URL}/promotion-rules/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error en preview de promoción');
+  }
+  return res.json();
+}
+
 export async function fetchAccountResumen(accountId) {
   const res = await fetch(`${API_URL}/accounts/${accountId}/resumen`, {
     credentials: 'include'

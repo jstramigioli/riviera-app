@@ -17,6 +17,11 @@ const {
   ensureReservationAccount,
   dualWriteReservationRefs
 } = require('./accountHelpers');
+const {
+  loadActivePromotionRules,
+  evaluateRateRules,
+  computeHotelOccupancyPercent
+} = require('./promotionEngine');
 
 async function resolveHotelId(serviceTypeId) {
   if (serviceTypeId) {
@@ -73,6 +78,12 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
   });
 
   let totalNights = 0;
+  let rateRules = [];
+  try {
+    rateRules = await loadActivePromotionRules(prisma, { layer: 'RATE' });
+  } catch (err) {
+    console.warn('⚠️ PromotionRule RATE no disponible:', err.message);
+  }
 
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
     const segment = segments[segmentIndex];
@@ -134,7 +145,44 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
 
       const preserved = overrideByDate.get(dateKey);
       const hasOverride = Boolean(preserved);
-      const effectiveAmount = hasOverride ? preserved.monto : originalAmount;
+
+      let promoDiscount = 0;
+      let promoRuleId = null;
+      let promoPercent = null;
+      let pricedAmount = originalAmount;
+
+      if (!hasOverride && rateRules.length) {
+        let occupancyPercent = null;
+        try {
+          const hotelIdForOcc = await resolveHotelId(serviceTypeId);
+          occupancyPercent = await computeHotelOccupancyPercent(prisma, {
+            hotelId: hotelIdForOcc,
+            date: currentDate
+          });
+        } catch {
+          occupancyPercent = null;
+        }
+        const rateEval = evaluateRateRules(rateRules, {
+          layer: 'RATE',
+          asOfDate: currentDate,
+          checkIn: startIso,
+          checkOut: endIso,
+          nights: days,
+          roomTypeId,
+          serviceTypeId,
+          nightPrice: originalAmount,
+          occupancyPercent,
+          selectedRuleIds: [] // AUTO only at sync; MANUAL/SUGERIDA vía API cotización
+        });
+        if (rateEval.aplica) {
+          pricedAmount = rateEval.finalARS;
+          promoDiscount = rateEval.discountARS;
+          promoRuleId = rateEval.promotionRuleId || null;
+          promoPercent = rateEval.promotionPercent;
+        }
+      }
+
+      const effectiveAmount = hasOverride ? preserved.monto : pricedAmount;
 
       const dateStr = currentDate.toLocaleDateString('es-AR', {
         timeZone: 'UTC',
@@ -142,6 +190,11 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
         day: 'numeric',
         month: 'short'
       });
+
+      const promoNote =
+        promoDiscount > 0 && promoRuleId
+          ? ` | Promo#${promoRuleId} −$${promoDiscount}`
+          : '';
 
       await prisma.cargo.create({
         data: {
@@ -153,8 +206,8 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           montoOriginal: originalAmount,
           manualOverride: hasOverride,
           notas:
-            preserved?.notas ||
-            `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`,
+            (preserved?.notas ||
+              `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`) + promoNote,
           fecha: currentDate
         }
       });
@@ -168,7 +221,10 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           finalRate: effectiveAmount,
           serviceType: serviceTypeId || 'base',
           serviceRate: originalAmount,
-          manualOverride: hasOverride
+          manualOverride: hasOverride,
+          promotionRuleId: promoRuleId,
+          promotionDiscountARS: promoDiscount > 0 ? promoDiscount : null,
+          promotionPercent: promoPercent
         }
       });
 
