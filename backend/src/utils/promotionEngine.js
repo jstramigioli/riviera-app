@@ -909,6 +909,25 @@ function evaluateRateRules(rules, ctx) {
       }
     }
     const appliedRules = [...(freeEval.appliedRules || []), ...nonFreeById.values()];
+    // Suggestions no-FREE (p.ej. benefitValueManual PERCENT/FIXED) + FREE_NIGHTS.
+    const nonFreeSuggestions = filterEligibleRules(
+      nonFreeRules,
+      { ...ctx, layer: 'RATE', nights: nightPrices.length },
+      { forApply: false }
+    )
+      .filter(
+        (r) =>
+          (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+          (r.benefitValueManual &&
+            modalityAllowsApply(r, ctx) &&
+            effectiveBenefitValue(r, ctx) == null)
+      )
+      .map(toSuggestion);
+    const suggestionById = new Map();
+    for (const s of [...(freeEval.suggestions || []), ...nonFreeSuggestions]) {
+      if (!s || s.id == null) continue;
+      if (!suggestionById.has(s.id)) suggestionById.set(s.id, s);
+    }
     return {
       aplica: discountARS > 0,
       originalARS: roundMoney(nightPrices.reduce((s, p) => s + toNumber(p), 0)),
@@ -917,7 +936,7 @@ function evaluateRateRules(rules, ctx) {
       nights: perNight,
       freeNights: freeEval,
       selectedRules: freeEval.selectedRules,
-      suggestions: freeEval.suggestions,
+      suggestions: Array.from(suggestionById.values()),
       appliedRules,
       promotionRuleId: freeEval.promotionRuleId
     };

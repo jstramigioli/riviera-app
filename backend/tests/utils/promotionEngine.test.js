@@ -556,4 +556,44 @@ describe('promotionEngine rate + stacking', () => {
     expect(applied.creditoARS).toBe(10000);
     expect(applied.descuentoARS).toBe(1000);
   });
+
+  it('RATE stay: benefitValueManual no-FREE aparece en suggestions y aplica con override', () => {
+    const rule = {
+      id: 41,
+      code: 'DTO_MANUAL',
+      label: 'Dto % al aplicar',
+      activo: true,
+      prioridad: 100,
+      modality: 'MANUAL',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 0,
+      benefitValueManual: true,
+      benefitBase: 'RATE_NIGHT',
+      conditions: []
+    };
+
+    const pending = evaluateRateRules([rule], {
+      layer: 'RATE',
+      nightPrices: [10000, 10000],
+      nights: 2,
+      selectedRuleIds: [],
+      applySuggestedDefaults: true
+    });
+    expect(pending.aplica).toBe(false);
+    expect(pending.suggestions.some((s) => s.id === 41 && s.benefitValueManual)).toBe(true);
+
+    const applied = evaluateRateRules([rule], {
+      layer: 'RATE',
+      nightPrices: [10000, 10000],
+      nights: 2,
+      selectedRuleIds: [41],
+      benefitValueByRuleId: { 41: 10 },
+      applySuggestedDefaults: true
+    });
+    expect(applied.aplica).toBe(true);
+    expect(applied.discountARS).toBe(2000);
+    expect(applied.finalARS).toBe(18000);
+  });
 });
