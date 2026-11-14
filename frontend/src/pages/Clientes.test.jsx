@@ -18,6 +18,26 @@ describe('Clientes', () => {
     vi.clearAllMocks()
   })
 
+  it('keeps the sidebar shell while loading', async () => {
+    const { fetchClients } = await import('../services/api')
+    let resolveClients
+    fetchClients.mockReturnValue(
+      new Promise((resolve) => {
+        resolveClients = resolve
+      })
+    )
+
+    render(<Clientes />)
+
+    expect(screen.getByRole('button', { name: 'Listado' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/Cargando clientes/i)
+
+    resolveClients([])
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Listado de clientes' })).toBeInTheDocument()
+    })
+  })
+
   it('lists clients with search, filters, sort and opens profile on row click', async () => {
     const { fetchClients } = await import('../services/api')
     fetchClients.mockResolvedValue([
@@ -73,8 +93,7 @@ describe('Clientes', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
     expect(screen.getByText('Mostrando 2 de 2 clientes')).toBeInTheDocument()
 
-    const apellidoHeader = screen.getByRole('columnheader', { name: /Apellido/i })
-    await userEvent.click(apellidoHeader)
+    await userEvent.click(screen.getByRole('button', { name: /Apellido/i }))
     const rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByText('Zárate')).toBeInTheDocument()
 
