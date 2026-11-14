@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FiLogIn } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
-import logoHotel from '../assets/logo-hotel.png';
+import logoHotel from '../assets/logo-hotel-primary.png';
 import styles from '../styles/Login.module.css';
 
 function Login() {
