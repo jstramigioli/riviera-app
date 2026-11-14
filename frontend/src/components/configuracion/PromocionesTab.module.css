@@ -435,6 +435,15 @@ button.switch {
   box-sizing: border-box;
 }
 
+.conditionRow .valueWithSuffix {
+  width: 100%;
+}
+
+.conditionRow .valueWithSuffix input {
+  width: 5rem;
+  flex: 0 0 auto;
+}
+
 .field input:focus,
 .field select:focus,
 .conditionRow select:focus,

@@ -9,9 +9,21 @@ export async function fetchRooms() {
 }
 
 export async function fetchRoomTypes() {
-  const res = await fetch(`${API_URL}/room-types`);
-  if (!res.ok) throw new Error('Error fetching room types')
-  return res.json()
+  const res = await fetch(`${API_URL}/room-types`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching room types');
+  return res.json();
+}
+
+export async function fetchServiceTypes(hotelId = 'default-hotel') {
+  const qs = hotelId ? `?hotelId=${encodeURIComponent(hotelId)}` : '';
+  const res = await fetch(`${API_URL}/service-types${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching service types');
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.data || [];
 }
 
 // Funciones para habitaciones virtuales
@@ -1624,6 +1636,7 @@ export async function sendReservationCheckIn(reservationId, payload = {}) {
 export default {
   fetchRooms,
   fetchRoomTypes,
+  fetchServiceTypes,
   fetchReservations,
   fetchClients,
   fetchGuests,

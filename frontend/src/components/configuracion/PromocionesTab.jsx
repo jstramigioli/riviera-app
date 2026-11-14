@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiEdit2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
 import {
   fetchPromotionRules,
   createPromotionRule,
   updatePromotionRule,
-  fetchPaymentMethodConfigs
+  fetchPaymentMethodConfigs,
+  fetchRoomTypes,
+  fetchServiceTypes
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import styles from './PromocionesTab.module.css';
@@ -49,14 +51,22 @@ function emptyCondition(type = 'PAYMENT_METHOD') {
   return {
     type,
     paymentMethodConfigId: '',
+    roomTypeId: '',
+    serviceTypeId: '',
     minNights: '',
     maxNights: '',
     from: '',
     to: '',
     maxPercent: '',
-    minPercent: '',
-    paramsText: '{}'
+    minPercent: ''
   };
+}
+
+function firstIdFromParams(p, listKey, singleKey) {
+  if (Array.isArray(p[listKey]) && p[listKey].length) return String(p[listKey][0]);
+  if (Array.isArray(p.ids) && p.ids.length) return String(p.ids[0]);
+  if (p[singleKey] != null && p[singleKey] !== '') return String(p[singleKey]);
+  return '';
 }
 
 function conditionFromApi(c) {
@@ -66,9 +76,12 @@ function conditionFromApi(c) {
     case 'PAYMENT_METHOD':
       return {
         ...base,
-        paymentMethodConfigId: String(p.paymentMethodConfigId ?? ''),
-        paramsText: JSON.stringify(p)
+        paymentMethodConfigId: String(p.paymentMethodConfigId ?? '')
       };
+    case 'ROOM_TYPE':
+      return { ...base, roomTypeId: firstIdFromParams(p, 'roomTypeIds', 'roomTypeId') };
+    case 'SERVICE_TYPE':
+      return { ...base, serviceTypeId: firstIdFromParams(p, 'serviceTypeIds', 'serviceTypeId') };
     case 'MIN_NIGHTS':
       return { ...base, minNights: String(p.minNights ?? p.value ?? '') };
     case 'MAX_NIGHTS':
@@ -84,7 +97,7 @@ function conditionFromApi(c) {
     case 'OCCUPANCY_HOTEL_MIN':
       return { ...base, minPercent: String(p.minPercent ?? p.value ?? '') };
     default:
-      return { ...base, paramsText: JSON.stringify(p || {}, null, 0) };
+      return base;
   }
 }
 
@@ -94,6 +107,16 @@ function paramsFromCondition(c) {
       const id = Number(c.paymentMethodConfigId);
       if (!id) throw new Error('Elegí un medio de pago en la condición');
       return { paymentMethodConfigId: id };
+    }
+    case 'ROOM_TYPE': {
+      const id = Number(c.roomTypeId);
+      if (!id) throw new Error('Elegí un tipo de habitación');
+      return { roomTypeIds: [id] };
+    }
+    case 'SERVICE_TYPE': {
+      const id = String(c.serviceTypeId || '').trim();
+      if (!id) throw new Error('Elegí un servicio');
+      return { serviceTypeIds: [id] };
     }
     case 'MIN_NIGHTS': {
       const n = Number(c.minNights);
@@ -117,13 +140,8 @@ function paramsFromCondition(c) {
       if (Number.isNaN(n)) throw new Error('Indicá el mínimo de ocupación');
       return { minPercent: n };
     }
-    default: {
-      try {
-        return c.paramsText ? JSON.parse(c.paramsText) : {};
-      } catch {
-        throw new Error(`JSON inválido en condición ${CONDITION_TYPE_LABEL[c.type] || c.type}`);
-      }
-    }
+    default:
+      throw new Error(`Condición no soportada: ${CONDITION_TYPE_LABEL[c.type] || c.type}`);
   }
 }
 
@@ -138,7 +156,7 @@ function formatBenefit(row) {
   return `${Number.isFinite(value) ? value : row.benefitValue} ARS`;
 }
 
-function conditionSummary(c, methodsById) {
+function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
   const p = c.params || {};
   switch (c.type) {
     case 'PAYMENT_METHOD': {
@@ -151,10 +169,24 @@ function conditionSummary(c, methodsById) {
       return `≤ ${p.maxNights ?? p.value} noches`;
     case 'DATE_RANGE':
       return `${p.from || p.desde || '…'} → ${p.to || p.hasta || '…'}`;
-    case 'ROOM_TYPE':
-      return 'tipos de habitación';
-    case 'SERVICE_TYPE':
-      return 'servicios';
+    case 'ROOM_TYPE': {
+      const ids = p.roomTypeIds || p.ids || (p.roomTypeId != null ? [p.roomTypeId] : []);
+      if (!ids.length) return '—';
+      return ids
+        .map((id) => roomTypesById.get(Number(id))?.name || roomTypesById.get(Number(id))?.label || `#${id}`)
+        .join(', ');
+    }
+    case 'SERVICE_TYPE': {
+      const ids = p.serviceTypeIds || p.ids || (p.serviceTypeId != null ? [p.serviceTypeId] : []);
+      if (!ids.length) return '—';
+      return ids
+        .map((id) => {
+          const key = String(id);
+          const st = serviceTypesById.get(key);
+          return st?.name || st?.label || key;
+        })
+        .join(', ');
+    }
     case 'OCCUPANCY_HOTEL_MAX':
       return `≤ ${p.maxPercent ?? p.value}%`;
     case 'OCCUPANCY_HOTEL_MIN':
@@ -166,8 +198,11 @@ function conditionSummary(c, methodsById) {
 
 function PromocionesTab() {
   const { confirm, confirmDialog } = useConfirmDialog();
+  const mouseDownOnOverlay = useRef(false);
   const [rows, setRows] = useState([]);
   const [methods, setMethods] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [serviceTypes, setServiceTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -182,6 +217,23 @@ function PromocionesTab() {
     return map;
   }, [methods]);
 
+  const roomTypesById = useMemo(() => {
+    const map = new Map();
+    for (const rt of roomTypes) map.set(Number(rt.id), rt);
+    return map;
+  }, [roomTypes]);
+
+  const serviceTypesById = useMemo(() => {
+    const map = new Map();
+    for (const st of serviceTypes) map.set(String(st.id), st);
+    return map;
+  }, [serviceTypes]);
+
+  const catalogLookup = useMemo(
+    () => ({ methodsById, roomTypesById, serviceTypesById }),
+    [methodsById, roomTypesById, serviceTypesById]
+  );
+
   const promoRows = useMemo(
     () => rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO'),
     [rows]
@@ -195,12 +247,16 @@ function PromocionesTab() {
     setLoading(true);
     setError(null);
     try {
-      const [list, medios] = await Promise.all([
+      const [list, medios, types, services] = await Promise.all([
         fetchPromotionRules({ all: true }),
-        fetchPaymentMethodConfigs({ all: true })
+        fetchPaymentMethodConfigs({ all: true }),
+        fetchRoomTypes(),
+        fetchServiceTypes()
       ]);
       setRows(Array.isArray(list) ? list : []);
       setMethods(Array.isArray(medios) ? medios : []);
+      setRoomTypes(Array.isArray(types) ? types : []);
+      setServiceTypes(Array.isArray(services) ? services : []);
     } catch (err) {
       setError(err.message || 'Error cargando promociones');
     } finally {
@@ -215,6 +271,18 @@ function PromocionesTab() {
   const closeForm = () => {
     setShowForm(false);
     setEditingId(null);
+    mouseDownOnOverlay.current = false;
+  };
+
+  const handleOverlayMouseDown = (e) => {
+    mouseDownOnOverlay.current = e.target === e.currentTarget;
+  };
+
+  const handleOverlayMouseUp = (e) => {
+    if (mouseDownOnOverlay.current && e.target === e.currentTarget) {
+      closeForm();
+    }
+    mouseDownOnOverlay.current = false;
   };
 
   const openCreate = (kind) => {
@@ -362,6 +430,36 @@ function PromocionesTab() {
             ))}
           </select>
         );
+      case 'ROOM_TYPE':
+        return (
+          <select
+            value={c.roomTypeId}
+            onChange={(e) => updateCondition(index, { roomTypeId: e.target.value })}
+            aria-label="Tipo de habitación"
+          >
+            <option value="">Elegir tipo…</option>
+            {roomTypes.map((rt) => (
+              <option key={rt.id} value={rt.id}>
+                {rt.name || rt.label || `Tipo #${rt.id}`}
+              </option>
+            ))}
+          </select>
+        );
+      case 'SERVICE_TYPE':
+        return (
+          <select
+            value={c.serviceTypeId}
+            onChange={(e) => updateCondition(index, { serviceTypeId: e.target.value })}
+            aria-label="Servicio"
+          >
+            <option value="">Elegir servicio…</option>
+            {serviceTypes.map((st) => (
+              <option key={st.id} value={st.id}>
+                {st.name || st.label || st.id}
+              </option>
+            ))}
+          </select>
+        );
       case 'MIN_NIGHTS':
         return (
           <input
@@ -403,37 +501,42 @@ function PromocionesTab() {
         );
       case 'OCCUPANCY_HOTEL_MAX':
         return (
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={c.maxPercent}
-            onChange={(e) => updateCondition(index, { maxPercent: e.target.value })}
-            placeholder="% máximo"
-            aria-label="Ocupación máxima"
-          />
+          <span className={styles.valueWithSuffix}>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={c.maxPercent}
+              onChange={(e) => updateCondition(index, { maxPercent: e.target.value })}
+              placeholder="0–100"
+              aria-label="Ocupación máxima"
+            />
+            <span className={styles.valueSuffix} aria-hidden="true">
+              %
+            </span>
+          </span>
         );
       case 'OCCUPANCY_HOTEL_MIN':
         return (
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={c.minPercent}
-            onChange={(e) => updateCondition(index, { minPercent: e.target.value })}
-            placeholder="% mínimo"
-            aria-label="Ocupación mínima"
-          />
+          <span className={styles.valueWithSuffix}>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={c.minPercent}
+              onChange={(e) => updateCondition(index, { minPercent: e.target.value })}
+              placeholder="0–100"
+              aria-label="Ocupación mínima"
+            />
+            <span className={styles.valueSuffix} aria-hidden="true">
+              %
+            </span>
+          </span>
         );
       default:
-        return (
-          <input
-            value={c.paramsText}
-            onChange={(e) => updateCondition(index, { paramsText: e.target.value })}
-            placeholder='{"ids":[]}'
-            aria-label="Parámetros JSON"
-          />
-        );
+        return null;
     }
   };
 
@@ -496,7 +599,7 @@ function PromocionesTab() {
                             <span className={styles.condType}>
                               {CONDITION_TYPE_LABEL[c.type] || c.type}
                             </span>
-                            {conditionSummary(c, methodsById)}
+                            {conditionSummary(c, catalogLookup)}
                           </li>
                         ))}
                       </ul>
@@ -579,13 +682,17 @@ function PromocionesTab() {
       </section>
 
       {showForm && (
-        <div className={styles.formOverlay} role="presentation" onClick={closeForm}>
+        <div
+          className={styles.formOverlay}
+          role="presentation"
+          onMouseDown={handleOverlayMouseDown}
+          onMouseUp={handleOverlayMouseUp}
+        >
           <div
             className={styles.form}
             role="dialog"
             aria-modal="true"
             aria-labelledby="promo-form-title"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.formHeader}>
               <h3 id="promo-form-title">
