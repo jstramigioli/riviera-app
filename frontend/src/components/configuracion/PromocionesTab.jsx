@@ -1223,13 +1223,6 @@ function PromocionesTab() {
                   </span>
                 </label>
               </div>
-              {form.benefitType === 'FREE_NIGHTS' && (
-                <p className={styles.fieldHint}>
-                  No se cobran esas noches (las más baratas si hay tarifas distintas). El mínimo
-                  de noches pagadas se define con la condición «Cantidad de noches» (ej. 1 gratis
-                  + mín. 4 pagadas → ≥ 5 noches).
-                </p>
-              )}
             </div>
 
             <div className={styles.formFlags}>
