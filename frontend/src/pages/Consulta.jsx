@@ -280,6 +280,10 @@ export default function Consulta() {
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
+  const [pendingPromoApply, setPendingPromoApply] = useState({
+    benefitValueByRuleId: {},
+    selectedRuleIds: []
+  });
 
   // Estados para el modal de eliminación de segmentos
   const [showDeleteSegmentsModal, setShowDeleteSegmentsModal] = useState(false);
@@ -2880,7 +2884,18 @@ export default function Consulta() {
   };
 
   // Función para crear la reserva
-  const handleCreateReservation = async (status = 'PENDIENTE', skipPastDateWarning = false) => {
+  const handleCreateReservation = async (status = 'PENDIENTE', options = {}) => {
+    // Compat: segundo arg `true` = skipPastDateWarning (flujo fechas pasadas).
+    const opts = options === true ? { skipPastDateWarning: true } : options || {};
+    const skipPastDateWarning = Boolean(opts.skipPastDateWarning);
+    const promoApply = {
+      benefitValueByRuleId:
+        opts.benefitValueByRuleId && typeof opts.benefitValueByRuleId === 'object'
+          ? opts.benefitValueByRuleId
+          : {},
+      selectedRuleIds: Array.isArray(opts.selectedRuleIds) ? opts.selectedRuleIds : []
+    };
+
     setIsCreatingReservation(true);
     
     try {
@@ -2917,6 +2932,7 @@ export default function Consulta() {
         
         if (hasPastDates) {
           setPendingReservationStatus(status);
+          setPendingPromoApply(promoApply);
           setShowPastDateWarning(true);
           setIsCreatingReservation(false);
           return; // Detener la ejecución para mostrar el modal
@@ -3046,7 +3062,9 @@ export default function Consulta() {
         status: status,
         notes: notes,
         source: source || null,
-        isMultiRoom: false
+        isMultiRoom: false,
+        selectedRuleIds: promoApply.selectedRuleIds,
+        benefitValueByRuleId: promoApply.benefitValueByRuleId
       };
 
       console.log('Datos de reserva a enviar:', reservationData);
@@ -3058,7 +3076,9 @@ export default function Consulta() {
           notes: notes,
           source: source || null,
           segments: reservationData.segments,
-          applyRateChanges
+          applyRateChanges,
+          selectedRuleIds: promoApply.selectedRuleIds,
+          benefitValueByRuleId: promoApply.benefitValueByRuleId
         });
         setShowConfirmationModal(false);
         notify({
@@ -3909,7 +3929,10 @@ export default function Consulta() {
                 className={styles.pastDateConfirm}
                 onClick={() => {
                   setShowPastDateWarning(false);
-                  handleCreateReservation(pendingReservationStatus, true); // skipPastDateWarning = true
+                  handleCreateReservation(pendingReservationStatus, {
+                    skipPastDateWarning: true,
+                    ...pendingPromoApply
+                  });
                 }}
               >
                 Sí, crear reserva

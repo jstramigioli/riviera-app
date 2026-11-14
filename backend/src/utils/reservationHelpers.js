@@ -37,12 +37,32 @@ async function resolveHotelId(serviceTypeId) {
   return hotel?.id || 'default-hotel';
 }
 
+function normalizePromoApplyOpts(opts = {}) {
+  const selectedRuleIds = []
+    .concat(opts.selectedRuleIds || [])
+    .concat(opts.promotionRuleIds || [])
+    .map((id) => parseInt(id, 10))
+    .filter((id) => Number.isFinite(id));
+  const benefitValueByRuleId =
+    opts.benefitValueByRuleId && typeof opts.benefitValueByRuleId === 'object'
+      ? opts.benefitValueByRuleId
+      : {};
+  return { selectedRuleIds, benefitValueByRuleId };
+}
+
 /**
  * Regenera cargos de alojamiento + ReservationNightRate desde segmentos activos.
  * Conserva cargos con subcategoriaCargoId (consumos/servicios/otros).
  * Prioridad de monto: nightRates del payload → motor canónico → baseRate del segmento.
+ * promoOpts: { selectedRuleIds, benefitValueByRuleId } para valor manual al aplicar.
  */
-async function syncLodgingChargesAndNightRates(reservationId, segments, originalSegments = []) {
+async function syncLodgingChargesAndNightRates(
+  reservationId,
+  segments,
+  originalSegments = [],
+  promoOpts = {}
+) {
+  const { selectedRuleIds, benefitValueByRuleId } = normalizePromoApplyOpts(promoOpts);
   const reservaId = parseInt(reservationId, 10);
   if (!Array.isArray(segments) || segments.length === 0) {
     return { totalNights: 0 };
@@ -158,7 +178,8 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           roomTypeId,
           serviceTypeId,
           occupancyPercent,
-          selectedRuleIds: [],
+          selectedRuleIds,
+          benefitValueByRuleId,
           applySuggestedDefaults: true
         },
         nightPlans.map((n) => n.originalAmount)
@@ -204,7 +225,8 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           serviceTypeId,
           nightPrice: originalAmount,
           occupancyPercent,
-          selectedRuleIds: [],
+          selectedRuleIds,
+          benefitValueByRuleId,
           // AUTO + SUGERIDA (default ON). MANUAL sigue requiriendo selectedRuleIds.
           applySuggestedDefaults: true
         });
@@ -482,8 +504,16 @@ async function createReservationWithSegments(reservationData) {
     isMultiRoom = false,
     parentReservationId = null,
     /// Por defecto el responsable se incorpora como huésped (removible después).
-    includeHolderAsGuest = true
+    includeHolderAsGuest = true,
+    selectedRuleIds,
+    promotionRuleIds,
+    benefitValueByRuleId
   } = reservationData;
+  const promoOpts = normalizePromoApplyOpts({
+    selectedRuleIds,
+    promotionRuleIds,
+    benefitValueByRuleId
+  });
 
   // Expandir virtual_X → componentes físicos + virtualRoomId
   const resolvedSegments = await expandVirtualRoomSegments(segments || []);
@@ -566,7 +596,12 @@ async function createReservationWithSegments(reservationData) {
 
   // Cargos + night rates desde la cotización canónica (detalle por noche, no solo promedio)
   try {
-    await syncLodgingChargesAndNightRates(reservation.id, createdSegments, resolvedSegments);
+    await syncLodgingChargesAndNightRates(
+      reservation.id,
+      createdSegments,
+      resolvedSegments,
+      promoOpts
+    );
   } catch (cargoError) {
     console.error('❌ Error creando cargos/night rates de reserva:', cargoError);
     // No fallar la creación de la reserva si falla el cargo
@@ -722,8 +757,16 @@ async function updateReservationWithSegments(reservationId, updateData) {
     source,
     segments,
     mainClientId,
-    applyRateChanges = true
+    applyRateChanges = true,
+    selectedRuleIds,
+    promotionRuleIds,
+    benefitValueByRuleId
   } = updateData;
+  const promoOpts = normalizePromoApplyOpts({
+    selectedRuleIds,
+    promotionRuleIds,
+    benefitValueByRuleId
+  });
 
   const id = parseInt(reservationId, 10);
 
@@ -822,7 +865,12 @@ async function updateReservationWithSegments(reservationId, updateData) {
     const needsSync = shouldApplyRates && await lodgingNeedsSync(id, previousActive, createdSegments);
     if (needsSync) {
       try {
-        await syncLodgingChargesAndNightRates(id, createdSegments, resolvedSegments);
+        await syncLodgingChargesAndNightRates(
+          id,
+          createdSegments,
+          resolvedSegments,
+          promoOpts
+        );
       } catch (cargoError) {
         console.error(`❌ Error sincronizando cargos/night rates de reserva #${id}:`, cargoError);
         // No revertir el update de segmentos si falla la sync financiera

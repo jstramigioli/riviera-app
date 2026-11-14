@@ -164,6 +164,63 @@
   font-variant-numeric: tabular-nums;
 }
 
+.manualPromoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.manualPromoTitle {
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.manualPromoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.manualPromoLabel {
+  font-size: var(--font-size-small);
+  color: var(--color-text-main);
+  flex: 1;
+  min-width: 0;
+}
+
+.manualPromoInputWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.manualPromoInput {
+  width: 88px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.manualPromoInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.manualPromoUnit {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  min-width: 2.5rem;
+}
+
 .breakdownBlock {
   margin-top: 10px;
 }

@@ -479,9 +479,11 @@ function validatePromoForm(form) {
   if (!String(form.label || '').trim()) {
     errors.label = 'El nombre es obligatorio';
   }
-  if (!form.benefitValueManual) {
+  // Valor vacío = se define al aplicar (benefitValueManual), no es error.
+  const valueEmpty = form.benefitValue === '' || form.benefitValue == null;
+  if (!form.benefitValueManual && !valueEmpty) {
     const benefit = Number(form.benefitValue);
-    if (form.benefitValue === '' || Number.isNaN(benefit)) {
+    if (Number.isNaN(benefit)) {
       errors.benefitValue = 'Indicá el valor del beneficio';
     } else if (form.benefitType === 'FREE_NIGHTS') {
       if (!Number.isInteger(benefit) || benefit < 1) {
@@ -731,8 +733,15 @@ function PromocionesTab() {
       aplicaEnParcial: Boolean(form.aplicaEnParcial),
       aplicaEnSeña: true,
       benefitType: form.benefitType,
-      benefitValue: form.benefitValueManual ? 0 : Number(form.benefitValue) || 0,
-      benefitValueManual: Boolean(form.benefitValueManual),
+      benefitValue:
+        form.benefitValueManual || form.benefitValue === '' || form.benefitValue == null
+          ? 0
+          : Number(form.benefitValue) || 0,
+      // Vacío en Config → valor manual al aplicar en reserva/pago.
+      benefitValueManual:
+        Boolean(form.benefitValueManual) ||
+        form.benefitValue === '' ||
+        form.benefitValue == null,
       benefitBase: isFreeNights ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
       descripcionInterna: String(form.descripcionInterna || '').trim() || null,
@@ -1303,7 +1312,9 @@ function PromocionesTab() {
                       value={form.benefitValueManual ? '' : form.benefitValue}
                       onChange={(e) => setField('benefitValue', e.target.value)}
                       disabled={form.benefitValueManual}
-                      placeholder={form.benefitValueManual ? 'Al aplicar' : undefined}
+                      placeholder={
+                        form.benefitValueManual ? 'Al aplicar' : 'Opcional — vacío = al aplicar'
+                      }
                       aria-label={
                         form.benefitType === 'FREE_NIGHTS'
                           ? 'Cantidad de noches gratis'

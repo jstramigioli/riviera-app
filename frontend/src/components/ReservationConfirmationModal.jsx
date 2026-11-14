@@ -11,6 +11,12 @@ import {
   mergeNightsWithPreview,
   summarizeConfirmationQuote
 } from '../utils/reservationConfirmationQuote';
+import {
+  benefitUnitLabel,
+  buildBenefitApplyPayload,
+  collectManualBenefitSuggestions,
+  mergeManualBenefitSuggestions
+} from '../utils/promoManualBenefit';
 import ReservationStayTimeline from './ReservationStayTimeline';
 import styles from './ReservationConfirmationModal.module.css';
 
@@ -36,6 +42,8 @@ const ReservationConfirmationModal = ({
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState(null);
   const [segmentQuotes, setSegmentQuotes] = useState([]);
+  const [manualSuggestions, setManualSuggestions] = useState([]);
+  const [manualValues, setManualValues] = useState({});
   const [showNightBreakdown, setShowNightBreakdown] = useState(false);
 
   const segments = reservationData?.segments || [];
@@ -50,6 +58,8 @@ const ReservationConfirmationModal = ({
     () => segmentNightGroups.reduce((sum, seg) => sum + (seg.subtotal || 0), 0),
     [segmentNightGroups]
   );
+
+  const applyPayload = useMemo(() => buildBenefitApplyPayload(manualValues), [manualValues]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -76,6 +86,8 @@ const ReservationConfirmationModal = ({
     if (!isOpen) return;
     setReservationStatus('PENDIENTE');
     setShowNightBreakdown(false);
+    setManualValues({});
+    setManualSuggestions([]);
   }, [isOpen, reservationData]);
 
   useEffect(() => {
@@ -85,6 +97,7 @@ const ReservationConfirmationModal = ({
     const loadPromoPreview = async () => {
       if (!segmentNightGroups.length) {
         setSegmentQuotes([]);
+        setManualSuggestions([]);
         setPromoError(null);
         return;
       }
@@ -92,8 +105,10 @@ const ReservationConfirmationModal = ({
       setPromoLoading(true);
       setPromoError(null);
 
+      const { benefitValueByRuleId, selectedRuleIds } = applyPayload;
+
       try {
-        const quotes = await Promise.all(
+        const results = await Promise.all(
           segmentNightGroups.map(async (seg) => {
             const fallbackNights = (seg.nights || []).map((night) => ({
               ...night,
@@ -105,11 +120,14 @@ const ReservationConfirmationModal = ({
 
             if (!seg.nightPrices.length) {
               return {
-                segmentIndex: seg.segmentIndex,
-                subtotal: seg.subtotal,
-                discountARS: 0,
-                nights: fallbackNights,
-                promos: []
+                quote: {
+                  segmentIndex: seg.segmentIndex,
+                  subtotal: seg.subtotal,
+                  discountARS: 0,
+                  nights: fallbackNights,
+                  promos: []
+                },
+                suggestions: []
               };
             }
 
@@ -123,39 +141,48 @@ const ReservationConfirmationModal = ({
                 serviceTypeId: seg.serviceTypeId,
                 nightPrices: seg.nightPrices,
                 hotelId: 'default-hotel',
-                selectedRuleIds: [],
+                selectedRuleIds,
+                benefitValueByRuleId,
                 applySuggestedDefaults: true
               });
               const nights = mergeNightsWithPreview(seg.nights, preview);
               const promos = flattenPreviewAppliedRules(preview);
               const discountARS = nights.reduce((sum, n) => sum + (n.discountARS || 0), 0);
               return {
-                segmentIndex: seg.segmentIndex,
-                subtotal: seg.subtotal,
-                discountARS,
-                nights,
-                promos
+                quote: {
+                  segmentIndex: seg.segmentIndex,
+                  subtotal: seg.subtotal,
+                  discountARS,
+                  nights,
+                  promos
+                },
+                suggestions: collectManualBenefitSuggestions(preview)
               };
             } catch (err) {
               console.warn('Preview promo RATE falló; se muestra tarifa sin descuento', err);
               return {
-                segmentIndex: seg.segmentIndex,
-                subtotal: seg.subtotal,
-                discountARS: 0,
-                nights: fallbackNights,
-                promos: []
+                quote: {
+                  segmentIndex: seg.segmentIndex,
+                  subtotal: seg.subtotal,
+                  discountARS: 0,
+                  nights: fallbackNights,
+                  promos: []
+                },
+                suggestions: []
               };
             }
           })
         );
 
         if (!cancelled) {
-          setSegmentQuotes(quotes);
+          setSegmentQuotes(results.map((r) => r.quote));
+          setManualSuggestions(mergeManualBenefitSuggestions(results.map((r) => r.suggestions)));
           setPromoError(null);
         }
       } catch (error) {
         if (!cancelled) {
           setPromoError('No se pudo estimar el efecto de promociones');
+          setManualSuggestions([]);
           setSegmentQuotes(
             segmentNightGroups.map((seg) => ({
               segmentIndex: seg.segmentIndex,
@@ -181,7 +208,7 @@ const ReservationConfirmationModal = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, segmentNightGroups]);
+  }, [isOpen, segmentNightGroups, applyPayload]);
 
   const quote = useMemo(() => {
     if (segmentQuotes.length) return summarizeConfirmationQuote(segmentQuotes);
@@ -216,7 +243,14 @@ const ReservationConfirmationModal = ({
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    onConfirm(reservationStatus);
+    onConfirm(reservationStatus, {
+      benefitValueByRuleId: applyPayload.benefitValueByRuleId,
+      selectedRuleIds: applyPayload.selectedRuleIds
+    });
+  };
+
+  const setManualValue = (ruleId, value) => {
+    setManualValues((prev) => ({ ...prev, [ruleId]: value }));
   };
 
   const handleClientClick = (clientId) => {
@@ -322,6 +356,39 @@ const ReservationConfirmationModal = ({
               ) : null}
 
               {promoError ? <div className={styles.quoteWarn}>{promoError}</div> : null}
+
+              {manualSuggestions.length > 0 ? (
+                <div
+                  className={styles.manualPromoBlock}
+                  data-testid="confirmation-manual-promos"
+                >
+                  <div className={styles.manualPromoTitle}>Valor al aplicar</div>
+                  <p className={styles.quoteHint}>
+                    Estas promociones no tienen valor fijo: indicá el beneficio para incluirlas.
+                  </p>
+                  {manualSuggestions.map((s) => (
+                    <label key={s.id} className={styles.manualPromoRow}>
+                      <span className={styles.manualPromoLabel}>{s.label}</span>
+                      <span className={styles.manualPromoInputWrap}>
+                        <input
+                          type="number"
+                          min="0"
+                          step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                          className={styles.manualPromoInput}
+                          value={manualValues[s.id] ?? ''}
+                          onChange={(e) => setManualValue(s.id, e.target.value)}
+                          placeholder="—"
+                          aria-label={`Valor de ${s.label}`}
+                          disabled={isLoading || promoLoading}
+                        />
+                        <span className={styles.manualPromoUnit} aria-hidden="true">
+                          {benefitUnitLabel(s.benefitType)}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
 
               {quote.hasPromos ? (
                 <div className={styles.promoList} data-testid="confirmation-promos">
