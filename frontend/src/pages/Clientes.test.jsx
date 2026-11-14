@@ -38,7 +38,7 @@ describe('Clientes', () => {
     })
   })
 
-  it('lists clients with search, filters, sort and opens profile on row click', async () => {
+  it('lists clients with search, wantsPromotions column, sort and opens profile on row click', async () => {
     const { fetchClients } = await import('../services/api')
     fetchClients.mockResolvedValue([
       {
@@ -78,24 +78,31 @@ describe('Clientes', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Listado' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Listado de clientes' })).toBeInTheDocument()
+    expect(screen.queryByText(/Buscá y filtrá la agenda/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('País')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Promociones')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Promociones/i })).toBeInTheDocument()
     expect(screen.getByText('Mostrando 2 de 2 clientes')).toBeInTheDocument()
+
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]).getByText('Álvarez')).toBeInTheDocument()
+    expect(within(rows[0]).getByText('No')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Zárate')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Sí')).toBeInTheDocument()
 
     await userEvent.type(screen.getByPlaceholderText(/Buscar por nombre/i), 'bruno')
     expect(screen.getByText('Álvarez')).toBeInTheDocument()
     expect(screen.queryByText('Zárate')).not.toBeInTheDocument()
     expect(screen.getByText('Mostrando 1 de 2 clientes')).toBeInTheDocument()
 
-    await userEvent.clear(screen.getByPlaceholderText(/Buscar por nombre/i))
-    await userEvent.selectOptions(screen.getByLabelText('País'), 'AR')
-    expect(screen.getByText('Zárate')).toBeInTheDocument()
-    expect(screen.queryByText('Álvarez')).not.toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }))
     expect(screen.getByText('Mostrando 2 de 2 clientes')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /Apellido/i }))
-    const rows = screen.getAllByRole('row').slice(1)
-    expect(within(rows[0]).getByText('Zárate')).toBeInTheDocument()
+    const sortedRows = screen.getAllByRole('row').slice(1)
+    expect(within(sortedRows[0]).getByText('Zárate')).toBeInTheDocument()
 
     await userEvent.click(screen.getByText('Zárate'))
     expect(navigate).toHaveBeenCalledWith('/clients/10')
