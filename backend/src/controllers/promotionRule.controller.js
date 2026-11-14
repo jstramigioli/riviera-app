@@ -15,13 +15,16 @@ const { resolvePaymentMethodConfig } = require('../utils/paymentMethodService');
 
 const CONDITION_TYPES = new Set([
   'DATE_RANGE',
+  'NIGHTS',
   'MIN_NIGHTS',
   'MAX_NIGHTS',
   'ROOM_TYPE',
   'SERVICE_TYPE',
   'PAYMENT_METHOD',
+  'OCCUPANCY_HOTEL',
   'OCCUPANCY_HOTEL_MAX',
-  'OCCUPANCY_HOTEL_MIN'
+  'OCCUPANCY_HOTEL_MIN',
+  'DAYS_OF_WEEK'
 ]);
 
 function serializeRule(row) {

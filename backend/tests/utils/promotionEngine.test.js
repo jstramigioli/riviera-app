@@ -53,6 +53,54 @@ describe('promotionEngine conditions AND', () => {
     expect(ruleMatchesConditions(rule, { nights: 7, roomTypeId: 9 })).toBe(false);
   });
 
+  it('NIGHTS ops + ROOM_TYPE neq', () => {
+    expect(
+      evaluateCondition({ type: 'NIGHTS', params: { op: 'eq', value: 3 } }, { nights: 3 })
+    ).toBe(true);
+    expect(
+      evaluateCondition({ type: 'NIGHTS', params: { op: 'neq', value: 3 } }, { nights: 3 })
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'ROOM_TYPE', params: { roomTypeIds: [2], op: 'neq' } },
+        { roomTypeId: 2 }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'ROOM_TYPE', params: { roomTypeIds: [2], op: 'neq' } },
+        { roomTypeId: 5 }
+      )
+    ).toBe(true);
+  });
+
+  it('OCCUPANCY_HOTEL ops + DAYS_OF_WEEK + DATE_RANGE reserva', () => {
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'lte', percent: 40 } },
+        { occupancyPercent: 35 }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { days: [5, 6] } },
+        { checkIn: '2026-11-13' } // viernes UTC
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { days: [1] } },
+        { checkIn: '2026-11-13' }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'DATE_RANGE', params: { from: '2026-11-01', to: '2026-11-30' } },
+        { reservationDate: '2026-11-14' }
+      )
+    ).toBe(true);
+  });
+
   it('vigencia', () => {
     const rule = {
       vigenteDesde: '2026-11-01',

@@ -475,11 +475,56 @@ button.switch {
   gap: 0.4rem;
 }
 
+.conditionHead,
 .conditionRow {
   display: grid;
-  grid-template-columns: 9.5rem 1fr auto;
+  grid-template-columns: minmax(7.5rem, 0.9fr) 4.25rem minmax(0, 1.4fr) auto;
   gap: 0.4rem;
   align-items: center;
+}
+
+.conditionHead {
+  padding: 0 0.1rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.opSelect {
+  text-align: center;
+}
+
+.dayToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.dayToggle {
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  color: var(--color-text-muted);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dayToggle:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.dayToggleOn {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
 }
 
 .datePair {
@@ -512,6 +557,10 @@ button.switch {
 
   .benefitRow {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .conditionHead {
+    display: none;
   }
 
   .conditionRow {

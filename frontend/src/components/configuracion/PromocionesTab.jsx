@@ -24,16 +24,45 @@ const EMPTY_FORM = {
 };
 
 const MODALITY_LABEL = { AUTO: 'Automática', MANUAL: 'Manual', SUGERIDA: 'Sugerida' };
-const CONDITION_TYPE_LABEL = {
-  PAYMENT_METHOD: 'Medio de pago',
-  DATE_RANGE: 'Rango de fechas',
-  MIN_NIGHTS: 'Mín. noches',
-  MAX_NIGHTS: 'Máx. noches',
-  ROOM_TYPE: 'Tipo habitación',
-  SERVICE_TYPE: 'Servicio',
-  OCCUPANCY_HOTEL_MAX: 'Ocupación ≤',
-  OCCUPANCY_HOTEL_MIN: 'Ocupación ≥'
-};
+
+/** Variables del editor (Variable | Operador | Valor). */
+const CONDITION_VARS = [
+  { value: 'NIGHTS', label: 'Noches' },
+  { value: 'ROOM_TYPE', label: 'Tipo habitación' },
+  { value: 'SERVICE_TYPE', label: 'Servicio' },
+  { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
+  { value: 'OCCUPANCY_HOTEL', label: 'Ocupación' },
+  { value: 'DATE_RANGE', label: 'Fecha reserva' },
+  { value: 'DAYS_OF_WEEK', label: 'Días semana' }
+];
+
+const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
+CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Noches';
+CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Noches';
+CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = 'Ocupación';
+CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = 'Ocupación';
+
+const OP_NUMERIC = [
+  { value: 'gte', label: '≥' },
+  { value: 'lte', label: '≤' },
+  { value: 'eq', label: '=' },
+  { value: 'neq', label: '≠' }
+];
+const OP_EQUALITY = [
+  { value: 'eq', label: '=' },
+  { value: 'neq', label: '≠' }
+];
+const OP_LABEL = { gte: '≥', lte: '≤', eq: '=', neq: '≠', between: 'entre', includes: 'incluye' };
+
+const WEEKDAYS = [
+  { value: 1, label: 'L' },
+  { value: 2, label: 'M' },
+  { value: 3, label: 'X' },
+  { value: 4, label: 'J' },
+  { value: 5, label: 'V' },
+  { value: 6, label: 'S' },
+  { value: 0, label: 'D' }
+];
 
 function slugCodeFromLabel(label) {
   const base = String(label || '')
@@ -47,18 +76,26 @@ function slugCodeFromLabel(label) {
   return (base || 'PROMO') + '_' + stamp;
 }
 
+function defaultOpForType(type) {
+  if (type === 'NIGHTS') return 'gte';
+  if (type === 'OCCUPANCY_HOTEL') return 'lte';
+  if (type === 'DATE_RANGE') return 'between';
+  if (type === 'DAYS_OF_WEEK') return 'includes';
+  return 'eq';
+}
+
 function emptyCondition(type = 'PAYMENT_METHOD') {
   return {
     type,
+    op: defaultOpForType(type),
     paymentMethodConfigId: '',
     roomTypeId: '',
     serviceTypeId: '',
-    minNights: '',
-    maxNights: '',
+    nights: '',
+    percent: '',
     from: '',
     to: '',
-    maxPercent: '',
-    minPercent: ''
+    days: []
   };
 }
 
@@ -69,76 +106,127 @@ function firstIdFromParams(p, listKey, singleKey) {
   return '';
 }
 
+function normalizeOp(op, fallback = 'eq') {
+  const v = String(op || fallback).toLowerCase();
+  if (v === 'eq' || v === '=' || v === 'equals') return 'eq';
+  if (v === 'neq' || v === '!=' || v === 'ne' || v === 'not') return 'neq';
+  if (v === 'gte' || v === '>=' || v === 'min') return 'gte';
+  if (v === 'lte' || v === '<=' || v === 'max') return 'lte';
+  if (v === 'between' || v === 'incluye' || v === 'includes') return v === 'includes' || v === 'incluye' ? 'includes' : 'between';
+  return fallback;
+}
+
 function conditionFromApi(c) {
   const p = c.params || {};
-  const base = emptyCondition(c.type);
-  switch (c.type) {
+  const rawType = String(c.type || '').toUpperCase();
+
+  if (rawType === 'MIN_NIGHTS') {
+    return { ...emptyCondition('NIGHTS'), op: 'gte', nights: String(p.minNights ?? p.value ?? '') };
+  }
+  if (rawType === 'MAX_NIGHTS') {
+    return { ...emptyCondition('NIGHTS'), op: 'lte', nights: String(p.maxNights ?? p.value ?? '') };
+  }
+  if (rawType === 'OCCUPANCY_HOTEL_MAX') {
+    return {
+      ...emptyCondition('OCCUPANCY_HOTEL'),
+      op: 'lte',
+      percent: String(p.maxPercent ?? p.value ?? '')
+    };
+  }
+  if (rawType === 'OCCUPANCY_HOTEL_MIN') {
+    return {
+      ...emptyCondition('OCCUPANCY_HOTEL'),
+      op: 'gte',
+      percent: String(p.minPercent ?? p.value ?? '')
+    };
+  }
+
+  const base = emptyCondition(rawType);
+  switch (rawType) {
     case 'PAYMENT_METHOD':
       return {
         ...base,
+        op: normalizeOp(p.op, 'eq'),
         paymentMethodConfigId: String(p.paymentMethodConfigId ?? '')
       };
     case 'ROOM_TYPE':
-      return { ...base, roomTypeId: firstIdFromParams(p, 'roomTypeIds', 'roomTypeId') };
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'eq'),
+        roomTypeId: firstIdFromParams(p, 'roomTypeIds', 'roomTypeId')
+      };
     case 'SERVICE_TYPE':
-      return { ...base, serviceTypeId: firstIdFromParams(p, 'serviceTypeIds', 'serviceTypeId') };
-    case 'MIN_NIGHTS':
-      return { ...base, minNights: String(p.minNights ?? p.value ?? '') };
-    case 'MAX_NIGHTS':
-      return { ...base, maxNights: String(p.maxNights ?? p.value ?? '') };
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'eq'),
+        serviceTypeId: firstIdFromParams(p, 'serviceTypeIds', 'serviceTypeId')
+      };
+    case 'NIGHTS':
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'gte'),
+        nights: String(p.value ?? p.nights ?? '')
+      };
+    case 'OCCUPANCY_HOTEL':
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'lte'),
+        percent: String(p.percent ?? p.value ?? p.maxPercent ?? p.minPercent ?? '')
+      };
     case 'DATE_RANGE':
       return {
         ...base,
+        op: 'between',
         from: String(p.from || p.desde || '').slice(0, 10),
         to: String(p.to || p.hasta || '').slice(0, 10)
       };
-    case 'OCCUPANCY_HOTEL_MAX':
-      return { ...base, maxPercent: String(p.maxPercent ?? p.value ?? '') };
-    case 'OCCUPANCY_HOTEL_MIN':
-      return { ...base, minPercent: String(p.minPercent ?? p.value ?? '') };
+    case 'DAYS_OF_WEEK':
+      return {
+        ...base,
+        op: 'includes',
+        days: Array.isArray(p.days || p.weekdays)
+          ? (p.days || p.weekdays).map(Number)
+          : []
+      };
     default:
       return base;
   }
 }
 
 function paramsFromCondition(c) {
+  const op = normalizeOp(c.op, defaultOpForType(c.type));
   switch (c.type) {
     case 'PAYMENT_METHOD': {
       const id = Number(c.paymentMethodConfigId);
-      if (!id) throw new Error('Elegí un medio de pago en la condición');
-      return { paymentMethodConfigId: id };
+      if (!id) throw new Error('Elegí un medio de pago');
+      return { paymentMethodConfigId: id, op };
     }
     case 'ROOM_TYPE': {
       const id = Number(c.roomTypeId);
       if (!id) throw new Error('Elegí un tipo de habitación');
-      return { roomTypeIds: [id] };
+      return { roomTypeIds: [id], op };
     }
     case 'SERVICE_TYPE': {
       const id = String(c.serviceTypeId || '').trim();
       if (!id) throw new Error('Elegí un servicio');
-      return { serviceTypeIds: [id] };
+      return { serviceTypeIds: [id], op };
     }
-    case 'MIN_NIGHTS': {
-      const n = Number(c.minNights);
-      if (!n) throw new Error('Indicá el mínimo de noches');
-      return { minNights: n };
+    case 'NIGHTS': {
+      const n = Number(c.nights);
+      if (!n && n !== 0) throw new Error('Indicá la cantidad de noches');
+      return { op, value: n };
     }
-    case 'MAX_NIGHTS': {
-      const n = Number(c.maxNights);
-      if (!n) throw new Error('Indicá el máximo de noches');
-      return { maxNights: n };
+    case 'OCCUPANCY_HOTEL': {
+      const n = Number(c.percent);
+      if (Number.isNaN(n)) throw new Error('Indicá el % de ocupación');
+      return { op, percent: n };
     }
     case 'DATE_RANGE':
       return { from: c.from || null, to: c.to || null };
-    case 'OCCUPANCY_HOTEL_MAX': {
-      const n = Number(c.maxPercent);
-      if (Number.isNaN(n)) throw new Error('Indicá el tope de ocupación');
-      return { maxPercent: n };
-    }
-    case 'OCCUPANCY_HOTEL_MIN': {
-      const n = Number(c.minPercent);
-      if (Number.isNaN(n)) throw new Error('Indicá el mínimo de ocupación');
-      return { minPercent: n };
+    case 'DAYS_OF_WEEK': {
+      const days = Array.isArray(c.days) ? c.days.map(Number) : [];
+      if (!days.length) throw new Error('Elegí al menos un día');
+      return { days };
     }
     default:
       throw new Error(`Condición no soportada: ${CONDITION_TYPE_LABEL[c.type] || c.type}`);
@@ -158,42 +246,53 @@ function formatBenefit(row) {
 
 function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
   const p = c.params || {};
-  switch (c.type) {
+  const ui = conditionFromApi(c);
+  const op = OP_LABEL[ui.op] || ui.op;
+
+  switch (ui.type) {
     case 'PAYMENT_METHOD': {
-      const m = methodsById.get(Number(p.paymentMethodConfigId));
-      return m ? m.label : p.paymentMethodCode || `#${p.paymentMethodConfigId}`;
+      const m = methodsById.get(Number(ui.paymentMethodConfigId || p.paymentMethodConfigId));
+      const label = m ? m.label : p.paymentMethodCode || `#${p.paymentMethodConfigId}`;
+      return `${op} ${label}`;
     }
-    case 'MIN_NIGHTS':
-      return `≥ ${p.minNights ?? p.value} noches`;
-    case 'MAX_NIGHTS':
-      return `≤ ${p.maxNights ?? p.value} noches`;
+    case 'NIGHTS':
+      return `${op} ${ui.nights} noches`;
     case 'DATE_RANGE':
-      return `${p.from || p.desde || '…'} → ${p.to || p.hasta || '…'}`;
+      return `${ui.from || '…'} → ${ui.to || '…'}`;
     case 'ROOM_TYPE': {
-      const ids = p.roomTypeIds || p.ids || (p.roomTypeId != null ? [p.roomTypeId] : []);
-      if (!ids.length) return '—';
-      return ids
+      const ids = p.roomTypeIds || p.ids || (ui.roomTypeId ? [ui.roomTypeId] : []);
+      const names = ids
         .map((id) => roomTypesById.get(Number(id))?.name || roomTypesById.get(Number(id))?.label || `#${id}`)
         .join(', ');
+      return `${op} ${names || '—'}`;
     }
     case 'SERVICE_TYPE': {
-      const ids = p.serviceTypeIds || p.ids || (p.serviceTypeId != null ? [p.serviceTypeId] : []);
-      if (!ids.length) return '—';
-      return ids
+      const ids = p.serviceTypeIds || p.ids || (ui.serviceTypeId ? [ui.serviceTypeId] : []);
+      const names = ids
         .map((id) => {
-          const key = String(id);
-          const st = serviceTypesById.get(key);
-          return st?.name || st?.label || key;
+          const st = serviceTypesById.get(String(id));
+          return st?.name || st?.label || String(id);
         })
         .join(', ');
+      return `${op} ${names || '—'}`;
     }
-    case 'OCCUPANCY_HOTEL_MAX':
-      return `≤ ${p.maxPercent ?? p.value}%`;
-    case 'OCCUPANCY_HOTEL_MIN':
-      return `≥ ${p.minPercent ?? p.value}%`;
+    case 'OCCUPANCY_HOTEL':
+      return `${op} ${ui.percent}%`;
+    case 'DAYS_OF_WEEK': {
+      const set = new Set(ui.days);
+      const labels = WEEKDAYS.filter((d) => set.has(d.value)).map((d) => d.label);
+      return labels.length ? labels.join(' ') : '—';
+    }
     default:
       return c.type;
   }
+}
+
+function operatorsForType(type) {
+  if (type === 'NIGHTS' || type === 'OCCUPANCY_HOTEL') return OP_NUMERIC;
+  if (type === 'DATE_RANGE') return [{ value: 'between', label: 'entre' }];
+  if (type === 'DAYS_OF_WEEK') return [{ value: 'includes', label: 'incluye' }];
+  return OP_EQUALITY;
 }
 
 function PromocionesTab() {
@@ -332,6 +431,18 @@ function PromocionesTab() {
     updateCondition(index, { ...emptyCondition(type) });
   };
 
+  const toggleDay = (index, day) => {
+    setForm((prev) => {
+      const next = [...prev.conditions];
+      const current = next[index];
+      const set = new Set(current.days || []);
+      if (set.has(day)) set.delete(day);
+      else set.add(day);
+      next[index] = { ...current, days: Array.from(set).sort((a, b) => a - b) };
+      return { ...prev, conditions: next };
+    });
+  };
+
   const removeCondition = (index) => {
     setForm((prev) => ({
       ...prev,
@@ -413,14 +524,34 @@ function PromocionesTab() {
     }
   };
 
-  const renderConditionFields = (c, index) => {
+  const renderOperator = (c, index) => {
+    const ops = operatorsForType(c.type);
+    const locked = c.type === 'DATE_RANGE' || c.type === 'DAYS_OF_WEEK';
+    return (
+      <select
+        value={locked ? ops[0].value : c.op}
+        onChange={(e) => updateCondition(index, { op: e.target.value })}
+        aria-label="Operador"
+        disabled={locked}
+        className={styles.opSelect}
+      >
+        {ops.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    );
+  };
+
+  const renderValue = (c, index) => {
     switch (c.type) {
       case 'PAYMENT_METHOD':
         return (
           <select
             value={c.paymentMethodConfigId}
             onChange={(e) => updateCondition(index, { paymentMethodConfigId: e.target.value })}
-            aria-label="Medio de pago"
+            aria-label="Valor medio de pago"
           >
             <option value="">Elegir medio…</option>
             {methods.map((m) => (
@@ -435,7 +566,7 @@ function PromocionesTab() {
           <select
             value={c.roomTypeId}
             onChange={(e) => updateCondition(index, { roomTypeId: e.target.value })}
-            aria-label="Tipo de habitación"
+            aria-label="Valor tipo habitación"
           >
             <option value="">Elegir tipo…</option>
             {roomTypes.map((rt) => (
@@ -450,7 +581,7 @@ function PromocionesTab() {
           <select
             value={c.serviceTypeId}
             onChange={(e) => updateCondition(index, { serviceTypeId: e.target.value })}
-            aria-label="Servicio"
+            aria-label="Valor servicio"
           >
             <option value="">Elegir servicio…</option>
             {serviceTypes.map((st) => (
@@ -460,27 +591,35 @@ function PromocionesTab() {
             ))}
           </select>
         );
-      case 'MIN_NIGHTS':
+      case 'NIGHTS':
         return (
           <input
             type="number"
-            min="1"
-            value={c.minNights}
-            onChange={(e) => updateCondition(index, { minNights: e.target.value })}
-            placeholder="Noches mínimas"
-            aria-label="Noches mínimas"
+            min="0"
+            step="1"
+            value={c.nights}
+            onChange={(e) => updateCondition(index, { nights: e.target.value })}
+            placeholder="Cantidad"
+            aria-label="Cantidad de noches"
           />
         );
-      case 'MAX_NIGHTS':
+      case 'OCCUPANCY_HOTEL':
         return (
-          <input
-            type="number"
-            min="1"
-            value={c.maxNights}
-            onChange={(e) => updateCondition(index, { maxNights: e.target.value })}
-            placeholder="Noches máximas"
-            aria-label="Noches máximas"
-          />
+          <span className={styles.valueWithSuffix}>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={c.percent}
+              onChange={(e) => updateCondition(index, { percent: e.target.value })}
+              placeholder="0–100"
+              aria-label="Porcentaje de ocupación"
+            />
+            <span className={styles.valueSuffix} aria-hidden="true">
+              %
+            </span>
+          </span>
         );
       case 'DATE_RANGE':
         return (
@@ -499,41 +638,24 @@ function PromocionesTab() {
             />
           </div>
         );
-      case 'OCCUPANCY_HOTEL_MAX':
+      case 'DAYS_OF_WEEK':
         return (
-          <span className={styles.valueWithSuffix}>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              value={c.maxPercent}
-              onChange={(e) => updateCondition(index, { maxPercent: e.target.value })}
-              placeholder="0–100"
-              aria-label="Ocupación máxima"
-            />
-            <span className={styles.valueSuffix} aria-hidden="true">
-              %
-            </span>
-          </span>
-        );
-      case 'OCCUPANCY_HOTEL_MIN':
-        return (
-          <span className={styles.valueWithSuffix}>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              value={c.minPercent}
-              onChange={(e) => updateCondition(index, { minPercent: e.target.value })}
-              placeholder="0–100"
-              aria-label="Ocupación mínima"
-            />
-            <span className={styles.valueSuffix} aria-hidden="true">
-              %
-            </span>
-          </span>
+          <div className={styles.dayToggles} role="group" aria-label="Días de la semana">
+            {WEEKDAYS.map((d) => {
+              const on = (c.days || []).includes(d.value);
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  className={`${styles.dayToggle} ${on ? styles.dayToggleOn : ''}`}
+                  aria-pressed={on}
+                  onClick={() => toggleDay(index, d.value)}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
         );
       default:
         return null;
@@ -813,20 +935,27 @@ function PromocionesTab() {
               </div>
               {form.conditions.length > 0 && (
                 <div className={styles.conditions}>
+                  <div className={styles.conditionHead} aria-hidden="true">
+                    <span>Variable</span>
+                    <span>Operador</span>
+                    <span>Valor</span>
+                    <span />
+                  </div>
                   {form.conditions.map((c, index) => (
                     <div key={index} className={styles.conditionRow}>
                       <select
                         value={c.type}
                         onChange={(e) => changeConditionType(index, e.target.value)}
-                        aria-label="Tipo de condición"
+                        aria-label="Variable"
                       >
-                        {Object.entries(CONDITION_TYPE_LABEL).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
+                        {CONDITION_VARS.map((v) => (
+                          <option key={v.value} value={v.value}>
+                            {v.label}
                           </option>
                         ))}
                       </select>
-                      {renderConditionFields(c, index)}
+                      {renderOperator(c, index)}
+                      {renderValue(c, index)}
                       <button
                         type="button"
                         className={styles.iconBtn}
