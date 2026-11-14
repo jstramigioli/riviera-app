@@ -90,10 +90,12 @@ function MediosPagoTab() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h3>Medios de pago / Descuentos</h3>
+        <h3>Medios de pago</h3>
         <p className={styles.lead}>
-          El % se aplica sobre la deuda cancelada. En parciales el usuario ingresa el dinero
-          recibido; el crédito a folio es recibido/(1−p). Editable por admin y gerencia.
+          Catálogo de medios. El descuento Efectivo 10% vive como regla en Promociones (motor);
+          editar % aquí sincroniza la regla ligada. Fórmulas settlement: parcial crédito =
+          recibido/(1−p); total dinero = saldo×(1−p). Ver pestaña Promociones para condiciones,
+          modalidades y capas tarifa/pago.
         </p>
       </header>
 

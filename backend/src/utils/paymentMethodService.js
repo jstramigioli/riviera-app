@@ -1,5 +1,6 @@
 /**
- * Resolución de PaymentMethodConfig + aplicación/reversión de DiscountApplication.
+ * Resolución de PaymentMethodConfig + aplicación/reversión de DiscountApplication
+ * vía motor de PromotionRule (fuente de verdad; mirror legacy en PaymentMethodConfig).
  */
 
 const { Decimal } = require('@prisma/client/runtime/library');
@@ -10,6 +11,12 @@ const {
   toNumber
 } = require('./paymentDiscount');
 const { calculateAccountBalance } = require('./reservationBalance');
+const {
+  loadActivePromotionRules,
+  evaluateSettlementRules,
+  computeHotelOccupancyPercent,
+  civilDaysBetween
+} = require('./promotionEngine');
 
 function normalizeLabel(value) {
   return String(value || '')
@@ -49,8 +56,155 @@ async function loadAccountFinancialParts(db, accountId) {
   return { cargos, pagos, discounts, balance: calculateAccountBalance(cargos, pagos, discounts) };
 }
 
+async function buildSettlementContext(db, {
+  config,
+  motivo,
+  dineroARS,
+  saldoPendienteAntes,
+  accountId,
+  selectedRuleIds,
+  mode
+}) {
+  let nights = null;
+  let checkIn = null;
+  let checkOut = null;
+  let roomTypeId = null;
+  let serviceTypeId = null;
+  let hotelId = null;
+  let occupancyPercent = null;
+
+  if (accountId) {
+    const account = await db.account.findUnique({
+      where: { id: accountId },
+      include: {
+        reservation: {
+          include: {
+            segments: {
+              orderBy: { startDate: 'asc' },
+              include: { room: true }
+            }
+          }
+        }
+      }
+    });
+    const reservation = account?.reservation;
+    if (reservation?.segments?.length) {
+      const first = reservation.segments[0];
+      const last = reservation.segments[reservation.segments.length - 1];
+      checkIn = first.startDate;
+      checkOut = last.endDate;
+      nights = civilDaysBetween(checkIn, checkOut);
+      roomTypeId = first.roomTypeId || first.room?.roomTypeId || null;
+      serviceTypeId =
+        first.services && first.services.length ? first.services[0] : first.serviceTypeId || null;
+      hotelId = first.room?.hotelId || reservation.hotelId || null;
+    }
+  }
+
+  try {
+    occupancyPercent = await computeHotelOccupancyPercent(db, {
+      hotelId,
+      date: checkIn || new Date()
+    });
+  } catch {
+    occupancyPercent = null;
+  }
+
+  return {
+    layer: 'SETTLEMENT',
+    asOfDate: new Date(),
+    motivo: motivo || 'Pago',
+    dineroARS,
+    saldoPendiente: saldoPendienteAntes,
+    paymentMethodConfigId: config?.id ?? null,
+    paymentMethodCode: config?.code ?? null,
+    nights,
+    checkIn,
+    checkOut,
+    roomTypeId,
+    serviceTypeId,
+    hotelId,
+    occupancyPercent,
+    selectedRuleIds: selectedRuleIds || [],
+    mode: mode || 'received'
+  };
+}
+
 /**
- * Crea DiscountApplication forward si el medio aplica.
+ * Resuelve descuento settlement desde PromotionRule; fallback mirror PaymentMethodConfig.
+ */
+async function resolveSettlementDiscount(db, {
+  config,
+  motivo,
+  dineroARS,
+  saldoPendienteAntes,
+  accountId,
+  selectedRuleIds,
+  mode = 'received'
+}) {
+  let rules = [];
+  try {
+    rules = await loadActivePromotionRules(db, { layer: 'SETTLEMENT' });
+  } catch (err) {
+    // Tabla aún no migrada: fallback legacy
+    if (err.code !== 'P2021' && !/PromotionRule/i.test(String(err.message || ''))) {
+      throw err;
+    }
+  }
+
+  if (rules.length) {
+    const ctx = await buildSettlementContext(db, {
+      config,
+      motivo,
+      dineroARS,
+      saldoPendienteAntes,
+      accountId,
+      selectedRuleIds,
+      mode
+    });
+    const evaluated = evaluateSettlementRules(rules, ctx);
+    if (evaluated.aplica || evaluated.selectedRules?.length) {
+      return evaluated;
+    }
+    // Sin match de reglas: no aplicar mirror legacy (hardcode apagado si hay motor)
+    return {
+      ...evaluated,
+      aplica: false,
+      descuentoARS: 0,
+      creditoARS: roundMoney(toNumber(dineroARS || saldoPendienteAntes || 0)),
+      dineroARS: roundMoney(toNumber(dineroARS || saldoPendienteAntes || 0))
+    };
+  }
+
+  // Fallback pre-migración / sin reglas
+  const preview = computeDiscountFromReceived({
+    dineroARS,
+    config,
+    motivo,
+    saldoPendiente: saldoPendienteAntes
+  });
+  return {
+    ...preview,
+    selectedRules: [],
+    suggestions: [],
+    appliedRules: preview.aplica
+      ? [
+          {
+            promotionRuleId: null,
+            code: config?.code || 'LEGACY',
+            label: config?.label || 'Legacy medio',
+            montoARS: preview.descuentoARS,
+            porcentaje: preview.porcentaje
+          }
+        ]
+      : [],
+    promotionRuleId: null,
+    config
+  };
+}
+
+/**
+ * Crea DiscountApplication forward si el motor / medio aplica.
  * @returns {Promise<object|null>}
  */
 async function createForwardDiscount(db, {
@@ -61,36 +215,50 @@ async function createForwardDiscount(db, {
   dineroARS,
   monedaPago,
   tipoCambio,
-  saldoPendienteAntes
+  saldoPendienteAntes,
+  selectedRuleIds
 }) {
-  if (!config) return null;
+  if (!config && !(selectedRuleIds && selectedRuleIds.length)) return null;
 
-  const preview = computeDiscountFromReceived({
-    dineroARS,
+  const resolved = await resolveSettlementDiscount(db, {
     config,
     motivo,
-    saldoPendiente: saldoPendienteAntes
+    dineroARS,
+    saldoPendienteAntes,
+    accountId,
+    selectedRuleIds,
+    mode: 'received'
   });
 
-  if (!preview.aplica || preview.descuentoARS <= 0) {
+  if (!resolved.aplica || resolved.descuentoARS <= 0) {
     return null;
   }
+
+  const primaryRuleId = resolved.promotionRuleId || resolved.appliedRules?.[0]?.promotionRuleId || null;
+  const tipo =
+    primaryRuleId != null
+      ? 'PROMOTION'
+      : selectedRuleIds?.length
+        ? 'MANUAL'
+        : 'PAYMENT_METHOD';
 
   return db.discountApplication.create({
     data: {
       accountId,
       pagoId,
-      paymentMethodConfigId: config.id,
-      tipo: 'PAYMENT_METHOD',
+      paymentMethodConfigId: config?.id ?? null,
+      promotionRuleId: primaryRuleId,
+      tipo,
       baseCalculoARS: new Decimal(roundMoney(dineroARS)),
-      porcentaje: preview.porcentaje != null ? new Decimal(preview.porcentaje) : null,
-      valorFijo: null,
-      montoARS: new Decimal(preview.descuentoARS),
+      porcentaje: resolved.porcentaje != null ? new Decimal(resolved.porcentaje) : null,
+      valorFijo: resolved.valorFijo != null ? new Decimal(resolved.valorFijo) : null,
+      montoARS: new Decimal(resolved.descuentoARS),
       monedaPago: monedaPago || 'ARS',
       tipoCambio:
         tipoCambio != null && Number(tipoCambio) > 0 ? new Decimal(tipoCambio) : null,
+      appliedRulesJson: resolved.appliedRules || null,
       activo: true,
-      notas: null
+      notas: resolved.appliedRules?.map((r) => r.code).filter(Boolean).join(',') || null
     }
   });
 }
@@ -111,7 +279,6 @@ async function createReversalDiscount(db, {
     return null;
   }
 
-  // Ya revertido completamente (hay reversión(es) que cubren el monto)
   const priorReversals = await db.discountApplication.findMany({
     where: { reversoDeId: original.id },
     select: { montoARS: true }
@@ -139,6 +306,7 @@ async function createReversalDiscount(db, {
       accountId,
       pagoId: devolucionPagoId,
       paymentMethodConfigId: original.paymentMethodConfigId,
+      promotionRuleId: original.promotionRuleId,
       tipo: 'REVERSAL',
       baseCalculoARS: new Decimal(roundMoney(devolucionMontoARSAbs)),
       porcentaje: original.porcentaje,
@@ -146,6 +314,7 @@ async function createReversalDiscount(db, {
       montoARS: new Decimal(-revertAmount),
       monedaPago: original.monedaPago,
       tipoCambio: original.tipoCambio,
+      appliedRulesJson: original.appliedRulesJson || null,
       reversoDeId: original.id,
       activo: true,
       notas: `Reversión de descuento #${original.id}`
@@ -174,11 +343,21 @@ async function sumDevolucionesOnOrigen(db, pagoOrigenId) {
   return roundMoney(rows.reduce((s, r) => s + Math.abs(toNumber(r.montoARS)), 0));
 }
 
+/**
+ * Preview público (API / PaymentForm enrichment).
+ */
+async function previewSettlementDiscount(db, params) {
+  return resolveSettlementDiscount(db, params);
+}
+
 module.exports = {
   normalizeLabel,
   resolvePaymentMethodConfig,
   loadAccountFinancialParts,
   createForwardDiscount,
   createReversalDiscount,
-  sumDevolucionesOnOrigen
+  sumDevolucionesOnOrigen,
+  resolveSettlementDiscount,
+  previewSettlementDiscount,
+  buildSettlementContext
 };

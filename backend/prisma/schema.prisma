@@ -277,9 +277,59 @@ enum DiscountApplicationTipo {
   PAYMENT_METHOD
   MANUAL
   REVERSAL
+  PROMOTION
 }
 
-/// Catálogo administrable de medios de pago + regla de descuento.
+enum PromotionKind {
+  PROMO
+  DESCUENTO
+}
+
+/// Cómo se materializa la regla en operación.
+enum PromotionModality {
+  AUTO
+  MANUAL
+  SUGERIDA
+}
+
+/// Capa contable: crédito al pagar vs baja de tarifa/cargo.
+enum PromotionLayer {
+  SETTLEMENT
+  RATE
+}
+
+enum PromotionStacking {
+  EXCLUSIVE
+  STACKABLE
+  BEST_OF
+}
+
+enum PromotionBenefitType {
+  PERCENT
+  FIXED
+  FIXED_PER_NIGHT
+}
+
+enum PromotionBenefitBase {
+  DEBT_CANCELLED
+  RATE_NIGHT
+  LODGING_TOTAL
+  PAYMENT_RECEIVED
+}
+
+enum PromotionConditionType {
+  DATE_RANGE
+  MIN_NIGHTS
+  MAX_NIGHTS
+  ROOM_TYPE
+  SERVICE_TYPE
+  PAYMENT_METHOD
+  OCCUPANCY_HOTEL_MAX
+  OCCUPANCY_HOTEL_MIN
+}
+
+/// Catálogo administrable de medios de pago.
+/// Campos descuento* = vista de compatibilidad; fuente de verdad = PromotionRule.
 model PaymentMethodConfig {
   id                  Int                  @id @default(autoincrement())
   code                String               @unique
@@ -289,7 +339,7 @@ model PaymentMethodConfig {
   requiereFacturacion Boolean              @default(false)
   descuentoActivo     Boolean              @default(false)
   descuentoTipo       PaymentDiscountTipo  @default(PERCENT)
-  /// Ej. 10 = 10% (PERCENT). MVP solo PERCENT.
+  /// Legacy / mirror de regla PAYMENT_METHOD. No hardcodear lógica de negocio aquí.
   descuentoValor      Decimal              @default(0) @db.Decimal(10, 4)
   aplicaEnParcial     Boolean              @default(true)
   aplicaEnSeña        Boolean              @default(true)
@@ -302,16 +352,63 @@ model PaymentMethodConfig {
   @@index([activo, ordenIndex])
 }
 
-/// Crédito de folio por descuento de medio de pago (o su reversión).
+/// Regla componible de promoción / descuento (condiciones AND → beneficio → modalidad).
+model PromotionRule {
+  id                   Int                    @id @default(autoincrement())
+  code                 String                 @unique
+  label                String
+  kind                 PromotionKind          @default(DESCUENTO)
+  activo               Boolean                @default(true)
+  prioridad            Int                    @default(100)
+  modality             PromotionModality      @default(AUTO)
+  layer                PromotionLayer         @default(SETTLEMENT)
+  stacking             PromotionStacking      @default(EXCLUSIVE)
+  stackingGroup        String?
+  vigenteDesde         DateTime?
+  vigenteHasta         DateTime?
+  aplicaEnParcial      Boolean                @default(true)
+  aplicaEnSeña         Boolean                @default(true)
+  benefitType          PromotionBenefitType   @default(PERCENT)
+  benefitValue         Decimal                @default(0) @db.Decimal(12, 4)
+  benefitBase          PromotionBenefitBase   @default(DEBT_CANCELLED)
+  benefitCapARS        Decimal?               @db.Decimal(12, 2)
+  notas                String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  conditions           PromotionCondition[]
+  discountApplications DiscountApplication[]
+
+  @@index([activo, prioridad])
+  @@index([layer, modality])
+  @@index([vigenteDesde, vigenteHasta])
+}
+
+model PromotionCondition {
+  id        Int                     @id @default(autoincrement())
+  ruleId    Int
+  rule      PromotionRule           @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  type      PromotionConditionType
+  /// Params tipados por `type` (ids, umbrales, fechas ISO, etc.).
+  params    Json
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  @@index([ruleId])
+  @@index([type])
+}
+
+/// Crédito de folio por descuento/promo (o su reversión). Snapshot; no recalcular live.
 model DiscountApplication {
   id                     Int                     @id @default(autoincrement())
   accountId              Int
   account                Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  /// Pago que originó (o revierte) el descuento. Unique = 1 aplicación primaria por pago en MVP.
+  /// Pago que originó (o revierte) el descuento. Unique = 1 aplicación primaria por pago.
   pagoId                 Int                     @unique
   pago                   Pago                    @relation(fields: [pagoId], references: [id], onDelete: Cascade)
   paymentMethodConfigId  Int?
   paymentMethodConfig    PaymentMethodConfig?    @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
+  promotionRuleId        Int?
+  promotionRule          PromotionRule?          @relation(fields: [promotionRuleId], references: [id], onDelete: SetNull)
   tipo                   DiscountApplicationTipo @default(PAYMENT_METHOD)
   /// Monto del pago (ARS, abs) sobre el que se calculó / snapshot.
   baseCalculoARS         Decimal                 @db.Decimal(10, 2)
@@ -321,6 +418,8 @@ model DiscountApplication {
   montoARS               Decimal                 @db.Decimal(10, 2)
   monedaPago             String?
   tipoCambio             Decimal?                @db.Decimal(10, 4)
+  /// Snapshot de reglas aplicadas (ids/codes/montos) para trazabilidad / stacking.
+  appliedRulesJson       Json?
   /// Si es reversión, apunta a la aplicación original.
   reversoDeId            Int?
   reversoDe              DiscountApplication?    @relation("DiscountReversal", fields: [reversoDeId], references: [id], onDelete: SetNull)
@@ -332,6 +431,7 @@ model DiscountApplication {
 
   @@index([accountId])
   @@index([paymentMethodConfigId])
+  @@index([promotionRuleId])
   @@index([reversoDeId])
   @@index([activo])
 }
@@ -566,11 +666,16 @@ model ReservationNightRate {
   holidayAdjustment      Float?
   gapPromotionAmount     Float?
   serviceAdjustment      Float?
+  /// Promo modalidad RATE (snapshot; no DynamicPricing).
+  promotionRuleId        Int?
+  promotionDiscountARS   Float?
+  promotionPercent       Float?
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
   reservation            Reservation @relation(fields: [reservationId], references: [id])
 
   @@unique([reservationId, date])
+  @@index([promotionRuleId])
 }
 
 model SeasonBlock {

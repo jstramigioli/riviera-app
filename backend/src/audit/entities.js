@@ -8,6 +8,8 @@ const AUDITED_ENTITIES = new Set([
   'Pago',
   'PagoFactura',
   'PaymentMethodConfig',
+  'PromotionRule',
+  'PromotionCondition',
   'DiscountApplication',
   'ClientBillingProfile',
   'Cargo',

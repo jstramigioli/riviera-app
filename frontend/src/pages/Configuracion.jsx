@@ -7,6 +7,7 @@ import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
 import MediosPagoTab from '../components/configuracion/MediosPagoTab';
+import PromocionesTab from '../components/configuracion/PromocionesTab';
 import Auditoria from './Auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './Configuracion.module.css';
@@ -23,6 +24,7 @@ const SETTINGS_TABS = [
 ];
 
 const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
+const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones' };
 const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
 
 function ConfiguracionView() {
@@ -30,15 +32,17 @@ function ConfiguracionView() {
   const { can } = useAuth();
   const canSettings = can('settings');
   const canMediosPago = can('mediosPago');
+  const canPromociones = can('promociones');
   const canAuditoria = can('auditoria');
 
   const tabs = useMemo(() => {
     const next = [];
     if (canSettings) next.push(...SETTINGS_TABS);
     if (canMediosPago) next.push(MEDIOS_PAGO_TAB);
+    if (canPromociones) next.push(PROMOCIONES_TAB);
     if (canAuditoria) next.push(AUDITORIA_TAB);
     return next;
-  }, [canSettings, canMediosPago, canAuditoria]);
+  }, [canSettings, canMediosPago, canPromociones, canAuditoria]);
 
   const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
   const defaultTab = canSettings
@@ -90,6 +94,8 @@ function ConfiguracionView() {
         return <TipoCambioConfig />;
       case 'medios-pago':
         return <MediosPagoTab />;
+      case 'promociones':
+        return <PromocionesTab />;
       case 'usuarios':
         return (
           <div className={styles.placeholder}>

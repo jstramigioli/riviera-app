@@ -257,9 +257,16 @@ exports.createPago = async (req, res) => {
     notas,
     motivo,
     requiereFacturacion,
-    factura
+    factura,
+    selectedRuleIds,
+    promotionRuleIds
   } = req.body;
   // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
+  const acceptedRuleIds = []
+    .concat(selectedRuleIds || [])
+    .concat(promotionRuleIds || [])
+    .map((id) => parseInt(id, 10))
+    .filter((id) => Number.isFinite(id));
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -443,7 +450,8 @@ exports.createPago = async (req, res) => {
           dineroARS: montoARSAbs,
           monedaPago: monedaFinal,
           tipoCambio: tipoCambioFinal,
-          saldoPendienteAntes: balanceAntes.saldo
+          saldoPendienteAntes: balanceAntes.saldo,
+          selectedRuleIds: acceptedRuleIds
         });
       }
 

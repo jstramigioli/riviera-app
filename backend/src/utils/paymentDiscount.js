@@ -68,6 +68,42 @@ function computeDiscountFromReceived({
   }
 
   const tipo = config.descuentoTipo || 'PERCENT';
+
+  if (tipo === 'FIXED') {
+    const fijo = roundMoney(toNumber(config.descuentoValor));
+    if (fijo <= 0) {
+      return {
+        aplica: false,
+        dineroARS: dinero,
+        descuentoARS: 0,
+        creditoARS: dinero,
+        porcentaje: null,
+        motivoNoAplica: 'valor_cero'
+      };
+    }
+    if (config.aplicaEnParcial === false && saldoPendiente != null) {
+      const creditoTentativo = roundMoney(dinero + fijo);
+      if (creditoTentativo + 0.005 < toNumber(saldoPendiente)) {
+        return {
+          aplica: false,
+          dineroARS: dinero,
+          descuentoARS: 0,
+          creditoARS: dinero,
+          porcentaje: null,
+          motivoNoAplica: 'solo_pago_total'
+        };
+      }
+    }
+    return {
+      aplica: true,
+      dineroARS: dinero,
+      descuentoARS: fijo,
+      creditoARS: roundMoney(dinero + fijo),
+      porcentaje: null,
+      valorFijo: fijo
+    };
+  }
+
   if (tipo !== 'PERCENT') {
     return {
       aplica: false,
@@ -165,6 +201,31 @@ function computeCashToSettle({
   }
 
   const tipo = config.descuentoTipo || 'PERCENT';
+
+  if (tipo === 'FIXED') {
+    const fijo = roundMoney(Math.min(toNumber(config.descuentoValor), saldo));
+    if (fijo <= 0) {
+      return {
+        aplica: false,
+        saldoARS: saldo,
+        dineroARS: saldo,
+        descuentoARS: 0,
+        creditoARS: saldo,
+        porcentaje: null,
+        motivoNoAplica: 'valor_cero'
+      };
+    }
+    return {
+      aplica: true,
+      saldoARS: saldo,
+      dineroARS: roundMoney(saldo - fijo),
+      descuentoARS: fijo,
+      creditoARS: saldo,
+      porcentaje: null,
+      valorFijo: fijo
+    };
+  }
+
   if (tipo !== 'PERCENT') {
     return {
       aplica: false,
