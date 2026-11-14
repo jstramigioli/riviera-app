@@ -20,6 +20,10 @@ const {
   getReservationStatusOptions,
   isValidReservationStatus,
 } = require('../constants/reservationStatus');
+const {
+  shouldIncludeVirtualRooms,
+  formatVirtualRoomForAvailability
+} = require('../utils/virtualRoomAvailability');
 
 // Listar todas las reservas
 exports.getAllReservations = async (req, res) => {
@@ -562,41 +566,35 @@ exports.findAvailableRooms = async (req, res) => {
     console.log('🏨 Habitaciones ocupadas:', occupiedRoomIds.length);
     console.log('🏨 IDs de habitaciones ocupadas:', occupiedRoomIds);
 
-    // Obtener habitaciones virtuales disponibles
-    const virtualRooms = await prisma.virtualRoom.findMany({
-      where: {
-        isActive: true
-      },
-      include: {
-        roomType: true,
-        components: {
-          include: {
-            room: true
+    // Habitaciones virtuales: no se listan si hay habitación específica;
+    // tags = unión de tags de los componentes (filtros/scoring en frontend).
+    let virtualRoomsFormatted = [];
+    if (shouldIncludeVirtualRooms(requiredRoomId)) {
+      const virtualRooms = await prisma.virtualRoom.findMany({
+        where: {
+          isActive: true
+        },
+        include: {
+          roomType: true,
+          components: {
+            include: {
+              room: {
+                include: {
+                  tags: true
+                }
+              }
+            }
           }
         }
-      }
-    });
+      });
 
-    // Filtrar habitaciones virtuales que estén disponibles (sus componentes no estén ocupados)
-    const availableVirtualRooms = virtualRooms.filter(virtualRoom => {
-      const componentRoomIds = virtualRoom.components.map(comp => comp.roomId);
-      // Verificar que ninguna de las habitaciones componentes esté ocupada
-      return !componentRoomIds.some(roomId => occupiedRoomIds.includes(roomId));
-    });
+      const availableVirtualRooms = virtualRooms.filter(virtualRoom => {
+        const componentRoomIds = virtualRoom.components.map(comp => comp.roomId);
+        return !componentRoomIds.some(roomId => occupiedRoomIds.includes(roomId));
+      });
 
-    // Convertir habitaciones virtuales al formato esperado
-    const virtualRoomsFormatted = availableVirtualRooms.map(virtualRoom => ({
-      id: `virtual_${virtualRoom.id}`, // ID especial para identificar como virtual
-      name: virtualRoom.name,
-      description: virtualRoom.description,
-      maxPeople: virtualRoom.maxPeople,
-      status: 'available',
-      isVirtual: true, // Flag para identificar como habitación virtual
-      roomType: virtualRoom.roomType,
-      tags: [], // Las habitaciones virtuales no tienen tags por ahora
-      components: virtualRoom.components, // Mantener información de componentes
-      virtualRoomId: virtualRoom.id // ID original de la habitación virtual
-    }));
+      virtualRoomsFormatted = availableVirtualRooms.map(formatVirtualRoomForAvailability);
+    }
 
     // Combinar habitaciones físicas y virtuales
     const allRooms = [...allAvailableRooms, ...virtualRoomsFormatted];
