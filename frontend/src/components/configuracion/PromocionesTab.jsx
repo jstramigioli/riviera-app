@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   aplicaEnParcial: true,
   benefitType: 'PERCENT',
   benefitValue: '10',
+  benefitValueManual: false,
   benefitCapARS: '',
   descripcionInterna: '',
   conditions: []
@@ -347,6 +348,12 @@ function paramsFromCondition(c) {
 }
 
 function formatBenefit(row) {
+  if (row.benefitValueManual) {
+    if (row.benefitType === 'PERCENT') return '% al aplicar';
+    if (row.benefitType === 'FREE_NIGHTS') return 'Noches al aplicar';
+    if (row.benefitType === 'FIXED_PER_NIGHT') return 'ARS/noche al aplicar';
+    return 'Valor al aplicar';
+  }
   const value = Number(row.benefitValue);
   if (row.benefitType === 'PERCENT') {
     return `${Number.isFinite(value) ? value : row.benefitValue}%`;
@@ -472,17 +479,19 @@ function validatePromoForm(form) {
   if (!String(form.label || '').trim()) {
     errors.label = 'El nombre es obligatorio';
   }
-  const benefit = Number(form.benefitValue);
-  if (form.benefitValue === '' || Number.isNaN(benefit)) {
-    errors.benefitValue = 'Indicá el valor del beneficio';
-  } else if (form.benefitType === 'FREE_NIGHTS') {
-    if (!Number.isInteger(benefit) || benefit < 1) {
-      errors.benefitValue = 'Indicá cuántas noches gratis (entero ≥ 1)';
+  if (!form.benefitValueManual) {
+    const benefit = Number(form.benefitValue);
+    if (form.benefitValue === '' || Number.isNaN(benefit)) {
+      errors.benefitValue = 'Indicá el valor del beneficio';
+    } else if (form.benefitType === 'FREE_NIGHTS') {
+      if (!Number.isInteger(benefit) || benefit < 1) {
+        errors.benefitValue = 'Indicá cuántas noches gratis (entero ≥ 1)';
+      }
+    } else if (benefit < 0) {
+      errors.benefitValue = 'El beneficio no puede ser negativo';
+    } else if (form.benefitType === 'PERCENT' && benefit > 100) {
+      errors.benefitValue = 'El porcentaje no puede ser mayor a 100';
     }
-  } else if (benefit < 0) {
-    errors.benefitValue = 'El beneficio no puede ser negativo';
-  } else if (form.benefitType === 'PERCENT' && benefit > 100) {
-    errors.benefitValue = 'El porcentaje no puede ser mayor a 100';
   }
   if (form.benefitCapARS !== '' && form.benefitCapARS != null) {
     const cap = Number(form.benefitCapARS);
@@ -648,6 +657,7 @@ function PromocionesTab() {
       aplicaEnParcial: row.aplicaEnParcial !== false,
       benefitType: row.benefitType || 'PERCENT',
       benefitValue: String(row.benefitValue ?? 0),
+      benefitValueManual: Boolean(row.benefitValueManual),
       benefitCapARS: row.benefitCapARS != null ? String(row.benefitCapARS) : '',
       descripcionInterna: row.descripcionInterna || row.notas || '',
       conditions: (row.conditions || []).map(conditionFromApi)
@@ -721,7 +731,8 @@ function PromocionesTab() {
       aplicaEnParcial: Boolean(form.aplicaEnParcial),
       aplicaEnSeña: true,
       benefitType: form.benefitType,
-      benefitValue: Number(form.benefitValue) || 0,
+      benefitValue: form.benefitValueManual ? 0 : Number(form.benefitValue) || 0,
+      benefitValueManual: Boolean(form.benefitValueManual),
       benefitBase: isFreeNights ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
       descripcionInterna: String(form.descripcionInterna || '').trim() || null,
@@ -1289,8 +1300,10 @@ function PromocionesTab() {
                       type="number"
                       step={form.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
                       min={form.benefitType === 'FREE_NIGHTS' ? '1' : undefined}
-                      value={form.benefitValue}
+                      value={form.benefitValueManual ? '' : form.benefitValue}
                       onChange={(e) => setField('benefitValue', e.target.value)}
+                      disabled={form.benefitValueManual}
+                      placeholder={form.benefitValueManual ? 'Al aplicar' : undefined}
                       aria-label={
                         form.benefitType === 'FREE_NIGHTS'
                           ? 'Cantidad de noches gratis'
@@ -1309,6 +1322,37 @@ function PromocionesTab() {
                     </span>
                   </span>
                 </label>
+              </div>
+              <div className={styles.manualValueRow}>
+                <button
+                  type="button"
+                  className={styles.switchRow}
+                  role="switch"
+                  aria-checked={form.benefitValueManual}
+                  onClick={() => {
+                    setForm((prev) => ({
+                      ...prev,
+                      benefitValueManual: !prev.benefitValueManual
+                    }));
+                    setTouched((prev) => {
+                      if (!prev.benefitValue) return prev;
+                      const next = { ...prev };
+                      delete next.benefitValue;
+                      return next;
+                    });
+                  }}
+                >
+                  <span
+                    className={`${styles.switch} ${form.benefitValueManual ? styles.switchOn : ''}`}
+                    aria-hidden="true"
+                  >
+                    <span className={styles.switchThumb} />
+                  </span>
+                  <span className={styles.switchLabel}>Valor manual</span>
+                </button>
+                <span className={styles.manualValueHint}>
+                  Se define al aplicar la promoción
+                </span>
               </div>
             </div>
 

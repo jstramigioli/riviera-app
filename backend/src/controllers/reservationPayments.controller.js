@@ -259,7 +259,8 @@ exports.createPago = async (req, res) => {
     requiereFacturacion,
     factura,
     selectedRuleIds,
-    promotionRuleIds
+    promotionRuleIds,
+    benefitValueByRuleId
   } = req.body;
   // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
   const acceptedRuleIds = []
@@ -267,6 +268,10 @@ exports.createPago = async (req, res) => {
     .concat(promotionRuleIds || [])
     .map((id) => parseInt(id, 10))
     .filter((id) => Number.isFinite(id));
+  const acceptedBenefitValues =
+    benefitValueByRuleId && typeof benefitValueByRuleId === 'object'
+      ? benefitValueByRuleId
+      : {};
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -451,7 +456,8 @@ exports.createPago = async (req, res) => {
           monedaPago: monedaFinal,
           tipoCambio: tipoCambioFinal,
           saldoPendienteAntes: balanceAntes.saldo,
-          selectedRuleIds: acceptedRuleIds
+          selectedRuleIds: acceptedRuleIds,
+          benefitValueByRuleId: acceptedBenefitValues
         });
       }
 

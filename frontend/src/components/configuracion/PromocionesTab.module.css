@@ -427,6 +427,27 @@ button.switch {
   align-items: end;
 }
 
+.manualValueRow {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin-top: -0.15rem;
+}
+
+.manualValueHint {
+  font-size: var(--font-size-small);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.valueWithSuffix input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--color-bg-light);
+}
+
 .benefitValueField {
   width: 6.5rem;
 }

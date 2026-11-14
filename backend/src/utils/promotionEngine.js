@@ -343,10 +343,49 @@ function modalityDefaultOn(rule) {
   return rule?.modality === 'SUGERIDA';
 }
 
+/**
+ * Override de valor al aplicar: ctx.benefitValueByRuleId[id|code].
+ * Si la regla tiene benefitValueManual y no hay override → null (falta definir).
+ */
+function lookupBenefitOverride(rule, ctx) {
+  if (!ctx || !rule) return undefined;
+  const map = ctx.benefitValueByRuleId || ctx.benefitValueOverrides || null;
+  if (!map || typeof map !== 'object') return undefined;
+  const id = Number(rule.id);
+  if (Number.isFinite(id) && map[id] != null && map[id] !== '') return map[id];
+  if (Number.isFinite(id) && map[String(id)] != null && map[String(id)] !== '') {
+    return map[String(id)];
+  }
+  if (rule.code != null && map[rule.code] != null && map[rule.code] !== '') {
+    return map[rule.code];
+  }
+  return undefined;
+}
+
+function effectiveBenefitValue(rule, ctx) {
+  const override = lookupBenefitOverride(rule, ctx);
+  if (override !== undefined) {
+    const n = toNumber(override);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (rule.benefitValueManual) return null;
+  return toNumber(rule.benefitValue);
+}
+
+function withEffectiveBenefit(rule, ctx) {
+  const value = effectiveBenefitValue(rule, ctx);
+  if (value == null) return { ...rule, benefitValue: 0 };
+  if (!rule.benefitValueManual && lookupBenefitOverride(rule, ctx) === undefined) {
+    return rule;
+  }
+  return { ...rule, benefitValue: value };
+}
+
 function toSuggestion(rule) {
   return {
     ...rule,
-    defaultOn: modalityDefaultOn(rule)
+    defaultOn: modalityDefaultOn(rule),
+    benefitValueManual: Boolean(rule.benefitValueManual)
   };
 }
 
@@ -547,6 +586,11 @@ function filterEligibleRules(rules, ctx, { forApply = true } = {}) {
     if (!isRuleVigente(rule, ctx.asOfDate)) return false;
     if (!ruleMatchesConditions(rule, ctx)) return false;
     if (forApply && !modalityAllowsApply(rule, ctx)) return false;
+    // Valor manual: sin override al aplicar → no aplica (queda en suggestions).
+    if (forApply && rule.benefitValueManual) {
+      const v = effectiveBenefitValue(rule, ctx);
+      if (v == null || Number.isNaN(v)) return false;
+    }
     return true;
   });
 }
@@ -555,9 +599,17 @@ function filterEligibleRules(rules, ctx, { forApply = true } = {}) {
  * Evalúa reglas settlement y devuelve preview + config agregada.
  */
 function evaluateSettlementRules(rules, ctx) {
-  const matched = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: true });
+  const matched = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: true }).map(
+    (r) => withEffectiveBenefit(r, ctx)
+  );
   const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: false })
-    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .filter(
+      (r) =>
+        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+        (r.benefitValueManual &&
+          modalityAllowsApply(r, ctx) &&
+          effectiveBenefitValue(r, ctx) == null)
+    )
     .map(toSuggestion);
 
   const mode = ctx.mode === 'settle' ? 'settle' : 'received';
@@ -684,9 +736,17 @@ function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
   const prices = Array.isArray(nightPrices) ? nightPrices.map(toNumber) : [];
   const nights = Math.max(prices.length, Number(ctx.nights) || 0);
   const freeRules = (rules || []).filter((r) => r && r.benefitType === 'FREE_NIGHTS');
-  const matched = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: true });
+  const matched = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: true }).map(
+    (r) => withEffectiveBenefit(r, ctx)
+  );
   const suggestions = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: false })
-    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .filter(
+      (r) =>
+        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+        (r.benefitValueManual &&
+          modalityAllowsApply(r, ctx) &&
+          effectiveBenefitValue(r, ctx) == null)
+    )
     .map(toSuggestion);
 
   const benefitFn = (rule) => {
@@ -828,11 +888,17 @@ function evaluateRateRules(rules, ctx) {
     };
   }
 
-  const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true }).filter(
-    (r) => r.benefitType !== 'FREE_NIGHTS'
-  );
+  const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true })
+    .filter((r) => r.benefitType !== 'FREE_NIGHTS')
+    .map((r) => withEffectiveBenefit(r, ctx));
   const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: false })
-    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .filter(
+      (r) =>
+        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+        (r.benefitValueManual &&
+          modalityAllowsApply(r, ctx) &&
+          effectiveBenefitValue(r, ctx) == null)
+    )
     .map(toSuggestion);
   const nightPrice = toNumber(ctx.nightPrice);
   const nights = Math.max(1, Number(ctx.nights) || 1);
@@ -940,6 +1006,9 @@ module.exports = {
   ruleMatchesConditions,
   modalityAllowsApply,
   modalityDefaultOn,
+  lookupBenefitOverride,
+  effectiveBenefitValue,
+  withEffectiveBenefit,
   ruleToSettlementConfig,
   computeSettlementBenefit,
   selectByStacking,

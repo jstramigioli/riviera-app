@@ -589,13 +589,18 @@ exports.createAccountPago = async (req, res) => {
     requiereFacturacion,
     factura,
     selectedRuleIds,
-    promotionRuleIds
+    promotionRuleIds,
+    benefitValueByRuleId
   } = req.body || {};
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
     .concat(promotionRuleIds || [])
     .map((id) => parseInt(id, 10))
     .filter((id) => Number.isFinite(id));
+  const acceptedBenefitValues =
+    benefitValueByRuleId && typeof benefitValueByRuleId === 'object'
+      ? benefitValueByRuleId
+      : {};
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -769,7 +774,8 @@ exports.createAccountPago = async (req, res) => {
           monedaPago: monedaFinal,
           tipoCambio: tipoCambioFinal,
           saldoPendienteAntes: balanceAntes.saldo,
-          selectedRuleIds: acceptedRuleIds
+          selectedRuleIds: acceptedRuleIds,
+          benefitValueByRuleId: acceptedBenefitValues
         });
       }
 

@@ -138,7 +138,10 @@ exports.createPromotionRule = async (req, res) => {
         aplicaEnParcial: body.aplicaEnParcial !== false,
         aplicaEnSeña: body.aplicaEnSeña !== false,
         benefitType,
-        benefitValue: new Decimal(Number(body.benefitValue) || 0),
+        benefitValue: new Decimal(
+          body.benefitValueManual ? 0 : Number(body.benefitValue) || 0
+        ),
+        benefitValueManual: Boolean(body.benefitValueManual),
         benefitBase,
         benefitCapARS:
           body.benefitCapARS != null && body.benefitCapARS !== ''
@@ -211,7 +214,16 @@ exports.updatePromotionRule = async (req, res) => {
     if (body.aplicaEnSeña != null) data.aplicaEnSeña = Boolean(body.aplicaEnSeña);
     if (body.benefitType != null) data.benefitType = String(body.benefitType).toUpperCase();
     if (body.benefitBase != null) data.benefitBase = String(body.benefitBase).toUpperCase();
-    if (body.benefitValue != null) data.benefitValue = new Decimal(Number(body.benefitValue) || 0);
+    if (body.benefitValueManual != null) {
+      data.benefitValueManual = Boolean(body.benefitValueManual);
+    }
+    if (body.benefitValue != null || body.benefitValueManual === true) {
+      const manual =
+        body.benefitValueManual != null
+          ? Boolean(body.benefitValueManual)
+          : Boolean(existing.benefitValueManual);
+      data.benefitValue = new Decimal(manual ? 0 : Number(body.benefitValue) || 0);
+    }
     if (body.benefitCapARS !== undefined) {
       data.benefitCapARS =
         body.benefitCapARS != null && body.benefitCapARS !== ''
@@ -318,6 +330,10 @@ exports.previewPromotion = async (req, res) => {
       paymentMethodCode: methodConfig?.code,
       occupancyPercent,
       selectedRuleIds: body.selectedRuleIds || [],
+      benefitValueByRuleId:
+        body.benefitValueByRuleId && typeof body.benefitValueByRuleId === 'object'
+          ? body.benefitValueByRuleId
+          : {},
       motivo: body.motivo || 'Pago',
       dineroARS: body.dineroARS,
       saldoPendiente: body.saldoPendiente,
