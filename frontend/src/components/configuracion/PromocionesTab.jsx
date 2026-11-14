@@ -11,41 +11,19 @@ import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import styles from './PromocionesTab.module.css';
 
 const EMPTY_FORM = {
-  code: '',
   label: '',
   kind: 'DESCUENTO',
   activo: true,
-  prioridad: '100',
   modality: 'AUTO',
-  layer: 'SETTLEMENT',
-  stacking: 'EXCLUSIVE',
-  stackingGroup: '',
-  vigenteDesde: '',
-  vigenteHasta: '',
   aplicaEnParcial: true,
-  aplicaEnSeña: true,
   benefitType: 'PERCENT',
   benefitValue: '10',
-  benefitBase: 'DEBT_CANCELLED',
   benefitCapARS: '',
-  notas: '',
   conditions: []
 };
 
-const KIND_LABEL = { DESCUENTO: 'Descuento', PROMO: 'Promo' };
+const KIND_LABEL = { DESCUENTO: 'Descuento', PROMO: 'Promoción' };
 const MODALITY_LABEL = { AUTO: 'Automática', MANUAL: 'Manual', SUGERIDA: 'Sugerida' };
-const LAYER_LABEL = { SETTLEMENT: 'Pago', RATE: 'Tarifa' };
-const STACKING_LABEL = {
-  EXCLUSIVE: 'Exclusiva',
-  BEST_OF: 'Mejor beneficio',
-  STACKABLE: 'Acumulable'
-};
-const BENEFIT_BASE_LABEL = {
-  DEBT_CANCELLED: 'Deuda cancelada',
-  PAYMENT_RECEIVED: 'Dinero recibido',
-  RATE_NIGHT: 'Tarifa noche',
-  LODGING_TOTAL: 'Total alojamiento'
-};
 const CONDITION_TYPE_LABEL = {
   PAYMENT_METHOD: 'Medio de pago',
   DATE_RANGE: 'Rango de fechas',
@@ -56,6 +34,18 @@ const CONDITION_TYPE_LABEL = {
   OCCUPANCY_HOTEL_MAX: 'Ocupación ≤',
   OCCUPANCY_HOTEL_MIN: 'Ocupación ≥'
 };
+
+function slugCodeFromLabel(label) {
+  const base = String(label || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  const stamp = Date.now().toString(36).toUpperCase();
+  return (base || 'PROMO') + '_' + stamp;
+}
 
 function emptyCondition(type = 'PAYMENT_METHOD') {
   return {
@@ -238,24 +228,14 @@ function PromocionesTab() {
   const openEdit = (row) => {
     setEditingId(row.id);
     setForm({
-      code: row.code || '',
       label: row.label || '',
       kind: row.kind || 'DESCUENTO',
       activo: row.activo !== false,
-      prioridad: String(row.prioridad ?? 100),
       modality: row.modality || 'AUTO',
-      layer: row.layer || 'SETTLEMENT',
-      stacking: row.stacking || 'EXCLUSIVE',
-      stackingGroup: row.stackingGroup || '',
-      vigenteDesde: row.vigenteDesde ? String(row.vigenteDesde).slice(0, 10) : '',
-      vigenteHasta: row.vigenteHasta ? String(row.vigenteHasta).slice(0, 10) : '',
       aplicaEnParcial: row.aplicaEnParcial !== false,
-      aplicaEnSeña: row.aplicaEnSeña !== false,
       benefitType: row.benefitType || 'PERCENT',
       benefitValue: String(row.benefitValue ?? 0),
-      benefitBase: row.benefitBase || 'DEBT_CANCELLED',
       benefitCapARS: row.benefitCapARS != null ? String(row.benefitCapARS) : '',
-      notas: row.notas || '',
       conditions: (row.conditions || []).map(conditionFromApi)
     });
     setShowForm(true);
@@ -299,29 +279,24 @@ function PromocionesTab() {
       params: paramsFromCondition(c)
     }));
     return {
-      code: form.code,
+      code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
       kind: form.kind,
       activo: Boolean(form.activo),
-      prioridad: Number(form.prioridad) || 100,
+      prioridad: 100,
       modality: form.modality,
-      layer: form.layer,
-      stacking: form.stacking,
-      stackingGroup: form.stackingGroup || null,
-      vigenteDesde: form.vigenteDesde || null,
-      vigenteHasta: form.vigenteHasta || null,
+      layer: 'SETTLEMENT',
+      stacking: 'EXCLUSIVE',
+      stackingGroup: null,
+      vigenteDesde: null,
+      vigenteHasta: null,
       aplicaEnParcial: Boolean(form.aplicaEnParcial),
-      aplicaEnSeña: Boolean(form.aplicaEnSeña),
+      aplicaEnSeña: true,
       benefitType: form.benefitType,
       benefitValue: Number(form.benefitValue) || 0,
-      benefitBase:
-        form.layer === 'RATE'
-          ? form.benefitBase === 'DEBT_CANCELLED'
-            ? 'RATE_NIGHT'
-            : form.benefitBase
-          : form.benefitBase,
+      benefitBase: 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
-      notas: form.notas || null,
+      notas: null,
       conditions
     };
   };
@@ -334,9 +309,6 @@ function PromocionesTab() {
       const payload = buildPayload();
       if (!String(payload.label || '').trim()) {
         throw new Error('El nombre es obligatorio');
-      }
-      if (!editingId && !String(payload.code || '').trim()) {
-        throw new Error('El código es obligatorio');
       }
       if (editingId) {
         const { code, ...rest } = payload;
@@ -477,7 +449,7 @@ function PromocionesTab() {
         <div>
           <h2 className={styles.title}>Promociones</h2>
           <p className={styles.hint}>
-            Reglas con condiciones AND, beneficio y prioridad. Aplican solo a futuro.
+            Descuentos y promos con condiciones. La vigencia se define con condiciones de fechas.
           </p>
         </div>
         <button type="button" className={styles.primaryBtn} onClick={openCreate}>
@@ -520,7 +492,7 @@ function PromocionesTab() {
           </p>
           <p className={styles.emptyBody}>
             {rows.length === 0
-              ? 'Creá la primera promoción o descuento para cobros y tarifas.'
+              ? 'Creá la primera promoción o descuento.'
               : 'Probá con Todas o Activas.'}
           </p>
           {rows.length === 0 && (
@@ -538,8 +510,6 @@ function PromocionesTab() {
                 <th>Regla</th>
                 <th>Beneficio</th>
                 <th>Condiciones</th>
-                <th>Capa</th>
-                <th>Prio</th>
                 <th>Estado</th>
                 <th />
               </tr>
@@ -550,8 +520,6 @@ function PromocionesTab() {
                   <td>
                     <div className={styles.nameCell}>{row.label}</div>
                     <div className={styles.metaRow}>
-                      <span className={styles.code}>{row.code}</span>
-                      <span className={styles.metaSep}>·</span>
                       <span>{KIND_LABEL[row.kind] || row.kind}</span>
                       <span className={styles.metaSep}>·</span>
                       <span>{MODALITY_LABEL[row.modality] || row.modality}</span>
@@ -559,9 +527,6 @@ function PromocionesTab() {
                   </td>
                   <td>
                     <div className={styles.benefit}>{formatBenefit(row)}</div>
-                    <div className={styles.meta}>
-                      {BENEFIT_BASE_LABEL[row.benefitBase] || row.benefitBase}
-                    </div>
                   </td>
                   <td>
                     {(row.conditions || []).length === 0 ? (
@@ -579,13 +544,6 @@ function PromocionesTab() {
                       </ul>
                     )}
                   </td>
-                  <td>
-                    <div>{LAYER_LABEL[row.layer] || row.layer}</div>
-                    <div className={styles.meta}>
-                      {STACKING_LABEL[row.stacking] || row.stacking}
-                    </div>
-                  </td>
-                  <td className={styles.num}>{row.prioridad}</td>
                   <td>
                     <span className={row.activo ? styles.badgeOn : styles.badgeOff}>
                       {row.activo ? 'Activa' : 'Inactiva'}
@@ -643,194 +601,111 @@ function PromocionesTab() {
               </button>
             </div>
 
-            <section className={styles.section}>
-              <h4 className={styles.sectionTitle}>Identidad</h4>
-              <div className={styles.formGrid}>
-                {!editingId && (
-                  <label className={styles.field}>
-                    Código
-                    <input
-                      value={form.code}
-                      onChange={(e) => setField('code', e.target.value)}
-                      placeholder="PAYDISC_EFECTIVO"
-                    />
-                  </label>
-                )}
-                <label className={`${styles.field} ${styles.fieldWide}`}>
-                  Nombre
-                  <input
-                    value={form.label}
-                    onChange={(e) => setField('label', e.target.value)}
-                    placeholder="10% efectivo"
-                  />
-                </label>
-                <label className={styles.field}>
-                  Tipo
-                  <select value={form.kind} onChange={(e) => setField('kind', e.target.value)}>
-                    <option value="DESCUENTO">Descuento</option>
-                    <option value="PROMO">Promo</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Modalidad
-                  <select
-                    value={form.modality}
-                    onChange={(e) => setField('modality', e.target.value)}
-                  >
-                    <option value="AUTO">Automática</option>
-                    <option value="MANUAL">Manual</option>
-                    <option value="SUGERIDA">Sugerida</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Prioridad
-                  <input
-                    type="number"
-                    value={form.prioridad}
-                    onChange={(e) => setField('prioridad', e.target.value)}
-                  />
-                </label>
-                <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={form.activo}
-                    onChange={(e) => setField('activo', e.target.checked)}
-                  />
-                  Activa
-                </label>
-              </div>
-            </section>
+            <div className={styles.kindToggle} role="group" aria-label="Tipo">
+              <button
+                type="button"
+                className={`${styles.kindBtn} ${
+                  form.kind === 'DESCUENTO' ? styles.kindBtnActive : ''
+                }`}
+                onClick={() => setField('kind', 'DESCUENTO')}
+                aria-pressed={form.kind === 'DESCUENTO'}
+              >
+                Descuento
+              </button>
+              <button
+                type="button"
+                className={`${styles.kindBtn} ${form.kind === 'PROMO' ? styles.kindBtnActive : ''}`}
+                onClick={() => setField('kind', 'PROMO')}
+                aria-pressed={form.kind === 'PROMO'}
+              >
+                Promoción
+              </button>
+            </div>
 
-            <section className={styles.section}>
-              <h4 className={styles.sectionTitle}>Beneficio</h4>
-              <div className={styles.formGrid}>
-                <label className={styles.field}>
-                  Forma
-                  <select
-                    value={form.benefitType}
-                    onChange={(e) => setField('benefitType', e.target.value)}
-                  >
-                    <option value="PERCENT">Porcentaje</option>
-                    <option value="FIXED">Fijo ARS</option>
-                    <option value="FIXED_PER_NIGHT">Fijo / noche</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Valor
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.benefitValue}
-                    onChange={(e) => setField('benefitValue', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  Base
-                  <select
-                    value={form.benefitBase}
-                    onChange={(e) => setField('benefitBase', e.target.value)}
-                  >
-                    <option value="DEBT_CANCELLED">Deuda cancelada</option>
-                    <option value="PAYMENT_RECEIVED">Dinero recibido</option>
-                    <option value="RATE_NIGHT">Tarifa noche</option>
-                    <option value="LODGING_TOTAL">Total alojamiento</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Tope ARS
-                  <input
-                    type="number"
-                    value={form.benefitCapARS}
-                    onChange={(e) => setField('benefitCapARS', e.target.value)}
-                    placeholder="Opcional"
-                  />
-                </label>
-                <label className={styles.field}>
-                  Capa
-                  <select value={form.layer} onChange={(e) => setField('layer', e.target.value)}>
-                    <option value="SETTLEMENT">Pago (crédito folio)</option>
-                    <option value="RATE">Tarifa (baja cargo)</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Acumulación
-                  <select
-                    value={form.stacking}
-                    onChange={(e) => setField('stacking', e.target.value)}
-                  >
-                    <option value="EXCLUSIVE">Exclusiva (prioridad)</option>
-                    <option value="BEST_OF">Mejor beneficio</option>
-                    <option value="STACKABLE">Acumulable</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Grupo stacking
-                  <input
-                    value={form.stackingGroup}
-                    onChange={(e) => setField('stackingGroup', e.target.value)}
-                    placeholder="Opcional"
-                  />
-                </label>
-              </div>
-            </section>
+            <label className={styles.field}>
+              Nombre
+              <input
+                value={form.label}
+                onChange={(e) => setField('label', e.target.value)}
+                placeholder="10% efectivo"
+                autoFocus
+              />
+            </label>
 
-            <section className={styles.section}>
-              <h4 className={styles.sectionTitle}>Vigencia y aplicación</h4>
-              <div className={styles.formGrid}>
-                <label className={styles.field}>
-                  Desde
-                  <input
-                    type="date"
-                    value={form.vigenteDesde}
-                    onChange={(e) => setField('vigenteDesde', e.target.value)}
-                  />
-                </label>
-                <label className={styles.field}>
-                  Hasta
-                  <input
-                    type="date"
-                    value={form.vigenteHasta}
-                    onChange={(e) => setField('vigenteHasta', e.target.value)}
-                  />
-                </label>
-                <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={form.aplicaEnParcial}
-                    onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
-                  />
-                  Aplica en parcial
-                </label>
-                <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={form.aplicaEnSeña}
-                    onChange={(e) => setField('aplicaEnSeña', e.target.checked)}
-                  />
-                  Aplica en seña
-                </label>
-                <label className={`${styles.field} ${styles.fieldWide}`}>
-                  Notas
-                  <textarea
-                    value={form.notas}
-                    onChange={(e) => setField('notas', e.target.value)}
-                    rows={2}
-                  />
-                </label>
-              </div>
-            </section>
+            <div className={styles.formGrid}>
+              <label className={styles.field}>
+                Modalidad
+                <select
+                  value={form.modality}
+                  onChange={(e) => setField('modality', e.target.value)}
+                >
+                  <option value="AUTO">Automática</option>
+                  <option value="MANUAL">Manual</option>
+                  <option value="SUGERIDA">Sugerida</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                Beneficio
+                <select
+                  value={form.benefitType}
+                  onChange={(e) => setField('benefitType', e.target.value)}
+                >
+                  <option value="PERCENT">Porcentaje</option>
+                  <option value="FIXED">Fijo ARS</option>
+                  <option value="FIXED_PER_NIGHT">Fijo / noche</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                Valor
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.benefitValue}
+                  onChange={(e) => setField('benefitValue', e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                Tope ARS
+                <input
+                  type="number"
+                  value={form.benefitCapARS}
+                  onChange={(e) => setField('benefitCapARS', e.target.value)}
+                  placeholder="Opcional"
+                />
+              </label>
+            </div>
+
+            <div className={styles.checks}>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={form.activo}
+                  onChange={(e) => setField('activo', e.target.checked)}
+                />
+                Activa
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={form.aplicaEnParcial}
+                  onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
+                />
+                Aplica en parcial
+              </label>
+            </div>
 
             <section className={styles.section}>
               <div className={styles.conditionsHeader}>
-                <h4 className={styles.sectionTitle}>Condiciones (AND)</h4>
+                <h4 className={styles.sectionTitle}>Condiciones</h4>
                 <button type="button" className={styles.ghostBtn} onClick={addCondition}>
                   <FiPlus aria-hidden="true" />
                   Agregar
                 </button>
               </div>
-              {form.conditions.length === 0 ? (
-                <p className={styles.muted}>Sin condiciones: la regla aplica siempre (según modalidad).</p>
-              ) : (
+              <p className={styles.muted}>
+                AND. Para vigencia usá “Rango de fechas”.
+              </p>
+              {form.conditions.length === 0 ? null : (
                 <div className={styles.conditions}>
                   {form.conditions.map((c, index) => (
                     <div key={index} className={styles.conditionRow}>
