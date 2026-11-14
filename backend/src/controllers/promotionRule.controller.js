@@ -58,6 +58,13 @@ function touchedMethodIds(rule) {
 
 exports.listPromotionRules = async (req, res) => {
   try {
+    if (!prisma.promotionRule?.findMany) {
+      return res.status(503).json({
+        error: 'Error al listar promociones',
+        details:
+          'Cliente Prisma sin modelo PromotionRule. En backend ejecutá: npx prisma generate y reiniciá el API.'
+      });
+    }
     const includeInactive =
       String(req.query.all || '') === '1' || String(req.query.all || '') === 'true';
     const layer = req.query.layer ? String(req.query.layer).toUpperCase() : null;

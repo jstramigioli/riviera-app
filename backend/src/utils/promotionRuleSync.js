@@ -1,6 +1,7 @@
 /**
  * Mirror PaymentMethodConfig.descuento* desde reglas con condición PAYMENT_METHOD.
- * Fuente de verdad = PromotionRule; columnas legacy solo para UI/preview compat.
+ * Fuente de verdad = PromotionRule (Config → Promociones). Las columnas legacy
+ * alimentan PaymentForm / motor settlement; no se editan en Medios de pago.
  */
 
 const { Decimal } = require('@prisma/client/runtime/library');

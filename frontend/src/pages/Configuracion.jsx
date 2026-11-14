@@ -47,11 +47,13 @@ function ConfiguracionView() {
   const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
   const defaultTab = canSettings
     ? 'habitaciones'
-    : canMediosPago
-      ? 'medios-pago'
-      : canAuditoria
-        ? 'auditoria'
-        : 'habitaciones';
+    : canPromociones
+      ? 'promociones'
+      : canMediosPago
+        ? 'medios-pago'
+        : canAuditoria
+          ? 'auditoria'
+          : 'habitaciones';
 
   const [activeTab, setActiveTab] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');

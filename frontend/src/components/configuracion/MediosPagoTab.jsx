@@ -5,6 +5,17 @@ import {
 } from '../../services/api';
 import styles from './MediosPagoTab.module.css';
 
+function linkedPromoLabel(row) {
+  const linked = (row.linkedPromotionRules || []).filter((r) => r.activo);
+  if (!linked.length) return null;
+  const primary = linked[0];
+  const pct =
+    primary.benefitType === 'PERCENT' && primary.benefitValue != null
+      ? ` (−${Number(primary.benefitValue)}%)`
+      : '';
+  return `${primary.label || primary.code}${pct}`;
+}
+
 function MediosPagoTab() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,10 +33,6 @@ function MediosPagoTab() {
       const next = {};
       for (const row of list || []) {
         next[row.id] = {
-          descuentoActivo: Boolean(row.descuentoActivo),
-          descuentoValor: String(row.descuentoValor ?? 0),
-          aplicaEnParcial: row.aplicaEnParcial !== false,
-          aplicaEnSeña: row.aplicaEnSeña !== false,
           requiereFacturacion: Boolean(row.requiereFacturacion),
           activo: row.activo !== false,
           ordenIndex: String(row.ordenIndex ?? 0)
@@ -55,26 +62,22 @@ function MediosPagoTab() {
   const handleSave = async (row) => {
     const draft = drafts[row.id];
     if (!draft) return;
-    const valor = Number(draft.descuentoValor);
-    if (!Number.isFinite(valor) || valor < 0 || valor >= 100) {
-      setError('El % de descuento debe ser ≥ 0 y < 100');
-      return;
-    }
     setSavingId(row.id);
     setError(null);
     setMessage(null);
     try {
       const updated = await updatePaymentMethodConfig(row.id, {
-        descuentoActivo: Boolean(draft.descuentoActivo),
-        descuentoValor: valor,
-        aplicaEnParcial: Boolean(draft.aplicaEnParcial),
-        aplicaEnSeña: Boolean(draft.aplicaEnSeña),
         requiereFacturacion: Boolean(draft.requiereFacturacion),
         activo: Boolean(draft.activo),
-        ordenIndex: Number(draft.ordenIndex) || 0,
-        descuentoTipo: 'PERCENT'
+        ordenIndex: Number(draft.ordenIndex) || 0
       });
-      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? { ...updated, linkedPromotionRules: r.linkedPromotionRules }
+            : r
+        )
+      );
       setMessage(`Guardado: ${updated.label}`);
     } catch (err) {
       setError(err.message || 'Error al guardar');
@@ -92,10 +95,8 @@ function MediosPagoTab() {
       <header className={styles.header}>
         <h3>Medios de pago</h3>
         <p className={styles.lead}>
-          Catálogo de medios. El descuento Efectivo 10% vive como regla en Promociones (motor);
-          editar % aquí sincroniza la regla ligada. Fórmulas settlement: parcial crédito =
-          recibido/(1−p); total dinero = saldo×(1−p). Ver pestaña Promociones para condiciones,
-          modalidades y capas tarifa/pago.
+          Catálogo de medios (activo, facturación, orden). Los descuentos y promociones se
+          configuran solo en la pestaña Promociones; acá se muestra la regla ligada si existe.
         </p>
       </header>
 
@@ -109,10 +110,7 @@ function MediosPagoTab() {
               <th>Medio</th>
               <th>Activo</th>
               <th>Facturación</th>
-              <th>Desc.</th>
-              <th>%</th>
-              <th>Parcial</th>
-              <th>Seña</th>
+              <th>Promoción ligada</th>
               <th>Orden</th>
               <th />
             </tr>
@@ -120,6 +118,7 @@ function MediosPagoTab() {
           <tbody>
             {rows.map((row) => {
               const d = drafts[row.id] || {};
+              const promo = linkedPromoLabel(row);
               return (
                 <tr key={row.id}>
                   <td>
@@ -145,44 +144,11 @@ function MediosPagoTab() {
                     />
                   </td>
                   <td>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(d.descuentoActivo)}
-                      onChange={(e) =>
-                        setDraft(row.id, 'descuentoActivo', e.target.checked)
-                      }
-                      aria-label={`Descuento activo ${row.label}`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className={styles.pct}
-                      type="number"
-                      min="0"
-                      max="99.99"
-                      step="0.01"
-                      value={d.descuentoValor ?? '0'}
-                      onChange={(e) => setDraft(row.id, 'descuentoValor', e.target.value)}
-                      aria-label={`Porcentaje ${row.label}`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(d.aplicaEnParcial)}
-                      onChange={(e) =>
-                        setDraft(row.id, 'aplicaEnParcial', e.target.checked)
-                      }
-                      aria-label={`Aplica en parcial ${row.label}`}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(d.aplicaEnSeña)}
-                      onChange={(e) => setDraft(row.id, 'aplicaEnSeña', e.target.checked)}
-                      aria-label={`Aplica en seña ${row.label}`}
-                    />
+                    {promo ? (
+                      <span className={styles.promoLink}>{promo}</span>
+                    ) : (
+                      <span className={styles.muted}>—</span>
+                    )}
                   </td>
                   <td>
                     <input
