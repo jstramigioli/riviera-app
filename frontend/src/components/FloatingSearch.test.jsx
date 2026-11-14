@@ -24,7 +24,7 @@ describe('FloatingSearch', () => {
     }
   ];
 
-  it('abre la barra desde la lupa gris y selecciona resultados', () => {
+  it('abre la barra desde la lupa y selecciona resultados', () => {
     const onSelectReservation = vi.fn();
     const onSelectClient = vi.fn();
     const onSelectQuery = vi.fn();

@@ -1,16 +1,24 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { FiPlus, FiX } from 'react-icons/fi';
+import FloatingSearch from './FloatingSearch';
 import styles from '../styles/FloatingActionButton.module.css';
 
 /**
- * Hub flotante del Libro: Hoy arriba del +; el + abre menú de alta.
+ * Hub flotante del Libro: Hoy → lupa → + (menú de alta).
  */
 export default function FloatingActionButton({
   onToday,
   onCreateQuery,
   onCreateReservation,
   onCreateConsumption,
-  onCreatePayment
+  onCreatePayment,
+  searchReservations,
+  searchClients,
+  searchQueries,
+  onSearchSelectReservation,
+  onSearchSelectClient,
+  onSearchSelectQuery,
+  showSearch = false
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -75,6 +83,17 @@ export default function FloatingActionButton({
       >
         Hoy
       </button>
+
+      {showSearch ? (
+        <FloatingSearch
+          reservations={searchReservations}
+          clients={searchClients}
+          queries={searchQueries}
+          onSelectReservation={onSearchSelectReservation}
+          onSelectClient={onSearchSelectClient}
+          onSelectQuery={onSearchSelectQuery}
+        />
+      ) : null}
 
       <div
         id={menuId}

@@ -7,7 +7,7 @@ import {
 import styles from '../styles/FloatingSearch.module.css';
 
 /**
- * Lupa flotante del Libro → barra de búsqueda de reservas / clientes / consultas.
+ * Lupa del hub del Libro (entre Hoy y +) → barra de búsqueda opaca.
  */
 export default function FloatingSearch({
   reservations = [],

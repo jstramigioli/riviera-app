@@ -12,7 +12,6 @@ import { FiFilter } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
-import FloatingSearch from './FloatingSearch';
 import { fetchCalendar, fetchReservation } from '../services/api';
 import {
   todayIsoLocal,
@@ -760,23 +759,20 @@ export default function LibroReservasBoard({
       />
 
       {!dayInfoOpen ? (
-        <>
-          <FloatingSearch
-            reservations={searchReservations}
-            clients={searchClients}
-            queries={searchQueries}
-            onSelectReservation={onSearchSelectReservation}
-            onSelectClient={onSearchSelectClient}
-            onSelectQuery={onSearchSelectQuery}
-          />
-          <FloatingActionButton
-            onToday={jumpToToday}
-            onCreateQuery={() => navigate('/consulta')}
-            onCreateReservation={() => navigate('/consulta?modo=reserva')}
-            onCreateConsumption={() => onCreateConsumption?.()}
-            onCreatePayment={() => onCreatePayment?.()}
-          />
-        </>
+        <FloatingActionButton
+          onToday={jumpToToday}
+          onCreateQuery={() => navigate('/consulta')}
+          onCreateReservation={() => navigate('/consulta?modo=reserva')}
+          onCreateConsumption={() => onCreateConsumption?.()}
+          onCreatePayment={() => onCreatePayment?.()}
+          showSearch
+          searchReservations={searchReservations}
+          searchClients={searchClients}
+          searchQueries={searchQueries}
+          onSearchSelectReservation={onSearchSelectReservation}
+          onSearchSelectClient={onSearchSelectClient}
+          onSearchSelectQuery={onSearchSelectQuery}
+        />
       ) : null}
     </>
   );
