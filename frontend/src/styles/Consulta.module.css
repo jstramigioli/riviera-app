@@ -8,6 +8,7 @@
   padding: 10px 16px 8px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-white);
+  flex-shrink: 0;
 }
 
 .pageTitle {
@@ -35,8 +36,10 @@
   max-width: none;
   width: 100%;
   margin: 0;
-  padding: 0 0 72px;
-  min-height: calc(100vh - var(--nav-height));
+  padding: 0;
+  height: calc(100vh - var(--nav-height));
+  max-height: calc(100vh - var(--nav-height));
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -45,6 +48,7 @@
   font-size: var(--font-size-base);
   color: var(--color-text-main);
   background: var(--color-bg);
+  overflow: hidden;
 }
 
 /* Dos columnas full-bleed: formulario | timeline + tarifas (mismo panel) */
@@ -55,13 +59,16 @@
   align-items: stretch;
   width: 100%;
   min-width: 0;
+  min-height: 0;
   flex: 1;
   border-top: 1px solid var(--color-border);
+  overflow: hidden;
 }
 
 .colForm,
 .colSide {
   min-width: 0;
+  min-height: 0;
 }
 
 .colForm {
@@ -69,9 +76,11 @@
   flex-direction: column;
   gap: 0;
   min-width: 0;
+  min-height: 0;
   background: var(--color-bg-white);
   padding: 0;
   border-right: 1px solid var(--color-border);
+  overflow: hidden;
 }
 
 .colSide {
@@ -127,10 +136,19 @@
 }
 
 .roomIdentityRow .roomType {
-  color: var(--color-text-main);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1px 8px;
+  border: 1px solid rgba(51, 77, 112, 0.22);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary-dark);
   font-size: var(--font-size-small);
   font-weight: 600;
-  flex-shrink: 0;
+  line-height: 1.35;
+  box-shadow: none;
 }
 
 .roomIdentityRow .roomDescription {
@@ -142,9 +160,13 @@
 }
 
 /* Selección sobre primary-light: tipografía oscura / navy, no gris */
-.roomItemSelected .roomIdentityRow .roomType,
+.roomItemSelected .roomIdentityRow .roomType {
+  color: var(--color-primary-dark);
+  border-color: rgba(51, 77, 112, 0.35);
+  background: rgba(255, 255, 255, 0.55);
+}
+
 .roomItemSelected .roomIdentityRow .roomDescription,
-.roomItemSelected .roomType,
 .roomItemSelected .roomDescription {
   color: var(--color-primary-dark);
 }
@@ -157,20 +179,30 @@
   text-align: right;
 }
 
+.promoRateTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+
 .rateAmountStruck {
   font-size: var(--font-size-small);
   font-weight: 600;
   color: var(--color-text-muted);
   text-decoration: line-through;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .promoName {
   font-size: var(--font-size-small);
   font-weight: 600;
   color: var(--color-success, #2f9e44);
-  max-width: 12rem;
+  max-width: 10rem;
   line-height: 1.25;
+  text-align: left;
 }
 
 @media (max-width: 1100px) {
@@ -180,19 +212,36 @@
 }
 
 @media (max-width: 900px) {
+  .newLayout {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0 0 72px;
+  }
+
   .twoCol {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .colForm {
     border-right: none;
     border-bottom: 1px solid var(--color-border);
+    overflow: visible;
   }
 
   .colSide {
     position: static;
     max-height: none;
     overflow: visible;
+  }
+
+  .unifiedContainer,
+  .tabContent,
+  .roomsAvailableBlock,
+  .roomsList {
+    overflow: visible;
+    max-height: none;
   }
 }
 
@@ -720,6 +769,10 @@
   overflow: hidden;
   margin: 0;
   box-shadow: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .clientContent {
@@ -734,6 +787,7 @@
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border);
   align-items: flex-end;
+  flex-shrink: 0;
 }
 
 .requirementsFlexContainer {
@@ -752,6 +806,13 @@
   min-width: 240px;
 }
 
+.roomsAvailableBlock {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .roomsSectionTitle {
   font-size: var(--font-size-large);
   font-weight: 600;
@@ -759,11 +820,12 @@
   margin: 8px 0 12px;
   padding: 0 0 8px;
   border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .createReservationButtonContainer {
-  position: sticky;
-  bottom: 0;
+  position: relative;
+  bottom: auto;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
@@ -777,6 +839,7 @@
   border-radius: 0;
   margin-top: 0;
   box-shadow: none;
+  flex-shrink: 0;
 }
 
 .actionSecondaryGroup {
@@ -998,6 +1061,7 @@
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
   gap: 0;
+  flex-shrink: 0;
 }
 
 .tab {
@@ -1106,13 +1170,19 @@
 /* Contenido de pestaña */
 .tabContent {
   padding: 16px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .blockForm {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .formRow {
@@ -1211,12 +1281,15 @@
   font-size: var(--font-size-base);
 }
 
-/* Lista de habitaciones horizontal */
+/* Lista de habitaciones — único scroll del formulario */
 .roomsList {
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
   background: var(--color-bg-white);
 }
 
@@ -1287,6 +1360,10 @@
 .roomType {
   color: var(--color-text-main);
   font-size: var(--font-size-small);
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-weight: inherit;
 }
 
 .roomDescription {
@@ -2466,7 +2543,8 @@
   font-size: var(--font-size-medium);
 }
 
-.roomType {
+/* Legacy card chip — no pintar fondo global (rompe chip de listado) */
+.roomCard .roomType {
   background: var(--color-primary);
   color: var(--color-text-light);
   padding: 4px 8px;

@@ -3742,7 +3742,7 @@ export default function Consulta() {
 
             {/* Habitaciones disponibles — se muestran cuando hay resultados de búsqueda */}
             {hasSearchedPerBlock[activeBlockIndex] === true && (
-              <>
+              <div className={styles.roomsAvailableBlock}>
               <h3 className={styles.roomsSectionTitle}>Habitaciones disponibles</h3>
               
               {loadingRooms ? (
@@ -3882,13 +3882,15 @@ export default function Consulta() {
                               <div className={styles.roomRate}>
                                 {hasPromo ? (
                                   <div className={styles.promoRateBlock}>
-                                    <span className={styles.rateAmountStruck}>
-                                      {moneyFmt(promo.originalARS)}
-                                    </span>
+                                    <div className={styles.promoRateTop}>
+                                      <span className={styles.promoName}>{promo.promoLabel}</span>
+                                      <span className={styles.rateAmountStruck}>
+                                        {moneyFmt(promo.originalARS)}
+                                      </span>
+                                    </div>
                                     <span className={styles.rateAmount}>
                                       {moneyFmt(displayPrice)}
                                     </span>
-                                    <span className={styles.promoName}>{promo.promoLabel}</span>
                                   </div>
                                 ) : (
                                   <span className={styles.rateAmount}>
@@ -3917,7 +3919,7 @@ export default function Consulta() {
                   })()}
                 </div>
               )}
-              </>
+              </div>
             )}
           </div>
         )}
