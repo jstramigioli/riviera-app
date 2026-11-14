@@ -17,6 +17,7 @@ const {
   ensureReservationAccount,
   dualWriteReservationRefs
 } = require('./accountHelpers');
+const { ensureHolderAsGuest } = require('./guestHelpers');
 const {
   loadActivePromotionRules,
   evaluateRateRules,
@@ -502,7 +503,9 @@ async function createReservationWithSegments(reservationData) {
     notes,
     source,
     isMultiRoom = false,
-    parentReservationId = null
+    parentReservationId = null,
+    /// Por defecto el responsable se incorpora como huésped (removible después).
+    includeHolderAsGuest = true
   } = reservationData;
 
   // Expandir virtual_X → componentes físicos + virtualRoomId
@@ -592,6 +595,15 @@ async function createReservationWithSegments(reservationData) {
     // No fallar la creación de la reserva si falla el cargo
   }
 
+  // Responsable → huésped por defecto (independiente del folio / mainClientId)
+  if (includeHolderAsGuest !== false && includeHolderAsGuest !== 'false') {
+    try {
+      await ensureHolderAsGuest(prisma, reservation.id, mainClientId);
+    } catch (guestError) {
+      console.error('❌ Error auto-agregando responsable como huésped:', guestError);
+    }
+  }
+
   // Retornar la reserva completa
   return getReservationWithData(reservation.id);
 }
@@ -612,7 +624,8 @@ async function createReservationWithSegment(reservationData) {
     source,
     requiredGuests = 1,
     isMultiRoom = false,
-    parentReservationId = null
+    parentReservationId = null,
+    includeHolderAsGuest = true
   } = reservationData;
 
   // Calcular días y tarifa base
@@ -708,6 +721,14 @@ async function createReservationWithSegment(reservationData) {
     // No fallar la creación de la reserva si falla el cargo
   }
 
+  if (includeHolderAsGuest !== false && includeHolderAsGuest !== 'false') {
+    try {
+      await ensureHolderAsGuest(prisma, reservation.id, mainClientId);
+    } catch (guestError) {
+      console.error('❌ Error auto-agregando responsable como huésped:', guestError);
+    }
+  }
+
   // Retornar la reserva completa
   return getReservationWithData(reservation.id);
 }
@@ -741,6 +762,15 @@ async function updateReservationWithSegments(reservationId, updateData) {
       ...(mainClientId != null ? { mainClientId: parseInt(mainClientId, 10) } : {})
     }
   });
+
+  // Cambiar responsable: sync folio; no tocar lista de huéspedes
+  if (mainClientId != null) {
+    const holderId = parseInt(mainClientId, 10);
+    await prisma.account.updateMany({
+      where: { reservationId: id, kind: 'RESERVATION' },
+      data: { clientId: holderId }
+    });
+  }
 
   // Si se proporcionan nuevos segmentos, actualizarlos y sincronizar cargos
   if (segments && Array.isArray(segments)) {

@@ -55,11 +55,12 @@ exports.createReservation = async (req, res) => {
     status, 
     notes,
     source,
-    isMultiRoom = false
+    isMultiRoom = false,
+    includeHolderAsGuest = true
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
-    return res.status(400).json({ error: 'Debe especificar un cliente principal y al menos un segmento' });
+    return res.status(400).json({ error: 'Debe especificar un responsable de la reserva y al menos un segmento' });
   }
   
   try {
@@ -70,7 +71,8 @@ exports.createReservation = async (req, res) => {
       status: status || 'active',
       notes,
       source,
-      isMultiRoom
+      isMultiRoom,
+      includeHolderAsGuest
     };
 
     // Validar la reserva completa antes de crearla
@@ -99,11 +101,12 @@ exports.createMultiSegmentReservation = async (req, res) => {
     status, 
     notes,
     source,
-    isMultiRoom = false
+    isMultiRoom = false,
+    includeHolderAsGuest = true
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
-    return res.status(400).json({ error: 'Debe especificar un cliente principal y al menos un segmento' });
+    return res.status(400).json({ error: 'Debe especificar un responsable de la reserva y al menos un segmento' });
   }
   
   try {
@@ -114,7 +117,8 @@ exports.createMultiSegmentReservation = async (req, res) => {
       status: status || 'active',
       notes,
       source,
-      isMultiRoom
+      isMultiRoom,
+      includeHolderAsGuest
     };
 
     console.log('📦 Datos recibidos para crear reserva:', JSON.stringify(reservationData, null, 2));

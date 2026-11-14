@@ -2348,7 +2348,7 @@ export default function Consulta() {
         setFormData(prev => ({
           ...prev,
           mainClient: {
-            id: newClient.id, // Agregar el ID para que se setee como cliente principal
+            id: newClient.id, // Responsable / cliente de la consulta-reserva
             firstName: newClient.firstName,
             lastName: newClient.lastName,
             email: newClient.email || '',

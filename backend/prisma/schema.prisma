@@ -149,6 +149,8 @@ model Client {
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
   accounts        Account[]
+  /// Apariciones como huésped de una reserva (opcional; el titular usa mainClientId).
+  guestStays      Guest[]
   /// Datos de facturación aparte del perfil (reutilizables en próximos pagos).
   billingProfile  ClientBillingProfile?
 
@@ -178,6 +180,8 @@ model ClientBillingProfile {
   updatedAt         DateTime @updatedAt
 }
 
+/// Persona que se aloja en una reserva. Independiente del responsable (mainClientId).
+/// Si clientId apunta al titular, el responsable también es huésped; se puede quitar.
 model Guest {
   id             Int          @id @default(autoincrement())
   firstName      String
@@ -189,9 +193,15 @@ model Guest {
   address        String?
   city           String?
   reservationId  Int?
+  /// Vínculo opcional a Client (titular u otro cliente de la agenda).
+  clientId       Int?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
+  client         Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([reservationId, clientId])
 }
 
 /// Canal / quién reservó (consulta o reserva).
