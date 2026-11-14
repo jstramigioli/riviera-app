@@ -372,7 +372,8 @@ model PromotionRule {
   benefitValue         Decimal                @default(0) @db.Decimal(12, 4)
   benefitBase          PromotionBenefitBase   @default(DEBT_CANCELLED)
   benefitCapARS        Decimal?               @db.Decimal(12, 2)
-  notas                String?
+  /// Nota interna de staff (solo Configuración); no se muestra en cobros/folio.
+  descripcionInterna   String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   conditions           PromotionCondition[]
