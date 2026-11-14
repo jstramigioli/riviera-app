@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   benefitType: 'PERCENT',
   benefitValue: '10',
   benefitCapARS: '',
+  descripcionInterna: '',
   conditions: []
 };
 
@@ -469,6 +470,7 @@ function PromocionesTab() {
       benefitType: row.benefitType || 'PERCENT',
       benefitValue: String(row.benefitValue ?? 0),
       benefitCapARS: row.benefitCapARS != null ? String(row.benefitCapARS) : '',
+      descripcionInterna: row.descripcionInterna || row.notas || '',
       conditions: (row.conditions || []).map(conditionFromApi)
     });
     setShowForm(true);
@@ -540,7 +542,7 @@ function PromocionesTab() {
       benefitValue: Number(form.benefitValue) || 0,
       benefitBase: 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
-      notas: null,
+      descripcionInterna: String(form.descripcionInterna || '').trim() || null,
       conditions
     };
   };
@@ -774,6 +776,7 @@ function PromocionesTab() {
             <tr>
               <th>Activo</th>
               <th>Nombre</th>
+              <th>Descripción interna</th>
               <th>Beneficio</th>
               <th>Modalidad</th>
               <th>Condiciones</th>
@@ -800,6 +803,13 @@ function PromocionesTab() {
                   </td>
                   <td>
                     <div className={styles.nameCell}>{row.label}</div>
+                  </td>
+                  <td>
+                    {row.descripcionInterna || row.notas ? (
+                      <div className={styles.descCell}>{row.descripcionInterna || row.notas}</div>
+                    ) : (
+                      <span className={styles.muted}>—</span>
+                    )}
                   </td>
                   <td>
                     <div className={styles.benefit}>{formatBenefit(row)}</div>
@@ -940,6 +950,21 @@ function PromocionesTab() {
                 placeholder={form.kind === 'PROMO' ? 'Early bird 15%' : '10% efectivo'}
                 autoFocus
               />
+            </label>
+
+            <label className={styles.field}>
+              Descripción interna
+              <textarea
+                className={styles.textarea}
+                value={form.descripcionInterna}
+                onChange={(e) => setField('descripcionInterna', e.target.value)}
+                placeholder="Solo visible en Configuración (staff)"
+                rows={2}
+                aria-describedby="promo-desc-interna-hint"
+              />
+              <span id="promo-desc-interna-hint" className={styles.fieldHint}>
+                Nota para el equipo; no aparece en cobros ni en el folio.
+              </span>
             </label>
 
             <div className={styles.formGrid}>
