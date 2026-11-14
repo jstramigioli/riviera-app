@@ -1,12 +1,13 @@
 import { FiCheck, FiX, FiAlertTriangle, FiChevronDown } from 'react-icons/fi';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchRoomTypes, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
-import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
+import ConsultaBalancePanel from '../components/ConsultaBalancePanel';
+import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
 import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
@@ -35,6 +36,8 @@ import {
   maxBedPreferenceLimits,
   clampBedPreferenceToLimits
 } from '../utils/bedConfig';
+import { buildDraftReservationForTimeline } from '../utils/reservationConfirmationQuote';
+import { previewRoomRatePromo } from '../utils/roomPromoPreview';
 import BedPreferenceFields from '../components/BedPreferenceFields';
 import styles from '../styles/Consulta.module.css';
 
@@ -283,8 +286,12 @@ export default function Consulta() {
   const [selectedRoomType, setSelectedRoomType] = useState(null);
   const [dailyRates, setDailyRates] = useState([]);
 
-  // Estado para el modal de confirmación
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  // Confirmación inline (sin modal): estado + promos manuales
+  const [reservationStatus, setReservationStatus] = useState('PENDIENTE');
+  const [promoApply, setPromoApply] = useState({
+    benefitValueByRuleId: {},
+    selectedRuleIds: []
+  });
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
@@ -300,10 +307,7 @@ export default function Consulta() {
 
   // Estados para las secciones colapsables del nuevo diseño
   const [showSegments, setShowSegments] = useState(false);
-  
-  // Estado para mostrar detalles de habitaciones
-  const [showRoomDetails, setShowRoomDetails] = useState({});
-  
+
   // Estado para navegación de bloques de estadía
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
@@ -359,13 +363,43 @@ export default function Consulta() {
     }) || editingReservationId
   );
 
-  // Función para toggle de detalles de habitación
-  const toggleRoomDetails = (roomId) => {
-    setShowRoomDetails(prev => ({
-      ...prev,
-      [roomId]: !prev[roomId]
-    }));
-  };
+  const handlePromoApplyChange = useCallback((next) => {
+    setPromoApply(next || { benefitValueByRuleId: {}, selectedRuleIds: [] });
+  }, []);
+
+  useEffect(() => {
+    if (editingReservationStatus) {
+      setReservationStatus(editingReservationStatus);
+    }
+  }, [editingReservationStatus]);
+
+  const timelineReservation = useMemo(
+    () =>
+      buildDraftReservationForTimeline({
+        mainClient: formData.mainClient,
+        segments,
+        selectedRoomsPerBlock,
+        totalAmount: null
+      }),
+    [formData.mainClient, segments, selectedRoomsPerBlock]
+  );
+
+  const getServiceTypeLabel = useCallback(
+    (serviceTypeId) => {
+      if (!serviceTypeId) return 'No especificado';
+      const serviceType = serviceTypes.find((st) => st.id === serviceTypeId);
+      if (!serviceType) return `Servicio inválido (ID: ${serviceTypeId})`;
+      return serviceType.name;
+    },
+    [serviceTypes]
+  );
+
+  const handleClientClick = useCallback(
+    (clientId) => {
+      if (clientId) navigate(`/clients/${clientId}`);
+    },
+    [navigate]
+  );
 
   // Funciones para manejar bloques de estadía
   const addNewBlock = () => {
@@ -1973,10 +2007,23 @@ export default function Consulta() {
               }
             }
             
+            let promoPreview = null;
+            if (ratesResult?.rates?.length && room.roomType?.id && params.serviceType) {
+              promoPreview = await previewRoomRatePromo({
+                checkIn: params.checkIn,
+                checkOut: params.checkOut,
+                roomTypeId: room.roomType.id,
+                serviceTypeId: params.serviceType,
+                rates: ratesResult.rates,
+                totalAmount: totalRate
+              });
+            }
+
             return {
               ...room,
               price: Math.round(totalRate),
-              ratesData: ratesResult // Guardar los datos completos de tarifas
+              ratesData: ratesResult, // Guardar los datos completos de tarifas
+              promoPreview
             };
           })
         );
@@ -3147,7 +3194,6 @@ export default function Consulta() {
           selectedRuleIds: promoApply.selectedRuleIds,
           benefitValueByRuleId: promoApply.benefitValueByRuleId
         });
-        setShowConfirmationModal(false);
         notify({
           title: 'Reserva actualizada',
           message: applyRateChanges
@@ -3186,8 +3232,6 @@ export default function Consulta() {
         }
       }
       
-      // Cerrar modal y limpiar formulario
-      setShowConfirmationModal(false);
       resetForm();
 
       if (!createdId) {
@@ -3277,11 +3321,6 @@ export default function Consulta() {
         <header className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>Cargando reserva #{editingReservationId}…</h1>
         </header>
-        <div className={styles.unifiedContainer}>
-          <div className={styles.sectionHeader}>
-            <p className={styles.sectionLead}>Preparando datos de la reserva</p>
-          </div>
-        </div>
       </div>
     );
   }
@@ -3354,12 +3393,35 @@ export default function Consulta() {
     </div>
   );
 
+  const canConfirmReservation =
+    formData.mainClient.firstName &&
+    formData.mainClient.lastName &&
+    segments.length > 0 &&
+    segments.every((_, index) => selectedRoomsPerBlock[index]);
+
   return (
     <div className={styles.newLayout}>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </header>
 
+      <div className={styles.threeCol}>
+        <aside className={styles.colTimeline} aria-label="Estadía">
+          {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
+            <ReservationStayTimeline
+              reservation={timelineReservation}
+              getServiceTypeLabel={getServiceTypeLabel}
+              onClientClick={handleClientClick}
+              orientation="vertical"
+              compact
+              hideTotal
+            />
+          ) : (
+            <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
+          )}
+        </aside>
+
+        <div className={styles.colForm}>
       {/* Contenedor unificado: cabecera densa + tramos */}
       <div className={styles.unifiedContainer}>
         {/* Barra densa: cliente + ocupación + origen */}
@@ -3784,11 +3846,15 @@ export default function Consulta() {
                       <>
                         {roomsToShow.map(({ room, compliance }) => {
                       const isSelected = roomsMatch(selectedRoomsPerBlock[activeBlockIndex], room);
-                      const showDetails = showRoomDetails[room.id] || false;
-                      
+                      const promo = room.promoPreview;
+                      const hasPromo = Boolean(promo?.hasPromo);
+                      const displayPrice = hasPromo ? promo.finalARS : (room.price || 0);
+                      const moneyFmt = (n) =>
+                        `$${new Intl.NumberFormat('es-AR').format(Math.round(n || 0))}`;
+
                       return (
                         <div key={room.id} className={styles.roomListItem}>
-                          <div 
+                          <div
                             className={`${styles.roomItem} ${isSelected ? styles.roomItemSelected : ''}`}
                             onClick={() => selectRoomForBlock(activeBlockIndex, room)}
                           >
@@ -3805,19 +3871,14 @@ export default function Consulta() {
                                   <span className={styles.radioCircle}></span>
                                 </label>
                               </div>
-                              
+
                               <div className={styles.roomMainInfo}>
-                                <h3>{room.name}</h3>
-                                <div className={styles.roomSecondaryInfo}>
+                                <div className={styles.roomIdentityRow}>
+                                  <h3>{room.name}</h3>
                                   <span className={styles.roomType}>{room.roomType?.name}</span>
-                                  <span className={`${styles.capacityBadge} ${
-                                    room.maxPeople === segments[activeBlockIndex]?.requiredGuests ? styles.capacityExact : styles.capacityLarger
-                                  }`}>
-                                    {room.maxPeople} pers.
+                                  <span className={styles.roomDescription}>
+                                    {room.description || 'Descripción no disponible'}
                                   </span>
-                                </div>
-                                <div className={styles.roomDescription}>
-                                  {room.description || 'Descripción no disponible'}
                                 </div>
                                 {compliance.bedWarning && (
                                   <div role="status" className={styles.bedWarning}>
@@ -3826,7 +3887,7 @@ export default function Consulta() {
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className={styles.roomItemRight}>
                               <div className={styles.complianceIndicator} title={compliance.message}>
                                 {compliance.complies ? (
@@ -3835,53 +3896,26 @@ export default function Consulta() {
                                   <span className={styles.complianceX} aria-hidden="true"><FiX /></span>
                                 )}
                               </div>
-                              
+
                               <div className={styles.roomRate}>
-                                <span className={styles.rateAmount}>
-                                  ${new Intl.NumberFormat('es-AR').format(room.price || 0)}
-                                </span>
-                              </div>
-                              
-                              <button 
-                                className={styles.detailsButton}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleRoomDetails(room.id);
-                                }}
-                              >
-                                {showDetails ? 'Ocultar Detalle' : 'Ver Detalle'}
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {showDetails && (
-                            <div className={styles.roomDetailsExpanded}>
-                              <h4>Detalle tarifario por día</h4>
-                              <div className={styles.dailyRatesTable}>
-                                {room.ratesData && room.ratesData.rates ? (
-                                  room.ratesData.rates.map((rate, index) => (
-                                    <div key={index} className={styles.dailyRateRow}>
-                                      <span>Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
-                                      <span>${new Intl.NumberFormat('es-AR').format(rate.serviceRate || rate.baseRate)}</span>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className={styles.noRatesMessage}>
-                                    No hay datos de tarifas disponibles para esta habitación
+                                {hasPromo ? (
+                                  <div className={styles.promoRateBlock}>
+                                    <span className={styles.rateAmountStruck}>
+                                      {moneyFmt(promo.originalARS)}
+                                    </span>
+                                    <span className={styles.rateAmount}>
+                                      {moneyFmt(displayPrice)}
+                                    </span>
+                                    <span className={styles.promoName}>{promo.promoLabel}</span>
                                   </div>
+                                ) : (
+                                  <span className={styles.rateAmount}>
+                                    {moneyFmt(displayPrice)}
+                                  </span>
                                 )}
                               </div>
-                              {room.ratesData && room.ratesData.rates && (
-                                <div className={styles.dailyRatesTotal}>
-                                  <div className={styles.totalSeparator}></div>
-                                  <div className={styles.dailyRateRow}>
-                                    <span><strong>Total</strong></span>
-                                    <span><strong>${new Intl.NumberFormat('es-AR').format(room.ratesData.totalAmount)}</strong></span>
-                                  </div>
-                                </div>
-                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                         })}
@@ -3907,13 +3941,12 @@ export default function Consulta() {
         )}
       </div>
 
-
       {/* Botones de acción */}
       {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (
         <div className={styles.createReservationButtonContainer}>
           <div className={styles.actionSecondaryGroup}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={styles.copyButton}
               onClick={handleCopyReservationData}
               title="Copiar datos de la consulta al portapapeles"
@@ -3954,44 +3987,41 @@ export default function Consulta() {
           </div>
 
           {formData.mainClient.firstName && formData.mainClient.lastName && (
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={styles.confirmButton}
-              onClick={() => setShowConfirmationModal(true)}
-              disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
+              onClick={() => handleCreateReservation(reservationStatus, promoApply)}
+              disabled={!canConfirmReservation || isCreatingReservation}
               title={
                 !segments.every((_, index) => selectedRoomsPerBlock[index])
                   ? 'Seleccioná una habitación para cada segmento'
                   : (editingReservationId ? 'Modificar la reserva' : 'Crear la reserva')
               }
             >
-              {editingReservationId ? 'Modificar reserva' : 'Crear reserva'}
+              {isCreatingReservation
+                ? (editingReservationId ? 'Modificando…' : 'Creando…')
+                : (editingReservationId ? 'Modificar reserva' : 'Crear reserva')}
             </button>
           )}
         </div>
       )}
+        </div>
 
-      {/* Modal de confirmación de reserva */}
-      <ReservationConfirmationModal
-        isOpen={showConfirmationModal}
-        onClose={() => setShowConfirmationModal(false)}
-        onConfirm={handleCreateReservation}
-        isEditing={Boolean(editingReservationId)}
-        source={source}
-        onSourceChange={setSource}
-        reservationData={{
-          mainClient: formData.mainClient,
-          selectedRoomsPerBlock: selectedRoomsPerBlock,
-          selectedRoom: selectedRoomsPerBlock[activeBlockIndex],
-          segments: segments,
-          dailyRates: dailyRates,
-          tags: tags,
-          allRooms: allRooms,
-          notes: notes,
-          source: source || null
-        }}
-        isLoading={isCreatingReservation}
-      />
+        <div className={styles.colBalance}>
+          <ConsultaBalancePanel
+            segments={segments}
+            selectedRoomsPerBlock={selectedRoomsPerBlock}
+            notes={notes}
+            source={source}
+            onSourceChange={setSource}
+            reservationStatus={reservationStatus}
+            onStatusChange={setReservationStatus}
+            onPromoApplyChange={handlePromoApplyChange}
+            isEditing={Boolean(editingReservationId)}
+            disabled={isCreatingReservation}
+          />
+        </div>
+      </div>
 
       {/* Modal de advertencia de fecha pasada */}
       {showPastDateWarning && (

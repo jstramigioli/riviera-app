@@ -93,16 +93,16 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 - **Inputs / selects:** alto ~36px, borde `#d8dde6`, focus ring navy 3px / 20% opacidad (nunca azul Bootstrap).
 - **Tabs de tramo:** underline navy en activo; inactivos muted; sin cards por tab.
 - **Lista de habitaciones:** fila seleccionable; selección = fondo `primary-light` + borde navy (no Material blue).
-- **Modal de confirmación de reserva:** header navy plano; timeline de estadía **sin monto** (tarifa solo al pie); sección Tarifa al final (subtotal, promos RATE si hay, total + desglose por noche); sin texto vacío si no hay promos; **Reservado por** y **Estado inicial** editables; sin gestión de huéspedes. Acciones alineadas al vocabulario de botones.
+- **Lista de habitaciones (Consulta):** fila horizontal con nombre · tipo · descripción; sin badge de capacidad. Si hay promo automática: tarifa tachada + tarifa final + nombre de la promo. El desglose por noche vive en el panel derecho (no expandir en la card).
+- **Panel de balance (columna derecha):** tarifas (subtotal, promos RATE, total, desglose por noche), **Reservado por** y **Estado inicial**; sin modal de confirmación.
 
 ## Layout & spacing
 
-Flujo consulta/reserva: **título de página → cliente → tramos (tabs) → fechas/servicio → habitaciones → barra de acciones → modal confirmar**.
+Flujo consulta/reserva en **tres columnas** (apiladas en estrecho): **izquierda** timeline de estadía (sin título «síntesis», sin monto); **centro** formulario (cliente → tramos → fechas/servicio → habitaciones → acciones); **derecha** balance económico (tarifas/promos + datos de confirmación). Confirmar/crear reserva desde la misma pantalla.
 
-- Un panel principal; divisores internos en lugar de cards anidadas.
-- Título de página fuera del panel; sin lead bajo el título.
-- Cabecera consulta/reserva: una franja densa (cliente, huéspedes, camas, notas) sin sección “Cliente” decorativa; el medio (**Reservado por**) se elige en el modal de confirmación al crear/modificar reserva.
-- Barra de acciones al final del flujo (primario a la derecha).
+- Título de página fuera del grid; sin lead bajo el título.
+- Cabecera densa en el centro (cliente, huéspedes, camas, notas).
+- Barra de acciones al pie del flujo central (primario a la derecha).
 - Densidad de recepción: ritmo 4/8/12; menos padding ornamental, más contraste tipográfico por rol.
 
 ## Do's and Don'ts
