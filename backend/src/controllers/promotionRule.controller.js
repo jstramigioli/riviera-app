@@ -322,7 +322,8 @@ exports.previewPromotion = async (req, res) => {
       dineroARS: body.dineroARS,
       saldoPendiente: body.saldoPendiente,
       mode: body.mode || 'received',
-      nightPrice: body.nightPrice
+      nightPrice: body.nightPrice,
+      nightPrices: Array.isArray(body.nightPrices) ? body.nightPrices : undefined
     };
 
     if (layer === 'RATE') {

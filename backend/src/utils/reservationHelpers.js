@@ -20,6 +20,7 @@ const {
 const {
   loadActivePromotionRules,
   evaluateRateRules,
+  evaluateFreeNightsForStay,
   computeHotelOccupancyPercent
 } = require('./promotionEngine');
 
@@ -128,30 +129,80 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
       }
     }
 
+    // Primera pasada: precios originales por noche (FREE_NIGHTS necesita la estadía completa).
+    const nightPlans = [];
     for (let i = 0; i < days; i++) {
       const currentDate = dateOnlyUTC(startIso);
       currentDate.setUTCDate(currentDate.getUTCDate() + i);
       const dateKey = toDateOnlyString(currentDate);
-
       const quoted = quotedNightRates.find((nr) => {
         const nrDate = toDateOnlyString(nr.date || nr.dateString);
         return nrDate === dateKey;
       });
-
-      // Tarifa original de la reserva (siempre vs cotización/baseRate, no vs override)
       const originalAmount = quoted
         ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
         : parseFloat(segment.baseRate);
-
       const preserved = overrideByDate.get(dateKey);
-      const hasOverride = Boolean(preserved);
+      nightPlans.push({
+        index: i,
+        currentDate,
+        dateKey,
+        quoted,
+        originalAmount,
+        preserved,
+        hasOverride: Boolean(preserved)
+      });
+    }
+
+    let freeByIndex = {};
+    const billablePlans = nightPlans.filter((n) => !n.hasOverride);
+    if (rateRules.length && billablePlans.length) {
+      let occupancyPercent = null;
+      try {
+        const hotelIdForOcc = await resolveHotelId(serviceTypeId);
+        occupancyPercent = await computeHotelOccupancyPercent(prisma, {
+          hotelId: hotelIdForOcc,
+          date: dateOnlyUTC(startIso)
+        });
+      } catch {
+        occupancyPercent = null;
+      }
+      const freeEval = evaluateFreeNightsForStay(
+        rateRules,
+        {
+          layer: 'RATE',
+          asOfDate: dateOnlyUTC(startIso),
+          checkIn: startIso,
+          checkOut: endIso,
+          nights: days,
+          roomTypeId,
+          serviceTypeId,
+          occupancyPercent,
+          selectedRuleIds: []
+        },
+        billablePlans.map((n) => n.originalAmount)
+      );
+      for (const [localIdx, detail] of Object.entries(freeEval.byIndex || {})) {
+        const plan = billablePlans[Number(localIdx)];
+        if (plan) freeByIndex[plan.index] = detail;
+      }
+    }
+
+    for (const plan of nightPlans) {
+      const { currentDate, quoted, originalAmount, preserved, hasOverride, index } = plan;
 
       let promoDiscount = 0;
       let promoRuleId = null;
       let promoPercent = null;
       let pricedAmount = originalAmount;
 
-      if (!hasOverride && rateRules.length) {
+      if (!hasOverride && freeByIndex[index]) {
+        const free = freeByIndex[index];
+        pricedAmount = 0;
+        promoDiscount = free.discountARS;
+        promoRuleId = free.promotionRuleId || null;
+        promoPercent = 100;
+      } else if (!hasOverride && rateRules.length) {
         let occupancyPercent = null;
         try {
           const hotelIdForOcc = await resolveHotelId(serviceTypeId);
@@ -193,7 +244,9 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
 
       const promoNote =
         promoDiscount > 0 && promoRuleId
-          ? ` | Promo#${promoRuleId} −$${promoDiscount}`
+          ? freeByIndex[index]
+            ? ` | Promo#${promoRuleId} noche sin cargo −$${promoDiscount}`
+            : ` | Promo#${promoRuleId} −$${promoDiscount}`
           : '';
 
       await prisma.cargo.create({
@@ -207,7 +260,7 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           manualOverride: hasOverride,
           notas:
             (preserved?.notas ||
-              `Noche ${i + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`) + promoNote,
+              `Noche ${index + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`) + promoNote,
           fecha: currentDate
         }
       });
