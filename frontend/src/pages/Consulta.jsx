@@ -4,7 +4,6 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchRoomTypes, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
-import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
@@ -3266,27 +3265,6 @@ export default function Consulta() {
     </div>
   );
 
-  const sourceField = (
-    <div className={styles.sourceFieldContainer}>
-      <div className={styles.formGroup}>
-        <label htmlFor="consulta-source">Reservado por</label>
-        <select
-          id="consulta-source"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          aria-label="Reservado por"
-        >
-          <option value="">No especificado</option>
-          {RESERVATION_SOURCE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
-
   return (
     <div className={styles.newLayout}>
       <header className={styles.pageHeader}>
@@ -3384,7 +3362,6 @@ export default function Consulta() {
 
             {guestsSelect}
             {bedsField}
-            {sourceField}
           </div>
         )}
 
@@ -3432,7 +3409,6 @@ export default function Consulta() {
 
             {guestsSelect}
             {bedsField}
-            {sourceField}
 
             <div className={styles.notesFieldContainer}>
               <div className={styles.formGroup}>
@@ -3887,6 +3863,8 @@ export default function Consulta() {
         onClose={() => setShowConfirmationModal(false)}
         onConfirm={handleCreateReservation}
         isEditing={Boolean(editingReservationId)}
+        source={source}
+        onSourceChange={setSource}
         reservationData={{
           mainClient: formData.mainClient,
           selectedRoomsPerBlock: selectedRoomsPerBlock,

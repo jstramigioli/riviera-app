@@ -93,15 +93,15 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 - **Inputs / selects:** alto ~36px, borde `#d8dde6`, focus ring navy 3px / 20% opacidad (nunca azul Bootstrap).
 - **Tabs de tramo:** underline navy en activo; inactivos muted; sin cards por tab.
 - **Lista de habitaciones:** fila seleccionable; selección = fondo `primary-light` + borde navy (no Material blue).
-- **Modal de confirmación:** header navy plano, cuerpo denso, acciones alineadas al mismo vocabulario de botones.
+- **Modal de confirmación de reserva:** header navy plano; timeline de estadía; tarifa total con desglose por noche y promos RATE aplicadas/efecto; **Reservado por** (medio) y **Estado inicial** (Pendiente / Confirmada / Ingresada) editables en el modal; sin gestión de huéspedes en este paso. Acciones alineadas al vocabulario de botones.
 
 ## Layout & spacing
 
-Flujo consulta/reserva: **título de página → cliente → tramos (tabs) → fechas/servicio → habitaciones → barra de acciones**.
+Flujo consulta/reserva: **título de página → cliente → tramos (tabs) → fechas/servicio → habitaciones → barra de acciones → modal confirmar**.
 
 - Un panel principal; divisores internos en lugar de cards anidadas.
 - Título de página fuera del panel; sin lead bajo el título.
-- Cabecera consulta/reserva: una franja densa (cliente, huéspedes, camas, origen, notas) sin sección “Cliente” decorativa.
+- Cabecera consulta/reserva: una franja densa (cliente, huéspedes, camas, notas) sin sección “Cliente” decorativa; el medio (**Reservado por**) se elige en el modal de confirmación al crear/modificar reserva.
 - Barra de acciones al final del flujo (primario a la derecha).
 - Densidad de recepción: ritmo 4/8/12; menos padding ornamental, más contraste tipográfico por rol.
 
