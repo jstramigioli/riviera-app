@@ -173,7 +173,7 @@ function PromocionesTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState('PROMO');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
@@ -186,10 +186,16 @@ function PromocionesTab() {
   }, [methods]);
 
   const visibleRows = useMemo(() => {
-    if (filter === 'ACTIVE') return rows.filter((r) => r.activo);
-    if (filter === 'INACTIVE') return rows.filter((r) => !r.activo);
-    return rows;
+    return rows.filter((r) => (r.kind || 'DESCUENTO') === filter);
   }, [rows, filter]);
+
+  const filterCount = useMemo(
+    () => ({
+      PROMO: rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO').length,
+      DESCUENTO: rows.filter((r) => (r.kind || 'DESCUENTO') === 'DESCUENTO').length
+    }),
+    [rows]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -219,7 +225,7 @@ function PromocionesTab() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, conditions: [] });
+    setForm({ ...EMPTY_FORM, kind: filter, conditions: [] });
     setShowForm(true);
     setMessage(null);
     setError(null);
@@ -318,6 +324,7 @@ function PromocionesTab() {
         await createPromotionRule(payload);
         setMessage(`Creada: ${payload.label}`);
       }
+      setFilter(payload.kind === 'PROMO' ? 'PROMO' : 'DESCUENTO');
       closeForm();
       await load();
     } catch (err) {
@@ -447,9 +454,9 @@ function PromocionesTab() {
 
       <div className={styles.toolbar}>
         <div>
-          <h2 className={styles.title}>Promociones</h2>
+          <h2 className={styles.title}>Promociones y descuentos</h2>
           <p className={styles.hint}>
-            Descuentos y promos con condiciones. La vigencia se define con condiciones de fechas.
+            Reglas con condiciones. La vigencia se define con condiciones de fechas.
           </p>
         </div>
         <button type="button" className={styles.primaryBtn} onClick={openCreate}>
@@ -462,11 +469,10 @@ function PromocionesTab() {
       {message && <p className={styles.ok}>{message}</p>}
 
       <div className={styles.filters}>
-        <div className={styles.tabs} role="tablist" aria-label="Estado">
+        <div className={styles.tabs} role="tablist" aria-label="Tipo">
           {[
-            { id: 'ALL', label: 'Todas' },
-            { id: 'ACTIVE', label: 'Activas' },
-            { id: 'INACTIVE', label: 'Inactivas' }
+            { id: 'PROMO', label: 'Promociones' },
+            { id: 'DESCUENTO', label: 'Descuentos' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -480,27 +486,23 @@ function PromocionesTab() {
             </button>
           ))}
         </div>
-        <span className={styles.count}>
-          {visibleRows.length} de {rows.length}
-        </span>
+        <span className={styles.count}>{filterCount[filter] ?? 0}</span>
       </div>
 
       {visibleRows.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>
-            {rows.length === 0 ? 'Todavía no hay reglas' : 'Nada en este filtro'}
+            {filter === 'PROMO' ? 'No hay promociones' : 'No hay descuentos'}
           </p>
           <p className={styles.emptyBody}>
-            {rows.length === 0
-              ? 'Creá la primera promoción o descuento.'
-              : 'Probá con Todas o Activas.'}
+            {filter === 'PROMO'
+              ? 'Creá la primera promoción para esta sección.'
+              : 'Creá el primer descuento para esta sección.'}
           </p>
-          {rows.length === 0 && (
-            <button type="button" className={styles.primaryBtn} onClick={openCreate}>
-              <FiPlus aria-hidden="true" />
-              Nueva regla
-            </button>
-          )}
+          <button type="button" className={styles.primaryBtn} onClick={openCreate}>
+            <FiPlus aria-hidden="true" />
+            Nueva regla
+          </button>
         </div>
       ) : (
         <div className={styles.tableWrap}>

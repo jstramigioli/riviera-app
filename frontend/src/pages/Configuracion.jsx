@@ -24,7 +24,7 @@ const SETTINGS_TABS = [
 ];
 
 const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
-const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones' };
+const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones y descuentos' };
 const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
 
 function ConfiguracionView() {
