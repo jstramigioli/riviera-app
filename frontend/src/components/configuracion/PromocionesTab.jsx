@@ -39,7 +39,8 @@ const CONDITION_VARS = [
   { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
   { value: 'OCCUPANCY_HOTEL', label: '% de ocupación' },
   { value: 'DATE_RANGE', label: 'Fecha creación reserva' },
-  { value: 'STAY_DATE', label: 'Fecha estadía' }
+  { value: 'STAY_DATE', label: 'Fecha estadía' },
+  { value: 'DAYS_OF_WEEK', label: 'Días de la semana' }
 ];
 
 const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
@@ -47,7 +48,6 @@ CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = '% de ocupación';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = '% de ocupación';
-CONDITION_TYPE_LABEL.DAYS_OF_WEEK = 'Fecha estadía';
 
 /** Operadores en palabras (nunca símbolos). */
 const OP_NUMERIC = [
@@ -68,8 +68,12 @@ const OP_EQUALITY = [
   { value: 'eq', label: 'igual a' },
   { value: 'neq', label: 'distinto de' }
 ];
-const OP_STAY = [
+const OP_STAY_DATE = [
   { value: 'between', label: 'entre' },
+  { value: 'includes', label: 'incluye' },
+  { value: 'excludes', label: 'no incluye' }
+];
+const OP_WEEKDAY = [
   { value: 'includes', label: 'incluye' },
   { value: 'excludes', label: 'no incluye' }
 ];
@@ -110,8 +114,8 @@ function slugCodeFromLabel(label) {
 function defaultOpForType(type) {
   if (type === 'NIGHTS') return 'gte';
   if (type === 'OCCUPANCY_HOTEL') return 'lte';
-  if (type === 'DATE_RANGE') return 'between';
-  if (type === 'STAY_DATE' || type === 'DAYS_OF_WEEK') return 'between';
+  if (type === 'DATE_RANGE' || type === 'STAY_DATE') return 'between';
+  if (type === 'DAYS_OF_WEEK') return 'includes';
   return 'eq';
 }
 
@@ -126,6 +130,7 @@ function emptyCondition(type = 'PAYMENT_METHOD') {
     percent: '',
     from: '',
     to: '',
+    date: '',
     days: []
   };
 }
@@ -237,18 +242,37 @@ function conditionFromApi(c) {
       };
     case 'STAY_DATE': {
       const stayOp = normalizeOp(p.op, 'between');
+      const legacyDays = Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : [];
+      const pointDate = String(p.date || p.fecha || p.day || '').slice(0, 10);
+      // Compat legacy: incluye/excludes con weekdays → UI Días de la semana
+      if ((stayOp === 'includes' || stayOp === 'excludes') && legacyDays.length && !pointDate) {
+        return {
+          ...emptyCondition('DAYS_OF_WEEK'),
+          op: stayOp,
+          days: legacyDays
+        };
+      }
+      if (stayOp === 'includes' || stayOp === 'excludes') {
+        const date =
+          pointDate ||
+          String(p.from || p.desde || '').slice(0, 10) ||
+          (Array.isArray(p.dates) && p.dates[0] ? String(p.dates[0]).slice(0, 10) : '');
+        return {
+          ...emptyCondition('STAY_DATE'),
+          op: stayOp,
+          date
+        };
+      }
       return {
         ...emptyCondition('STAY_DATE'),
-        op: stayOp,
+        op: 'between',
         from: String(p.from || p.desde || '').slice(0, 10),
-        to: String(p.to || p.hasta || '').slice(0, 10),
-        days: Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : []
+        to: String(p.to || p.hasta || '').slice(0, 10)
       };
     }
     case 'DAYS_OF_WEEK':
-      // Compat API → UI Fecha estadía (incluye / no incluye)
       return {
-        ...emptyCondition('STAY_DATE'),
+        ...emptyCondition('DAYS_OF_WEEK'),
         op: normalizeOp(p.op, 'includes'),
         days: Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : []
       };
@@ -294,9 +318,15 @@ function paramsFromCondition(c) {
         if (!c.from && !c.to) throw new Error('Indicá el rango de fechas de estadía');
         return { op: 'between', from: c.from || null, to: c.to || null };
       }
+      const date = String(c.date || '').slice(0, 10);
+      if (!date) throw new Error('Indicá la fecha de estadía');
+      return { op: stayOp === 'excludes' ? 'excludes' : 'includes', date };
+    }
+    case 'DAYS_OF_WEEK': {
       const days = Array.isArray(c.days) ? c.days.map(Number) : [];
       if (!days.length) throw new Error('Elegí al menos un día');
-      return { op: stayOp, days };
+      const weekOp = normalizeOp(c.op, 'includes');
+      return { op: weekOp === 'excludes' ? 'excludes' : 'includes', days };
     }
     default:
       throw new Error(`Condición no soportada: ${CONDITION_TYPE_LABEL[c.type] || c.type}`);
@@ -333,10 +363,12 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
       return `${op} ${ui.nights} noches`;
     case 'DATE_RANGE':
       return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
-    case 'STAY_DATE': {
+    case 'STAY_DATE':
       if (ui.op === 'between') {
         return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
       }
+      return `${op} ${ui.date || '—'}`;
+    case 'DAYS_OF_WEEK': {
       const set = new Set(ui.days);
       const labels = WEEKDAYS.filter((d) => set.has(d.value)).map((d) => d.label);
       return `${op} ${labels.length ? labels.join(' ') : '—'}`;
@@ -369,7 +401,8 @@ function operatorsForType(type) {
   if (type === 'OCCUPANCY_HOTEL') return OP_OCCUPANCY;
   if (type === 'NIGHTS') return OP_NUMERIC;
   if (type === 'DATE_RANGE') return [{ value: 'between', label: 'entre' }];
-  if (type === 'STAY_DATE') return OP_STAY;
+  if (type === 'STAY_DATE') return OP_STAY_DATE;
+  if (type === 'DAYS_OF_WEEK') return OP_WEEKDAY;
   return OP_EQUALITY;
 }
 
@@ -413,11 +446,16 @@ function validateConditionFields(c) {
         else if (c.from && c.to && c.from > c.to) {
           errors.value = 'La fecha desde no puede ser posterior a hasta';
         }
-      } else if (!Array.isArray(c.days) || c.days.length === 0) {
-        errors.value = 'Elegí al menos un día';
+      } else if (!String(c.date || '').trim()) {
+        errors.value = 'Indicá la fecha';
       }
       break;
     }
+    case 'DAYS_OF_WEEK':
+      if (!Array.isArray(c.days) || c.days.length === 0) {
+        errors.value = 'Elegí al menos un día';
+      }
+      break;
     default:
       break;
   }
@@ -771,8 +809,9 @@ function PromocionesTab() {
           const nextOp = e.target.value;
           const patch = { op: nextOp };
           if (c.type === 'STAY_DATE') {
-            if (nextOp === 'between') patch.days = [];
-            else {
+            if (nextOp === 'between') {
+              patch.date = '';
+            } else {
               patch.from = '';
               patch.to = '';
             }
@@ -945,10 +984,23 @@ function PromocionesTab() {
           );
         }
         return (
+          <input
+            type="date"
+            value={c.date || ''}
+            onChange={(e) => updateCondition(index, { date: e.target.value })}
+            onBlur={markCondTouched}
+            aria-label="Fecha de estadía"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={invalid ? condMsg : undefined}
+          />
+        );
+      case 'DAYS_OF_WEEK':
+        return (
           <div
             className={`${styles.dayToggles} ${invalid ? styles.fieldInvalidGroup : ''}`}
             role="group"
-            aria-label="Días de la semana de estadía"
+            aria-label="Días de la semana"
             aria-invalid={invalid || undefined}
             title={invalid ? condMsg : undefined}
             onBlur={(e) => {

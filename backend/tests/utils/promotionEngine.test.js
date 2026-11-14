@@ -140,32 +140,57 @@ describe('promotionEngine conditions AND', () => {
         { checkIn: '2026-12-20', checkOut: '2026-12-23' }
       )
     ).toBe(false);
-    // incluye / no incluye días de la semana (vie-sáb)
+    // STAY_DATE incluye / no incluye fecha puntual (ej. 24/12)
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', date: '2026-12-24' } },
+        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', date: '2026-12-24' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', date: '2026-12-24' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', date: '2026-12-24' } },
+        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
+      )
+    ).toBe(false);
+    // Compat legacy STAY_DATE + days → weekday match
     expect(
       evaluateCondition(
         { type: 'STAY_DATE', params: { op: 'includes', days: [5, 6] } },
-        { checkIn: '2026-11-13', checkOut: '2026-11-15' } // vie–sáb
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(true);
+    // DAYS_OF_WEEK incluye / no incluye (independiente de fechas)
     expect(
       evaluateCondition(
-        { type: 'STAY_DATE', params: { op: 'excludes', days: [0] } },
+        { type: 'DAYS_OF_WEEK', params: { op: 'includes', days: [5, 6] } },
         { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(true);
     expect(
       evaluateCondition(
-        { type: 'STAY_DATE', params: { op: 'excludes', days: [5] } },
+        { type: 'DAYS_OF_WEEK', params: { op: 'excludes', days: [0] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { op: 'excludes', days: [5] } },
         { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(false);
-    // Compat DAYS_OF_WEEK → noches de estadía
-    expect(
-      evaluateCondition(
-        { type: 'DAYS_OF_WEEK', params: { days: [5, 6] } },
-        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
-      )
-    ).toBe(true);
   });
 
   it('vigencia', () => {
