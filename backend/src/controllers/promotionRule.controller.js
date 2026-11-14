@@ -144,7 +144,12 @@ exports.createPromotionRule = async (req, res) => {
           body.benefitCapARS != null && body.benefitCapARS !== ''
             ? new Decimal(Number(body.benefitCapARS))
             : null,
-        notas: body.notas != null ? String(body.notas).trim() || null : null,
+        descripcionInterna:
+          body.descripcionInterna != null
+            ? String(body.descripcionInterna).trim() || null
+            : body.notas != null
+              ? String(body.notas).trim() || null
+              : null,
         conditions: {
           create: conditions.map((c) => ({
             type: c.type,
@@ -213,8 +218,15 @@ exports.updatePromotionRule = async (req, res) => {
           ? new Decimal(Number(body.benefitCapARS))
           : null;
     }
-    if (body.notas !== undefined) {
-      data.notas = body.notas != null ? String(body.notas).trim() || null : null;
+    if (body.descripcionInterna !== undefined) {
+      data.descripcionInterna =
+        body.descripcionInterna != null
+          ? String(body.descripcionInterna).trim() || null
+          : null;
+    } else if (body.notas !== undefined) {
+      // Compat temporal: clients antiguos enviaban `notas`.
+      data.descripcionInterna =
+        body.notas != null ? String(body.notas).trim() || null : null;
     }
 
     const updated = await prisma.$transaction(async (tx) => {
