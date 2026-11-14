@@ -330,9 +330,9 @@ function ConsultasReservasView() {
               )}
             </div>
 
-            {/* Cliente principal */}
+            {/* Responsable de la reserva */}
             <div style={{ marginBottom: 8 }}>
-              <b> Cliente principal:</b> {isEditing ? (
+              <b> Responsable de la reserva:</b> {isEditing ? (
                 <select
                   value={editData.mainClientId || selectedReservation.mainClientId}
                   onChange={e => handleEditChange('mainClientId', parseInt(e.target.value))}

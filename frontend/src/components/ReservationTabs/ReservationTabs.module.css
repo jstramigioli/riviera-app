@@ -1058,6 +1058,31 @@
   text-align: left;
 }
 
+.includeHolderButton {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.includeHolderButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.includeHolderButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .guestCard {
   background: white;
   padding: 20px;

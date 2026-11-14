@@ -76,7 +76,7 @@ const validateReservation = (req, res, next) => {
 
   // mainClientId es requerido solo en creación, no en actualización
   if (!isUpdate && !mainClientId) {
-    errors.push('El ID del cliente principal es requerido');
+    errors.push('El ID del responsable de la reserva es requerido');
   }
 
   if (errors.length > 0) {
@@ -117,7 +117,7 @@ const validateMultiSegmentReservation = (req, res, next) => {
 
   // Validar cliente principal
   if (!mainClientId) {
-    errors.push('El ID del cliente principal es requerido');
+    errors.push('El ID del responsable de la reserva es requerido');
   }
 
   // Validar segmentos

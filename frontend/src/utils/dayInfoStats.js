@@ -213,7 +213,7 @@ function reservationStayBounds(reservation, segments) {
   };
 }
 
-/** Nombre del cliente principal de una reserva (para listas del panel). */
+/** Nombre del responsable (titular) de una reserva (para listas del panel). */
 export function mainClientDisplayName(reservation) {
   const c = reservation?.mainClient;
   if (!c) return 'Sin nombre';

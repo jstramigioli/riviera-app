@@ -185,7 +185,7 @@ async function validateReservationCreation(reservationData) {
   
   // Validar campos obligatorios de la reserva
   if (!reservationData.mainClientId) {
-    errors.push('Debe especificar un cliente principal');
+    errors.push('Debe especificar un responsable de la reserva');
   }
   
   if (!reservationData.segments || reservationData.segments.length === 0) {
