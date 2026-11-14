@@ -14,7 +14,8 @@ const {
 const { resolvePaymentMethodConfig } = require('../utils/paymentMethodService');
 
 const CONDITION_TYPES = new Set([
-  'DATE_RANGE',
+  'DATE_RANGE', // fecha creación reserva
+  'STAY_DATE', // fecha estadía (entre / incluye / no incluye)
   'NIGHTS',
   'MIN_NIGHTS',
   'MAX_NIGHTS',
@@ -24,7 +25,7 @@ const CONDITION_TYPES = new Set([
   'OCCUPANCY_HOTEL',
   'OCCUPANCY_HOTEL_MAX',
   'OCCUPANCY_HOTEL_MIN',
-  'DAYS_OF_WEEK'
+  'DAYS_OF_WEEK' // compat → estadía días semana
 ]);
 
 function serializeRule(row) {
@@ -299,6 +300,8 @@ exports.previewPromotion = async (req, res) => {
     const ctx = {
       layer,
       asOfDate: body.asOfDate || new Date(),
+      reservationDate: body.reservationDate || body.createdAt || body.bookingCreatedAt,
+      createdAt: body.createdAt || body.reservationDate || body.bookingCreatedAt,
       checkIn: body.checkIn,
       checkOut: body.checkOut,
       nights: body.nights,

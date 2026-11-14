@@ -72,6 +72,7 @@ async function buildSettlementContext(db, {
   let serviceTypeId = null;
   let hotelId = null;
   let occupancyPercent = null;
+  let reservationDate = null;
 
   if (accountId) {
     const account = await db.account.findUnique({
@@ -88,16 +89,19 @@ async function buildSettlementContext(db, {
       }
     });
     const reservation = account?.reservation;
-    if (reservation?.segments?.length) {
-      const first = reservation.segments[0];
-      const last = reservation.segments[reservation.segments.length - 1];
-      checkIn = first.startDate;
-      checkOut = last.endDate;
-      nights = civilDaysBetween(checkIn, checkOut);
-      roomTypeId = first.roomTypeId || first.room?.roomTypeId || null;
-      serviceTypeId =
-        first.services && first.services.length ? first.services[0] : first.serviceTypeId || null;
-      hotelId = first.room?.hotelId || reservation.hotelId || null;
+    if (reservation) {
+      reservationDate = reservation.createdAt || null;
+      if (reservation.segments?.length) {
+        const first = reservation.segments[0];
+        const last = reservation.segments[reservation.segments.length - 1];
+        checkIn = first.startDate;
+        checkOut = last.endDate;
+        nights = civilDaysBetween(checkIn, checkOut);
+        roomTypeId = first.roomTypeId || first.room?.roomTypeId || null;
+        serviceTypeId =
+          first.services && first.services.length ? first.services[0] : first.serviceTypeId || null;
+        hotelId = first.room?.hotelId || reservation.hotelId || null;
+      }
     }
   }
 
@@ -119,6 +123,8 @@ async function buildSettlementContext(db, {
     paymentMethodConfigId: config?.id ?? null,
     paymentMethodCode: config?.code ?? null,
     nights,
+    reservationDate,
+    createdAt: reservationDate,
     checkIn,
     checkOut,
     roomTypeId,

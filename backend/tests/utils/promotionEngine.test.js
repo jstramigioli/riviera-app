@@ -74,29 +74,63 @@ describe('promotionEngine conditions AND', () => {
     ).toBe(true);
   });
 
-  it('OCCUPANCY_HOTEL ops + DAYS_OF_WEEK + DATE_RANGE reserva', () => {
+  it('OCCUPANCY_HOTEL ops + DATE_RANGE creación + STAY_DATE', () => {
     expect(
       evaluateCondition(
         { type: 'OCCUPANCY_HOTEL', params: { op: 'lte', percent: 40 } },
         { occupancyPercent: 35 }
       )
     ).toBe(true);
+    // Fecha creación reserva: no usa checkIn
     expect(
       evaluateCondition(
-        { type: 'DAYS_OF_WEEK', params: { days: [5, 6] } },
-        { checkIn: '2026-11-13' } // viernes UTC
+        { type: 'DATE_RANGE', params: { from: '2026-11-01', to: '2026-11-30' } },
+        { reservationDate: '2026-11-14', checkIn: '2026-12-20' }
       )
     ).toBe(true);
     expect(
       evaluateCondition(
-        { type: 'DAYS_OF_WEEK', params: { days: [1] } },
-        { checkIn: '2026-11-13' }
+        { type: 'DATE_RANGE', params: { from: '2026-11-01', to: '2026-11-30' } },
+        { checkIn: '2026-11-14' }
       )
     ).toBe(false);
+    // Estadía entre
     expect(
       evaluateCondition(
-        { type: 'DATE_RANGE', params: { from: '2026-11-01', to: '2026-11-30' } },
-        { reservationDate: '2026-11-14' }
+        { type: 'STAY_DATE', params: { op: 'between', from: '2026-12-01', to: '2026-12-31' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'between', from: '2026-12-01', to: '2026-12-10' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(false);
+    // incluye / no incluye días de la semana (vie-sáb)
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', days: [5, 6] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' } // vie–sáb
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', days: [0] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', days: [5] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
+      )
+    ).toBe(false);
+    // Compat DAYS_OF_WEEK → noches de estadía
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { days: [5, 6] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(true);
   });

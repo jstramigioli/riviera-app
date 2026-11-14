@@ -85,12 +85,12 @@ function resolveNights(ctx) {
   return civilDaysBetween(ctx.checkIn, ctx.checkOut);
 }
 
-function resolveConditionDay(ctx) {
+/** Fecha de creación de la reserva (no confundir con estadía). */
+function resolveBookingCreatedDay(ctx) {
   return (
     toDateOnlyString(ctx.reservationDate) ||
-    toDateOnlyString(ctx.checkIn) ||
-    toDateOnlyString(ctx.asOfDate) ||
-    toDateOnlyString(new Date())
+    toDateOnlyString(ctx.createdAt) ||
+    toDateOnlyString(ctx.bookingCreatedAt)
   );
 }
 
@@ -99,6 +99,70 @@ function weekdayFromDateOnly(day) {
   const t = Date.parse(`${day}T12:00:00.000Z`);
   if (!Number.isFinite(t)) return null;
   return new Date(t).getUTCDay(); // 0=Dom … 6=Sáb
+}
+
+/** Noches de estadía [checkIn, checkOut) como yyyy-MM-dd. */
+function stayNightDates(ctx) {
+  const start = toDateOnlyString(ctx.checkIn);
+  const end = toDateOnlyString(ctx.checkOut);
+  if (!start) return [];
+  if (!end || end <= start) return [start];
+  const nights = [];
+  let cursor = start;
+  while (cursor < end) {
+    nights.push(cursor);
+    const t = Date.parse(`${cursor}T12:00:00.000Z`) + 86400000;
+    cursor = new Date(t).toISOString().slice(0, 10);
+    if (nights.length > 366) break;
+  }
+  return nights;
+}
+
+function normalizeDateOp(op, fallback = 'between') {
+  const v = String(op || fallback).toLowerCase();
+  if (v === 'between' || v === 'entre') return 'between';
+  if (v === 'includes' || v === 'incluye' || v === 'include') return 'includes';
+  if (
+    v === 'excludes' ||
+    v === 'exclude' ||
+    v === 'not_includes' ||
+    v === 'not-includes' ||
+    v === 'no_incluye' ||
+    v === 'no-incluye' ||
+    v === 'no incluye'
+  ) {
+    return 'excludes';
+  }
+  return fallback;
+}
+
+function dayInRange(day, from, to) {
+  if (!day) return false;
+  const d = String(day).slice(0, 10);
+  if (from && d < String(from).slice(0, 10)) return false;
+  if (to && d > String(to).slice(0, 10)) return false;
+  return true;
+}
+
+/** Solape de estadía [checkIn, checkOut) con [from, to] inclusive. */
+function stayOverlapsRange(ctx, from, to) {
+  const nights = stayNightDates(ctx);
+  if (!nights.length) return false;
+  if (!from && !to) return true;
+  return nights.some((n) => dayInRange(n, from, to));
+}
+
+function stayWeekdays(ctx) {
+  return new Set(stayNightDates(ctx).map(weekdayFromDateOnly).filter((d) => d != null));
+}
+
+function matchStayWeekdays(ctx, days, op) {
+  const wanted = (days || []).map(Number);
+  if (!wanted.length) return true;
+  const present = stayWeekdays(ctx);
+  if (!present.size) return false;
+  const hits = wanted.some((d) => present.has(d));
+  return normalizeDateOp(op, 'includes') === 'excludes' ? !hits : hits;
 }
 
 function matchIdList(actual, ids, asNumber) {
@@ -112,17 +176,31 @@ function applyEqualityOp(matched, op) {
   return normalizeOp(op, 'eq') === 'neq' ? !matched : matched;
 }
 
+function evaluateStayDateCondition(params, ctx) {
+  const op = normalizeDateOp(params.op, 'between');
+  if (op === 'between') {
+    const from = params.from || params.desde || null;
+    const to = params.to || params.hasta || null;
+    return stayOverlapsRange(ctx, from, to);
+  }
+  // incluye / no incluye: días de la semana presentes en alguna noche de estadía
+  const days = params.days || params.weekdays || [];
+  return matchStayWeekdays(ctx, days, op);
+}
+
 function evaluateCondition(condition, ctx) {
   const params = parseParams(condition.params);
   switch (condition.type) {
     case 'DATE_RANGE': {
-      const day = resolveConditionDay(ctx);
+      // Fecha creación reserva (booking), no estadía
+      const day = resolveBookingCreatedDay(ctx);
       const from = params.from || params.desde || null;
       const to = params.to || params.hasta || null;
       if (!day) return false;
-      if (from && day < String(from).slice(0, 10)) return false;
-      if (to && day > String(to).slice(0, 10)) return false;
-      return true;
+      return dayInRange(day, from, to);
+    }
+    case 'STAY_DATE': {
+      return evaluateStayDateCondition(params, ctx);
     }
     case 'NIGHTS': {
       const nights = resolveNights(ctx);
@@ -181,11 +259,11 @@ function evaluateCondition(condition, ctx) {
       return Number(ctx.occupancyPercent) >= Number(params.minPercent ?? params.value ?? 0);
     }
     case 'DAYS_OF_WEEK': {
-      const days = (params.days || params.weekdays || []).map(Number);
-      if (!days.length) return true;
-      const weekday = weekdayFromDateOnly(resolveConditionDay(ctx));
-      if (weekday == null) return false;
-      return days.includes(weekday);
+      // Compat: días de la semana sobre noches de estadía (incluye / no incluye)
+      return evaluateStayDateCondition(
+        { ...params, op: params.op || 'includes' },
+        ctx
+      );
     }
     default:
       return false;
@@ -621,6 +699,7 @@ module.exports = {
   civilDaysBetween,
   parseParams,
   isRuleVigente,
+  stayNightDates,
   evaluateCondition,
   ruleMatchesConditions,
   modalityAllowsApply,
