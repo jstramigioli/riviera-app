@@ -330,6 +330,12 @@ exports.previewPromotion = async (req, res) => {
       paymentMethodCode: methodConfig?.code,
       occupancyPercent,
       selectedRuleIds: body.selectedRuleIds || [],
+      deselectedRuleIds: Array.isArray(body.deselectedRuleIds) ? body.deselectedRuleIds : [],
+      // RATE cotización: SUGERIDA aplica por defecto (p.ej. Promo 4x3). SETTLEMENT: solo si se pide.
+      applySuggestedDefaults:
+        body.applySuggestedDefaults != null
+          ? Boolean(body.applySuggestedDefaults)
+          : layer === 'RATE',
       benefitValueByRuleId:
         body.benefitValueByRuleId && typeof body.benefitValueByRuleId === 'object'
           ? body.benefitValueByRuleId

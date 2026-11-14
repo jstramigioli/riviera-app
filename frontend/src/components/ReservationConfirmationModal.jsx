@@ -123,7 +123,8 @@ const ReservationConfirmationModal = ({
                 serviceTypeId: seg.serviceTypeId,
                 nightPrices: seg.nightPrices,
                 hotelId: 'default-hotel',
-                selectedRuleIds: []
+                selectedRuleIds: [],
+                applySuggestedDefaults: true
               });
               const nights = mergeNightsWithPreview(seg.nights, preview);
               const promos = flattenPreviewAppliedRules(preview);
@@ -248,103 +249,9 @@ const ReservationConfirmationModal = ({
             onClientClick={handleClientClick}
             orientation="vertical"
             compact
+            hideTotal
             formatCurrency={formatConfirmationMoney}
           />
-
-          <section className={styles.quoteSection} aria-labelledby="quote-heading">
-            <h3 id="quote-heading" className={styles.sectionHeading}>
-              Tarifa
-            </h3>
-
-            <div className={styles.quoteRows}>
-              <div className={styles.quoteRow}>
-                <span className={styles.quoteLabel}>Subtotal</span>
-                <span className={styles.quoteValue}>
-                  {formatConfirmationMoney(quote.subtotalARS)}
-                </span>
-              </div>
-
-              {promoLoading ? (
-                <div className={styles.quoteHint}>Calculando promociones…</div>
-              ) : null}
-
-              {promoError ? <div className={styles.quoteWarn}>{promoError}</div> : null}
-
-              {quote.hasPromos ? (
-                <div className={styles.promoList} data-testid="confirmation-promos">
-                  {quote.promos.map((promo) => (
-                    <div
-                      key={promo.promotionRuleId || promo.code}
-                      className={styles.promoRow}
-                    >
-                      <span className={styles.quoteLabel}>
-                        {promo.label}
-                        {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
-                        {promo.freeNightCount
-                          ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
-                          : ''}
-                      </span>
-                      <span className={styles.promoValue}>
-                        −{formatConfirmationMoney(promo.montoARS)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                !promoLoading && (
-                  <div className={styles.quoteHint}>Sin promociones RATE aplicadas</div>
-                )
-              )}
-
-              <div className={`${styles.quoteRow} ${styles.quoteTotal}`}>
-                <span className={styles.quoteLabel}>Total</span>
-                <span className={styles.quoteValue} data-testid="confirmation-total">
-                  {formatConfirmationMoney(quote.totalARS)}
-                </span>
-              </div>
-            </div>
-
-            {quote.nights.length > 0 ? (
-              <div className={styles.breakdownBlock}>
-                <button
-                  type="button"
-                  className={styles.breakdownToggle}
-                  onClick={() => setShowNightBreakdown((v) => !v)}
-                  aria-expanded={showNightBreakdown}
-                >
-                  {showNightBreakdown ? 'Ocultar desglose por noche' : 'Ver desglose por noche'}
-                </button>
-                {showNightBreakdown ? (
-                  <table className={styles.breakdownTable} data-testid="confirmation-night-breakdown">
-                    <thead>
-                      <tr>
-                        <th scope="col">Noche</th>
-                        <th scope="col">Tarifa</th>
-                        <th scope="col">Promo</th>
-                        <th scope="col">Final</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {quote.nights.map((night) => (
-                        <tr key={`${night.date}-${night.nightIndex}`}>
-                          <td>{night.dateLabel}</td>
-                          <td>{formatConfirmationMoney(night.originalARS)}</td>
-                          <td>
-                            {night.discountARS > 0
-                              ? `−${formatConfirmationMoney(night.discountARS)}`
-                              : '—'}
-                          </td>
-                          <td>{formatConfirmationMoney(night.finalARS ?? night.originalARS)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : null}
-              </div>
-            ) : (
-              <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
-            )}
-          </section>
 
           <section className={styles.metaSection} aria-labelledby="meta-heading">
             <h3 id="meta-heading" className={styles.sectionHeading}>
@@ -395,6 +302,97 @@ const ReservationConfirmationModal = ({
                 ))}
               </select>
             </div>
+          </section>
+
+          <section className={styles.quoteSection} aria-labelledby="quote-heading">
+            <h3 id="quote-heading" className={styles.sectionHeading}>
+              Tarifa
+            </h3>
+
+            <div className={styles.quoteRows}>
+              <div className={styles.quoteRow}>
+                <span className={styles.quoteLabel}>Subtotal</span>
+                <span className={styles.quoteValue}>
+                  {formatConfirmationMoney(quote.subtotalARS)}
+                </span>
+              </div>
+
+              {promoLoading ? (
+                <div className={styles.quoteHint}>Calculando promociones…</div>
+              ) : null}
+
+              {promoError ? <div className={styles.quoteWarn}>{promoError}</div> : null}
+
+              {quote.hasPromos ? (
+                <div className={styles.promoList} data-testid="confirmation-promos">
+                  {quote.promos.map((promo) => (
+                    <div
+                      key={promo.promotionRuleId || promo.code}
+                      className={styles.promoRow}
+                    >
+                      <span className={styles.quoteLabel}>
+                        {promo.label}
+                        {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                        {promo.freeNightCount
+                          ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
+                          : ''}
+                      </span>
+                      <span className={styles.promoValue}>
+                        −{formatConfirmationMoney(promo.montoARS)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className={`${styles.quoteRow} ${styles.quoteTotal}`}>
+                <span className={styles.quoteLabel}>Total</span>
+                <span className={styles.quoteValue} data-testid="confirmation-total">
+                  {formatConfirmationMoney(quote.totalARS)}
+                </span>
+              </div>
+            </div>
+
+            {quote.nights.length > 0 ? (
+              <div className={styles.breakdownBlock}>
+                <button
+                  type="button"
+                  className={styles.breakdownToggle}
+                  onClick={() => setShowNightBreakdown((v) => !v)}
+                  aria-expanded={showNightBreakdown}
+                >
+                  {showNightBreakdown ? 'Ocultar desglose por noche' : 'Ver desglose por noche'}
+                </button>
+                {showNightBreakdown ? (
+                  <table className={styles.breakdownTable} data-testid="confirmation-night-breakdown">
+                    <thead>
+                      <tr>
+                        <th scope="col">Noche</th>
+                        <th scope="col">Tarifa</th>
+                        <th scope="col">Promo</th>
+                        <th scope="col">Final</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quote.nights.map((night) => (
+                        <tr key={`${night.date}-${night.nightIndex}`}>
+                          <td>{night.dateLabel}</td>
+                          <td>{formatConfirmationMoney(night.originalARS)}</td>
+                          <td>
+                            {night.discountARS > 0
+                              ? `−${formatConfirmationMoney(night.discountARS)}`
+                              : '—'}
+                          </td>
+                          <td>{formatConfirmationMoney(night.finalARS ?? night.originalARS)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </div>
+            ) : (
+              <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
+            )}
           </section>
         </div>
 

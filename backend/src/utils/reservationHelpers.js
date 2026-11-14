@@ -179,7 +179,8 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           roomTypeId,
           serviceTypeId,
           occupancyPercent,
-          selectedRuleIds: []
+          selectedRuleIds: [],
+          applySuggestedDefaults: true
         },
         billablePlans.map((n) => n.originalAmount)
       );
@@ -224,7 +225,9 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           serviceTypeId,
           nightPrice: originalAmount,
           occupancyPercent,
-          selectedRuleIds: [] // AUTO only at sync; manual (default on/off) vía API cotización
+          selectedRuleIds: [],
+          // AUTO + SUGERIDA (default ON). MANUAL sigue requiriendo selectedRuleIds.
+          applySuggestedDefaults: true
         });
         if (rateEval.aplica) {
           pricedAmount = rateEval.finalARS;

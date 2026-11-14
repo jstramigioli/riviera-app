@@ -93,7 +93,7 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 - **Inputs / selects:** alto ~36px, borde `#d8dde6`, focus ring navy 3px / 20% opacidad (nunca azul Bootstrap).
 - **Tabs de tramo:** underline navy en activo; inactivos muted; sin cards por tab.
 - **Lista de habitaciones:** fila seleccionable; selección = fondo `primary-light` + borde navy (no Material blue).
-- **Modal de confirmación de reserva:** header navy plano; timeline de estadía; tarifa total con desglose por noche y promos RATE aplicadas/efecto; **Reservado por** (medio) y **Estado inicial** (Pendiente / Confirmada / Ingresada) editables en el modal; sin gestión de huéspedes en este paso. Acciones alineadas al vocabulario de botones.
+- **Modal de confirmación de reserva:** header navy plano; timeline de estadía **sin monto** (tarifa solo al pie); sección Tarifa al final (subtotal, promos RATE si hay, total + desglose por noche); sin texto vacío si no hay promos; **Reservado por** y **Estado inicial** editables; sin gestión de huéspedes. Acciones alineadas al vocabulario de botones.
 
 ## Layout & spacing
 

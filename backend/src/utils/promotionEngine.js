@@ -330,8 +330,16 @@ function ruleMatchesConditions(rule, ctx) {
 function modalityAllowsApply(rule, ctx) {
   const modality = rule.modality || 'AUTO';
   if (modality === 'AUTO') return true;
+  const id = Number(rule.id);
   const selected = new Set((ctx.selectedRuleIds || []).map(Number));
-  return selected.has(Number(rule.id));
+  if (selected.has(id)) return true;
+  // SUGERIDA = default ON cuando el caller pide aplicar sugeridas (cotización RATE / sync).
+  // deselectedRuleIds permite apagar una sugerida sin listar el resto.
+  if (modality === 'SUGERIDA' && ctx.applySuggestedDefaults) {
+    const deselected = new Set((ctx.deselectedRuleIds || []).map(Number));
+    return !deselected.has(id);
+  }
+  return false;
 }
 
 function modalityIsSuggestion(rule) {
