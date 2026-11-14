@@ -883,6 +883,32 @@ function evaluateRateRules(rules, ctx) {
     });
     const discountARS = roundMoney(perNight.reduce((s, n) => s + toNumber(n.discountARS), 0));
     const finalARS = roundMoney(perNight.reduce((s, n) => s + toNumber(n.finalARS), 0));
+    // appliedRules canónico a nivel stay: FREE_NIGHTS una sola vez (+ no-free agregadas).
+    // freeNights.appliedRules es el detalle FREE_NIGHTS; no debe sumarse otra vez en el cliente.
+    const nonFreeById = new Map();
+    for (const night of perNight) {
+      for (const rule of night.appliedRules || []) {
+        if (!rule) continue;
+        const id = rule.promotionRuleId ?? rule.id ?? rule.code;
+        if (id == null || freeEval.byIndex[night.nightIndex]) continue;
+        const prev = nonFreeById.get(id);
+        const monto = toNumber(rule.montoARS ?? rule.discountARS);
+        if (!prev) {
+          nonFreeById.set(id, {
+            promotionRuleId: rule.promotionRuleId ?? rule.id ?? null,
+            code: rule.code || null,
+            label: rule.label || rule.code || null,
+            benefitType: rule.benefitType || null,
+            benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
+            montoARS: monto,
+            porcentaje: rule.porcentaje ?? rule.percent ?? null
+          });
+        } else {
+          prev.montoARS = roundMoney(toNumber(prev.montoARS) + monto);
+        }
+      }
+    }
+    const appliedRules = [...(freeEval.appliedRules || []), ...nonFreeById.values()];
     return {
       aplica: discountARS > 0,
       originalARS: roundMoney(nightPrices.reduce((s, p) => s + toNumber(p), 0)),
@@ -892,7 +918,7 @@ function evaluateRateRules(rules, ctx) {
       freeNights: freeEval,
       selectedRules: freeEval.selectedRules,
       suggestions: freeEval.suggestions,
-      appliedRules: freeEval.appliedRules,
+      appliedRules,
       promotionRuleId: freeEval.promotionRuleId
     };
   }

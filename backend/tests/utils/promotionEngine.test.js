@@ -485,6 +485,11 @@ describe('promotionEngine rate + stacking', () => {
     });
     expect(on.aplica).toBe(true);
     expect(on.freeNights.freeNightCount).toBe(1);
+    expect(on.appliedRules).toHaveLength(1);
+    expect(on.appliedRules[0].freeNightCount).toBe(1);
+    expect(on.appliedRules[0].montoARS).toBe(40000);
+    expect(on.freeNights.appliedRules[0].freeNightCount).toBe(1);
+    expect(on.nights.filter((n) => n.freeNight)).toHaveLength(1);
     expect(on.nights[1].finalARS).toBe(0);
     expect(on.finalARS).toBe(50000 + 0 + 60000 + 45000);
 
