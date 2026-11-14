@@ -39,10 +39,6 @@ function Login() {
       <div className={styles.panel}>
         <div className={styles.brand}>
           <img src={logoHotel} alt="Hotel Riviera" className={styles.logo} />
-          <div>
-            <h1 className={styles.title}>Hotel Riviera</h1>
-            <p className={styles.subtitle}>Acceso al sistema de gestión</p>
-          </div>
         </div>
 
         <form className={styles.form} onSubmit={handleSubmit}>
