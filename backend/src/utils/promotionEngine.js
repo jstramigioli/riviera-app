@@ -599,14 +599,15 @@ function evaluateSettlementRules(rules, ctx) {
 }
 
 /**
- * FREE_NIGHTS: benefitValue = noches que paga (paga N queda N+1).
- * Cantidad de noches gratis = floor(totalNights / (N + 1)).
+ * FREE_NIGHTS: benefitValue = noches gratis (no se cobran).
+ * El mínimo de noches pagadas / estadía se define con la condición NIGHTS (AND normal).
+ * Cantidad aplicada = min(benefitValue, totalNights).
  */
 function computeFreeNightCount(rule, nights) {
-  const paga = Math.max(0, Math.floor(toNumber(rule.benefitValue)));
-  if (paga <= 0) return 0;
+  const free = Math.max(0, Math.floor(toNumber(rule.benefitValue)));
+  if (free <= 0) return 0;
   const total = Math.max(0, Math.floor(Number(nights) || 0));
-  return Math.floor(total / (paga + 1));
+  return Math.min(free, total);
 }
 
 /**
