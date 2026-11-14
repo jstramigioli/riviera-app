@@ -189,33 +189,35 @@ function applyEqualityOp(matched, op) {
   return normalizeOp(op, 'eq') === 'neq' ? !matched : matched;
 }
 
-/** Fechas puntuales para STAY_DATE incluye / no incluye (YYYY-MM-DD). */
-function resolveStayPointDates(params) {
-  const out = [];
-  const push = (v) => {
-    const d = toDateOnlyString(v);
-    if (d) out.push(d);
-  };
-  if (Array.isArray(params.dates)) params.dates.forEach(push);
-  else push(params.date || params.fecha || params.day);
-  // Un solo from sin to (o from===to) también cuenta como fecha puntual
-  if (!out.length) {
-    const from = params.from || params.desde || null;
-    const to = params.to || params.hasta || null;
-    if (from && (!to || String(from).slice(0, 10) === String(to).slice(0, 10))) {
-      push(from);
+/**
+ * Rango para STAY_DATE incluye / no incluye.
+ * Siempre from/to; mismo día = inicio=fin.
+ * Compat: `date` / `dates` legacy → rango (un día o min..max).
+ */
+function resolveStayIncludeRange(params) {
+  let from = toDateOnlyString(params.from || params.desde || null);
+  let to = toDateOnlyString(params.to || params.hasta || null);
+  if (!from && !to) {
+    const points = [];
+    if (Array.isArray(params.dates)) {
+      params.dates.forEach((v) => {
+        const d = toDateOnlyString(v);
+        if (d) points.push(d);
+      });
+    } else {
+      const d = toDateOnlyString(params.date || params.fecha || params.day);
+      if (d) points.push(d);
+    }
+    if (points.length) {
+      points.sort();
+      from = points[0];
+      to = points[points.length - 1];
     }
   }
-  return out;
-}
-
-function matchStayPointDates(ctx, dates, op) {
-  const wanted = (dates || []).map((d) => String(d).slice(0, 10)).filter(Boolean);
-  if (!wanted.length) return false;
-  const nights = new Set(stayNightDates(ctx));
-  if (!nights.size) return false;
-  const hits = wanted.some((d) => nights.has(d));
-  return normalizeDateOp(op, 'includes') === 'excludes' ? !hits : hits;
+  // Mismo día = inicio=fin cuando solo hay un extremo
+  if (from && !to) to = from;
+  if (!from && to) from = to;
+  return { from, to };
 }
 
 function evaluateStayDateCondition(params, ctx) {
@@ -225,9 +227,12 @@ function evaluateStayDateCondition(params, ctx) {
     const to = params.to || params.hasta || null;
     return stayOverlapsRange(ctx, from, to);
   }
-  // incluye / no incluye: fechas puntuales de estadía (ej. no incluye 2026-12-24)
-  const dates = resolveStayPointDates(params);
-  if (dates.length) return matchStayPointDates(ctx, dates, op);
+  // incluye / no incluye: siempre rango (mismo día = inicio=fin)
+  const { from, to } = resolveStayIncludeRange(params);
+  if (from || to) {
+    const hits = stayOverlapsRange(ctx, from, to);
+    return op === 'excludes' ? !hits : hits;
+  }
   // Compat legacy: STAY_DATE con days/weekdays → weekday match (ahora DAYS_OF_WEEK)
   const days = params.days || params.weekdays || [];
   if (days.length) return matchStayWeekdays(ctx, days, op);
