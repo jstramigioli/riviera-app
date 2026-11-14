@@ -230,6 +230,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     });
     expect(without.aplica).toBe(false);
     expect(without.suggestions.length).toBe(1);
+    expect(without.suggestions[0].defaultOn).toBe(false);
 
     const withSel = evaluateSettlementRules([manual], {
       layer: 'SETTLEMENT',
@@ -237,6 +238,30 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
       dineroARS: 45000,
       mode: 'received',
       selectedRuleIds: [2]
+    });
+    expect(withSel.aplica).toBe(true);
+    expect(withSel.descuentoARS).toBe(5000);
+  });
+
+  it('SUGERIDA = manual por defecto activado (defaultOn)', () => {
+    const sugerida = { ...efectivoRule, id: 3, modality: 'SUGERIDA', code: 'SUG_10' };
+    const without = evaluateSettlementRules([sugerida], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 45000,
+      mode: 'received',
+      selectedRuleIds: []
+    });
+    expect(without.aplica).toBe(false);
+    expect(without.suggestions.length).toBe(1);
+    expect(without.suggestions[0].defaultOn).toBe(true);
+
+    const withSel = evaluateSettlementRules([sugerida], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 45000,
+      mode: 'received',
+      selectedRuleIds: [3]
     });
     expect(withSel.aplica).toBe(true);
     expect(withSel.descuentoARS).toBe(5000);

@@ -286,6 +286,8 @@ enum PromotionKind {
 }
 
 /// Cómo se materializa la regla en operación.
+/// AUTO = automática; MANUAL = manual (por defecto desactivado);
+/// SUGERIDA = manual (por defecto activado).
 enum PromotionModality {
   AUTO
   MANUAL
