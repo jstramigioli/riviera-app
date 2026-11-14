@@ -1,26 +1,37 @@
 import React from 'react';
-import { normalizeBedPreference } from '../utils/bedConfig';
+import {
+  clampBedPreferenceToLimits,
+  normalizeBedPreference
+} from '../utils/bedConfig';
 import styles from './BedPreferenceFields.module.css';
 
 /**
  * Preferencia de camas para consulta/reserva.
  * Checkbox «Preferencia de camas»; Mat./Ind. solo si está tildado.
+ * Máximos Mat/Ind = max entre habitaciones con capacidad === huéspedes.
  */
 function BedPreferenceFields({
   value = {},
   onChange,
-  maxGuests = 8,
+  maxDoubleBeds = 0,
+  maxSingleBeds = 0,
   disabled = false
 }) {
   const pref = normalizeBedPreference(value);
   const enabled = !pref.bedPreferenceNone;
+  const maxDouble = Math.max(0, parseInt(maxDoubleBeds, 10) || 0);
+  const maxSingle = Math.max(0, parseInt(maxSingleBeds, 10) || 0);
 
   const emit = (patch) => {
-    const next = normalizeBedPreference({ ...pref, ...patch });
+    const next = clampBedPreferenceToLimits(
+      { ...pref, ...patch },
+      { maxDoubleBeds: maxDouble, maxSingleBeds: maxSingle }
+    );
     onChange(next);
   };
 
-  const maxBeds = Math.max(1, parseInt(maxGuests, 10) || 8);
+  const doubleValue = Math.min(pref.preferredDoubleBeds, maxDouble);
+  const singleValue = Math.min(pref.preferredSingleBeds, maxSingle);
 
   return (
     <div className={styles.root}>
@@ -55,7 +66,7 @@ function BedPreferenceFields({
             <label htmlFor="bed-pref-double">Mat.</label>
             <select
               id="bed-pref-double"
-              value={pref.preferredDoubleBeds}
+              value={doubleValue}
               disabled={disabled}
               aria-label="Camas matrimoniales"
               onChange={(e) => emit({
@@ -63,7 +74,7 @@ function BedPreferenceFields({
                 preferredDoubleBeds: parseInt(e.target.value, 10) || 0
               })}
             >
-              {Array.from({ length: maxBeds + 1 }, (_, i) => (
+              {Array.from({ length: maxDouble + 1 }, (_, i) => (
                 <option key={`d-${i}`} value={i}>{i}</option>
               ))}
             </select>
@@ -72,7 +83,7 @@ function BedPreferenceFields({
             <label htmlFor="bed-pref-single">Ind.</label>
             <select
               id="bed-pref-single"
-              value={pref.preferredSingleBeds}
+              value={singleValue}
               disabled={disabled}
               aria-label="Camas individuales"
               onChange={(e) => emit({
@@ -80,7 +91,7 @@ function BedPreferenceFields({
                 preferredSingleBeds: parseInt(e.target.value, 10) || 0
               })}
             >
-              {Array.from({ length: maxBeds + 1 }, (_, i) => (
+              {Array.from({ length: maxSingle + 1 }, (_, i) => (
                 <option key={`s-${i}`} value={i}>{i}</option>
               ))}
             </select>

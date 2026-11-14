@@ -158,3 +158,59 @@ export function formatBedPreferenceSummary(pref = {}) {
   }
   return parts.length ? parts.join(' · ') : 'Sin preferencia';
 }
+
+/** Cuenta matrimoniales e individuales en una config de camas. */
+export function countBedsByType(beds = []) {
+  const list = Array.isArray(beds) ? beds : [];
+  let double = 0;
+  let single = 0;
+  for (const bed of list) {
+    const type = normalizeBedType(bed?.bedType);
+    if (type === BED_TYPE_DOUBLE) double += 1;
+    else if (type === BED_TYPE_SINGLE) single += 1;
+  }
+  return { double, single };
+}
+
+/**
+ * Máximos del select de preferencia Mat/Ind:
+ * max entre habitaciones con capacidad === huéspedes.
+ */
+export function maxBedPreferenceLimits(rooms = [], requiredGuests) {
+  const guests = Math.max(1, parseInt(requiredGuests, 10) || 1);
+  const list = Array.isArray(rooms) ? rooms : [];
+  const matching = list.filter((room) => {
+    const capacity = Number(room?.maxPeople ?? room?.roomType?.maxPeople) || 0;
+    return capacity === guests;
+  });
+
+  if (matching.length === 0) {
+    return { maxDoubleBeds: 0, maxSingleBeds: 0 };
+  }
+
+  let maxDoubleBeds = 0;
+  let maxSingleBeds = 0;
+  for (const room of matching) {
+    const counts = countBedsByType(room.beds);
+    if (counts.double > maxDoubleBeds) maxDoubleBeds = counts.double;
+    if (counts.single > maxSingleBeds) maxSingleBeds = counts.single;
+  }
+  return { maxDoubleBeds, maxSingleBeds };
+}
+
+/** Recorta preferencia si supera los máximos por capacidad. */
+export function clampBedPreferenceToLimits(pref = {}, limits = {}) {
+  const normalized = normalizeBedPreference(pref);
+  const maxDouble = Math.max(0, parseInt(limits.maxDoubleBeds, 10) || 0);
+  const maxSingle = Math.max(0, parseInt(limits.maxSingleBeds, 10) || 0);
+  const preferredDoubleBeds = Math.min(normalized.preferredDoubleBeds, maxDouble);
+  const preferredSingleBeds = Math.min(normalized.preferredSingleBeds, maxSingle);
+  if (normalized.bedPreferenceNone) {
+    return { bedPreferenceNone: true, preferredDoubleBeds: 0, preferredSingleBeds: 0 };
+  }
+  return {
+    bedPreferenceNone: false,
+    preferredDoubleBeds,
+    preferredSingleBeds
+  };
+}
