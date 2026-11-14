@@ -1,8 +1,8 @@
 .panel {
-  background: var(--color-bg-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
