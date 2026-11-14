@@ -3107,13 +3107,13 @@ export default function Consulta() {
 
   const pageLead = editingReservationId
     ? 'Revisá cliente, tramos y habitación antes de guardar los cambios.'
-    : 'Elegí cliente, fechas y habitación. Guardá la consulta o confirmá la reserva.';
+    : null;
 
   return (
     <div className={styles.newLayout}>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>{pageTitle}</h1>
-        <p className={styles.pageLead}>{pageLead}</p>
+        {pageLead ? <p className={styles.pageLead}>{pageLead}</p> : null}
       </header>
 
       {/* Contenedor unificado: Cliente + Pestañas */}
