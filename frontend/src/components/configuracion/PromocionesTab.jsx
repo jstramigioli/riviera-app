@@ -666,7 +666,8 @@ function PromocionesTab() {
       code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
       kind: form.kind,
-      activo: Boolean(form.activo),
+      // Alta siempre activa; activar/desactivar solo desde el listado.
+      activo: editingId ? Boolean(form.activo) : true,
       prioridad: 100,
       modality: form.modality,
       layer: isFreeNights ? 'RATE' : 'SETTLEMENT',
@@ -1266,25 +1267,8 @@ function PromocionesTab() {
               </div>
             </div>
 
-            <div className={styles.formFlags}>
-              <button
-                type="button"
-                className={styles.switchRow}
-                onClick={() => setField('activo', !form.activo)}
-                aria-pressed={form.activo}
-                aria-label={form.activo ? 'Marcar como inactiva' : 'Marcar como activa'}
-              >
-                <span
-                  className={`${styles.switch} ${form.activo ? styles.switchOn : ''}`}
-                  aria-hidden="true"
-                >
-                  <span className={styles.switchThumb} />
-                </span>
-                <span className={styles.switchLabel}>
-                  {form.activo ? 'Activa' : 'Inactiva'}
-                </span>
-              </button>
-              {form.kind === 'DESCUENTO' && (
+            {form.kind === 'DESCUENTO' && (
+              <div className={styles.formFlags}>
                 <label className={styles.check}>
                   <input
                     type="checkbox"
@@ -1293,8 +1277,8 @@ function PromocionesTab() {
                   />
                   Aplica en parcial
                 </label>
-              )}
-            </div>
+              </div>
+            )}
 
             <section className={styles.section}>
               <div className={styles.conditionsHeader}>
