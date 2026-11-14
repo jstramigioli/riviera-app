@@ -26,6 +26,10 @@ import {
 import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
 import { groupClientQueries } from '../utils/groupClientQueries';
 import {
+  filtersFromLoadedGuests,
+  guestSourceFromQuery
+} from '../utils/consultaHydrateFilters';
+import {
   roomCanSatisfyBedPreference,
   normalizeBedPreference,
   maxBedPreferenceLimits,
@@ -2255,9 +2259,23 @@ export default function Consulta() {
       }));
     }
 
+    // Sync guests → filtros (select huéspedes / tags / camas) al hidratar.
+    // Sin esto el UI queda en 1 mientras segmentos buscan habitaciones de N.
+    const filterSource = guestSourceFromQuery(query);
+    setRequirements(filtersFromLoadedGuests(filterSource));
+
     // Si es multi-segmento, cargar TODOS los segmentos
     if (query.isMultiSegment && query.segments && query.segments.length > 0) {
       console.log('📦 Cargando', query.segments.length, 'segmentos');
+
+      const firstSegment = query.segments[0];
+      if (firstSegment?.checkIn && firstSegment?.checkOut) {
+        setFormData((prev) => ({
+          ...prev,
+          checkIn: firstSegment.checkIn.split('T')[0],
+          checkOut: firstSegment.checkOut.split('T')[0]
+        }));
+      }
       
       setSegments(query.segments.map((seg, index) => ({
         id: seg.id || Date.now() + index,
@@ -2265,6 +2283,7 @@ export default function Consulta() {
         checkOut: seg.checkOut ? seg.checkOut.split('T')[0] : '',
         requiredGuests: seg.requiredGuests || 1,
         requiredTags: seg.requiredTags || [],
+        ...bedFieldsFrom(seg),
         requiredRoomId: seg.requiredRoomId || null,
         requirementsNotes: seg.requirementsNotes || '',
         serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -2292,14 +2311,6 @@ export default function Consulta() {
         }));
       }
 
-      // Cargar requisitos
-      setRequirements({
-        requiredGuests: query.requiredGuests || 1,
-        requiredTags: query.requiredTags || [],
-        requiredRoomId: query.requiredRoomId || null,
-        requirementsNotes: query.requirementsNotes || ''
-      });
-
       // Crear segmento único
       if (query.checkIn && query.checkOut) {
         setSegments([{
@@ -2308,6 +2319,7 @@ export default function Consulta() {
           checkOut: query.checkOut.split('T')[0],
           requiredGuests: query.requiredGuests || 1,
           requiredTags: query.requiredTags || [],
+          ...bedFieldsFrom(query),
           requiredRoomId: query.requiredRoomId || null,
           requirementsNotes: query.requirementsNotes || '',
           serviceType: query.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
