@@ -319,13 +319,17 @@ enum PromotionBenefitBase {
 
 enum PromotionConditionType {
   DATE_RANGE
+  STAY_DATE
+  NIGHTS
   MIN_NIGHTS
   MAX_NIGHTS
   ROOM_TYPE
   SERVICE_TYPE
   PAYMENT_METHOD
+  OCCUPANCY_HOTEL
   OCCUPANCY_HOTEL_MAX
   OCCUPANCY_HOTEL_MIN
+  DAYS_OF_WEEK
 }
 
 /// Catálogo administrable de medios de pago.
