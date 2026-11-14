@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiEdit2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2, FiX, FiCheck } from 'react-icons/fi';
 import {
   fetchPromotionRules,
   createPromotionRule,
   updatePromotionRule,
+  deletePromotionRule,
   fetchPaymentMethodConfigs,
   fetchRoomTypes,
   fetchServiceTypes
@@ -593,6 +594,25 @@ function PromocionesTab() {
     }
   };
 
+  const handleDelete = async (row) => {
+    const kindLabel = (row.kind || 'DESCUENTO') === 'PROMO' ? 'promoción' : 'descuento';
+    const ok = await confirm({
+      title: `Eliminar ${kindLabel}`,
+      message: `¿Eliminar “${row.label}”? Se quita de la lista y deja de aplicarse. Los descuentos ya aplicados en cuentas quedan registrados.`,
+      confirmText: 'Eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    setError(null);
+    try {
+      await deletePromotionRule(row.id);
+      if (editingId === row.id) closeForm();
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+    } catch (err) {
+      setError(err.message || 'Error al eliminar');
+    }
+  };
+
   const renderOperator = (c, index) => {
     const ops = operatorsForType(c.type);
     const locked = c.type === 'DATE_RANGE';
@@ -843,6 +863,15 @@ function PromocionesTab() {
                         aria-label={`Editar ${row.label}`}
                       >
                         <FiEdit2 aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.iconBtn} ${styles.iconDanger}`}
+                        onClick={() => handleDelete(row)}
+                        title="Eliminar"
+                        aria-label={`Eliminar ${row.label}`}
+                      >
+                        <FiTrash2 aria-hidden="true" />
                       </button>
                     </div>
                   </td>

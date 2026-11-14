@@ -231,6 +231,11 @@
   color: var(--color-primary-dark);
 }
 
+.iconDanger:hover {
+  color: var(--color-danger, #e03131);
+  background: var(--color-danger-light, #fde8e8);
+}
+
 .switch {
   --switch-w: 1.75rem;
   --switch-h: 1rem;

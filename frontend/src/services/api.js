@@ -1020,7 +1020,7 @@ export async function deletePromotionRule(id) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error desactivando promoción');
+    throw new Error(error.error || 'Error eliminando promoción');
   }
   return res.json();
 }
