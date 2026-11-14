@@ -111,18 +111,27 @@ export function buildDraftReservationForTimeline({
 
 /**
  * Agrega appliedRules de una respuesta preview RATE (stay con nightPrices o noche suelta).
+ * Importante: en stay preview, `appliedRules` (top) suele espejar `freeNights.appliedRules`.
+ * No sumar ambas fuentes o FREE_NIGHTS con benefitValue=1 aparece como 2 noches gratis.
  */
 export function flattenPreviewAppliedRules(preview) {
   if (!preview) return [];
-  const fromTop = Array.isArray(preview.appliedRules) ? preview.appliedRules : [];
-  const fromNights = Array.isArray(preview.nights)
-    ? preview.nights.flatMap((n) => (Array.isArray(n.appliedRules) ? n.appliedRules : []))
-    : [];
   const fromFree = Array.isArray(preview.freeNights?.appliedRules)
     ? preview.freeNights.appliedRules
     : [];
+  const freeIds = new Set(
+    fromFree.map((r) => r?.promotionRuleId ?? r?.id ?? r?.code).filter((id) => id != null)
+  );
+  const fromTop = (Array.isArray(preview.appliedRules) ? preview.appliedRules : []).filter((r) => {
+    const id = r?.promotionRuleId ?? r?.id ?? r?.code;
+    // Ya contadas vía freeNights.appliedRules (espejo del motor stay).
+    return id == null || !freeIds.has(id);
+  });
+  const fromNights = Array.isArray(preview.nights)
+    ? preview.nights.flatMap((n) => (Array.isArray(n.appliedRules) ? n.appliedRules : []))
+    : [];
 
-  const merged = [...fromTop, ...fromFree, ...fromNights];
+  const merged = [...fromFree, ...fromTop, ...fromNights];
   const byId = new Map();
   for (const rule of merged) {
     if (!rule) continue;
@@ -130,6 +139,7 @@ export function flattenPreviewAppliedRules(preview) {
     if (id == null) continue;
     const prev = byId.get(id);
     const monto = money(rule.montoARS ?? rule.discountARS ?? 0);
+    const freeCount = Number(rule.freeNightCount || (rule.freeNight ? 1 : 0) || 0);
     if (!prev) {
       byId.set(id, {
         promotionRuleId: rule.promotionRuleId ?? rule.id ?? null,
@@ -138,12 +148,16 @@ export function flattenPreviewAppliedRules(preview) {
         montoARS: monto,
         porcentaje: rule.porcentaje ?? rule.percent ?? null,
         benefitType: rule.benefitType || null,
-        freeNightCount: rule.freeNightCount || (rule.freeNight ? 1 : 0) || 0
+        freeNightCount: freeCount
       });
+    } else if (freeCount > 0 && (prev.freeNightCount || 0) > 0) {
+      // Misma FREE_NIGHTS repetida por fuentes espejo: no acumular.
+      prev.montoARS = Math.max(prev.montoARS, monto);
+      prev.freeNightCount = Math.max(prev.freeNightCount || 0, freeCount);
     } else {
       prev.montoARS = money(prev.montoARS + monto);
-      if (rule.freeNightCount) {
-        prev.freeNightCount = (prev.freeNightCount || 0) + Number(rule.freeNightCount);
+      if (freeCount > 0) {
+        prev.freeNightCount = (prev.freeNightCount || 0) + freeCount;
       }
     }
   }

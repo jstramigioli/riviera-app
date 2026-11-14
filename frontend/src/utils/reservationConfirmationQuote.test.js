@@ -84,6 +84,29 @@ describe('reservationConfirmationQuote', () => {
     expect(free.freeNightCount).toBe(1);
   });
 
+  it('flattenPreviewAppliedRules no duplica FREE_NIGHTS cuando top espeja freeNights', () => {
+    const freeRule = {
+      promotionRuleId: 99,
+      code: 'PROMO_4X3',
+      label: '4x3',
+      benefitType: 'FREE_NIGHTS',
+      benefitValue: 1,
+      freeNightCount: 1,
+      montoARS: 50000
+    };
+    const rules = flattenPreviewAppliedRules({
+      appliedRules: [freeRule],
+      freeNights: { appliedRules: [freeRule], freeNightCount: 1 },
+      nights: [
+        { nightIndex: 0, discountARS: 50000, finalARS: 0, freeNight: true },
+        { nightIndex: 1, discountARS: 0, finalARS: 50000, freeNight: false }
+      ]
+    });
+    expect(rules).toHaveLength(1);
+    expect(rules[0].freeNightCount).toBe(1);
+    expect(rules[0].montoARS).toBe(50000);
+  });
+
   it('mergeNightsWithPreview y summarizeConfirmationQuote calculan total', () => {
     const nights = [
       { nightIndex: 0, date: '2026-12-01', dateLabel: '01/12/2026', originalARS: 100 },
