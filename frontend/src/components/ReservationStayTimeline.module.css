@@ -76,7 +76,7 @@
   margin: 6px 0 0;
   font-size: var(--font-size-small, 12px);
   font-weight: 500;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-primary-dark, #334d70);
   line-height: 1.3;
 }
 
@@ -98,7 +98,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-primary-dark, #334d70);
 }
 
 .totalAmount {
@@ -172,8 +172,9 @@
 
 .date {
   font-size: 11px;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-primary-dark, #334d70);
   line-height: 1.2;
+  font-weight: 500;
 }
 
 .itemEdge {
@@ -255,7 +256,7 @@
   flex: 0 0 auto;
   width: 0.85em;
   height: 0.85em;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-primary-dark, #334d70);
   vertical-align: middle;
 }
 
@@ -270,8 +271,35 @@
 .segmentMeta {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-dark, #1f2933);
   line-height: 1.3;
+}
+
+/* Embebido en columna Consulta: sin card flotante */
+.timelineEmbedded {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.timelineEmbedded.timelineCompact {
+  margin: 0;
+  padding: 0;
+}
+
+.timelineEmbedded .segmentCard {
+  background: transparent;
+  border: 1px solid rgba(51, 77, 112, 0.22);
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: none;
+}
+
+.timelineEmbedded .totalBlock {
+  background: transparent;
+  border: 1px solid rgba(51, 77, 112, 0.22);
+  box-shadow: none;
 }
 
 /* ——— Vertical layout (móvil / panel Libro) ——— */

@@ -85,6 +85,7 @@ const SegmentCard = ({ card, vertical }) => {
  * - vertical / horizontal: fuerza el layout
  * hideHeader: omite cliente/noches/total (el panel Libro los muestra fuera del marco)
  * hideTotal: omite el monto del header (p.ej. modal confirmar — tarifa solo abajo)
+ * embedded: sin card externa (columna full-bleed de Consulta)
  */
 const ReservationStayTimeline = ({
   reservation,
@@ -94,7 +95,8 @@ const ReservationStayTimeline = ({
   orientation = 'auto',
   compact = false,
   hideHeader = false,
-  hideTotal = false
+  hideTotal = false,
+  embedded = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -119,7 +121,8 @@ const ReservationStayTimeline = ({
     styles.timeline,
     isVertical ? styles.timelineVertical : styles.timelineHorizontal,
     compact ? styles.timelineCompact : '',
-    hideHeader ? styles.timelineNoHeader : ''
+    hideHeader ? styles.timelineNoHeader : '',
+    embedded ? styles.timelineEmbedded : ''
   ]
     .filter(Boolean)
     .join(' ');

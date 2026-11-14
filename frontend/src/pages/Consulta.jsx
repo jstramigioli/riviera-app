@@ -3415,6 +3415,7 @@ export default function Consulta() {
               orientation="vertical"
               compact
               hideTotal
+              embedded
             />
           ) : (
             <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
@@ -3632,7 +3633,7 @@ export default function Consulta() {
         {segments[activeBlockIndex] && (
           <div className={styles.tabContent}>
             <div className={styles.blockForm}>
-              {/* Fechas */}
+              {/* Fechas + tipo de servicio en la misma fila */}
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>
@@ -3659,10 +3660,7 @@ export default function Consulta() {
                     title={activeBlockIndex < segments.length - 1 ? 'Al cambiar esta fecha, se actualizará automáticamente el inicio del siguiente segmento' : ''}
                   />
                 </div>
-              </div>
 
-              {/* Tipo de servicio */}
-              <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>Tipo de servicio</label>
                   <select
