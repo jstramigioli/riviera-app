@@ -15,7 +15,7 @@ const { resolvePaymentMethodConfig } = require('../utils/paymentMethodService');
 
 const CONDITION_TYPES = new Set([
   'DATE_RANGE', // fecha creación reserva
-  'STAY_DATE', // fecha estadía: entre (rango) / incluye|no incluye (fecha puntual)
+  'STAY_DATE', // fecha estadía: entre / incluye / no incluye — siempre rango from/to (mismo día = inicio=fin)
   'NIGHTS',
   'MIN_NIGHTS',
   'MAX_NIGHTS',

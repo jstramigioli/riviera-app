@@ -140,31 +140,44 @@ describe('promotionEngine conditions AND', () => {
         { checkIn: '2026-12-20', checkOut: '2026-12-23' }
       )
     ).toBe(false);
-    // STAY_DATE incluye / no incluye fecha puntual (ej. 24/12)
+    // STAY_DATE incluye / no incluye: siempre rango (mismo día = inicio=fin)
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', from: '2026-12-24', to: '2026-12-24' } },
+        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', from: '2026-12-24', to: '2026-12-24' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'includes', from: '2026-12-22', to: '2026-12-24' } },
+        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', from: '2026-12-24', to: '2026-12-24' } },
+        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'STAY_DATE', params: { op: 'excludes', from: '2026-12-24', to: '2026-12-24' } },
+        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
+      )
+    ).toBe(false);
+    // Compat legacy: date puntual → rango mismo día
     expect(
       evaluateCondition(
         { type: 'STAY_DATE', params: { op: 'includes', date: '2026-12-24' } },
         { checkIn: '2026-12-23', checkOut: '2026-12-26' }
       )
     ).toBe(true);
-    expect(
-      evaluateCondition(
-        { type: 'STAY_DATE', params: { op: 'includes', date: '2026-12-24' } },
-        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
-      )
-    ).toBe(false);
-    expect(
-      evaluateCondition(
-        { type: 'STAY_DATE', params: { op: 'excludes', date: '2026-12-24' } },
-        { checkIn: '2026-12-20', checkOut: '2026-12-23' }
-      )
-    ).toBe(true);
-    expect(
-      evaluateCondition(
-        { type: 'STAY_DATE', params: { op: 'excludes', date: '2026-12-24' } },
-        { checkIn: '2026-12-23', checkOut: '2026-12-26' }
-      )
-    ).toBe(false);
     // Compat legacy STAY_DATE + days → weekday match
     expect(
       evaluateCondition(

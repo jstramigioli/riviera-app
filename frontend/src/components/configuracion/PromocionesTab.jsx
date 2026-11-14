@@ -244,30 +244,40 @@ function conditionFromApi(c) {
       const stayOp = normalizeOp(p.op, 'between');
       const legacyDays = Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : [];
       const pointDate = String(p.date || p.fecha || p.day || '').slice(0, 10);
-      // Compat legacy: incluye/excludes con weekdays → UI Días de la semana
-      if ((stayOp === 'includes' || stayOp === 'excludes') && legacyDays.length && !pointDate) {
+      const hasRange =
+        Boolean(p.from || p.desde || p.to || p.hasta) ||
+        (Array.isArray(p.dates) && p.dates.length > 0) ||
+        Boolean(pointDate);
+      // Compat legacy: incluye/excludes con weekdays y sin fechas → UI Días de la semana
+      if ((stayOp === 'includes' || stayOp === 'excludes') && legacyDays.length && !hasRange) {
         return {
           ...emptyCondition('DAYS_OF_WEEK'),
           op: stayOp,
           days: legacyDays
         };
       }
-      if (stayOp === 'includes' || stayOp === 'excludes') {
-        const date =
-          pointDate ||
-          String(p.from || p.desde || '').slice(0, 10) ||
-          (Array.isArray(p.dates) && p.dates[0] ? String(p.dates[0]).slice(0, 10) : '');
-        return {
-          ...emptyCondition('STAY_DATE'),
-          op: stayOp,
-          date
-        };
+      // Siempre rango from/to; legacy date puntual → mismo día inicio=fin
+      let from = String(p.from || p.desde || '').slice(0, 10);
+      let to = String(p.to || p.hasta || '').slice(0, 10);
+      if (!from && !to) {
+        if (Array.isArray(p.dates) && p.dates.length) {
+          const sorted = p.dates.map((d) => String(d).slice(0, 10)).filter(Boolean).sort();
+          from = sorted[0] || '';
+          to = sorted[sorted.length - 1] || '';
+        } else if (pointDate) {
+          from = pointDate;
+          to = pointDate;
+        }
+      } else if (from && !to) {
+        to = from;
+      } else if (!from && to) {
+        from = to;
       }
       return {
         ...emptyCondition('STAY_DATE'),
-        op: 'between',
-        from: String(p.from || p.desde || '').slice(0, 10),
-        to: String(p.to || p.hasta || '').slice(0, 10)
+        op: stayOp === 'includes' || stayOp === 'excludes' ? stayOp : 'between',
+        from,
+        to
       };
     }
     case 'DAYS_OF_WEEK':
@@ -314,13 +324,16 @@ function paramsFromCondition(c) {
       return { from: c.from || null, to: c.to || null, op: 'between' };
     case 'STAY_DATE': {
       const stayOp = normalizeOp(c.op, 'between');
-      if (stayOp === 'between') {
-        if (!c.from && !c.to) throw new Error('Indicá el rango de fechas de estadía');
-        return { op: 'between', from: c.from || null, to: c.to || null };
+      let from = c.from || null;
+      let to = c.to || null;
+      // Mismo día = inicio=fin si solo hay un extremo
+      if (from && !to) to = from;
+      if (!from && to) from = to;
+      if (!from && !to) throw new Error('Indicá el rango de fechas de estadía');
+      if (stayOp === 'includes' || stayOp === 'excludes') {
+        return { op: stayOp === 'excludes' ? 'excludes' : 'includes', from, to };
       }
-      const date = String(c.date || '').slice(0, 10);
-      if (!date) throw new Error('Indicá la fecha de estadía');
-      return { op: stayOp === 'excludes' ? 'excludes' : 'includes', date };
+      return { op: 'between', from, to };
     }
     case 'DAYS_OF_WEEK': {
       const days = Array.isArray(c.days) ? c.days.map(Number) : [];
@@ -364,10 +377,7 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
     case 'DATE_RANGE':
       return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
     case 'STAY_DATE':
-      if (ui.op === 'between') {
-        return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
-      }
-      return `${op} ${ui.date || '—'}`;
+      return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
     case 'DAYS_OF_WEEK': {
       const set = new Set(ui.days);
       const labels = WEEKDAYS.filter((d) => set.has(d.value)).map((d) => d.label);
@@ -440,14 +450,9 @@ function validateConditionFields(c) {
       else if (c.from && c.to && c.from > c.to) errors.value = 'La fecha desde no puede ser posterior a hasta';
       break;
     case 'STAY_DATE': {
-      const stayOp = normalizeOp(c.op, 'between');
-      if (stayOp === 'between') {
-        if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas de estadía';
-        else if (c.from && c.to && c.from > c.to) {
-          errors.value = 'La fecha desde no puede ser posterior a hasta';
-        }
-      } else if (!String(c.date || '').trim()) {
-        errors.value = 'Indicá la fecha';
+      if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas de estadía';
+      else if (c.from && c.to && c.from > c.to) {
+        errors.value = 'La fecha desde no puede ser posterior a hasta';
       }
       break;
     }
@@ -806,17 +811,7 @@ function PromocionesTab() {
       <select
         value={locked ? ops[0].value : c.op}
         onChange={(e) => {
-          const nextOp = e.target.value;
-          const patch = { op: nextOp };
-          if (c.type === 'STAY_DATE') {
-            if (nextOp === 'between') {
-              patch.date = '';
-            } else {
-              patch.from = '';
-              patch.to = '';
-            }
-          }
-          updateCondition(index, patch);
+          updateCondition(index, { op: e.target.value });
         }}
         aria-label="Operador"
         disabled={locked}
@@ -958,42 +953,40 @@ function PromocionesTab() {
           </div>
         );
       case 'STAY_DATE':
-        if (c.op === 'between') {
-          return (
-            <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
-              <input
-                type="date"
-                value={c.from}
-                onChange={(e) => updateCondition(index, { from: e.target.value })}
-                onBlur={markCondTouched}
-                aria-label="Desde (estadía)"
-                aria-invalid={invalid || undefined}
-                className={invalidClass}
-              />
-              <input
-                type="date"
-                value={c.to}
-                onChange={(e) => updateCondition(index, { to: e.target.value })}
-                onBlur={markCondTouched}
-                aria-label="Hasta (estadía)"
-                aria-invalid={invalid || undefined}
-                className={invalidClass}
-                title={invalid ? condMsg : undefined}
-              />
-            </div>
-          );
-        }
+        // entre / incluye / no incluye: siempre rango (mismo día = inicio=fin)
         return (
-          <input
-            type="date"
-            value={c.date || ''}
-            onChange={(e) => updateCondition(index, { date: e.target.value })}
-            onBlur={markCondTouched}
-            aria-label="Fecha de estadía"
-            aria-invalid={invalid || undefined}
-            className={invalidClass}
-            title={invalid ? condMsg : undefined}
-          />
+          <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
+            <input
+              type="date"
+              value={c.from}
+              onChange={(e) => {
+                const from = e.target.value;
+                const patch = { from };
+                // Si aún no hay hasta, espejar (mismo día = inicio=fin)
+                if (from && !c.to) patch.to = from;
+                updateCondition(index, patch);
+              }}
+              onBlur={markCondTouched}
+              aria-label="Desde (estadía)"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
+            />
+            <input
+              type="date"
+              value={c.to}
+              onChange={(e) => {
+                const to = e.target.value;
+                const patch = { to };
+                if (to && !c.from) patch.from = to;
+                updateCondition(index, patch);
+              }}
+              onBlur={markCondTouched}
+              aria-label="Hasta (estadía)"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
+              title={invalid ? condMsg : undefined}
+            />
+          </div>
         );
       case 'DAYS_OF_WEEK':
         return (
