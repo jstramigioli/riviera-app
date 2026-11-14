@@ -173,8 +173,25 @@ export function countBedsByType(beds = []) {
 }
 
 /**
+ * Máximo de individuales que una config puede ofrecer en preferencia:
+ * físicas + matrimoniales separables × 2.
+ */
+export function maxSingleBedsFromConfig(beds = []) {
+  const list = Array.isArray(beds) ? beds : [];
+  let singles = 0;
+  let sepDoubles = 0;
+  for (const bed of list) {
+    const type = normalizeBedType(bed?.bedType);
+    if (type === BED_TYPE_SINGLE) singles += 1;
+    else if (type === BED_TYPE_DOUBLE && bed?.isSeparable) sepDoubles += 1;
+  }
+  return singles + sepDoubles * 2;
+}
+
+/**
  * Máximos del select de preferencia Mat/Ind:
  * max entre habitaciones con capacidad === huéspedes.
+ * Doble separable cuenta como 2 individuales en el máximo Ind.
  */
 export function maxBedPreferenceLimits(rooms = [], requiredGuests) {
   const guests = Math.max(1, parseInt(requiredGuests, 10) || 1);
@@ -192,8 +209,9 @@ export function maxBedPreferenceLimits(rooms = [], requiredGuests) {
   let maxSingleBeds = 0;
   for (const room of matching) {
     const counts = countBedsByType(room.beds);
+    const maxSinglesRoom = maxSingleBedsFromConfig(room.beds);
     if (counts.double > maxDoubleBeds) maxDoubleBeds = counts.double;
-    if (counts.single > maxSingleBeds) maxSingleBeds = counts.single;
+    if (maxSinglesRoom > maxSingleBeds) maxSingleBeds = maxSinglesRoom;
   }
   return { maxDoubleBeds, maxSingleBeds };
 }

@@ -6,6 +6,7 @@ import {
   normalizeBedPreference,
   totalBedCapacity,
   countBedsByType,
+  maxSingleBedsFromConfig,
   maxBedPreferenceLimits,
   clampBedPreferenceToLimits
 } from './bedConfig';
@@ -127,6 +128,17 @@ describe('bedConfig', () => {
     ).toEqual({ double: 2, single: 1 });
   });
 
+  it('maxSingleBedsFromConfig: doble separable = 2 individuales', () => {
+    expect(maxSingleBedsFromConfig([{ bedType: 'double', isSeparable: true }])).toBe(2);
+    expect(maxSingleBedsFromConfig([{ bedType: 'double', isSeparable: false }])).toBe(0);
+    expect(
+      maxSingleBedsFromConfig([
+        { bedType: 'double', isSeparable: true },
+        { bedType: 'single' }
+      ])
+    ).toBe(3);
+  });
+
   it('maxBedPreferenceLimits: max Mat/Ind entre habitaciones con capacidad = huéspedes', () => {
     const rooms = [
       {
@@ -161,6 +173,32 @@ describe('bedConfig', () => {
     expect(maxBedPreferenceLimits(rooms, 3)).toEqual({
       maxDoubleBeds: 0,
       maxSingleBeds: 0
+    });
+  });
+
+  it('maxBedPreferenceLimits: doble separable suma 2 al máximo Ind', () => {
+    const rooms = [
+      {
+        id: 1,
+        maxPeople: 2,
+        beds: [{ bedType: 'double', isSeparable: true }]
+      },
+      {
+        id: 2,
+        maxPeople: 3,
+        beds: [
+          { bedType: 'double', isSeparable: true },
+          { bedType: 'single' }
+        ]
+      }
+    ];
+    expect(maxBedPreferenceLimits(rooms, 2)).toEqual({
+      maxDoubleBeds: 1,
+      maxSingleBeds: 2
+    });
+    expect(maxBedPreferenceLimits(rooms, 3)).toEqual({
+      maxDoubleBeds: 1,
+      maxSingleBeds: 3
     });
   });
 
