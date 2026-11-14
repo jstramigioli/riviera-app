@@ -94,18 +94,18 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 - **Tabs de tramo:** underline navy en activo; inactivos muted; sin cards por tab.
 - **Lista de habitaciones:** fila seleccionable; selección = fondo `primary-light` + borde navy (no Material blue).
 - **Lista de habitaciones (Consulta):** fila horizontal con nombre · tipo · descripción; sin badge de capacidad. Si hay promo automática: tarifa tachada + tarifa final + nombre de la promo. El desglose por noche vive en el panel derecho (no expandir en la card).
-- **Panel de balance (columna derecha):** tarifas (subtotal, promos RATE, total, desglose por noche), **Reservado por** y **Estado inicial**; sin modal de confirmación.
+- **Panel derecho (timeline + balance):** arriba timeline de estadía; debajo tarifas (subtotal, promos RATE, total, desglose por noche), **Reservado por** y **Estado inicial**; sin modal de confirmación.
 
 ## Layout & spacing
 
-Flujo consulta/reserva en **tres columnas full-bleed** (apiladas en estrecho): **izquierda** timeline de estadía (sin título «síntesis», sin monto); **centro** formulario (cliente → tramos → fechas/servicio → habitaciones → acciones); **derecha** balance económico (tarifas/promos + datos de confirmación). Confirmar/crear reserva desde la misma pantalla.
+Flujo consulta/reserva en **dos columnas full-bleed** (apiladas en estrecho): **izquierda** formulario (cliente → tramos → fechas/servicio → habitaciones → acciones); **derecha** un solo panel con **timeline arriba** y **tarifas/promos/balance debajo**. Confirmar/crear reserva desde la misma pantalla.
 
 - Columnas a borde de viewport: **sin gap** entre columnas y **sin cards flotantes** (ni sombra ni radio en el marco de columnas); solo divisores 1px.
-- Columna izquierda sobre `primary-light`; tipografía sobre azul claro → **texto oscuro / navy** (no gris muted). Sobre navy sólido → texto claro.
+- Panel derecho sobre `primary-light`; tipografía sobre azul claro → **texto oscuro / navy** (no gris muted). Sobre navy sólido → texto claro.
 - En el tramo activo: **check-in, check-out y tipo de servicio en la misma fila**.
 - Título de página fuera del grid; sin lead bajo el título.
-- Cabecera densa en el centro (cliente, huéspedes, camas, notas).
-- Barra de acciones al pie del flujo central (primario a la derecha).
+- Cabecera densa a la izquierda (cliente, huéspedes, camas, notas).
+- Barra de acciones al pie del flujo del formulario (primario a la derecha).
 - Densidad de recepción: ritmo 4/8/12; menos padding ornamental, más contraste tipográfico por rol.
 
 ## Do's and Don'ts
