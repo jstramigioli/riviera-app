@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { fetchClients } from '../services/api';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
@@ -17,6 +18,27 @@ const COLUMNS = [
   { field: 'address', label: 'Domicilio' },
   { field: 'wantsPromotions', label: 'Promociones' },
 ];
+
+function ClientesShell({ children }) {
+  return (
+    <div className={styles.newLayout}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>Clientes</h2>
+        </div>
+        <nav className={styles.sectionMenu} aria-label="Secciones de clientes">
+          <button type="button" className={`${styles.sectionButton} ${styles.active}`}>
+            Listado
+          </button>
+        </nav>
+      </aside>
+
+      <div className={styles.mainContent}>
+        <div className={styles.mainContentBody}>{children}</div>
+      </div>
+    </div>
+  );
+}
 
 function Clientes() {
   const navigate = useNavigate();
@@ -38,7 +60,7 @@ function Clientes() {
       setClients(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error cargando clientes:', err);
-      setError('Error al cargar los clientes');
+      setError('No se pudieron cargar los clientes. Revisá la conexión e intentá de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -82,204 +104,239 @@ function Clientes() {
   };
 
   if (loading) {
-    return <div className={styles.loading}>Cargando clientes...</div>;
+    return (
+      <ClientesShell>
+        <div className={styles.statusPanel} role="status" aria-live="polite">
+          Cargando clientes…
+        </div>
+      </ClientesShell>
+    );
   }
 
   if (error) {
     return (
-      <div className={styles.errorState}>
-        <div className={styles.error}>{error}</div>
-        <button type="button" onClick={loadClients} className={styles.retryButton}>
-          Reintentar
-        </button>
-      </div>
+      <ClientesShell>
+        <div className={styles.statusPanel} role="alert">
+          <p className={styles.error}>{error}</p>
+          <button type="button" onClick={loadClients} className={styles.retryButton}>
+            Reintentar
+          </button>
+        </div>
+      </ClientesShell>
     );
   }
 
   return (
-    <div className={styles.newLayout}>
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
-          <h2>Clientes</h2>
-        </div>
-        <nav className={styles.sectionMenu} aria-label="Secciones de clientes">
-          <button type="button" className={`${styles.sectionButton} ${styles.active}`}>
-            Listado
-          </button>
-        </nav>
-      </aside>
+    <ClientesShell>
+      <header className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Listado de clientes</h1>
+        <p className={styles.pageLead}>
+          Buscá y filtrá la agenda. Abrí un cliente para ver el perfil.
+        </p>
+      </header>
 
-      <div className={styles.mainContent}>
-        <div className={styles.mainContentBody}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <h2>Listado de clientes</h2>
-                <p className={styles.resultsInfo}>
-                  Mostrando {visibleClients.length} de {clients.length} clientes
-                </p>
-              </div>
+      <section className={styles.section} aria-label="Listado de clientes">
+        <div className={styles.sectionHeader}>
+          <p className={styles.resultsInfo} aria-live="polite">
+            Mostrando {visibleClients.length} de {clients.length} clientes
+          </p>
 
-              <div className={styles.toolbar}>
-                <label className={styles.searchField}>
-                  <span className={styles.srOnly}>Buscar cliente</span>
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar por nombre, documento, email, teléfono…"
-                  />
-                </label>
+          <div className={styles.toolbar}>
+            <label className={styles.searchField}>
+              <span className={styles.srOnly}>Buscar cliente</span>
+              <FiSearch className={styles.searchIcon} aria-hidden="true" size={15} />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por nombre, documento, email, teléfono…"
+                autoComplete="off"
+              />
+            </label>
 
-                <div className={styles.filters} aria-label="Filtros de clientes">
-                  <label className={styles.srOnly} htmlFor="client-filter-country">
-                    País
-                  </label>
-                  <select
-                    id="client-filter-country"
-                    className={styles.filterSelect}
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                  >
-                    <option value="">Todos los países</option>
-                    {countries.map((code) => (
-                      <option key={code} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </select>
+            <div className={styles.filters} aria-label="Filtros de clientes">
+              <label className={styles.srOnly} htmlFor="client-filter-country">
+                País
+              </label>
+              <select
+                id="client-filter-country"
+                className={styles.filterSelect}
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
+              >
+                <option value="">Todos los países</option>
+                {countries.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
 
-                  <label className={styles.srOnly} htmlFor="client-filter-promotions">
-                    Promociones
-                  </label>
-                  <select
-                    id="client-filter-promotions"
-                    className={styles.filterSelect}
-                    value={promotions}
-                    onChange={(event) => setPromotions(event.target.value)}
-                  >
-                    <option value="">Promociones: todas</option>
-                    <option value="yes">Quiere promociones</option>
-                    <option value="no">No quiere promociones</option>
-                  </select>
+              <label className={styles.srOnly} htmlFor="client-filter-promotions">
+                Promociones
+              </label>
+              <select
+                id="client-filter-promotions"
+                className={styles.filterSelect}
+                value={promotions}
+                onChange={(event) => setPromotions(event.target.value)}
+              >
+                <option value="">Promociones: todas</option>
+                <option value="yes">Quiere promociones</option>
+                <option value="no">No quiere promociones</option>
+              </select>
 
-                  <label className={styles.srOnly} htmlFor="client-filter-email">
-                    Email
-                  </label>
-                  <select
-                    id="client-filter-email"
-                    className={styles.filterSelect}
-                    value={hasEmail}
-                    onChange={(event) => setHasEmail(event.target.value)}
-                  >
-                    <option value="">Email: todos</option>
-                    <option value="yes">Con email</option>
-                    <option value="no">Sin email</option>
-                  </select>
+              <label className={styles.srOnly} htmlFor="client-filter-email">
+                Email
+              </label>
+              <select
+                id="client-filter-email"
+                className={styles.filterSelect}
+                value={hasEmail}
+                onChange={(event) => setHasEmail(event.target.value)}
+              >
+                <option value="">Email: todos</option>
+                <option value="yes">Con email</option>
+                <option value="no">Sin email</option>
+              </select>
 
-                  {hasActiveFilters ? (
-                    <button type="button" className={styles.clearFilters} onClick={clearFilters}>
-                      Limpiar filtros
-                    </button>
-                  ) : null}
-                </div>
-              </div>
+              {hasActiveFilters ? (
+                <button type="button" className={styles.clearFilters} onClick={clearFilters}>
+                  Limpiar filtros
+                </button>
+              ) : null}
             </div>
+          </div>
+        </div>
 
-            {visibleClients.length === 0 ? (
-              <div className={styles.emptyState}>No hay clientes para mostrar</div>
+        {visibleClients.length === 0 ? (
+          <div className={styles.emptyState}>
+            {hasActiveFilters ? (
+              <>
+                <p className={styles.emptyTitle}>Ningún cliente coincide</p>
+                <p className={styles.emptyHint}>Probá otra búsqueda o limpiá los filtros.</p>
+                <button type="button" className={styles.clearFilters} onClick={clearFilters}>
+                  Limpiar filtros
+                </button>
+              </>
             ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      {COLUMNS.map((column) => (
-                        <th
-                          key={column.field}
-                          className={styles.sortableHeader}
+              <>
+                <p className={styles.emptyTitle}>No hay clientes para mostrar</p>
+                <p className={styles.emptyHint}>Cuando se carguen, van a aparecer acá.</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  {COLUMNS.map((column) => {
+                    const isActive = sortField === column.field;
+                    const SortIcon = isActive
+                      ? sortDirection === 'asc'
+                        ? FiChevronUp
+                        : FiChevronDown
+                      : null;
+                    return (
+                      <th
+                        key={column.field}
+                        className={styles.sortableHeader}
+                        aria-sort={
+                          isActive
+                            ? sortDirection === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                        }
+                      >
+                        <button
+                          type="button"
+                          className={styles.sortButton}
                           onClick={() => handleSort(column.field)}
-                          aria-sort={
-                            sortField === column.field
-                              ? sortDirection === 'asc'
-                                ? 'ascending'
-                                : 'descending'
-                              : 'none'
+                        >
+                          <span>{column.label}</span>
+                          {SortIcon ? (
+                            <SortIcon className={styles.sortIcon} aria-hidden="true" size={14} />
+                          ) : (
+                            <span className={styles.sortPlaceholder} aria-hidden="true" />
+                          )}
+                        </button>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleClients.map((client) => {
+                  const address = getAddressFromNotes(client.notes) || '—';
+                  return (
+                    <tr
+                      key={client.id}
+                      className={styles.row}
+                      tabIndex={0}
+                      onClick={() => navigate(`/clients/${client.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(`/clients/${client.id}`);
+                        }
+                      }}
+                    >
+                      <td>{client.lastName || '—'}</td>
+                      <td>{client.firstName || '—'}</td>
+                      <td>
+                        {client.email ? (
+                          <a
+                            href={`mailto:${client.email}`}
+                            className={styles.emailLink}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {client.email}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        {client.phone ? (
+                          <a
+                            href={`tel:${client.phone}`}
+                            className={styles.phoneLink}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {client.phone}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className={styles.tabular}>
+                        {[client.documentType, client.documentNumber].filter(Boolean).join(' ') ||
+                          '—'}
+                      </td>
+                      <td>{client.country || '—'}</td>
+                      <td>{client.province || '—'}</td>
+                      <td>{client.city || '—'}</td>
+                      <td className={styles.addressCell}>{address}</td>
+                      <td>
+                        <span
+                          className={
+                            client.wantsPromotions ? styles.promotionYes : styles.promotionNo
                           }
                         >
-                          {column.label}
-                          {sortField === column.field ? (
-                            <span className={styles.sortIcon} aria-hidden="true">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          ) : null}
-                        </th>
-                      ))}
+                          {client.wantsPromotions ? 'Sí' : 'No'}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {visibleClients.map((client) => {
-                      const address = getAddressFromNotes(client.notes) || '-';
-                      return (
-                        <tr
-                          key={client.id}
-                          className={styles.row}
-                          onClick={() => navigate(`/clients/${client.id}`)}
-                        >
-                          <td>{client.lastName || '-'}</td>
-                          <td>{client.firstName || '-'}</td>
-                          <td>
-                            {client.email ? (
-                              <a
-                                href={`mailto:${client.email}`}
-                                className={styles.emailLink}
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {client.email}
-                              </a>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td>
-                            {client.phone ? (
-                              <a
-                                href={`tel:${client.phone}`}
-                                className={styles.phoneLink}
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {client.phone}
-                              </a>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                          <td>
-                            {[client.documentType, client.documentNumber].filter(Boolean).join(' ') || '-'}
-                          </td>
-                          <td>{client.country || '-'}</td>
-                          <td>{client.province || '-'}</td>
-                          <td>{client.city || '-'}</td>
-                          <td>{address}</td>
-                          <td>
-                            <span
-                              className={
-                                client.wantsPromotions ? styles.promotionYes : styles.promotionNo
-                              }
-                            >
-                              {client.wantsPromotions ? 'Sí' : 'No'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
-    </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </ClientesShell>
   );
 }
 
