@@ -8,6 +8,7 @@ import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
 import MediosPagoTab from '../components/configuracion/MediosPagoTab';
 import PromocionesTab from '../components/configuracion/PromocionesTab';
+import UsuariosTab from '../components/configuracion/UsuariosTab';
 import Auditoria from './Auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './Configuracion.module.css';
@@ -19,9 +20,10 @@ const SETTINGS_TABS = [
   { id: 'menu-consumos', label: 'Menú' },
   { id: 'calendario', label: 'Calendario' },
   { id: 'tipo-cambio', label: 'Tipo de Cambio' },
-  { id: 'usuarios', label: 'Usuarios' },
   { id: 'sistema', label: 'Sistema' }
 ];
+
+const USUARIOS_TAB = { id: 'usuarios', label: 'Usuarios' };
 
 const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
 const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones y descuentos' };
@@ -31,18 +33,27 @@ function ConfiguracionView() {
   const [searchParams] = useSearchParams();
   const { can } = useAuth();
   const canSettings = can('settings');
+  const canUsers = can('users');
   const canMediosPago = can('mediosPago');
   const canPromociones = can('promociones');
   const canAuditoria = can('auditoria');
 
   const tabs = useMemo(() => {
     const next = [];
-    if (canSettings) next.push(...SETTINGS_TABS);
+    if (canSettings) {
+      next.push(...SETTINGS_TABS);
+      // Usuarios solo para Admin (permiso users), insertado antes de Sistema
+      if (canUsers) {
+        const sistemaIdx = next.findIndex((t) => t.id === 'sistema');
+        if (sistemaIdx >= 0) next.splice(sistemaIdx, 0, USUARIOS_TAB);
+        else next.push(USUARIOS_TAB);
+      }
+    }
     if (canMediosPago) next.push(MEDIOS_PAGO_TAB);
     if (canPromociones) next.push(PROMOCIONES_TAB);
     if (canAuditoria) next.push(AUDITORIA_TAB);
     return next;
-  }, [canSettings, canMediosPago, canPromociones, canAuditoria]);
+  }, [canSettings, canUsers, canMediosPago, canPromociones, canAuditoria]);
 
   const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
   const defaultTab = canSettings
@@ -99,12 +110,7 @@ function ConfiguracionView() {
       case 'promociones':
         return <PromocionesTab />;
       case 'usuarios':
-        return (
-          <div className={styles.placeholder}>
-            <h3>Gestión de Usuarios</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
-          </div>
-        );
+        return <UsuariosTab />;
       case 'sistema':
         return (
           <div className={styles.placeholder}>

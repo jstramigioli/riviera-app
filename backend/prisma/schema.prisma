@@ -920,8 +920,13 @@ model Cargo {
 
 enum UserRole {
   ADMIN
+  PROPIETARIO
   GERENCIA
   RECEPCION
+  CAMARERO
+  COCINA
+  MUCAMA
+  MANTENIMIENTO
 }
 
 model User {
