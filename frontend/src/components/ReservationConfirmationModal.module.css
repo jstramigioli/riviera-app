@@ -12,64 +12,70 @@
 }
 
 .modalContent {
-  background: white;
-  border-radius: var(--radius-md);
+  background: var(--color-bg-white);
+  border-radius: var(--radius-lg);
   padding: 0;
-  max-width: 750px;
-  width: 90%;
+  max-width: 720px;
+  width: 92%;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  animation: modalSlideIn 0.3s ease-out;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  animation: modalSlideIn 0.2s ease-out;
+  font-family: var(--font-main);
 }
 
 @keyframes modalSlideIn {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 24px 24px 16px 24px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
   background: var(--color-primary);
-  color: white;
-  border-radius: var(--radius-md) 12px 0 0;
+  color: var(--color-text-light);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   flex-shrink: 0;
 }
 
 .icon {
-  font-size: 24px;
-  width: 40px;
-  height: 40px;
+  font-size: var(--font-size-large);
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.16);
+  flex-shrink: 0;
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-size-large);
-  font-weight: 600;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
+  line-height: 1.25;
   flex: 1;
+  text-wrap: balance;
 }
 
 .body {
-  padding: 24px;
+  padding: 16px;
   flex: 1;
   overflow-y: auto;
+  color: var(--color-text-main);
+  font-size: var(--font-size-base);
 }
 
 .clientSection {
@@ -80,12 +86,12 @@
 
 .clientName {
   font-size: var(--font-size-large);
-  font-weight: 600;
-  color: var(--color-primary);
+  font-weight: 700;
+  color: var(--color-primary-dark);
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.15s;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .clientName:hover {
@@ -163,19 +169,19 @@
 }
 
 .tableLabel {
-  padding: 8px 0;
+  padding: 6px 0;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: var(--font-size-small);
+  font-weight: 600;
   width: 30%;
   vertical-align: top;
 }
 
 .tableValue {
-  padding: 8px 0;
+  padding: 6px 0;
   color: var(--color-text-dark);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
 }
 
 .staySection {
@@ -222,12 +228,12 @@
 }
 
 .segmentDetail {
-  margin-left: 30px; /* Margen como tab en Word */
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-left: 0;
+  margin-bottom: 12px;
+  padding: 10px 12px;
   background: var(--color-bg);
-  border-left: 3px solid var(--color-primary);
-  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .segmentDetail:last-child {
@@ -263,12 +269,12 @@
 .changeIndicator {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
-  color: #856404;
-  font-size: 0.9rem;
-  font-style: italic;
+  background: var(--color-warning-light);
+  border: 1px solid #f0d48a;
+  border-radius: var(--radius-md);
+  color: #7a5b00;
+  font-size: var(--font-size-medium);
+  font-style: normal;
   text-align: center;
 }
 
@@ -333,19 +339,21 @@
 
 .statusSelect {
   width: 100%;
+  min-height: 36px;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--color-text-dark);
-  background: white;
+  background: var(--color-bg-white);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .statusSelect:hover {
-  border-color: #9ca3af;
+  border-color: var(--color-border-dark);
 }
 
 .statusSelect:focus,
@@ -397,11 +405,11 @@
   padding: 10px 16px;
   border-radius: var(--radius-md);
   font-family: var(--font-main);
-  font-size: var(--font-size-medium);
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: 700;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
-  min-width: 140px;
+  min-width: 160px;
 }
 
 .confirmButton:hover:not(:disabled) {
