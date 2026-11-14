@@ -189,6 +189,35 @@ function applyEqualityOp(matched, op) {
   return normalizeOp(op, 'eq') === 'neq' ? !matched : matched;
 }
 
+/** Fechas puntuales para STAY_DATE incluye / no incluye (YYYY-MM-DD). */
+function resolveStayPointDates(params) {
+  const out = [];
+  const push = (v) => {
+    const d = toDateOnlyString(v);
+    if (d) out.push(d);
+  };
+  if (Array.isArray(params.dates)) params.dates.forEach(push);
+  else push(params.date || params.fecha || params.day);
+  // Un solo from sin to (o from===to) también cuenta como fecha puntual
+  if (!out.length) {
+    const from = params.from || params.desde || null;
+    const to = params.to || params.hasta || null;
+    if (from && (!to || String(from).slice(0, 10) === String(to).slice(0, 10))) {
+      push(from);
+    }
+  }
+  return out;
+}
+
+function matchStayPointDates(ctx, dates, op) {
+  const wanted = (dates || []).map((d) => String(d).slice(0, 10)).filter(Boolean);
+  if (!wanted.length) return false;
+  const nights = new Set(stayNightDates(ctx));
+  if (!nights.size) return false;
+  const hits = wanted.some((d) => nights.has(d));
+  return normalizeDateOp(op, 'includes') === 'excludes' ? !hits : hits;
+}
+
 function evaluateStayDateCondition(params, ctx) {
   const op = normalizeDateOp(params.op, 'between');
   if (op === 'between') {
@@ -196,9 +225,13 @@ function evaluateStayDateCondition(params, ctx) {
     const to = params.to || params.hasta || null;
     return stayOverlapsRange(ctx, from, to);
   }
-  // incluye / no incluye: días de la semana presentes en alguna noche de estadía
+  // incluye / no incluye: fechas puntuales de estadía (ej. no incluye 2026-12-24)
+  const dates = resolveStayPointDates(params);
+  if (dates.length) return matchStayPointDates(ctx, dates, op);
+  // Compat legacy: STAY_DATE con days/weekdays → weekday match (ahora DAYS_OF_WEEK)
   const days = params.days || params.weekdays || [];
-  return matchStayWeekdays(ctx, days, op);
+  if (days.length) return matchStayWeekdays(ctx, days, op);
+  return false;
 }
 
 function evaluateCondition(condition, ctx) {

@@ -15,7 +15,7 @@ const { resolvePaymentMethodConfig } = require('../utils/paymentMethodService');
 
 const CONDITION_TYPES = new Set([
   'DATE_RANGE', // fecha creación reserva
-  'STAY_DATE', // fecha estadía (entre)
+  'STAY_DATE', // fecha estadía: entre (rango) / incluye|no incluye (fecha puntual)
   'NIGHTS',
   'MIN_NIGHTS',
   'MAX_NIGHTS',
@@ -25,7 +25,7 @@ const CONDITION_TYPES = new Set([
   'OCCUPANCY_HOTEL',
   'OCCUPANCY_HOTEL_MAX',
   'OCCUPANCY_HOTEL_MIN',
-  'DAYS_OF_WEEK' // días semana (incluye / no incluye); L M X J V S D
+  'DAYS_OF_WEEK' // días semana L M X J V S D; incluye / no incluye (independiente de fechas)
 ]);
 
 function serializeRule(row) {

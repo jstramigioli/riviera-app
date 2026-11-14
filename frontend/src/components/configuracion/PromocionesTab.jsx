@@ -68,7 +68,11 @@ const OP_EQUALITY = [
   { value: 'eq', label: 'igual a' },
   { value: 'neq', label: 'distinto de' }
 ];
-const OP_BETWEEN = [{ value: 'between', label: 'entre' }];
+const OP_STAY_DATE = [
+  { value: 'between', label: 'entre' },
+  { value: 'includes', label: 'incluye' },
+  { value: 'excludes', label: 'no incluye' }
+];
 const OP_WEEKDAY = [
   { value: 'includes', label: 'incluye' },
   { value: 'excludes', label: 'no incluye' }
@@ -126,6 +130,7 @@ function emptyCondition(type = 'PAYMENT_METHOD') {
     percent: '',
     from: '',
     to: '',
+    date: '',
     days: []
   };
 }
@@ -237,12 +242,25 @@ function conditionFromApi(c) {
       };
     case 'STAY_DATE': {
       const stayOp = normalizeOp(p.op, 'between');
-      // Compat: STAY_DATE con incluye/no incluye → UI Días de la semana
-      if (stayOp === 'includes' || stayOp === 'excludes') {
+      const legacyDays = Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : [];
+      const pointDate = String(p.date || p.fecha || p.day || '').slice(0, 10);
+      // Compat legacy: incluye/excludes con weekdays → UI Días de la semana
+      if ((stayOp === 'includes' || stayOp === 'excludes') && legacyDays.length && !pointDate) {
         return {
           ...emptyCondition('DAYS_OF_WEEK'),
           op: stayOp,
-          days: Array.isArray(p.days || p.weekdays) ? (p.days || p.weekdays).map(Number) : []
+          days: legacyDays
+        };
+      }
+      if (stayOp === 'includes' || stayOp === 'excludes') {
+        const date =
+          pointDate ||
+          String(p.from || p.desde || '').slice(0, 10) ||
+          (Array.isArray(p.dates) && p.dates[0] ? String(p.dates[0]).slice(0, 10) : '');
+        return {
+          ...emptyCondition('STAY_DATE'),
+          op: stayOp,
+          date
         };
       }
       return {
@@ -295,8 +313,14 @@ function paramsFromCondition(c) {
     case 'DATE_RANGE':
       return { from: c.from || null, to: c.to || null, op: 'between' };
     case 'STAY_DATE': {
-      if (!c.from && !c.to) throw new Error('Indicá el rango de fechas de estadía');
-      return { op: 'between', from: c.from || null, to: c.to || null };
+      const stayOp = normalizeOp(c.op, 'between');
+      if (stayOp === 'between') {
+        if (!c.from && !c.to) throw new Error('Indicá el rango de fechas de estadía');
+        return { op: 'between', from: c.from || null, to: c.to || null };
+      }
+      const date = String(c.date || '').slice(0, 10);
+      if (!date) throw new Error('Indicá la fecha de estadía');
+      return { op: stayOp === 'excludes' ? 'excludes' : 'includes', date };
     }
     case 'DAYS_OF_WEEK': {
       const days = Array.isArray(c.days) ? c.days.map(Number) : [];
@@ -340,7 +364,10 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
     case 'DATE_RANGE':
       return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
     case 'STAY_DATE':
-      return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
+      if (ui.op === 'between') {
+        return `${op} ${ui.from || '…'} y ${ui.to || '…'}`;
+      }
+      return `${op} ${ui.date || '—'}`;
     case 'DAYS_OF_WEEK': {
       const set = new Set(ui.days);
       const labels = WEEKDAYS.filter((d) => set.has(d.value)).map((d) => d.label);
@@ -373,7 +400,8 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
 function operatorsForType(type) {
   if (type === 'OCCUPANCY_HOTEL') return OP_OCCUPANCY;
   if (type === 'NIGHTS') return OP_NUMERIC;
-  if (type === 'DATE_RANGE' || type === 'STAY_DATE') return OP_BETWEEN;
+  if (type === 'DATE_RANGE') return [{ value: 'between', label: 'entre' }];
+  if (type === 'STAY_DATE') return OP_STAY_DATE;
   if (type === 'DAYS_OF_WEEK') return OP_WEEKDAY;
   return OP_EQUALITY;
 }
@@ -411,12 +439,18 @@ function validateConditionFields(c) {
       if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas';
       else if (c.from && c.to && c.from > c.to) errors.value = 'La fecha desde no puede ser posterior a hasta';
       break;
-    case 'STAY_DATE':
-      if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas de estadía';
-      else if (c.from && c.to && c.from > c.to) {
-        errors.value = 'La fecha desde no puede ser posterior a hasta';
+    case 'STAY_DATE': {
+      const stayOp = normalizeOp(c.op, 'between');
+      if (stayOp === 'between') {
+        if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas de estadía';
+        else if (c.from && c.to && c.from > c.to) {
+          errors.value = 'La fecha desde no puede ser posterior a hasta';
+        }
+      } else if (!String(c.date || '').trim()) {
+        errors.value = 'Indicá la fecha';
       }
       break;
+    }
     case 'DAYS_OF_WEEK':
       if (!Array.isArray(c.days) || c.days.length === 0) {
         errors.value = 'Elegí al menos un día';
@@ -767,11 +801,23 @@ function PromocionesTab() {
 
   const renderOperator = (c, index) => {
     const ops = operatorsForType(c.type);
-    const locked = c.type === 'DATE_RANGE' || c.type === 'STAY_DATE';
+    const locked = c.type === 'DATE_RANGE';
     return (
       <select
         value={locked ? ops[0].value : c.op}
-        onChange={(e) => updateCondition(index, { op: e.target.value })}
+        onChange={(e) => {
+          const nextOp = e.target.value;
+          const patch = { op: nextOp };
+          if (c.type === 'STAY_DATE') {
+            if (nextOp === 'between') {
+              patch.date = '';
+            } else {
+              patch.from = '';
+              patch.to = '';
+            }
+          }
+          updateCondition(index, patch);
+        }}
         aria-label="Operador"
         disabled={locked}
         className={styles.opSelect}
@@ -912,28 +958,42 @@ function PromocionesTab() {
           </div>
         );
       case 'STAY_DATE':
+        if (c.op === 'between') {
+          return (
+            <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
+              <input
+                type="date"
+                value={c.from}
+                onChange={(e) => updateCondition(index, { from: e.target.value })}
+                onBlur={markCondTouched}
+                aria-label="Desde (estadía)"
+                aria-invalid={invalid || undefined}
+                className={invalidClass}
+              />
+              <input
+                type="date"
+                value={c.to}
+                onChange={(e) => updateCondition(index, { to: e.target.value })}
+                onBlur={markCondTouched}
+                aria-label="Hasta (estadía)"
+                aria-invalid={invalid || undefined}
+                className={invalidClass}
+                title={invalid ? condMsg : undefined}
+              />
+            </div>
+          );
+        }
         return (
-          <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
-            <input
-              type="date"
-              value={c.from}
-              onChange={(e) => updateCondition(index, { from: e.target.value })}
-              onBlur={markCondTouched}
-              aria-label="Desde (estadía)"
-              aria-invalid={invalid || undefined}
-              className={invalidClass}
-            />
-            <input
-              type="date"
-              value={c.to}
-              onChange={(e) => updateCondition(index, { to: e.target.value })}
-              onBlur={markCondTouched}
-              aria-label="Hasta (estadía)"
-              aria-invalid={invalid || undefined}
-              className={invalidClass}
-              title={invalid ? condMsg : undefined}
-            />
-          </div>
+          <input
+            type="date"
+            value={c.date || ''}
+            onChange={(e) => updateCondition(index, { date: e.target.value })}
+            onBlur={markCondTouched}
+            aria-label="Fecha de estadía"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={invalid ? condMsg : undefined}
+          />
         );
       case 'DAYS_OF_WEEK':
         return (
