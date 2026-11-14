@@ -1,6 +1,7 @@
 /**
  * Motor de reglas de promociones / descuentos.
  * Condiciones AND → beneficio → modalidad (AUTO|MANUAL|SUGERIDA) → capa (SETTLEMENT|RATE).
+ * MANUAL = manual (por defecto desactivado); SUGERIDA = manual (por defecto activado).
  * Snapshot en DiscountApplication / ReservationNightRate; solo forward.
  */
 
@@ -299,6 +300,18 @@ function modalityIsSuggestion(rule) {
   return rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
 }
 
+/** SUGERIDA = manual (por defecto activado); MANUAL = manual (por defecto desactivado). */
+function modalityDefaultOn(rule) {
+  return rule?.modality === 'SUGERIDA';
+}
+
+function toSuggestion(rule) {
+  return {
+    ...rule,
+    defaultOn: modalityDefaultOn(rule)
+  };
+}
+
 /**
  * Config legacy-compatible para paymentDiscount (PERCENT / FIXED settlement).
  */
@@ -505,9 +518,9 @@ function filterEligibleRules(rules, ctx, { forApply = true } = {}) {
  */
 function evaluateSettlementRules(rules, ctx) {
   const matched = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: true });
-  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: false }).filter(
-    (r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)
-  );
+  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: false })
+    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .map(toSuggestion);
 
   const mode = ctx.mode === 'settle' ? 'settle' : 'received';
   const benefitFn = (rule) =>
@@ -634,9 +647,9 @@ function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
   const nights = Math.max(prices.length, Number(ctx.nights) || 0);
   const freeRules = (rules || []).filter((r) => r && r.benefitType === 'FREE_NIGHTS');
   const matched = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: true });
-  const suggestions = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: false }).filter(
-    (r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)
-  );
+  const suggestions = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: false })
+    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .map(toSuggestion);
 
   const benefitFn = (rule) => {
     const freeCount = computeFreeNightCount(rule, nights);
@@ -780,9 +793,9 @@ function evaluateRateRules(rules, ctx) {
   const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true }).filter(
     (r) => r.benefitType !== 'FREE_NIGHTS'
   );
-  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: false }).filter(
-    (r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)
-  );
+  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: false })
+    .filter((r) => modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx))
+    .map(toSuggestion);
   const nightPrice = toNumber(ctx.nightPrice);
   const nights = Math.max(1, Number(ctx.nights) || 1);
   const benefitFn = (rule) => applyRateBenefit(rule, nightPrice, nights);
@@ -888,6 +901,7 @@ module.exports = {
   evaluateCondition,
   ruleMatchesConditions,
   modalityAllowsApply,
+  modalityDefaultOn,
   ruleToSettlementConfig,
   computeSettlementBenefit,
   selectByStacking,

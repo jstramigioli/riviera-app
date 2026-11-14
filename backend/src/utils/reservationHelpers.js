@@ -223,7 +223,7 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           serviceTypeId,
           nightPrice: originalAmount,
           occupancyPercent,
-          selectedRuleIds: [] // AUTO only at sync; MANUAL/SUGERIDA vía API cotización
+          selectedRuleIds: [] // AUTO only at sync; manual (default on/off) vía API cotización
         });
         if (rateEval.aplica) {
           pricedAmount = rateEval.finalARS;
