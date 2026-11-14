@@ -552,6 +552,9 @@ function PromocionesTab() {
             Promoción
           </button>
         </div>
+        <p className={styles.sectionLead}>
+          Ofertas de estadía: fechas, noches, ocupación u otras condiciones de la reserva.
+        </p>
         {renderTable(promoRows, 'No hay promociones')}
       </section>
 
@@ -569,6 +572,9 @@ function PromocionesTab() {
             Descuento
           </button>
         </div>
+        <p className={styles.sectionLead}>
+          Rebajas al cobrar: por medio de pago u otras condiciones en el momento del pago.
+        </p>
         {renderTable(discountRows, 'No hay descuentos')}
       </section>
 
@@ -605,31 +611,6 @@ function PromocionesTab() {
                 <FiX aria-hidden="true" />
               </button>
             </div>
-
-            {!editingId && (
-              <div className={styles.kindToggle} role="group" aria-label="Tipo">
-                <button
-                  type="button"
-                  className={`${styles.kindBtn} ${
-                    form.kind === 'PROMO' ? styles.kindBtnActive : ''
-                  }`}
-                  onClick={() => setField('kind', 'PROMO')}
-                  aria-pressed={form.kind === 'PROMO'}
-                >
-                  Promoción
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.kindBtn} ${
-                    form.kind === 'DESCUENTO' ? styles.kindBtnActive : ''
-                  }`}
-                  onClick={() => setField('kind', 'DESCUENTO')}
-                  aria-pressed={form.kind === 'DESCUENTO'}
-                >
-                  Descuento
-                </button>
-              </div>
-            )}
 
             <label className={styles.field}>
               Nombre

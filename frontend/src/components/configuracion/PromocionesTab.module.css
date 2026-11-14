@@ -45,6 +45,16 @@
   color: var(--color-text-muted);
 }
 
+.sectionLead {
+  margin: -0.15rem 0 0;
+  font-size: var(--font-size-small);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+  max-width: 42rem;
+  text-wrap: pretty;
+}
+
 .muted {
   margin: 0;
   color: var(--color-text-muted);
@@ -345,46 +355,6 @@ button.switch {
   font-size: var(--font-size-large);
   font-weight: 600;
   color: var(--color-text-dark);
-}
-
-.kindToggle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--color-bg-light);
-}
-
-.kindBtn {
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-family: var(--font-main);
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-  padding: 0.45rem 0.6rem;
-  cursor: pointer;
-}
-
-.kindBtn:hover {
-  color: var(--color-text-main);
-}
-
-.kindBtnActive {
-  background: var(--color-primary);
-  color: var(--color-text-light);
-}
-
-.kindBtnActive:hover {
-  color: var(--color-text-light);
-  background: var(--color-primary-dark);
-}
-
-.kindBtn:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px rgba(63, 95, 138, 0.35);
 }
 
 .formFlags {
