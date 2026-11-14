@@ -310,10 +310,17 @@ exports.previewPromotion = async (req, res) => {
 
     let occupancyPercent = body.occupancyPercent;
     if (occupancyPercent == null && (body.hotelId || body.checkIn)) {
-      occupancyPercent = await computeHotelOccupancyPercent(prisma, {
-        hotelId: body.hotelId,
-        date: body.checkIn || body.asOfDate || new Date()
-      });
+      try {
+        occupancyPercent = await computeHotelOccupancyPercent(prisma, {
+          hotelId: body.hotelId,
+          date: body.checkIn || body.asOfDate || new Date()
+        });
+      } catch (occErr) {
+        // Occupancy is optional for most RATE rules (e.g. FREE_NIGHTS 4x3).
+        // Never fail the whole preview if occupancy lookup breaks.
+        console.warn('Preview: ocupación hotel no disponible', occErr?.message || occErr);
+        occupancyPercent = null;
+      }
     }
 
     const ctx = {
