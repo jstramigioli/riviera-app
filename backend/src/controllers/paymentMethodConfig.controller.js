@@ -10,85 +10,6 @@ function serializeConfig(row) {
   };
 }
 
-/**
- * Upsert regla PAYDISC_<code> al editar % desde Medios (compat UI).
- * Fuente de verdad = PromotionRule.
- */
-async function upsertPaymentDiscountRule(tx, config, {
-  descuentoActivo,
-  descuentoValor,
-  aplicaEnParcial,
-  aplicaEnSeña
-}) {
-  const code = `PAYDISC_${config.code}`;
-  const existing = await tx.promotionRule.findUnique({
-    where: { code },
-    include: { conditions: true }
-  });
-
-  if (!descuentoActivo || !(Number(descuentoValor) > 0)) {
-    if (existing) {
-      await tx.promotionRule.update({
-        where: { id: existing.id },
-        data: { activo: false }
-      });
-    }
-    return;
-  }
-
-  const data = {
-    label: `Descuento ${config.label}`,
-    kind: 'DESCUENTO',
-    activo: true,
-    prioridad: 1000 - (config.ordenIndex || 0),
-    modality: 'AUTO',
-    layer: 'SETTLEMENT',
-    stacking: 'EXCLUSIVE',
-    aplicaEnParcial: aplicaEnParcial !== false,
-    aplicaEnSeña: aplicaEnSeña !== false,
-    benefitType: 'PERCENT',
-    benefitValue: new Decimal(Number(descuentoValor) || 0),
-    benefitBase: 'DEBT_CANCELLED',
-    notas: `Sincronizado desde PaymentMethodConfig#${config.id}`
-  };
-
-  if (existing) {
-    await tx.promotionRule.update({ where: { id: existing.id }, data });
-    const hasPayCond = (existing.conditions || []).some((c) => c.type === 'PAYMENT_METHOD');
-    if (!hasPayCond) {
-      await tx.promotionCondition.create({
-        data: {
-          ruleId: existing.id,
-          type: 'PAYMENT_METHOD',
-          params: {
-            paymentMethodConfigId: config.id,
-            paymentMethodCode: config.code
-          }
-        }
-      });
-    }
-    return;
-  }
-
-  await tx.promotionRule.create({
-    data: {
-      code,
-      ...data,
-      conditions: {
-        create: [
-          {
-            type: 'PAYMENT_METHOD',
-            params: {
-              paymentMethodConfigId: config.id,
-              paymentMethodCode: config.code
-            }
-          }
-        ]
-      }
-    }
-  });
-}
-
 exports.listPaymentMethodConfigs = async (req, res) => {
   try {
     const includeInactive = String(req.query.all || '') === '1' || String(req.query.all || '') === 'true';
@@ -140,32 +61,21 @@ exports.createPaymentMethodConfig = async (req, res) => {
       return res.status(400).json({ error: 'code y label son requeridos' });
     }
 
-    const descuentoActivo = Boolean(body.descuentoActivo);
-    const descuentoValor = Number(body.descuentoValor) || 0;
-
-    const created = await prisma.$transaction(async (tx) => {
-      const row = await tx.paymentMethodConfig.create({
-        data: {
-          code,
-          label,
-          activo: body.activo !== false,
-          ordenIndex: Number.isFinite(Number(body.ordenIndex)) ? Number(body.ordenIndex) : 100,
-          requiereFacturacion: Boolean(body.requiereFacturacion),
-          descuentoActivo,
-          descuentoTipo: 'PERCENT',
-          descuentoValor: new Decimal(descuentoValor),
-          aplicaEnParcial: body.aplicaEnParcial !== false,
-          aplicaEnSeña: body.aplicaEnSeña !== false,
-          notas: body.notas != null ? String(body.notas).trim() || null : null
-        }
-      });
-      await upsertPaymentDiscountRule(tx, row, {
-        descuentoActivo,
-        descuentoValor,
-        aplicaEnParcial: body.aplicaEnParcial !== false,
-        aplicaEnSeña: body.aplicaEnSeña !== false
-      });
-      return row;
+    // Descuentos solo vía PromotionRule (Config → Promociones). Mirror queda en 0.
+    const created = await prisma.paymentMethodConfig.create({
+      data: {
+        code,
+        label,
+        activo: body.activo !== false,
+        ordenIndex: Number.isFinite(Number(body.ordenIndex)) ? Number(body.ordenIndex) : 100,
+        requiereFacturacion: Boolean(body.requiereFacturacion),
+        descuentoActivo: false,
+        descuentoTipo: 'PERCENT',
+        descuentoValor: new Decimal(0),
+        aplicaEnParcial: true,
+        aplicaEnSeña: true,
+        notas: body.notas != null ? String(body.notas).trim() || null : null
+      }
     });
     res.status(201).json(serializeConfig(created));
   } catch (error) {
@@ -196,48 +106,12 @@ exports.updatePaymentMethodConfig = async (req, res) => {
       data.ordenIndex = Number(body.ordenIndex);
     }
     if (body.requiereFacturacion != null) data.requiereFacturacion = Boolean(body.requiereFacturacion);
-
-    const touchingDiscount =
-      body.descuentoActivo != null ||
-      body.descuentoValor != null ||
-      body.aplicaEnParcial != null ||
-      body.aplicaEnSeña != null;
-
-    if (body.descuentoActivo != null) data.descuentoActivo = Boolean(body.descuentoActivo);
-    if (body.descuentoTipo != null) {
-      if (body.descuentoTipo !== 'PERCENT' && body.descuentoTipo !== 'FIXED') {
-        return res.status(400).json({ error: 'descuentoTipo debe ser PERCENT o FIXED' });
-      }
-      data.descuentoTipo = body.descuentoTipo;
-    }
-    if (body.descuentoValor != null) {
-      const v = Number(body.descuentoValor);
-      if (!Number.isFinite(v) || v < 0) {
-        return res.status(400).json({ error: 'descuentoValor inválido' });
-      }
-      if ((body.descuentoTipo || existing.descuentoTipo || 'PERCENT') === 'PERCENT' && v >= 100) {
-        return res.status(400).json({ error: 'descuentoValor % debe ser < 100' });
-      }
-      data.descuentoValor = new Decimal(v);
-    }
-    if (body.aplicaEnParcial != null) data.aplicaEnParcial = Boolean(body.aplicaEnParcial);
-    if (body.aplicaEnSeña != null) data.aplicaEnSeña = Boolean(body.aplicaEnSeña);
     if (body.notas !== undefined) {
       data.notas = body.notas != null ? String(body.notas).trim() || null : null;
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const row = await tx.paymentMethodConfig.update({ where: { id }, data });
-      if (touchingDiscount) {
-        await upsertPaymentDiscountRule(tx, row, {
-          descuentoActivo: row.descuentoActivo,
-          descuentoValor: Number(row.descuentoValor),
-          aplicaEnParcial: row.aplicaEnParcial,
-          aplicaEnSeña: row.aplicaEnSeña
-        });
-      }
-      return row;
-    });
+    // Ignorar descuento* / aplicaEn* del body: fuente de verdad = Promociones (motor).
+    const updated = await prisma.paymentMethodConfig.update({ where: { id }, data });
     res.json(serializeConfig(updated));
   } catch (error) {
     console.error('Error actualizando medio de pago:', error);
