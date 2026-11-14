@@ -41,6 +41,33 @@ function serializeRule(row) {
   };
 }
 
+/** Valor manual off → benefitValue obligatorio y válido. */
+function validateBenefitValue({ benefitValueManual, benefitValue, benefitType }) {
+  if (benefitValueManual) return null;
+  const raw = benefitValue;
+  if (raw === '' || raw == null) {
+    return benefitType === 'FREE_NIGHTS'
+      ? 'Indicá cuántas noches gratis'
+      : 'Indicá el valor del beneficio';
+  }
+  const benefit = Number(raw);
+  if (Number.isNaN(benefit)) {
+    return benefitType === 'FREE_NIGHTS'
+      ? 'Indicá cuántas noches gratis'
+      : 'Indicá el valor del beneficio';
+  }
+  if (benefitType === 'FREE_NIGHTS') {
+    if (!Number.isInteger(benefit) || benefit < 1) {
+      return 'Indicá cuántas noches gratis (entero ≥ 1)';
+    }
+  } else if (benefit < 0) {
+    return 'El beneficio no puede ser negativo';
+  } else if (benefitType === 'PERCENT' && benefit > 100) {
+    return 'El porcentaje no puede ser mayor a 100';
+  }
+  return null;
+}
+
 function normalizeConditions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -121,6 +148,15 @@ exports.createPromotionRule = async (req, res) => {
     const modality = String(body.modality || 'AUTO').toUpperCase();
     const stacking = String(body.stacking || 'EXCLUSIVE').toUpperCase();
     const kind = String(body.kind || 'DESCUENTO').toUpperCase();
+    const benefitValueManual = Boolean(body.benefitValueManual);
+    const benefitValueError = validateBenefitValue({
+      benefitValueManual,
+      benefitValue: body.benefitValue,
+      benefitType
+    });
+    if (benefitValueError) {
+      return res.status(400).json({ error: benefitValueError });
+    }
 
     const created = await prisma.promotionRule.create({
       data: {
@@ -138,10 +174,8 @@ exports.createPromotionRule = async (req, res) => {
         aplicaEnParcial: body.aplicaEnParcial !== false,
         aplicaEnSeña: body.aplicaEnSeña !== false,
         benefitType,
-        benefitValue: new Decimal(
-          body.benefitValueManual ? 0 : Number(body.benefitValue) || 0
-        ),
-        benefitValueManual: Boolean(body.benefitValueManual),
+        benefitValue: new Decimal(benefitValueManual ? 0 : Number(body.benefitValue) || 0),
+        benefitValueManual,
         benefitBase,
         benefitCapARS:
           body.benefitCapARS != null && body.benefitCapARS !== ''
@@ -217,12 +251,26 @@ exports.updatePromotionRule = async (req, res) => {
     if (body.benefitValueManual != null) {
       data.benefitValueManual = Boolean(body.benefitValueManual);
     }
-    if (body.benefitValue != null || body.benefitValueManual === true) {
+    if (body.benefitValue != null || body.benefitValueManual != null) {
       const manual =
         body.benefitValueManual != null
           ? Boolean(body.benefitValueManual)
           : Boolean(existing.benefitValueManual);
-      data.benefitValue = new Decimal(manual ? 0 : Number(body.benefitValue) || 0);
+      const benefitType =
+        body.benefitType != null
+          ? String(body.benefitType).toUpperCase()
+          : String(existing.benefitType || 'PERCENT').toUpperCase();
+      const resolvedValue =
+        body.benefitValue != null ? body.benefitValue : existing.benefitValue;
+      const benefitValueError = validateBenefitValue({
+        benefitValueManual: manual,
+        benefitValue: resolvedValue,
+        benefitType
+      });
+      if (benefitValueError) {
+        return res.status(400).json({ error: benefitValueError });
+      }
+      data.benefitValue = new Decimal(manual ? 0 : Number(resolvedValue) || 0);
     }
     if (body.benefitCapARS !== undefined) {
       data.benefitCapARS =
