@@ -159,13 +159,25 @@ describe('promotionEngine conditions AND', () => {
         { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(false);
-    // Compat DAYS_OF_WEEK → noches de estadía
+    // DAYS_OF_WEEK incluye / no incluye sobre noches de estadía
     expect(
       evaluateCondition(
-        { type: 'DAYS_OF_WEEK', params: { days: [5, 6] } },
+        { type: 'DAYS_OF_WEEK', params: { op: 'includes', days: [5, 6] } },
         { checkIn: '2026-11-13', checkOut: '2026-11-15' }
       )
     ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { op: 'excludes', days: [0] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'DAYS_OF_WEEK', params: { op: 'excludes', days: [5] } },
+        { checkIn: '2026-11-13', checkOut: '2026-11-15' }
+      )
+    ).toBe(false);
   });
 
   it('vigencia', () => {
