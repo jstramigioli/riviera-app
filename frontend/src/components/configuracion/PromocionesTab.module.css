@@ -341,15 +341,6 @@ button.switch {
   gap: 0.5rem;
 }
 
-.formEyebrow {
-  margin: 0 0 0.15rem;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
 .formHeader h3 {
   margin: 0;
   font-size: var(--font-size-large);
@@ -385,6 +376,38 @@ button.switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
+}
+
+.benefitRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.benefitValueField {
+  width: 6.5rem;
+}
+
+.valueWithSuffix {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.valueWithSuffix input {
+  width: 4.5rem;
+  flex: 0 0 auto;
+}
+
+.valueSuffix {
+  flex: 0 0 auto;
+  min-width: 0.85rem;
+  font-size: var(--font-size-medium);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1;
 }
 
 .field {
@@ -476,6 +499,10 @@ button.switch {
 
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .benefitRow {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .conditionRow {

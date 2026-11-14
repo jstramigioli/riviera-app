@@ -588,20 +588,15 @@ function PromocionesTab() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.formHeader}>
-              <div>
-                <p className={styles.formEyebrow}>
-                  {form.kind === 'PROMO' ? 'Promoción' : 'Descuento'}
-                </p>
-                <h3 id="promo-form-title">
-                  {editingId
-                    ? form.kind === 'PROMO'
-                      ? 'Editar promoción'
-                      : 'Editar descuento'
-                    : form.kind === 'PROMO'
-                      ? 'Nueva promoción'
-                      : 'Nuevo descuento'}
-                </h3>
-              </div>
+              <h3 id="promo-form-title">
+                {editingId
+                  ? form.kind === 'PROMO'
+                    ? 'Editar promoción'
+                    : 'Editar descuento'
+                  : form.kind === 'PROMO'
+                    ? 'Nueva promoción'
+                    : 'Nuevo descuento'}
+              </h3>
               <button
                 type="button"
                 className={styles.iconBtn}
@@ -635,26 +630,6 @@ function PromocionesTab() {
                 </select>
               </label>
               <label className={styles.field}>
-                Beneficio
-                <select
-                  value={form.benefitType}
-                  onChange={(e) => setField('benefitType', e.target.value)}
-                >
-                  <option value="PERCENT">Porcentaje</option>
-                  <option value="FIXED">Fijo ARS</option>
-                  <option value="FIXED_PER_NIGHT">Fijo / noche</option>
-                </select>
-              </label>
-              <label className={styles.field}>
-                Valor
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.benefitValue}
-                  onChange={(e) => setField('benefitValue', e.target.value)}
-                />
-              </label>
-              <label className={styles.field}>
                 Tope ARS
                 <input
                   type="number"
@@ -663,6 +638,34 @@ function PromocionesTab() {
                   placeholder="Opcional"
                 />
               </label>
+              <div className={styles.benefitRow}>
+                <label className={styles.field}>
+                  Beneficio
+                  <select
+                    value={form.benefitType}
+                    onChange={(e) => setField('benefitType', e.target.value)}
+                  >
+                    <option value="PERCENT">Porcentaje</option>
+                    <option value="FIXED">Fijo ARS</option>
+                    <option value="FIXED_PER_NIGHT">Fijo / noche</option>
+                  </select>
+                </label>
+                <label className={`${styles.field} ${styles.benefitValueField}`}>
+                  Valor
+                  <span className={styles.valueWithSuffix}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.benefitValue}
+                      onChange={(e) => setField('benefitValue', e.target.value)}
+                      aria-label="Valor del beneficio"
+                    />
+                    <span className={styles.valueSuffix} aria-hidden="true">
+                      {form.benefitType === 'PERCENT' ? '%' : '$'}
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div className={styles.formFlags}>
@@ -701,9 +704,7 @@ function PromocionesTab() {
                   Agregar
                 </button>
               </div>
-              {form.conditions.length === 0 ? (
-                <p className={styles.muted}>Sin condiciones (AND). Usá “Rango de fechas” para vigencia.</p>
-              ) : (
+              {form.conditions.length > 0 && (
                 <div className={styles.conditions}>
                   {form.conditions.map((c, index) => (
                     <div key={index} className={styles.conditionRow}>
