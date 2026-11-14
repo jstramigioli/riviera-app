@@ -14,6 +14,13 @@ vi.mock('../hooks/useTags', () => ({
   })
 }));
 
+vi.mock('../services/api', () => ({
+  fetchRooms: vi.fn(async () => [
+    { id: 1, name: '101', maxPeople: 2, roomType: { name: 'Doble', maxPeople: 2 }, beds: [] },
+    { id: 2, name: '201', maxPeople: 4, roomType: { name: 'Cuádruple', maxPeople: 4 }, beds: [] }
+  ])
+}));
+
 describe('ReservationRequirements', () => {
   const mockRequirements = {
     requiredGuests: 2,

@@ -34,10 +34,17 @@ function ReservationRequirements({
     room.maxPeople >= (requirements.requiredGuests || 1)
   );
 
+  // Tope = max capacidad de tipos de habitación (vía rooms → roomType / maxPeople)
+  const maxGuestCapacity = rooms.length
+    ? Math.max(...rooms.map((room) => room.roomType?.maxPeople || room.maxPeople || 1))
+    : 1;
+
   const handleGuestsChange = (guests) => {
+    const parsed = parseInt(guests, 10) || 1;
+    const capped = Math.min(Math.max(1, parsed), Math.max(1, maxGuestCapacity));
     const newRequirements = {
       ...requirements,
-      requiredGuests: parseInt(guests) || 1,
+      requiredGuests: capped,
       requiredRoomId: null // Reset habitación específica al cambiar cantidad de huéspedes
     };
     onRequirementsChange(newRequirements);
@@ -98,8 +105,9 @@ function ReservationRequirements({
           Cantidad de Huéspedes *:
         </label>
         <select
-          value={requirements.requiredGuests || 1}
+          value={Math.min(requirements.requiredGuests || 1, maxGuestCapacity)}
           onChange={(e) => handleGuestsChange(e.target.value)}
+          aria-label="Cantidad de huéspedes"
           style={{
             width: '100%',
             padding: '12px',
@@ -109,21 +117,18 @@ function ReservationRequirements({
             backgroundColor: 'var(--color-bg-white)'
           }}
         >
-          <option value={1}> 1 huésped</option>
-          <option value={2}> 2 huéspedes</option>
-          <option value={3}> 3 huéspedes</option>
-          <option value={4}> 4 huéspedes</option>
-          <option value={5}> 5 huéspedes</option>
-          <option value={6}> 6 huéspedes</option>
-          <option value={7}> 7 huéspedes</option>
-          <option value={8}> 8 huéspedes</option>
+          {Array.from({ length: Math.max(1, maxGuestCapacity) }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num} {num === 1 ? 'huésped' : 'huéspedes'}
+            </option>
+          ))}
         </select>
       </div>
 
       <div style={{ marginBottom: '20px' }}>
         <BedPreferenceFields
           value={requirements}
-          maxGuests={requirements.requiredGuests || 8}
+          maxGuests={maxGuestCapacity}
           onChange={(pref) => onRequirementsChange({ ...requirements, ...pref })}
         />
       </div>

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchRoomTypes, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
@@ -258,6 +258,8 @@ export default function Consulta() {
   // Estado para habitaciones (para el selector de habitación específica)
   const [allRooms, setAllRooms] = useState([]);
   const [loadingAllRooms, setLoadingAllRooms] = useState(false);
+  /** Tope del select de huéspedes = max(RoomType.maxPeople). */
+  const [maxGuestCapacity, setMaxGuestCapacity] = useState(1);
 
   // Estado para habitaciones disponibles (por bloque)
   const [availableRoomsPerBlock, setAvailableRoomsPerBlock] = useState({});
@@ -786,17 +788,18 @@ export default function Consulta() {
     }
   }, []);
 
-  // Calcular la capacidad máxima de huéspedes basada en los tipos de habitación existentes
-  const maxGuestCapacity = React.useMemo(() => {
-    if (!allRooms || allRooms.length === 0) return 10; // Valor por defecto
-    
-    // Obtener la capacidad máxima de todos los tipos de habitación
-    const maxCapacity = Math.max(
-      ...allRooms.map(room => room.roomType?.maxPeople || room.maxPeople || 1)
-    );
-    
-    return maxCapacity;
-  }, [allRooms]);
+  const loadMaxGuestCapacity = useCallback(async () => {
+    try {
+      const roomTypes = await fetchRoomTypes();
+      const list = Array.isArray(roomTypes) ? roomTypes : [];
+      const maxCapacity = list.length
+        ? Math.max(...list.map((rt) => Number(rt.maxPeople) || 1))
+        : 1;
+      setMaxGuestCapacity(Math.max(1, maxCapacity));
+    } catch (error) {
+      console.error('Error cargando tipos de habitación para tope de huéspedes:', error);
+    }
+  }, []);
 
   // Función para cargar las fechas por defecto
   const loadDefaultDates = useCallback(async () => {
@@ -1498,6 +1501,7 @@ export default function Consulta() {
     // console.log('🚀 NuevaConsulta montado - iniciando carga...');
     loadClients();
     loadAllRooms();
+    loadMaxGuestCapacity();
     
     // No pisar fechas al editar consulta o reserva existente
     if (!location.state?.isEditing && !isEditingReservationNav) {
@@ -1506,7 +1510,18 @@ export default function Consulta() {
     } else {
       console.log('🔍 NO cargando fechas por defecto (editando)');
     }
-  }, [loadClients, loadAllRooms, loadDefaultDates, location.state?.isEditing, isEditingReservationNav]);
+  }, [loadClients, loadAllRooms, loadMaxGuestCapacity, loadDefaultDates, location.state?.isEditing, isEditingReservationNav]);
+
+  // Si el tope de tipos baja, recortar huéspedes seleccionados
+  useEffect(() => {
+    const current = Number(requirements.requiredGuests) || 1;
+    if (current <= maxGuestCapacity) return;
+    setRequirements((prev) => ({ ...prev, requiredGuests: maxGuestCapacity }));
+    setSegments((prev) => prev.map((segment) => ({
+      ...segment,
+      requiredGuests: maxGuestCapacity
+    })));
+  }, [maxGuestCapacity, requirements.requiredGuests]);
 
   // NO sincronizamos roomId porque ya no lo guardamos en consultas
   // Las habitaciones se buscarán automáticamente con debouncing cuando se cumplan las condiciones
