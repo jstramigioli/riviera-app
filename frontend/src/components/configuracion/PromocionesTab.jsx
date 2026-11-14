@@ -1015,37 +1015,38 @@ function PromocionesTab() {
               </div>
               {form.conditions.length > 0 && (
                 <div className={styles.conditions}>
-                  <div className={styles.conditionHead} aria-hidden="true">
-                    <span>Variable</span>
-                    <span>Operador</span>
-                    <span>Valor</span>
-                    <span />
-                  </div>
                   {form.conditions.map((c, index) => (
-                    <div key={index} className={styles.conditionRow}>
-                      <select
-                        value={c.type}
-                        onChange={(e) => changeConditionType(index, e.target.value)}
-                        aria-label="Variable"
-                      >
-                        {CONDITION_VARS.map((v) => (
-                          <option key={v.value} value={v.value}>
-                            {v.label}
-                          </option>
-                        ))}
-                      </select>
-                      {renderOperator(c, index)}
-                      {renderValue(c, index)}
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        onClick={() => removeCondition(index)}
-                        aria-label="Quitar condición"
-                        title="Quitar"
-                      >
-                        <FiX aria-hidden="true" />
-                      </button>
-                    </div>
+                    <React.Fragment key={index}>
+                      {index > 0 && (
+                        <div className={styles.conditionAnd} aria-hidden="true">
+                          y
+                        </div>
+                      )}
+                      <div className={styles.conditionRow}>
+                        <select
+                          value={c.type}
+                          onChange={(e) => changeConditionType(index, e.target.value)}
+                          aria-label="Variable"
+                        >
+                          {CONDITION_VARS.map((v) => (
+                            <option key={v.value} value={v.value}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                        {renderOperator(c, index)}
+                        {renderValue(c, index)}
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          onClick={() => removeCondition(index)}
+                          aria-label="Quitar condición"
+                          title="Quitar"
+                        >
+                          <FiX aria-hidden="true" />
+                        </button>
+                      </div>
+                    </React.Fragment>
                   ))}
                 </div>
               )}
