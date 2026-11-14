@@ -96,6 +96,7 @@ function ReservationsView() {
     setClients,
     reservations,
     setReservations,
+    queries,
     loading,
     error
   } = useAppData();
@@ -252,6 +253,18 @@ function ReservationsView() {
         <LibroReservasBoard
           onReservationClick={handleReservationClick}
           reservationsForDayInfo={reservations}
+          searchReservations={reservations}
+          searchClients={clients}
+          searchQueries={queries}
+          onSearchSelectReservation={handleReservationClick}
+          onSearchSelectClient={(client) => {
+            if (client?.id != null) navigate(`/clients/${client.id}`);
+          }}
+          onSearchSelectQuery={(query) => {
+            navigate('/consulta', {
+              state: { queryData: query, isEditing: true }
+            });
+          }}
           refreshToken={calendarRefreshToken}
           onCreateConsumption={() => openConsumptionModal(null)}
           onCreatePayment={openPaymentModal}
