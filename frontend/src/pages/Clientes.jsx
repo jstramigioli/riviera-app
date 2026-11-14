@@ -3,7 +3,7 @@ import { FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { fetchClients } from '../services/api';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
-import { filterAndSortClients, uniqueCountries } from '../utils/clientListQuery';
+import { filterAndSortClients } from '../utils/clientListQuery';
 import styles from './Clientes.module.css';
 
 const COLUMNS = [
@@ -46,9 +46,6 @@ function Clientes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const [country, setCountry] = useState('');
-  const [promotions, setPromotions] = useState('');
-  const [hasEmail, setHasEmail] = useState('');
   const [sortField, setSortField] = useState('lastName');
   const [sortDirection, setSortDirection] = useState('asc');
 
@@ -70,22 +67,17 @@ function Clientes() {
     loadClients();
   }, [loadClients]);
 
-  const countries = useMemo(() => uniqueCountries(clients), [clients]);
-
   const visibleClients = useMemo(
     () =>
       filterAndSortClients(clients, {
         search,
-        country,
-        promotions,
-        hasEmail,
         sortField,
         sortDirection,
       }),
-    [clients, search, country, promotions, hasEmail, sortField, sortDirection]
+    [clients, search, sortField, sortDirection]
   );
 
-  const hasActiveFilters = Boolean(search || country || promotions || hasEmail);
+  const hasActiveFilters = Boolean(search);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -98,9 +90,6 @@ function Clientes() {
 
   const clearFilters = () => {
     setSearch('');
-    setCountry('');
-    setPromotions('');
-    setHasEmail('');
   };
 
   if (loading) {
@@ -130,9 +119,6 @@ function Clientes() {
     <ClientesShell>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Listado de clientes</h1>
-        <p className={styles.pageLead}>
-          Buscá y filtrá la agenda. Abrí un cliente para ver el perfil.
-        </p>
       </header>
 
       <section className={styles.section} aria-label="Listado de clientes">
@@ -154,58 +140,13 @@ function Clientes() {
               />
             </label>
 
-            <div className={styles.filters} aria-label="Filtros de clientes">
-              <label className={styles.srOnly} htmlFor="client-filter-country">
-                País
-              </label>
-              <select
-                id="client-filter-country"
-                className={styles.filterSelect}
-                value={country}
-                onChange={(event) => setCountry(event.target.value)}
-              >
-                <option value="">Todos los países</option>
-                {countries.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-
-              <label className={styles.srOnly} htmlFor="client-filter-promotions">
-                Promociones
-              </label>
-              <select
-                id="client-filter-promotions"
-                className={styles.filterSelect}
-                value={promotions}
-                onChange={(event) => setPromotions(event.target.value)}
-              >
-                <option value="">Promociones: todas</option>
-                <option value="yes">Quiere promociones</option>
-                <option value="no">No quiere promociones</option>
-              </select>
-
-              <label className={styles.srOnly} htmlFor="client-filter-email">
-                Email
-              </label>
-              <select
-                id="client-filter-email"
-                className={styles.filterSelect}
-                value={hasEmail}
-                onChange={(event) => setHasEmail(event.target.value)}
-              >
-                <option value="">Email: todos</option>
-                <option value="yes">Con email</option>
-                <option value="no">Sin email</option>
-              </select>
-
-              {hasActiveFilters ? (
+            {hasActiveFilters ? (
+              <div className={styles.filters}>
                 <button type="button" className={styles.clearFilters} onClick={clearFilters}>
-                  Limpiar filtros
+                  Limpiar búsqueda
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -214,9 +155,9 @@ function Clientes() {
             {hasActiveFilters ? (
               <>
                 <p className={styles.emptyTitle}>Ningún cliente coincide</p>
-                <p className={styles.emptyHint}>Probá otra búsqueda o limpiá los filtros.</p>
+                <p className={styles.emptyHint}>Probá otra búsqueda o limpiá el filtro.</p>
                 <button type="button" className={styles.clearFilters} onClick={clearFilters}>
-                  Limpiar filtros
+                  Limpiar búsqueda
                 </button>
               </>
             ) : (
