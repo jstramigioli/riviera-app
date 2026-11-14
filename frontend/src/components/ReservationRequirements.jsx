@@ -43,12 +43,19 @@ function ReservationRequirements({
     ? Math.max(...rooms.map((room) => room.roomType?.maxPeople || room.maxPeople || 1))
     : 1;
 
-  const bedLimits = maxBedPreferenceLimits(rooms, requirements.requiredGuests || 1);
+  const guestsCount = requirements.requiredGuests || 1;
+  const bedLimits = {
+    ...maxBedPreferenceLimits(rooms, guestsCount),
+    guests: guestsCount
+  };
 
   const handleGuestsChange = (guests) => {
     const parsed = parseInt(guests, 10) || 1;
     const capped = Math.min(Math.max(1, parsed), Math.max(1, maxGuestCapacity));
-    const nextLimits = maxBedPreferenceLimits(rooms, capped);
+    const nextLimits = {
+      ...maxBedPreferenceLimits(rooms, capped),
+      guests: capped
+    };
     const newRequirements = {
       ...requirements,
       requiredGuests: capped,
@@ -138,6 +145,7 @@ function ReservationRequirements({
           value={requirements}
           maxDoubleBeds={bedLimits.maxDoubleBeds}
           maxSingleBeds={bedLimits.maxSingleBeds}
+          guests={guestsCount}
           onChange={(pref) => onRequirementsChange({
             ...requirements,
             ...clampBedPreferenceToLimits(pref, bedLimits)

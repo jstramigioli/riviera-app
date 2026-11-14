@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  bedPreferenceOptionExceedsGuests,
   clampBedPreferenceToLimits,
   normalizeBedPreference
 } from '../utils/bedConfig';
@@ -9,29 +10,37 @@ import styles from './BedPreferenceFields.module.css';
  * Preferencia de camas para consulta/reserva.
  * Checkbox «Preferencia de camas»; Mat./Ind. solo si está tildado.
  * Máximos Mat/Ind = max entre habitaciones con capacidad === huéspedes.
+ * Opciones grisadas si matrimoniales×2 + individuales > huéspedes.
  */
 function BedPreferenceFields({
   value = {},
   onChange,
   maxDoubleBeds = 0,
   maxSingleBeds = 0,
+  guests = 0,
   disabled = false
 }) {
   const pref = normalizeBedPreference(value);
   const enabled = !pref.bedPreferenceNone;
   const maxDouble = Math.max(0, parseInt(maxDoubleBeds, 10) || 0);
   const maxSingle = Math.max(0, parseInt(maxSingleBeds, 10) || 0);
+  const maxGuests = Math.max(0, parseInt(guests, 10) || 0);
 
   const emit = (patch) => {
     const next = clampBedPreferenceToLimits(
       { ...pref, ...patch },
-      { maxDoubleBeds: maxDouble, maxSingleBeds: maxSingle }
+      { maxDoubleBeds: maxDouble, maxSingleBeds: maxSingle, guests: maxGuests }
     );
     onChange(next);
   };
 
-  const doubleValue = Math.min(pref.preferredDoubleBeds, maxDouble);
-  const singleValue = Math.min(pref.preferredSingleBeds, maxSingle);
+  const clamped = clampBedPreferenceToLimits(pref, {
+    maxDoubleBeds: maxDouble,
+    maxSingleBeds: maxSingle,
+    guests: maxGuests
+  });
+  const doubleValue = clamped.preferredDoubleBeds;
+  const singleValue = clamped.preferredSingleBeds;
 
   return (
     <div className={styles.root}>
@@ -74,9 +83,24 @@ function BedPreferenceFields({
                 preferredDoubleBeds: parseInt(e.target.value, 10) || 0
               })}
             >
-              {Array.from({ length: maxDouble + 1 }, (_, i) => (
-                <option key={`d-${i}`} value={i}>{i}</option>
-              ))}
+              {Array.from({ length: maxDouble + 1 }, (_, i) => {
+                const exceeds = bedPreferenceOptionExceedsGuests({
+                  kind: 'double',
+                  count: i,
+                  otherCount: singleValue,
+                  guests: maxGuests
+                });
+                return (
+                  <option
+                    key={`d-${i}`}
+                    value={i}
+                    disabled={exceeds}
+                    className={exceeds ? styles.optionDisabled : undefined}
+                  >
+                    {i}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className={styles.countField}>
@@ -91,9 +115,24 @@ function BedPreferenceFields({
                 preferredSingleBeds: parseInt(e.target.value, 10) || 0
               })}
             >
-              {Array.from({ length: maxSingle + 1 }, (_, i) => (
-                <option key={`s-${i}`} value={i}>{i}</option>
-              ))}
+              {Array.from({ length: maxSingle + 1 }, (_, i) => {
+                const exceeds = bedPreferenceOptionExceedsGuests({
+                  kind: 'single',
+                  count: i,
+                  otherCount: doubleValue,
+                  guests: maxGuests
+                });
+                return (
+                  <option
+                    key={`s-${i}`}
+                    value={i}
+                    disabled={exceeds}
+                    className={exceeds ? styles.optionDisabled : undefined}
+                  >
+                    {i}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>

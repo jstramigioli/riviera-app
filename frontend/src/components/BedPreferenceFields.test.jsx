@@ -10,6 +10,7 @@ describe('BedPreferenceFields', () => {
         value={{ bedPreferenceNone: true }}
         maxDoubleBeds={2}
         maxSingleBeds={2}
+        guests={4}
         onChange={onChange}
       />
     );
@@ -26,6 +27,7 @@ describe('BedPreferenceFields', () => {
         value={{ bedPreferenceNone: true }}
         maxDoubleBeds={2}
         maxSingleBeds={2}
+        guests={4}
         onChange={onChange}
       />
     );
@@ -49,6 +51,7 @@ describe('BedPreferenceFields', () => {
         }}
         maxDoubleBeds={1}
         maxSingleBeds={3}
+        guests={4}
         onChange={vi.fn()}
       />
     );
@@ -70,6 +73,7 @@ describe('BedPreferenceFields', () => {
         }}
         maxDoubleBeds={2}
         maxSingleBeds={2}
+        guests={4}
         onChange={onChange}
       />
     );
@@ -96,6 +100,7 @@ describe('BedPreferenceFields', () => {
         }}
         maxDoubleBeds={2}
         maxSingleBeds={2}
+        guests={4}
         onChange={onChange}
       />
     );
@@ -104,6 +109,53 @@ describe('BedPreferenceFields', () => {
     expect(onChange).toHaveBeenCalledWith({
       bedPreferenceNone: true,
       preferredDoubleBeds: 0,
+      preferredSingleBeds: 0
+    });
+  });
+
+  it('con 2 individuales, matrimonial ≥1 queda disabled (grisado)', () => {
+    render(
+      <BedPreferenceFields
+        value={{
+          bedPreferenceNone: false,
+          preferredDoubleBeds: 0,
+          preferredSingleBeds: 2
+        }}
+        maxDoubleBeds={1}
+        maxSingleBeds={2}
+        guests={2}
+        onChange={vi.fn()}
+      />
+    );
+
+    const mat = screen.getByLabelText('Camas matrimoniales');
+    const matOptions = [...mat.querySelectorAll('option')];
+    expect(matOptions.find((o) => o.value === '0')).not.toBeDisabled();
+    expect(matOptions.find((o) => o.value === '1')).toBeDisabled();
+  });
+
+  it('emit con mat=1 e ind=1 se clampea a plazas ≤ huéspedes', () => {
+    const onChange = vi.fn();
+    render(
+      <BedPreferenceFields
+        value={{
+          bedPreferenceNone: false,
+          preferredDoubleBeds: 1,
+          preferredSingleBeds: 0
+        }}
+        maxDoubleBeds={1}
+        maxSingleBeds={2}
+        guests={2}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Camas individuales'), {
+      target: { value: '1' }
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      bedPreferenceNone: false,
+      preferredDoubleBeds: 1,
       preferredSingleBeds: 0
     });
   });
