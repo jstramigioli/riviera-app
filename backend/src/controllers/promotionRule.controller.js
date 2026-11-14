@@ -272,19 +272,14 @@ exports.deletePromotionRule = async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Regla no encontrada' });
 
-    // Soft-delete: desactivar (conserva trazabilidad en DiscountApplication)
-    const updated = await prisma.promotionRule.update({
-      where: { id },
-      data: { activo: false },
-      include: { conditions: true }
-    });
-    await syncPaymentMethodMirrors(prisma, {
-      paymentMethodConfigIds: touchedMethodIds(existing)
-    });
-    res.json(serializeRule(updated));
+    const methodIds = touchedMethodIds(existing);
+    // Hard delete: condiciones en cascade; DiscountApplication.promotionRuleId → SetNull (historial intacto)
+    await prisma.promotionRule.delete({ where: { id } });
+    await syncPaymentMethodMirrors(prisma, { paymentMethodConfigIds: methodIds });
+    res.json({ ok: true, id });
   } catch (error) {
-    console.error('Error desactivando promoción:', error);
-    res.status(500).json({ error: 'Error al desactivar promoción', details: error.message });
+    console.error('Error eliminando promoción:', error);
+    res.status(500).json({ error: 'Error al eliminar promoción', details: error.message });
   }
 };
 
