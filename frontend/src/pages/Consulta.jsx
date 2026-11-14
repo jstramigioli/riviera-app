@@ -3087,28 +3087,39 @@ export default function Consulta() {
   if (editingReservationId && !editPrefillReady) {
     return (
       <div className={styles.newLayout}>
+        <header className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>Cargando reserva #{editingReservationId}…</h1>
+        </header>
         <div className={styles.unifiedContainer}>
           <div className={styles.sectionHeader}>
-            <h2>Cargando reserva #{editingReservationId}…</h2>
+            <p className={styles.sectionLead}>Preparando datos de la reserva</p>
           </div>
         </div>
       </div>
     );
   }
 
+  const pageTitle = editingReservationId
+    ? `Editar reserva #${editingReservationId}`
+    : !formData.mainClient.id
+      ? 'Consulta rápida'
+      : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`;
+
+  const pageLead = editingReservationId
+    ? 'Revisá cliente, tramos y habitación antes de guardar los cambios.'
+    : 'Elegí cliente, fechas y habitación. Guardá la consulta o confirmá la reserva.';
+
   return (
     <div className={styles.newLayout}>
+      <header className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>{pageTitle}</h1>
+        <p className={styles.pageLead}>{pageLead}</p>
+      </header>
+
       {/* Contenedor unificado: Cliente + Pestañas */}
       <div className={styles.unifiedContainer}>
-        {/* 1. Título de la consulta */}
         <div className={styles.sectionHeader}>
-          <h2>
-            {editingReservationId
-              ? `Editar reserva #${editingReservationId}`
-              : !formData.mainClient.id
-                ? 'Consulta rápida'
-                : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`}
-          </h2>
+          <h2 className={styles.sectionTitle}>Cliente</h2>
         </div>
         
         {/* Barra de búsqueda de cliente y cantidad de huéspedes lado a lado */}
@@ -3389,8 +3400,10 @@ export default function Consulta() {
                       const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
                       return (
                         <>
-                          {format(checkInDate, 'dd/MM')} – {format(checkOutDate, 'dd/MM')} 
-                          <em style={{ fontStyle: 'italic', fontWeight: 'normal' }}> ({nights} noche{nights !== 1 ? 's' : ''})</em>
+                          {format(checkInDate, 'dd/MM')} – {format(checkOutDate, 'dd/MM')}
+                          <span className={styles.tabNights}>
+                            {' '}({nights} noche{nights !== 1 ? 's' : ''})
+                          </span>
                         </>
                       );
                     })()
@@ -3742,49 +3755,48 @@ export default function Consulta() {
       {/* Botones de acción */}
       {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (
         <div className={styles.createReservationButtonContainer}>
-          {/* Botón de copiar datos - Siempre visible si hay segmentos con fechas */}
-          <button 
-            type="button" 
-            className={styles.copyButton}
-            onClick={handleCopyReservationData}
-            title="Copiar datos de la consulta al portapapeles"
-          >
-            Copiar Datos
-          </button>
-
-          {/* Guardar como Query — solo en flujo de consulta (no edición de reserva) */}
-          {!editingReservationId && (
-            <button
-              type="button"
-              className={styles.draftButton}
-              onClick={handleSaveConsulta}
-              disabled={isSavingConsulta || !formData.mainClient.id}
-              title={
-                !formData.mainClient.id
-                  ? 'Seleccioná un cliente para guardar la consulta'
-                  : 'Guardar datos como consulta recuperable, sin confirmar reserva'
-              }
+          <div className={styles.actionSecondaryGroup}>
+            <button 
+              type="button" 
+              className={styles.copyButton}
+              onClick={handleCopyReservationData}
+              title="Copiar datos de la consulta al portapapeles"
             >
-              {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
+              Copiar datos
             </button>
-          )}
 
-          {editingReservationId && (
-            <label
-              className={styles.rateToggle}
-              title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
-            >
-              <input
-                type="checkbox"
-                checked={applyRateChanges}
-                onChange={(e) => setApplyRateChanges(e.target.checked)}
-                data-testid="apply-rate-changes-toggle"
-              />
-              Aplicar cambios de tarifa
-            </label>
-          )}
+            {!editingReservationId && (
+              <button
+                type="button"
+                className={styles.draftButton}
+                onClick={handleSaveConsulta}
+                disabled={isSavingConsulta || !formData.mainClient.id}
+                title={
+                  !formData.mainClient.id
+                    ? 'Seleccioná un cliente para guardar la consulta'
+                    : 'Guardar datos como consulta recuperable, sin confirmar reserva'
+                }
+              >
+                {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
+              </button>
+            )}
 
-          {/* Crear o guardar reserva */}
+            {editingReservationId && (
+              <label
+                className={styles.rateToggle}
+                title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
+              >
+                <input
+                  type="checkbox"
+                  checked={applyRateChanges}
+                  onChange={(e) => setApplyRateChanges(e.target.checked)}
+                  data-testid="apply-rate-changes-toggle"
+                />
+                Aplicar cambios de tarifa
+              </label>
+            )}
+          </div>
+
           {formData.mainClient.firstName && formData.mainClient.lastName && (
             <button 
               type="button" 

@@ -1,59 +1,83 @@
-/* Consulta.module.css */
+/* Consulta.module.css — Operate: jerarquía clara, densidád, menos ruido */
 
-/* Título de la página */
 .pageHeader {
-  margin-bottom: 20px;
-  padding-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 12px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .pageTitle {
+  margin: 0;
+  font-family: var(--font-main);
   font-size: var(--font-size-xlarge);
   font-weight: 700;
-  color: var(--color-primary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  line-height: 1.25;
+  color: var(--color-text-dark);
+  text-wrap: balance;
 }
 
-/* Nuevo Layout */
+.pageLead,
+.sectionLead {
+  margin: 0;
+  font-family: var(--font-main);
+  font-size: var(--font-size-medium);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  max-width: 62ch;
+}
+
 .newLayout {
-  max-width: 1400px;
+  max-width: 1100px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px;
-  padding-top: 16px; /* Espacio para el header fijo (80px) + margen */
+  padding: 16px 16px 88px;
   min-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   box-sizing: border-box;
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+  background: var(--color-bg);
 }
 
-/* Secciones comunes */
 .sectionHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 14px 16px;
-  background: var(--color-primary-light);
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border);
   cursor: default;
 }
 
+.sectionTitle,
 .sectionHeader h2 {
   margin: 0;
-  color: var(--color-primary-dark);
+  color: var(--color-text-dark);
   font-size: var(--font-size-large);
   font-weight: 600;
   font-family: var(--font-main);
+  line-height: 1.3;
+}
+
+.sectionMeta {
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
 }
 
 .collapseIcon {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-muted);
-  transition: transform 0.2s;
+  transition: transform 0.15s ease;
 }
 
 /* 1. Datos Básicos */
@@ -84,40 +108,37 @@
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .formGroup label {
   font-weight: 600;
-  color: var(--color-text-main);
-  font-size: var(--font-size-medium);
-}
-
-.formGroup input,
-.formGroup select {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
 }
 
 .formGroup input,
 .formGroup select,
 .formGroup textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   font-family: var(--font-main);
+  font-size: var(--font-size-base);
   color: var(--color-text-main);
   background: var(--color-bg-white);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .formGroup input:focus,
 .formGroup select:focus,
-.formGroup textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
-}
-
+.formGroup textarea:focus,
 .formGroup input:focus-visible,
 .formGroup select:focus-visible,
 .formGroup textarea:focus-visible {
@@ -166,11 +187,15 @@
 
 .searchInput {
   width: 100%;
-  padding: 12px 120px 12px 12px; /* Espacio para el botón a la derecha */
+  min-height: 36px;
+  padding: 8px 112px 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
 }
 
 .searchInput:focus,
@@ -535,63 +560,75 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  margin-bottom: 20px;
+  margin: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .clientContent {
-  padding: 20px;
+  padding: 16px;
 }
 
 .topFieldsRow {
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 12px 16px 16px;
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border);
-  align-items: flex-end; /* Alinear verticalmente al final (donde están los inputs) */
+  align-items: flex-end;
 }
 
 .requirementsFlexContainer {
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap; /* Permitir que se apile en pantallas pequeñas */
+  gap: 12px 16px;
+  flex-wrap: wrap;
 }
 
 .requirementsFlexContainer > .formGroup:first-child {
   flex: 1;
-  min-width: 200px; /* Habitación específica más estrecha */
+  min-width: 180px;
 }
 
 .requirementsFlexContainer > .formGroup:last-child {
   flex: 2;
-  min-width: 300px; /* Requerimientos más ancho */
+  min-width: 240px;
 }
 
 .roomsSectionTitle {
-  font-size: var(--font-size-medium);
+  font-size: var(--font-size-large);
   font-weight: 600;
-  color: var(--color-text-main);
-  margin: 20px 0 15px 0;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--color-border);
+  color: var(--color-text-dark);
+  margin: 8px 0 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .createReservationButtonContainer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 12px 16px;
   background: var(--color-bg-white);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  margin-top: 16px;
-  box-shadow: var(--shadow-sm);
+  margin-top: 8px;
+  box-shadow: var(--shadow-md);
+}
+
+.actionSecondaryGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .copyButton {
-  padding: 10px 18px;
+  padding: 8px 14px;
   background: var(--color-bg-white);
   color: var(--color-text-main);
   border: 1px solid var(--color-border);
@@ -601,7 +638,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
-  min-width: 140px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -635,32 +672,29 @@
   margin: 0;
 }
 
-.sourceFieldContainer label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--color-text-main);
-  font-size: 0.9rem;
-}
-
 .sourceFieldContainer select,
 .guestsFieldContainer select {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  transition: border-color 0.2s;
-  height: 42px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 36px;
+  height: 36px;
   box-sizing: border-box;
   background: var(--color-bg-white);
 }
 
 .sourceFieldContainer select:focus,
-.guestsFieldContainer select:focus {
+.guestsFieldContainer select:focus,
+.sourceFieldContainer select:focus-visible,
+.guestsFieldContainer select:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(63, 95, 138, 0.2);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
 }
 
 .selectedClientContainer {
@@ -683,40 +717,45 @@
 .clientFieldContainer label,
 .guestsFieldContainer label,
 .selectedClientContainer label,
-.notesFieldContainer label {
+.notesFieldContainer label,
+.sourceFieldContainer label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--color-text-main);
-  font-size: 0.9rem;
+  margin-bottom: 0;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  letter-spacing: 0.01em;
 }
 
 .guestsFieldContainer input {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  transition: border-color 0.2s;
-  height: 42px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 36px;
+  height: 36px;
   box-sizing: border-box;
 }
 
-.guestsFieldContainer input:focus {
+.guestsFieldContainer input:focus,
+.guestsFieldContainer input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(63, 95, 138, 0.2);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
 }
 
 .selectedClientDisplay {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--color-bg);
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-primary-light);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  min-height: 42px;
+  border-radius: var(--radius-md);
+  min-height: 36px;
 }
 
 .clientName {
@@ -766,63 +805,79 @@
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  font-family: inherit;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-family: var(--font-main);
+  color: var(--color-text-main);
   resize: vertical;
-  transition: border-color 0.2s;
-  min-height: 42px;
-  height: 42px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 36px;
+  height: 36px;
+  box-sizing: border-box;
 }
 
-.notesFieldContainer textarea:focus {
+.notesFieldContainer textarea:focus,
+.notesFieldContainer textarea:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(63, 95, 138, 0.2);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
 }
 
 .tabsHeader {
   display: flex;
+  align-items: stretch;
   background: var(--color-bg);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
+  gap: 0;
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 10px 14px;
   background: transparent;
   border: none;
   border-right: 1px solid var(--color-border);
+  border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   position: relative;
   white-space: nowrap;
   flex: 1;
-  min-width: 120px;
+  min-width: 132px;
+  color: var(--color-text-muted);
 }
 
 .tab:hover {
   background: var(--color-border-light);
+  color: var(--color-text-main);
 }
 
 .tabActive {
-  background: white !important;
-  border-bottom: 3px solid var(--color-primary);
-  color: var(--color-primary);
+  background: var(--color-bg-white) !important;
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary-dark);
   font-weight: 600;
 }
 
 .tabTitle {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--font-size-medium);
+  color: inherit;
+}
+
+.tabNights {
+  font-weight: 400;
+  font-style: normal;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
 }
 
 .tabDates {
-  font-size: 0.8rem;
+  font-size: var(--font-size-small);
   color: var(--color-text-muted);
 }
 
@@ -883,24 +938,27 @@
 
 /* Contenido de pestaña */
 .tabContent {
-  padding: 20px;
+  padding: 16px;
 }
 
 .blockForm {
-  margin-bottom: 30px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .formRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 0;
 }
 
 /* Sección expandible */
 .expandableSection {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -909,11 +967,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  padding: 10px 12px;
   background: var(--color-bg);
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
 }
 
 .expandableHeader:hover {
@@ -941,7 +999,7 @@
 }
 
 .expandableContent {
-  padding: 20px;
+  padding: 12px;
   background: var(--color-bg-white);
   border-top: 1px solid var(--color-border);
 }
@@ -963,25 +1021,30 @@
 }
 
 .loading {
-  padding: 40px;
+  padding: 24px 16px;
   text-align: center;
   color: var(--color-text-muted);
   font-size: var(--font-size-medium);
 }
 
 .noRooms {
-  padding: 40px;
+  padding: 24px 16px;
   text-align: center;
   color: var(--color-text-muted);
 }
 
 .noRooms p {
-  margin: 10px 0;
+  margin: 8px 0;
+  font-size: var(--font-size-base);
 }
 
 /* Lista de habitaciones horizontal */
 .roomsList {
-  padding: 20px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-white);
 }
 
 .roomListItem {
@@ -996,10 +1059,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s, box-shadow 0.15s;
   background: var(--color-bg-white);
+  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .roomItem:hover {
@@ -1007,50 +1072,54 @@
 }
 
 .roomItemSelected {
-  background: #e3f2fd !important;
-  border: 2px solid #2196f3;
+  background: var(--color-primary-light) !important;
+  box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 
 .roomItemLeft {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   flex: 1;
+  min-width: 0;
 }
 
 .roomItemRight {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .roomMainInfo {
   flex: 1;
+  min-width: 0;
 }
 
 .roomMainInfo h3 {
-  margin: 0 0 8px 0;
-  color: var(--color-text-main);
-  font-size: var(--font-size-medium);
+  margin: 0 0 4px 0;
+  color: var(--color-text-dark);
+  font-size: var(--font-size-base);
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .roomSecondaryInfo {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 .roomType {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-small);
 }
 
 .roomDescription {
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-  line-height: 1.4;
+  font-size: var(--font-size-small);
+  line-height: 1.35;
 }
 
 .roomRate {
@@ -1059,9 +1128,10 @@
 }
 
 .rateAmount {
-  font-weight: 600;
-  color: var(--color-success);
-  font-size: var(--font-size-medium);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-large);
+  font-variant-numeric: tabular-nums;
 }
 
 .detailsButton {
@@ -1378,14 +1448,14 @@
   background: var(--color-bg-white);
   color: var(--color-text-main);
   border: 1px solid var(--color-border);
-  padding: 10px 18px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: var(--font-main);
   font-size: var(--font-size-medium);
   font-weight: 600;
   transition: background-color 0.15s, border-color 0.15s;
-  min-width: 140px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1415,10 +1485,11 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: var(--font-main);
-  font-size: var(--font-size-medium);
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: 700;
   transition: background-color 0.15s, border-color 0.15s;
-  min-width: 140px;
+  min-width: 168px;
+  margin-left: auto;
 }
 
 .confirmButton:hover:not(:disabled) {
@@ -2705,7 +2776,7 @@
 }
 
 .roomSelected {
-  background-color: #e3f2fd !important;
+  background-color: var(--color-primary-light) !important;
 }
 
 .capacityBadge {
@@ -2716,13 +2787,13 @@
 }
 
 .capacityExact {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--color-success-light);
+  color: var(--color-success-dark);
 }
 
 .capacityLarger {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: var(--color-warning-light);
+  color: #7a5b00;
 }
 
 .tagBadge {
