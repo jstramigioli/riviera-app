@@ -75,6 +75,23 @@
   color: var(--color-danger-dark);
 }
 
+.fieldInvalid,
+.field input.fieldInvalid,
+.field select.fieldInvalid,
+.conditionRow select.fieldInvalid,
+.conditionRow input.fieldInvalid,
+.conditionRow .valueWithSuffix input.fieldInvalid {
+  border-color: var(--color-danger-dark) !important;
+  background: var(--color-danger-light);
+  box-shadow: 0 0 0 3px rgba(180, 50, 50, 0.12);
+}
+
+.fieldInvalidGroup {
+  outline: 1px solid var(--color-danger-dark);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .primaryBtn,
 .ghostBtn {
   display: inline-flex;

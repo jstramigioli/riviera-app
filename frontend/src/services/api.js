@@ -970,14 +970,29 @@ export async function createPaymentMethodConfig(data) {
   return res.json();
 }
 
+function promotionFetchError(err, fallback) {
+  const msg = err?.message || '';
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return new Error(
+      'No se pudo conectar con el servidor. Verificá que la API esté en marcha.'
+    );
+  }
+  return err instanceof Error ? err : new Error(fallback);
+}
+
 export async function fetchPromotionRules({ all = false, layer } = {}) {
   const params = new URLSearchParams();
   if (all) params.set('all', '1');
   if (layer) params.set('layer', layer);
   const qs = params.toString() ? `?${params}` : '';
-  const res = await fetch(`${API_URL}/promotion-rules${qs}`, {
-    credentials: 'include'
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/promotion-rules${qs}`, {
+      credentials: 'include'
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error cargando promociones');
+  }
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
     throw new Error(error.error || 'Error cargando promociones');
@@ -986,29 +1001,39 @@ export async function fetchPromotionRules({ all = false, layer } = {}) {
 }
 
 export async function createPromotionRule(data) {
-  const res = await fetch(`${API_URL}/promotion-rules`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data)
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/promotion-rules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error creando promoción');
+  }
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error creando promoción');
+    throw new Error(error.error || error.details || 'Error creando promoción');
   }
   return res.json();
 }
 
 export async function updatePromotionRule(id, data) {
-  const res = await fetch(`${API_URL}/promotion-rules/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(data)
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/promotion-rules/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error actualizando promoción');
+  }
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error actualizando promoción');
+    throw new Error(error.error || error.details || 'Error actualizando promoción');
   }
   return res.json();
 }
