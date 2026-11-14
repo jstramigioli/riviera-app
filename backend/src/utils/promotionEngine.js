@@ -53,50 +53,124 @@ function isRuleVigente(rule, asOfDate) {
   return true;
 }
 
+function normalizeOp(op, fallback = 'eq') {
+  const v = String(op || fallback).toLowerCase();
+  if (v === 'eq' || v === '=' || v === 'equals') return 'eq';
+  if (v === 'neq' || v === '!=' || v === 'ne' || v === 'not') return 'neq';
+  if (v === 'gte' || v === '>=' || v === 'min') return 'gte';
+  if (v === 'lte' || v === '<=' || v === 'max') return 'lte';
+  return fallback;
+}
+
+function compareNumber(actual, op, expected) {
+  const a = Number(actual);
+  const e = Number(expected);
+  if (!Number.isFinite(a) || !Number.isFinite(e)) return false;
+  switch (normalizeOp(op, 'eq')) {
+    case 'eq':
+      return a === e;
+    case 'neq':
+      return a !== e;
+    case 'gte':
+      return a >= e;
+    case 'lte':
+      return a <= e;
+    default:
+      return false;
+  }
+}
+
+function resolveNights(ctx) {
+  if (ctx.nights != null) return Number(ctx.nights);
+  return civilDaysBetween(ctx.checkIn, ctx.checkOut);
+}
+
+function resolveConditionDay(ctx) {
+  return (
+    toDateOnlyString(ctx.reservationDate) ||
+    toDateOnlyString(ctx.checkIn) ||
+    toDateOnlyString(ctx.asOfDate) ||
+    toDateOnlyString(new Date())
+  );
+}
+
+function weekdayFromDateOnly(day) {
+  if (!day) return null;
+  const t = Date.parse(`${day}T12:00:00.000Z`);
+  if (!Number.isFinite(t)) return null;
+  return new Date(t).getUTCDay(); // 0=Dom … 6=Sáb
+}
+
+function matchIdList(actual, ids, asNumber) {
+  if (actual == null) return false;
+  const list = (ids || []).map((id) => (asNumber ? Number(id) : String(id)));
+  const value = asNumber ? Number(actual) : String(actual);
+  return list.includes(value);
+}
+
+function applyEqualityOp(matched, op) {
+  return normalizeOp(op, 'eq') === 'neq' ? !matched : matched;
+}
+
 function evaluateCondition(condition, ctx) {
   const params = parseParams(condition.params);
   switch (condition.type) {
     case 'DATE_RANGE': {
-      const day = toDateOnlyString(ctx.asOfDate) || toDateOnlyString(new Date());
+      const day = resolveConditionDay(ctx);
       const from = params.from || params.desde || null;
       const to = params.to || params.hasta || null;
+      if (!day) return false;
       if (from && day < String(from).slice(0, 10)) return false;
       if (to && day > String(to).slice(0, 10)) return false;
       return true;
     }
+    case 'NIGHTS': {
+      const nights = resolveNights(ctx);
+      if (nights == null) return false;
+      return compareNumber(nights, params.op || 'gte', params.value ?? params.nights ?? 0);
+    }
     case 'MIN_NIGHTS': {
-      const nights = ctx.nights != null ? Number(ctx.nights) : civilDaysBetween(ctx.checkIn, ctx.checkOut);
+      const nights = resolveNights(ctx);
       if (nights == null) return false;
       return nights >= Number(params.minNights ?? params.value ?? 0);
     }
     case 'MAX_NIGHTS': {
-      const nights = ctx.nights != null ? Number(ctx.nights) : civilDaysBetween(ctx.checkIn, ctx.checkOut);
+      const nights = resolveNights(ctx);
       if (nights == null) return false;
       return nights <= Number(params.maxNights ?? params.value ?? 0);
     }
     case 'ROOM_TYPE': {
       const ids = params.roomTypeIds || params.ids || (params.roomTypeId != null ? [params.roomTypeId] : []);
       if (!ids.length) return true;
-      if (ctx.roomTypeId == null) return false;
-      return ids.map(Number).includes(Number(ctx.roomTypeId));
+      const matched = matchIdList(ctx.roomTypeId, ids, true);
+      return applyEqualityOp(matched, params.op);
     }
     case 'SERVICE_TYPE': {
       const ids = params.serviceTypeIds || params.ids || (params.serviceTypeId != null ? [params.serviceTypeId] : []);
       if (!ids.length) return true;
-      if (ctx.serviceTypeId == null) return false;
-      return ids.map(String).includes(String(ctx.serviceTypeId));
+      const matched = matchIdList(ctx.serviceTypeId, ids, false);
+      return applyEqualityOp(matched, params.op);
     }
     case 'PAYMENT_METHOD': {
+      let matched = null;
       if (ctx.paymentMethodConfigId != null && params.paymentMethodConfigId != null) {
-        return Number(ctx.paymentMethodConfigId) === Number(params.paymentMethodConfigId);
+        matched = Number(ctx.paymentMethodConfigId) === Number(params.paymentMethodConfigId);
+      } else if (ctx.paymentMethodCode && params.paymentMethodCode) {
+        matched =
+          String(ctx.paymentMethodCode).toUpperCase() === String(params.paymentMethodCode).toUpperCase();
+      } else if (ctx.paymentMethodConfigId != null && Array.isArray(params.paymentMethodConfigIds)) {
+        matched = params.paymentMethodConfigIds.map(Number).includes(Number(ctx.paymentMethodConfigId));
       }
-      if (ctx.paymentMethodCode && params.paymentMethodCode) {
-        return String(ctx.paymentMethodCode).toUpperCase() === String(params.paymentMethodCode).toUpperCase();
-      }
-      if (ctx.paymentMethodConfigId != null && Array.isArray(params.paymentMethodConfigIds)) {
-        return params.paymentMethodConfigIds.map(Number).includes(Number(ctx.paymentMethodConfigId));
-      }
-      return false;
+      if (matched == null) return false;
+      return applyEqualityOp(matched, params.op);
+    }
+    case 'OCCUPANCY_HOTEL': {
+      if (ctx.occupancyPercent == null) return false;
+      return compareNumber(
+        ctx.occupancyPercent,
+        params.op || 'lte',
+        params.percent ?? params.value ?? params.maxPercent ?? params.minPercent ?? 0
+      );
     }
     case 'OCCUPANCY_HOTEL_MAX': {
       if (ctx.occupancyPercent == null) return false;
@@ -105,6 +179,13 @@ function evaluateCondition(condition, ctx) {
     case 'OCCUPANCY_HOTEL_MIN': {
       if (ctx.occupancyPercent == null) return false;
       return Number(ctx.occupancyPercent) >= Number(params.minPercent ?? params.value ?? 0);
+    }
+    case 'DAYS_OF_WEEK': {
+      const days = (params.days || params.weekdays || []).map(Number);
+      if (!days.length) return true;
+      const weekday = weekdayFromDateOnly(resolveConditionDay(ctx));
+      if (weekday == null) return false;
+      return days.includes(weekday);
     }
     default:
       return false;
