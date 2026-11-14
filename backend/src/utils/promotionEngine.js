@@ -54,11 +54,19 @@ function isRuleVigente(rule, asOfDate) {
 }
 
 function normalizeOp(op, fallback = 'eq') {
-  const v = String(op || fallback).toLowerCase();
-  if (v === 'eq' || v === '=' || v === 'equals') return 'eq';
-  if (v === 'neq' || v === '!=' || v === 'ne' || v === 'not') return 'neq';
-  if (v === 'gte' || v === '>=' || v === 'min') return 'gte';
-  if (v === 'lte' || v === '<=' || v === 'max') return 'lte';
+  const v = String(op || fallback).toLowerCase().trim();
+  if (v === 'eq' || v === '=' || v === 'equals' || v === 'igual a' || v === 'igual') return 'eq';
+  if (v === 'neq' || v === '!=' || v === 'ne' || v === 'not' || v === '≠' || v === 'distinto de' || v === 'distinto') {
+    return 'neq';
+  }
+  if (v === 'gte' || v === '>=' || v === 'min' || v === '≥' || v === 'mayor o igual a' || v === 'mayor o igual') {
+    return 'gte';
+  }
+  if (v === 'lte' || v === '<=' || v === 'max' || v === '≤' || v === 'menor o igual a' || v === 'menor o igual') {
+    return 'lte';
+  }
+  if (v === 'gt' || v === '>' || v === 'mayor a' || v === 'mayor') return 'gt';
+  if (v === 'lt' || v === '<' || v === 'menor a' || v === 'menor') return 'lt';
   return fallback;
 }
 
@@ -71,8 +79,12 @@ function compareNumber(actual, op, expected) {
       return a === e;
     case 'neq':
       return a !== e;
+    case 'gt':
+      return a > e;
     case 'gte':
       return a >= e;
+    case 'lt':
+      return a < e;
     case 'lte':
       return a <= e;
     default:

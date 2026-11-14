@@ -81,6 +81,36 @@ describe('promotionEngine conditions AND', () => {
         { occupancyPercent: 35 }
       )
     ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'lt', percent: 40 } },
+        { occupancyPercent: 40 }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'lt', percent: 40 } },
+        { occupancyPercent: 39 }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'gt', percent: 70 } },
+        { occupancyPercent: 70 }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'gt', percent: 70 } },
+        { occupancyPercent: 71 }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'OCCUPANCY_HOTEL', params: { op: 'mayor a', percent: 50 } },
+        { occupancyPercent: 51 }
+      )
+    ).toBe(true);
     // Fecha creación reserva: no usa checkIn
     expect(
       evaluateCondition(
