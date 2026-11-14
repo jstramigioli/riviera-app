@@ -332,24 +332,27 @@ describe('promotionEngine rate + stacking', () => {
     expect(miss.aplica).toBe(false);
   });
 
-  it('FREE_NIGHTS paga 4 queda 5 elige la noche más barata', () => {
+  it('FREE_NIGHTS: benefitValue=noches gratis; mínimo pagadas vía NIGHTS', () => {
     const rule = {
       id: 30,
-      code: 'PAGA4_QUEDA5',
-      label: 'Paga 4 queda 5',
+      code: 'UNA_NOCHE_GRATIS',
+      label: '1 noche gratis (mín. 4 pagadas)',
       activo: true,
       prioridad: 100,
       modality: 'AUTO',
       layer: 'RATE',
       stacking: 'EXCLUSIVE',
       benefitType: 'FREE_NIGHTS',
-      benefitValue: 4,
+      benefitValue: 1,
+      // 4 pagadas + 1 gratis ⇒ estadía mínima 5 noches
       conditions: [{ type: 'NIGHTS', params: { op: 'gte', value: 5 } }]
     };
 
-    expect(computeFreeNightCount(rule, 4)).toBe(0);
+    expect(computeFreeNightCount(rule, 0)).toBe(0);
+    expect(computeFreeNightCount(rule, 1)).toBe(1);
     expect(computeFreeNightCount(rule, 5)).toBe(1);
-    expect(computeFreeNightCount(rule, 10)).toBe(2);
+    expect(computeFreeNightCount({ ...rule, benefitValue: 2 }, 5)).toBe(2);
+    expect(computeFreeNightCount({ ...rule, benefitValue: 9 }, 5)).toBe(5);
     expect(pickCheapestNightIndices([50000, 40000, 60000, 45000, 70000], 1)).toEqual([1]);
 
     const prices = [50000, 40000, 60000, 45000, 70000];
@@ -372,5 +375,20 @@ describe('promotionEngine rate + stacking', () => {
 
     const short = evaluateFreeNightsForStay([rule], { layer: 'RATE', nights: 4 }, [1, 2, 3, 4]);
     expect(short.aplica).toBe(false);
+
+    const twoFree = {
+      ...rule,
+      id: 31,
+      benefitValue: 2,
+      conditions: [{ type: 'NIGHTS', params: { op: 'gte', value: 6 } }]
+    };
+    const two = evaluateFreeNightsForStay([twoFree], { layer: 'RATE', nights: 6 }, [
+      50000, 40000, 60000, 45000, 70000, 55000
+    ]);
+    expect(two.aplica).toBe(true);
+    expect(two.freeNightCount).toBe(2);
+    expect(two.byIndex[1].discountARS).toBe(40000);
+    expect(two.byIndex[3].discountARS).toBe(45000);
+    expect(two.discountARS).toBe(85000);
   });
 });

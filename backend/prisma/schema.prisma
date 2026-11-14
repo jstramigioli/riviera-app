@@ -308,7 +308,8 @@ enum PromotionBenefitType {
   PERCENT
   FIXED
   FIXED_PER_NIGHT
-  /// Noches sin cargo: benefitValue = noches que paga (paga N queda N+1).
+  /// Noches sin cargo: benefitValue = noches gratis (no se cobran).
+  /// Mínimo de noches pagadas / estadía = condición NIGHTS normal.
   /// Se aplican a las noches más baratas de la estadía.
   FREE_NIGHTS
 }
