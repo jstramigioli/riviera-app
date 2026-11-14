@@ -27,7 +27,7 @@ const MODALITY_LABEL = { AUTO: 'Automática', MANUAL: 'Manual', SUGERIDA: 'Suger
 
 /** Variables del editor (Variable | Operador | Valor). */
 const CONDITION_VARS = [
-  { value: 'NIGHTS', label: 'Noches' },
+  { value: 'NIGHTS', label: 'Cantidad de noches' },
   { value: 'ROOM_TYPE', label: 'Tipo habitación' },
   { value: 'SERVICE_TYPE', label: 'Servicio' },
   { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
@@ -37,8 +37,8 @@ const CONDITION_VARS = [
 ];
 
 const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
-CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Noches';
-CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Noches';
+CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Cantidad de noches';
+CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = 'Ocupación';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = 'Ocupación';
 CONDITION_TYPE_LABEL.DAYS_OF_WEEK = 'Fecha estadía';
@@ -993,14 +993,16 @@ function PromocionesTab() {
                   {form.activo ? 'Activa' : 'Inactiva'}
                 </span>
               </button>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={form.aplicaEnParcial}
-                  onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
-                />
-                Aplica en parcial
-              </label>
+              {form.kind === 'DESCUENTO' && (
+                <label className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={form.aplicaEnParcial}
+                    onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
+                  />
+                  Aplica en parcial
+                </label>
+              )}
             </div>
 
             <section className={styles.section}>
@@ -1013,37 +1015,38 @@ function PromocionesTab() {
               </div>
               {form.conditions.length > 0 && (
                 <div className={styles.conditions}>
-                  <div className={styles.conditionHead} aria-hidden="true">
-                    <span>Variable</span>
-                    <span>Operador</span>
-                    <span>Valor</span>
-                    <span />
-                  </div>
                   {form.conditions.map((c, index) => (
-                    <div key={index} className={styles.conditionRow}>
-                      <select
-                        value={c.type}
-                        onChange={(e) => changeConditionType(index, e.target.value)}
-                        aria-label="Variable"
-                      >
-                        {CONDITION_VARS.map((v) => (
-                          <option key={v.value} value={v.value}>
-                            {v.label}
-                          </option>
-                        ))}
-                      </select>
-                      {renderOperator(c, index)}
-                      {renderValue(c, index)}
-                      <button
-                        type="button"
-                        className={styles.iconBtn}
-                        onClick={() => removeCondition(index)}
-                        aria-label="Quitar condición"
-                        title="Quitar"
-                      >
-                        <FiX aria-hidden="true" />
-                      </button>
-                    </div>
+                    <React.Fragment key={index}>
+                      {index > 0 && (
+                        <div className={styles.conditionAnd} aria-hidden="true">
+                          y
+                        </div>
+                      )}
+                      <div className={styles.conditionRow}>
+                        <select
+                          value={c.type}
+                          onChange={(e) => changeConditionType(index, e.target.value)}
+                          aria-label="Variable"
+                        >
+                          {CONDITION_VARS.map((v) => (
+                            <option key={v.value} value={v.value}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                        {renderOperator(c, index)}
+                        {renderValue(c, index)}
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          onClick={() => removeCondition(index)}
+                          aria-label="Quitar condición"
+                          title="Quitar"
+                        >
+                          <FiX aria-hidden="true" />
+                        </button>
+                      </div>
+                    </React.Fragment>
                   ))}
                 </div>
               )}
