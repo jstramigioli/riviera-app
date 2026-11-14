@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiEdit2, FiPlus, FiToggleLeft, FiX, FiCheck } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import {
   fetchPromotionRules,
   createPromotionRule,
   updatePromotionRule,
-  deletePromotionRule,
   fetchPaymentMethodConfigs
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
@@ -22,7 +22,6 @@ const EMPTY_FORM = {
   conditions: []
 };
 
-const KIND_LABEL = { DESCUENTO: 'Descuento', PROMO: 'Promoción' };
 const MODALITY_LABEL = { AUTO: 'Automática', MANUAL: 'Manual', SUGERIDA: 'Sugerida' };
 const CONDITION_TYPE_LABEL = {
   PAYMENT_METHOD: 'Medio de pago',
@@ -172,12 +171,11 @@ function PromocionesTab() {
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
-  const [filter, setFilter] = useState('PROMO');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   const methodsById = useMemo(() => {
     const map = new Map();
@@ -185,15 +183,12 @@ function PromocionesTab() {
     return map;
   }, [methods]);
 
-  const visibleRows = useMemo(() => {
-    return rows.filter((r) => (r.kind || 'DESCUENTO') === filter);
-  }, [rows, filter]);
-
-  const filterCount = useMemo(
-    () => ({
-      PROMO: rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO').length,
-      DESCUENTO: rows.filter((r) => (r.kind || 'DESCUENTO') === 'DESCUENTO').length
-    }),
+  const promoRows = useMemo(
+    () => rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO'),
+    [rows]
+  );
+  const discountRows = useMemo(
+    () => rows.filter((r) => (r.kind || 'DESCUENTO') === 'DESCUENTO'),
     [rows]
   );
 
@@ -223,11 +218,10 @@ function PromocionesTab() {
     setEditingId(null);
   };
 
-  const openCreate = () => {
+  const openCreate = (kind) => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, kind: filter, conditions: [] });
+    setForm({ ...EMPTY_FORM, kind, conditions: [] });
     setShowForm(true);
-    setMessage(null);
     setError(null);
   };
 
@@ -245,7 +239,6 @@ function PromocionesTab() {
       conditions: (row.conditions || []).map(conditionFromApi)
     });
     setShowForm(true);
-    setMessage(null);
     setError(null);
   };
 
@@ -310,7 +303,6 @@ function PromocionesTab() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    setMessage(null);
     try {
       const payload = buildPayload();
       if (!String(payload.label || '').trim()) {
@@ -319,12 +311,9 @@ function PromocionesTab() {
       if (editingId) {
         const { code, ...rest } = payload;
         await updatePromotionRule(editingId, rest);
-        setMessage(`Actualizada: ${payload.label}`);
       } else {
         await createPromotionRule(payload);
-        setMessage(`Creada: ${payload.label}`);
       }
-      setFilter(payload.kind === 'PROMO' ? 'PROMO' : 'DESCUENTO');
       closeForm();
       await load();
     } catch (err) {
@@ -334,21 +323,26 @@ function PromocionesTab() {
     }
   };
 
-  const handleDeactivate = async (row) => {
-    const ok = await confirm({
-      title: 'Desactivar regla',
-      message: `¿Desactivar “${row.label}”? Deja de aplicarse a pagos futuros; se puede reactivar editándola.`,
-      confirmText: 'Desactivar',
-      type: 'danger'
-    });
-    if (!ok) return;
+  const handleToggle = async (row) => {
+    const next = !(row.activo !== false);
+    if (!next) {
+      const ok = await confirm({
+        title: 'Desactivar',
+        message: `¿Desactivar “${row.label}”? Deja de aplicarse a pagos futuros; se puede reactivar desde el mismo control.`,
+        confirmText: 'Desactivar',
+        type: 'danger'
+      });
+      if (!ok) return;
+    }
+    setTogglingId(row.id);
     setError(null);
     try {
-      await deletePromotionRule(row.id);
-      setMessage(`Desactivada: ${row.label}`);
+      await updatePromotionRule(row.id, { activo: next });
       await load();
     } catch (err) {
-      setError(err.message || 'Error al desactivar');
+      setError(err.message || 'Error al cambiar estado');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -444,91 +438,59 @@ function PromocionesTab() {
     }
   };
 
-  if (loading) {
-    return <p className={styles.muted}>Cargando promociones…</p>;
-  }
-
-  return (
-    <div className={styles.wrap}>
-      {confirmDialog}
-
-      <div className={styles.toolbar}>
-        <div>
-          <h2 className={styles.title}>Promociones y descuentos</h2>
-          <p className={styles.hint}>
-            Reglas con condiciones. La vigencia se define con condiciones de fechas.
-          </p>
+  const renderTable = (sectionRows, emptyLabel) => {
+    if (sectionRows.length === 0) {
+      return (
+        <div className={styles.emptyInline}>
+          <p className={styles.emptyTitle}>{emptyLabel}</p>
         </div>
-        <button type="button" className={styles.primaryBtn} onClick={openCreate}>
-          <FiPlus aria-hidden="true" />
-          Nueva regla
-        </button>
-      </div>
+      );
+    }
 
-      {error && <p className={styles.error}>{error}</p>}
-      {message && <p className={styles.ok}>{message}</p>}
-
-      <div className={styles.filters}>
-        <div className={styles.tabs} role="tablist" aria-label="Tipo">
-          {[
-            { id: 'PROMO', label: 'Promociones' },
-            { id: 'DESCUENTO', label: 'Descuentos' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={filter === tab.id}
-              className={`${styles.tab} ${filter === tab.id ? styles.tabActive : ''}`}
-              onClick={() => setFilter(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <span className={styles.count}>{filterCount[filter] ?? 0}</span>
-      </div>
-
-      {visibleRows.length === 0 ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>
-            {filter === 'PROMO' ? 'No hay promociones' : 'No hay descuentos'}
-          </p>
-          <p className={styles.emptyBody}>
-            {filter === 'PROMO'
-              ? 'Creá la primera promoción para esta sección.'
-              : 'Creá el primer descuento para esta sección.'}
-          </p>
-          <button type="button" className={styles.primaryBtn} onClick={openCreate}>
-            <FiPlus aria-hidden="true" />
-            Nueva regla
-          </button>
-        </div>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Regla</th>
-                <th>Beneficio</th>
-                <th>Condiciones</th>
-                <th>Estado</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((row) => (
-                <tr key={row.id} className={row.activo ? undefined : styles.inactiveRow}>
+    return (
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Activo</th>
+              <th>Nombre</th>
+              <th>Beneficio</th>
+              <th>Modalidad</th>
+              <th>Condiciones</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {sectionRows.map((row) => {
+              const isOn = row.activo !== false;
+              return (
+                <tr key={row.id} className={isOn ? undefined : styles.inactiveRow}>
+                  <td>
+                    <button
+                      type="button"
+                      className={`${styles.toggleBtn} ${isOn ? styles.toggleOn : styles.toggleOff}`}
+                      onClick={() => handleToggle(row)}
+                      disabled={togglingId === row.id}
+                      title={isOn ? 'Desactivar' : 'Activar'}
+                      aria-label={isOn ? `Desactivar ${row.label}` : `Activar ${row.label}`}
+                      aria-pressed={isOn}
+                    >
+                      {isOn ? (
+                        <FaToggleOn aria-hidden="true" />
+                      ) : (
+                        <FaToggleOff aria-hidden="true" />
+                      )}
+                      <span>{isOn ? 'On' : 'Off'}</span>
+                    </button>
+                  </td>
                   <td>
                     <div className={styles.nameCell}>{row.label}</div>
-                    <div className={styles.metaRow}>
-                      <span>{KIND_LABEL[row.kind] || row.kind}</span>
-                      <span className={styles.metaSep}>·</span>
-                      <span>{MODALITY_LABEL[row.modality] || row.modality}</span>
-                    </div>
                   </td>
                   <td>
                     <div className={styles.benefit}>{formatBenefit(row)}</div>
+                  </td>
+                  <td>
+                    <span className={styles.meta}>{MODALITY_LABEL[row.modality] || row.modality}</span>
                   </td>
                   <td>
                     {(row.conditions || []).length === 0 ? (
@@ -547,11 +509,6 @@ function PromocionesTab() {
                     )}
                   </td>
                   <td>
-                    <span className={row.activo ? styles.badgeOn : styles.badgeOff}>
-                      {row.activo ? 'Activa' : 'Inactiva'}
-                    </span>
-                  </td>
-                  <td>
                     <div className={styles.actions}>
                       <button
                         type="button"
@@ -562,25 +519,66 @@ function PromocionesTab() {
                       >
                         <FiEdit2 aria-hidden="true" />
                       </button>
-                      {row.activo && (
-                        <button
-                          type="button"
-                          className={styles.iconBtn}
-                          onClick={() => handleDeactivate(row)}
-                          title="Desactivar"
-                          aria-label={`Desactivar ${row.label}`}
-                        >
-                          <FiToggleLeft aria-hidden="true" />
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <p className={styles.muted}>Cargando promociones…</p>;
+  }
+
+  return (
+    <div className={styles.wrap}>
+      {confirmDialog}
+
+      <div className={styles.toolbar}>
+        <h2 className={styles.title}>Promociones y descuentos</h2>
+      </div>
+
+      {error && <p className={styles.error}>{error}</p>}
+
+      <section className={styles.sectionBlock} aria-labelledby="promo-section-title">
+        <div className={styles.sectionHead}>
+          <h3 id="promo-section-title" className={styles.sectionHeading}>
+            Promociones
+            <span className={styles.count}>{promoRows.length}</span>
+          </h3>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={() => openCreate('PROMO')}
+          >
+            <FiPlus aria-hidden="true" />
+            Promoción
+          </button>
         </div>
-      )}
+        {renderTable(promoRows, 'No hay promociones')}
+      </section>
+
+      <section className={styles.sectionBlock} aria-labelledby="desc-section-title">
+        <div className={styles.sectionHead}>
+          <h3 id="desc-section-title" className={styles.sectionHeading}>
+            Descuentos
+            <span className={styles.count}>{discountRows.length}</span>
+          </h3>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={() => openCreate('DESCUENTO')}
+          >
+            <FiPlus aria-hidden="true" />
+            Descuento
+          </button>
+        </div>
+        {renderTable(discountRows, 'No hay descuentos')}
+      </section>
 
       {showForm && (
         <div className={styles.formOverlay} role="presentation" onClick={closeForm}>
@@ -592,7 +590,20 @@ function PromocionesTab() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.formHeader}>
-              <h3 id="promo-form-title">{editingId ? 'Editar regla' : 'Nueva regla'}</h3>
+              <div>
+                <p className={styles.formEyebrow}>
+                  {form.kind === 'PROMO' ? 'Promoción' : 'Descuento'}
+                </p>
+                <h3 id="promo-form-title">
+                  {editingId
+                    ? form.kind === 'PROMO'
+                      ? 'Editar promoción'
+                      : 'Editar descuento'
+                    : form.kind === 'PROMO'
+                      ? 'Nueva promoción'
+                      : 'Nuevo descuento'}
+                </h3>
+              </div>
               <button
                 type="button"
                 className={styles.iconBtn}
@@ -603,33 +614,37 @@ function PromocionesTab() {
               </button>
             </div>
 
-            <div className={styles.kindToggle} role="group" aria-label="Tipo">
-              <button
-                type="button"
-                className={`${styles.kindBtn} ${
-                  form.kind === 'DESCUENTO' ? styles.kindBtnActive : ''
-                }`}
-                onClick={() => setField('kind', 'DESCUENTO')}
-                aria-pressed={form.kind === 'DESCUENTO'}
-              >
-                Descuento
-              </button>
-              <button
-                type="button"
-                className={`${styles.kindBtn} ${form.kind === 'PROMO' ? styles.kindBtnActive : ''}`}
-                onClick={() => setField('kind', 'PROMO')}
-                aria-pressed={form.kind === 'PROMO'}
-              >
-                Promoción
-              </button>
-            </div>
+            {!editingId && (
+              <div className={styles.kindToggle} role="group" aria-label="Tipo">
+                <button
+                  type="button"
+                  className={`${styles.kindBtn} ${
+                    form.kind === 'PROMO' ? styles.kindBtnActive : ''
+                  }`}
+                  onClick={() => setField('kind', 'PROMO')}
+                  aria-pressed={form.kind === 'PROMO'}
+                >
+                  Promoción
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.kindBtn} ${
+                    form.kind === 'DESCUENTO' ? styles.kindBtnActive : ''
+                  }`}
+                  onClick={() => setField('kind', 'DESCUENTO')}
+                  aria-pressed={form.kind === 'DESCUENTO'}
+                >
+                  Descuento
+                </button>
+              </div>
+            )}
 
             <label className={styles.field}>
               Nombre
               <input
                 value={form.label}
                 onChange={(e) => setField('label', e.target.value)}
-                placeholder="10% efectivo"
+                placeholder={form.kind === 'PROMO' ? 'Early bird 15%' : '10% efectivo'}
                 autoFocus
               />
             </label>
@@ -677,15 +692,22 @@ function PromocionesTab() {
               </label>
             </div>
 
-            <div className={styles.checks}>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={form.activo}
-                  onChange={(e) => setField('activo', e.target.checked)}
-                />
-                Activa
-              </label>
+            <div className={styles.formFlags}>
+              <button
+                type="button"
+                className={`${styles.toggleBtn} ${styles.toggleLg} ${
+                  form.activo ? styles.toggleOn : styles.toggleOff
+                }`}
+                onClick={() => setField('activo', !form.activo)}
+                aria-pressed={form.activo}
+              >
+                {form.activo ? (
+                  <FaToggleOn aria-hidden="true" />
+                ) : (
+                  <FaToggleOff aria-hidden="true" />
+                )}
+                <span>{form.activo ? 'Activa' : 'Inactiva'}</span>
+              </button>
               <label className={styles.check}>
                 <input
                   type="checkbox"
@@ -704,10 +726,9 @@ function PromocionesTab() {
                   Agregar
                 </button>
               </div>
-              <p className={styles.muted}>
-                AND. Para vigencia usá “Rango de fechas”.
-              </p>
-              {form.conditions.length === 0 ? null : (
+              {form.conditions.length === 0 ? (
+                <p className={styles.muted}>Sin condiciones (AND). Usá “Rango de fechas” para vigencia.</p>
+              ) : (
                 <div className={styles.conditions}>
                   {form.conditions.map((c, index) => (
                     <div key={index} className={styles.conditionRow}>
