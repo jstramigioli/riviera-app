@@ -360,17 +360,19 @@ button.switch {
 }
 
 .form {
-  width: min(540px, 100%);
+  width: min(680px, 100%);
   max-height: min(92vh, 780px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--color-bg-white);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  padding: 1rem 1.05rem 1.05rem;
+  padding: 1rem 1.5rem 1.15rem 1.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  box-sizing: border-box;
 }
 
 .formHeader {
@@ -451,6 +453,7 @@ button.switch {
 .valueSuffix {
   flex: 0 0 auto;
   min-width: 0.85rem;
+  margin-right: 0.35rem;
   font-size: var(--font-size-medium);
   font-weight: 600;
   color: var(--color-text-muted);
