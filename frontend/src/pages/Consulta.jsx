@@ -25,6 +25,7 @@ import {
   resolveEditReservationId
 } from '../utils/consultaNavigation';
 import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
+import { groupClientQueries } from '../utils/groupClientQueries';
 import {
   roomCanSatisfyBedPreference,
   normalizeBedPreference,
@@ -612,6 +613,8 @@ export default function Consulta() {
   // Usar useRef para evitar loops infinitos con el queryGroupId
   const queryGroupIdRef = useRef(null);
   const isSavingRef = useRef(false);
+  // Mientras el usuario decide retomar vs crear, no auto-guardar (evita duplicados).
+  const suppressAutoSaveRef = useRef(false);
 
   // Persiste Query/QueryGroup (no crea Reservation). Usado por auto-save y "Guardar consulta".
   const saveQueryAutomatically = useCallback(async ({ silent = true } = {}) => {
@@ -1409,6 +1412,14 @@ export default function Consulta() {
     if (editingReservationId) {
       return;
     }
+    if (
+      suppressAutoSaveRef.current ||
+      showSelectQueryModal ||
+      showLoadQueryModal
+    ) {
+      console.log('⏭️ Saltando auto-guardado: pendiente decisión retomar/crear');
+      return;
+    }
     // Solo auto-guardar si hay un cliente seleccionado y hay segmentos válidos
     if (!formData.mainClient.id || segments.length === 0) {
       console.log('⏭️ Saltando auto-guardado: no hay cliente o segmentos');
@@ -1426,6 +1437,14 @@ export default function Consulta() {
     
     // Debounce: esperar 2 segundos después del último cambio
     const timer = setTimeout(() => {
+      if (
+        suppressAutoSaveRef.current ||
+        showSelectQueryModal ||
+        showLoadQueryModal
+      ) {
+        console.log('⏭️ Auto-guardado cancelado al disparar: decisión pendiente');
+        return;
+      }
       console.log('💾 Ejecutando auto-guardado...');
       saveQueryAutomatically();
     }, 2000);
@@ -1435,7 +1454,16 @@ export default function Consulta() {
       console.log('🔄 Cancelando auto-guardado anterior (nuevo cambio detectado)');
       clearTimeout(timer);
     };
-  }, [segments, formData.mainClient.id, notes, source, saveQueryAutomatically]);
+  }, [
+    segments,
+    formData.mainClient.id,
+    notes,
+    source,
+    saveQueryAutomatically,
+    showSelectQueryModal,
+    showLoadQueryModal,
+    editingReservationId
+  ]);
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -2126,6 +2154,8 @@ export default function Consulta() {
   };
 
   const handleClientSelect = async (client) => {
+    // Pausar auto-save hasta saber si retoma o crea (evita duplicado).
+    suppressAutoSaveRef.current = true;
     setFormData(prev => ({
       ...prev,
       mainClient: {
@@ -2167,29 +2197,46 @@ export default function Consulta() {
   const checkForExistingQuery = async (clientId) => {
     try {
       // Solo verificar si el cliente cambió
-      if (lastClientId === clientId) return;
+      if (lastClientId === clientId) {
+        suppressAutoSaveRef.current = false;
+        return;
+      }
       
       setLastClientId(clientId);
       const existingQueries = await fetchQueryByClient(clientId);
+      const grouped = groupClientQueries(existingQueries || []);
       
-      if (existingQueries && existingQueries.length > 0) {
+      if (grouped.length > 0) {
         // Tiene consultas recientes, mostrar modal de selección
-        setRecentQueries(existingQueries);
+        setRecentQueries(grouped);
         setShowSelectQueryModal(true);
+        // suppressAutoSaveRef sigue true hasta retomar / crear / cerrar
       } else {
         // No hay consultas existentes, continuar con consulta nueva
         setCurrentQueryId(null);
+        suppressAutoSaveRef.current = false;
       }
     } catch (error) {
       console.error('Error verificando consultas existentes:', error);
       // En caso de error, continuar sin mostrar modal
       setCurrentQueryId(null);
+      suppressAutoSaveRef.current = false;
     }
   };
 
   // Función para cargar la consulta existente
   const handleLoadExistingQuery = (query) => {
     console.log('📥 Cargando consulta:', query);
+
+    // Anclar al grupo/consulta existente ANTES de setSegments (auto-save debe UPDATE, no CREATE).
+    if (query.queryGroupId) {
+      queryGroupIdRef.current = query.queryGroupId;
+      setCurrentQueryGroupId(query.queryGroupId);
+      console.log('📌 QueryGroupId guardado:', query.queryGroupId);
+    } else {
+      queryGroupIdRef.current = null;
+      setCurrentQueryGroupId(null);
+    }
     
     // Cargar datos del cliente en el formulario
     if (query.mainClient) {
@@ -2208,12 +2255,6 @@ export default function Consulta() {
     // Si es multi-segmento, cargar TODOS los segmentos
     if (query.isMultiSegment && query.segments && query.segments.length > 0) {
       console.log('📦 Cargando', query.segments.length, 'segmentos');
-      
-      // Guardar el queryGroupId para futuras actualizaciones
-      if (query.queryGroupId) {
-        queryGroupIdRef.current = query.queryGroupId;
-        console.log('📌 QueryGroupId guardado:', query.queryGroupId);
-      }
       
       setSegments(query.segments.map((seg, index) => ({
         id: seg.id || Date.now() + index,
@@ -2285,14 +2326,24 @@ export default function Consulta() {
     setCurrentQueryGroupId(null);
     queryGroupIdRef.current = null;
     setExistingQuery(null);
+    suppressAutoSaveRef.current = false;
   };
 
   // Funciones para el nuevo modal de selección de consultas
-  const handleSelectQuery = (query) => {
-    // Cargar la consulta seleccionada
-    handleLoadExistingQuery(query);
+  const handleSelectQuery = async (query) => {
+    suppressAutoSaveRef.current = true;
     setShowSelectQueryModal(false);
     setRecentQueries([]);
+    try {
+      // Fetch completo: segmentos + queryGroupId (el listado por cliente no los trae).
+      const fullQuery = await fetchQuery(query.id);
+      handleLoadExistingQuery(fullQuery);
+    } catch (error) {
+      console.error('Error cargando consulta completa al retomar:', error);
+      handleLoadExistingQuery(query);
+    } finally {
+      suppressAutoSaveRef.current = false;
+    }
   };
 
   const handleCreateNewQuery = () => {
@@ -2302,6 +2353,7 @@ export default function Consulta() {
     queryGroupIdRef.current = null;
     setShowSelectQueryModal(false);
     setRecentQueries([]);
+    suppressAutoSaveRef.current = false;
   };
 
   // Función para mostrar habitaciones de mayor capacidad (no utilizada actualmente)
@@ -3903,6 +3955,7 @@ export default function Consulta() {
         onClose={() => {
           setShowSelectQueryModal(false);
           setRecentQueries([]);
+          suppressAutoSaveRef.current = false;
         }}
         queries={recentQueries}
         clientName={formData.mainClient.firstName ? `${formData.mainClient.firstName} ${formData.mainClient.lastName}` : ''}
