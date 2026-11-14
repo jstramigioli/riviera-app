@@ -31,7 +31,7 @@ const CONDITION_VARS = [
   { value: 'ROOM_TYPE', label: 'Tipo habitación' },
   { value: 'SERVICE_TYPE', label: 'Servicio' },
   { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
-  { value: 'OCCUPANCY_HOTEL', label: 'Ocupación' },
+  { value: 'OCCUPANCY_HOTEL', label: '% de ocupación' },
   { value: 'DATE_RANGE', label: 'Fecha creación reserva' },
   { value: 'STAY_DATE', label: 'Fecha estadía' }
 ];
@@ -39,8 +39,8 @@ const CONDITION_VARS = [
 const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
 CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Cantidad de noches';
-CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = 'Ocupación';
-CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = 'Ocupación';
+CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = '% de ocupación';
+CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = '% de ocupación';
 CONDITION_TYPE_LABEL.DAYS_OF_WEEK = 'Fecha estadía';
 
 /** Operadores en palabras (nunca símbolos). */
@@ -50,6 +50,14 @@ const OP_NUMERIC = [
   { value: 'eq', label: 'igual a' },
   { value: 'neq', label: 'distinto de' }
 ];
+/** % de ocupación: umbrales (sin igual / distinto). */
+const OP_OCCUPANCY = [
+  { value: 'gt', label: 'mayor a' },
+  { value: 'gte', label: 'mayor o igual a' },
+  { value: 'lt', label: 'menor a' },
+  { value: 'lte', label: 'menor o igual a' }
+];
+const OCCUPANCY_OPS = new Set(OP_OCCUPANCY.map((o) => o.value));
 const OP_EQUALITY = [
   { value: 'eq', label: 'igual a' },
   { value: 'neq', label: 'distinto de' }
@@ -60,7 +68,9 @@ const OP_STAY = [
   { value: 'excludes', label: 'no incluye' }
 ];
 const OP_LABEL = {
+  gt: 'mayor a',
   gte: 'mayor o igual a',
+  lt: 'menor a',
   lte: 'menor o igual a',
   eq: 'igual a',
   neq: 'distinto de',
@@ -133,6 +143,8 @@ function normalizeOp(op, fallback = 'eq') {
   if (v === 'lte' || v === '<=' || v === 'max' || v === '≤' || v === 'menor o igual a' || v === 'menor o igual') {
     return 'lte';
   }
+  if (v === 'gt' || v === '>' || v === 'mayor a' || v === 'mayor') return 'gt';
+  if (v === 'lt' || v === '<' || v === 'menor a' || v === 'menor') return 'lt';
   if (v === 'between' || v === 'entre') return 'between';
   if (v === 'includes' || v === 'incluye' || v === 'include') return 'includes';
   if (
@@ -148,6 +160,11 @@ function normalizeOp(op, fallback = 'eq') {
   return fallback;
 }
 
+function normalizeOccupancyOp(op) {
+  const o = normalizeOp(op, 'lte');
+  return OCCUPANCY_OPS.has(o) ? o : 'lte';
+}
+
 function conditionFromApi(c) {
   const p = c.params || {};
   const rawType = String(c.type || '').toUpperCase();
@@ -161,14 +178,14 @@ function conditionFromApi(c) {
   if (rawType === 'OCCUPANCY_HOTEL_MAX') {
     return {
       ...emptyCondition('OCCUPANCY_HOTEL'),
-      op: 'lte',
+      op: normalizeOccupancyOp('lte'),
       percent: String(p.maxPercent ?? p.value ?? '')
     };
   }
   if (rawType === 'OCCUPANCY_HOTEL_MIN') {
     return {
       ...emptyCondition('OCCUPANCY_HOTEL'),
-      op: 'gte',
+      op: normalizeOccupancyOp('gte'),
       percent: String(p.minPercent ?? p.value ?? '')
     };
   }
@@ -202,7 +219,7 @@ function conditionFromApi(c) {
     case 'OCCUPANCY_HOTEL':
       return {
         ...base,
-        op: normalizeOp(p.op, 'lte'),
+        op: normalizeOccupancyOp(p.op),
         percent: String(p.percent ?? p.value ?? p.maxPercent ?? p.minPercent ?? '')
       };
     case 'DATE_RANGE':
@@ -260,7 +277,7 @@ function paramsFromCondition(c) {
     case 'OCCUPANCY_HOTEL': {
       const n = Number(c.percent);
       if (Number.isNaN(n)) throw new Error('Indicá el % de ocupación');
-      return { op, percent: n };
+      return { op: normalizeOccupancyOp(op), percent: n };
     }
     case 'DATE_RANGE':
       return { from: c.from || null, to: c.to || null, op: 'between' };
@@ -338,7 +355,8 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
 }
 
 function operatorsForType(type) {
-  if (type === 'NIGHTS' || type === 'OCCUPANCY_HOTEL') return OP_NUMERIC;
+  if (type === 'OCCUPANCY_HOTEL') return OP_OCCUPANCY;
+  if (type === 'NIGHTS') return OP_NUMERIC;
   if (type === 'DATE_RANGE') return [{ value: 'between', label: 'entre' }];
   if (type === 'STAY_DATE') return OP_STAY;
   return OP_EQUALITY;
