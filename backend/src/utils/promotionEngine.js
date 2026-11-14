@@ -12,6 +12,7 @@ const {
   computeDiscountFromReceived,
   computeCashToSettle
 } = require('./paymentDiscount');
+const { NON_OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 
 function toDateOnlyString(date) {
   if (!date) return null;
@@ -995,7 +996,8 @@ async function computeHotelOccupancyPercent(db, { hotelId, date } = {}) {
       startDate: { lte: dayEnd },
       endDate: { gt: dayStart },
       reservation: {
-        status: { notIn: ['CANCELLED', 'NO_SHOW', 'CANCELADA'] }
+        // Enum canónico: CANCELADA / NO_PRESENTADA (no CANCELLED/NO_SHOW).
+        status: { notIn: NON_OCCUPYING_STATUSES }
       }
     },
     select: { roomId: true }
