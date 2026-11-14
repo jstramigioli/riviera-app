@@ -5,6 +5,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import logoHotel from '../assets/logo-hotel.png';
 import { useAuth } from '../contexts/AuthContext';
 import { roleLabel } from '../auth/permissions';
+import GlobalNavSearch from './GlobalNavSearch';
 import styles from '../styles/App.module.css';
 
 function Header() {
@@ -97,6 +98,7 @@ function Header() {
         </div>
       </div>
       <div className={styles.navRight}>
+        <GlobalNavSearch />
         {showConfig ? (
           <Link
             to="/configuracion"

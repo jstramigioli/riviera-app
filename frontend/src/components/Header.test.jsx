@@ -17,6 +17,16 @@ vi.mock('../contexts/AuthContext', () => ({
   }),
 }))
 
+vi.mock('./GlobalNavSearch', () => ({
+  default: () => (
+    <input
+      type="search"
+      aria-label="Buscar reservas, clientes o consultas"
+      placeholder="Buscar reservas, clientes…"
+    />
+  ),
+}))
+
 describe('Header', () => {
   it('renders navigation links', () => {
     render(<Header />)
@@ -56,4 +66,14 @@ describe('Header', () => {
     const configButton = screen.getByTitle('Configuración')
     expect(configButton).toBeInTheDocument()
   })
+
+  it('muestra la barra de búsqueda global a la derecha', () => {
+    render(<Header />)
+    expect(
+      screen.getByRole('searchbox', {
+        name: 'Buscar reservas, clientes o consultas'
+      })
+    ).toBeInTheDocument()
+  })
 })
+

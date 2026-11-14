@@ -53,50 +53,7 @@ describe('FloatingActionButton hub', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
     fireEvent.click(screen.getByRole('menuitem', { name: '+ Pago' }))
     expect(onCreatePayment).toHaveBeenCalledTimes(1)
-  })
 
-  it('coloca la lupa entre Hoy y + y abre la barra opaca al click', () => {
-    const reservations = [
-      {
-        id: 12,
-        status: 'CONFIRMADA',
-        checkIn: '2026-03-10',
-        checkOut: '2026-03-12',
-        mainClient: { firstName: 'Ana', lastName: 'Pérez' }
-      }
-    ]
-
-    const { container } = render(
-      <FloatingActionButton
-        onToday={vi.fn()}
-        onCreateQuery={vi.fn()}
-        onCreateReservation={vi.fn()}
-        onCreateConsumption={vi.fn()}
-        onCreatePayment={vi.fn()}
-        showSearch
-        searchReservations={reservations}
-        searchClients={[]}
-        searchQueries={[]}
-        onSearchSelectReservation={vi.fn()}
-      />
-    )
-
-    const today = screen.getByRole('button', { name: 'Ir a hoy' })
-    const search = screen.getByRole('button', { name: 'Buscar en el Libro' })
-    const plus = screen.getByRole('button', { name: 'Abrir menú de altas' })
-    const buttons = Array.from(container.querySelectorAll('button'))
-    expect(buttons.indexOf(today)).toBeLessThan(buttons.indexOf(search))
-    expect(buttons.indexOf(search)).toBeLessThan(buttons.indexOf(plus))
-
-    fireEvent.click(search)
-    expect(
-      screen.getByRole('dialog', { name: 'Buscar en el Libro' })
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('searchbox', {
-        name: 'Buscar reservas, clientes o consultas'
-      })
-    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Buscar en el Libro' })).toBeNull()
   })
 })
-

@@ -75,12 +75,6 @@ function truncateBarLabel(firstName, lastName, widthPx) {
 export default function LibroReservasBoard({
   onReservationClick,
   reservationsForDayInfo = [],
-  searchReservations = [],
-  searchClients = [],
-  searchQueries = [],
-  onSearchSelectReservation,
-  onSearchSelectClient,
-  onSearchSelectQuery,
   refreshToken = 0,
   onCreateConsumption,
   onCreatePayment
@@ -765,13 +759,6 @@ export default function LibroReservasBoard({
           onCreateReservation={() => navigate('/consulta?modo=reserva')}
           onCreateConsumption={() => onCreateConsumption?.()}
           onCreatePayment={() => onCreatePayment?.()}
-          showSearch
-          searchReservations={searchReservations}
-          searchClients={searchClients}
-          searchQueries={searchQueries}
-          onSearchSelectReservation={onSearchSelectReservation}
-          onSearchSelectClient={onSearchSelectClient}
-          onSearchSelectQuery={onSearchSelectQuery}
         />
       ) : null}
     </>
