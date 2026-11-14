@@ -27,7 +27,7 @@ const MODALITY_LABEL = { AUTO: 'Automática', MANUAL: 'Manual', SUGERIDA: 'Suger
 
 /** Variables del editor (Variable | Operador | Valor). */
 const CONDITION_VARS = [
-  { value: 'NIGHTS', label: 'Noches' },
+  { value: 'NIGHTS', label: 'Cantidad de noches' },
   { value: 'ROOM_TYPE', label: 'Tipo habitación' },
   { value: 'SERVICE_TYPE', label: 'Servicio' },
   { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
@@ -37,8 +37,8 @@ const CONDITION_VARS = [
 ];
 
 const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
-CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Noches';
-CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Noches';
+CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Cantidad de noches';
+CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = 'Ocupación';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = 'Ocupación';
 CONDITION_TYPE_LABEL.DAYS_OF_WEEK = 'Fecha estadía';
@@ -993,14 +993,16 @@ function PromocionesTab() {
                   {form.activo ? 'Activa' : 'Inactiva'}
                 </span>
               </button>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={form.aplicaEnParcial}
-                  onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
-                />
-                Aplica en parcial
-              </label>
+              {form.kind === 'DESCUENTO' && (
+                <label className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={form.aplicaEnParcial}
+                    onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
+                  />
+                  Aplica en parcial
+                </label>
+              )}
             </div>
 
             <section className={styles.section}>
