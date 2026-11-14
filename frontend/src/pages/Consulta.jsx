@@ -1,4 +1,4 @@
-import { FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
+import { FiCheck, FiX, FiAlertTriangle, FiChevronDown } from 'react-icons/fi';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
@@ -3117,7 +3117,7 @@ export default function Consulta() {
             {/* Campo de cliente */}
             <div className={styles.clientFieldContainer}>
               <div className={styles.formGroup}>
-                <label> Cliente</label>
+                <label>Cliente</label>
                 {showNewClientForm ? (
                   <div className={styles.newClientForm}>
                     <div className={styles.newClientGrid}>
@@ -3149,8 +3149,8 @@ export default function Consulta() {
                       />
                     </div>
                     <div className={styles.newClientButtons}>
-                      <button type="button" onClick={handleSaveNewClient}> Guardar</button>
-                      <button type="button" onClick={handleNewSearch}> Cancelar</button>
+                      <button type="button" onClick={handleSaveNewClient}>Guardar</button>
+                      <button type="button" onClick={handleNewSearch}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
@@ -3201,28 +3201,19 @@ export default function Consulta() {
             {/* Campo global de cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label> Cantidad de huéspedes</label>
+                <label>Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
                     const newGuests = parseInt(e.target.value);
-                    console.log('👥 Cambiando huéspedes de', requirements.requiredGuests, 'a', newGuests);
-                    console.log('👥 Etiquetas actuales en requirements:', requirements.requiredTags);
-                    console.log('👥 Etiquetas en segments[0]:', segments[0]?.requiredTags);
-                    
-                    // Actualizar el estado global (preservando etiquetas)
                     setRequirements(prev => ({
                       ...prev,
                       requiredGuests: newGuests
                     }));
-                    
-                    // Actualizar todos los segmentos (preservando sus etiquetas)
                     setSegments(prev => prev.map(segment => ({
                       ...segment,
                       requiredGuests: newGuests
                     })));
-                    
-                    console.log('👥 Después del cambio - requirements debe tener etiquetas');
                   }}
                 >
                   {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
@@ -3247,7 +3238,7 @@ export default function Consulta() {
             {/* Reservado por (también sin cliente) */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Reservado por:</label>
+                <label>Reservado por</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
@@ -3271,7 +3262,7 @@ export default function Consulta() {
             {/* Cliente seleccionado */}
             <div className={styles.selectedClientContainer}>
               <div className={styles.formGroup}>
-                <label> Cliente</label>
+                <label>Cliente</label>
                 <div className={styles.selectedClientDisplay}>
                   <button
                     type="button"
@@ -3313,28 +3304,19 @@ export default function Consulta() {
             {/* Cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label> Cantidad de huéspedes</label>
+                <label>Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
                     const newGuests = parseInt(e.target.value);
-                    console.log('👥 Cambiando huéspedes de', requirements.requiredGuests, 'a', newGuests);
-                    console.log('👥 Etiquetas actuales en requirements:', requirements.requiredTags);
-                    console.log('👥 Etiquetas en segments[0]:', segments[0]?.requiredTags);
-                    
-                    // Actualizar el estado global (preservando etiquetas)
                     setRequirements(prev => ({
                       ...prev,
                       requiredGuests: newGuests
                     }));
-                    
-                    // Actualizar todos los segmentos (preservando sus etiquetas)
                     setSegments(prev => prev.map(segment => ({
                       ...segment,
                       requiredGuests: newGuests
                     })));
-                    
-                    console.log('👥 Después del cambio - requirements debe tener etiquetas');
                   }}
                 >
                   {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
@@ -3359,7 +3341,7 @@ export default function Consulta() {
             {/* Reservado por */}
             <div className={styles.sourceFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Reservado por:</label>
+                <label>Reservado por</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
@@ -3378,7 +3360,7 @@ export default function Consulta() {
             {/* Notas globales */}
             <div className={styles.notesFieldContainer}>
               <div className={styles.formGroup}>
-                <label> Notas</label>
+                <label>Notas</label>
                 <textarea
                   className={styles.notesTextarea}
                   value={notes}
@@ -3476,7 +3458,7 @@ export default function Consulta() {
               {/* Tipo de servicio */}
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label> Tipo de Servicio</label>
+                  <label>Tipo de servicio</label>
                   <select
                     value={segments[activeBlockIndex]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'serviceType', e.target.value)}
@@ -3497,8 +3479,13 @@ export default function Consulta() {
                   className={styles.expandableHeader}
                   onClick={() => setShowSegments(!showSegments)}
                 >
-                  <label> Requisitos Especiales</label>
-                  <span className={styles.expandIcon}>{showSegments ? '▼' : ''}</span>
+                  <span>Requisitos especiales</span>
+                  <span
+                    className={`${styles.expandIcon} ${showSegments ? styles.expandIconOpen : ''}`}
+                    aria-hidden="true"
+                  >
+                    <FiChevronDown />
+                  </span>
                 </button>
                 
                 {showSegments && (
@@ -3506,21 +3493,14 @@ export default function Consulta() {
                     <div className={styles.requirementsFlexContainer}>
                       {/* Habitación Específica */}
                       <div className={styles.formGroup}>
-                        <label> Habitación Específica:</label>
+                        <label>Habitación específica</label>
                         <select
                           value={segments[activeBlockIndex]?.requiredRoomId || ''}
                           onChange={(e) => segments[activeBlockIndex] && handleSegmentRoomChange(segments[activeBlockIndex].id, e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px',
-                            border: '1px solid var(--color-border)',
-                            borderRadius: '4px',
-                            fontSize: '14px'
-                          }}
                         >
-                          <option value=""> No</option>
+                          <option value="">No</option>
                           {loadingAllRooms ? (
-                            <option disabled> Cargando habitaciones...</option>
+                            <option disabled>Cargando habitaciones…</option>
                           ) : (
                             allRooms
                               .filter(room => room.maxPeople >= (segments[activeBlockIndex]?.requiredGuests || 1))
@@ -3566,23 +3546,16 @@ export default function Consulta() {
 
               {/* Mensaje cuando el hotel está cerrado */}
               {isHotelClosed && (
-                <div className={styles.errorMessage} style={{ 
-                  marginTop: '10px', 
-                  padding: '12px', 
-                  backgroundColor: '#fee', 
-                  border: '1px solid #fcc', 
-                  borderRadius: '6px',
-                  color: '#c33'
-                }}>
+                <div className={styles.closedNotice} role="status">
                   El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
                 </div>
               )}
             </div>
 
-            {/* Habitaciones Disponibles - Se muestran cuando hay resultados de búsqueda */}
+            {/* Habitaciones disponibles — se muestran cuando hay resultados de búsqueda */}
             {hasSearchedPerBlock[activeBlockIndex] === true && (
               <>
-              <h3 className={styles.roomsSectionTitle}> Habitaciones Disponibles</h3>
+              <h3 className={styles.roomsSectionTitle}>Habitaciones disponibles</h3>
               
               {loadingRooms ? (
                 <div className={styles.loading}>
@@ -3593,31 +3566,20 @@ export default function Consulta() {
                   {/* Mostrar mensaje específico si hay disponibilidad parcial, sino mensaje genérico */}
                   {isPartiallyAvailable && availablePeriods.length > 0 ? (
                     <>
-                      <p> El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
-                        
-                        <button 
+                      <p>El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
+                        <button
+                          type="button"
                           onClick={createSegmentsFromAvailablePeriods}
-                          style={{
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                          padding: '10px 20px',
-                          borderRadius: '6px',
-                            cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          marginTop: '15px'
-                          }}
+                          className={styles.splitPeriodsButton}
                         >
-                        Dividir la reserva en tramos
+                          Dividir la reserva en tramos
                         </button>
-                        
-                        <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
+                        <p className={styles.splitPeriodsHint}>
                           Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
                         </p>
                     </>
                   ) : (
-                  <p> No se encontraron habitaciones disponibles para los criterios especificados.</p>
+                  <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
                   )}
                 </div>
               ) : (
@@ -3703,18 +3665,7 @@ export default function Consulta() {
                                   {room.description || 'Descripción no disponible'}
                                 </div>
                                 {compliance.bedWarning && (
-                                  <div
-                                    role="status"
-                                    style={{
-                                      marginTop: '6px',
-                                      fontSize: '12px',
-                                      color: '#9a3412',
-                                      background: '#fff7ed',
-                                      border: '1px solid #fed7aa',
-                                      borderRadius: '6px',
-                                      padding: '4px 8px'
-                                    }}
-                                  >
+                                  <div role="status" className={styles.bedWarning}>
                                     Aviso camas: {compliance.bedWarning}
                                   </div>
                                 )}
@@ -3750,12 +3701,12 @@ export default function Consulta() {
                           
                           {showDetails && (
                             <div className={styles.roomDetailsExpanded}>
-                              <h4> Detalle Tarifario por Día</h4>
+                              <h4>Detalle tarifario por día</h4>
                               <div className={styles.dailyRatesTable}>
                                 {room.ratesData && room.ratesData.rates ? (
                                   room.ratesData.rates.map((rate, index) => (
                                     <div key={index} className={styles.dailyRateRow}>
-                                      <span> Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
+                                      <span>Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
                                       <span>${new Intl.NumberFormat('es-AR').format(rate.serviceRate || rate.baseRate)}</span>
                                     </div>
                                   ))
@@ -3769,7 +3720,7 @@ export default function Consulta() {
                                 <div className={styles.dailyRatesTotal}>
                                   <div className={styles.totalSeparator}></div>
                                   <div className={styles.dailyRateRow}>
-                                    <span><strong> Total:</strong></span>
+                                    <span><strong>Total</strong></span>
                                     <span><strong>${new Intl.NumberFormat('es-AR').format(room.ratesData.totalAmount)}</strong></span>
                                   </div>
                                 </div>
@@ -3822,15 +3773,6 @@ export default function Consulta() {
             <label
               className={styles.rateToggle}
               title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '13px',
-                color: 'var(--color-text, #333)',
-                cursor: 'pointer',
-                userSelect: 'none'
-              }}
             >
               <input
                 type="checkbox"
@@ -3851,11 +3793,11 @@ export default function Consulta() {
               disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
               title={
                 !segments.every((_, index) => selectedRoomsPerBlock[index])
-                  ? 'Selecciona una habitación para cada segmento'
+                  ? 'Seleccioná una habitación para cada segmento'
                   : (editingReservationId ? 'Modificar la reserva' : 'Crear la reserva')
               }
             >
-              {editingReservationId ? 'Modificar reserva' : 'Crear Reserva'}
+              {editingReservationId ? 'Modificar reserva' : 'Crear reserva'}
             </button>
           )}
         </div>
@@ -3883,70 +3825,38 @@ export default function Consulta() {
 
       {/* Modal de advertencia de fecha pasada */}
       {showPastDateWarning && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '90%',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '32px' }} aria-hidden="true"><FiAlertTriangle /></div>
-              <h2 style={{ margin: 0, color: '#dc2626' }}> Advertencia: Fecha Pasada</h2>
+        <div className={styles.pastDateOverlay} role="dialog" aria-modal="true" aria-labelledby="past-date-title">
+          <div className={styles.pastDateModal}>
+            <div className={styles.pastDateHeader}>
+              <FiAlertTriangle size={22} aria-hidden="true" />
+              <h2 id="past-date-title">Fecha pasada</h2>
             </div>
-            <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '16px' }}>
+            <p>
               La reserva que estás creando incluye fechas anteriores a hoy. Esto normalmente indica un error.
             </p>
-            <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '24px' }}>
-              ¿Estás seguro de que quieres continuar y crear esta reserva con fechas pasadas?
+            <p>
+              ¿Seguro que querés continuar y crear esta reserva con fechas pasadas?
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <div className={styles.pastDateActions}>
               <button
+                type="button"
+                className={styles.pastDateCancel}
                 onClick={() => {
                   setShowPastDateWarning(false);
                   setIsCreatingReservation(false);
-                }}
-                style={{
-                  padding: '10px 20px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  background: '#f3f4f6',
-                  color: '#374151',
-                  cursor: 'pointer',
-                  fontWeight: '500'
                 }}
               >
                 Cancelar
               </button>
               <button
+                type="button"
+                className={styles.pastDateConfirm}
                 onClick={() => {
                   setShowPastDateWarning(false);
                   handleCreateReservation(pendingReservationStatus, true); // skipPastDateWarning = true
                 }}
-                style={{
-                  padding: '10px 20px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  background: '#dc2626',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontWeight: '500'
-                }}
               >
-                Sí, Crear Reserva
+                Sí, crear reserva
               </button>
             </div>
           </div>
