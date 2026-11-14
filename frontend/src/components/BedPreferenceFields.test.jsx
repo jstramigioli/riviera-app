@@ -8,7 +8,8 @@ describe('BedPreferenceFields', () => {
     render(
       <BedPreferenceFields
         value={{ bedPreferenceNone: true }}
-        maxGuests={4}
+        maxDoubleBeds={2}
+        maxSingleBeds={2}
         onChange={onChange}
       />
     );
@@ -23,7 +24,8 @@ describe('BedPreferenceFields', () => {
     render(
       <BedPreferenceFields
         value={{ bedPreferenceNone: true }}
-        maxGuests={4}
+        maxDoubleBeds={2}
+        maxSingleBeds={2}
         onChange={onChange}
       />
     );
@@ -37,6 +39,26 @@ describe('BedPreferenceFields', () => {
     });
   });
 
+  it('opciones Mat/Ind limitadas por maxDoubleBeds y maxSingleBeds', () => {
+    render(
+      <BedPreferenceFields
+        value={{
+          bedPreferenceNone: false,
+          preferredDoubleBeds: 0,
+          preferredSingleBeds: 0
+        }}
+        maxDoubleBeds={1}
+        maxSingleBeds={3}
+        onChange={vi.fn()}
+      />
+    );
+
+    const matOptions = screen.getByLabelText('Camas matrimoniales').querySelectorAll('option');
+    const indOptions = screen.getByLabelText('Camas individuales').querySelectorAll('option');
+    expect(matOptions).toHaveLength(2); // 0..1
+    expect(indOptions).toHaveLength(4); // 0..3
+  });
+
   it('con preferencia activa muestra selects y permite cambiar cantidades', () => {
     const onChange = vi.fn();
     render(
@@ -46,7 +68,8 @@ describe('BedPreferenceFields', () => {
           preferredDoubleBeds: 1,
           preferredSingleBeds: 0
         }}
-        maxGuests={3}
+        maxDoubleBeds={2}
+        maxSingleBeds={2}
         onChange={onChange}
       />
     );
@@ -71,7 +94,8 @@ describe('BedPreferenceFields', () => {
           preferredDoubleBeds: 1,
           preferredSingleBeds: 1
         }}
-        maxGuests={4}
+        maxDoubleBeds={2}
+        maxSingleBeds={2}
         onChange={onChange}
       />
     );

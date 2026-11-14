@@ -25,7 +25,12 @@ import {
   resolveEditReservationId
 } from '../utils/consultaNavigation';
 import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
-import { roomCanSatisfyBedPreference, normalizeBedPreference } from '../utils/bedConfig';
+import {
+  roomCanSatisfyBedPreference,
+  normalizeBedPreference,
+  maxBedPreferenceLimits,
+  clampBedPreferenceToLimits
+} from '../utils/bedConfig';
 import BedPreferenceFields from '../components/BedPreferenceFields';
 import styles from '../styles/Consulta.module.css';
 
@@ -1522,6 +1527,32 @@ export default function Consulta() {
       requiredGuests: maxGuestCapacity
     })));
   }, [maxGuestCapacity, requirements.requiredGuests]);
+
+  // Recortar preferencia de camas al cargar rooms o cambiar huéspedes
+  useEffect(() => {
+    if (!allRooms.length) return;
+    const limits = maxBedPreferenceLimits(allRooms, requirements.requiredGuests || 1);
+    setRequirements((prev) => {
+      const clamped = clampBedPreferenceToLimits(prev, limits);
+      if (
+        clamped.preferredDoubleBeds === prev.preferredDoubleBeds &&
+        clamped.preferredSingleBeds === prev.preferredSingleBeds
+      ) {
+        return prev;
+      }
+      return { ...prev, ...clamped };
+    });
+    setSegments((prev) => prev.map((segment) => {
+      const clamped = clampBedPreferenceToLimits(segment, limits);
+      if (
+        clamped.preferredDoubleBeds === segment.preferredDoubleBeds &&
+        clamped.preferredSingleBeds === segment.preferredSingleBeds
+      ) {
+        return segment;
+      }
+      return { ...segment, ...clamped };
+    }));
+  }, [allRooms, requirements.requiredGuests]);
 
   // NO sincronizamos roomId porque ya no lo guardamos en consultas
   // Las habitaciones se buscarán automáticamente con debouncing cuando se cumplan las condiciones
@@ -3120,21 +3151,30 @@ export default function Consulta() {
       ? 'Consulta rápida'
       : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`;
 
+  const bedLimits = maxBedPreferenceLimits(
+    allRooms,
+    requirements.requiredGuests || 1
+  );
+
   const handleGuestsChange = (e) => {
     const newGuests = parseInt(e.target.value, 10);
+    const nextLimits = maxBedPreferenceLimits(allRooms, newGuests);
     setRequirements((prev) => ({
       ...prev,
-      requiredGuests: newGuests
+      requiredGuests: newGuests,
+      ...clampBedPreferenceToLimits(prev, nextLimits)
     }));
     setSegments((prev) => prev.map((segment) => ({
       ...segment,
-      requiredGuests: newGuests
+      requiredGuests: newGuests,
+      ...clampBedPreferenceToLimits(segment, nextLimits)
     })));
   };
 
   const handleBedPreferenceChange = (pref) => {
-    setRequirements((prev) => ({ ...prev, ...pref }));
-    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+    const clamped = clampBedPreferenceToLimits(pref, bedLimits);
+    setRequirements((prev) => ({ ...prev, ...clamped }));
+    setSegments((prev) => prev.map((segment) => ({ ...segment, ...clamped })));
   };
 
   const guestsSelect = (
@@ -3161,7 +3201,8 @@ export default function Consulta() {
     <div className={styles.bedsFieldContainer}>
       <BedPreferenceFields
         value={requirements}
-        maxGuests={maxGuestCapacity}
+        maxDoubleBeds={bedLimits.maxDoubleBeds}
+        maxSingleBeds={bedLimits.maxSingleBeds}
         onChange={handleBedPreferenceChange}
       />
     </div>

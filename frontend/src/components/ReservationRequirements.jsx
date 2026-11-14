@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useTags } from '../hooks/useTags';
 import { fetchRooms } from '../services/api';
 import BedPreferenceFields from './BedPreferenceFields';
-import { roomCanSatisfyBedPreference } from '../utils/bedConfig';
+import {
+  roomCanSatisfyBedPreference,
+  maxBedPreferenceLimits,
+  clampBedPreferenceToLimits
+} from '../utils/bedConfig';
 import '../styles/variables.css';
 
 function ReservationRequirements({ 
@@ -39,13 +43,17 @@ function ReservationRequirements({
     ? Math.max(...rooms.map((room) => room.roomType?.maxPeople || room.maxPeople || 1))
     : 1;
 
+  const bedLimits = maxBedPreferenceLimits(rooms, requirements.requiredGuests || 1);
+
   const handleGuestsChange = (guests) => {
     const parsed = parseInt(guests, 10) || 1;
     const capped = Math.min(Math.max(1, parsed), Math.max(1, maxGuestCapacity));
+    const nextLimits = maxBedPreferenceLimits(rooms, capped);
     const newRequirements = {
       ...requirements,
       requiredGuests: capped,
-      requiredRoomId: null // Reset habitación específica al cambiar cantidad de huéspedes
+      requiredRoomId: null, // Reset habitación específica al cambiar cantidad de huéspedes
+      ...clampBedPreferenceToLimits(requirements, nextLimits)
     };
     onRequirementsChange(newRequirements);
   };
@@ -128,8 +136,12 @@ function ReservationRequirements({
       <div style={{ marginBottom: '20px' }}>
         <BedPreferenceFields
           value={requirements}
-          maxGuests={maxGuestCapacity}
-          onChange={(pref) => onRequirementsChange({ ...requirements, ...pref })}
+          maxDoubleBeds={bedLimits.maxDoubleBeds}
+          maxSingleBeds={bedLimits.maxSingleBeds}
+          onChange={(pref) => onRequirementsChange({
+            ...requirements,
+            ...clampBedPreferenceToLimits(pref, bedLimits)
+          })}
         />
       </div>
 

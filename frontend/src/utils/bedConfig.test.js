@@ -4,7 +4,10 @@ import {
   validateBedsAgainstCapacity,
   roomCanSatisfyBedPreference,
   normalizeBedPreference,
-  totalBedCapacity
+  totalBedCapacity,
+  countBedsByType,
+  maxBedPreferenceLimits,
+  clampBedPreferenceToLimits
 } from './bedConfig';
 
 describe('bedConfig', () => {
@@ -111,6 +114,70 @@ describe('bedConfig', () => {
       bedPreferenceNone: false,
       preferredDoubleBeds: 1,
       preferredSingleBeds: 0
+    });
+  });
+
+  it('countBedsByType cuenta double y single', () => {
+    expect(
+      countBedsByType([
+        { bedType: 'double' },
+        { bedType: 'double' },
+        { bedType: 'single' }
+      ])
+    ).toEqual({ double: 2, single: 1 });
+  });
+
+  it('maxBedPreferenceLimits: max Mat/Ind entre habitaciones con capacidad = huéspedes', () => {
+    const rooms = [
+      {
+        id: 1,
+        maxPeople: 2,
+        beds: [{ bedType: 'double' }]
+      },
+      {
+        id: 2,
+        maxPeople: 2,
+        beds: [{ bedType: 'single' }, { bedType: 'single' }]
+      },
+      {
+        id: 3,
+        maxPeople: 4,
+        beds: [
+          { bedType: 'double' },
+          { bedType: 'double' },
+          { bedType: 'single' },
+          { bedType: 'single' }
+        ]
+      }
+    ];
+    expect(maxBedPreferenceLimits(rooms, 2)).toEqual({
+      maxDoubleBeds: 1,
+      maxSingleBeds: 2
+    });
+    expect(maxBedPreferenceLimits(rooms, 4)).toEqual({
+      maxDoubleBeds: 2,
+      maxSingleBeds: 2
+    });
+    expect(maxBedPreferenceLimits(rooms, 3)).toEqual({
+      maxDoubleBeds: 0,
+      maxSingleBeds: 0
+    });
+  });
+
+  it('clampBedPreferenceToLimits recorta si supera máximos', () => {
+    expect(
+      clampBedPreferenceToLimits(
+        {
+          bedPreferenceNone: false,
+          preferredDoubleBeds: 3,
+          preferredSingleBeds: 2
+        },
+        { maxDoubleBeds: 1, maxSingleBeds: 2 }
+      )
+    ).toEqual({
+      bedPreferenceNone: false,
+      preferredDoubleBeds: 1,
+      preferredSingleBeds: 2
     });
   });
 });
