@@ -70,6 +70,14 @@ function Header() {
               Habitaciones
             </Link>
           ) : null}
+          {can('clientes') ? (
+            <Link
+              to="/clientes"
+              className={`${styles.navLink} ${location.pathname.startsWith('/clientes') || location.pathname.startsWith('/clients/') ? styles.active : ''}`}
+            >
+              Clientes
+            </Link>
+          ) : null}
           {can('finanzas') ? (
             <Link
               to="/estado-de-cuentas"

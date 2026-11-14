@@ -34,6 +34,7 @@ import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
 import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
+import Clientes from './pages/Clientes';
 import PublicCheckIn from './pages/PublicCheckIn';
 
 function firstRoomIdFromReservation(reservation) {
@@ -623,6 +624,14 @@ function App() {
               element={(
                 <ProtectedRoute permission="clientes">
                   <AppShell><ClientDetails /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/clientes"
+              element={(
+                <ProtectedRoute permission="clientes">
+                  <AppShell><Clientes /></AppShell>
                 </ProtectedRoute>
               )}
             />

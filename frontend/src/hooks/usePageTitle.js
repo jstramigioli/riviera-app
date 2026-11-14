@@ -10,6 +10,7 @@ const usePageTitle = () => {
       '/libro-de-reservas': 'Libro de Reservas',
       '/consultas-reservas': 'Consultas y Reservas',
       '/habitaciones': 'Habitaciones',
+      '/clientes': 'Clientes',
       '/cobros-pagos': 'Estado de cuentas',
       '/estado-de-cuentas': 'Estado de cuentas',
       '/estadisticas': 'Estadísticas',
@@ -18,6 +19,10 @@ const usePageTitle = () => {
 
     if (pathname.startsWith('/habitaciones/') || pathname.startsWith('/rooms/')) {
       return 'Habitación';
+    }
+
+    if (pathname.startsWith('/clients/')) {
+      return 'Cliente';
     }
 
     return routes[pathname] || 'Hotel Riviera';

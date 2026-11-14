@@ -23,16 +23,19 @@ describe('Header', () => {
     expect(screen.getByText('Libro de Reservas')).toBeInTheDocument()
     expect(screen.getByText('Consultas y Reservas')).toBeInTheDocument()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
+    expect(screen.getByText('Clientes')).toBeInTheDocument()
     expect(screen.getByText('Estado de cuentas')).toBeInTheDocument()
     expect(screen.getByText('Estadísticas')).toBeInTheDocument()
 
     const links = screen.getAllByRole('link').map((link) => link.textContent)
     const consultasIdx = links.indexOf('Consultas y Reservas')
     const habitacionesIdx = links.indexOf('Habitaciones')
+    const clientesIdx = links.indexOf('Clientes')
     const cuentasIdx = links.indexOf('Estado de cuentas')
     expect(consultasIdx).toBeGreaterThanOrEqual(0)
     expect(habitacionesIdx).toBeGreaterThan(consultasIdx)
-    expect(cuentasIdx).toBeGreaterThan(habitacionesIdx)
+    expect(clientesIdx).toBeGreaterThan(habitacionesIdx)
+    expect(cuentasIdx).toBeGreaterThan(clientesIdx)
   })
 
   it('does not render Tarifas, Precios inteligentes or Auditoría in top nav', () => {
