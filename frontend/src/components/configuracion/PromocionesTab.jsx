@@ -277,7 +277,8 @@ function paramsFromCondition(c) {
     }
     case 'OCCUPANCY_HOTEL': {
       const n = Number(c.percent);
-      if (Number.isNaN(n)) throw new Error('Indicá el % de ocupación');
+      if (c.percent === '' || Number.isNaN(n)) throw new Error('Indicá el % de ocupación');
+      if (n < 0 || n > 100) throw new Error('El % de ocupación debe estar entre 0 y 100');
       return { op: normalizeOccupancyOp(op), percent: n };
     }
     case 'DATE_RANGE':
@@ -363,6 +364,94 @@ function operatorsForType(type) {
   return OP_EQUALITY;
 }
 
+/** Errores de campo para bloquear Guardar y marcar en rojo. */
+function validateConditionFields(c) {
+  const errors = {};
+  switch (c.type) {
+    case 'PAYMENT_METHOD':
+      if (!Number(c.paymentMethodConfigId)) errors.value = 'Elegí un medio de pago';
+      break;
+    case 'ROOM_TYPE':
+      if (!Number(c.roomTypeId)) errors.value = 'Elegí un tipo de habitación';
+      break;
+    case 'SERVICE_TYPE':
+      if (!String(c.serviceTypeId || '').trim()) errors.value = 'Elegí un servicio';
+      break;
+    case 'NIGHTS': {
+      const n = Number(c.nights);
+      if (c.nights === '' || Number.isNaN(n) || n < 0) {
+        errors.value = 'Indicá una cantidad de noches válida (≥ 0)';
+      }
+      break;
+    }
+    case 'OCCUPANCY_HOTEL': {
+      const n = Number(c.percent);
+      if (c.percent === '' || Number.isNaN(n)) {
+        errors.value = 'Indicá el % de ocupación';
+      } else if (n < 0 || n > 100) {
+        errors.value = 'El % de ocupación debe estar entre 0 y 100';
+      }
+      break;
+    }
+    case 'DATE_RANGE':
+      if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas';
+      else if (c.from && c.to && c.from > c.to) errors.value = 'La fecha desde no puede ser posterior a hasta';
+      break;
+    case 'STAY_DATE': {
+      const stayOp = normalizeOp(c.op, 'between');
+      if (stayOp === 'between') {
+        if (!c.from && !c.to) errors.value = 'Indicá el rango de fechas de estadía';
+        else if (c.from && c.to && c.from > c.to) {
+          errors.value = 'La fecha desde no puede ser posterior a hasta';
+        }
+      } else if (!Array.isArray(c.days) || c.days.length === 0) {
+        errors.value = 'Elegí al menos un día';
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return errors;
+}
+
+function validatePromoForm(form) {
+  const errors = { conditions: {} };
+  if (!String(form.label || '').trim()) {
+    errors.label = 'El nombre es obligatorio';
+  }
+  const benefit = Number(form.benefitValue);
+  if (form.benefitValue === '' || Number.isNaN(benefit)) {
+    errors.benefitValue = 'Indicá el valor del beneficio';
+  } else if (benefit < 0) {
+    errors.benefitValue = 'El beneficio no puede ser negativo';
+  } else if (form.benefitType === 'PERCENT' && benefit > 100) {
+    errors.benefitValue = 'El porcentaje no puede ser mayor a 100';
+  }
+  if (form.benefitCapARS !== '' && form.benefitCapARS != null) {
+    const cap = Number(form.benefitCapARS);
+    if (Number.isNaN(cap) || cap < 0) {
+      errors.benefitCapARS = 'El tope debe ser un número ≥ 0';
+    }
+  }
+  (form.conditions || []).forEach((c, index) => {
+    const ce = validateConditionFields(c);
+    if (Object.keys(ce).length) errors.conditions[index] = ce;
+  });
+  const hasConditionErrors = Object.keys(errors.conditions).length > 0;
+  const ok =
+    !errors.label && !errors.benefitValue && !errors.benefitCapARS && !hasConditionErrors;
+  return { ok, errors };
+}
+
+function networkErrorMessage(err, fallback) {
+  const msg = err?.message || '';
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return 'No se pudo conectar con el servidor. Verificá que la API esté en marcha.';
+  }
+  return msg || fallback;
+}
+
 function PromocionesTab() {
   const { confirm, confirmDialog } = useConfirmDialog();
   const mouseDownOnOverlay = useRef(false);
@@ -401,6 +490,10 @@ function PromocionesTab() {
     [methodsById, roomTypesById, serviceTypesById]
   );
 
+  const formValidation = useMemo(() => validatePromoForm(form), [form]);
+  const formErrors = formValidation.errors;
+  const canSave = formValidation.ok;
+
   const promoRows = useMemo(
     () => rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO'),
     [rows]
@@ -425,7 +518,7 @@ function PromocionesTab() {
       setRoomTypes(Array.isArray(types) ? types : []);
       setServiceTypes(Array.isArray(services) ? services : []);
     } catch (err) {
-      setError(err.message || 'Error cargando promociones');
+      setError(networkErrorMessage(err, 'Error cargando promociones'));
     } finally {
       setLoading(false);
     }
@@ -548,13 +641,21 @@ function PromocionesTab() {
   };
 
   const handleSave = async () => {
+    if (!canSave) {
+      const first =
+        formErrors.label ||
+        formErrors.benefitValue ||
+        formErrors.benefitCapARS ||
+        Object.values(formErrors.conditions || {})
+          .map((c) => c.value)
+          .find(Boolean);
+      setError(first || 'Revisá los campos marcados');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const payload = buildPayload();
-      if (!String(payload.label || '').trim()) {
-        throw new Error('El nombre es obligatorio');
-      }
       if (editingId) {
         const { code, ...rest } = payload;
         await updatePromotionRule(editingId, rest);
@@ -564,7 +665,7 @@ function PromocionesTab() {
       closeForm();
       await load();
     } catch (err) {
-      setError(err.message || 'Error al guardar');
+      setError(networkErrorMessage(err, 'Error al guardar'));
     } finally {
       setSaving(false);
     }
@@ -625,6 +726,8 @@ function PromocionesTab() {
   };
 
   const renderValue = (c, index) => {
+    const invalid = Boolean(formErrors.conditions?.[index]?.value);
+    const invalidClass = invalid ? styles.fieldInvalid : undefined;
     switch (c.type) {
       case 'PAYMENT_METHOD':
         return (
@@ -632,6 +735,9 @@ function PromocionesTab() {
             value={c.paymentMethodConfigId}
             onChange={(e) => updateCondition(index, { paymentMethodConfigId: e.target.value })}
             aria-label="Valor medio de pago"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={formErrors.conditions?.[index]?.value}
           >
             <option value="">Elegir medio…</option>
             {methods.map((m) => (
@@ -647,6 +753,9 @@ function PromocionesTab() {
             value={c.roomTypeId}
             onChange={(e) => updateCondition(index, { roomTypeId: e.target.value })}
             aria-label="Valor tipo habitación"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={formErrors.conditions?.[index]?.value}
           >
             <option value="">Elegir tipo…</option>
             {roomTypes.map((rt) => (
@@ -662,6 +771,9 @@ function PromocionesTab() {
             value={c.serviceTypeId}
             onChange={(e) => updateCondition(index, { serviceTypeId: e.target.value })}
             aria-label="Valor servicio"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={formErrors.conditions?.[index]?.value}
           >
             <option value="">Elegir servicio…</option>
             {serviceTypes.map((st) => (
@@ -681,6 +793,9 @@ function PromocionesTab() {
             onChange={(e) => updateCondition(index, { nights: e.target.value })}
             placeholder="Cantidad"
             aria-label="Cantidad de noches"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={formErrors.conditions?.[index]?.value}
           />
         );
       case 'OCCUPANCY_HOTEL':
@@ -695,6 +810,9 @@ function PromocionesTab() {
               onChange={(e) => updateCondition(index, { percent: e.target.value })}
               placeholder="0–100"
               aria-label="Porcentaje de ocupación"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
+              title={formErrors.conditions?.[index]?.value}
             />
             <span className={styles.valueSuffix} aria-hidden="true">
               %
@@ -703,42 +821,58 @@ function PromocionesTab() {
         );
       case 'DATE_RANGE':
         return (
-          <div className={styles.datePair}>
+          <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
             <input
               type="date"
               value={c.from}
               onChange={(e) => updateCondition(index, { from: e.target.value })}
               aria-label="Desde (creación reserva)"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
             />
             <input
               type="date"
               value={c.to}
               onChange={(e) => updateCondition(index, { to: e.target.value })}
               aria-label="Hasta (creación reserva)"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
+              title={formErrors.conditions?.[index]?.value}
             />
           </div>
         );
       case 'STAY_DATE':
         if (c.op === 'between') {
           return (
-            <div className={styles.datePair}>
+            <div className={`${styles.datePair} ${invalid ? styles.fieldInvalidGroup : ''}`}>
               <input
                 type="date"
                 value={c.from}
                 onChange={(e) => updateCondition(index, { from: e.target.value })}
                 aria-label="Desde (estadía)"
+                aria-invalid={invalid || undefined}
+                className={invalidClass}
               />
               <input
                 type="date"
                 value={c.to}
                 onChange={(e) => updateCondition(index, { to: e.target.value })}
                 aria-label="Hasta (estadía)"
+                aria-invalid={invalid || undefined}
+                className={invalidClass}
+                title={formErrors.conditions?.[index]?.value}
               />
             </div>
           );
         }
         return (
-          <div className={styles.dayToggles} role="group" aria-label="Días de la semana de estadía">
+          <div
+            className={`${styles.dayToggles} ${invalid ? styles.fieldInvalidGroup : ''}`}
+            role="group"
+            aria-label="Días de la semana de estadía"
+            aria-invalid={invalid || undefined}
+            title={formErrors.conditions?.[index]?.value}
+          >
             {WEEKDAYS.map((d) => {
               const on = (c.days || []).includes(d.value);
               return (
@@ -949,6 +1083,9 @@ function PromocionesTab() {
                 onChange={(e) => setField('label', e.target.value)}
                 placeholder={form.kind === 'PROMO' ? 'Early bird 15%' : '10% efectivo'}
                 autoFocus
+                aria-invalid={Boolean(formErrors.label) || undefined}
+                className={formErrors.label ? styles.fieldInvalid : undefined}
+                title={formErrors.label}
               />
             </label>
 
@@ -986,6 +1123,9 @@ function PromocionesTab() {
                   value={form.benefitCapARS}
                   onChange={(e) => setField('benefitCapARS', e.target.value)}
                   placeholder="Opcional"
+                  aria-invalid={Boolean(formErrors.benefitCapARS) || undefined}
+                  className={formErrors.benefitCapARS ? styles.fieldInvalid : undefined}
+                  title={formErrors.benefitCapARS}
                 />
               </label>
               <div className={styles.benefitRow}>
@@ -1009,6 +1149,9 @@ function PromocionesTab() {
                       value={form.benefitValue}
                       onChange={(e) => setField('benefitValue', e.target.value)}
                       aria-label="Valor del beneficio"
+                      aria-invalid={Boolean(formErrors.benefitValue) || undefined}
+                      className={formErrors.benefitValue ? styles.fieldInvalid : undefined}
+                      title={formErrors.benefitValue}
                     />
                     <span className={styles.valueSuffix} aria-hidden="true">
                       {form.benefitType === 'PERCENT' ? '%' : '$'}
@@ -1108,7 +1251,8 @@ function PromocionesTab() {
                 type="button"
                 className={styles.primaryBtn}
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !canSave}
+                title={!canSave ? 'Corregí los campos en rojo para guardar' : undefined}
               >
                 <FiCheck aria-hidden="true" />
                 {saving ? 'Guardando…' : 'Guardar'}
