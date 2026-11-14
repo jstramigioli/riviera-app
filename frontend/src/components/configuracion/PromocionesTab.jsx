@@ -472,6 +472,7 @@ function PromocionesTab() {
   const [error, setError] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [touched, setTouched] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
@@ -502,6 +503,33 @@ function PromocionesTab() {
   const formValidation = useMemo(() => validatePromoForm(form), [form]);
   const formErrors = formValidation.errors;
   const canSave = formValidation.ok;
+
+  const markTouched = (key) => {
+    setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  };
+
+  const fieldErrorProps = (key, message) => {
+    const show = Boolean(touched[key] && message);
+    return {
+      'aria-invalid': show || undefined,
+      className: show ? styles.fieldInvalid : undefined,
+      title: show ? message : undefined,
+      onBlur: () => markTouched(key)
+    };
+  };
+
+  const touchInvalidFields = () => {
+    setTouched((prev) => {
+      const next = { ...prev };
+      if (formErrors.label) next.label = true;
+      if (formErrors.benefitValue) next.benefitValue = true;
+      if (formErrors.benefitCapARS) next.benefitCapARS = true;
+      Object.entries(formErrors.conditions || {}).forEach(([idx, ce]) => {
+        if (ce?.value) next[`condition:${idx}`] = true;
+      });
+      return next;
+    });
+  };
 
   const promoRows = useMemo(
     () => rows.filter((r) => (r.kind || 'DESCUENTO') === 'PROMO'),
@@ -540,6 +568,7 @@ function PromocionesTab() {
   const closeForm = () => {
     setShowForm(false);
     setEditingId(null);
+    setTouched({});
     mouseDownOnOverlay.current = false;
   };
 
@@ -557,6 +586,7 @@ function PromocionesTab() {
   const openCreate = (kind) => {
     setEditingId(null);
     setForm({ ...EMPTY_FORM, kind, conditions: [] });
+    setTouched({});
     setShowForm(true);
     setError(null);
   };
@@ -575,6 +605,7 @@ function PromocionesTab() {
       descripcionInterna: row.descripcionInterna || row.notas || '',
       conditions: (row.conditions || []).map(conditionFromApi)
     });
+    setTouched({});
     setShowForm(true);
     setError(null);
   };
@@ -651,7 +682,9 @@ function PromocionesTab() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     if (!canSave) {
+      touchInvalidFields();
       const first =
         formErrors.label ||
         formErrors.benefitValue ||
@@ -755,18 +788,22 @@ function PromocionesTab() {
   };
 
   const renderValue = (c, index) => {
-    const invalid = Boolean(formErrors.conditions?.[index]?.value);
+    const condKey = `condition:${index}`;
+    const condMsg = formErrors.conditions?.[index]?.value;
+    const invalid = Boolean(touched[condKey] && condMsg);
     const invalidClass = invalid ? styles.fieldInvalid : undefined;
+    const markCondTouched = () => markTouched(condKey);
     switch (c.type) {
       case 'PAYMENT_METHOD':
         return (
           <select
             value={c.paymentMethodConfigId}
             onChange={(e) => updateCondition(index, { paymentMethodConfigId: e.target.value })}
+            onBlur={markCondTouched}
             aria-label="Valor medio de pago"
             aria-invalid={invalid || undefined}
             className={invalidClass}
-            title={formErrors.conditions?.[index]?.value}
+            title={invalid ? condMsg : undefined}
           >
             <option value="">Elegir medio…</option>
             {methods.map((m) => (
@@ -781,10 +818,11 @@ function PromocionesTab() {
           <select
             value={c.roomTypeId}
             onChange={(e) => updateCondition(index, { roomTypeId: e.target.value })}
+            onBlur={markCondTouched}
             aria-label="Valor tipo habitación"
             aria-invalid={invalid || undefined}
             className={invalidClass}
-            title={formErrors.conditions?.[index]?.value}
+            title={invalid ? condMsg : undefined}
           >
             <option value="">Elegir tipo…</option>
             {roomTypes.map((rt) => (
@@ -799,10 +837,11 @@ function PromocionesTab() {
           <select
             value={c.serviceTypeId}
             onChange={(e) => updateCondition(index, { serviceTypeId: e.target.value })}
+            onBlur={markCondTouched}
             aria-label="Valor servicio"
             aria-invalid={invalid || undefined}
             className={invalidClass}
-            title={formErrors.conditions?.[index]?.value}
+            title={invalid ? condMsg : undefined}
           >
             <option value="">Elegir servicio…</option>
             {serviceTypes.map((st) => (
@@ -820,11 +859,12 @@ function PromocionesTab() {
             step="1"
             value={c.nights}
             onChange={(e) => updateCondition(index, { nights: e.target.value })}
+            onBlur={markCondTouched}
             placeholder="Cantidad"
             aria-label="Cantidad de noches"
             aria-invalid={invalid || undefined}
             className={invalidClass}
-            title={formErrors.conditions?.[index]?.value}
+            title={invalid ? condMsg : undefined}
           />
         );
       case 'OCCUPANCY_HOTEL':
@@ -837,11 +877,12 @@ function PromocionesTab() {
               step="1"
               value={c.percent}
               onChange={(e) => updateCondition(index, { percent: e.target.value })}
+              onBlur={markCondTouched}
               placeholder="0–100"
               aria-label="Porcentaje de ocupación"
               aria-invalid={invalid || undefined}
               className={invalidClass}
-              title={formErrors.conditions?.[index]?.value}
+              title={invalid ? condMsg : undefined}
             />
             <span className={styles.valueSuffix} aria-hidden="true">
               %
@@ -855,6 +896,7 @@ function PromocionesTab() {
               type="date"
               value={c.from}
               onChange={(e) => updateCondition(index, { from: e.target.value })}
+              onBlur={markCondTouched}
               aria-label="Desde (creación reserva)"
               aria-invalid={invalid || undefined}
               className={invalidClass}
@@ -863,10 +905,11 @@ function PromocionesTab() {
               type="date"
               value={c.to}
               onChange={(e) => updateCondition(index, { to: e.target.value })}
+              onBlur={markCondTouched}
               aria-label="Hasta (creación reserva)"
               aria-invalid={invalid || undefined}
               className={invalidClass}
-              title={formErrors.conditions?.[index]?.value}
+              title={invalid ? condMsg : undefined}
             />
           </div>
         );
@@ -878,6 +921,7 @@ function PromocionesTab() {
                 type="date"
                 value={c.from}
                 onChange={(e) => updateCondition(index, { from: e.target.value })}
+                onBlur={markCondTouched}
                 aria-label="Desde (estadía)"
                 aria-invalid={invalid || undefined}
                 className={invalidClass}
@@ -886,10 +930,11 @@ function PromocionesTab() {
                 type="date"
                 value={c.to}
                 onChange={(e) => updateCondition(index, { to: e.target.value })}
+                onBlur={markCondTouched}
                 aria-label="Hasta (estadía)"
                 aria-invalid={invalid || undefined}
                 className={invalidClass}
-                title={formErrors.conditions?.[index]?.value}
+                title={invalid ? condMsg : undefined}
               />
             </div>
           );
@@ -900,7 +945,10 @@ function PromocionesTab() {
             role="group"
             aria-label="Días de la semana de estadía"
             aria-invalid={invalid || undefined}
-            title={formErrors.conditions?.[index]?.value}
+            title={invalid ? condMsg : undefined}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget)) markCondTouched();
+            }}
           >
             {WEEKDAYS.map((d) => {
               const on = (c.days || []).includes(d.value);
@@ -1121,9 +1169,7 @@ function PromocionesTab() {
                 onChange={(e) => setField('label', e.target.value)}
                 placeholder={form.kind === 'PROMO' ? 'Early bird 15%' : '10% efectivo'}
                 autoFocus
-                aria-invalid={Boolean(formErrors.label) || undefined}
-                className={formErrors.label ? styles.fieldInvalid : undefined}
-                title={formErrors.label}
+                {...fieldErrorProps('label', formErrors.label)}
               />
             </label>
 
@@ -1161,9 +1207,7 @@ function PromocionesTab() {
                   value={form.benefitCapARS}
                   onChange={(e) => setField('benefitCapARS', e.target.value)}
                   placeholder="Opcional"
-                  aria-invalid={Boolean(formErrors.benefitCapARS) || undefined}
-                  className={formErrors.benefitCapARS ? styles.fieldInvalid : undefined}
-                  title={formErrors.benefitCapARS}
+                  {...fieldErrorProps('benefitCapARS', formErrors.benefitCapARS)}
                 />
               </label>
               <div className={styles.benefitRow}>
@@ -1207,9 +1251,7 @@ function PromocionesTab() {
                           ? 'Cantidad de noches gratis'
                           : 'Valor del beneficio'
                       }
-                      aria-invalid={Boolean(formErrors.benefitValue) || undefined}
-                      className={formErrors.benefitValue ? styles.fieldInvalid : undefined}
-                      title={formErrors.benefitValue}
+                      {...fieldErrorProps('benefitValue', formErrors.benefitValue)}
                     />
                     <span className={styles.valueSuffix} aria-hidden="true">
                       {form.benefitType === 'PERCENT'
@@ -1223,13 +1265,6 @@ function PromocionesTab() {
                   </span>
                 </label>
               </div>
-              {form.benefitType === 'FREE_NIGHTS' && (
-                <p className={styles.fieldHint}>
-                  No se cobran esas noches (las más baratas si hay tarifas distintas). El mínimo
-                  de noches pagadas se define con la condición «Cantidad de noches» (ej. 1 gratis
-                  + mín. 4 pagadas → ≥ 5 noches).
-                </p>
-              )}
             </div>
 
             <div className={styles.formFlags}>
@@ -1322,7 +1357,9 @@ function PromocionesTab() {
                 type="button"
                 className={styles.primaryBtn}
                 onClick={handleSave}
-                disabled={saving || !canSave}
+                disabled={saving}
+                aria-disabled={saving || !canSave}
+                data-looks-disabled={!canSave || saving ? 'true' : undefined}
                 title={!canSave ? 'Corregí los campos en rojo para guardar' : undefined}
               >
                 <FiCheck aria-hidden="true" />

@@ -111,7 +111,7 @@
   color: var(--color-text-light);
 }
 
-.primaryBtn:hover:not(:disabled) {
+.primaryBtn:hover:not(:disabled):not([data-looks-disabled='true']) {
   background: var(--color-primary-dark);
 }
 
@@ -127,6 +127,7 @@
 }
 
 .primaryBtn:disabled,
+.primaryBtn[data-looks-disabled='true'],
 .ghostBtn:disabled,
 .switch:disabled,
 .switchRow:disabled {
