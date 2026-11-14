@@ -8,6 +8,7 @@ const {
   updateMultiSegmentQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
@@ -22,6 +23,8 @@ router.get('/:id', getQueryById);
 router.post('/', createQuery);
 router.post('/multi-segment', createMultiSegmentQuery);
 router.put('/multi-segment/:queryGroupId', updateMultiSegmentQuery);
+// Vaciar todas las consultas (antes de /:id para no capturar "all")
+router.delete('/all', deleteAllQueries);
 router.delete('/multi-segment/:queryGroupId', async (req, res) => {
   try {
     const { queryGroupId } = req.params;

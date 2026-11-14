@@ -1,162 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../styles/App.module.css';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
-import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
-
-import TarifasPreviewPanelV2 from '../components/configuracion/TarifasPreviewPanelV2';
-import TarifasPreviewPanelV3 from '../components/configuracion/TarifasPreviewPanelV3';
-import TariffManagement from '../components/configuracion/TariffManagement';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
+import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
+import MediosPagoTab from '../components/configuracion/MediosPagoTab';
+import PromocionesTab from '../components/configuracion/PromocionesTab';
+import Auditoria from './Auditoria';
+import { useAuth } from '../contexts/AuthContext';
+import styles from './Configuracion.module.css';
+
+const SETTINGS_TABS = [
+  { id: 'hotel', label: 'Hotel' },
+  { id: 'habitaciones', label: 'Habitaciones' },
+  { id: 'cargos-tarifas', label: 'Cargos y Tarifas' },
+  { id: 'menu-consumos', label: 'Menú' },
+  { id: 'calendario', label: 'Calendario' },
+  { id: 'tipo-cambio', label: 'Tipo de Cambio' },
+  { id: 'usuarios', label: 'Usuarios' },
+  { id: 'sistema', label: 'Sistema' }
+];
+
+const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
+const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones' };
+const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
 
 function ConfiguracionView() {
+  const [searchParams] = useSearchParams();
+  const { can } = useAuth();
+  const canSettings = can('settings');
+  const canMediosPago = can('mediosPago');
+  const canPromociones = can('promociones');
+  const canAuditoria = can('auditoria');
+
+  const tabs = useMemo(() => {
+    const next = [];
+    if (canSettings) next.push(...SETTINGS_TABS);
+    if (canMediosPago) next.push(MEDIOS_PAGO_TAB);
+    if (canPromociones) next.push(PROMOCIONES_TAB);
+    if (canAuditoria) next.push(AUDITORIA_TAB);
+    return next;
+  }, [canSettings, canMediosPago, canPromociones, canAuditoria]);
+
+  const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
+  const defaultTab = canSettings
+    ? 'habitaciones'
+    : canMediosPago
+      ? 'medios-pago'
+      : canAuditoria
+        ? 'auditoria'
+        : 'habitaciones';
+
   const [activeTab, setActiveTab] = useState(() => {
-    // Recuperar la pestaña activa del localStorage o usar 'habitaciones' por defecto
-    return localStorage.getItem('configActiveTab') || 'habitaciones';
+    const fromUrl = new URLSearchParams(window.location.search).get('tab');
+    if (fromUrl && validTabIds.has(fromUrl)) return fromUrl;
+    const stored = localStorage.getItem('configActiveTab');
+    if (stored && validTabIds.has(stored)) return stored;
+    return defaultTab;
   });
 
-  // Guardar la pestaña activa en localStorage cuando cambie
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && validTabIds.has(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, validTabIds]);
+
+  useEffect(() => {
+    if (!validTabIds.has(activeTab) && tabs.length > 0) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [activeTab, tabs, validTabIds]);
+
   useEffect(() => {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);
 
-  const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: '🏨' },
-    { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
-    { id: 'calendario', label: 'Calendario', icon: '📅' },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
-    { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'sistema', label: 'Sistema', icon: '⚙️' }
-  ];
-
   const renderTabContent = () => {
     switch (activeTab) {
       case 'hotel':
-        return (
-          <div style={{ 
-            display: 'flex', 
-            gap: '16px',
-            padding: '16px'
-          }}>
-            {/* Panel de configuración del hotel */}
-            <div style={{ 
-              flex: '1',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
-            }}>
-              <HotelConfigPanel />
-            </div>
-          </div>
-        );
+        return <HotelConfigPanel />;
       case 'habitaciones':
-        return (
-          <div style={{ padding: '16px' }}>
-            <HabitacionesTab />
-          </div>
-        );
+        return <HabitacionesTab />;
       case 'cargos-tarifas':
         return <CargosTarifasTab />;
+      case 'menu-consumos':
+        return <MenuConsumosTab />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':
-        return (
-          <div style={{ padding: '16px' }}>
-            <TipoCambioConfig />
-          </div>
-        );
+        return <TipoCambioConfig />;
+      case 'medios-pago':
+        return <MediosPagoTab />;
+      case 'promociones':
+        return <PromocionesTab />;
       case 'usuarios':
         return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+          <div className={styles.placeholder}>
             <h3>Gestión de Usuarios</h3>
             <p>Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
       case 'sistema':
         return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+          <div className={styles.placeholder}>
             <h3>Configuración del Sistema</h3>
             <p>Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
+      case 'auditoria':
+        return <Auditoria />;
       default:
-        return <HabitacionesTab />;
+        if (canSettings) return <HabitacionesTab />;
+        if (canMediosPago) return <MediosPagoTab />;
+        return <Auditoria />;
     }
   };
 
   return (
-    <div className={styles.appContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Configuración</h1>
-        <p className={styles.subtitle}>Gestiona la configuración del sistema</p>
-      </div>
-      
-      <div style={{ 
-        width: '100%', 
-        padding: '16px',
-        height: 'calc(100vh - 180px)', // Altura ajustada
-        display: 'flex',
-        flexDirection: 'column',
-        marginRight: '16px', // Margin derecho reducido
-        boxSizing: 'border-box', // Incluir padding en el ancho
-        maxWidth: '100vw', // Máximo ancho de la ventana
-        overflow: 'hidden' // Evitar overflow horizontal
-      }}>
-        {/* Pestañas principales */}
-        <div style={{ 
-          display: 'flex', 
-          borderBottom: '2px solid #e9ecef',
-          marginBottom: '16px',
-          backgroundColor: 'white',
-          borderRadius: '12px 12px 0 0',
-          padding: '0 20px',
-          flexShrink: 0 // No se encoja
-        }}>
-          {tabs.map(tab => (
+    <div className={styles.newLayout}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>Configuración</h2>
+        </div>
+        <nav className={styles.sectionMenu} aria-label="Secciones de configuración">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '16px 24px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: activeTab === tab.id ? '600' : '400',
-                color: activeTab === tab.id ? '#667eea' : '#6c757d',
-                borderBottom: activeTab === tab.id ? '3px solid #667eea' : '3px solid transparent',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
+              className={`${styles.sectionButton} ${activeTab === tab.id ? styles.active : ''}`}
             >
-              <span>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
-        </div>
+        </nav>
+      </aside>
 
-        {/* Contenido de la pestaña activa */}
-        <div className={styles.configTabContainer} style={{ 
-          backgroundColor: 'white',
-          borderRadius: '0 0 12px 12px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          overflow: 'auto',
-          flex: 1, // Toma el espacio restante
-          minHeight: 0, // Permite que se encoja
-          width: '100%', // Ancho completo
-          boxSizing: 'border-box' // Incluir padding en el ancho
-        }}>
-          {renderTabContent()}
+      <div className={styles.mainContent}>
+        <div className={styles.mainContentBody}>
+          <section className={styles.section}>
+            <div className={styles.panel}>{renderTabContent()}</div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
 
-export default ConfiguracionView; 
+export default ConfiguracionView;

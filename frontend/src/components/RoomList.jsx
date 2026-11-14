@@ -14,12 +14,12 @@ export default function RoomList() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p>Cargando habitaciones...</p>;
-  if (error) return <p style={{color: 'red'}}>Error: {error}</p>;
+  if (loading) return <p> Cargando habitaciones...</p>;
+  if (error) return <p style={{color: 'red'}}> Error: {error}</p>;
 
   return (
     <div>
-      <h2>Habitaciones</h2>
+      <h2> Habitaciones</h2>
       <ul>
         {rooms.map(room => (
           <li key={room.id}>

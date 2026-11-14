@@ -1,0 +1,99 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.lead {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.875rem;
+  max-width: 52rem;
+  line-height: 1.45;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.ok {
+  margin: 0;
+  color: #047857;
+  font-size: 0.875rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.table th {
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.label {
+  font-weight: 500;
+  color: #111827;
+}
+
+.code {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.pct,
+.orden {
+  width: 4.5rem;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.saveBtn {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+}

@@ -1,7 +1,9 @@
+import { FiHome } from 'react-icons/fi';
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { sourceLabel } from '../constants/reservationSource';
 import styles from './ReservationConfirmationModal.module.css';
 
 const ReservationConfirmationModal = ({ 
@@ -9,7 +11,8 @@ const ReservationConfirmationModal = ({
   onClose, 
   onConfirm, 
   reservationData,
-  isLoading = false
+  isLoading = false,
+  isEditing = false
 }) => {
   const navigate = useNavigate();
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -87,7 +90,7 @@ const ReservationConfirmationModal = ({
     // Si no se encuentra, mostrar error visible para detectar problemas
     if (!serviceType) {
       console.error('⚠️ ServiceType no encontrado:', serviceTypeId, 'Available:', serviceTypes);
-      return `⚠️ Servicio inválido (ID: ${serviceTypeId})`;
+      return `Servicio inválido (ID: ${serviceTypeId})`;
     }
     
     return serviceType.name;
@@ -128,8 +131,8 @@ const ReservationConfirmationModal = ({
     <div className={styles.modal}>
       <div className={styles.modalContent}>
         <div className={styles.header}>
-          <div className={styles.icon}>🏨</div>
-          <h2 className={styles.title}>Datos de la Reserva</h2>
+          <div className={styles.icon} aria-hidden="true"><FiHome /></div>
+          <h2 className={styles.title}> Datos de la Reserva</h2>
         </div>
         
         <div className={styles.body}>
@@ -146,20 +149,20 @@ const ReservationConfirmationModal = ({
               <table className={styles.infoTable}>
                 <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Huéspedes:</td>
+                    <td className={styles.tableLabel}> Huéspedes:</td>
                     <td className={styles.tableValue}>
                       {reservationData.segments[0].requiredGuests} persona{reservationData.segments[0].requiredGuests > 1 ? 's' : ''}
                     </td>
                   </tr>
                   <tr>
-                    <td className={styles.tableLabel}>Servicio:</td>
+                    <td className={styles.tableLabel}> Servicio:</td>
                     <td className={styles.tableValue}>
                       {getServiceTypeLabel(reservationData.segments[0].serviceType)}
                     </td>
                   </tr>
                   {reservationData?.selectedRoom && (
                     <tr>
-                      <td className={styles.tableLabel}>Habitación asignada:</td>
+                      <td className={styles.tableLabel}> Habitación asignada:</td>
                       <td className={styles.tableValue}>
                         {reservationData.selectedRoom.name}
                       </td>
@@ -176,15 +179,15 @@ const ReservationConfirmationModal = ({
               <table className={styles.stayTable}>
                 <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Check-in:</td>
+                    <td className={styles.tableLabel}> Check-in:</td>
                     <td className={styles.tableValue}>{formatDate(reservationData.segments[0].checkIn)}</td>
                   </tr>
                   <tr>
-                    <td className={styles.tableLabel}>Check-out:</td>
+                    <td className={styles.tableLabel}> Check-out:</td>
                     <td className={styles.tableValue}>{formatDate(reservationData.segments[reservationData.segments.length - 1].checkOut)}</td>
                   </tr>
                   <tr>
-                    <td className={styles.tableLabel}>Noches:</td>
+                    <td className={styles.tableLabel}> Noches:</td>
                     <td className={styles.tableValue}>
                       {(() => {
                         const firstCheckIn = new Date(reservationData.segments[0].checkIn);
@@ -214,16 +217,16 @@ const ReservationConfirmationModal = ({
                       {formatDate(segment.checkIn)} – {formatDate(segment.checkOut)}
                     </div>
                     <div className={styles.segmentInfo}>
-                      <div><strong>Servicio:</strong> {serviceTypeName}</div>
-                      <div><strong>Habitación:</strong> {selectedRoom?.name || 'No especificada'}</div>
+                      <div><strong> Servicio:</strong> {serviceTypeName}</div>
+                      <div><strong> Habitación:</strong> {selectedRoom?.name || 'No especificada'}</div>
                       
                       {requiredRoom && (
-                        <div><strong>Habitación requerida:</strong> {requiredRoom.name}</div>
+                        <div><strong> Habitación requerida:</strong> {requiredRoom.name}</div>
                       )}
                       
                       {segment.requiredTags && segment.requiredTags.length > 0 && (
                         <div>
-                          <strong>Requerimientos especiales:</strong>
+                          <strong> Requerimientos especiales:</strong>
                           <div className={styles.tagsContainer} style={{ marginTop: '4px' }}>
                             {segment.requiredTags.map(tagId => {
                               const tag = reservationData.tags?.find(t => t.id === tagId);
@@ -251,18 +254,18 @@ const ReservationConfirmationModal = ({
                   {reservationData?.selectedRoom && (
                     <>
                       <tr>
-                        <td className={styles.tableLabel}>Tipo de habitación:</td>
+                        <td className={styles.tableLabel}> Tipo de habitación:</td>
                         <td className={styles.tableValue}>{reservationData.selectedRoom.roomType?.name}</td>
                       </tr>
                       <tr>
-                        <td className={styles.tableLabel}>Capacidad:</td>
+                        <td className={styles.tableLabel}> Capacidad:</td>
                         <td className={styles.tableValue}>{reservationData.selectedRoom.maxPeople} personas</td>
                       </tr>
                     </>
                   )}
                   {reservationData.segments[0].requiredRoomId && (
                     <tr>
-                      <td className={styles.tableLabel}>Habitación requerida:</td>
+                      <td className={styles.tableLabel}> Habitación requerida:</td>
                       <td className={styles.tableValue}>
                         {reservationData.allRooms?.find(r => r.id === reservationData.segments[0].requiredRoomId)?.name || 'No especificada'}
                       </td>
@@ -270,7 +273,7 @@ const ReservationConfirmationModal = ({
                   )}
                   {reservationData.segments[0].requiredTags && reservationData.segments[0].requiredTags.length > 0 && (
                     <tr>
-                      <td className={styles.tableLabel}>Requerimientos especiales:</td>
+                      <td className={styles.tableLabel}> Requerimientos especiales:</td>
                       <td className={styles.tableValue}>
                         <div className={styles.tagsContainer}>
                           {reservationData.segments[0].requiredTags.map(tagId => {
@@ -296,7 +299,7 @@ const ReservationConfirmationModal = ({
               <table className={styles.totalTable}>
                 <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Monto total:</td>
+                    <td className={styles.tableLabel}> Monto total:</td>
                     <td className={styles.tableValue}>
                       ${reservationData.dailyRates.reduce((sum, rate) => 
                         sum + (rate.price || 0), 0).toLocaleString('es-AR')}
@@ -313,7 +316,7 @@ const ReservationConfirmationModal = ({
               <table className={styles.notesTable}>
                 <tbody>
                   <tr>
-                    <td className={styles.tableLabel}>Notas:</td>
+                    <td className={styles.tableLabel}> Notas:</td>
                     <td className={styles.tableValue}>
                       {reservationData.notes}
                     </td>
@@ -323,12 +326,26 @@ const ReservationConfirmationModal = ({
             </div>
           )}
 
+          {/* Reservado por */}
+          <div className={styles.notesSection}>
+            <table className={styles.notesTable}>
+              <tbody>
+                <tr>
+                  <td className={styles.tableLabel}>Reservado por:</td>
+                  <td className={styles.tableValue}>
+                    {sourceLabel(reservationData?.source)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           {/* Estado de la reserva */}
           <div className={styles.statusSection}>
             <table className={styles.statusTable}>
               <tbody>
                 <tr>
-                  <td className={styles.tableLabel}>Estado inicial:</td>
+                  <td className={styles.tableLabel}> Estado inicial:</td>
                   <td className={styles.tableValue}>
                     <select 
                       value={reservationStatus} 
@@ -361,7 +378,9 @@ const ReservationConfirmationModal = ({
             className={styles.confirmButton}
             disabled={isLoading}
           >
-            {isLoading ? 'Creando...' : 'Crear Reserva'}
+            {isLoading
+              ? (isEditing ? 'Modificando...' : 'Creando...')
+              : (isEditing ? 'Modificar reserva' : 'Crear Reserva')}
           </button>
         </div>
       </div>

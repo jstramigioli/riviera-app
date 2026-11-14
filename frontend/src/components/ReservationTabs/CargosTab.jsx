@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
+import { useAppNotice } from '../../hooks/useAppNotice';
 
 const CargosTab = ({ 
   cargos,
@@ -12,6 +13,7 @@ const CargosTab = ({
   onUpdateCargo,
   onDeleteCargo
 }) => {
+  const { notify, noticeDialog } = useAppNotice();
   const [showAddModal, setShowAddModal] = useState(false);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
@@ -155,7 +157,7 @@ const CargosTab = ({
     e.preventDefault();
     
     if (!newCargo.subcategoriaCargoId) {
-      alert('Debe seleccionar una subcategoría');
+      notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
       return;
     }
     
@@ -204,7 +206,7 @@ const CargosTab = ({
   const handleEditCargo = (cargo) => {
     // Solo permitir editar cargos que tengan subcategoriaCargoId
     if (!cargo.subcategoriaCargoId) {
-      alert('Los cargos de alojamiento no se pueden editar manualmente. Se generan automáticamente con las reservas.');
+      notify({ title: 'No editable', message: 'Los cargos de alojamiento no se pueden editar manualmente. Se generan automáticamente con las reservas.', type: 'warning' });
       return;
     }
 
@@ -229,7 +231,7 @@ const CargosTab = ({
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>Cargos / Consumos</h3>
+        <h3 className={styles.sectionTitle}> Cargos / Consumos</h3>
         <button 
           className={styles.addButton}
           onClick={() => {
@@ -242,12 +244,12 @@ const CargosTab = ({
       </div>
 
       {loadingFinancial ? (
-        <div className={styles.loading}>Cargando cargos...</div>
+        <div className={styles.loading}> Cargando cargos...</div>
       ) : (
         <>
           <div className={styles.summaryCards}>
             <div className={styles.summaryCard}>
-              <div className={styles.summaryLabel}>Total Cargos</div>
+              <div className={styles.summaryLabel}> Total Cargos</div>
               <div className={styles.summaryValue}>
                 {formatCurrency(financialSummary?.resumen.totalCargos || 0)}
               </div>
@@ -256,7 +258,7 @@ const CargosTab = ({
 
           {cargos.length === 0 ? (
             <div className={styles.emptyState}>
-              <p>No hay cargos registrados</p>
+              <p> No hay cargos registrados</p>
               <button 
                 className={styles.primaryButton}
                 onClick={() => {
@@ -305,11 +307,11 @@ const CargosTab = ({
                           <table className={styles.dataTable}>
                             <thead>
                               <tr>
-                                <th>Fecha</th>
-                                <th>Descripción</th>
-                                <th>Monto</th>
-                                <th>Notas</th>
-                                <th>Acciones</th>
+                                <th> Fecha</th>
+                                <th> Descripción</th>
+                                <th> Monto</th>
+                                <th> Notas</th>
+                                <th> Acciones</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -396,7 +398,7 @@ const CargosTab = ({
             </div>
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formGroup}>
-                <label>Descripción *</label>
+                <label> Descripción *</label>
                 <input
                   type="text"
                   required
@@ -406,7 +408,7 @@ const CargosTab = ({
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Monto *</label>
+                <label> Monto *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -418,7 +420,7 @@ const CargosTab = ({
               </div>
               {/* Selector de categoría de cargo */}
               <div className={styles.formGroup}>
-                <label>Categoría *</label>
+                <label> Categoría *</label>
                 <select
                   value={newCargo.subcategoriaCargoId || ''}
                   onChange={(e) => setNewCargo({ 
@@ -427,7 +429,7 @@ const CargosTab = ({
                   })}
                   required
                 >
-                  <option value="">Seleccionar categoría</option>
+                  <option value=""> Seleccionar categoría</option>
                   {['SERVICIO', 'CONSUMO', 'OTRO'].map(tipoPrincipal => {
                     const subcatsDelTipo = subcategorias.filter(sub => sub.tipo === tipoPrincipal);
                     if (subcatsDelTipo.length === 0) return null;
@@ -445,7 +447,7 @@ const CargosTab = ({
                 </select>
 
                 {loadingCategorias && (
-                  <small style={{ color: '#6c757d' }}>Cargando opciones...</small>
+                  <small style={{ color: '#6c757d' }}> Cargando opciones...</small>
                 )}
                 
                 <small style={{ color: '#6c757d', marginTop: '4px', display: 'block' }}>
@@ -453,7 +455,7 @@ const CargosTab = ({
                 </small>
               </div>
               <div className={styles.formGroup}>
-                <label>Notas</label>
+                <label> Notas</label>
                 <textarea
                   value={newCargo.notas}
                   onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
@@ -473,6 +475,7 @@ const CargosTab = ({
           </div>
         </div>
       )}
+      {noticeDialog}
     </div>
   );
 };

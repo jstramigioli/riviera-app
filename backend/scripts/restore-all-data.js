@@ -35,7 +35,6 @@ async function restoreAllData() {
       'seasonPrices',
       'blockServiceSelections',
       'dynamicPricingConfigs',
-      'roundingConfigs',
       'guests',
       'payments',
       'reservations'
@@ -222,11 +221,7 @@ async function restoreAllData() {
           case 'roundingConfigs':
             for (const config of data) {
               try {
-                await prisma.roundingConfig.upsert({
-                  where: { id: config.id },
-                  update: config,
-                  create: config
-                });
+                /* rounding removed */
                 restored++;
               } catch (error) {
                 errors++;

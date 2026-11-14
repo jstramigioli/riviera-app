@@ -91,7 +91,7 @@
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
   z-index: 1000;
   max-height: 200px;
   overflow-y: auto;
@@ -197,7 +197,7 @@
 .submitButton:hover {
   background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .submitButton:active {

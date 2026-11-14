@@ -1,13 +1,32 @@
+import { FiCheck, FiX, FiAlertTriangle } from 'react-icons/fi';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { useTags } from '../hooks/useTags';
+import { useAppNotice } from '../hooks/useAppNotice';
 import ReservationConfirmationModal from '../components/ReservationConfirmationModal';
 import LoadExistingQueryModal from '../components/LoadExistingQueryModal';
 import SelectQueryModal from '../components/SelectQueryModal';
 import DeleteSegmentsModal from '../components/DeleteSegmentsModal';
+import {
+  roomSelectionPayload,
+  collapseSegmentsForEditUi,
+  selectedRoomFromCollapsedSegment,
+  roomsMatch,
+  preserveSelectedRoomInList
+} from '../utils/virtualRoomReservation';
+import {
+  buildConsultaEditPath,
+  buildConsultaEditState,
+  isConsultaEditIntent,
+  resolveEditReservationId
+} from '../utils/consultaNavigation';
+import { roomRequirementsCompliance } from '../utils/roomRequirementsCompliance';
+import { roomCanSatisfyBedPreference, normalizeBedPreference } from '../utils/bedConfig';
+import BedPreferenceFields from '../components/BedPreferenceFields';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -22,7 +41,12 @@ const RoomAvailabilityStatus = {
 export default function Consulta() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { reservationId: reservationIdParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const reservationIdQuery =
+    searchParams.get('reservaId') || searchParams.get('reservationId');
   const { tags } = useTags();
+  const { notify, noticeDialog } = useAppNotice();
 
   // Función para validar si el hotel está cerrado en el período solicitado
   const validateHotelAvailability = useCallback(async (checkIn, checkOut) => {
@@ -143,7 +167,7 @@ export default function Consulta() {
           const firstBlock = availableBlocks[0];
           
           // Extraer solo la parte de fecha (YYYY-MM-DD) del string ISO para evitar problemas de zona horaria
-          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10" de "2025-10-10T00:00:00.000Z"
+          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10"de "2025-10-10T00:00:00.000Z"
           const checkInDate = startDateISO;
           const checkOutDate = format(addDays(new Date(startDateISO + 'T12:00:00'), 1), 'yyyy-MM-dd');
           
@@ -200,6 +224,9 @@ export default function Consulta() {
   const [requirements, setRequirements] = useState({
     requiredGuests: 1,
     requiredTags: [],
+    bedPreferenceNone: true,
+    preferredDoubleBeds: 0,
+    preferredSingleBeds: 0,
     requiredRoomId: null,
     serviceType: ''
   });
@@ -212,10 +239,15 @@ export default function Consulta() {
       checkOut: '',
       requiredGuests: 1,
       requiredTags: [],
+      bedPreferenceNone: true,
+      preferredDoubleBeds: 0,
+      preferredSingleBeds: 0,
       requiredRoomId: null,
       serviceType: ''
     }
   ]);
+
+  const bedFieldsFrom = (source = {}) => normalizeBedPreference(source);
 
   // Estado para clientes
   const [clients, setClients] = useState([]);
@@ -258,12 +290,26 @@ export default function Consulta() {
   const [selectedRoomsPerBlock, setSelectedRoomsPerBlock] = useState({});
   // const [pricingError, setPricingError] = useState(null); // Ya no se usa
 
+  // Edición de reserva existente (mismo flujo que crear).
+  // Prioridad: path `/consulta/:id` > query `?reservaId=` > location.state
+  const initialEditReservationId = resolveEditReservationId({
+    paramId: reservationIdParam,
+    queryId: reservationIdQuery,
+    state: location.state
+  });
+  const [editingReservationId, setEditingReservationId] = useState(initialEditReservationId);
+  const [editingReservationStatus, setEditingReservationStatus] = useState(null);
+  const [applyRateChanges, setApplyRateChanges] = useState(true);
+  const [originalBaseRatesByBlock, setOriginalBaseRatesByBlock] = useState({});
+  const [editPrefillReady, setEditPrefillReady] = useState(!initialEditReservationId);
+
   // Estados para gestión de consultas
   const [currentQueryId, setCurrentQueryId] = useState(null);
   const [currentQueryGroupId, setCurrentQueryGroupId] = useState(null);
   const [showLoadQueryModal, setShowLoadQueryModal] = useState(false);
   const [existingQuery, setExistingQuery] = useState(null);
   const [lastClientId, setLastClientId] = useState(null);
+  const [isSavingConsulta, setIsSavingConsulta] = useState(false);
   
   // Estados para selección de consultas múltiples
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
@@ -271,12 +317,28 @@ export default function Consulta() {
   
   // Estado para notas/observaciones
   const [notes, setNotes] = useState('');
+  /** Reservado por: WHATSAPP | MAIL | WEBSITE | BOOKING | MOSTRADOR */
+  const [source, setSource] = useState('');
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
+  // Id ya hidratado (permite re-prefill al navegar /consulta/:a → /consulta/:b sin remount)
+  const hydratedEditIdRef = useRef(null);
+  // Evita que efectos de reset borren el prefill durante la hidratación de edición
+  const hydratingEditRef = useRef(false);
+  // Selección actual legible desde callbacks async (re-búsqueda por servicio, etc.)
+  const selectedRoomsPerBlockRef = useRef(selectedRoomsPerBlock);
+  selectedRoomsPerBlockRef.current = selectedRoomsPerBlock;
   
   // Ref para rastrear los valores previos de los segmentos
   const previousSegmentsRef = useRef({});
+  const isEditingReservationNav = Boolean(
+    isConsultaEditIntent({
+      paramId: reservationIdParam,
+      queryId: reservationIdQuery,
+      state: location.state
+    }) || editingReservationId
+  );
 
   // Función para toggle de detalles de habitación
   const toggleRoomDetails = (roomId) => {
@@ -289,9 +351,10 @@ export default function Consulta() {
   // Funciones para manejar bloques de estadía
   const addNewBlock = () => {
     const newBlockId = Date.now();
-    const lastBlock = segments[segments.length - 1];
+    const lastBlockIndex = segments.length - 1;
+    const lastBlock = segments[lastBlockIndex];
     
-    // Calcular fechas del nuevo bloque
+    // Calcular fechas del nuevo bloque (únicas; no se heredan del tramo anterior)
     let checkInDate;
     let checkOutDate;
     
@@ -307,19 +370,26 @@ export default function Consulta() {
       checkOutDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
     }
     
+    // Heredar habitación, servicio y requisitos del tramo anterior (no fechas)
     const newBlock = {
       id: newBlockId,
       checkIn: checkInDate,
       checkOut: checkOutDate,
-      requiredGuests: requirements.requiredGuests, // Usar la cantidad global
-      requiredTags: [],
-      requiredRoomId: null,
-      serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
+      requiredGuests: lastBlock?.requiredGuests ?? requirements.requiredGuests ?? 1,
+      requiredTags: [...(lastBlock?.requiredTags || [])],
+      ...bedFieldsFrom(lastBlock || requirements),
+      requiredRoomId: lastBlock?.requiredRoomId ?? null,
+      serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
+      requirementsNotes: lastBlock?.requirementsNotes || '',
+      reservationType: lastBlock?.reservationType || lastBlock?.serviceType || 'con_desayuno',
+      fixed: lastBlock?.fixed || false
     };
     
     console.log('➕ Nuevo bloque agregado:', {
       checkIn: checkInDate,
       checkOut: checkOutDate,
+      inheritedRoomId: newBlock.requiredRoomId,
+      inheritedService: newBlock.serviceType,
       diasEntreFechas: Math.ceil((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24))
     });
     
@@ -327,6 +397,16 @@ export default function Consulta() {
     
     setSegments(prev => [...prev, newBlock]);
     setActiveBlockIndex(newBlockIndex);
+
+    // Conservar la habitación elegida del tramo anterior como preferencia del nuevo
+    setSelectedRoomsPerBlock(prev => {
+      const priorRoom = prev[lastBlockIndex];
+      if (!priorRoom) return prev;
+      return {
+        ...prev,
+        [newBlockIndex]: priorRoom
+      };
+    });
     
     // El ref de valores previos se inicializará automáticamente en el useEffect
     // cuando se detecte el cambio de activeBlockIndex
@@ -526,14 +606,14 @@ export default function Consulta() {
   const queryGroupIdRef = useRef(null);
   const isSavingRef = useRef(false);
 
-  // Función para guardar/actualizar consulta automáticamente
-  const saveQueryAutomatically = useCallback(async () => {
+  // Persiste Query/QueryGroup (no crea Reservation). Usado por auto-save y "Guardar consulta".
+  const saveQueryAutomatically = useCallback(async ({ silent = true } = {}) => {
     const clientId = formData.mainClient.id;
     
     // Evitar guardados concurrentes
     if (isSavingRef.current) {
       console.log('⏭️ Ya hay un guardado en progreso, saltando...');
-      return;
+      return { ok: false, reason: 'busy' };
     }
     
     console.log('🔍 saveQueryAutomatically ejecutándose');
@@ -542,19 +622,21 @@ export default function Consulta() {
     console.log('🔍 Número de segmentos:', segments.length);
     
     // Solo guardar si hay un cliente seleccionado
-    if (!clientId) return;
+    if (!clientId) {
+      return { ok: false, reason: 'no_client' };
+    }
 
     // Validar que haya segmentos
     if (!segments || segments.length === 0) {
       console.log('⚠️ No hay segmentos para guardar');
-      return;
+      return { ok: false, reason: 'no_segments' };
     }
 
     // Validar que al menos un segmento tenga fechas
     const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
     if (!hasValidSegment) {
       console.log('⚠️ No hay segmentos con fechas válidas para guardar');
-      return;
+      return { ok: false, reason: 'no_dates' };
     }
 
     isSavingRef.current = true;
@@ -569,6 +651,7 @@ export default function Consulta() {
           requiredGuests: segment.requiredGuests || 1,
           requiredRoomId: segment.requiredRoomId || null,
           requiredTags: segment.requiredTags || [],
+          ...bedFieldsFrom(segment),
           serviceType: segment.serviceType || '',
           requirementsNotes: segment.requirementsNotes || '',
           // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
@@ -583,35 +666,101 @@ export default function Consulta() {
       const queryData = {
         mainClientId: clientId,
         segments: segmentsData,
-        notes: notes
+        notes: notes,
+        source: source || null
       };
 
+      let result;
       if (queryGroupIdRef.current) {
         // Actualizar consulta existente
         console.log('🔄 Actualizando consulta existente:', queryGroupIdRef.current);
-        const result = await updateMultiSegmentQuery(queryGroupIdRef.current, queryData);
+        result = await updateMultiSegmentQuery(queryGroupIdRef.current, queryData);
         console.log('✅ Consulta multi-segmento actualizada:', result.queryGroupId);
         console.log('✅ Segmentos actualizados:', result.segmentCount);
       } else {
         // Crear nueva consulta multi-segmento
         console.log('➕ Creando nueva consulta multi-segmento');
-        const result = await createMultiSegmentQuery(queryData);
+        result = await createMultiSegmentQuery(queryData);
         
         // Guardar el queryGroupId para futuras actualizaciones
         if (result.queryGroupId) {
           queryGroupIdRef.current = result.queryGroupId;
+          setCurrentQueryGroupId(result.queryGroupId);
           setCurrentQueryId(result.segments[0].id); // Solo para referencia en UI
           console.log('✅ Consulta multi-segmento creada:', result.queryGroupId);
           console.log('✅ Segmentos creados:', result.segmentCount);
         }
       }
+
+      return { ok: true, result };
     } catch (error) {
       console.error('Error guardando consulta automáticamente:', error);
-      // No mostrar error al usuario, es guardado automático
+      if (!silent) {
+        throw error;
+      }
+      return { ok: false, reason: 'error', error };
     } finally {
       isSavingRef.current = false;
     }
-  }, [formData.mainClient.id, segments, notes]);
+  }, [formData.mainClient.id, segments, notes, source]);
+
+  // Guardar consulta explícitamente (sin crear reserva pendiente)
+  const handleSaveConsulta = useCallback(async () => {
+    if (!formData.mainClient.id) {
+      notify({
+        title: 'Falta el cliente',
+        message: 'Seleccioná un cliente antes de guardar la consulta.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    const hasValidSegment = segments.some(seg => seg.checkIn && seg.checkOut);
+    if (!hasValidSegment) {
+      notify({
+        title: 'Fechas incompletas',
+        message: 'Completá check-in y check-out de al menos un segmento para guardar la consulta.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    setIsSavingConsulta(true);
+
+    try {
+      const outcome = await saveQueryAutomatically({ silent: false });
+      if (!outcome?.ok) {
+        if (outcome?.reason === 'busy') {
+          notify({
+            title: 'Guardado en curso',
+            message: 'Ya hay un guardado en curso. Esperá un momento e intentá de nuevo.',
+            type: 'warning',
+          });
+          return;
+        }
+        throw new Error(outcome?.reason || 'No se pudo guardar la consulta');
+      }
+
+      const queryId = outcome.result?.segments?.[0]?.id || currentQueryId;
+      notify({
+        title: 'Consulta guardada',
+        message: queryId
+          ? `Consulta #${queryId} guardada. No se creó una reserva: la recuperás en Consultas y Reservas.`
+          : 'Consulta guardada. No se creó una reserva: la recuperás en Consultas y Reservas.',
+        type: 'success',
+        onClose: () => navigate('/consultas-reservas'),
+      });
+    } catch (error) {
+      console.error('Error al guardar consulta:', error);
+      notify({
+        title: 'Error al guardar',
+        message: `No se pudo guardar la consulta: ${error.message || 'Error desconocido'}`,
+        type: 'error',
+      });
+    } finally {
+      setIsSavingConsulta(false);
+    }
+  }, [formData.mainClient.id, segments, saveQueryAutomatically, currentQueryId, navigate, notify]);
 
   // Función para cargar clientes
   const loadClients = useCallback(async () => {
@@ -868,11 +1017,207 @@ export default function Consulta() {
     }
   }, [selectedRoomType, segments, serviceTypes]);
 
+  // Cargar reserva existente para editar (mismo flujo que crear)
+  useEffect(() => {
+    const reservationId = resolveEditReservationId({
+      paramId: reservationIdParam,
+      queryId: reservationIdQuery,
+      state: location.state
+    });
+    if (!reservationId) return;
+    if (
+      !isConsultaEditIntent({
+        paramId: reservationIdParam,
+        queryId: reservationIdQuery,
+        state: location.state
+      })
+    ) {
+      return;
+    }
+    // Evitar re-fetch de la misma reserva; permitir cambiar de /consulta/:a → :b
+    if (dataLoadedRef.current && hydratedEditIdRef.current === reservationId) return;
+
+    let cancelled = false;
+    dataLoadedRef.current = false;
+    setEditPrefillReady(false);
+
+    (async () => {
+      try {
+        const full = await fetchReservation(reservationId);
+        if (cancelled || !full) return;
+
+        hydratingEditRef.current = true;
+        dataLoadedRef.current = true;
+        hydratedEditIdRef.current = full.id ?? reservationId;
+
+        setEditingReservationId(full.id);
+        setEditingReservationStatus(full.status || 'PENDIENTE');
+        setApplyRateChanges(true);
+
+        // Canceladas / no-show: segmentos inactivos; igual hay que hidratar la UI
+        let collapsed = collapseSegmentsForEditUi(full.segments || []);
+        if (collapsed.length === 0 && (full.segments || []).length > 0) {
+          collapsed = collapseSegmentsForEditUi(
+            (full.segments || []).map((seg) => ({ ...seg, isActive: true }))
+          );
+        }
+        const loadedSegments = collapsed.map((seg, index) => ({
+          id: seg.id || Date.now() + index,
+          checkIn: String(seg.startDate || '').slice(0, 10),
+          checkOut: String(seg.endDate || '').slice(0, 10),
+          requiredGuests: seg.guestCount || full.requiredGuests || 1,
+          requiredTags: seg.requiredTags || [],
+          ...bedFieldsFrom(seg),
+          requiredRoomId: seg.requiredRoomId || null,
+          requirementsNotes: '',
+          serviceType: seg.services?.[0] || full.reservationType || '',
+          reservationType: seg.services?.[0] || full.reservationType || 'con_desayuno'
+        }));
+
+        const roomsByBlock = {};
+        const ratesByBlock = {};
+        const searchedByBlock = {};
+        collapsed.forEach((seg, index) => {
+          const room = selectedRoomFromCollapsedSegment(seg);
+          roomsByBlock[index] = room;
+          ratesByBlock[index] = Number(seg.baseRate) || 0;
+          searchedByBlock[index] = true;
+        });
+
+        const first = collapsed[0] || null;
+        const guestCount = first?.guestCount || full.requiredGuests || 1;
+        const serviceType = first?.services?.[0] || full.reservationType || '';
+        const checkIn = String(first?.startDate || full.checkIn || '').slice(0, 10);
+        const checkOut = String(first?.endDate || full.checkOut || '').slice(0, 10);
+
+        setFormData((prev) => ({
+          ...prev,
+          checkIn,
+          checkOut,
+          mainClient: full.mainClient
+            ? {
+                id: full.mainClient.id,
+                firstName: full.mainClient.firstName || '',
+                lastName: full.mainClient.lastName || '',
+                email: full.mainClient.email || '',
+                phone: full.mainClient.phone || ''
+              }
+            : prev.mainClient
+        }));
+
+        setSegments(loadedSegments.length > 0 ? loadedSegments : [{
+          id: Date.now(),
+          checkIn,
+          checkOut,
+          requiredGuests: guestCount,
+          requiredTags: [],
+          ...bedFieldsFrom(first || {}),
+          requiredRoomId: null,
+          requirementsNotes: '',
+          serviceType
+        }]);
+
+        setRequirements({
+          requiredGuests: guestCount,
+          requiredTags: first?.requiredTags || [],
+          ...bedFieldsFrom(first || {}),
+          requiredRoomId: first?.requiredRoomId || null,
+          requirementsNotes: '',
+          serviceType
+        });
+
+        setSelectedRoomsPerBlock(roomsByBlock);
+        setAvailableRoomsPerBlock(
+          Object.fromEntries(
+            Object.entries(roomsByBlock).map(([idx, room]) => [idx, room ? [room] : []])
+          )
+        );
+        setHasSearchedPerBlock(searchedByBlock);
+        setOriginalBaseRatesByBlock(ratesByBlock);
+
+        if (roomsByBlock[0]?.roomType) {
+          setSelectedRoomType(roomsByBlock[0].roomType);
+        }
+
+        // Inicializar refs de segmentos para que no disparen reset de búsqueda
+        previousSegmentsRef.current = {};
+        (loadedSegments.length > 0 ? loadedSegments : [{ checkIn, checkOut, requiredTags: [], requiredRoomId: null, serviceType }])
+          .forEach((seg, index) => {
+            previousSegmentsRef.current[index] = {
+              checkIn: seg.checkIn,
+              checkOut: seg.checkOut,
+              requiredTags: JSON.stringify(seg.requiredTags || []),
+              requiredRoomId: seg.requiredRoomId || null,
+              serviceType: seg.serviceType || ''
+            };
+          });
+
+        setNotes(full.notes || '');
+        setSource(full.source || '');
+        setActiveBlockIndex(0);
+        setEditPrefillReady(true);
+
+        // Canonicalizar URL con id + flags de edición (sobrevive refresh / Strict Mode / HMR)
+        navigate(buildConsultaEditPath(full.id), {
+          replace: true,
+          state: buildConsultaEditState(full.id)
+        });
+        // hydratingEditRef se baja en un effect con setTimeout(0) para que
+        // Strict Mode / resets de huéspedes no borren la habitación sembrada.
+      } catch (error) {
+        console.error('Error cargando reserva para editar:', error);
+        if (!cancelled) {
+          notify({
+            title: 'Error al cargar',
+            message: 'No se pudo cargar la reserva para editar.',
+            type: 'error'
+          });
+          dataLoadedRef.current = false;
+          hydratedEditIdRef.current = null;
+          setEditPrefillReady(true);
+          hydratingEditRef.current = false;
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // notify es estable vía useAppNotice; omitido a propósito para no re-disparar el prefill
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    reservationIdParam,
+    reservationIdQuery,
+    location.state?.reservationId,
+    location.state?.reservationEdit?.id,
+    location.state?.isEditingReservation,
+    navigate
+  ]);
+
+  // Liberar hidratación solo después de que los effects del commit (y el double-invoke
+  // de Strict Mode) hayan corrido; queueMicrotask era demasiado temprano y el reset
+  // por requiredGuests borraba la habitación prefilleada.
+  useEffect(() => {
+    if (!editPrefillReady || !editingReservationId || !hydratingEditRef.current) return;
+    const t = setTimeout(() => {
+      hydratingEditRef.current = false;
+    }, 0);
+    return () => clearTimeout(t);
+  }, [editPrefillReady, editingReservationId]);
+
   // Cargar datos de la consulta desde el modal o desde la tabla de consultas
   useEffect(() => {
     console.log('🔍 useEffect de carga ejecutándose');
     console.log('🔍 location.state:', location.state);
     console.log('🔍 dataLoaded:', dataLoadedRef.current);
+
+    if (
+      isConsultaEditIntent({
+        paramId: reservationIdParam,
+        queryId: reservationIdQuery,
+        state: location.state
+      })
+    ) {
+      return;
+    }
     
     if (location.state?.queryData && !dataLoadedRef.current) {
       const queryData = location.state.queryData;
@@ -918,6 +1263,7 @@ export default function Consulta() {
                 checkOut: seg.checkOut ? seg.checkOut.split('T')[0] : '',
                 requiredGuests: seg.requiredGuests || 1,
                 requiredTags: seg.requiredTags || [],
+                ...bedFieldsFrom(seg),
                 requiredRoomId: seg.requiredRoomId || null,
                 requirementsNotes: seg.requirementsNotes || '',
                 serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -932,8 +1278,9 @@ export default function Consulta() {
               // NO sincronizamos roomId porque no lo guardamos
               // El usuario deberá buscar habitaciones manualmente si lo desea
               
-              // Cargar notas globales
+              // Cargar notas globales y medio
               setNotes(fullQueryData.notes || '');
+              setSource(fullQueryData.source || '');
               
               // Establecer el primer segmento como activo
               setActiveBlockIndex(0);
@@ -949,6 +1296,7 @@ export default function Consulta() {
               setRequirements({
                 requiredGuests: firstSegment.requiredGuests || 1,
                 requiredTags: firstSegment.requiredTags || [],
+                ...bedFieldsFrom(firstSegment),
                 requiredRoomId: firstSegment.requiredRoomId || null,
                 requirementsNotes: firstSegment.requirementsNotes || ''
               });
@@ -968,6 +1316,7 @@ export default function Consulta() {
               setRequirements({
                 requiredGuests: fullQueryData.requiredGuests || 1,
                 requiredTags: fullQueryData.requiredTags || [],
+                ...bedFieldsFrom(fullQueryData),
                 requiredRoomId: fullQueryData.requiredRoomId || null,
                 requirementsNotes: fullQueryData.requirementsNotes || ''
               });
@@ -980,6 +1329,7 @@ export default function Consulta() {
                   checkOut: fullQueryData.checkOut.split('T')[0],
                   requiredGuests: fullQueryData.requiredGuests || 1,
                   requiredTags: fullQueryData.requiredTags || [],
+                  ...bedFieldsFrom(fullQueryData),
                   requiredRoomId: fullQueryData.requiredRoomId || null,
                   requirementsNotes: fullQueryData.requirementsNotes || '',
                   serviceType: fullQueryData.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
@@ -991,6 +1341,7 @@ export default function Consulta() {
               }
               
               setNotes(fullQueryData.notes || '');
+              setSource(fullQueryData.source || '');
             }
             
             setCurrentQueryId(fullQueryData.id);
@@ -1001,7 +1352,11 @@ export default function Consulta() {
           })
           .catch(error => {
             console.error('❌ Error cargando query completa:', error);
-            alert('Error al cargar la consulta. Por favor, intenta de nuevo.');
+            notify({
+              title: 'Error al cargar',
+              message: 'No se pudo cargar la consulta. Intentá de nuevo.',
+              type: 'error',
+            });
             
             // Marcar como cargado para evitar loops
             dataLoadedRef.current = true;
@@ -1010,7 +1365,7 @@ export default function Consulta() {
         
       } else {
         // Si es una nueva consulta desde el modal
-        const { checkIn, checkOut, requiredGuests, requiredTags } = queryData;
+        const { checkIn, checkOut, requiredGuests, requiredTags, source: incomingSource } = queryData;
         
         setFormData(prev => ({
           ...prev,
@@ -1023,6 +1378,10 @@ export default function Consulta() {
           requiredGuests,
           requiredTags
         }));
+
+        if (incomingSource) {
+          setSource(incomingSource);
+        }
         
         // Marcar como cargado y limpiar el state para evitar que se recargue en futuras navegaciones
         dataLoadedRef.current = true;
@@ -1039,6 +1398,9 @@ export default function Consulta() {
 
   // Auto-guardado con debounce para evitar requests excesivos
   useEffect(() => {
+    if (editingReservationId) {
+      return;
+    }
     // Solo auto-guardar si hay un cliente seleccionado y hay segmentos válidos
     if (!formData.mainClient.id || segments.length === 0) {
       console.log('⏭️ Saltando auto-guardado: no hay cliente o segmentos');
@@ -1065,7 +1427,7 @@ export default function Consulta() {
       console.log('🔄 Cancelando auto-guardado anterior (nuevo cambio detectado)');
       clearTimeout(timer);
     };
-  }, [segments, formData.mainClient.id, notes, saveQueryAutomatically]);
+  }, [segments, formData.mainClient.id, notes, source, saveQueryAutomatically]);
 
   // Cargar tipos de servicio desde la API
   useEffect(() => {
@@ -1137,14 +1499,14 @@ export default function Consulta() {
     loadClients();
     loadAllRooms();
     
-    // Solo cargar fechas por defecto si no estamos editando una consulta existente
-    if (!location.state?.isEditing) {
+    // No pisar fechas al editar consulta o reserva existente
+    if (!location.state?.isEditing && !isEditingReservationNav) {
       console.log('🔍 Cargando fechas por defecto');
       loadDefaultDates();
     } else {
       console.log('🔍 NO cargando fechas por defecto (editando)');
     }
-  }, [loadClients, loadAllRooms, loadDefaultDates]);
+  }, [loadClients, loadAllRooms, loadDefaultDates, location.state?.isEditing, isEditingReservationNav]);
 
   // NO sincronizamos roomId porque ya no lo guardamos en consultas
   // Las habitaciones se buscarán automáticamente con debouncing cuando se cumplan las condiciones
@@ -1220,31 +1582,33 @@ export default function Consulta() {
     }
   }, [formData.checkIn, formData.checkOut, requirements.requiredGuests, requirements.requiredTags, requirements.requiredRoomId, requirements.requirementsNotes, location.state?.isEditing, segments.length]);
 
-  // Seleccionar automáticamente la primera habitación disponible si no hay ninguna seleccionada para el bloque activo
+  // Seleccionar automáticamente la primera habitación disponible solo si el bloque
+  // no tiene ya una habitación elegida/prefilleada (no pisar edición ni cambio de servicio).
   useEffect(() => {
+    if (hydratingEditRef.current) return;
+
     const availableRooms = availableRoomsPerBlock[activeBlockIndex] || [];
     const selectedRoomForBlock = selectedRoomsPerBlock[activeBlockIndex];
-    
-    if (availableRooms.length > 0 && !selectedRoomForBlock) {
-      // Buscar primero una habitación con capacidad exacta
-      const exactCapacityRoom = availableRooms.find(room => room.maxPeople === requirements.requiredGuests);
-      
-      if (exactCapacityRoom) {
-        setSelectedRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: exactCapacityRoom
-        }));
-        setSelectedRoomType(exactCapacityRoom.roomType);
-        // NO actualizamos roomId en el segmento
-      } else {
-        // Si no hay capacidad exacta, seleccionar la primera disponible
-        setSelectedRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: availableRooms[0]
-        }));
-        setSelectedRoomType(availableRooms[0].roomType);
-        // NO actualizamos roomId en el segmento
-      }
+
+    if (availableRooms.length === 0) return;
+
+    if (selectedRoomForBlock) {
+      const stillListed = availableRooms.some((room) => roomsMatch(room, selectedRoomForBlock));
+      if (stillListed) return;
+      // Hay selección previa fuera del listado (p. ej. aún cargando tarifas): no defaultar.
+      return;
+    }
+
+    const exactCapacityRoom = availableRooms.find(
+      (room) => room.maxPeople === requirements.requiredGuests
+    );
+    const roomToSelect = exactCapacityRoom || availableRooms[0];
+    setSelectedRoomsPerBlock((prev) => ({
+      ...prev,
+      [activeBlockIndex]: roomToSelect
+    }));
+    if (roomToSelect.roomType) {
+      setSelectedRoomType(roomToSelect.roomType);
     }
   }, [availableRoomsPerBlock, activeBlockIndex, requirements.requiredGuests, selectedRoomsPerBlock]);
 
@@ -1313,21 +1677,27 @@ export default function Consulta() {
         return;
       }
       
-      // Comparar valores actuales con previos
-      const hasChanged = 
+      const occupancyChanged =
         prevSegment.checkIn !== currentValues.checkIn ||
         prevSegment.checkOut !== currentValues.checkOut ||
         prevSegment.requiredTags !== currentValues.requiredTags ||
-        prevSegment.requiredRoomId !== currentValues.requiredRoomId ||
-        prevSegment.serviceType !== currentValues.serviceType;
+        prevSegment.requiredRoomId !== currentValues.requiredRoomId;
+      const serviceOnlyChanged =
+        !occupancyChanged && prevSegment.serviceType !== currentValues.serviceType;
+      const hasChanged = occupancyChanged || serviceOnlyChanged;
       
       if (hasChanged) {
         // Actualizar valores previos inmediatamente
         previousSegmentsRef.current[index] = currentValues;
+
+        if (hydratingEditRef.current) {
+          return;
+        }
         
         // Solo resetear si ya se había realizado una búsqueda
         if (hasSearchedPerBlock[index]) {
-          // Los parámetros cambiaron realmente, resetear este bloque
+          // Fechas/tags/filtro de hab: invalidar listado y selección.
+          // Solo servicio: re-buscar tarifas pero conservar la habitación elegida.
           setHasSearchedPerBlock(prev => ({
             ...prev,
             [index]: false
@@ -1336,12 +1706,13 @@ export default function Consulta() {
             ...prev,
             [index]: []
           }));
-          setSelectedRoomsPerBlock(prev => {
-            const newSelected = { ...prev };
-            delete newSelected[index];
-            return newSelected;
-          });
-          // NO limpiamos roomId porque ya no lo usamos
+          if (occupancyChanged) {
+            setSelectedRoomsPerBlock(prev => {
+              const newSelected = { ...prev };
+              delete newSelected[index];
+              return newSelected;
+            });
+          }
         }
       }
     });
@@ -1349,6 +1720,8 @@ export default function Consulta() {
 
   // Resetear búsqueda en TODOS los bloques cuando cambie la cantidad global de huéspedes
   useEffect(() => {
+    if (hydratingEditRef.current) return;
+
     // Resetear todos los bloques que ya fueron buscados
     const blocksToReset = Object.keys(hasSearchedPerBlock).filter(index => hasSearchedPerBlock[index]);
     
@@ -1380,8 +1753,8 @@ export default function Consulta() {
 
 
   const searchAvailableRooms = async (customParams = null) => {
-    // Guardar/actualizar consulta antes de buscar habitaciones
-    if (formData.mainClient.id) {
+    // Guardar/actualizar consulta antes de buscar habitaciones (no en edición de reserva)
+    if (formData.mainClient.id && !editingReservationId) {
       await saveQueryAutomatically();
     }
     
@@ -1414,6 +1787,10 @@ export default function Consulta() {
           serviceType: activeBlock.serviceType || getAlternativeServiceType(activeBlock.serviceType)
       };
         // console.log('🔍 Usando parámetros del segmento activo:', params);
+      }
+
+      if (editingReservationId) {
+        params.excludeReservationId = editingReservationId;
       }
 
       const result = await findAvailableRooms(params);
@@ -1573,17 +1950,40 @@ export default function Consulta() {
             [activeBlockIndex]: []
           }));
         } else {
+          const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+          const { rooms: finalRooms, selected: keptSelected } = preserveSelectedRoomInList(
+            roomsToShow,
+            priorSelected
+          );
           setAvailableRoomsPerBlock(prev => ({
             ...prev,
-            [activeBlockIndex]: roomsToShow
+            [activeBlockIndex]: finalRooms
           }));
+          if (keptSelected) {
+            setSelectedRoomsPerBlock(prev => ({
+              ...prev,
+              [activeBlockIndex]: keptSelected
+            }));
+            if (keptSelected.roomType) {
+              setSelectedRoomType(keptSelected.roomType);
+            }
+          }
         }
       } else {
         console.log('No se encontraron habitaciones disponibles');
-        setAvailableRoomsPerBlock(prev => ({
-          ...prev,
-          [activeBlockIndex]: []
-        }));
+        const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+        if (priorSelected) {
+          // Cambio de servicio / re-búsqueda vacía: mantener la habitación ya elegida visible
+          setAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [activeBlockIndex]: [priorSelected]
+          }));
+        } else {
+          setAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [activeBlockIndex]: []
+          }));
+        }
       }
     } catch (error) {
       console.error('Error buscando habitaciones disponibles:', error);
@@ -1783,8 +2183,9 @@ export default function Consulta() {
         fixed: seg.fixed || false
       })));
       
-      // Cargar notas globales
+      // Cargar notas globales y medio
       setNotes(query.notes || '');
+      setSource(query.source || '');
       
       // Establecer el primer segmento como activo
       setActiveBlockIndex(0);
@@ -1824,6 +2225,7 @@ export default function Consulta() {
       }
       
       setNotes(query.notes || '');
+      setSource(query.source || '');
     }
 
     setCurrentQueryId(query.id);
@@ -1871,7 +2273,11 @@ export default function Consulta() {
   const handleSaveNewClient = async () => {
     // Validar que los campos requeridos estén completos
     if (!formData.mainClient.firstName || !formData.mainClient.lastName) {
-      alert('Por favor, completa al menos el nombre y apellido del cliente.');
+      notify({
+        title: 'Datos incompletos',
+        message: 'Completá al menos el nombre y apellido del cliente.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -1896,7 +2302,7 @@ export default function Consulta() {
         setFormData(prev => ({
           ...prev,
           mainClient: {
-            id: newClient.id,  // ✨ Agregar el ID para que se setee como cliente principal
+            id: newClient.id, // Agregar el ID para que se setee como cliente principal
             firstName: newClient.firstName,
             lastName: newClient.lastName,
             email: newClient.email || '',
@@ -1907,12 +2313,20 @@ export default function Consulta() {
         // Cerrar el formulario de nuevo cliente
         setShowNewClientForm(false);
       } else {
-        const errorData = await response.json();
-        alert(`❌ Error al guardar el cliente: ${errorData.message || 'Error desconocido'}`);
+        const errorData = await response.json().catch(() => ({}));
+        notify({
+          title: 'Error al guardar cliente',
+          message: errorData.error || errorData.message || errorData.details || 'Error desconocido',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Error saving client:', error);
-      alert('❌ Error al conectar con el servidor. Intenta nuevamente.');
+      notify({
+        title: 'Error de conexión',
+        message: 'No se pudo conectar con el servidor. Intentá nuevamente.',
+        type: 'error',
+      });
     }
   };
 
@@ -1953,44 +2367,24 @@ export default function Consulta() {
 
 
   const checkRequirementsCompliance = (room) => {
-    // Obtener las etiquetas requeridas del bloque activo
     const activeBlock = segments[activeBlockIndex];
     if (!activeBlock) {
-      return { complies: true, message: 'No hay bloque activo', score: 0 };
+      return { complies: true, message: 'No hay bloque activo', score: 0, bedWarning: null };
     }
-    
-    const requiredTagIds = activeBlock.requiredTags || [];
-    
-    if (requiredTagIds.length === 0) {
-      return { complies: true, message: 'No hay etiquetas requeridas', score: 0 };
-    }
-    
-    // Obtener las etiquetas de la habitación
-    const roomTagIds = room.tags ? room.tags.map(tag => tag.id) : [];
-    
-    // Verificar si la habitación tiene todas las etiquetas requeridas
-    const missingTags = requiredTagIds.filter(tagId => !roomTagIds.includes(tagId));
-    const matchingTags = room.tags.filter(tag => requiredTagIds.includes(tag.id));
-    
-    const complianceScore = matchingTags.length / requiredTagIds.length;
-    
-    if (missingTags.length === 0) {
-      // La habitación cumple con todos los requerimientos
-      const tagNames = matchingTags.map(tag => tag.name);
-      return { 
-        complies: true, 
-        message: tagNames.length > 0 ? tagNames.join(', ') : 'Cumple con todos los requerimientos',
-        score: complianceScore
-      };
-    } else {
-      // La habitación no cumple con todos los requerimientos
-      const tagNames = matchingTags.map(tag => tag.name);
-      return { 
-        complies: false, 
-        message: tagNames.length > 0 ? tagNames.join(', ') : 'No cumple con los requerimientos',
-        score: complianceScore
-      };
-    }
+    const tagsCompliance = roomRequirementsCompliance(room, activeBlock.requiredTags || []);
+    const bedCompliance = roomCanSatisfyBedPreference(room?.beds || [], activeBlock);
+    const complies = tagsCompliance.complies && bedCompliance.complies;
+    const messages = [];
+    if (!tagsCompliance.complies) messages.push(tagsCompliance.message);
+    if (!bedCompliance.complies) messages.push(bedCompliance.message);
+    return {
+      complies,
+      message: complies
+        ? [tagsCompliance.message, bedCompliance.message].filter(Boolean).join(' · ')
+        : messages.join(' · '),
+      score: tagsCompliance.score,
+      bedWarning: bedCompliance.complies ? null : bedCompliance.message
+    };
   };
 
   // Funciones para manejar segmentos
@@ -2281,15 +2675,15 @@ export default function Consulta() {
       };
 
       // Formatear datos para copiar
-      let texto = '🏨 CONSULTA DE RESERVA\n';
+      let texto = 'CONSULTA DE RESERVA\n';
       texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
 
       // Cliente (si existe)
       if (formData.mainClient.firstName || formData.mainClient.lastName) {
-        texto += '👤 CLIENTE\n';
+        texto += 'CLIENTE\n';
         texto += `${formData.mainClient.firstName || ''} ${formData.mainClient.lastName || ''}`.trim() + '\n';
-        if (formData.mainClient.email) texto += `📧 ${formData.mainClient.email}\n`;
-        if (formData.mainClient.phone) texto += `📱 ${formData.mainClient.phone}\n`;
+        if (formData.mainClient.email) texto += ` ${formData.mainClient.email}\n`;
+        if (formData.mainClient.phone) texto += ` ${formData.mainClient.phone}\n`;
         texto += '\n';
       }
 
@@ -2300,7 +2694,7 @@ export default function Consulta() {
         ? Math.ceil((new Date(lastCheckOut) - new Date(firstCheckIn)) / (1000 * 60 * 60 * 24))
         : 0;
 
-      texto += '📅 ESTANCIA\n';
+      texto += 'ESTANCIA\n';
       texto += `Check-in: ${formatDate(firstCheckIn)}\n`;
       texto += `Check-out: ${formatDate(lastCheckOut)}\n`;
       texto += `Noches: ${totalNights}\n`;
@@ -2309,7 +2703,7 @@ export default function Consulta() {
       // Segmentos
       if (segments.length === 1) {
         // Un solo segmento
-        texto += '🏨 HABITACIÓN\n';
+        texto += 'HABITACIÓN\n';
         texto += `${getRoomName(0)}\n`;
         texto += `Servicio: ${getServiceTypeName(segments[0].serviceType)}\n`;
         const total = getTotalAmount(0);
@@ -2318,14 +2712,14 @@ export default function Consulta() {
         }
       } else {
         // Múltiples segmentos
-        texto += '📦 SEGMENTOS DE ESTANCIA\n\n';
+        texto += 'SEGMENTOS DE ESTANCIA\n\n';
         segments.forEach((segment, index) => {
-          texto += `  ${index + 1}. ${formatDate(segment.checkIn)} - ${formatDate(segment.checkOut)}\n`;
-          texto += `     Habitación: ${getRoomName(index)}\n`;
-          texto += `     Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
+          texto += ` ${index + 1}. ${formatDate(segment.checkIn)} - ${formatDate(segment.checkOut)}\n`;
+          texto += ` Habitación: ${getRoomName(index)}\n`;
+          texto += ` Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
           const total = getTotalAmount(index);
           if (total > 0) {
-            texto += `     Tarifa: $${total.toLocaleString('es-AR')}\n`;
+            texto += ` Tarifa: $${total.toLocaleString('es-AR')}\n`;
           }
           texto += '\n';
         });
@@ -2337,7 +2731,7 @@ export default function Consulta() {
       );
 
       if (hasRequirements) {
-        texto += '✨ REQUERIMIENTOS ESPECIALES\n';
+        texto += 'REQUERIMIENTOS ESPECIALES\n';
         segments.forEach((segment, index) => {
           if (segment.requiredTags && segment.requiredTags.length > 0) {
             const tagNames = segment.requiredTags
@@ -2354,7 +2748,7 @@ export default function Consulta() {
 
       // Notas
       if (notes && notes.trim()) {
-        texto += '📝 NOTAS\n';
+        texto += 'NOTAS\n';
         texto += notes + '\n\n';
       }
 
@@ -2365,18 +2759,25 @@ export default function Consulta() {
 
       if (totalGeneral > 0) {
         texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-        texto += `💰 TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
+        texto += `TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
       }
 
       // Copiar al portapapeles
       await navigator.clipboard.writeText(texto);
       
-      // Mostrar confirmación visual
-      alert('✅ Datos copiados al portapapeles');
+      notify({
+        title: 'Copiado',
+        message: 'Datos copiados al portapapeles.',
+        type: 'success',
+      });
       
     } catch (error) {
       console.error('Error al copiar datos:', error);
-      alert('❌ Error al copiar datos al portapapeles');
+      notify({
+        title: 'Error al copiar',
+        message: 'No se pudieron copiar los datos al portapapeles.',
+        type: 'error',
+      });
     }
   };
 
@@ -2448,12 +2849,16 @@ export default function Consulta() {
             clientId = createdClient.id;
             console.log('Cliente creado con ID:', clientId);
           } else {
-            const errorData = await newClient.json();
-            throw new Error(`Error al crear el cliente: ${errorData.error || errorData.message || 'Error desconocido'}`);
+            const errorData = await newClient.json().catch(() => ({}));
+            throw new Error(`Error al crear el cliente: ${errorData.error || errorData.message || errorData.details || 'Error desconocido'}`);
           }
         } catch (clientError) {
           console.error('Error creando cliente:', clientError);
-          alert(`❌ Error al crear el cliente: ${clientError.message}`);
+          notify({
+            title: 'Error al crear el cliente',
+            message: clientError.message || 'Error desconocido',
+            type: 'error',
+          });
           return;
         }
       } else {
@@ -2483,12 +2888,22 @@ export default function Consulta() {
             throw new Error(`El segmento ${index + 1} tiene fechas inválidas (check-out debe ser después de check-in).`);
           }
           
-          // Calcular baseRate - debe existir y ser válida
-          const totalAmount = selectedRoomsPerBlock[index].ratesData?.totalAmount;
+          // Snapshot canónico: night rates día a día + promedio solo como baseRate del segmento
+          const ratesData = selectedRoomsPerBlock[index].ratesData;
+          const totalAmount = ratesData?.totalAmount;
           const roomPrice = selectedRoomsPerBlock[index].price;
+          const nightlyRates = Array.isArray(ratesData?.rates) ? ratesData.rates : [];
           
           let baseRate = null;
-          if (totalAmount && totalAmount > 0) {
+          // En edición sin aplicar tarifas: conservar tarifa original de la reserva
+          if (editingReservationId && !applyRateChanges) {
+            const original = Number(originalBaseRatesByBlock[index]);
+            if (original > 0) {
+              baseRate = original;
+            } else if (roomPrice && roomPrice > 0) {
+              baseRate = roomPrice;
+            }
+          } else if (totalAmount && totalAmount > 0) {
             baseRate = totalAmount / nights;
           } else if (roomPrice && roomPrice > 0) {
             baseRate = roomPrice;
@@ -2502,33 +2917,72 @@ export default function Consulta() {
           if (!segment.requiredGuests || segment.requiredGuests <= 0) {
             throw new Error(`El segmento ${index + 1} debe tener al menos 1 huésped.`);
           }
+
+          const nightRates = nightlyRates.map((rate) => ({
+            date: rate.dateString || rate.date,
+            baseRate: rate.baseRate,
+            serviceRate: rate.serviceRate ?? rate.finalRate ?? rate.baseRate,
+            finalRate: rate.finalRate ?? rate.serviceRate ?? rate.baseRate,
+            seasonBlockId: rate.seasonBlockId || null,
+            seasonBlockName: rate.seasonBlockName || null
+          }));
           
+          const roomPayload = roomSelectionPayload(selectedRoomsPerBlock[index]);
           return {
-            roomId: selectedRoomsPerBlock[index].id,
+            roomId: roomPayload.roomId,
+            virtualRoomId: roomPayload.virtualRoomId,
+            isVirtual: roomPayload.isVirtual,
+            roomTypeId: roomPayload.roomTypeId,
             startDate: segment.checkIn,
             endDate: segment.checkOut,
             requiredGuests: segment.requiredGuests,
             services: [segment.serviceType],
             requiredTags: segment.requiredTags || [],
             requiredRoomId: segment.requiredRoomId || null,
+            ...bedFieldsFrom(segment),
             baseRate: baseRate,
+            nightRates,
             guestCount: segment.requiredGuests
           };
         }),
         status: status,
         notes: notes,
+        source: source || null,
         isMultiRoom: false
       };
 
       console.log('Datos de reserva a enviar:', reservationData);
 
+      if (editingReservationId) {
+        await updateReservation(editingReservationId, {
+          mainClientId: clientId,
+          status: status || editingReservationStatus || 'PENDIENTE',
+          notes: notes,
+          source: source || null,
+          segments: reservationData.segments,
+          applyRateChanges
+        });
+        setShowConfirmationModal(false);
+        notify({
+          title: 'Reserva actualizada',
+          message: applyRateChanges
+            ? `Reserva #${editingReservationId} guardada (tarifas actualizadas).`
+            : `Reserva #${editingReservationId} guardada sin cambiar tarifas.`,
+          type: 'success',
+          onClose: () => navigate(`/reservations/${editingReservationId}`),
+        });
+        return;
+      }
+
       // Crear la reserva en el backend
       console.log('Enviando reserva a:', `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/reservations/multi-segment`);
       console.log('Datos completos de la reserva:', JSON.stringify(reservationData, null, 2));
       
-      const newReservation = await createReservation(reservationData);
+      const created = await createReservation(reservationData);
+      const createdReservation = created?.reservation || created;
+      const createdId = createdReservation?.id;
       
-      console.log('Reserva creada:', newReservation);
+      console.log('Reserva creada:', created);
       
       // Eliminar la consulta si existe (ya se convirtió en reserva)
       if (queryGroupIdRef.current) {
@@ -2537,7 +2991,7 @@ export default function Consulta() {
             method: 'DELETE'
           });
           if (response.ok) {
-            console.log('✅ Consulta eliminada después de crear reserva:', queryGroupIdRef.current);
+            console.log('Consulta eliminada después de crear reserva:', queryGroupIdRef.current);
             queryGroupIdRef.current = null;
             setCurrentQueryId(null);
           }
@@ -2547,19 +3001,34 @@ export default function Consulta() {
         }
       }
       
-      // Mostrar mensaje de éxito
-      alert('✅ Reserva creada exitosamente');
-      
       // Cerrar modal y limpiar formulario
       setShowConfirmationModal(false);
       resetForm();
-      
-      // Navegar a los detalles de la reserva creada
-      navigate(`/reservations/${newReservation.id}`);
+
+      if (!createdId) {
+        notify({
+          title: 'Reserva creada',
+          message: 'La reserva se creó, pero no se pudo obtener su ID para abrir el detalle.',
+          type: 'warning',
+          onClose: () => navigate('/consultas-reservas'),
+        });
+        return;
+      }
+
+      notify({
+        title: 'Reserva creada',
+        message: `Reserva #${createdId} creada exitosamente.`,
+        type: 'success',
+        onClose: () => navigate(`/reservations/${createdId}`),
+      });
       
     } catch (error) {
-      console.error('Error al crear la reserva:', error);
-      alert(`❌ Error al crear la reserva: ${error.message}`);
+      console.error('Error al crear/actualizar la reserva:', error);
+      notify({
+        title: editingReservationId ? 'Error al actualizar la reserva' : 'Error al crear la reserva',
+        message: error.message || 'Error desconocido',
+        type: 'error',
+      });
     } finally {
       setIsCreatingReservation(false);
     }
@@ -2580,6 +3049,9 @@ export default function Consulta() {
     setRequirements({
       requiredGuests: 1,
       requiredTags: [],
+      bedPreferenceNone: true,
+      preferredDoubleBeds: 0,
+      preferredSingleBeds: 0,
       requiredRoomId: null,
       serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
     });
@@ -2590,6 +3062,9 @@ export default function Consulta() {
         checkOut: '',
         requiredGuests: 1,
         requiredTags: [],
+        bedPreferenceNone: true,
+        preferredDoubleBeds: 0,
+        preferredSingleBeds: 0,
         requiredRoomId: null,
         serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
       }
@@ -2603,10 +3078,23 @@ export default function Consulta() {
     setShowNewClientForm(false);
     setCurrentQueryId(null);
     setNotes('');
+    setSource('');
     setActiveBlockIndex(0);
     // Limpiar el ref de valores previos
     previousSegmentsRef.current = {};
   };
+
+  if (editingReservationId && !editPrefillReady) {
+    return (
+      <div className={styles.newLayout}>
+        <div className={styles.unifiedContainer}>
+          <div className={styles.sectionHeader}>
+            <h2>Cargando reserva #{editingReservationId}…</h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.newLayout}>
@@ -2615,11 +3103,11 @@ export default function Consulta() {
         {/* 1. Título de la consulta */}
         <div className={styles.sectionHeader}>
           <h2>
-            {!formData.mainClient.id ? (
-              'Consulta rápida'
-            ) : (
-              `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`
-            )}
+            {editingReservationId
+              ? `Editar reserva #${editingReservationId}`
+              : !formData.mainClient.id
+                ? 'Consulta rápida'
+                : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`}
           </h2>
         </div>
         
@@ -2629,7 +3117,7 @@ export default function Consulta() {
             {/* Campo de cliente */}
             <div className={styles.clientFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cliente</label>
+                <label> Cliente</label>
                 {showNewClientForm ? (
                   <div className={styles.newClientForm}>
                     <div className={styles.newClientGrid}>
@@ -2661,8 +3149,8 @@ export default function Consulta() {
                       />
                     </div>
                     <div className={styles.newClientButtons}>
-                      <button type="button" onClick={handleSaveNewClient}>Guardar</button>
-                      <button type="button" onClick={handleNewSearch}>❌ Cancelar</button>
+                      <button type="button" onClick={handleSaveNewClient}> Guardar</button>
+                      <button type="button" onClick={handleNewSearch}> Cancelar</button>
                     </div>
                   </div>
                 ) : (
@@ -2713,7 +3201,7 @@ export default function Consulta() {
             {/* Campo global de cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
+                <label> Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
@@ -2740,6 +3228,35 @@ export default function Consulta() {
                   {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
                     <option key={num} value={num}>
                       {num}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
+                <BedPreferenceFields
+                  value={requirements}
+                  maxGuests={maxGuestCapacity}
+                  onChange={(pref) => {
+                    setRequirements((prev) => ({ ...prev, ...pref }));
+                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Reservado por (también sin cliente) */}
+            <div className={styles.sourceFieldContainer}>
+              <div className={styles.formGroup}>
+                <label>Reservado por:</label>
+                <select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  aria-label="Reservado por"
+                >
+                  <option value="">No especificado</option>
+                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -2754,15 +3271,20 @@ export default function Consulta() {
             {/* Cliente seleccionado */}
             <div className={styles.selectedClientContainer}>
               <div className={styles.formGroup}>
-                <label>Cliente</label>
+                <label> Cliente</label>
                 <div className={styles.selectedClientDisplay}>
-                  <span className={styles.clientName}>
+                  <button
+                    type="button"
+                    className={styles.clientNameLink}
+                    onClick={() => navigate(`/clients/${formData.mainClient.id}`)}
+                    title="Ver perfil del cliente"
+                  >
                     {formData.mainClient.firstName} {formData.mainClient.lastName}
-                  </span>
-                  <button 
-                    type="button" 
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
-                      // Eliminar el cliente de la consulta
+                      // Quitar cliente para poder elegir otro (mantiene la consulta actual)
                       setFormData(prev => ({
                         ...prev,
                         mainClient: {
@@ -2775,12 +3297,14 @@ export default function Consulta() {
                       }));
                       setSearchTerm('');
                       setFilteredClients([]);
-                      setCurrentQueryId(null);
+                      setShowNewClientForm(false);
+                      setLastClientId(null);
                     }}
                     className={styles.removeClientButton}
-                    title="Eliminar cliente de la consulta"
+                    title="Quitar cliente de la consulta"
+                    aria-label="Quitar cliente de la consulta"
                   >
-                    ✕
+                    <FiX aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -2789,7 +3313,7 @@ export default function Consulta() {
             {/* Cantidad de huéspedes */}
             <div className={styles.guestsFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
+                <label> Cantidad de huéspedes</label>
                 <select
                   value={requirements.requiredGuests || 1}
                   onChange={(e) => {
@@ -2820,12 +3344,41 @@ export default function Consulta() {
                   ))}
                 </select>
               </div>
+              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
+                <BedPreferenceFields
+                  value={requirements}
+                  maxGuests={maxGuestCapacity}
+                  onChange={(pref) => {
+                    setRequirements((prev) => ({ ...prev, ...pref }));
+                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Reservado por */}
+            <div className={styles.sourceFieldContainer}>
+              <div className={styles.formGroup}>
+                <label>Reservado por:</label>
+                <select
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  aria-label="Reservado por"
+                >
+                  <option value="">No especificado</option>
+                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Notas globales */}
             <div className={styles.notesFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Notas</label>
+                <label> Notas</label>
                 <textarea
                   className={styles.notesTextarea}
                   value={notes}
@@ -2923,7 +3476,7 @@ export default function Consulta() {
               {/* Tipo de servicio */}
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Tipo de Servicio</label>
+                  <label> Tipo de Servicio</label>
                   <select
                     value={segments[activeBlockIndex]?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')}
                     onChange={(e) => segments[activeBlockIndex] && handleSegmentChange(segments[activeBlockIndex].id, 'serviceType', e.target.value)}
@@ -2944,8 +3497,8 @@ export default function Consulta() {
                   className={styles.expandableHeader}
                   onClick={() => setShowSegments(!showSegments)}
                 >
-                  <label>Requisitos Especiales</label>
-                  <span className={styles.expandIcon}>{showSegments ? '▼' : '▶'}</span>
+                  <label> Requisitos Especiales</label>
+                  <span className={styles.expandIcon}>{showSegments ? '▼' : ''}</span>
                 </button>
                 
                 {showSegments && (
@@ -2953,7 +3506,7 @@ export default function Consulta() {
                     <div className={styles.requirementsFlexContainer}>
                       {/* Habitación Específica */}
                       <div className={styles.formGroup}>
-                        <label>Habitación Específica:</label>
+                        <label> Habitación Específica:</label>
                         <select
                           value={segments[activeBlockIndex]?.requiredRoomId || ''}
                           onChange={(e) => segments[activeBlockIndex] && handleSegmentRoomChange(segments[activeBlockIndex].id, e.target.value)}
@@ -2965,9 +3518,9 @@ export default function Consulta() {
                             fontSize: '14px'
                           }}
                         >
-                          <option value="">No</option>
+                          <option value=""> No</option>
                           {loadingAllRooms ? (
-                            <option disabled>Cargando habitaciones...</option>
+                            <option disabled> Cargando habitaciones...</option>
                           ) : (
                             allRooms
                               .filter(room => room.maxPeople >= (segments[activeBlockIndex]?.requiredGuests || 1))
@@ -2996,7 +3549,7 @@ export default function Consulta() {
                             key={tag.id}
                             type="button"
                             className={`${styles.tagButton} ${
-                              segments[activeBlockIndex]?.requiredTags.includes(tag.id) ? styles.tagSelected : ''
+                              (segments[activeBlockIndex]?.requiredTags || []).includes(tag.id) ? styles.tagSelected : ''
                             }`}
                             onClick={() => segments[activeBlockIndex] && handleSegmentTagToggle(segments[activeBlockIndex].id, tag.id)}
                               disabled={!!segments[activeBlockIndex]?.requiredRoomId}
@@ -3021,7 +3574,7 @@ export default function Consulta() {
                   borderRadius: '6px',
                   color: '#c33'
                 }}>
-                  ⚠️ El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
+                  El periodo solicitado incluye días en los que el establecimiento se encuentra cerrado
                 </div>
               )}
             </div>
@@ -3029,18 +3582,18 @@ export default function Consulta() {
             {/* Habitaciones Disponibles - Se muestran cuando hay resultados de búsqueda */}
             {hasSearchedPerBlock[activeBlockIndex] === true && (
               <>
-              <h3 className={styles.roomsSectionTitle}>Habitaciones Disponibles</h3>
+              <h3 className={styles.roomsSectionTitle}> Habitaciones Disponibles</h3>
               
               {loadingRooms ? (
                 <div className={styles.loading}>
-                  🔍 Buscando habitaciones disponibles...
+                  Buscando habitaciones disponibles...
                     </div>
               ) : (availableRoomsPerBlock[activeBlockIndex] || []).length === 0 ? (
                 <div className={styles.noRooms}>
                   {/* Mostrar mensaje específico si hay disponibilidad parcial, sino mensaje genérico */}
                   {isPartiallyAvailable && availablePeriods.length > 0 ? (
                     <>
-                      <p>El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
+                      <p> El servicio <strong>"{serviceName}"</strong> no está disponible durante todo el período solicitado.</p>
                         
                         <button 
                           onClick={createSegmentsFromAvailablePeriods}
@@ -3056,7 +3609,7 @@ export default function Consulta() {
                           marginTop: '15px'
                           }}
                         >
-                        🔄 Dividir la reserva en tramos
+                        Dividir la reserva en tramos
                         </button>
                         
                         <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#6c757d' }}>
@@ -3064,7 +3617,7 @@ export default function Consulta() {
                         </p>
                     </>
                   ) : (
-                  <p>No se encontraron habitaciones disponibles para los criterios especificados.</p>
+                  <p> No se encontraron habitaciones disponibles para los criterios especificados.</p>
                   )}
                 </div>
               ) : (
@@ -3113,7 +3666,7 @@ export default function Consulta() {
                     
                     return roomsToShow;
                   })().map(({ room, compliance }) => {
-                      const isSelected = selectedRoomsPerBlock[activeBlockIndex] && selectedRoomsPerBlock[activeBlockIndex].id === room.id;
+                      const isSelected = roomsMatch(selectedRoomsPerBlock[activeBlockIndex], room);
                       const showDetails = showRoomDetails[room.id] || false;
                       
                       return (
@@ -3149,15 +3702,31 @@ export default function Consulta() {
                                 <div className={styles.roomDescription}>
                                   {room.description || 'Descripción no disponible'}
                                 </div>
+                                {compliance.bedWarning && (
+                                  <div
+                                    role="status"
+                                    style={{
+                                      marginTop: '6px',
+                                      fontSize: '12px',
+                                      color: '#9a3412',
+                                      background: '#fff7ed',
+                                      border: '1px solid #fed7aa',
+                                      borderRadius: '6px',
+                                      padding: '4px 8px'
+                                    }}
+                                  >
+                                    Aviso camas: {compliance.bedWarning}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             
                             <div className={styles.roomItemRight}>
                               <div className={styles.complianceIndicator} title={compliance.message}>
                                 {compliance.complies ? (
-                                  <span className={styles.complianceCheck}>✓</span>
+                                  <span className={styles.complianceCheck} aria-hidden="true"><FiCheck /></span>
                                 ) : (
-                                  <span className={styles.complianceX}>✗</span>
+                                  <span className={styles.complianceX} aria-hidden="true"><FiX /></span>
                                 )}
                               </div>
                               
@@ -3181,12 +3750,12 @@ export default function Consulta() {
                           
                           {showDetails && (
                             <div className={styles.roomDetailsExpanded}>
-                              <h4>Detalle Tarifario por Día</h4>
+                              <h4> Detalle Tarifario por Día</h4>
                               <div className={styles.dailyRatesTable}>
                                 {room.ratesData && room.ratesData.rates ? (
                                   room.ratesData.rates.map((rate, index) => (
                                     <div key={index} className={styles.dailyRateRow}>
-                                      <span>Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
+                                      <span> Noche del {rate.date.split('T')[0].split('-').reverse().join('/')}</span>
                                       <span>${new Intl.NumberFormat('es-AR').format(rate.serviceRate || rate.baseRate)}</span>
                                     </div>
                                   ))
@@ -3200,7 +3769,7 @@ export default function Consulta() {
                                 <div className={styles.dailyRatesTotal}>
                                   <div className={styles.totalSeparator}></div>
                                   <div className={styles.dailyRateRow}>
-                                    <span><strong>Total:</strong></span>
+                                    <span><strong> Total:</strong></span>
                                     <span><strong>${new Intl.NumberFormat('es-AR').format(room.ratesData.totalAmount)}</strong></span>
                                   </div>
                                 </div>
@@ -3229,19 +3798,64 @@ export default function Consulta() {
             onClick={handleCopyReservationData}
             title="Copiar datos de la consulta al portapapeles"
           >
-            📋 Copiar Datos
+            Copiar Datos
           </button>
 
-          {/* Botón de crear reserva - Solo si hay cliente */}
+          {/* Guardar como Query — solo en flujo de consulta (no edición de reserva) */}
+          {!editingReservationId && (
+            <button
+              type="button"
+              className={styles.draftButton}
+              onClick={handleSaveConsulta}
+              disabled={isSavingConsulta || !formData.mainClient.id}
+              title={
+                !formData.mainClient.id
+                  ? 'Seleccioná un cliente para guardar la consulta'
+                  : 'Guardar datos como consulta recuperable, sin confirmar reserva'
+              }
+            >
+              {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
+            </button>
+          )}
+
+          {editingReservationId && (
+            <label
+              className={styles.rateToggle}
+              title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                color: 'var(--color-text, #333)',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={applyRateChanges}
+                onChange={(e) => setApplyRateChanges(e.target.checked)}
+                data-testid="apply-rate-changes-toggle"
+              />
+              Aplicar cambios de tarifa
+            </label>
+          )}
+
+          {/* Crear o guardar reserva */}
           {formData.mainClient.firstName && formData.mainClient.lastName && (
             <button 
               type="button" 
               className={styles.confirmButton}
               onClick={() => setShowConfirmationModal(true)}
               disabled={!segments.every((_, index) => selectedRoomsPerBlock[index])}
-              title={!segments.every((_, index) => selectedRoomsPerBlock[index]) ? 'Selecciona una habitación para cada segmento' : 'Crear la reserva'}
+              title={
+                !segments.every((_, index) => selectedRoomsPerBlock[index])
+                  ? 'Selecciona una habitación para cada segmento'
+                  : (editingReservationId ? 'Modificar la reserva' : 'Crear la reserva')
+              }
             >
-              ✅ Crear Reserva
+              {editingReservationId ? 'Modificar reserva' : 'Crear Reserva'}
             </button>
           )}
         </div>
@@ -3252,6 +3866,7 @@ export default function Consulta() {
         isOpen={showConfirmationModal}
         onClose={() => setShowConfirmationModal(false)}
         onConfirm={handleCreateReservation}
+        isEditing={Boolean(editingReservationId)}
         reservationData={{
           mainClient: formData.mainClient,
           selectedRoomsPerBlock: selectedRoomsPerBlock,
@@ -3260,7 +3875,8 @@ export default function Consulta() {
           dailyRates: dailyRates,
           tags: tags,
           allRooms: allRooms,
-          notes: notes
+          notes: notes,
+          source: source || null
         }}
         isLoading={isCreatingReservation}
       />
@@ -3288,8 +3904,8 @@ export default function Consulta() {
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '32px' }}>⚠️</div>
-              <h2 style={{ margin: 0, color: '#dc2626' }}>Advertencia: Fecha Pasada</h2>
+              <div style={{ fontSize: '32px' }} aria-hidden="true"><FiAlertTriangle /></div>
+              <h2 style={{ margin: 0, color: '#dc2626' }}> Advertencia: Fecha Pasada</h2>
             </div>
             <p style={{ color: '#6b7280', lineHeight: '1.6', marginBottom: '16px' }}>
               La reserva que estás creando incluye fechas anteriores a hoy. Esto normalmente indica un error.
@@ -3365,6 +3981,8 @@ export default function Consulta() {
         onConfirm={handleConfirmDeleteSegments}
         onCancel={handleCancelDeleteSegments}
       />
+
+      {noticeDialog}
     </div>
   );
 }

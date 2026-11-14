@@ -66,7 +66,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     description: '',
     startDate: '',
     endDate: '',
-    useProportions: false, // Desactivado por defecto para nuevos bloques
     serviceAdjustmentMode: 'PERCENTAGE',
     useBlockServices: false // Nuevo: usar servicios específicos del bloque
   });
@@ -76,50 +75,56 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [blockServiceSelections, setBlockServiceSelections] = useState([]); // Selecciones de servicios del bloque
   const [prices, setPrices] = useState([]); // Precios por habitación y servicio
-  const [roundingConfig, setRoundingConfig] = useState(null);
   
   // Estados para validación
   const [validationErrors, setValidationErrors] = useState({});
 
-  // Función para aplicar redondeo
-  const applyRounding = useCallback((price, config = roundingConfig) => {
-    if (!config || !price) return price;
-    
-    const { multiple, mode } = config;
-    
-    switch (mode) {
-      case 'ceil':
-        return Math.ceil(price / multiple) * multiple;
-      case 'floor':
-        return Math.floor(price / multiple) * multiple;
-      case 'nearest':
-      default:
-        return Math.round(price / multiple) * multiple;
-    }
-  }, [roundingConfig]);
-
   // Función helper para obtener todos los tipos de servicio (habilitados y deshabilitados)
   const getActiveServiceTypes = () => {
-    // Si no hay selecciones, usar los servicios disponibles desde la API
-    if (blockServiceSelections.length === 0) {
-      return serviceTypes.map(serviceType => ({
-        id: serviceType.id,
-        serviceTypeId: serviceType.id,
-        isEnabled: true, // Por defecto habilitados
-        pricingMode: 'PERCENTAGE',
-        value: 0,
-        serviceType: serviceType
+    // Selecciones del bloque = fuente de verdad de columnas
+    if (blockServiceSelections.length > 0) {
+      return blockServiceSelections.map(selection => ({
+        ...selection,
+        serviceType: selection.serviceType || {
+          id: selection.serviceTypeId,
+          name: 'Servicio',
+          description: 'Servicio del bloque'
+        }
       }));
     }
-    
-    // Retornar todos los servicios con su información completa
-    return blockServiceSelections.map(selection => ({
-      ...selection,
-      serviceType: selection.serviceType || {
-        id: selection.serviceTypeId,
-        name: 'Servicio',
-        description: 'Servicio del bloque'
+
+    // Mientras cargan selecciones: derivar columnas desde SeasonPrices ya cargados.
+    // Evita mostrar el catálogo completo (legacy + seed) con celdas a $0.
+    if (prices.length > 0) {
+      const seen = new Set();
+      const derived = [];
+      for (const price of prices) {
+        if (!price?.serviceTypeId || seen.has(price.serviceTypeId)) continue;
+        seen.add(price.serviceTypeId);
+        const serviceType =
+          price.serviceType ||
+          serviceTypes.find(st => st.id === price.serviceTypeId) ||
+          { id: price.serviceTypeId, name: 'Servicio' };
+        derived.push({
+          id: price.serviceTypeId,
+          serviceTypeId: price.serviceTypeId,
+          isEnabled: true,
+          pricingMode: 'PERCENTAGE',
+          value: 0,
+          serviceType
+        });
       }
+      if (derived.length > 0) return derived;
+    }
+
+    // Bloque nuevo sin precios ni selecciones
+    return serviceTypes.map(serviceType => ({
+      id: serviceType.id,
+      serviceTypeId: serviceType.id,
+      isEnabled: true,
+      pricingMode: 'PERCENTAGE',
+      value: 0,
+      serviceType
     }));
   };
 
@@ -292,23 +297,19 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     
     try {
       // Cargar datos básicos en paralelo
-      const [roomTypesRes, serviceTypesRes, roundingConfigRes] = await Promise.all([
+      const [roomTypesRes, serviceTypesRes] = await Promise.all([
         fetch(`${API_URL}/room-types`),
-        fetch(`${API_URL}/service-types?hotelId=${hotelId}`),
-        fetch(`${API_URL}/rounding-config?hotelId=${hotelId}`)
+        fetch(`${API_URL}/service-types?hotelId=${hotelId}`)
       ]);
 
       if (!roomTypesRes.ok) throw new Error('Error al cargar tipos de habitación');
       if (!serviceTypesRes.ok) throw new Error('Error al cargar tipos de servicio');
-      if (!roundingConfigRes.ok) throw new Error('Error al cargar configuración de redondeo');
 
       const roomTypesData = await roomTypesRes.json();
       const serviceTypesData = await serviceTypesRes.json();
-      const roundingConfigData = await roundingConfigRes.json();
 
       setRoomTypes(roomTypesData);
       setServiceTypes(serviceTypesData.data || []);
-      setRoundingConfig(roundingConfigData.data);
 
       // Si hay blockId, cargar datos del bloque
       if (blockId) {
@@ -323,8 +324,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
         console.log('Block data from API:', {
           id: block.id,
           name: block.name,
-          serviceAdjustmentMode: block.serviceAdjustmentMode,
-          useProportions: block.useProportions
+          serviceAdjustmentMode: block.serviceAdjustmentMode
         });
         
         // Limpiar la descripción de textos automáticos no deseados
@@ -343,7 +343,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           description: cleanDescription(block.description),
           startDate: new Date(block.startDate).toISOString().split('T')[0],
           endDate: new Date(block.endDate).toISOString().split('T')[0],
-          useProportions: block.useProportions,
           serviceAdjustmentMode: block.serviceAdjustmentMode,
           useBlockServices: block.useBlockServices || false
         });
@@ -402,20 +401,29 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           setPrices(block.seasonPrices || []);
         }
 
-        // Cargar selecciones de servicios del bloque
+        // Preferir selecciones ya incluidas en GET /season-blocks/:id (evita carrera con []).
+        if (Array.isArray(block.blockServiceSelections) && block.blockServiceSelections.length > 0) {
+          setBlockServiceSelections(block.blockServiceSelections);
+        }
+
+        // Refresco opcional desde el endpoint dedicado
         try {
           const blockServiceSelectionsRes = await fetch(`${API_URL}/block-service-selections/block/${blockId}`);
           if (blockServiceSelectionsRes.ok) {
             const blockServiceSelectionsData = await blockServiceSelectionsRes.json();
-            setBlockServiceSelections(blockServiceSelectionsData);
-          } else {
-            // Si no hay selecciones, inicializar por defecto
+            if (Array.isArray(blockServiceSelectionsData) && blockServiceSelectionsData.length > 0) {
+              setBlockServiceSelections(blockServiceSelectionsData);
+            } else if (!block.blockServiceSelections?.length) {
+              initializeDefaultServiceSelections(serviceTypesData.data || []);
+            }
+          } else if (!block.blockServiceSelections?.length) {
             initializeDefaultServiceSelections(serviceTypesData.data || []);
           }
         } catch (err) {
           console.error('Error loading block service selections:', err);
-          // Si hay error, inicializar por defecto
-          initializeDefaultServiceSelections(serviceTypesData.data || []);
+          if (!block.blockServiceSelections?.length) {
+            initializeDefaultServiceSelections(serviceTypesData.data || []);
+          }
         }
       } else {
         // Inicializar datos por defecto para nuevo bloque
@@ -655,7 +663,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       description: formData.description || '',
       startDate: formData.startDate || '',
       endDate: formData.endDate || '',
-      useProportions: formData.useProportions,
       serviceAdjustmentMode: formData.serviceAdjustmentMode,
       useBlockServices: formData.useBlockServices
     };
@@ -821,213 +828,32 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     console.log('Form data updated - manual save required');
   };
 
-  // Actualizar precio de una habitación-servicio con proporciones inteligentes y guardado automático
-  const updatePrice = (roomTypeId, serviceTypeId, newPrice, applyProportions = true) => {
-    console.log('=== UPDATE PRICE CALLED ===');
-    console.log('roomTypeId:', roomTypeId);
-    console.log('serviceTypeId:', serviceTypeId);
-    console.log('newPrice:', newPrice);
-    console.log('applyProportions:', applyProportions);
-    console.log('formData.useProportions:', formData.useProportions);
-    
+  // Actualizar precio de una habitación-servicio (solo ingreso manual; sin proporciones entre tipos)
+  const updatePrice = (roomTypeId, serviceTypeId, newPrice) => {
     const numericPrice = parseFloat(newPrice) || 0;
-    
-    // Si las proporciones están desactivadas, solo actualizar el precio específico
-    if (!formData.useProportions || !applyProportions) {
-      setPrices(prev => {
-        const existingPriceIndex = prev.findIndex(p => 
-          p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
-        );
-        
-        if (existingPriceIndex >= 0) {
-          const updated = [...prev];
-          updated[existingPriceIndex] = { ...updated[existingPriceIndex], basePrice: numericPrice };
-          
-          // Si se está actualizando la tarifa base (Solo Alojamiento), actualizar automáticamente los servicios con porcentaje
-          const baseService = serviceTypes.find(st => 
-            st.name.toLowerCase().includes('solo') || 
-            st.name.toLowerCase().includes('alojamiento')
-          );
-          
-          if (baseService && serviceTypeId === baseService.id) {
-            console.log('=== UPDATING BASE PRICE - RECALCULATING PERCENTAGE SERVICES ===');
-            console.log('Base service updated:', baseService.name);
-            console.log('New base price:', numericPrice);
-            console.log('Block service selections:', blockServiceSelections);
-            
-            // Actualizar los precios de servicios con porcentaje para este tipo de habitación
-            const servicesWithPercentage = blockServiceSelections.filter(selection => 
-              selection.isEnabled && selection.percentageAdjustment && selection.percentageAdjustment !== 0
-            );
-            
-            console.log('Services with percentage to update:', servicesWithPercentage);
-            
-            servicesWithPercentage.forEach(selection => {
-              const percentagePrice = Math.round(numericPrice * (1 + selection.percentageAdjustment / 100));
-              console.log(`Updating ${selection.serviceTypeId} with percentage ${selection.percentageAdjustment}%: ${percentagePrice}`);
-              
-              const servicePriceIndex = updated.findIndex(p => 
-                p.roomTypeId === roomTypeId && p.serviceTypeId === selection.serviceTypeId
-              );
-              
-              if (servicePriceIndex >= 0) {
-                updated[servicePriceIndex] = { 
-                  ...updated[servicePriceIndex], 
-                  basePrice: percentagePrice 
-                };
-              } else {
-                // Si no existe el precio, crearlo
-                const serviceType = serviceTypes.find(st => st.id === selection.serviceTypeId);
-                const roomType = roomTypes.find(rt => rt.id === roomTypeId);
-                updated.push({
-                  roomTypeId,
-                  serviceTypeId: selection.serviceTypeId,
-                  basePrice: percentagePrice,
-                  roomType,
-                  serviceType
-                });
-              }
-            });
-          }
-          
-          return updated;
-        } else {
-          const roomType = roomTypes.find(rt => rt.id === roomTypeId);
-          const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
-          
-          return [...prev, {
-            roomTypeId,
-            serviceTypeId,
-            basePrice: numericPrice,
-            roomType,
-            serviceType
-          }];
-        }
-      });
-      
-      // No auto-guardado - los cambios se guardarán manualmente
-      console.log('Price updated - manual save required');
-      
-      return;
-    }
 
-    // LÓGICA SIMPLIFICADA DE PROPORCIONES
-    
-    // 1. Calcular el precio base del precio editado
-            const serviceAdjustment = getActiveServiceAdjustments().find(adj => adj.serviceTypeId === serviceTypeId);
-    let newBasePrice = numericPrice;
-    
-    if (serviceAdjustment && serviceAdjustment.value) {
-      if (serviceAdjustment.mode === 'FIXED') {
-        newBasePrice = numericPrice - serviceAdjustment.value;
-      } else if (serviceAdjustment.mode === 'PERCENTAGE') {
-        newBasePrice = numericPrice / (1 + serviceAdjustment.value / 100);
-      }
-    }
-    
-
-
-    // 2. Obtener el precio base anterior del tipo de habitación editado
-    const baseServiceType = serviceTypes.find(st => 
-      st.name.toLowerCase().includes('base') || 
-      st.name.toLowerCase().includes('solo') ||
-      st.name.toLowerCase().includes('habitación')
-    ) || serviceTypes[0];
-    
-    const previousBasePrice = prices.find(p => 
-      p.roomTypeId === roomTypeId && p.serviceTypeId === baseServiceType.id
-    )?.basePrice || 0;
-
-    // 3. Calcular el factor de cambio
-    const changeFactor = previousBasePrice > 0 ? newBasePrice / previousBasePrice : 1;
-
-    // 4. Aplicar el factor de cambio a TODOS los tipos de habitación
     setPrices(prev => {
-      
-      const updated = [];
-      
-      roomTypes.forEach(roomType => {
-        serviceTypes.forEach(serviceType => {
-          const existingPrice = prev.find(p => 
-            p.roomTypeId === roomType.id && p.serviceTypeId === serviceType.id
-          );
-          
-          let finalBasePrice;
-          
-          if (roomType.id === roomTypeId) {
-            // Para el tipo de habitación editado, usar el nuevo precio base
-            const serviceAdj = getActiveServiceAdjustments().find(adj => adj.serviceTypeId === serviceType.id);
-            finalBasePrice = newBasePrice;
-            
-            if (serviceAdj && serviceAdj.value) {
-              if (serviceAdj.mode === 'FIXED') {
-                finalBasePrice = newBasePrice + serviceAdj.value;
-              } else if (serviceAdj.mode === 'PERCENTAGE') {
-                finalBasePrice = newBasePrice * (1 + serviceAdj.value / 100);
-              }
-            }
-            
+      const existingPriceIndex = prev.findIndex(p =>
+        p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
+      );
 
-          } else {
-            // Para otros tipos de habitación, aplicar el factor de cambio
-            const currentBasePrice = existingPrice?.basePrice || 0;
-            const serviceAdj = getActiveServiceAdjustments().find(adj => adj.serviceTypeId === serviceType.id);
-            
-            // Calcular el precio base actual (sin ajustes de servicio)
-            let currentBase = currentBasePrice;
-            if (serviceAdj && serviceAdj.value) {
-              if (serviceAdj.mode === 'FIXED') {
-                currentBase = currentBasePrice - serviceAdj.value;
-              } else if (serviceAdj.mode === 'PERCENTAGE') {
-                currentBase = currentBasePrice / (1 + serviceAdj.value / 100);
-              }
-            }
-            
-            // Aplicar el factor de cambio al precio base
-            const newBase = currentBase * changeFactor;
-            
-            // Aplicar ajustes de servicio al nuevo precio base
-            finalBasePrice = newBase;
-            if (serviceAdj && serviceAdj.value) {
-              if (serviceAdj.mode === 'FIXED') {
-                finalBasePrice = newBase + serviceAdj.value;
-              } else if (serviceAdj.mode === 'PERCENTAGE') {
-                finalBasePrice = newBase * (1 + serviceAdj.value / 100);
-              }
-            }
-            
-
-          }
-          
-          updated.push({
-            roomTypeId: roomType.id,
-            serviceTypeId: serviceType.id,
-            basePrice: Math.round(finalBasePrice * 100) / 100,
-            roomType,
-            serviceType
-          });
-        });
-      });
-      
-      console.log('=== PRICES STATE UPDATED ===');
-      console.log('New prices state will be set with the updated prices');
-      console.log('Updated prices array:', updated);
-      
-      // Activar auto-guardado después de actualizar precios
-      if (blockId) {
-        if (saveTimeout) {
-          clearTimeout(saveTimeout);
-        }
-        const newTimeout = setTimeout(autoSave, 2000); // Guardar después de 2 segundos de inactividad
-        setSaveTimeout(newTimeout);
+      if (existingPriceIndex >= 0) {
+        const updated = [...prev];
+        updated[existingPriceIndex] = { ...updated[existingPriceIndex], basePrice: numericPrice };
+        return updated;
       }
-      
-      return updated;
-    });
 
-    // Guardado automático con debounce
-    // No auto-guardado - los cambios se guardarán manualmente
-    console.log('Service adjustment updated - manual save required');
+      const roomType = roomTypes.find(rt => rt.id === roomTypeId);
+      const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
+
+      return [...prev, {
+        roomTypeId,
+        serviceTypeId,
+        basePrice: numericPrice,
+        roomType,
+        serviceType
+      }];
+    });
   };
 
 
@@ -1091,7 +917,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
             
             if (newPrice !== undefined) {
               console.log(`Recalculando precio para ${roomType.name}: ${newPrice} (modo: ${value})`);
-              updatePrice(roomType.id, serviceTypeId, newPrice, false); // No aplicar proporciones
+              updatePrice(roomType.id, serviceTypeId, newPrice);
             }
           }
         });
@@ -1119,7 +945,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
             
             if (basePrice > 0) {
               const newPrice = basePrice * (1 + numericValue / 100);
-              updatePrice(roomType.id, serviceTypeId, newPrice, false); // No aplicar proporciones
+              updatePrice(roomType.id, serviceTypeId, newPrice);
             }
           });
         }
@@ -1136,7 +962,7 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     }
   };
 
-  // Obtener precio con ajustes y redondeo
+  // Obtener precio con ajustes (sin redondeo)
   const getCalculatedPrice = (roomTypeId, serviceTypeId) => {
     const basePrice = prices.find(p => 
       p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
@@ -1155,13 +981,11 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
       }
     }
 
-    const roundedPrice = applyRounding(finalPrice);
-    
     return {
       basePrice,
       adjustedPrice: finalPrice,
-      roundedPrice,
-      wasRounded: Math.abs(finalPrice - roundedPrice) > 0.01,
+      roundedPrice: finalPrice, // alias histórico
+      wasRounded: false,
       adjustment
     };
   };
@@ -1295,7 +1119,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
           description: cleanDescription(block.description),
           startDate: new Date(block.startDate).toISOString().split('T')[0],
           endDate: new Date(block.endDate).toISOString().split('T')[0],
-          useProportions: block.useProportions,
           serviceAdjustmentMode: block.serviceAdjustmentMode,
           useBlockServices: block.useBlockServices || false
         });
@@ -1339,7 +1162,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     serviceTypes,
     prices,
     blockServiceSelections,
-    roundingConfig,
     validationErrors,
     
     // Funciones
@@ -1353,7 +1175,6 @@ export const useSeasonBlockV2 = (blockId, hotelId = 'default-hotel') => {
     deleteSeasonBlock,
     cloneSeasonBlock,
     setError,
-    applyRounding,
     getActiveServiceTypes,
     getActiveServiceAdjustments,
     initializePricesForNewService,

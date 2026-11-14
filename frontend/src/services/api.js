@@ -55,6 +55,30 @@ export async function fetchReservations() {
   return res.json();
 }
 
+/** Calendario Libro de Reservas: ventana civil start + days. */
+export async function fetchCalendar(start, days) {
+  const params = new URLSearchParams({
+    start,
+    days: String(days)
+  });
+  const res = await fetch(`${API_URL}/calendar?${params}`);
+  if (!res.ok) {
+    let msg = 'Error fetching calendar';
+    try {
+      const body = await res.json();
+      msg = body.error || msg;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function fetchReservation(id) {
+  const res = await fetch(`${API_URL}/reservations/${id}`);
+  if (!res.ok) throw new Error('Error fetching reservation');
+  return res.json();
+}
+
 export async function fetchClients() {
   const res = await fetch(`${API_URL}/clients`);
   if (!res.ok) throw new Error('Error fetching clients');
@@ -85,7 +109,21 @@ export async function updateReservation(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating reservation');
+  if (!res.ok) {
+    let message = 'Error updating reservation';
+    try {
+      const err = await res.json();
+      message = err.error || err.message || message;
+      if (Array.isArray(err.details) && err.details.length) {
+        message = `${message}: ${err.details.join('; ')}`;
+      } else if (err.details) {
+        message = `${message}: ${err.details}`;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -96,6 +134,13 @@ export async function updateReservationStatus(id, status) {
     body: JSON.stringify({ status })
   });
   if (!res.ok) throw new Error('Error updating reservation status');
+  return res.json();
+}
+
+/** Estados canónicos desde el backend (enum Prisma / constant BE) */
+export async function fetchReservationStatuses() {
+  const res = await fetch(`${API_URL}/reservations/statuses`);
+  if (!res.ok) throw new Error('Error fetching reservation statuses');
   return res.json();
 }
 
@@ -132,12 +177,27 @@ export async function createReservation(data) {
   return res.json();
 }
 
-export async function deleteReservation(id) {
-  const res = await fetch(`${API_URL}/reservations/${id}`, {
-    method: 'DELETE'
+export async function deleteReservation(id, { confirmFinancialWipe = false } = {}) {
+  const qs = confirmFinancialWipe ? '?confirmFinancial=true' : '';
+  const res = await fetch(`${API_URL}/reservations/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
   });
-  if (!res.ok) throw new Error('Error deleting reservation');
-  return res.ok;
+  if (res.status === 204) return true;
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (res.status === 409 && body?.code === 'ACCOUNT_HAS_FINANCIALS') {
+    const err = new Error(body.warning || body.error || 'La cuenta tiene pagos o cargos');
+    err.code = body.code;
+    err.financial = body.financial;
+    err.requiresConfirm = true;
+    throw err;
+  }
+  throw new Error(body?.error || 'Error deleting reservation');
 }
 
 export async function updateClient(id, data) {
@@ -200,6 +260,31 @@ export async function getClientBalance(clientId) {
   return res.json();
 }
 
+export async function getClientBillingProfile(clientId) {
+  const res = await fetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error fetching billing profile');
+  }
+  return res.json();
+}
+
+export async function upsertClientBillingProfile(clientId, data) {
+  const res = await fetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error saving billing profile');
+  }
+  return res.json();
+}
+
 // Funciones para tarifas diarias
 export const getRates = async (filters = {}) => {
   const params = new URLSearchParams();
@@ -256,7 +341,10 @@ export async function createClient(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creating client');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || errorData.details || 'Error creating client');
+  }
   return res.json();
 }
 
@@ -266,7 +354,10 @@ export async function updateRoomOnServer(id, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating room');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error updating room');
+  }
   return res.json();
 }
 
@@ -276,7 +367,10 @@ export async function createRoom(data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creando habitación');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error creando habitación');
+  }
   return res.json();
 }
 
@@ -686,10 +780,32 @@ export async function updateQuery(id, data) {
 
 export async function deleteQuery(id) {
   const res = await fetch(`${API_URL}/queries/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    credentials: 'include'
   });
   if (!res.ok) throw new Error('Error deleting query');
   return res.ok;
+}
+
+/** Elimina todas las consultas. Requiere confirmación en backend. */
+export async function deleteAllQueries() {
+  const res = await fetch(`${API_URL}/queries/all`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'LIMPIAR_TODAS' })
+  });
+  if (!res.ok) {
+    let message = 'Error al limpiar las consultas';
+    try {
+      const data = await res.json();
+      message = data.message || data.error || message;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 export async function convertQueryToReservation(id) {
@@ -712,10 +828,233 @@ export async function getReservationFinancialSummary(reservaId) {
   return res.json();
 }
 
-// Obtener todas las reservas con saldos
+// Obtener todas las reservas con saldos (alias Account RESERVATION)
 export async function getReservationsWithBalances() {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`);
-  if (!res.ok) throw new Error('Error fetching reservations with balances');
+  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore parse errors
+    }
+    const suffix = details ? `: ${details}` : ` (${res.status})`;
+    throw new Error(`Error fetching reservations with balances${suffix}`);
+  }
+  return res.json();
+}
+
+/** Accounts con saldos (RESERVATION + EXTERNAL). kind: ALL|RESERVATION|EXTERNAL */
+export async function getAccountsWithBalances(kind = 'ALL') {
+  const qs = kind && kind !== 'ALL' ? `?kind=${encodeURIComponent(kind)}` : '';
+  const res = await fetch(`${API_URL}/accounts/saldos${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore
+    }
+    throw new Error(`Error fetching accounts with balances${details ? `: ${details}` : ''}`);
+  }
+  return res.json();
+}
+
+/** Reservas activas para el Select del modal Nuevo pago (incluye futuras / señas). */
+export async function fetchReservasParaPago() {
+  const res = await fetch(`${API_URL}/reservation-payments/reservas-para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar reservas para pago');
+  }
+  return res.json();
+}
+
+/** Cuentas para cobro: reservas activas + externas OPEN. */
+export async function fetchCuentasParaPago() {
+  const res = await fetch(`${API_URL}/accounts/para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar cuentas para pago');
+  }
+  return res.json();
+}
+
+export async function createExternalAccount(data) {
+  const res = await fetch(`${API_URL}/accounts/external`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando cuenta externa');
+  }
+  return res.json();
+}
+
+export async function createAccountPago(accountId, data) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creating pago');
+  }
+  return res.json();
+}
+
+export async function fetchPaymentMethodConfigs({ all = false } = {}) {
+  const qs = all ? '?all=1' : '';
+  const res = await fetch(`${API_URL}/payment-method-configs${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando medios de pago');
+  }
+  return res.json();
+}
+
+export async function updatePaymentMethodConfig(id, data) {
+  const res = await fetch(`${API_URL}/payment-method-configs/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error actualizando medio de pago');
+  }
+  return res.json();
+}
+
+export async function createPaymentMethodConfig(data) {
+  const res = await fetch(`${API_URL}/payment-method-configs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando medio de pago');
+  }
+  return res.json();
+}
+
+export async function fetchPromotionRules({ all = false, layer } = {}) {
+  const params = new URLSearchParams();
+  if (all) params.set('all', '1');
+  if (layer) params.set('layer', layer);
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await fetch(`${API_URL}/promotion-rules${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando promociones');
+  }
+  return res.json();
+}
+
+export async function createPromotionRule(data) {
+  const res = await fetch(`${API_URL}/promotion-rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando promoción');
+  }
+  return res.json();
+}
+
+export async function updatePromotionRule(id, data) {
+  const res = await fetch(`${API_URL}/promotion-rules/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error actualizando promoción');
+  }
+  return res.json();
+}
+
+export async function deletePromotionRule(id) {
+  const res = await fetch(`${API_URL}/promotion-rules/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error desactivando promoción');
+  }
+  return res.json();
+}
+
+export async function previewPromotion(data) {
+  const res = await fetch(`${API_URL}/promotion-rules/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error en preview de promoción');
+  }
+  return res.json();
+}
+
+export async function fetchAccountResumen(accountId) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/resumen`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando resumen de cuenta');
+  }
+  return res.json();
+}
+
+export async function fetchAccountPagos(accountId) {
+  const res = await fetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando pagos de la cuenta');
+  }
+  return res.json();
+}
+
+// Historial global de pagos
+export async function getAllPagos() {
+  const res = await fetch(`${API_URL}/reservation-payments/pagos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching payment history');
   return res.json();
 }
 
@@ -731,6 +1070,7 @@ export async function createPago(reservaId, data) {
   const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -745,6 +1085,7 @@ export async function updatePago(pagoId, data) {
   const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -764,6 +1105,76 @@ export async function deletePago(pagoId) {
     throw new Error(error.error || 'Error deleting pago');
   }
   return res.json();
+}
+
+/** Sube adjuntos FACTURA (PDF) o COMPROBANTE (JPG/PNG/PDF) a un pago. */
+export async function uploadPagoAdjuntos(pagoId, tipo, files) {
+  const form = new FormData();
+  for (const file of files) {
+    form.append('files', file);
+  }
+  const res = await fetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${encodeURIComponent(tipo)}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      body: form
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error subiendo adjuntos';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export function getPagoAdjuntoDownloadUrl(pagoId, adjuntoId) {
+  return `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}/download`;
+}
+
+export async function deletePagoAdjunto(pagoId, adjuntoId) {
+  const res = await fetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}`,
+    {
+      method: 'DELETE',
+      credentials: 'include'
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error eliminando adjunto';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
+  const res = await fetch(getPagoAdjuntoDownloadUrl(pagoId, adjuntoId), {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    throw new Error('Error descargando adjunto');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename || `adjunto-${adjuntoId}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 // Cargos - Obtener todos los cargos de una reserva
@@ -809,6 +1220,243 @@ export async function deleteCargo(cargoId) {
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error deleting cargo');
+  }
+  return res.json();
+}
+
+// ============================================
+// Menú de consumos / comanda POS
+// ============================================
+
+export async function fetchMenuItems({ category, q, active } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (q) params.set('q', q);
+  if (active === true) params.set('active', 'true');
+  if (active === false) params.set('active', 'false');
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar el menú');
+  }
+  return res.json();
+}
+
+export async function createMenuItem(data) {
+  const res = await fetch(`${API_URL}/menu-items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear ítem');
+  }
+  return res.json();
+}
+
+export async function updateMenuItem(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar ítem');
+  }
+  return res.json();
+}
+
+export async function toggleMenuItem(id) {
+  const res = await fetch(`${API_URL}/menu-items/${id}/toggle`, {
+    method: 'PUT',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del ítem');
+  }
+  return res.json();
+}
+
+/** Baja lógica (desactiva). Pasá { hard: true } solo para borrado físico excepcional. */
+export async function deleteMenuItem(id, { hard = false } = {}) {
+  const qs = hard ? '?hard=true' : '';
+  const res = await fetch(`${API_URL}/menu-items/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al desactivar ítem');
+  }
+  return res.json();
+}
+
+export async function fetchMenuCategories() {
+  const res = await fetch(`${API_URL}/menu-items/categories`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar categorías del menú');
+  }
+  return res.json();
+}
+
+export async function fetchMenuGroups({ includeInactive = false } = {}) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set('includeInactive', 'true');
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items/groups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar grupos del menú');
+  }
+  return res.json();
+}
+
+export async function createMenuGroup(data) {
+  const res = await fetch(`${API_URL}/menu-items/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear grupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuGroup(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar grupo');
+  }
+  return res.json();
+}
+
+export async function toggleMenuGroup(id) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}/toggle`, {
+    method: 'PUT',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del grupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuGroup(id) {
+  const res = await fetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar grupo');
+  }
+  return res.json();
+}
+
+export async function fetchMenuSubgroups({ category } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/menu-items/subgroups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar subgrupos');
+  }
+  return res.json();
+}
+
+export async function createMenuSubgroup(data) {
+  const res = await fetch(`${API_URL}/menu-items/subgroups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear subgrupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuSubgroup(id, data) {
+  const res = await fetch(`${API_URL}/menu-items/subgroups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar subgrupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuSubgroup(id, { clearItems = false } = {}) {
+  const qs = clearItems ? '?clearItems=true' : '';
+  const res = await fetch(`${API_URL}/menu-items/subgroups/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar subgrupo');
+  }
+  return res.json();
+}
+
+/** Reservas ocupadas en una fecha civil YYYY-MM-DD (default: hoy en el backend). */
+export async function fetchOccupiedRoomsToday(date) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_URL}/consumptions/occupied-rooms${qs ? `?${qs}` : ''}`,
+    { credentials: 'include' }
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar reservas ocupadas');
+  }
+  return res.json();
+}
+
+export async function createConsumptionOrder(data) {
+  const res = await fetch(`${API_URL}/consumptions/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al cargar el consumo');
   }
   return res.json();
 }
@@ -911,6 +1559,68 @@ export async function getTipoCambioActual() {
   return res.json();
 }
 
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchAuditLogs(params = {}) {
+  const res = await fetch(`${API_URL}/audit-logs${buildQuery(params)}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar auditoría');
+  }
+  return res.json();
+}
+
+export async function fetchAuditLogById(id) {
+  const res = await fetch(`${API_URL}/audit-logs/${id}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar registro');
+  }
+  return res.json();
+}
+
+export async function fetchAuditEntities() {
+  const res = await fetch(`${API_URL}/audit-logs/meta/entities`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar entidades');
+  }
+  return res.json();
+}
+
+export async function getReservationCheckIn(reservationId) {
+  const res = await fetch(`${API_URL}/reservations/${reservationId}/check-in`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Error al obtener check-in');
+  }
+  return res.json();
+}
+
+export async function sendReservationCheckIn(reservationId, payload = {}) {
+  const res = await fetch(`${API_URL}/reservations/${reservationId}/check-in/send`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Error al enviar check-in');
+  }
+  return data;
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
@@ -928,6 +1638,8 @@ export default {
   createPayment,
   createConsumptionCharge,
   getClientBalance,
+  getClientBillingProfile,
+  upsertClientBillingProfile,
   getRates,
   createRates,
   updateRate,
@@ -961,15 +1673,26 @@ export default {
   createQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
+  getAllPagos,
   getPagosByReserva,
   createPago,
   updatePago,
   deletePago,
+  uploadPagoAdjuntos,
+  deletePagoAdjunto,
+  getPagoAdjuntoDownloadUrl,
+  downloadPagoAdjunto,
   getCargosByReserva,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  fetchAuditLogs,
+  fetchAuditLogById,
+  fetchAuditEntities,
+  getReservationCheckIn,
+  sendReservationCheckIn
 };

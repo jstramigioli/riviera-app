@@ -1063,7 +1063,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         fontSize: '16px',
         color: '#6c757d'
       }}>
-        <div>🔄 Cargando calendario...</div>
+        <div> Cargando calendario...</div>
       </div>
     );
   }
@@ -1117,7 +1117,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
             </tr>
             {dynamicPricingConfig?.enabled && (
               <tr>
-                <th className={styles.occupancyHeader}>Ocupación</th>
+                <th className={styles.occupancyHeader}> Ocupación</th>
                 {days.map((day, colIndex) => {
                   const occupancyScore = occupancyScores[day.toISOString()];
                   const isClosed = isDayClosed(day);

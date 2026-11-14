@@ -1,9 +1,26 @@
 const prisma = require('../utils/prisma');
+const { aggregateReservationsBalance } = require('../utils/reservationBalance');
+const { aggregateAccountsBalance } = require('../utils/accountBalance');
+const { DEFAULT_IVA_CONDITION } = require('../utils/billingConstants');
 
-// Listar todos los clientes
+function normalizeBillingString(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
+function normalizePlate(value) {
+  if (value == null) return null;
+  const cleaned = String(value).trim().toUpperCase().replace(/\s+/g, '');
+  return cleaned || null;
+}
+
+// Listar todos los clientes (incluye createdAt/updatedAt para comparaciones temporales)
 exports.getAllClients = async (req, res) => {
   try {
-    const clients = await prisma.client.findMany();
+    const clients = await prisma.client.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(clients);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching clients' });
@@ -28,7 +45,7 @@ exports.getClientById = async (req, res) => {
 
 // Crear un cliente
 exports.createClient = async (req, res) => {
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
@@ -39,28 +56,34 @@ exports.createClient = async (req, res) => {
   }
   
   try {
-    const newClient = await prisma.client.create({
-      data: { 
-        firstName, 
-        lastName, 
-        email: email || null, 
-        phone: phone || null, 
-        documentType: documentType || 'DNI',
-        documentNumber: documentNumber || null,
-        country: country || null,
-        province: province || null,
-        city: city || null,
-        notes: notes || null,
-        wantsPromotions: wantsPromotions || false
-      }
-    });
+    const data = {
+      firstName,
+      lastName,
+      email: email || null,
+      phone: phone || null,
+      documentType: documentType || 'DNI',
+      documentNumber: documentNumber || null,
+      country: country || null,
+      province: province || null,
+      city: city || null,
+      notes: notes || null,
+      wantsPromotions: wantsPromotions || false
+    };
+    // Solo incluir patente si vino en el body (evita romper creates legacy / client Prisma stale).
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'vehiclePlate')) {
+      data.vehiclePlate = normalizePlate(vehiclePlate);
+    }
+
+    const newClient = await prisma.client.create({ data });
     res.status(201).json(newClient);
   } catch (error) {
     console.error('Error creating client:', error);
     console.error('Request body:', req.body);
-    res.status(500).json({ 
+    const details = process.env.NODE_ENV !== 'production' ? error.message : undefined;
+    res.status(500).json({
       error: 'Error creating client',
-      details: process.env.NODE_ENV !== 'production' ? error.message : undefined
+      message: details || 'Error creating client',
+      details
     });
   }
 };
@@ -68,7 +91,7 @@ exports.createClient = async (req, res) => {
 // Actualizar un cliente
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
@@ -93,6 +116,7 @@ exports.updateClient = async (req, res) => {
         ...(province !== undefined && { province }),
         ...(city !== undefined && { city }),
         ...(notes !== undefined && { notes }),
+        ...(vehiclePlate !== undefined && { vehiclePlate: normalizePlate(vehiclePlate) }),
         ...(wantsPromotions !== undefined && { wantsPromotions })
       }
     });
@@ -118,42 +142,156 @@ exports.deleteClient = async (req, res) => {
   }
 };
 
-// Calcular balance de un cliente
-exports.getClientBalance = async (req, res) => {
+/** Prefill de facturación: perfil de billing (si hay) + defaults del cliente. */
+exports.getClientBillingProfile = async (req, res) => {
   const { id } = req.params;
   try {
+    const clientId = parseInt(id, 10);
     const client = await prisma.client.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        reservations: true
+      where: { id: clientId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        documentType: true,
+        documentNumber: true,
+        city: true,
+        province: true,
+        country: true,
+        billingProfile: true
       }
     });
-    
+
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    // Calcular total de cargos (reservas)
-    const totalCharges = client.reservations
-      .filter(r => r.status !== 'cancelled')
-      .reduce((sum, r) => sum + r.totalAmount, 0);
+    const profile = client.billingProfile;
+    const addressFallback = [client.city, client.province, client.country]
+      .filter(Boolean)
+      .join(', ');
 
-    // Por ahora asumimos que no hay pagos registrados para clientes
-    // En el futuro esto se conectará con el sistema de pagos
-    const totalPayments = 0;
+    res.json({
+      clientId: client.id,
+      lastInvoiceType: profile?.lastInvoiceType || 'B',
+      firstName: profile?.firstName || client.firstName || '',
+      lastName: profile?.lastName || client.lastName || '',
+      documentType: profile?.documentType || client.documentType || 'DNI',
+      documentNumber: profile?.documentNumber || client.documentNumber || '',
+      address: profile?.address || addressFallback || '',
+      email: profile?.email || client.email || '',
+      businessName: profile?.businessName || '',
+      cuit: profile?.cuit || '',
+      commercialAddress: profile?.commercialAddress || profile?.address || addressFallback || '',
+      ivaCondition: profile?.ivaCondition || DEFAULT_IVA_CONDITION,
+      cardNumber: profile?.cardNumber || '',
+      hasSavedProfile: Boolean(profile)
+    });
+  } catch (error) {
+    console.error('Error fetching client billing profile:', error);
+    res.status(500).json({ error: 'Error fetching billing profile' });
+  }
+};
 
-    // Balance = cargos - pagos
-    const balance = totalCharges - totalPayments;
+exports.upsertClientBillingProfile = async (req, res) => {
+  const { id } = req.params;
+  const body = req.body || {};
+  try {
+    const clientId = parseInt(id, 10);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const data = {
+      lastInvoiceType: normalizeBillingString(body.lastInvoiceType || body.tipo),
+      firstName: normalizeBillingString(body.firstName || body.nombre),
+      lastName: normalizeBillingString(body.lastName || body.apellido),
+      documentType: normalizeBillingString(body.documentType || body.tipoDocumento),
+      documentNumber: normalizeBillingString(body.documentNumber || body.numeroDocumento),
+      address: normalizeBillingString(body.address || body.domicilio),
+      email: normalizeBillingString(body.email),
+      businessName: normalizeBillingString(body.businessName || body.razonSocial),
+      cuit: normalizeBillingString(body.cuit),
+      commercialAddress: normalizeBillingString(
+        body.commercialAddress || body.domicilioComercial
+      ),
+      ivaCondition:
+        normalizeBillingString(body.ivaCondition || body.condicionIva) ||
+        DEFAULT_IVA_CONDITION,
+      cardNumber: normalizeBillingString(body.cardNumber || body.tarjetaNumero)
+    };
+
+    const profile = await prisma.clientBillingProfile.upsert({
+      where: { clientId },
+      create: { clientId, ...data },
+      update: data
+    });
+
+    res.json(profile);
+  } catch (error) {
+    console.error('Error upserting client billing profile:', error);
+    res.status(500).json({ error: 'Error saving billing profile' });
+  }
+};
+
+// Balance total del cliente: Accounts RESERVATION (excl. canceladas) + EXTERNAL del titular.
+exports.getClientBalance = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const clientId = parseInt(id, 10);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      include: {
+        reservations: {
+          include: {
+            cargos: true,
+            pagos: true,
+          },
+        },
+        accounts: {
+          include: {
+            reservation: { select: { id: true, status: true } },
+            cargos: { select: { monto: true } },
+            pagos: { select: { montoARS: true } },
+            discountApplications: { select: { montoARS: true } },
+          },
+        },
+      },
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    // Preferir Accounts; fallback legacy a reservations si aún no hay folio.
+    const accounts = (client.accounts || []).map((account) => ({
+      ...account,
+      reservationId: account.reservationId || account.reservation?.id || null,
+    }));
+
+    const byAccount = aggregateAccountsBalance(accounts);
+    const byReservation = aggregateReservationsBalance(client.reservations);
+    const useAccounts = accounts.length > 0;
 
     res.json({
       clientId: client.id,
       clientName: `${client.firstName} ${client.lastName}`,
-      totalCharges,
-      totalPayments,
-      balance,
-      isDebtor: balance > 0
+      totalCharges: useAccounts ? byAccount.totalCharges : byReservation.totalCharges,
+      totalPayments: useAccounts ? byAccount.totalPayments : byReservation.totalPayments,
+      balance: useAccounts ? byAccount.balance : byReservation.balance,
+      isDebtor: (useAccounts ? byAccount.balance : byReservation.balance) > 0,
+      reservationCount: useAccounts ? byAccount.reservationCount : byReservation.reservationCount,
+      accountCount: useAccounts ? byAccount.accountCount : byReservation.reservationCount,
+      accounts: useAccounts ? byAccount.accounts : [],
+      reservations: useAccounts ? byAccount.reservations : byReservation.reservations,
     });
   } catch (error) {
+    console.error('Error calculating client balance:', error);
     res.status(500).json({ error: 'Error calculating client balance' });
   }
 }; 

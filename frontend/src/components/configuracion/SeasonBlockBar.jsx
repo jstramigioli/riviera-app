@@ -171,11 +171,11 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
           {loading ? (
             <div className={styles.loading}>
               <div className={styles.spinner}></div>
-              <span>Cargando datos...</span>
+              <span> Cargando datos...</span>
             </div>
           ) : error ? (
             <div className={styles.error}>
-              <span>⚠️ Error al cargar los datos: {error}</span>
+              <span> Error al cargar los datos: {error}</span>
             </div>
           ) : (
             <>
@@ -184,7 +184,7 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
                 <div className={styles.editForm}>
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
-                      <label>Nombre del Bloque</label>
+                      <label> Nombre del Bloque</label>
                       <input
                         type="text"
                         value={formData.name}
@@ -199,7 +199,7 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
 
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
-                      <label>Descripción</label>
+                      <label> Descripción</label>
                       <textarea
                         value={formData.description}
                         onChange={(e) => updateFormData('description', e.target.value)}
@@ -210,7 +210,7 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
 
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
-                      <label>Fecha de Inicio</label>
+                      <label> Fecha de Inicio</label>
                       <input
                         type="date"
                         value={formData.startDate}
@@ -222,7 +222,7 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
                       )}
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Fecha de Fin</label>
+                      <label> Fecha de Fin</label>
                       <input
                         type="date"
                         value={formData.endDate}
@@ -239,14 +239,14 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
 
               {/* Tarifas Table */}
               <div className={styles.tableSection}>
-                <h4 className={styles.tableTitle}>Tarifas por Tipo de Habitación y Servicio</h4>
+                <h4 className={styles.tableTitle}> Tarifas por Tipo de Habitación y Servicio</h4>
                 
                 <div className={styles.tableContainer}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th className={styles.roomTypeHeader}>Tipo de Habitación</th>
-                        <th className={styles.basePriceHeader}>Precio Base</th>
+                        <th className={styles.roomTypeHeader}> Tipo de Habitación</th>
+                        <th className={styles.basePriceHeader}> Precio Base</th>
                         {serviceTypes
                           .filter(serviceType => serviceType.name !== 'Solo Alojamiento')
                           .map(serviceType => (

@@ -1,55 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
-  fetchReservations, 
-  fetchRooms, 
+  fetchReservations,
+  updateReservation,
   API_URL,
   getReservationFinancialSummary,
-  getPagosByReserva,
-  createPago,
-  deletePago,
-  getCargosByReserva,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  getReservationCheckIn,
+  sendReservationCheckIn
 } from '../services/api.js';
-import { getStatusLabel } from '../utils/reservationStatusUtils';
+import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
+import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
+import { sourceLabel } from '../constants/reservationSource';
+import { copyReservationClientSummary } from '../utils/reservationClientSummary';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
-import GeneralInfoTab from '../components/ReservationTabs/GeneralInfoTab';
-import PagosTab from '../components/ReservationTabs/PagosTab';
-import CargosTab from '../components/ReservationTabs/CargosTab';
+import ReservationStayTimeline from '../components/ReservationStayTimeline';
+import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
+import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
-import ServiciosTab from '../components/ReservationTabs/ServiciosTab';
-import { FaTrash } from 'react-icons/fa';
+import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
+import { FiMail, FiCopy, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useAppNotice } from '../hooks/useAppNotice';
+import { useTags } from '../hooks/useTags';
+import { collectReservationPanelRequirements } from '../utils/reservationPanelRequirements';
 import styles from './ReservationDetails.module.css';
+
+function firstRoomIdFromReservation(reservation) {
+  const segments = reservation?.segments;
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  const withRoom = segments.find((s) => s?.roomId != null);
+  return withRoom?.roomId ?? null;
+}
+
+const resolveInitialTab = (activeTab) => {
+  if (activeTab === 'financiero' || activeTab === 'huespedes') return activeTab;
+  return null;
+};
 
 const ReservationDetails = () => {
   const { reservationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
+  const { tags } = useTags();
   
   // Estado principal
   const [reservation, setReservation] = useState(null);
-  const [rooms, setRooms] = useState([]);
+  const [allReservations, setAllReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado de pestañas
-  const [activeTab, setActiveTab] = useState('general');
-  
+  // Estado de pestañas (puede venir del panel del Libro vía location.state)
+  const [activeTab, setActiveTab] = useState(
+    resolveInitialTab(location.state?.activeTab)
+  );
+  const [pendingFinancialAction, setPendingFinancialAction] = useState(
+    location.state?.financialAction || null
+  );
+  const [consumptionOpen, setConsumptionOpen] = useState(
+    location.state?.financialAction === 'add-consumo'
+  );
+
+  const [checkInInfo, setCheckInInfo] = useState(null);
+  const [sendingCheckIn, setSendingCheckIn] = useState(false);
+  const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
-  const [pagos, setPagos] = useState([]);
-  const [cargos, setCargos] = useState([]);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
-  
-  // Estado para modal de eliminación
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Estado para tipos de servicio
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [tags, setTags] = useState([]);
+
+  // Edición
+  const [isEditing, setIsEditing] = useState(Boolean(location.state?.isEditing));
+  const [editData, setEditData] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -57,11 +90,9 @@ const ReservationDetails = () => {
       try {
         setLoading(true);
         
-        const [reservationsData, roomsData, serviceTypesResponse, tagsResponse] = await Promise.all([
+        const [reservationsData, serviceTypesResponse] = await Promise.all([
           fetchReservations(),
-          fetchRooms(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json()),
-          fetch('http://localhost:3001/api/tags').then(res => res.json())
+          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
         ]);
         
         const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
@@ -73,9 +104,9 @@ const ReservationDetails = () => {
         }
         
         setReservation(foundReservation);
-        setRooms(roomsData);
+        setEditData(foundReservation);
+        setAllReservations(reservationsData);
         setServiceTypes(serviceTypesResponse.data || []);
-        setTags(tagsResponse || []);
         
         setLoading(false);
       } catch (error) {
@@ -90,9 +121,135 @@ const ReservationDetails = () => {
     }
   }, [reservationId]);
 
-  // Cargar datos financieros cuando se acceda a esas pestañas
   useEffect(() => {
-    if ((activeTab === 'pagos' || activeTab === 'cargos' || activeTab === 'general') && reservation) {
+    let cancelled = false;
+    (async () => {
+      if (!reservationId) return;
+      try {
+        const data = await getReservationCheckIn(reservationId);
+        if (!cancelled) setCheckInInfo(data);
+      } catch (err) {
+        console.error('Error cargando check-in online:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reservationId]);
+
+  const handleSendCheckIn = async () => {
+    if (!reservation) return;
+    if (!reservation.mainClient?.email) {
+      await notify({
+        title: 'Sin email',
+        message: 'El cliente de la reserva no tiene email. Cargalo antes de enviar el check-in.',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setSendingCheckIn(true);
+    try {
+      const result = await sendReservationCheckIn(reservation.id);
+      setCheckInInfo((prev) => ({
+        ...(prev || {}),
+        reservationId: reservation.id,
+        vehiclePlate: prev?.vehiclePlate || null,
+        checkIn: result.checkIn
+      }));
+
+      if (result.emailed) {
+        await notify({
+          title: 'Check-in enviado',
+          message: `Se envió el link a ${result.to}`,
+          type: 'success'
+        });
+      } else if (result.mailtoUrl) {
+        window.location.href = result.mailtoUrl;
+        await notify({
+          title: 'Link listo',
+          message: 'Se abrió el correo con el link de check-in. También podés copiar el enlace desde el panel.',
+          type: 'success'
+        });
+      } else {
+        await notify({
+          title: 'Link generado',
+          message: result.checkInUrl || 'Check-in generado',
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      await notify({
+        title: 'No se pudo enviar',
+        message: err.message || 'Error al enviar check-in',
+        type: 'error'
+      });
+    } finally {
+      setSendingCheckIn(false);
+    }
+  };
+
+  const handleCopyCheckInLink = async () => {
+    const url = checkInInfo?.checkIn?.checkInUrl;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedCheckInLink(true);
+      setTimeout(() => setCopiedCheckInLink(false), 1500);
+    } catch {
+      await notify({
+        title: 'No se pudo copiar',
+        message: url,
+        type: 'warning'
+      });
+    }
+  };
+
+  const handleCopyClientSummary = async () => {
+    if (!reservation) return;
+    try {
+      await copyReservationClientSummary(reservation, { getServiceTypeLabel });
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 1600);
+      notify({
+        message: 'Resumen de la reserva copiado al portapapeles.',
+        type: 'success',
+        autoDismiss: true,
+      });
+    } catch (error) {
+      console.error('Error al copiar resumen de reserva:', error);
+      notify({
+        title: 'Error al copiar',
+        message: 'No se pudo copiar el resumen al portapapeles.',
+        type: 'error'
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (location.state?.isEditing) {
+      setIsEditing(true);
+    }
+  }, [location.state?.isEditing]);
+
+  useEffect(() => {
+    if (location.state?.activeTab === 'financiero' || location.state?.financialAction) {
+      setActiveTab('financiero');
+      const action = location.state?.financialAction || null;
+      if (action === 'add-consumo') {
+        setConsumptionOpen(true);
+        setPendingFinancialAction(null);
+      } else if (action) {
+        setPendingFinancialAction(action);
+      }
+      // Limpiar state para no re-disparar al volver con el historial
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.activeTab, location.state?.financialAction, location.pathname, navigate]);
+
+  // Cargar datos financieros en la pestaña Estado financiero
+  useEffect(() => {
+    if (activeTab === 'financiero' && reservation) {
       loadFinancialData();
     }
   }, [activeTab, reservation]);
@@ -102,15 +259,8 @@ const ReservationDetails = () => {
     
     try {
       setLoadingFinancial(true);
-      const [summary, pagosData, cargosData] = await Promise.all([
-        getReservationFinancialSummary(reservation.id),
-        getPagosByReserva(reservation.id),
-        getCargosByReserva(reservation.id)
-      ]);
-      
+      const summary = await getReservationFinancialSummary(reservation.id);
       setFinancialSummary(summary);
-      setPagos(pagosData);
-      setCargos(cargosData);
     } catch (error) {
       console.error('Error cargando datos financieros:', error);
     } finally {
@@ -118,41 +268,14 @@ const ReservationDetails = () => {
     }
   };
 
-  // Handlers para pagos
-  const handleAddPago = async (pagoData) => {
-    try {
-      await createPago(reservation.id, pagoData);
-      await loadFinancialData();
-      alert('Pago agregado exitosamente');
-    } catch (error) {
-      console.error('Error agregando pago:', error);
-      alert(`Error: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const handleDeletePago = async (pagoId) => {
-    if (!confirm('¿Estás seguro de eliminar este pago?')) return;
-    
-    try {
-      await deletePago(pagoId);
-      await loadFinancialData();
-      alert('Pago eliminado exitosamente');
-    } catch (error) {
-      console.error('Error eliminando pago:', error);
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Handlers para cargos
   const handleAddCargo = async (cargoData) => {
     try {
       await createCargo(reservation.id, cargoData);
       await loadFinancialData();
-      alert('Cargo agregado exitosamente');
+      notify({ title: 'Cargo agregado', message: 'El cargo se registró correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error agregando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
@@ -161,24 +284,30 @@ const ReservationDetails = () => {
     try {
       await updateCargo(cargoId, cargoData);
       await loadFinancialData();
-      alert('Cargo actualizado exitosamente');
+      notify({ title: 'Cargo actualizado', message: 'El cargo se actualizó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error actualizando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
 
   const handleDeleteCargo = async (cargoId) => {
-    if (!confirm('¿Estás seguro de eliminar este cargo?')) return;
-    
+    const ok = await confirm({
+      title: 'Eliminar consumo',
+      message: '¿Confirmás eliminar este cargo / consumo? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
       await deleteCargo(cargoId);
       await loadFinancialData();
-      alert('Cargo eliminado exitosamente');
+      notify({ title: 'Consumo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
     } catch (error) {
       console.error('Error eliminando cargo:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
+      throw error;
     }
   };
 
@@ -186,7 +315,24 @@ const ReservationDetails = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
+      // Fechas civiles yyyy-MM-dd: parsear en local para evitar off-by-one UTC
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        const [y, m, d] = String(dateString).split('-').map(Number);
+        return format(new Date(y, m - 1, d), 'dd/MM/yyyy', { locale: es });
+      }
       return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'No especificada';
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+        return formatDate(dateString);
+      }
+      return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: es });
     } catch {
       return dateString;
     }
@@ -210,26 +356,88 @@ const ReservationDetails = () => {
     navigate(-1);
   };
 
-  const handleClientClick = () => {
-    if (reservation?.mainClient?.id) {
-      navigate(`/clients/${reservation.mainClient.id}`);
+  const handleClientClick = (clientId) => {
+    const id = clientId || reservation?.mainClient?.id;
+    if (id) {
+      navigate(`/clients/${id}`);
+    }
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditData(reservation);
+      setIsEditing(false);
+      return;
+    }
+    // Editar = mismo flujo que crear (requisitos, selección, tarifas + toggle tarifa)
+    // El id va en la URL para que Consulta hidrate aunque se pierda location.state
+    navigate(buildConsultaEditPath(reservation.id), {
+      state: buildConsultaEditState(reservation.id)
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editData) return;
+
+    const dateValidation = validateReservationDates(editData.checkIn, editData.checkOut);
+    if (!dateValidation.isValid) {
+      notify({ title: 'Validación', message: dateValidation.message, type: 'warning' });
+      return;
+    }
+
+    const conflict = validateReservationConflict(
+      allReservations,
+      editData.roomId,
+      editData.checkIn,
+      editData.checkOut,
+      editData.id
+    );
+
+    if (conflict.hasConflict) {
+      const notice = showConflictNotification(conflict.message);
+      notify({ title: 'Conflicto', message: notice.message, type: 'error' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await updateReservation(editData.id, editData);
+      setReservation(updated);
+      setEditData(updated);
+      setAllReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setIsEditing(false);
+      notify({ title: 'Reserva actualizada', message: 'Los cambios se guardaron correctamente.', type: 'success' });
+    } catch (err) {
+      console.error('Error guardando reserva:', err);
+      notify({ title: 'Error al guardar', message: err.message, type: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDeleteReservation = async () => {
+    const ok = await confirm({
+      title: 'Eliminar reserva',
+      message: `¿Confirmás eliminar la reserva #${reservation.id}? Esta acción no se puede deshacer y eliminará todos los registros relacionados.`,
+      confirmText: 'Eliminar',
+    });
+    if (!ok) return;
+
     try {
-      const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al eliminar la reserva');
-      }
-
-      navigate(-1);
+      const { deleteReservationWithWarning } = await import('../utils/deleteReservationWithWarning');
+      const deleted = await deleteReservationWithWarning(reservationId, confirm);
+      if (deleted) navigate(-1);
     } catch (error) {
       console.error('Error eliminando reserva:', error);
-      alert('Error al eliminar la reserva');
+      notify({
+        title: 'Error',
+        message: error.message || 'Error al eliminar la reserva',
+        type: 'error',
+      });
     }
   };
 
@@ -258,48 +466,28 @@ const ReservationDetails = () => {
       setReservation(updatedReservation);
     } catch (error) {
       console.error('Error actualizando estado de la reserva:', error);
-      alert(`Error: ${error.message}`);
+      notify({ title: 'Error', message: error.message, type: 'error' });
     }
   };
 
   // Renderizar contenido de cada pestaña
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'general':
+      case 'financiero':
         return (
-          <GeneralInfoTab
+          <EstadoFinancieroTab
             reservation={reservation}
-            financialSummary={financialSummary}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
-            getServiceTypeLabel={getServiceTypeLabel}
-            getStatusLabel={getStatusLabel}
-          />
-        );
-      case 'pagos':
-        return (
-          <PagosTab
-            reservation={reservation}
-            pagos={pagos}
             financialSummary={financialSummary}
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
             formatCurrency={formatCurrency}
-            onAddPago={handleAddPago}
-            onDeletePago={handleDeletePago}
-          />
-        );
-      case 'cargos':
-        return (
-          <CargosTab
-            cargos={cargos}
-            financialSummary={financialSummary}
-            loadingFinancial={loadingFinancial}
-            formatDate={formatDate}
-            formatCurrency={formatCurrency}
+            onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
+            pendingAction={pendingFinancialAction}
+            onPendingActionHandled={() => setPendingFinancialAction(null)}
+            onRequestConsumo={() => setConsumptionOpen(true)}
           />
         );
       case 'huespedes':
@@ -307,12 +495,6 @@ const ReservationDetails = () => {
           <HuespedesTab
             reservation={reservation}
             onClientClick={handleClientClick}
-          />
-        );
-      case 'servicios':
-        return (
-          <ServiciosTab
-            reservation={reservation}
           />
         );
       default:
@@ -324,7 +506,7 @@ const ReservationDetails = () => {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Cargando detalles de la reserva...</div>
+        <div className={styles.loading}> Cargando detalles de la reserva...</div>
       </div>
     );
   }
@@ -334,7 +516,7 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Error</h2>
+          <h2> Error</h2>
           <p>{error}</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
@@ -349,8 +531,8 @@ const ReservationDetails = () => {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Reserva no encontrada</h2>
-          <p>La reserva con ID {reservationId} no existe.</p>
+          <h2> Reserva no encontrada</h2>
+          <p> La reserva con ID {reservationId} no existe.</p>
           <button onClick={handleBackClick} className={styles.backButton}>
             Volver
           </button>
@@ -359,49 +541,133 @@ const ReservationDetails = () => {
     );
   }
 
+  const panelRequirements = collectReservationPanelRequirements(reservation, tags);
+
   // Render principal
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
+      {/* Side / top panel */}
       <div className={styles.sidePanel}>
-        {/* Header del side panel */}
         <div className={styles.sidePanelHeader}>
-          <h2>Reserva #{reservation.id}</h2>
-          <div className={styles.guestInfo}>
-            <div className={styles.guestName}>
-              {reservation.mainClient?.firstName} {reservation.mainClient?.lastName}
-            </div>
-            <div className={styles.guestDates}>
-              {formatDate(reservation.checkIn)} / {formatDate(reservation.checkOut)}
-            </div>
-            <div className={styles.guestStatus}>
-              <span className={`${styles.statusValue} ${styles[reservation.status]}`}>
-                {getStatusLabel(reservation.status)}
+          <div className={styles.sidePanelHeaderTop}>
+            <div className={styles.titleWithInfo}>
+              <h2>Reserva #{reservation.id}</h2>
+              <span
+                className={styles.infoDates}
+                tabIndex={0}
+                data-testid="side-panel-dates-info"
+                aria-label={`Fecha de creación: ${formatDateTime(reservation.createdAt)}. Última modificación: ${formatDateTime(reservation.updatedAt)}`}
+              >
+                <FiInfo aria-hidden />
+                <span className={styles.infoDatesTooltip} role="tooltip" data-testid="side-panel-dates">
+                  <span>Fecha de creación: {formatDateTime(reservation.createdAt)}</span>
+                  <span>Última modificación: {formatDateTime(reservation.updatedAt)}</span>
+                </span>
               </span>
             </div>
+            <div className={styles.headerActions}>
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleEditSave}
+                    className={styles.headerIconBtn}
+                    disabled={saving}
+                    title={saving ? 'Guardando…' : 'Guardar cambios'}
+                    aria-label="Guardar cambios"
+                  >
+                    <FaSave />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={`${styles.headerIconBtn} ${styles.headerIconBtnDanger}`}
+                    title="Salir de edición"
+                    aria-label="Salir de edición"
+                  >
+                    <FaTimes />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCopyClientSummary}
+                    className={styles.headerIconBtn}
+                    title="Copiar resumen para el cliente"
+                    aria-label="Copiar resumen para el cliente"
+                    data-testid="details-copy-summary"
+                  >
+                    {copiedSummary ? <FiCheck /> : <FiCopy />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditToggle}
+                    className={styles.headerIconBtn}
+                    title="Editar reserva"
+                    aria-label="Editar reserva"
+                  >
+                    <FaPen />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          <div className={styles.guestInfo}>
+            <div className={styles.statusDropdown} data-testid="side-panel-status">
+              <ReservationStatusButtons
+                reservation={reservation}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDeleteReservation}
+                variant="dark"
+                menuPlacement="below"
+              />
+            </div>
+            <div className={styles.sourceMeta} data-testid="side-panel-source">
+              Reservado por: {sourceLabel(reservation.source)}
+            </div>
+            {panelRequirements.hasAny && (
+              <div className={styles.requirementsMeta} data-testid="side-panel-requirements">
+                {panelRequirements.fixedRooms.map((room) => (
+                  <div key={room.key} className={styles.requirementRow}>
+                    <FiLock aria-hidden className={styles.requirementIcon} />
+                    <span>Habitación fijada: {room.name}</span>
+                  </div>
+                ))}
+                {panelRequirements.selectedTags.length > 0 && (
+                  <div className={styles.requirementTags}>
+                    {panelRequirements.selectedTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className={styles.requirementTag}
+                        style={tag.color ? { backgroundColor: tag.color } : undefined}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {checkInInfo?.checkIn?.status && (
+              <div className={styles.checkInMeta}>
+                Check-in online: {checkInInfo.checkIn.status === 'COMPLETED'
+                  ? 'Completado'
+                  : checkInInfo.checkIn.status === 'SENT'
+                    ? 'Enviado'
+                    : checkInInfo.checkIn.status}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
         <div className={styles.sidePanelContent}>
           <div className={styles.sectionMenu}>
             <button 
-              className={`${styles.sectionButton} ${activeTab === 'general' ? styles.active : ''}`}
-              onClick={() => setActiveTab('general')}
+              className={`${styles.sectionButton} ${activeTab === 'financiero' ? styles.active : ''}`}
+              onClick={() => setActiveTab('financiero')}
             >
-              Información General
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'pagos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('pagos')}
-            >
-              Pagos
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'cargos' ? styles.active : ''}`}
-              onClick={() => setActiveTab('cargos')}
-            >
-              Cargos / Consumos
+              Estado financiero
             </button>
             <button 
               className={`${styles.sectionButton} ${activeTab === 'huespedes' ? styles.active : ''}`}
@@ -409,81 +675,68 @@ const ReservationDetails = () => {
             >
               Huéspedes
             </button>
-            <button 
-              className={`${styles.sectionButton} ${activeTab === 'servicios' ? styles.active : ''}`}
-              onClick={() => setActiveTab('servicios')}
-            >
-              Servicios / Mantenimiento
-            </button>
           </div>
         </div>
 
-        {/* Footer con botones de acción */}
-        <div className={styles.sidePanelFooter}>
-          <div className={styles.actionButtons}>
-            <button 
-              onClick={() => setShowDeleteModal(true)}
-              className={styles.deleteButton}
-              title="Eliminar reserva"
-            >
-              Eliminar
-            </button>
-            <button 
-              onClick={handleBackClick}
-              className={styles.backButton}
-            >
-              Volver
-            </button>
+        {!isEditing && (
+          <div className={styles.sidePanelFooter}>
+            <div className={styles.checkInActions}>
+              <button
+                type="button"
+                className={styles.checkInSendBtn}
+                onClick={handleSendCheckIn}
+                disabled={sendingCheckIn}
+                title="Enviar check-in por mail al cliente"
+              >
+                <FiMail aria-hidden />
+                {sendingCheckIn ? 'Enviando…' : 'Enviar check-in'}
+              </button>
+              {checkInInfo?.checkIn?.checkInUrl && (
+                <button
+                  type="button"
+                  className={styles.checkInCopyBtn}
+                  onClick={handleCopyCheckInLink}
+                  title="Copiar link de check-in"
+                  aria-label="Copiar link de check-in"
+                >
+                  {copiedCheckInLink ? <FiCheck aria-hidden /> : <FiCopy aria-hidden />}
+                </button>
+              )}
+            </div>
           </div>
-          <div className={styles.statusButtons}>
-            <ReservationStatusButtons 
-              reservation={reservation} 
-              onStatusChange={handleStatusChange} 
-            />
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
         <div className={styles.mainContentBody}>
+          <ReservationStayTimeline
+            reservation={reservation}
+            getServiceTypeLabel={getServiceTypeLabel}
+            formatCurrency={formatCurrency}
+            onClientClick={handleClientClick}
+          />
           {renderTabContent()}
         </div>
       </div>
 
-      {/* Modal de confirmación de eliminación */}
-      {showDeleteModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>⚠️ Confirmar Eliminación</h3>
-            </div>
-            <div className={styles.modalBody}>
-              <p>
-                ¿Estás seguro de eliminar la reserva #{reservation.id}?
-              </p>
-              <p>
-                Esta acción no se puede deshacer y eliminará todos los registros relacionados.
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button 
-                onClick={handleDeleteReservation}
-                className={`${styles.modalButton} ${styles.deleteButton}`}
-              >
-                <FaTrash />
-                Eliminar Definitivamente
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className={`${styles.modalButton} ${styles.cancelButton}`}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConsumptionOrderModal
+        open={consumptionOpen}
+        preset={
+          reservation
+            ? {
+                reservationId: reservation.id,
+                roomId: firstRoomIdFromReservation(reservation)
+              }
+            : null
+        }
+        onClose={() => setConsumptionOpen(false)}
+        onSaved={() => {
+          loadFinancialData();
+        }}
+      />
+
+      {confirmDialog}
+      {noticeDialog}
     </div>
   );
 };

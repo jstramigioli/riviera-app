@@ -5,8 +5,10 @@ import { FaChevronLeft, FaChevronRight, FaHotel, FaTimes, FaDollarSign, FaCalend
 import DayEditPanel from '../components/DayEditPanel';
 import { fetchOpenDays, fetchRoomTypes, createOpenDay, updateOpenDay, deleteOpenDay } from '../services/api';
 import styles from '../styles/CalendarioGestion.module.css';
+import { useAppNotice } from '../hooks/useAppNotice';
 
 export default function CalendarioGestion() {
+  const { notify, noticeDialog } = useAppNotice();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayEditPanelOpen, setIsDayEditPanelOpen] = useState(false);
@@ -154,7 +156,7 @@ export default function CalendarioGestion() {
   };
 
   if (loading) {
-    return <div className={styles.loading}>Cargando calendario...</div>;
+    return <div className={styles.loading}> Cargando calendario...</div>;
   }
 
   return (
@@ -247,7 +249,7 @@ export default function CalendarioGestion() {
                   
                                      {!isOpen && (
                      <div className={styles.closedIndicator}>
-                       {isDayHoliday(day) ? '🏖️' : <FaTimes />}
+                       {isDayHoliday(day) ? <FaCalendarAlt aria-label="Feriado" /> : <FaTimes />}
                      </div>
                    )}
                 </div>
@@ -260,23 +262,23 @@ export default function CalendarioGestion() {
         <div className={styles.legend}>
           <div className={styles.legendItem}>
             <div className={`${styles.legendColor} ${styles.openDay}`}></div>
-            <span>Día abierto</span>
+            <span> Día abierto</span>
           </div>
           <div className={styles.legendItem}>
             <div className={`${styles.legendColor} ${styles.closedDay}`}></div>
-            <span>Día cerrado</span>
+            <span> Día cerrado</span>
           </div>
           <div className={styles.legendItem}>
             <div className={`${styles.legendColor} ${styles.holidayDay}`}></div>
-            <span>Feriado/Fin de semana largo</span>
+            <span> Feriado/Fin de semana largo</span>
           </div>
           <div className={styles.legendItem}>
             <FaDollarSign className={styles.legendIcon} />
-            <span>Precio fijo</span>
+            <span> Precio fijo</span>
           </div>
           <div className={styles.legendItem}>
             <FaTimes className={styles.legendIcon} />
-            <span>Evento especial</span>
+            <span> Evento especial</span>
           </div>
         </div>
       </div>
@@ -327,10 +329,11 @@ export default function CalendarioGestion() {
             setIsDayEditPanelOpen(false);
           } catch (error) {
             console.error('Error saving day data:', error);
-            alert('Error al guardar los datos del día');
+            notify({ title: 'Error', message: 'Error al guardar los datos del día', type: 'error' });
           }
         }}
       />
+      {noticeDialog}
     </div>
   );
 } 

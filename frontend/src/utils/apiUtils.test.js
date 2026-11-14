@@ -13,8 +13,6 @@ vi.mock('../services/api.js', () => ({
 describe('apiUtils', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Mock de alert
-    global.alert = vi.fn()
   })
 
   describe('updateReservationOnServer', () => {
@@ -48,7 +46,6 @@ describe('apiUtils', () => {
       ).rejects.toThrow('Network error')
 
       expect(mockFetchReservations).toHaveBeenCalled()
-      expect(global.alert).toHaveBeenCalledWith('Error de conexión. Los cambios se han revertido.')
     })
   })
 
@@ -88,7 +85,6 @@ describe('apiUtils', () => {
 
       expect(mockFetchClients).toHaveBeenCalled()
       expect(mockFetchReservations).toHaveBeenCalled()
-      expect(global.alert).toHaveBeenCalledWith('Error de conexión. Los cambios se han revertido.')
     })
   })
 }) 

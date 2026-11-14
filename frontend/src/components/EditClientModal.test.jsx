@@ -26,4 +26,19 @@ describe('EditClientModal', () => {
     fireEvent.change(input, { target: { value: 'Carlos' } });
     expect(input.value).toBe('Carlos');
   });
+
+  it('muestra y edita la patente igual que el check-in', () => {
+    render(
+      <EditClientModal
+        isOpen={true}
+        client={{ ...mockClient, vehiclePlate: 'AB123CD' }}
+        onClose={() => {}}
+        onClientUpdated={() => {}}
+      />
+    );
+    const input = screen.getByLabelText('Patente (opcional)');
+    expect(input.value).toBe('AB123CD');
+    fireEvent.change(input, { target: { value: 'XY987ZW' } });
+    expect(input.value).toBe('XY987ZW');
+  });
 }); 

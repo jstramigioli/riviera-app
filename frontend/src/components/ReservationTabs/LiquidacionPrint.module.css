@@ -1,0 +1,244 @@
+.sheet {
+  display: none;
+  color: #111;
+  background: #fff;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 12pt;
+  line-height: 1.35;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 2px solid #111;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.hotelName {
+  margin: 0;
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.docTitle {
+  margin: 4px 0 0;
+  font-size: 12pt;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #333;
+}
+
+.meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10pt;
+}
+
+.meta span {
+  display: block;
+  color: #555;
+  font-size: 9pt;
+  text-transform: uppercase;
+}
+
+.block {
+  margin-bottom: 16px;
+}
+
+.block h2 {
+  margin: 0 0 8px;
+  font-size: 11pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
+}
+
+.keepTogether {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+}
+
+.label {
+  display: block;
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  color: #666;
+  letter-spacing: 0.04em;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5pt;
+}
+
+.table thead {
+  display: table-header-group;
+}
+
+.table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.table th,
+.table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  color: #555;
+  letter-spacing: 0.04em;
+}
+
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryTable .summaryMain td {
+  font-weight: 600;
+}
+
+.summaryGroup td {
+  font-weight: 700;
+  padding-top: 10px;
+  border-bottom: 1px solid #bbb;
+  text-transform: uppercase;
+  font-size: 9.5pt;
+  letter-spacing: 0.04em;
+}
+
+.summaryItem td:first-child {
+  padding-left: 14px;
+}
+
+.summarySubtotal td {
+  font-weight: 600;
+  border-bottom: 1px solid #999;
+}
+
+.pagoDetalle {
+  font-size: 9.5pt;
+  color: #333;
+  word-break: break-word;
+}
+
+.subtotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #111;
+  font-size: 11pt;
+}
+
+.empty {
+  margin: 0;
+  color: #666;
+  font-style: italic;
+}
+
+.cargosBlock,
+.pagosBlock {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.saldoBlock {
+  border: 1.5px solid #111;
+  padding: 10px 12px;
+  margin-bottom: 0;
+}
+
+.saldoRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14pt;
+  font-weight: 700;
+}
+
+.saldoState {
+  margin: 4px 0 0;
+  font-size: 10pt;
+  color: #333;
+}
+
+.closing {
+  margin-top: 8px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  break-before: auto;
+  page-break-before: auto;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 36px;
+}
+
+.signLine {
+  border-top: 1px solid #111;
+  padding-top: 6px;
+  font-size: 9pt;
+  color: #444;
+  text-align: center;
+}
+
+@media print {
+  .sheet {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    clip: auto !important;
+    clip-path: none !important;
+    transform: none !important;
+    padding: 0;
+    margin: 0;
+    visibility: visible !important;
+  }
+
+  .cargosBlock,
+  .pagosBlock {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .pagosBlock table {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .closing {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-before: auto;
+    page-break-before: auto;
+  }
+}

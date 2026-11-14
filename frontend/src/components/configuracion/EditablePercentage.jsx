@@ -1,3 +1,4 @@
+import { FiEdit2 } from 'react-icons/fi';
 import React, { useState } from 'react';
 
 export default function EditablePercentage({ 
@@ -108,8 +109,8 @@ export default function EditablePercentage({
             color: color,
             opacity: 0.6,
             fontWeight: 'normal'
-          }}>
-            ✏️
+          }} aria-hidden="true">
+            <FiEdit2 />
           </div>
         </div>
       )}

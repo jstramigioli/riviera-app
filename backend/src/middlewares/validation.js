@@ -39,19 +39,29 @@ const validateClient = (req, res, next) => {
 };
 
 const validateReservation = (req, res, next) => {
-  const { checkIn, checkOut, totalAmount, roomId, mainClientId } = req.body;
+  const { checkIn, checkOut, totalAmount, roomId, mainClientId, segments } = req.body;
   const isUpdate = req.method === 'PUT' || req.method === 'PATCH';
   const errors = [];
 
-  if (!checkIn) {
+  // Permitir updates segment-based (flujo Consulta): fechas desde segmentos
+  let resolvedCheckIn = checkIn;
+  let resolvedCheckOut = checkOut;
+  if ((!resolvedCheckIn || !resolvedCheckOut) && Array.isArray(segments) && segments.length > 0) {
+    const starts = segments.map((s) => s.startDate || s.checkIn).filter(Boolean).sort();
+    const ends = segments.map((s) => s.endDate || s.checkOut).filter(Boolean).sort();
+    resolvedCheckIn = resolvedCheckIn || starts[0];
+    resolvedCheckOut = resolvedCheckOut || ends[ends.length - 1];
+  }
+
+  if (!resolvedCheckIn) {
     errors.push('La fecha de check-in es requerida');
   }
 
-  if (!checkOut) {
+  if (!resolvedCheckOut) {
     errors.push('La fecha de check-out es requerida');
   }
 
-  if (checkIn && checkOut && new Date(checkIn) >= new Date(checkOut)) {
+  if (resolvedCheckIn && resolvedCheckOut && new Date(resolvedCheckIn) >= new Date(resolvedCheckOut)) {
     errors.push('La fecha de check-out debe ser posterior al check-in');
   }
 
@@ -60,7 +70,7 @@ const validateReservation = (req, res, next) => {
   }
 
   // roomId es requerido solo en creación, no en actualización
-  if (!isUpdate && !roomId) {
+  if (!isUpdate && !roomId && !(Array.isArray(segments) && segments.length > 0)) {
     errors.push('El ID de la habitación es requerido');
   }
 

@@ -22,4 +22,8 @@ router.delete('/:id', clientController.deleteClient);
 // Calcular balance de un cliente
 router.get('/:id/balance', clientController.getClientBalance);
 
+// Datos de facturación (aparte del perfil del cliente)
+router.get('/:id/billing-profile', clientController.getClientBillingProfile);
+router.put('/:id/billing-profile', clientController.upsertClientBillingProfile);
+
 module.exports = router; 

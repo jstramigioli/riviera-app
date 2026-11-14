@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const priceService = require('../services/priceService');
+// priceService legacy retirado del path canónico de tarifas
 
 class OpenDayController {
   /**

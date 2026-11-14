@@ -109,18 +109,7 @@ async function basicRestore() {
     });
     console.log('✅ Configuración de precios dinámicos creada');
 
-    // 6. Crear configuración de redondeo
-    console.log('🔢 Creando configuración de redondeo...');
-    await prisma.roundingConfig.create({
-      data: {
-        hotelId: 'default-hotel',
-        multiple: 1,
-        mode: 'nearest'
-      }
-    });
-    console.log('✅ Configuración de redondeo creada');
-
-    // 7. Crear algunos clientes de prueba
+    // 6. Crear algunos clientes de prueba
     console.log('👥 Creando clientes de prueba...');
     const clients = [
       {
@@ -174,8 +163,7 @@ async function basicRestore() {
       prisma.room.count(),
       prisma.roomType.count(),
       prisma.serviceType.count(),
-      prisma.dynamicPricingConfig.count(),
-      prisma.roundingConfig.count()
+      prisma.dynamicPricingConfig.count()
     ]);
     
     console.log('📊 Datos restaurados:');
@@ -185,7 +173,6 @@ async function basicRestore() {
     console.log(`🛏️ Tipos de habitación: ${finalCounts[3]}`);
     console.log(`🍽️ Tipos de servicio: ${finalCounts[4]}`);
     console.log(`⚙️ Configuración de precios: ${finalCounts[5]}`);
-    console.log(`🔢 Configuración de redondeo: ${finalCounts[6]}`);
 
   } catch (error) {
     console.error('❌ Error durante la restauración:', error);

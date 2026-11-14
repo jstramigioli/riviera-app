@@ -8,7 +8,7 @@ function Estadisticas() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('list'); // 'list' o 'stats'
+  const [activeTab, setActiveTab] = useState('list'); // 'list'o 'stats'
 
   useEffect(() => {
     loadClients();
@@ -46,7 +46,7 @@ function Estadisticas() {
       <div className={styles.container}>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
-          <p>Cargando clientes...</p>
+          <p> Cargando clientes...</p>
         </div>
       </div>
     );
@@ -56,7 +56,7 @@ function Estadisticas() {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <p>❌ {error}</p>
+          <p> {error}</p>
           <button onClick={loadClients} className={styles.retryButton}>
             Reintentar
           </button>
@@ -76,29 +76,29 @@ function Estadisticas() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>📊 Estadísticas</h1>
+        <h1> Estadísticas</h1>
         <div className={styles.stats}>
           <div className={styles.statCard}>
             <span className={styles.statNumber}>{clients.length}</span>
-            <span className={styles.statLabel}>Total de Clientes</span>
+            <span className={styles.statLabel}> Total de Clientes</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statNumber}>{argentineClients}</span>
-            <span className={styles.statLabel}>Clientes Argentinos</span>
+            <span className={styles.statLabel}> Clientes Argentinos</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statNumber}>{clientsWithPromotions}</span>
-            <span className={styles.statLabel}>Quieren Promociones</span>
+            <span className={styles.statLabel}> Quieren Promociones</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statNumber}>
               {clients.filter(c => c.email).length}
             </span>
-            <span className={styles.statLabel}>Con Email</span>
+            <span className={styles.statLabel}> Con Email</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statNumber}>{clientsWithAddress}</span>
-            <span className={styles.statLabel}>Con Domicilio</span>
+            <span className={styles.statLabel}> Con Domicilio</span>
           </div>
         </div>
       </div>
@@ -110,13 +110,13 @@ function Estadisticas() {
               className={`${styles.tabButton} ${activeTab === 'list' ? styles.activeTab : ''}`}
               onClick={() => setActiveTab('list')}
             >
-              📋 Listado de Clientes
+              Listado de Clientes
             </button>
             <button
               className={`${styles.tabButton} ${activeTab === 'stats' ? styles.activeTab : ''}`}
               onClick={() => setActiveTab('stats')}
             >
-              📊 Estadísticas de Clientes
+              Estadísticas de Clientes
             </button>
           </div>
         </div>

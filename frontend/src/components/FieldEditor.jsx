@@ -186,10 +186,10 @@ const FieldEditor = ({
               onChange={(e) => setDocumentType(e.target.value)}
               className={styles.documentTypeSelect}
             >
-              <option value="DNI">DNI</option>
-              <option value="Pasaporte">Pasaporte</option>
-              <option value="Cédula">Cédula</option>
-              <option value="Otro">Otro</option>
+              <option value="DNI"> DNI</option>
+              <option value="Pasaporte"> Pasaporte</option>
+              <option value="Cédula"> Cédula</option>
+              <option value="Otro"> Otro</option>
             </select>
             <input
               type="text"
@@ -239,7 +239,7 @@ const FieldEditor = ({
     <div className={styles.modalOverlay}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
-          <h3>Editar {getFieldLabel()}</h3>
+          <h3> Editar {getFieldLabel()}</h3>
           <button 
             className={styles.modalClose}
             onClick={onCancel}
@@ -252,7 +252,7 @@ const FieldEditor = ({
         <div className={styles.modalBody}>
           {error && (
             <div className={styles.errorMessage}>
-              ⚠️ {error}
+              {error}
             </div>
           )}
           

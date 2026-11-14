@@ -1,0 +1,83 @@
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border, #d8dde6);
+  background: var(--color-bg-white, #ffffff);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(42, 49, 60, 0.12));
+  font-family: var(--font-main, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif);
+  font-size: var(--font-size-small, 12px);
+  line-height: 1.35;
+  color: var(--color-text-main, #3a4250);
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+}
+
+.icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.message {
+  margin: 0;
+  min-width: 0;
+}
+
+.success {
+  color: var(--color-success-dark, #2b8a3e);
+  border-color: #b7e4c7;
+  background: #f0f9f4;
+}
+
+.success .icon {
+  color: var(--color-success, #2f9e44);
+}
+
+.error {
+  color: var(--color-danger-dark, #c92a2a);
+  border-color: #f5c2c7;
+  background: #fff5f5;
+}
+
+.error .icon {
+  color: var(--color-danger, #e03131);
+}
+
+.warning {
+  color: #9a6700;
+  border-color: #ffe08a;
+  background: #fffbeb;
+}
+
+.warning .icon {
+  color: #e67700;
+}
+
+.info {
+  color: var(--color-primary-dark, #334d70);
+  border-color: #c5d4e8;
+  background: #f4f7fb;
+}
+
+.info .icon {
+  color: var(--color-primary, #3f5f8a);
+}

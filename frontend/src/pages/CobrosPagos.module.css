@@ -1,507 +1,676 @@
-.container {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-
+/* Layout tipo Consultas y Reservas: panel azul fijo + contenido */
+.newLayout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg);
 }
 
-.header {
-  margin-bottom: 32px;
-  text-align: center;
-}
-
-.header h1 {
-  margin: 0 0 8px 0;
-  color: #1f2937;
-  font-size: 2rem;
-  font-weight: 600;
-}
-
-.header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 1.1rem;
-}
-
-.content {
+.sidebar {
+  width: 260px;
+  background: var(--color-primary);
+  color: white;
+  padding: 0;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  height: calc(100vh - var(--nav-height));
+  left: 0;
+  top: var(--nav-height);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  z-index: 20;
 }
 
-.clientsList h2,
-.reservationsList h2 {
-  margin: 0 0 20px 0;
-  color: #1f2937;
-  font-size: 1.5rem;
-  font-weight: 600;
+.sidebarHeader {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.emptyState {
-  text-align: center;
-  padding: 40px;
-  color: #6b7280;
-  background: #f9fafb;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
-
-.clientsGrid,
-.reservationsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
-}
-
-.clientCard {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.clientCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-color: #3b82f6;
-}
-
-.clientInfo h3 {
-  margin: 0 0 8px 0;
-  color: #1f2937;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.clientEmail, .clientPhone {
-  margin: 4px 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.balanceInfo {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f3f4f6;
-}
-
-.balanceAmount {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.label {
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.amount {
-  color: #1f2937;
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.reservationsCount {
-  text-align: right;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.loading, .error {
-  text-align: center;
-  padding: 40px;
-  color: #6b7280;
-}
-
-.error {
-  color: #dc2626;
-}
-
-.retryButton {
-  background: #3b82f6;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 16px;
-}
-
-.retryButton:hover {
-  background: #2563eb;
-}
-
-/* Modal styles */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modalContent {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.modalHeader h2 {
+.sidebarHeader h2 {
   margin: 0;
-  color: #1f2937;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
+  color: white;
 }
 
-.closeButton {
+.sectionMenu {
+  flex: 1;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionButton {
   background: none;
   border: none;
-  font-size: 24px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 10px 14px;
+  text-align: left;
   cursor: pointer;
-  color: #6b7280;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.2s;
-}
-
-.closeButton:hover {
-  color: #1f2937;
-}
-
-.clientSummary {
-  margin-bottom: 24px;
-}
-
-.summaryCard {
-  background: #f9fafb;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e5e7eb;
-}
-
-.summaryCard h3 {
-  margin: 0 0 16px 0;
-  color: #1f2937;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.summaryGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.summaryItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.summaryItem:last-child {
-  border-bottom: none;
-}
-
-.value {
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.reservationsList h3 {
-  margin: 0 0 20px 0;
-  color: #1f2937;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.reservationsGrid {
-  display: grid;
-  gap: 16px;
-}
-
-.reservationCard {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-size: var(--font-size-small);
+  font-weight: 500;
   transition: all 0.2s ease;
+  border-left: 2px solid transparent;
 }
 
-.reservationCard:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.sectionButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
-.reservationInfo h4 {
-  margin: 0 0 8px 0;
-  color: #1f2937;
-  font-size: 1.1rem;
-  font-weight: 600;
+.sectionButton.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-left-color: white;
 }
 
-.reservationInfo p {
-  margin: 4px 0;
-  color: #6b7280;
-  font-size: 0.9rem;
+.mainContent {
+  flex: 1;
+  margin-left: 260px;
+  padding: 12px 16px 24px;
+  background: var(--color-bg);
+  min-height: calc(100vh - var(--nav-height));
 }
 
-.reservationAmount {
-  text-align: right;
-}
-
-.reservationAmount .amount {
-  display: block;
-  color: #1f2937;
-  font-weight: 600;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.reservationAmount .amount:hover {
-  color: #3b82f6;
-}
-
-.reservationAmount small {
-  display: block;
-  color: #6b7280;
-  font-size: 0.8rem;
-  margin-top: 4px;
-}
-
-/* Estilos para vista completa de detalles del cliente */
-.clientDetailsContainer {
-  padding: 24px;
+.mainContentBody {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.clientDetailsHeader {
-  margin-bottom: 32px;
+.mainContentBodyWide {
+  max-width: none;
+}
+
+.billingBlock + .billingBlock {
+  border-top: 1px solid var(--color-border, #d8dde6);
+}
+
+.facturaPendiente {
+  color: #b7791f;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.copyCell {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: copy;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.copyCell:hover {
+  color: var(--color-primary-dark, #334d70);
+  text-decoration: underline;
+}
+
+.copyCell:focus-visible {
+  outline: 2px solid rgba(63, 95, 138, 0.35);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.section {
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border, #d8dde6);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.sectionActions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.backButton {
-  background: #6b7280;
+.createButton {
+  background: var(--color-primary, #3f5f8a);
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 6px);
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.backButton:hover {
-  background: #4b5563;
+.createButton:hover {
+  background: var(--color-primary-dark, #334d70);
 }
 
-.clientDetailsHeader h1 {
-  margin: 0;
-  color: #1f2937;
-  font-size: 2rem;
-  font-weight: 600;
+.sectionHint {
+  margin: 4px 0 0;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-muted, #6b7280);
 }
 
-.clientDetailsContent {
+.filters {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border, #d8dde6);
+  background: var(--color-bg, #f5f6f8);
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .container {
-    padding: 16px;
-  }
-
-  .clientsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .modalContent {
-    margin: 20px;
-    max-width: calc(100% - 40px);
-    padding: 16px;
-  }
-
-  .reservationCard {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .reservationAmount {
-    text-align: left;
-    width: 100%;
-  }
-
-  .clientDetailsHeader {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .clientDetailsHeader h1 {
-    font-size: 1.5rem;
-  }
+.filterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
 }
 
-/* Estilos para tarjetas de reservas */
-.reservationCard {
+.filterLabel {
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
+  color: var(--color-text-dark, #3a4250);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-base, 13px);
+  color: var(--color-text-dark, #3a4250);
+  cursor: pointer;
+  user-select: none;
+}
+
+.check input {
+  margin: 0;
+  accent-color: var(--color-primary, #3f5f8a);
+}
+
+.dateField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-dark, #3a4250);
+}
+
+.dateField input {
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-sm, 4px);
+  padding: 4px 8px;
+  font-size: var(--font-size-small, 0.846rem);
+}
+
+.clearDates {
+  background: transparent;
+  border: none;
+  color: var(--color-primary, #3f5f8a);
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.panelHeader {
+  padding: 12px 20px 0;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: var(--font-size-base, 13px);
+  font-weight: 600;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.tableContainer {
+  overflow-x: auto;
+  padding: 8px 12px 16px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small, 0.846rem);
+}
+
+.table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border, #d8dde6);
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border, #e8ebf0);
+  vertical-align: top;
+  color: var(--color-text-dark, #3a4250);
+}
+
+.columnHeader {
+  position: relative;
+  vertical-align: middle;
+}
+
+.columnHeaderInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.filterBtn:hover,
+.filterBtnOpen {
+  background: var(--color-bg, #f5f6f8);
+  color: var(--color-primary-dark, #334d70);
+  border-color: var(--color-border, #d8dde6);
+}
+
+.filterBtnActive {
+  color: var(--color-primary-dark, #334d70);
+  background: rgba(63, 95, 138, 0.12);
+  border-color: var(--color-primary, #3f5f8a);
+}
+
+.filterMenu {
+  position: fixed;
+  z-index: 80;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 8px;
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  transition: all 0.2s;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.columnFilter {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-sm, 4px);
+  padding: 4px 8px;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-dark, #3a4250);
+  background: white;
+}
+
+.columnFilter:focus {
+  outline: 2px solid rgba(63, 95, 138, 0.35);
+  outline-offset: 1px;
+}
+
+.columnFilterStack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 6px;
+  min-width: 160px;
 }
 
-.reservationCard:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border-color: #d1d5db;
+.columnFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.reservationInfo h3 {
-  margin: 0 0 8px 0;
-  color: #1f2937;
-  font-size: 1.25rem;
+.columnFilterLabel {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-dark, #3a4250);
+}
+
+.columnFilterRow .columnFilter {
+  flex: 1 1 auto;
+}
+
+.emptyCell {
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  padding: 28px 12px !important;
+}
+
+.row:hover {
+  background: rgba(63, 95, 138, 0.04);
+}
+
+.idCell {
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.clientName {
-  margin: 0 0 4px 0;
-  color: #374151;
-  font-weight: 500;
+.amountCell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.metaCell {
+  color: var(--color-text-muted, #6b7280);
+  white-space: nowrap;
+}
+
+.dashMuted {
+  color: var(--color-text-muted, #9aa3b2);
+}
+
+.facturaCell,
+.retiradoCell {
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.dropzone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border, #c5ccd8);
+  border-radius: 6px;
+  background: var(--color-bg, #f5f6f8);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.dropzonePending {
+  color: #b7791f;
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary, #3f5f8a);
+  color: var(--color-primary-dark, #334d70);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.dropzone input {
+  display: none;
+}
+
+.dropzoneCompact {
+  width: auto;
+  min-height: 0;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+
+.dropzoneBusy {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.fileLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary, #3f5f8a);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.fileLink:hover {
+  color: var(--color-primary-dark, #334d70);
+}
+
+.fileDoneMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f9e44;
+  flex-shrink: 0;
+}
+
+.fileDeleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #868e96;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fileDeleteBtn:hover:not(:disabled) {
+  color: #c92a2a;
+  border-color: rgba(201, 42, 42, 0.35);
+  background: rgba(201, 42, 42, 0.06);
+}
+
+.fileDeleteBtn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.retiradoToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border, #c5ccd8);
+  border-radius: 6px;
+  background: var(--color-bg, #f5f6f8);
+  cursor: pointer;
   font-size: 1rem;
+  line-height: 1;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.clientEmail {
-  margin: 0 0 4px 0;
-  color: #6b7280;
-  font-size: 0.875rem;
+.retiradoToggle:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
-.guestsCount {
-  margin: 0;
+.retiradoOn {
+  color: #2f9e44;
+  border-color: rgba(47, 158, 68, 0.45);
+  background: rgba(47, 158, 68, 0.1);
+}
+
+.retiradoOff {
   color: #6b7280;
-  font-size: 0.875rem;
+}
+
+.retiradoOff:hover {
+  border-color: var(--color-primary, #3f5f8a);
+  color: var(--color-primary-dark, #334d70);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.meta {
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-muted, #6b7280);
+}
+
+.paymentIdList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 220px;
+}
+
+.paymentId {
+  display: inline-block;
+  background: var(--color-bg, #f5f6f8);
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-dark, #3a4250);
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary, #3f5f8a);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
 }
 
 .statusBadge {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 6px;
   color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.totalsInfo {
+.rowActions {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 8px;
-}
-
-.totalsInfo small {
-  color: #6b7280;
-  font-size: 0.75rem;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
+  gap: 6px;
 }
 
 .paymentButton {
-  background-color: #3b82f6;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-primary, #3f5f8a);
   color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  padding: 6px 10px;
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  flex: 1;
+  white-space: nowrap;
 }
 
-.paymentButton:hover:not(:disabled) {
-  background-color: #2563eb;
+.paymentButton:hover {
+  background: var(--color-primary-dark, #334d70);
 }
 
-.paymentButton:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
+.emptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
 }
 
-.detailsButton {
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #374151;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+.loading,
+.errorState {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  min-height: 240px;
+  padding: 24px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: #e03131;
+  font-weight: 600;
+}
+
+.retryButton {
+  background: var(--color-primary, #3f5f8a);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  flex: 1;
 }
 
-.detailsButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
-
-/* Responsive para tarjetas de reservas */
-@media (max-width: 640px) {
-  .reservationsGrid {
-    grid-template-columns: 1fr;
-  }
-  
-  .actions {
-    flex-direction: column;
-  }
-  
-  .paymentButton,
-  .detailsButton {
+@media (max-width: 768px) {
+  .sidebar {
     width: 100%;
+    position: relative;
+    height: auto;
+    top: 0;
   }
-} 
+
+  .mainContent {
+    margin-left: 0;
+    padding: 16px;
+  }
+
+  .sectionButton {
+    padding: 12px 16px;
+  }
+}
