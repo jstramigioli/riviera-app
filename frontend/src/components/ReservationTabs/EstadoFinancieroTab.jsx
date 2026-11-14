@@ -6,8 +6,7 @@ import {
   FaTimes,
   FaCheck,
   FaEdit,
-  FaPrint,
-  FaUndo
+  FaPrint
 } from 'react-icons/fa';
 import PaymentForm from '../PaymentForm';
 import LiquidacionPrint from './LiquidacionPrint';
@@ -37,7 +36,6 @@ const EstadoFinancieroTab = ({
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
   const [editingCargo, setEditingCargo] = useState(null);
-  const [editMontoOnly, setEditMontoOnly] = useState(false);
   const [newCargo, setNewCargo] = useState({
     descripcion: '',
     monto: '',
@@ -94,7 +92,6 @@ const EstadoFinancieroTab = ({
       notas: ''
     });
     setEditingCargo(null);
-    setEditMontoOnly(false);
   };
 
   const openCreateCargo = () => {
@@ -104,7 +101,6 @@ const EstadoFinancieroTab = ({
 
   const openEditConsumo = (cargo) => {
     setEditingCargo(cargo);
-    setEditMontoOnly(false);
     setNewCargo({
       descripcion: cargo.descripcion || '',
       monto: String(cargo.monto ?? ''),
@@ -114,41 +110,20 @@ const EstadoFinancieroTab = ({
     setShowCargoModal(true);
   };
 
-  const openEditAlojamiento = (cargo) => {
-    setEditingCargo(cargo);
-    setEditMontoOnly(true);
-    setNewCargo({
-      descripcion: cargo.descripcion || '',
-      monto: String(cargo.monto ?? ''),
-      subcategoriaCargoId: null,
-      notas: cargo.notas || ''
-    });
-    setShowCargoModal(true);
-  };
-
   const handleCargoSubmit = async (e) => {
     e.preventDefault();
 
     if (editingCargo) {
-      if (editMontoOnly) {
-        const monto = parseFloat(newCargo.monto);
-        if (!(monto > 0)) {
-          notify({ title: 'Validación', message: 'El monto debe ser mayor a 0', type: 'warning' });
-          return;
-        }
-        await onUpdateCargo(editingCargo.id, { monto });
-      } else {
-        if (!newCargo.subcategoriaCargoId) {
-          notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
-          return;
-        }
-        await onUpdateCargo(editingCargo.id, {
-          descripcion: newCargo.descripcion,
-          monto: parseFloat(newCargo.monto),
-          notas: newCargo.notas || null,
-          subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId, 10)
-        });
+      if (!newCargo.subcategoriaCargoId) {
+        notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
+        return;
       }
+      await onUpdateCargo(editingCargo.id, {
+        descripcion: newCargo.descripcion,
+        monto: parseFloat(newCargo.monto),
+        notas: newCargo.notas || null,
+        subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId, 10)
+      });
     } else {
       if (!newCargo.subcategoriaCargoId) {
         notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
@@ -164,18 +139,6 @@ const EstadoFinancieroTab = ({
 
     resetCargoForm();
     setShowCargoModal(false);
-  };
-
-  const handleClearOverride = async (cargo) => {
-    if (!onUpdateCargo) return;
-    const ok = await confirm({
-      title: 'Quitar valor manual',
-      message: '¿Quitar el valor manual y volver a la tarifa original de la reserva?',
-      confirmText: 'Quitar',
-      type: 'warning',
-    });
-    if (!ok) return;
-    await onUpdateCargo(cargo.id, { clearOverride: true });
   };
 
   const handleDeleteCargo = async (cargo) => {
@@ -225,7 +188,7 @@ const EstadoFinancieroTab = ({
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    // Dos frames: reflow con html/body height:auto antes del diálogo de Chrome
+    // Dos frames: reflow con html/body height:auto antes del diálogo de impresión
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.print();
@@ -305,36 +268,8 @@ const EstadoFinancieroTab = ({
 
   const renderCargoActions = (item) => {
     if (isLodgingCargo(item)) {
-      return (
-        <span className={styles.breakdownActions}>
-          <button
-            type="button"
-            className={styles.editIconButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              openEditAlojamiento(item);
-            }}
-            title="Editar monto de alojamiento"
-            data-testid={`btn-edit-alojamiento-${item.id}`}
-          >
-            <FaEdit />
-          </button>
-          {item.manualOverride && (
-            <button
-              type="button"
-              className={styles.undoIconButton}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClearOverride(item);
-              }}
-              title="Volver a tarifa original"
-              data-testid={`btn-clear-override-${item.id}`}
-            >
-              <FaUndo />
-            </button>
-          )}
-        </span>
-      );
+      // Alojamiento: solo lectura (tarifa/promos); sin override manual
+      return null;
     }
 
     return (
@@ -369,18 +304,7 @@ const EstadoFinancieroTab = ({
 
   const renderMonto = (item) => (
     <span className={styles.breakdownMonto}>
-      <span>
-        {formatCurrency(item.monto)}
-        {item.manualOverride ? (
-          <abbr
-            className={styles.manualAsterisk}
-            title="Valor asignado manualmente"
-            data-testid={`manual-asterisk-${item.id}`}
-          >
-            *
-          </abbr>
-        ) : null}
-      </span>
+      <span>{formatCurrency(item.monto)}</span>
       {renderCargoActions(item)}
     </span>
   );
@@ -556,11 +480,7 @@ const EstadoFinancieroTab = ({
         <div className={styles.modalOverlay} onClick={() => { resetCargoForm(); setShowCargoModal(false); }}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>
-                {editingCargo
-                  ? (editMontoOnly ? 'Editar monto de alojamiento' : 'Editar cargo')
-                  : 'Agregar cargo'}
-              </h3>
+              <h3>{editingCargo ? 'Editar cargo' : 'Agregar cargo'}</h3>
               <button
                 type="button"
                 className={styles.closeButton}
@@ -570,30 +490,16 @@ const EstadoFinancieroTab = ({
               </button>
             </div>
             <form onSubmit={handleCargoSubmit} className={styles.modalForm}>
-              {!editMontoOnly && (
-                <div className={styles.formGroup}>
-                  <label>Descripción *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCargo.descripcion}
-                    onChange={(e) => setNewCargo({ ...newCargo, descripcion: e.target.value })}
-                    placeholder="Ej: Minuta, Bebidas, Lavandería"
-                  />
-                </div>
-              )}
-              {editMontoOnly && (
-                <p className={styles.modalHint}>
-                  El monto manual tiene prioridad sobre la tarifa. Se conserva la tarifa original
-                  de la reserva para poder restaurarla.
-                  {editingCargo?.montoOriginal != null && (
-                    <>
-                      {' '}Tarifa original:{' '}
-                      <strong>{formatCurrency(editingCargo.montoOriginal)}</strong>
-                    </>
-                  )}
-                </p>
-              )}
+              <div className={styles.formGroup}>
+                <label>Descripción *</label>
+                <input
+                  type="text"
+                  required
+                  value={newCargo.descripcion}
+                  onChange={(e) => setNewCargo({ ...newCargo, descripcion: e.target.value })}
+                  placeholder="Ej: Minuta, Bebidas, Lavandería"
+                />
+              </div>
               <div className={styles.formGroup}>
                 <label>Monto *</label>
                 <input
@@ -606,48 +512,44 @@ const EstadoFinancieroTab = ({
                   data-testid="input-cargo-monto"
                 />
               </div>
-              {!editMontoOnly && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label>Categoría *</label>
-                    <select
-                      value={newCargo.subcategoriaCargoId || ''}
-                      onChange={(e) => setNewCargo({
-                        ...newCargo,
-                        subcategoriaCargoId: e.target.value ? parseInt(e.target.value, 10) : null
-                      })}
-                      required
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {['SERVICIO', 'CONSUMO', 'OTRO'].map((tipoPrincipal) => {
-                        const subcatsDelTipo = subcategorias.filter((sub) => sub.tipo === tipoPrincipal);
-                        if (subcatsDelTipo.length === 0) return null;
-                        return (
-                          <optgroup key={tipoPrincipal} label={subcatsDelTipo[0].tipoNombre}>
-                            {subcatsDelTipo.map((subcat) => (
-                              <option key={subcat.id} value={subcat.id}>
-                                {subcat.nombre}
-                              </option>
-                            ))}
-                          </optgroup>
-                        );
-                      })}
-                    </select>
-                    {loadingCategorias && (
-                      <small style={{ color: '#6c757d' }}>Cargando opciones...</small>
-                    )}
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Notas</label>
-                    <textarea
-                      value={newCargo.notas}
-                      onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
-                      placeholder="Observaciones opcionales"
-                      rows="3"
-                    />
-                  </div>
-                </>
-              )}
+              <div className={styles.formGroup}>
+                <label>Categoría *</label>
+                <select
+                  value={newCargo.subcategoriaCargoId || ''}
+                  onChange={(e) => setNewCargo({
+                    ...newCargo,
+                    subcategoriaCargoId: e.target.value ? parseInt(e.target.value, 10) : null
+                  })}
+                  required
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {['SERVICIO', 'CONSUMO', 'OTRO'].map((tipoPrincipal) => {
+                    const subcatsDelTipo = subcategorias.filter((sub) => sub.tipo === tipoPrincipal);
+                    if (subcatsDelTipo.length === 0) return null;
+                    return (
+                      <optgroup key={tipoPrincipal} label={subcatsDelTipo[0].tipoNombre}>
+                        {subcatsDelTipo.map((subcat) => (
+                          <option key={subcat.id} value={subcat.id}>
+                            {subcat.nombre}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+                {loadingCategorias && (
+                  <small style={{ color: '#6c757d' }}>Cargando opciones...</small>
+                )}
+              </div>
+              <div className={styles.formGroup}>
+                <label>Notas</label>
+                <textarea
+                  value={newCargo.notas}
+                  onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
+                  placeholder="Observaciones opcionales"
+                  rows="3"
+                />
+              </div>
               <div className={styles.modalActions}>
                 <button
                   type="button"

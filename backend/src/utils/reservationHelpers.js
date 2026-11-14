@@ -51,24 +51,7 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
   const account = await ensureReservationAccount(prisma, reservaId);
   const financialRefs = dualWriteReservationRefs(account, reservaId);
 
-  // Conservar overrides manuales por fecha civil antes de regenerar
-  const existingLodging = await prisma.cargo.findMany({
-    where: {
-      OR: [{ reservaId }, { accountId: account.id }],
-      subcategoriaCargoId: null
-    }
-  });
-  const overrideByDate = new Map();
-  for (const cargo of existingLodging) {
-    const key = toDateOnlyString(cargo.fecha);
-    if (cargo.manualOverride) {
-      overrideByDate.set(key, {
-        monto: parseFloat(cargo.monto),
-        notas: cargo.notas || null
-      });
-    }
-  }
-
+  // Regenerar siempre desde tarifa/promos RATE (sin override manual de folio)
   await prisma.cargo.deleteMany({
     where: {
       OR: [{ reservaId }, { accountId: account.id }],
@@ -143,21 +126,17 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
       const originalAmount = quoted
         ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
         : parseFloat(segment.baseRate);
-      const preserved = overrideByDate.get(dateKey);
       nightPlans.push({
         index: i,
         currentDate,
         dateKey,
         quoted,
-        originalAmount,
-        preserved,
-        hasOverride: Boolean(preserved)
+        originalAmount
       });
     }
 
     let freeByIndex = {};
-    const billablePlans = nightPlans.filter((n) => !n.hasOverride);
-    if (rateRules.length && billablePlans.length) {
+    if (rateRules.length && nightPlans.length) {
       let occupancyPercent = null;
       try {
         const hotelIdForOcc = await resolveHotelId(serviceTypeId);
@@ -182,29 +161,29 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           selectedRuleIds: [],
           applySuggestedDefaults: true
         },
-        billablePlans.map((n) => n.originalAmount)
+        nightPlans.map((n) => n.originalAmount)
       );
       for (const [localIdx, detail] of Object.entries(freeEval.byIndex || {})) {
-        const plan = billablePlans[Number(localIdx)];
+        const plan = nightPlans[Number(localIdx)];
         if (plan) freeByIndex[plan.index] = detail;
       }
     }
 
     for (const plan of nightPlans) {
-      const { currentDate, quoted, originalAmount, preserved, hasOverride, index } = plan;
+      const { currentDate, quoted, originalAmount, index } = plan;
 
       let promoDiscount = 0;
       let promoRuleId = null;
       let promoPercent = null;
       let pricedAmount = originalAmount;
 
-      if (!hasOverride && freeByIndex[index]) {
+      if (freeByIndex[index]) {
         const free = freeByIndex[index];
         pricedAmount = 0;
         promoDiscount = free.discountARS;
         promoRuleId = free.promotionRuleId || null;
         promoPercent = 100;
-      } else if (!hasOverride && rateRules.length) {
+      } else if (rateRules.length) {
         let occupancyPercent = null;
         try {
           const hotelIdForOcc = await resolveHotelId(serviceTypeId);
@@ -237,8 +216,6 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
         }
       }
 
-      const effectiveAmount = hasOverride ? preserved.monto : pricedAmount;
-
       const dateStr = currentDate.toLocaleDateString('es-AR', {
         timeZone: 'UTC',
         weekday: 'short',
@@ -259,12 +236,9 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
           serviceTypeId: serviceTypeId || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-          monto: effectiveAmount,
-          montoOriginal: originalAmount,
-          manualOverride: hasOverride,
+          monto: pricedAmount,
           notas:
-            (preserved?.notas ||
-              `Noche ${index + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}`) + promoNote,
+            `Noche ${index + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}` + promoNote,
           fecha: currentDate
         }
       });
@@ -275,10 +249,10 @@ async function syncLodgingChargesAndNightRates(reservationId, segments, original
           date: currentDate,
           baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
           dynamicRate: originalAmount,
-          finalRate: effectiveAmount,
+          finalRate: pricedAmount,
           serviceType: serviceTypeId || 'base',
           serviceRate: originalAmount,
-          manualOverride: hasOverride,
+          manualOverride: false,
           promotionRuleId: promoRuleId,
           promotionDiscountARS: promoDiscount > 0 ? promoDiscount : null,
           promotionPercent: promoPercent
