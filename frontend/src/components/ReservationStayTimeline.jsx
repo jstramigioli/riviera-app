@@ -84,6 +84,7 @@ const SegmentCard = ({ card, vertical }) => {
  * - auto (default): horizontal en ancho, vertical en viewport ≤720px
  * - vertical / horizontal: fuerza el layout
  * hideHeader: omite cliente/noches/total (el panel Libro los muestra fuera del marco)
+ * hideTotal: omite el monto del header (p.ej. modal confirmar — tarifa solo abajo)
  */
 const ReservationStayTimeline = ({
   reservation,
@@ -92,7 +93,8 @@ const ReservationStayTimeline = ({
   onClientClick,
   orientation = 'auto',
   compact = false,
-  hideHeader = false
+  hideHeader = false,
+  hideTotal = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -147,10 +149,12 @@ const ReservationStayTimeline = ({
             )}
             <p className={styles.totalNights}>{nightsLabel}</p>
           </div>
-          <div className={styles.totalBlock} data-testid="timeline-total">
-            <span className={styles.totalLabel}>Total</span>
-            <span className={styles.totalAmount}>{totalLabel}</span>
-          </div>
+          {!hideTotal ? (
+            <div className={styles.totalBlock} data-testid="timeline-total">
+              <span className={styles.totalLabel}>Total</span>
+              <span className={styles.totalAmount}>{totalLabel}</span>
+            </div>
+          ) : null}
         </header>
       ) : null}
 

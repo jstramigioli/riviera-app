@@ -305,6 +305,17 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     });
     expect(withSel.aplica).toBe(true);
     expect(withSel.descuentoARS).toBe(5000);
+
+    const withDefaults = evaluateSettlementRules([sugerida], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 45000,
+      mode: 'received',
+      selectedRuleIds: [],
+      applySuggestedDefaults: true
+    });
+    expect(withDefaults.aplica).toBe(true);
+    expect(withDefaults.descuentoARS).toBe(5000);
   });
 });
 
@@ -440,6 +451,42 @@ describe('promotionEngine rate + stacking', () => {
 
     const short = evaluateFreeNightsForStay([rule], { layer: 'RATE', nights: 4 }, [1, 2, 3, 4]);
     expect(short.aplica).toBe(false);
+
+    // Promo 4x3: 1 noche gratis + NIGHTS>=4, modality SUGERIDA (default ON vía flag)
+    const promo4x3 = {
+      id: 9,
+      code: 'PROMO_4X3',
+      label: 'Promo 4x3',
+      activo: true,
+      prioridad: 100,
+      modality: 'SUGERIDA',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'FREE_NIGHTS',
+      benefitValue: 1,
+      conditions: [{ type: 'NIGHTS', params: { op: 'gte', value: 4 } }]
+    };
+    const prices4 = [50000, 40000, 60000, 45000];
+    const off = evaluateRateRules([promo4x3], {
+      layer: 'RATE',
+      nights: 4,
+      nightPrices: prices4,
+      selectedRuleIds: []
+    });
+    expect(off.aplica).toBe(false);
+    expect(off.suggestions.some((s) => s.id === 9 && s.defaultOn)).toBe(true);
+
+    const on = evaluateRateRules([promo4x3], {
+      layer: 'RATE',
+      nights: 4,
+      nightPrices: prices4,
+      selectedRuleIds: [],
+      applySuggestedDefaults: true
+    });
+    expect(on.aplica).toBe(true);
+    expect(on.freeNights.freeNightCount).toBe(1);
+    expect(on.nights[1].finalARS).toBe(0);
+    expect(on.finalARS).toBe(50000 + 0 + 60000 + 45000);
 
     const twoFree = {
       ...rule,
