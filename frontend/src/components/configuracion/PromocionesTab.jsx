@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiEdit2, FiPlus, FiX, FiCheck } from 'react-icons/fi';
-import { FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import {
   fetchPromotionRules,
   createPromotionRule,
@@ -468,19 +467,14 @@ function PromocionesTab() {
                   <td>
                     <button
                       type="button"
-                      className={`${styles.toggleBtn} ${isOn ? styles.toggleOn : styles.toggleOff}`}
+                      className={`${styles.switch} ${isOn ? styles.switchOn : ''}`}
                       onClick={() => handleToggle(row)}
                       disabled={togglingId === row.id}
                       title={isOn ? 'Desactivar' : 'Activar'}
                       aria-label={isOn ? `Desactivar ${row.label}` : `Activar ${row.label}`}
                       aria-pressed={isOn}
                     >
-                      {isOn ? (
-                        <FaToggleOn aria-hidden="true" />
-                      ) : (
-                        <FaToggleOff aria-hidden="true" />
-                      )}
-                      <span>{isOn ? 'On' : 'Off'}</span>
+                      <span className={styles.switchThumb} aria-hidden="true" />
                     </button>
                   </td>
                   <td>
@@ -548,7 +542,6 @@ function PromocionesTab() {
         <div className={styles.sectionHead}>
           <h3 id="promo-section-title" className={styles.sectionHeading}>
             Promociones
-            <span className={styles.count}>{promoRows.length}</span>
           </h3>
           <button
             type="button"
@@ -559,6 +552,9 @@ function PromocionesTab() {
             Promoción
           </button>
         </div>
+        <p className={styles.sectionLead}>
+          Ofertas de estadía: fechas, noches, ocupación u otras condiciones de la reserva.
+        </p>
         {renderTable(promoRows, 'No hay promociones')}
       </section>
 
@@ -566,7 +562,6 @@ function PromocionesTab() {
         <div className={styles.sectionHead}>
           <h3 id="desc-section-title" className={styles.sectionHeading}>
             Descuentos
-            <span className={styles.count}>{discountRows.length}</span>
           </h3>
           <button
             type="button"
@@ -577,6 +572,9 @@ function PromocionesTab() {
             Descuento
           </button>
         </div>
+        <p className={styles.sectionLead}>
+          Rebajas al cobrar: por medio de pago u otras condiciones en el momento del pago.
+        </p>
         {renderTable(discountRows, 'No hay descuentos')}
       </section>
 
@@ -613,31 +611,6 @@ function PromocionesTab() {
                 <FiX aria-hidden="true" />
               </button>
             </div>
-
-            {!editingId && (
-              <div className={styles.kindToggle} role="group" aria-label="Tipo">
-                <button
-                  type="button"
-                  className={`${styles.kindBtn} ${
-                    form.kind === 'PROMO' ? styles.kindBtnActive : ''
-                  }`}
-                  onClick={() => setField('kind', 'PROMO')}
-                  aria-pressed={form.kind === 'PROMO'}
-                >
-                  Promoción
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.kindBtn} ${
-                    form.kind === 'DESCUENTO' ? styles.kindBtnActive : ''
-                  }`}
-                  onClick={() => setField('kind', 'DESCUENTO')}
-                  aria-pressed={form.kind === 'DESCUENTO'}
-                >
-                  Descuento
-                </button>
-              </div>
-            )}
 
             <label className={styles.field}>
               Nombre
@@ -695,18 +668,20 @@ function PromocionesTab() {
             <div className={styles.formFlags}>
               <button
                 type="button"
-                className={`${styles.toggleBtn} ${styles.toggleLg} ${
-                  form.activo ? styles.toggleOn : styles.toggleOff
-                }`}
+                className={styles.switchRow}
                 onClick={() => setField('activo', !form.activo)}
                 aria-pressed={form.activo}
+                aria-label={form.activo ? 'Marcar como inactiva' : 'Marcar como activa'}
               >
-                {form.activo ? (
-                  <FaToggleOn aria-hidden="true" />
-                ) : (
-                  <FaToggleOff aria-hidden="true" />
-                )}
-                <span>{form.activo ? 'Activa' : 'Inactiva'}</span>
+                <span
+                  className={`${styles.switch} ${form.activo ? styles.switchOn : ''}`}
+                  aria-hidden="true"
+                >
+                  <span className={styles.switchThumb} />
+                </span>
+                <span className={styles.switchLabel}>
+                  {form.activo ? 'Activa' : 'Inactiva'}
+                </span>
               </button>
               <label className={styles.check}>
                 <input
