@@ -3405,23 +3405,7 @@ export default function Consulta() {
         <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </header>
 
-      <div className={styles.threeCol}>
-        <aside className={styles.colTimeline} aria-label="Estadía">
-          {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
-            <ReservationStayTimeline
-              reservation={timelineReservation}
-              getServiceTypeLabel={getServiceTypeLabel}
-              onClientClick={handleClientClick}
-              orientation="vertical"
-              compact
-              hideTotal
-              embedded
-            />
-          ) : (
-            <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
-          )}
-        </aside>
-
+      <div className={styles.twoCol}>
         <div className={styles.colForm}>
       {/* Contenedor unificado: cabecera densa + tramos */}
       <div className={styles.unifiedContainer}>
@@ -4005,20 +3989,37 @@ export default function Consulta() {
       )}
         </div>
 
-        <div className={styles.colBalance}>
-          <ConsultaBalancePanel
-            segments={segments}
-            selectedRoomsPerBlock={selectedRoomsPerBlock}
-            notes={notes}
-            source={source}
-            onSourceChange={setSource}
-            reservationStatus={reservationStatus}
-            onStatusChange={setReservationStatus}
-            onPromoApplyChange={handlePromoApplyChange}
-            isEditing={Boolean(editingReservationId)}
-            disabled={isCreatingReservation}
-          />
-        </div>
+        <aside className={styles.colSide} aria-label="Estadía y tarifas">
+          <div className={styles.sideStay}>
+            {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
+              <ReservationStayTimeline
+                reservation={timelineReservation}
+                getServiceTypeLabel={getServiceTypeLabel}
+                onClientClick={handleClientClick}
+                orientation="vertical"
+                compact
+                hideTotal
+                embedded
+              />
+            ) : (
+              <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
+            )}
+          </div>
+          <div className={styles.sideBalance}>
+            <ConsultaBalancePanel
+              segments={segments}
+              selectedRoomsPerBlock={selectedRoomsPerBlock}
+              notes={notes}
+              source={source}
+              onSourceChange={setSource}
+              reservationStatus={reservationStatus}
+              onStatusChange={setReservationStatus}
+              onPromoApplyChange={handlePromoApplyChange}
+              isEditing={Boolean(editingReservationId)}
+              disabled={isCreatingReservation}
+            />
+          </div>
+        </aside>
       </div>
 
       {/* Modal de advertencia de fecha pasada */}

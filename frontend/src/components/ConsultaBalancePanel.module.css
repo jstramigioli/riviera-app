@@ -3,14 +3,24 @@
   border: none;
   border-radius: 0;
   box-shadow: none;
-  padding: 12px 14px;
+  padding: 12px 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
   font-family: var(--font-main);
   font-size: var(--font-size-base);
-  color: var(--color-text-main);
+  color: var(--color-text-dark);
+}
+
+/* Sobre panel azul claro del lado derecho: muted → navy */
+.quoteLabel,
+.metaLabel,
+.emptyHint,
+.quoteHint,
+.manualPromoUnit,
+.breakdownTable th {
+  color: var(--color-primary-dark);
 }
 
 .heading {
