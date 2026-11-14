@@ -12,7 +12,6 @@ import { FiFilter } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
-import FloatingSearch from './FloatingSearch';
 import { fetchCalendar, fetchReservation } from '../services/api';
 import {
   todayIsoLocal,
@@ -76,12 +75,6 @@ function truncateBarLabel(firstName, lastName, widthPx) {
 export default function LibroReservasBoard({
   onReservationClick,
   reservationsForDayInfo = [],
-  searchReservations = [],
-  searchClients = [],
-  searchQueries = [],
-  onSearchSelectReservation,
-  onSearchSelectClient,
-  onSearchSelectQuery,
   refreshToken = 0,
   onCreateConsumption,
   onCreatePayment
@@ -760,23 +753,13 @@ export default function LibroReservasBoard({
       />
 
       {!dayInfoOpen ? (
-        <>
-          <FloatingSearch
-            reservations={searchReservations}
-            clients={searchClients}
-            queries={searchQueries}
-            onSelectReservation={onSearchSelectReservation}
-            onSelectClient={onSearchSelectClient}
-            onSelectQuery={onSearchSelectQuery}
-          />
-          <FloatingActionButton
-            onToday={jumpToToday}
-            onCreateQuery={() => navigate('/consulta')}
-            onCreateReservation={() => navigate('/consulta?modo=reserva')}
-            onCreateConsumption={() => onCreateConsumption?.()}
-            onCreatePayment={() => onCreatePayment?.()}
-          />
-        </>
+        <FloatingActionButton
+          onToday={jumpToToday}
+          onCreateQuery={() => navigate('/consulta')}
+          onCreateReservation={() => navigate('/consulta?modo=reserva')}
+          onCreateConsumption={() => onCreateConsumption?.()}
+          onCreatePayment={() => onCreatePayment?.()}
+        />
       ) : null}
     </>
   );

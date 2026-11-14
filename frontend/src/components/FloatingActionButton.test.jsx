@@ -53,5 +53,7 @@ describe('FloatingActionButton hub', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
     fireEvent.click(screen.getByRole('menuitem', { name: '+ Pago' }))
     expect(onCreatePayment).toHaveBeenCalledTimes(1)
+
+    expect(screen.queryByRole('button', { name: 'Buscar en el Libro' })).toBeNull()
   })
 })
