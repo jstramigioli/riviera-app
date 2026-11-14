@@ -23,6 +23,9 @@
 .sidebarHeader {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .sidebarHeader h2 {
@@ -30,6 +33,40 @@
   font-size: var(--font-size-large);
   font-weight: 600;
   color: white;
+}
+
+.navSearchLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.navSearch {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(0, 0, 0, 0.15);
+  color: white;
+  padding: 7px 10px;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+}
+
+.navSearch::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.navSearch:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .sectionMenu {
@@ -41,7 +78,20 @@
   overflow-y: auto;
 }
 
-.sectionButton {
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navEmpty {
+  margin: 8px 14px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: var(--font-size-small);
+}
+
+.sectionButton,
+.subSectionButton {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.8);
@@ -54,15 +104,28 @@
   border-left: 2px solid transparent;
 }
 
-.sectionButton:hover {
+.subSectionButton {
+  padding: 7px 14px 7px 26px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sectionButton:hover,
+.subSectionButton:hover {
   background: rgba(255, 255, 255, 0.1);
   color: white;
 }
 
-.sectionButton.active {
+.sectionButton.active,
+.subSectionButton.active {
   background: rgba(255, 255, 255, 0.15);
   color: white;
   border-left-color: white;
+}
+
+.sectionParentActive {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
 }
 
 .mainContent {

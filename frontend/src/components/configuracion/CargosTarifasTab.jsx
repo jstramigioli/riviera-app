@@ -1,23 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import TariffManagement from './TariffManagement';
 import SubcategoriasCargosTab from './SubcategoriasCargosTab';
+import { CARGOS_SUBTABS } from '../../pages/configNav';
 import styles from './CargosTarifasTab.module.css';
 
-const CargosTarifasTab = () => {
+const CargosTarifasTab = ({ forcedSubTab, onSubTabChange }) => {
   const [activeSubTab, setActiveSubTab] = useState(() => {
+    if (forcedSubTab) return forcedSubTab;
     return localStorage.getItem('cargosTarifasActiveTab') || 'alojamiento';
   });
+
+  useEffect(() => {
+    if (forcedSubTab && forcedSubTab !== activeSubTab) {
+      setActiveSubTab(forcedSubTab);
+    }
+  }, [forcedSubTab, activeSubTab]);
 
   useEffect(() => {
     localStorage.setItem('cargosTarifasActiveTab', activeSubTab);
   }, [activeSubTab]);
 
-  const subTabs = [
-    { id: 'alojamiento', label: 'Alojamiento' },
-    { id: 'servicios', label: 'Servicios' },
-    { id: 'consumos', label: 'Consumos' },
-    { id: 'otros', label: 'Otros' }
-  ];
+  const selectSubTab = (id) => {
+    setActiveSubTab(id);
+    if (typeof onSubTabChange === 'function') {
+      onSubTabChange(id);
+    }
+  };
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
@@ -37,11 +45,11 @@ const CargosTarifasTab = () => {
   return (
     <div className={styles.container}>
       <nav className={styles.typeTabs} aria-label="Tipos de cargo">
-        {subTabs.map((tab) => (
+        {CARGOS_SUBTABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveSubTab(tab.id)}
+            onClick={() => selectSubTab(tab.id)}
             className={`${styles.typeTab} ${activeSubTab === tab.id ? styles.active : ''}`}
           >
             {tab.label}

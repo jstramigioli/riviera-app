@@ -11,60 +11,32 @@ import PromocionesTab from '../components/configuracion/PromocionesTab';
 import UsuariosTab from '../components/configuracion/UsuariosTab';
 import Auditoria from './Auditoria';
 import { useAuth } from '../contexts/AuthContext';
+import { CARGOS_SUBTABS, filterConfigNav, getEnabledConfigNav } from './configNav';
 import styles from './Configuracion.module.css';
 
-const SETTINGS_TABS = [
-  { id: 'hotel', label: 'Hotel' },
-  { id: 'habitaciones', label: 'Habitaciones' },
-  { id: 'cargos-tarifas', label: 'Cargos y Tarifas' },
-  { id: 'menu-consumos', label: 'Menú' },
-  { id: 'calendario', label: 'Calendario' },
-  { id: 'tipo-cambio', label: 'Tipo de Cambio' },
-  { id: 'sistema', label: 'Sistema' }
-];
+const CARGOS_SUB_IDS = new Set(CARGOS_SUBTABS.map((s) => s.id));
 
-const USUARIOS_TAB = { id: 'usuarios', label: 'Usuarios' };
-
-const MEDIOS_PAGO_TAB = { id: 'medios-pago', label: 'Medios de pago' };
-const PROMOCIONES_TAB = { id: 'promociones', label: 'Promociones y descuentos' };
-const AUDITORIA_TAB = { id: 'auditoria', label: 'Auditoría' };
+function readInitialCargosSub() {
+  const fromUrl = new URLSearchParams(window.location.search).get('sub');
+  if (fromUrl && CARGOS_SUB_IDS.has(fromUrl)) return fromUrl;
+  const stored = localStorage.getItem('cargosTarifasActiveTab');
+  if (stored && CARGOS_SUB_IDS.has(stored)) return stored;
+  return 'alojamiento';
+}
 
 function ConfiguracionView() {
   const [searchParams] = useSearchParams();
   const { can } = useAuth();
-  const canSettings = can('settings');
-  const canUsers = can('users');
-  const canMediosPago = can('mediosPago');
-  const canPromociones = can('promociones');
-  const canAuditoria = can('auditoria');
+  const [navQuery, setNavQuery] = useState('');
 
-  const tabs = useMemo(() => {
-    const next = [];
-    if (canSettings) {
-      next.push(...SETTINGS_TABS);
-      // Usuarios solo para Admin (permiso users), insertado antes de Sistema
-      if (canUsers) {
-        const sistemaIdx = next.findIndex((t) => t.id === 'sistema');
-        if (sistemaIdx >= 0) next.splice(sistemaIdx, 0, USUARIOS_TAB);
-        else next.push(USUARIOS_TAB);
-      }
-    }
-    if (canMediosPago) next.push(MEDIOS_PAGO_TAB);
-    if (canPromociones) next.push(PROMOCIONES_TAB);
-    if (canAuditoria) next.push(AUDITORIA_TAB);
-    return next;
-  }, [canSettings, canUsers, canMediosPago, canPromociones, canAuditoria]);
+  const enabledNav = useMemo(() => getEnabledConfigNav(can), [can]);
+  const visibleNav = useMemo(
+    () => filterConfigNav(enabledNav, navQuery),
+    [enabledNav, navQuery]
+  );
 
-  const validTabIds = useMemo(() => new Set(tabs.map((tab) => tab.id)), [tabs]);
-  const defaultTab = canSettings
-    ? 'habitaciones'
-    : canPromociones
-      ? 'promociones'
-      : canMediosPago
-        ? 'medios-pago'
-        : canAuditoria
-          ? 'auditoria'
-          : 'habitaciones';
+  const validTabIds = useMemo(() => new Set(enabledNav.map((tab) => tab.id)), [enabledNav]);
+  const defaultTab = enabledNav[0]?.id || 'habitaciones';
 
   const [activeTab, setActiveTab] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('tab');
@@ -74,22 +46,42 @@ function ConfiguracionView() {
     return defaultTab;
   });
 
+  const [cargosSubTab, setCargosSubTab] = useState(readInitialCargosSub);
+
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && validTabIds.has(tab)) {
       setActiveTab(tab);
     }
+    const sub = searchParams.get('sub');
+    if (sub && CARGOS_SUB_IDS.has(sub)) {
+      setCargosSubTab(sub);
+    }
   }, [searchParams, validTabIds]);
 
   useEffect(() => {
-    if (!validTabIds.has(activeTab) && tabs.length > 0) {
-      setActiveTab(tabs[0].id);
+    if (!validTabIds.has(activeTab) && enabledNav.length > 0) {
+      setActiveTab(enabledNav[0].id);
     }
-  }, [activeTab, tabs, validTabIds]);
+  }, [activeTab, enabledNav, validTabIds]);
 
   useEffect(() => {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('cargosTarifasActiveTab', cargosSubTab);
+  }, [cargosSubTab]);
+
+  const selectSection = (sectionId, subId) => {
+    setActiveTab(sectionId);
+    if (sectionId === 'cargos-tarifas' && subId && CARGOS_SUB_IDS.has(subId)) {
+      setCargosSubTab(subId);
+    }
+    if (navQuery.trim()) {
+      setNavQuery('');
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -98,7 +90,12 @@ function ConfiguracionView() {
       case 'habitaciones':
         return <HabitacionesTab />;
       case 'cargos-tarifas':
-        return <CargosTarifasTab />;
+        return (
+          <CargosTarifasTab
+            forcedSubTab={cargosSubTab}
+            onSubTabChange={setCargosSubTab}
+          />
+        );
       case 'menu-consumos':
         return <MenuConsumosTab />;
       case 'calendario':
@@ -121,9 +118,11 @@ function ConfiguracionView() {
       case 'auditoria':
         return <Auditoria />;
       default:
-        if (canSettings) return <HabitacionesTab />;
-        if (canMediosPago) return <MediosPagoTab />;
-        return <Auditoria />;
+        if (validTabIds.has('habitaciones')) return <HabitacionesTab />;
+        if (validTabIds.has('promociones')) return <PromocionesTab />;
+        if (validTabIds.has('medios-pago')) return <MediosPagoTab />;
+        if (validTabIds.has('auditoria')) return <Auditoria />;
+        return null;
     }
   };
 
@@ -132,18 +131,65 @@ function ConfiguracionView() {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <h2>Configuración</h2>
+          <label className={styles.navSearchLabel} htmlFor="config-nav-search">
+            Buscar sección
+          </label>
+          <input
+            id="config-nav-search"
+            type="search"
+            className={styles.navSearch}
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            placeholder="Buscar secciones…"
+            autoComplete="off"
+          />
         </div>
         <nav className={styles.sectionMenu} aria-label="Secciones de configuración">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`${styles.sectionButton} ${activeTab === tab.id ? styles.active : ''}`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {visibleNav.length === 0 ? (
+            <p className={styles.navEmpty}>Sin resultados</p>
+          ) : (
+            visibleNav.map((section) => {
+              const children = Array.isArray(section.children) ? section.children : [];
+              const showChildren = Boolean(navQuery.trim()) && children.length > 0;
+              return (
+                <div key={section.id} className={styles.navGroup}>
+                  <button
+                    type="button"
+                    onClick={() => selectSection(section.id)}
+                    className={`${styles.sectionButton} ${
+                      activeTab === section.id && !showChildren ? styles.active : ''
+                    } ${
+                      activeTab === section.id && showChildren ? styles.sectionParentActive : ''
+                    }`}
+                  >
+                    {section.label}
+                  </button>
+                  {showChildren
+                    ? children.map((child) => {
+                        const isCargosChild =
+                          section.id === 'cargos-tarifas' && Boolean(child.subId);
+                        const childActive =
+                          activeTab === section.id &&
+                          isCargosChild &&
+                          cargosSubTab === child.subId;
+                        return (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => selectSection(section.id, child.subId)}
+                            className={`${styles.subSectionButton} ${
+                              childActive ? styles.active : ''
+                            }`}
+                          >
+                            {child.label}
+                          </button>
+                        );
+                      })
+                    : null}
+                </div>
+              );
+            })
+          )}
         </nav>
       </aside>
 
