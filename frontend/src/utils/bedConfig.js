@@ -216,13 +216,48 @@ export function maxBedPreferenceLimits(rooms = [], requiredGuests) {
   return { maxDoubleBeds, maxSingleBeds };
 }
 
-/** Recorta preferencia si supera los máximos por capacidad. */
+/** Plazas de una preferencia: matrimoniales × 2 + individuales. */
+export function bedPreferencePlazas(pref = {}) {
+  const normalized = normalizeBedPreference(pref);
+  return normalized.preferredDoubleBeds * 2 + normalized.preferredSingleBeds;
+}
+
+/**
+ * ¿La opción Mat/Ind cabe sin superar huéspedes?
+ * Mat: doubles×2 + singlesActual ≤ guests
+ * Ind: doublesActual×2 + singles ≤ guests
+ */
+export function bedPreferenceOptionExceedsGuests({
+  kind,
+  count,
+  otherCount = 0,
+  guests
+}) {
+  const n = Math.max(0, parseInt(count, 10) || 0);
+  const other = Math.max(0, parseInt(otherCount, 10) || 0);
+  const maxGuests = Math.max(0, parseInt(guests, 10) || 0);
+  if (maxGuests <= 0) return false;
+  if (kind === 'double') return n * 2 + other > maxGuests;
+  if (kind === 'single') return other * 2 + n > maxGuests;
+  return false;
+}
+
+/** Recorta preferencia si supera máximos de habitación o plazas vs huéspedes. */
 export function clampBedPreferenceToLimits(pref = {}, limits = {}) {
   const normalized = normalizeBedPreference(pref);
   const maxDouble = Math.max(0, parseInt(limits.maxDoubleBeds, 10) || 0);
   const maxSingle = Math.max(0, parseInt(limits.maxSingleBeds, 10) || 0);
-  const preferredDoubleBeds = Math.min(normalized.preferredDoubleBeds, maxDouble);
-  const preferredSingleBeds = Math.min(normalized.preferredSingleBeds, maxSingle);
+  const guests = Math.max(0, parseInt(limits.guests, 10) || 0);
+  let preferredDoubleBeds = Math.min(normalized.preferredDoubleBeds, maxDouble);
+  let preferredSingleBeds = Math.min(normalized.preferredSingleBeds, maxSingle);
+
+  if (guests > 0) {
+    const maxDoublesByGuests = Math.floor(guests / 2);
+    preferredDoubleBeds = Math.min(preferredDoubleBeds, maxDoublesByGuests);
+    const remaining = guests - preferredDoubleBeds * 2;
+    preferredSingleBeds = Math.min(preferredSingleBeds, remaining);
+  }
+
   if (normalized.bedPreferenceNone) {
     return { bedPreferenceNone: true, preferredDoubleBeds: 0, preferredSingleBeds: 0 };
   }

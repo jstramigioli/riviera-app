@@ -8,7 +8,9 @@ import {
   countBedsByType,
   maxSingleBedsFromConfig,
   maxBedPreferenceLimits,
-  clampBedPreferenceToLimits
+  clampBedPreferenceToLimits,
+  bedPreferencePlazas,
+  bedPreferenceOptionExceedsGuests
 } from './bedConfig';
 
 describe('bedConfig', () => {
@@ -216,6 +218,75 @@ describe('bedConfig', () => {
       bedPreferenceNone: false,
       preferredDoubleBeds: 1,
       preferredSingleBeds: 2
+    });
+  });
+
+  it('bedPreferencePlazas = matrimoniales×2 + individuales', () => {
+    expect(
+      bedPreferencePlazas({
+        bedPreferenceNone: false,
+        preferredDoubleBeds: 1,
+        preferredSingleBeds: 2
+      })
+    ).toBe(4);
+    expect(
+      bedPreferencePlazas({
+        bedPreferenceNone: false,
+        preferredDoubleBeds: 0,
+        preferredSingleBeds: 2
+      })
+    ).toBe(2);
+  });
+
+  it('bedPreferenceOptionExceedsGuests: con 2 ind, mat ≥1 excede', () => {
+    expect(
+      bedPreferenceOptionExceedsGuests({
+        kind: 'double',
+        count: 1,
+        otherCount: 2,
+        guests: 2
+      })
+    ).toBe(true);
+    expect(
+      bedPreferenceOptionExceedsGuests({
+        kind: 'double',
+        count: 0,
+        otherCount: 2,
+        guests: 2
+      })
+    ).toBe(false);
+    expect(
+      bedPreferenceOptionExceedsGuests({
+        kind: 'single',
+        count: 1,
+        otherCount: 1,
+        guests: 2
+      })
+    ).toBe(true);
+    expect(
+      bedPreferenceOptionExceedsGuests({
+        kind: 'single',
+        count: 0,
+        otherCount: 1,
+        guests: 2
+      })
+    ).toBe(false);
+  });
+
+  it('clampBedPreferenceToLimits recorta plazas si supera huéspedes', () => {
+    expect(
+      clampBedPreferenceToLimits(
+        {
+          bedPreferenceNone: false,
+          preferredDoubleBeds: 1,
+          preferredSingleBeds: 2
+        },
+        { maxDoubleBeds: 2, maxSingleBeds: 2, guests: 2 }
+      )
+    ).toEqual({
+      bedPreferenceNone: false,
+      preferredDoubleBeds: 1,
+      preferredSingleBeds: 0
     });
   });
 });

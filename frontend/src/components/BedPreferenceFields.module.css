@@ -77,6 +77,12 @@
   cursor: not-allowed;
 }
 
+.countField select option:disabled,
+.optionDisabled {
+  color: #9aa3b2;
+  background: #f0f2f5;
+}
+
 @media (max-width: 768px) {
   .counts {
     width: 100%;

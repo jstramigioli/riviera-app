@@ -1531,7 +1531,8 @@ export default function Consulta() {
   // Recortar preferencia de camas al cargar rooms o cambiar huéspedes
   useEffect(() => {
     if (!allRooms.length) return;
-    const limits = maxBedPreferenceLimits(allRooms, requirements.requiredGuests || 1);
+    const guests = requirements.requiredGuests || 1;
+    const limits = { ...maxBedPreferenceLimits(allRooms, guests), guests };
     setRequirements((prev) => {
       const clamped = clampBedPreferenceToLimits(prev, limits);
       if (
@@ -3151,14 +3152,18 @@ export default function Consulta() {
       ? 'Consulta rápida'
       : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`;
 
-  const bedLimits = maxBedPreferenceLimits(
-    allRooms,
-    requirements.requiredGuests || 1
-  );
+  const guestsCount = requirements.requiredGuests || 1;
+  const bedLimits = {
+    ...maxBedPreferenceLimits(allRooms, guestsCount),
+    guests: guestsCount
+  };
 
   const handleGuestsChange = (e) => {
     const newGuests = parseInt(e.target.value, 10);
-    const nextLimits = maxBedPreferenceLimits(allRooms, newGuests);
+    const nextLimits = {
+      ...maxBedPreferenceLimits(allRooms, newGuests),
+      guests: newGuests
+    };
     setRequirements((prev) => ({
       ...prev,
       requiredGuests: newGuests,
@@ -3203,6 +3208,7 @@ export default function Consulta() {
         value={requirements}
         maxDoubleBeds={bedLimits.maxDoubleBeds}
         maxSingleBeds={bedLimits.maxSingleBeds}
+        guests={guestsCount}
         onChange={handleBedPreferenceChange}
       />
     </div>
