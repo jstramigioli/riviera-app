@@ -1,4 +1,5 @@
 const { roleHasPermission, ROLES } = require('../../src/auth/permissions');
+const { ACTIVE_ROLES, isActiveRole, roleLabel } = require('../../src/auth/roles');
 
 describe('roleHasPermission', () => {
   test('admin tiene todos los permisos clave', () => {
@@ -12,6 +13,19 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.ADMIN, 'promociones')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'reservas')).toBe(true);
     expect(roleHasPermission(ROLES.ADMIN, 'finanzas')).toBe(true);
+  });
+
+  test('propietario ve settings/tarifas pero no gestiona usuarios', () => {
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'users')).toBe(false);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'settings')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'tarifas')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'facturacion')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'reportes')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'auditoria')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'mediosPago')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'promociones')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'reservas')).toBe(true);
+    expect(roleHasPermission(ROLES.PROPIETARIO, 'finanzas')).toBe(true);
   });
 
   test('gerencia no gestiona usuarios ni settings/tarifas/facturacion', () => {
@@ -40,6 +54,31 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.RECEPCION, 'clientes')).toBe(true);
     expect(roleHasPermission(ROLES.RECEPCION, 'finanzas')).toBe(true);
   });
+
+  test('roles inactivos no tienen permisos de back-office', () => {
+    for (const role of [ROLES.CAMARERO, ROLES.COCINA, ROLES.MUCAMA, ROLES.MANTENIMIENTO]) {
+      expect(roleHasPermission(role, 'users')).toBe(false);
+      expect(roleHasPermission(role, 'settings')).toBe(false);
+      expect(roleHasPermission(role, 'reservas')).toBe(false);
+      expect(isActiveRole(role)).toBe(false);
+    }
+  });
 });
 
+describe('roles catalog', () => {
+  test('activos son Admin, Propietario, Gerencia, Recepción', () => {
+    expect(ACTIVE_ROLES).toEqual([
+      ROLES.ADMIN,
+      ROLES.PROPIETARIO,
+      ROLES.GERENCIA,
+      ROLES.RECEPCION
+    ]);
+  });
 
+  test('labels legibles', () => {
+    expect(roleLabel(ROLES.ADMIN)).toBe('Admin');
+    expect(roleLabel(ROLES.PROPIETARIO)).toBe('Propietario');
+    expect(roleLabel(ROLES.CAMARERO)).toBe('Camarero/a');
+    expect(roleLabel(ROLES.MANTENIMIENTO)).toBe('Mantenimiento');
+  });
+});

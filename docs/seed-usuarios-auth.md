@@ -1,4 +1,4 @@
-# Usuarios de prueba — Auth (PGH-36)
+# Usuarios de prueba — Auth (PGH-36 / PGH-161)
 
 Seed idempotente para la DB `riviera_v1`.
 
@@ -11,13 +11,21 @@ npm run seed:users
 
 Requiere `DATABASE_URL` apuntando a `riviera_v1` (nunca a `riviera`).
 
-## Credenciales
+## Credenciales seed
 
 | Usuario     | Contraseña     | Rol        | Acceso |
 |-------------|----------------|------------|--------|
-| `admin`     | `admin123`     | ADMIN      | Todo (usuarios, tarifas, settings, reservas, finanzas, reportes) |
-| `gerencia`  | `gerencia123`  | GERENCIA   | Reservas, clientes, finanzas, reportes. Sin usuarios ni settings críticos / tarifas |
-| `recepcion` | `recepcion123` | RECEPCION  | Reservas, clientes, cargos/pagos del día a día. Sin tarifas, configuración ni usuarios |
+| `admin`     | `admin123`     | ADMIN      | Todo, **único** que gestiona usuarios (Admin no eliminable) |
+| `gerencia`  | `gerencia123`  | GERENCIA   | Reservas, clientes, finanzas, reportes. Sin usuarios ni settings/tarifas |
+| `recepcion` | `recepcion123` | RECEPCION  | Reservas, clientes, cargos/pagos. Sin tarifas, configuración ni usuarios |
+
+## Roles (PGH-161)
+
+- **Activos (asignables):** Admin, Propietario, Gerencia, Recepción
+- **Reservados (enum, aún no asignables en UI):** Camarero/a, Cocina, Mucama, Mantenimiento
+- **Propietario:** settings/tarifas/reportes/etc. como Admin, **sin** permiso `users`
+
+Gestión: Configuración → Usuarios (solo Admin).
 
 ## Sesión
 

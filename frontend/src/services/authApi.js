@@ -37,3 +37,47 @@ export async function meRequest() {
   });
   return parseJson(res);
 }
+
+export async function fetchUsers() {
+  const res = await fetch(`${API_URL}/auth/users`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+  return parseJson(res);
+}
+
+export async function fetchRoles() {
+  const res = await fetch(`${API_URL}/auth/roles`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+  return parseJson(res);
+}
+
+export async function createUserRequest(payload) {
+  const res = await fetch(`${API_URL}/auth/users`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return parseJson(res);
+}
+
+export async function updateUserRequest(id, payload) {
+  const res = await fetch(`${API_URL}/auth/users/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return parseJson(res);
+}
+
+export async function deleteUserRequest(id) {
+  const res = await fetch(`${API_URL}/auth/users/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  return parseJson(res);
+}
