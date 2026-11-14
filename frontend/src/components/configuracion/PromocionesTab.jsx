@@ -242,10 +242,8 @@ function PromocionesTab() {
         <div>
           <h3>Promociones y descuentos</h3>
           <p className={styles.lead}>
-            Motor de reglas: condiciones AND (temporada, estadía, alojamiento, pago, ocupación),
-            beneficio (%, fijo, fijo/noche), modalidad AUTO / MANUAL / SUGERIDA, capas settlement
-            (pago) y rate (tarifa). Prioridad y acumulación por grupo. Cambios solo a futuro
-            (snapshot en aplicaciones).
+            Reglas con condiciones AND, beneficio y prioridad. Capas pago (settlement) o tarifa
+            (rate). Los cambios aplican solo a futuro.
           </p>
         </div>
         <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={openCreate}>
@@ -401,7 +399,7 @@ function PromocionesTab() {
           </label>
 
           <div className={styles.conditions}>
-            <strong>Condiciones (AND)</strong>
+            <div className={styles.conditionsTitle}>Condiciones (AND)</div>
             {form.conditions.map((c, index) => (
               <div key={index} className={styles.conditionRow}>
                 <select
@@ -458,70 +456,85 @@ function PromocionesTab() {
         </div>
       )}
 
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Nombre</th>
-              <th>Modalidad</th>
-              <th>Capa</th>
-              <th>Beneficio</th>
-              <th>Condiciones</th>
-              <th>Prio</th>
-              <th>Estado</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className={row.activo ? undefined : styles.inactive}>
-                <td>{row.code}</td>
-                <td>
-                  {row.label}
-                  <div>
-                    <span className={styles.badge}>{row.kind}</span>
-                    <span className={styles.badge}>{row.stacking}</span>
-                  </div>
-                </td>
-                <td>{row.modality}</td>
-                <td>{row.layer}</td>
-                <td>
-                  {row.benefitType} {row.benefitValue}
-                  {row.benefitType === 'PERCENT' ? '%' : ''}
-                  <div className={styles.muted}>{row.benefitBase}</div>
-                </td>
-                <td>
-                  {(row.conditions || []).length === 0
-                    ? '—'
-                    : (row.conditions || []).map((c, i) => (
-                        <div key={i}>
-                          <span className={styles.badge}>{c.type}</span>
-                          {conditionSummary(c, methodsById)}
-                        </div>
-                      ))}
-                </td>
-                <td>{row.prioridad}</td>
-                <td>{row.activo ? 'Activa' : 'Off'}</td>
-                <td>
-                  <button type="button" className={styles.btn} onClick={() => openEdit(row)}>
-                    Editar
-                  </button>{' '}
-                  {row.activo && (
-                    <button
-                      type="button"
-                      className={`${styles.btn} ${styles.btnDanger}`}
-                      onClick={() => handleDeactivate(row)}
-                    >
-                      Desactivar
-                    </button>
-                  )}
-                </td>
+      {rows.length === 0 ? (
+        <p className={styles.empty}>No hay reglas. Creá la primera con Nueva regla.</p>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Modalidad</th>
+                <th>Capa</th>
+                <th>Beneficio</th>
+                <th>Condiciones</th>
+                <th>Prio</th>
+                <th>Estado</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className={row.activo ? undefined : styles.inactive}>
+                  <td>{row.code}</td>
+                  <td>
+                    {row.label}
+                    <div>
+                      <span className={styles.badge}>{row.kind}</span>
+                      <span className={styles.badge}>{row.stacking}</span>
+                    </div>
+                  </td>
+                  <td>{row.modality}</td>
+                  <td>{row.layer}</td>
+                  <td>
+                    {row.benefitType} {row.benefitValue}
+                    {row.benefitType === 'PERCENT' ? '%' : ''}
+                    <div className={styles.muted}>{row.benefitBase}</div>
+                  </td>
+                  <td>
+                    {(row.conditions || []).length === 0
+                      ? '—'
+                      : (row.conditions || []).map((c, i) => (
+                          <div key={i}>
+                            <span className={styles.badge}>{c.type}</span>
+                            {conditionSummary(c, methodsById)}
+                          </div>
+                        ))}
+                  </td>
+                  <td>{row.prioridad}</td>
+                  <td>
+                    <span
+                      className={`${styles.status} ${
+                        row.activo ? styles.statusActive : styles.statusOff
+                      }`}
+                    >
+                      <span className={styles.statusDot} aria-hidden="true" />
+                      {row.activo ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className={styles.rowActions}>
+                      <button type="button" className={styles.btn} onClick={() => openEdit(row)}>
+                        Editar
+                      </button>
+                      {row.activo && (
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnDanger}`}
+                          onClick={() => handleDeactivate(row)}
+                        >
+                          Desactivar
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
