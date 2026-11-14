@@ -1183,13 +1183,8 @@ function PromocionesTab() {
                 className={styles.textarea}
                 value={form.descripcionInterna}
                 onChange={(e) => setField('descripcionInterna', e.target.value)}
-                placeholder="Solo visible en Configuración (staff)"
                 rows={2}
-                aria-describedby="promo-desc-interna-hint"
               />
-              <span id="promo-desc-interna-hint" className={styles.fieldHint}>
-                Nota para el equipo; no aparece en cobros ni en el folio.
-              </span>
             </label>
 
             <div className={styles.formGrid}>
