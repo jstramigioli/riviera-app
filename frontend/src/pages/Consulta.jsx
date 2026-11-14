@@ -272,6 +272,10 @@ export default function Consulta() {
 
   // Estado para habitaciones disponibles (por bloque)
   const [availableRoomsPerBlock, setAvailableRoomsPerBlock] = useState({});
+  /** Pool completo (exactas + mayores) por bloque; el listado visible puede ser un subconjunto. */
+  const [allAvailableRoomsPerBlock, setAllAvailableRoomsPerBlock] = useState({});
+  /** true = ya se muestran mayores (o no hace falta botón). false = listado exacto con botón disponible. */
+  const [showLargerCapacityPerBlock, setShowLargerCapacityPerBlock] = useState({});
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [hasSearchedPerBlock, setHasSearchedPerBlock] = useState({}); // Rastrea si se buscó en cada bloque
 
@@ -1788,6 +1792,14 @@ export default function Consulta() {
             ...prev,
             [index]: []
           }));
+          setAllAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [index]: []
+          }));
+          setShowLargerCapacityPerBlock(prev => ({
+            ...prev,
+            [index]: true
+          }));
           if (occupancyChanged) {
             setSelectedRoomsPerBlock(prev => {
               const newSelected = { ...prev };
@@ -1811,6 +1823,8 @@ export default function Consulta() {
       console.log('🔄 Reseteando búsqueda por cambio de huéspedes');
       setHasSearchedPerBlock({});
       setAvailableRoomsPerBlock({});
+      setAllAvailableRoomsPerBlock({});
+      setShowLargerCapacityPerBlock({});
       setSelectedRoomsPerBlock({});
       
       // Actualizar el ref para reflejar el nuevo valor de huéspedes sin perder otros datos
@@ -2006,8 +2020,11 @@ export default function Consulta() {
         // Filtrar habitaciones con errores de disponibilidad de servicios
         const roomsWithoutServiceErrors = roomsWithRates.filter(room => !room.serviceAvailabilityError);
         
-        // Guardar todas las habitaciones disponibles con tarifas (solo las que no tienen errores de servicios)
-        // setAllAvailableRooms(roomsWithoutServiceErrors); // No se usa actualmente
+        // Pool completo para el botón «mayor capacidad»
+        setAllAvailableRoomsPerBlock(prev => ({
+          ...prev,
+          [activeBlockIndex]: roomsWithoutServiceErrors
+        }));
         
         // Filtrar habitaciones: primero capacidad exacta, luego mayor capacidad
         const exactCapacityRooms = roomsWithoutServiceErrors.filter(room => room.maxPeople === params.requiredGuests);
@@ -2015,19 +2032,32 @@ export default function Consulta() {
         
         // Determinar qué habitaciones mostrar inicialmente
         let roomsToShow = [];
+        // false = hay exactas y también mayores → mostrar botón al final del listado
+        let largerAlreadyShown = true;
         
         if (exactCapacityRooms.length > 0) {
           // Si hay habitaciones con capacidad exacta, mostrar solo esas
           roomsToShow = exactCapacityRooms;
+          largerAlreadyShown = largerCapacityRooms.length === 0;
         } else if (largerCapacityRooms.length > 0) {
           // Si no hay capacidad exacta pero sí mayor capacidad, mostrar esas automáticamente
           roomsToShow = largerCapacityRooms;
+          largerAlreadyShown = true;
         }
+        
+        setShowLargerCapacityPerBlock(prev => ({
+          ...prev,
+          [activeBlockIndex]: largerAlreadyShown
+        }));
         
         // Si hay errores de disponibilidad de servicios, no mostrar habitaciones
         if (roomsWithServiceAvailabilityErrors.length > 0) {
           // console.log('Hay errores de disponibilidad de servicios, no se muestran habitaciones');
           setAvailableRoomsPerBlock(prev => ({
+            ...prev,
+            [activeBlockIndex]: []
+          }));
+          setAllAvailableRoomsPerBlock(prev => ({
             ...prev,
             [activeBlockIndex]: []
           }));
@@ -2054,6 +2084,14 @@ export default function Consulta() {
       } else {
         console.log('No se encontraron habitaciones disponibles');
         const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+        setAllAvailableRoomsPerBlock(prev => ({
+          ...prev,
+          [activeBlockIndex]: []
+        }));
+        setShowLargerCapacityPerBlock(prev => ({
+          ...prev,
+          [activeBlockIndex]: true
+        }));
         if (priorSelected) {
           // Cambio de servicio / re-búsqueda vacía: mantener la habitación ya elegida visible
           setAvailableRoomsPerBlock(prev => ({
@@ -2072,6 +2110,14 @@ export default function Consulta() {
       setAvailableRoomsPerBlock(prev => ({
         ...prev,
         [activeBlockIndex]: []
+      }));
+      setAllAvailableRoomsPerBlock(prev => ({
+        ...prev,
+        [activeBlockIndex]: []
+      }));
+      setShowLargerCapacityPerBlock(prev => ({
+        ...prev,
+        [activeBlockIndex]: true
       }));
     } finally {
       setLoadingRooms(false);
@@ -2371,18 +2417,27 @@ export default function Consulta() {
     suppressAutoSaveRef.current = false;
   };
 
-  // Función para mostrar habitaciones de mayor capacidad (no utilizada actualmente)
-  // const handleShowLargerCapacity = () => {
-  //   if (!segments[activeBlockIndex]) return;
-  //   
-  //   const activeBlock = segments[activeBlockIndex];
-  //   const exactCapacityRooms = allAvailableRooms.filter(room => room.maxPeople === activeBlock.requiredGuests);
-  //   const largerCapacityRooms = allAvailableRooms.filter(room => room.maxPeople > activeBlock.requiredGuests);
-  //   
-  //   // Combinar habitaciones de capacidad exacta con las de mayor capacidad
-  //   const combinedRooms = [...exactCapacityRooms, ...largerCapacityRooms];
-  //   setAvailableRooms(combinedRooms);
-  // };
+  const handleShowLargerCapacity = () => {
+    if (!segments[activeBlockIndex]) return;
+
+    const activeBlock = segments[activeBlockIndex];
+    const pool = allAvailableRoomsPerBlock[activeBlockIndex] || [];
+    const exactCapacityRooms = pool.filter(room => room.maxPeople === activeBlock.requiredGuests);
+    const largerCapacityRooms = pool.filter(room => room.maxPeople > activeBlock.requiredGuests);
+
+    const combinedRooms = [...exactCapacityRooms, ...largerCapacityRooms];
+    const priorSelected = selectedRoomsPerBlockRef.current[activeBlockIndex] || null;
+    const { rooms: finalRooms } = preserveSelectedRoomInList(combinedRooms, priorSelected);
+
+    setAvailableRoomsPerBlock(prev => ({
+      ...prev,
+      [activeBlockIndex]: finalRooms
+    }));
+    setShowLargerCapacityPerBlock(prev => ({
+      ...prev,
+      [activeBlockIndex]: true
+    }));
+  };
 
   const handleSaveNewClient = async () => {
     // Validar que los campos requeridos estén completos
@@ -3201,6 +3256,8 @@ export default function Consulta() {
     ]);
     setSelectedRoomsPerBlock({});
     setAvailableRoomsPerBlock({});
+    setAllAvailableRoomsPerBlock({});
+    setShowLargerCapacityPerBlock({});
     setHasSearchedPerBlock({});
     setSelectedRoomType(null);
     setDailyRates([]);
@@ -3672,10 +3729,11 @@ export default function Consulta() {
               ) : (
                 <div className={styles.roomsList}>
                   {(() => {
+                    const requiredGuests = segments[activeBlockIndex]?.requiredGuests || 1;
+                    const largerExpanded = !!showLargerCapacityPerBlock[activeBlockIndex];
                     const roomsWithCompliance = (availableRoomsPerBlock[activeBlockIndex] || [])
                       .map((room) => {
                         const compliance = checkRequirementsCompliance(room);
-                        const requiredGuests = segments[activeBlockIndex]?.requiredGuests || 1;
                         const isExactCapacity = room.maxPeople === requiredGuests;
                         return { room, compliance, isExactCapacity };
                       });
@@ -3689,7 +3747,10 @@ export default function Consulta() {
                     // Aplicar lógica de filtrado según prioridades
                     let roomsToShow = [];
                     
-                    if (category1.length > 0) {
+                    if (largerExpanded) {
+                      // Tras «mostrar mayor capacidad»: listar exactas + mayores (ordenadas)
+                      roomsToShow = roomsWithCompliance;
+                    } else if (category1.length > 0) {
                       // Si existe categoría 1, solo mostrar esas
                       roomsToShow = category1;
                     } else if (category2.length > 0 || category3.length > 0) {
@@ -3712,9 +3773,16 @@ export default function Consulta() {
                       
                       return 0;
                     });
+
+                    const pool = allAvailableRoomsPerBlock[activeBlockIndex] || [];
+                    const showLargerButton =
+                      !largerExpanded &&
+                      pool.some(room => room.maxPeople === requiredGuests) &&
+                      pool.some(room => room.maxPeople > requiredGuests);
                     
-                    return roomsToShow;
-                  })().map(({ room, compliance }) => {
+                    return (
+                      <>
+                        {roomsToShow.map(({ room, compliance }) => {
                       const isSelected = roomsMatch(selectedRoomsPerBlock[activeBlockIndex], room);
                       const showDetails = showRoomDetails[room.id] || false;
                       
@@ -3816,7 +3884,21 @@ export default function Consulta() {
                           )}
                         </div>
                       );
-                    })}
+                        })}
+                        {showLargerButton && (
+                          <div className={styles.showLargerCapacityRow}>
+                            <button
+                              type="button"
+                              className={styles.showLargerCapacityButton}
+                              onClick={handleShowLargerCapacity}
+                            >
+                              Mostrar habitaciones de mayor capacidad
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
               </>
