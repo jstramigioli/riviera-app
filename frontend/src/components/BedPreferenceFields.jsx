@@ -1,5 +1,6 @@
 import React from 'react';
 import { normalizeBedPreference } from '../utils/bedConfig';
+import styles from './BedPreferenceFields.module.css';
 
 /**
  * Preferencia de camas para consulta/reserva: Sin preferencia | # matrimoniales + # individuales.
@@ -22,17 +23,11 @@ function BedPreferenceFields({
   const maxBeds = Math.max(1, parseInt(maxGuests, 10) || 8);
 
   return (
-    <div style={{ display: 'grid', gap: '10px' }}>
-      <label style={{
-        fontWeight: 600,
-        color: 'var(--color-text-main)',
-        fontSize: 'var(--font-size-small)'
-      }}>
-        Preferencia de camas
-      </label>
+    <div className={styles.root}>
+      <span className={styles.label}>Camas</span>
 
-      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-small)' }}>
+      <div className={styles.controls}>
+        <label className={styles.modeOption}>
           <input
             type="radio"
             name="bed-preference-mode"
@@ -42,7 +37,7 @@ function BedPreferenceFields({
           />
           Sin preferencia
         </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-small)' }}>
+        <label className={styles.modeOption}>
           <input
             type="radio"
             name="bed-preference-mode"
@@ -56,60 +51,46 @@ function BedPreferenceFields({
           />
           Cantidades
         </label>
-      </div>
 
-      {mode === 'counts' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: 'var(--font-size-small)' }}>
-              Matrimoniales
-            </label>
-            <select
-              value={pref.preferredDoubleBeds}
-              disabled={disabled}
-              onChange={(e) => emit({
-                bedPreferenceNone: false,
-                preferredDoubleBeds: parseInt(e.target.value, 10) || 0
-              })}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid var(--color-border)',
-                borderRadius: '6px',
-                fontSize: 'var(--font-size-small)'
-              }}
-            >
-              {Array.from({ length: maxBeds + 1 }, (_, i) => (
-                <option key={`d-${i}`} value={i}>{i}</option>
-              ))}
-            </select>
+        {mode === 'counts' && (
+          <div className={styles.counts}>
+            <div className={styles.countField}>
+              <label htmlFor="bed-pref-double">Mat.</label>
+              <select
+                id="bed-pref-double"
+                value={pref.preferredDoubleBeds}
+                disabled={disabled}
+                aria-label="Camas matrimoniales"
+                onChange={(e) => emit({
+                  bedPreferenceNone: false,
+                  preferredDoubleBeds: parseInt(e.target.value, 10) || 0
+                })}
+              >
+                {Array.from({ length: maxBeds + 1 }, (_, i) => (
+                  <option key={`d-${i}`} value={i}>{i}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.countField}>
+              <label htmlFor="bed-pref-single">Ind.</label>
+              <select
+                id="bed-pref-single"
+                value={pref.preferredSingleBeds}
+                disabled={disabled}
+                aria-label="Camas individuales"
+                onChange={(e) => emit({
+                  bedPreferenceNone: false,
+                  preferredSingleBeds: parseInt(e.target.value, 10) || 0
+                })}
+              >
+                {Array.from({ length: maxBeds + 1 }, (_, i) => (
+                  <option key={`s-${i}`} value={i}>{i}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: 'var(--font-size-small)' }}>
-              Individuales
-            </label>
-            <select
-              value={pref.preferredSingleBeds}
-              disabled={disabled}
-              onChange={(e) => emit({
-                bedPreferenceNone: false,
-                preferredSingleBeds: parseInt(e.target.value, 10) || 0
-              })}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid var(--color-border)',
-                borderRadius: '6px',
-                fontSize: 'var(--font-size-small)'
-              }}
-            >
-              {Array.from({ length: maxBeds + 1 }, (_, i) => (
-                <option key={`s-${i}`} value={i}>{i}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

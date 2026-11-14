@@ -100,9 +100,10 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 Flujo consulta/reserva: **título de página → cliente → tramos (tabs) → fechas/servicio → habitaciones → barra de acciones**.
 
 - Un panel principal; divisores internos en lugar de cards anidadas.
-- Título de página fuera del panel; lead de una línea muted.
+- Título de página fuera del panel; sin lead bajo el título.
+- Cabecera consulta/reserva: una franja densa (cliente, huéspedes, camas, origen, notas) sin sección “Cliente” decorativa.
 - Barra de acciones al final del flujo (primario a la derecha).
-- Densidad de recepción: menos padding ornamental, más contraste tipográfico por rol.
+- Densidad de recepción: ritmo 4/8/12; menos padding ornamental, más contraste tipográfico por rol.
 
 ## Do's and Don'ts
 

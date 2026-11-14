@@ -3105,30 +3105,88 @@ export default function Consulta() {
       ? 'Consulta rápida'
       : `Consulta ${currentQueryId ? `#${currentQueryId}` : 'nueva'}`;
 
-  const pageLead = editingReservationId
-    ? 'Revisá cliente, tramos y habitación antes de guardar los cambios.'
-    : null;
+  const handleGuestsChange = (e) => {
+    const newGuests = parseInt(e.target.value, 10);
+    setRequirements((prev) => ({
+      ...prev,
+      requiredGuests: newGuests
+    }));
+    setSegments((prev) => prev.map((segment) => ({
+      ...segment,
+      requiredGuests: newGuests
+    })));
+  };
+
+  const handleBedPreferenceChange = (pref) => {
+    setRequirements((prev) => ({ ...prev, ...pref }));
+    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
+  };
+
+  const guestsSelect = (
+    <div className={styles.guestsFieldContainer}>
+      <div className={styles.formGroup}>
+        <label htmlFor="consulta-guests">Huéspedes</label>
+        <select
+          id="consulta-guests"
+          value={requirements.requiredGuests || 1}
+          onChange={handleGuestsChange}
+          aria-label="Cantidad de huéspedes"
+        >
+          {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
+  const bedsField = (
+    <div className={styles.bedsFieldContainer}>
+      <BedPreferenceFields
+        value={requirements}
+        maxGuests={maxGuestCapacity}
+        onChange={handleBedPreferenceChange}
+      />
+    </div>
+  );
+
+  const sourceField = (
+    <div className={styles.sourceFieldContainer}>
+      <div className={styles.formGroup}>
+        <label htmlFor="consulta-source">Reservado por</label>
+        <select
+          id="consulta-source"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label="Reservado por"
+        >
+          <option value="">No especificado</option>
+          {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
 
   return (
     <div className={styles.newLayout}>
       <header className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>{pageTitle}</h1>
-        {pageLead ? <p className={styles.pageLead}>{pageLead}</p> : null}
       </header>
 
-      {/* Contenedor unificado: Cliente + Pestañas */}
+      {/* Contenedor unificado: cabecera densa + tramos */}
       <div className={styles.unifiedContainer}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Cliente</h2>
-        </div>
-        
-        {/* Barra de búsqueda de cliente y cantidad de huéspedes lado a lado */}
+        {/* Barra densa: cliente + ocupación + origen */}
         {!formData.mainClient.id && (
           <div className={styles.topFieldsRow}>
-            {/* Campo de cliente */}
             <div className={styles.clientFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Cliente</label>
+                <label htmlFor="consulta-client-search">Cliente</label>
                 {showNewClientForm ? (
                   <div className={styles.newClientForm}>
                     <div className={styles.newClientGrid}>
@@ -3168,6 +3226,7 @@ export default function Consulta() {
                   <div className={styles.clientSelector}>
                     <div className={styles.searchInputContainer}>
                       <input
+                        id="consulta-client-search"
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -3175,18 +3234,18 @@ export default function Consulta() {
                         placeholder="Buscar por nombre, email o teléfono..."
                         className={styles.searchInput}
                       />
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => setShowNewClientForm(true)}
                         className={styles.newClientButton}
                         title="Crear nuevo cliente"
                       >
-                        + Nuevo Cliente
+                        + Nuevo
                       </button>
                     </div>
                     {searchTerm && (
                       <div className={styles.clientResults}>
-                        {filteredClients.map(client => (
+                        {filteredClients.map((client) => (
                           <div key={client.id} className={styles.clientOption} onClick={() => handleClientSelect(client)}>
                             <strong>{client.firstName} {client.lastName}</strong>
                             {client.email && <div>{client.email}</div>}
@@ -3194,12 +3253,12 @@ export default function Consulta() {
                           </div>
                         ))}
                         <div className={styles.addNewClientOption}>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => setShowNewClientForm(true)}
                             className={styles.addNewClientButton}
                           >
-                            + Crear Nuevo Cliente
+                            + Crear nuevo cliente
                           </button>
                         </div>
                       </div>
@@ -3209,68 +3268,14 @@ export default function Consulta() {
               </div>
             </div>
 
-            {/* Campo global de cantidad de huéspedes */}
-            <div className={styles.guestsFieldContainer}>
-              <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
-                <select
-                  value={requirements.requiredGuests || 1}
-                  onChange={(e) => {
-                    const newGuests = parseInt(e.target.value);
-                    setRequirements(prev => ({
-                      ...prev,
-                      requiredGuests: newGuests
-                    }));
-                    setSegments(prev => prev.map(segment => ({
-                      ...segment,
-                      requiredGuests: newGuests
-                    })));
-                  }}
-                >
-                  {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>
-                      {num}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
-                <BedPreferenceFields
-                  value={requirements}
-                  maxGuests={maxGuestCapacity}
-                  onChange={(pref) => {
-                    setRequirements((prev) => ({ ...prev, ...pref }));
-                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Reservado por (también sin cliente) */}
-            <div className={styles.sourceFieldContainer}>
-              <div className={styles.formGroup}>
-                <label>Reservado por</label>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  aria-label="Reservado por"
-                >
-                  <option value="">No especificado</option>
-                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {guestsSelect}
+            {bedsField}
+            {sourceField}
           </div>
         )}
-        
-        {/* Fila con Cliente, Huéspedes y Notas cuando hay cliente seleccionado */}
+
         {formData.mainClient.id && (
           <div className={styles.topFieldsRow}>
-            {/* Cliente seleccionado */}
             <div className={styles.selectedClientContainer}>
               <div className={styles.formGroup}>
                 <label>Cliente</label>
@@ -3286,8 +3291,7 @@ export default function Consulta() {
                   <button
                     type="button"
                     onClick={() => {
-                      // Quitar cliente para poder elegir otro (mantiene la consulta actual)
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
                         mainClient: {
                           firstName: '',
@@ -3312,67 +3316,15 @@ export default function Consulta() {
               </div>
             </div>
 
-            {/* Cantidad de huéspedes */}
-            <div className={styles.guestsFieldContainer}>
-              <div className={styles.formGroup}>
-                <label>Cantidad de huéspedes</label>
-                <select
-                  value={requirements.requiredGuests || 1}
-                  onChange={(e) => {
-                    const newGuests = parseInt(e.target.value);
-                    setRequirements(prev => ({
-                      ...prev,
-                      requiredGuests: newGuests
-                    }));
-                    setSegments(prev => prev.map(segment => ({
-                      ...segment,
-                      requiredGuests: newGuests
-                    })));
-                  }}
-                >
-                  {Array.from({ length: maxGuestCapacity }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>
-                      {num}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formGroup} style={{ marginTop: '10px' }}>
-                <BedPreferenceFields
-                  value={requirements}
-                  maxGuests={maxGuestCapacity}
-                  onChange={(pref) => {
-                    setRequirements((prev) => ({ ...prev, ...pref }));
-                    setSegments((prev) => prev.map((segment) => ({ ...segment, ...pref })));
-                  }}
-                />
-              </div>
-            </div>
+            {guestsSelect}
+            {bedsField}
+            {sourceField}
 
-            {/* Reservado por */}
-            <div className={styles.sourceFieldContainer}>
-              <div className={styles.formGroup}>
-                <label>Reservado por</label>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  aria-label="Reservado por"
-                >
-                  <option value="">No especificado</option>
-                  {RESERVATION_SOURCE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Notas globales */}
             <div className={styles.notesFieldContainer}>
               <div className={styles.formGroup}>
-                <label>Notas</label>
+                <label htmlFor="consulta-notes">Notas</label>
                 <textarea
+                  id="consulta-notes"
                   className={styles.notesTextarea}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
