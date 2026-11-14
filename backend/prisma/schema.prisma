@@ -380,6 +380,9 @@ model PromotionRule {
   aplicaEnSeña         Boolean                @default(true)
   benefitType          PromotionBenefitType   @default(PERCENT)
   benefitValue         Decimal                @default(0) @db.Decimal(12, 4)
+  /// Si true, benefitValue de catálogo se ignora; el valor se pasa al aplicar
+  /// (ctx.benefitValueByRuleId). En Config el campo Valor queda deshabilitado.
+  benefitValueManual   Boolean                @default(false)
   benefitBase          PromotionBenefitBase   @default(DEBT_CANCELLED)
   benefitCapARS        Decimal?               @db.Decimal(12, 2)
   /// Nota interna de staff (solo Configuración); no se muestra en cobros/folio.

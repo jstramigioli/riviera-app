@@ -8,7 +8,9 @@ const {
   isRuleVigente,
   computeFreeNightCount,
   pickCheapestNightIndices,
-  evaluateFreeNightsForStay
+  evaluateFreeNightsForStay,
+  effectiveBenefitValue,
+  withEffectiveBenefit
 } = require('../../src/utils/promotionEngine');
 
 const efectivoRule = {
@@ -453,5 +455,53 @@ describe('promotionEngine rate + stacking', () => {
     expect(two.byIndex[1].discountARS).toBe(40000);
     expect(two.byIndex[3].discountARS).toBe(45000);
     expect(two.discountARS).toBe(85000);
+  });
+
+  it('benefitValueManual: valor se define al aplicar vía benefitValueByRuleId', () => {
+    const rule = {
+      id: 40,
+      code: 'CORTESIA',
+      label: 'Cortesía %',
+      activo: true,
+      prioridad: 100,
+      modality: 'MANUAL',
+      layer: 'SETTLEMENT',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 0,
+      benefitValueManual: true,
+      benefitBase: 'DEBT_CANCELLED',
+      aplicaEnParcial: true,
+      aplicaEnSeña: true,
+      conditions: []
+    };
+
+    expect(effectiveBenefitValue(rule, {})).toBeNull();
+    expect(effectiveBenefitValue(rule, { benefitValueByRuleId: { 40: 15 } })).toBe(15);
+    expect(withEffectiveBenefit(rule, { benefitValueByRuleId: { 40: 12 } }).benefitValue).toBe(12);
+
+    const pending = evaluateSettlementRules([rule], {
+      layer: 'SETTLEMENT',
+      selectedRuleIds: [40],
+      dineroARS: 10000,
+      motivo: 'Pago',
+      mode: 'received'
+    });
+    expect(pending.aplica).toBe(false);
+    expect(pending.suggestions.some((s) => s.id === 40 && s.benefitValueManual)).toBe(true);
+
+    const applied = evaluateSettlementRules([rule], {
+      layer: 'SETTLEMENT',
+      selectedRuleIds: [40],
+      benefitValueByRuleId: { 40: 10 },
+      dineroARS: 9000,
+      saldoPendiente: 100000,
+      motivo: 'Pago',
+      mode: 'received'
+    });
+    expect(applied.aplica).toBe(true);
+    expect(applied.dineroARS).toBe(9000);
+    expect(applied.creditoARS).toBe(10000);
+    expect(applied.descuentoARS).toBe(1000);
   });
 });

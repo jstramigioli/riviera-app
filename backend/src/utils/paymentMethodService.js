@@ -63,6 +63,7 @@ async function buildSettlementContext(db, {
   saldoPendienteAntes,
   accountId,
   selectedRuleIds,
+  benefitValueByRuleId,
   mode
 }) {
   let nights = null;
@@ -132,6 +133,7 @@ async function buildSettlementContext(db, {
     hotelId,
     occupancyPercent,
     selectedRuleIds: selectedRuleIds || [],
+    benefitValueByRuleId: benefitValueByRuleId || {},
     mode: mode || 'received'
   };
 }
@@ -146,6 +148,7 @@ async function resolveSettlementDiscount(db, {
   saldoPendienteAntes,
   accountId,
   selectedRuleIds,
+  benefitValueByRuleId,
   mode = 'received'
 }) {
   let rules = [];
@@ -166,6 +169,7 @@ async function resolveSettlementDiscount(db, {
       saldoPendienteAntes,
       accountId,
       selectedRuleIds,
+      benefitValueByRuleId,
       mode
     });
     const evaluated = evaluateSettlementRules(rules, ctx);
@@ -222,7 +226,8 @@ async function createForwardDiscount(db, {
   monedaPago,
   tipoCambio,
   saldoPendienteAntes,
-  selectedRuleIds
+  selectedRuleIds,
+  benefitValueByRuleId
 }) {
   if (!config && !(selectedRuleIds && selectedRuleIds.length)) return null;
 
@@ -233,6 +238,7 @@ async function createForwardDiscount(db, {
     saldoPendienteAntes,
     accountId,
     selectedRuleIds,
+    benefitValueByRuleId,
     mode: 'received'
   });
 
