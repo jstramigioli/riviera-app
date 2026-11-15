@@ -126,78 +126,6 @@
   overflow: hidden;
 }
 
-.compareSummaryBar {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px 12px;
-  align-items: end;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-white);
-  z-index: 2;
-}
-
-.compareSummaryCell {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.compareSummaryLabel {
-  font-size: var(--font-size-small);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.compareSummaryValue,
-.compareSummaryValueMuted,
-.compareSummaryValueEmphasis {
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-}
-
-.compareSummaryValueMuted {
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.compareSummaryValue {
-  font-size: var(--font-size-medium);
-  font-weight: 600;
-  color: var(--color-text-dark);
-}
-
-.compareSummaryValueEmphasis {
-  font-size: var(--font-size-large);
-  font-weight: 700;
-  color: var(--color-text-dark);
-}
-
-.compareDeltaZero {
-  color: var(--color-text-muted);
-}
-
-.compareDeltaUp {
-  color: var(--color-primary-dark);
-}
-
-.compareDeltaDown {
-  color: var(--color-success, #2f9e44);
-}
-
-.compareSummaryNote {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: var(--font-size-small);
-  color: var(--color-primary-dark);
-  line-height: 1.3;
-}
-
 .sideCompare {
   flex: 1 1 auto;
   min-height: 0;
@@ -495,11 +423,6 @@
     order: 2;
     border-right: none;
     border-bottom: none;
-  }
-
-  .compareSummaryBar {
-    position: sticky;
-    top: 0;
   }
 
   .unifiedContainer,

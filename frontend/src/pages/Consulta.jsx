@@ -4115,59 +4115,7 @@ export default function Consulta() {
           }
         >
           {editingReservationId && originalEditSnapshot ? (
-            (() => {
-              const actualTotal = Number(originalEditSnapshot.totalAmount) || 0;
-              const catalogNew =
-                balanceQuoteTotal != null && Number.isFinite(Number(balanceQuoteTotal))
-                  ? Number(balanceQuoteTotal)
-                  : actualTotal;
-              const nuevaTotal = applyRateChanges ? catalogNew : actualTotal;
-              const delta =
-                Math.round((nuevaTotal - actualTotal) * 100) / 100;
-              const deltaClass =
-                delta === 0
-                  ? styles.compareDeltaZero
-                  : delta > 0
-                    ? styles.compareDeltaUp
-                    : styles.compareDeltaDown;
-              const deltaLabel =
-                delta === 0
-                  ? 'Sin diferencia'
-                  : `${delta > 0 ? '+' : ''}${formatConfirmationMoney(delta)}`;
-
-              return (
             <div className={styles.sideCompareWrap} data-testid="edit-rate-compare">
-              <div
-                className={styles.compareSummaryBar}
-                role="region"
-                aria-label="Resumen de tarifas"
-                data-testid="edit-rate-compare-summary"
-              >
-                <div className={styles.compareSummaryCell}>
-                  <span className={styles.compareSummaryLabel}>Actual</span>
-                  <span className={styles.compareSummaryValueMuted}>
-                    {formatConfirmationMoney(actualTotal)}
-                  </span>
-                </div>
-                <div className={styles.compareSummaryCell}>
-                  <span className={styles.compareSummaryLabel}>Diferencia</span>
-                  <span className={`${styles.compareSummaryValue} ${deltaClass}`}>
-                    {deltaLabel}
-                  </span>
-                </div>
-                <div className={styles.compareSummaryCell}>
-                  <span className={styles.compareSummaryLabel}>Nueva</span>
-                  <span className={styles.compareSummaryValueEmphasis}>
-                    {formatConfirmationMoney(nuevaTotal)}
-                  </span>
-                </div>
-                {!applyRateChanges ? (
-                  <p className={styles.compareSummaryNote}>
-                    Se mantienen tarifas actuales
-                  </p>
-                ) : null}
-              </div>
-
               <div className={styles.sideCompare}>
               <div
                 className={`${styles.sideCompareCol} ${styles.sideCompareColCurrent}${
@@ -4288,8 +4236,6 @@ export default function Consulta() {
               </div>
               </div>
             </div>
-              );
-            })()
           ) : (
             <div className={styles.sideScroll}>
               <div className={styles.sideStay}>
