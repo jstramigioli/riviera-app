@@ -34,6 +34,8 @@ function parseBody(req) {
   const body = req.body || {};
   return {
     today: body.today || req.query.today,
+    from: body.from || body.dateFrom || req.query.from,
+    to: body.to || body.dateTo || req.query.to,
     scenarios: body.scenarios,
     pack: body.pack || null,
     nights: body.nights,

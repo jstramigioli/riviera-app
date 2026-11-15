@@ -84,7 +84,69 @@ function shiftIso(iso, days) {
 function nightsBetween(startIso, endIso) {
   const a = Date.parse(`${startIso}T00:00:00Z`);
   const b = Date.parse(`${endIso}T00:00:00Z`);
-  return Math.max(1, Math.round((b - a) / 86400000));
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+
+function isIsoDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function resolveDateWindow(options = {}) {
+  const today = options.today;
+  if (!isIsoDate(today)) {
+    throw new Error('today inválido (yyyy-MM-dd)');
+  }
+  const from = options.from || options.dateFrom || today;
+  const to = options.to || options.dateTo || shiftIso(today, 7);
+  if (!isIsoDate(from) || !isIsoDate(to)) {
+    throw new Error('from/to inválidos (yyyy-MM-dd)');
+  }
+  if (to <= from) {
+    throw new Error('El rango desde/hasta debe tener al menos 1 noche (hasta > desde)');
+  }
+  return { today, from, to };
+}
+
+/**
+ * Coloca la estancia ideal del escenario dentro de [from, to) half-open (checkOut exclusivo).
+ * Packs de ocupación usan todo el rango.
+ */
+function placeStayInRange({ key, tpl, today, from, to, nightsOverride, pack }) {
+  const maxNights = nightsBetween(from, to);
+  if (maxNights < 1) {
+    return { skipped: true, reason: 'Rango sin noches' };
+  }
+
+  if (pack === 'hotel_full' || pack === 'hotel_almost_full') {
+    return { skipped: false, checkIn: from, checkOut: to };
+  }
+
+  const idealNights = nightsOverride || tpl.nights;
+  let checkIn = shiftIso(today, tpl.checkInOffset);
+  let checkOut = shiftIso(checkIn, idealNights);
+
+  if (checkIn < from) checkIn = from;
+  if (checkOut > to) checkOut = to;
+  if (checkOut <= checkIn) {
+    // Reubicar: anclar según tipo de escenario
+    if (key === 'depart_today' || key === 'depart_late' || key === 'finished') {
+      checkOut = to < today ? to : today <= to ? today : to;
+      if (checkOut <= from) checkOut = to;
+      checkIn = shiftIso(checkOut, -Math.min(idealNights, maxNights));
+      if (checkIn < from) checkIn = from;
+    } else if (key === 'arrival_today' || key === 'arrival_late' || key === 'cancelled') {
+      checkIn = from > today ? from : today >= from && today < to ? today : from;
+      checkOut = shiftIso(checkIn, Math.min(idealNights, nightsBetween(checkIn, to)));
+    } else {
+      checkIn = from;
+      checkOut = shiftIso(from, Math.min(idealNights, maxNights));
+    }
+  }
+
+  if (checkOut <= checkIn || checkIn < from || checkOut > to) {
+    return { skipped: true, reason: 'No cabe en el rango desde/hasta' };
+  }
+  return { skipped: false, checkIn, checkOut };
 }
 
 function isRoomOutOfService(room) {
@@ -256,14 +318,11 @@ function expandScenarioList({ scenarios, pack, roomsCount }) {
 }
 
 async function buildPlan(options = {}) {
-  const today = options.today;
-  if (!today || !/^\d{4}-\d{2}-\d{2}$/.test(today)) {
-    throw new Error('today inválido (yyyy-MM-dd)');
-  }
+  const { today, from, to } = resolveDateWindow(options);
   const nightAmount = Number(options.nightAmount) > 0 ? Number(options.nightAmount) : 50000;
   const nightsOverride =
     options.nights != null && options.nights !== ''
-      ? Math.min(14, Math.max(1, Number(options.nights)))
+      ? Math.min(30, Math.max(1, Number(options.nights)))
       : null;
   const rooms = await listInServiceRooms();
   const serviceTypeId = await resolveServiceTypeId(options.serviceTypeId);
@@ -279,9 +338,24 @@ async function buildPlan(options = {}) {
   for (let i = 0; i < scenarioKeys.length; i += 1) {
     const key = scenarioKeys[i];
     const tpl = SCENARIOS[key];
-    const nights = nightsOverride || tpl.nights;
-    const checkIn = shiftIso(today, tpl.checkInOffset);
-    const checkOut = shiftIso(checkIn, nights);
+    const placed = placeStayInRange({
+      key,
+      tpl,
+      today,
+      from,
+      to,
+      nightsOverride,
+      pack: options.pack
+    });
+    if (placed.skipped) {
+      planned.push({
+        scenario: key,
+        skipped: true,
+        reason: placed.reason || 'Fuera de rango'
+      });
+      continue;
+    }
+    const { checkIn, checkOut } = placed;
     const room = await findFreeRoom(rooms, checkIn, checkOut, reservedIds);
     if (!room) {
       planned.push({
@@ -317,6 +391,8 @@ async function buildPlan(options = {}) {
 
   return {
     today,
+    from,
+    to,
     roomsInService: rooms.length,
     planned
   };
@@ -420,6 +496,8 @@ async function createFromPlan(plan, options = {}) {
   return {
     batchId,
     today: plan.today,
+    from: plan.from,
+    to: plan.to,
     roomsInService: plan.roomsInService,
     created
   };

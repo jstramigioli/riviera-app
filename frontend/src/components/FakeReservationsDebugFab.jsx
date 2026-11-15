@@ -25,12 +25,21 @@ const SCENARIO_LABELS = {
 /**
  * Debug ADMIN: generar/limpiar reservas ficticias (notes DEBUG batch=…).
  */
+function defaultRange() {
+  const today = todayIsoLocal();
+  const [y, m, d] = today.split('-').map(Number);
+  const end = new Date(Date.UTC(y, m - 1, d));
+  end.setUTCDate(end.getUTCDate() + 7);
+  return { from: today, to: end.toISOString().slice(0, 10) };
+}
+
 export default function FakeReservationsDebugFab() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [scenarios, setScenarios] = useState([]);
   const [selected, setSelected] = useState(() => new Set(['arrival_today', 'depart_today']));
+  const [range, setRange] = useState(defaultRange);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [lastBatchId, setLastBatchId] = useState(null);
@@ -88,10 +97,13 @@ export default function FakeReservationsDebugFab() {
 
   const bodyBase = () => ({
     today: todayIsoLocal(),
+    from: range.from,
+    to: range.to,
     reuseClient: true,
-    nightAmount: 50000,
-    nights: 2
+    nightAmount: 50000
   });
+
+  const rangeInvalid = !range.from || !range.to || range.to <= range.from;
 
   const run = async (fn) => {
     setBusy(true);
@@ -166,9 +178,41 @@ export default function FakeReservationsDebugFab() {
         >
           <p className={styles.title}>Reservas ficticias</p>
           <p className={styles.hint}>
-            Hoy operativo: <strong>{todayIsoLocal()}</strong>. Marcador en notes:
-            DEBUG batch=…
+            Hoy operativo: <strong>{todayIsoLocal()}</strong>. Estancias dentro del
+            rango. Marcador: DEBUG batch=…
           </p>
+
+          <div className={localStyles.rangeRow}>
+            <label className={styles.field} htmlFor="fake-from">
+              <span className={styles.fieldLabel}>Desde</span>
+              <input
+                id="fake-from"
+                type="date"
+                className={styles.input}
+                value={range.from}
+                max={range.to || undefined}
+                onChange={(e) =>
+                  setRange((prev) => ({ ...prev, from: e.target.value }))
+                }
+              />
+            </label>
+            <label className={styles.field} htmlFor="fake-to">
+              <span className={styles.fieldLabel}>Hasta</span>
+              <input
+                id="fake-to"
+                type="date"
+                className={styles.input}
+                value={range.to}
+                min={range.from || undefined}
+                onChange={(e) =>
+                  setRange((prev) => ({ ...prev, to: e.target.value }))
+                }
+              />
+            </label>
+          </div>
+          {rangeInvalid ? (
+            <p className={styles.status}>Hasta debe ser posterior a Desde (≥ 1 noche).</p>
+          ) : null}
 
           <div className={localStyles.scenarioList}>
             {(scenarios.length ? scenarios : Object.keys(SCENARIO_LABELS)).map(
@@ -189,7 +233,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy}
+              disabled={busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'recepcion' })}
             >
               Pack recepción
@@ -197,7 +241,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy}
+              disabled={busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'hotel_almost_full' })}
             >
               Casi lleno
@@ -205,7 +249,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy}
+              disabled={busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'hotel_full' })}
             >
               Hotel lleno
@@ -216,7 +260,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy}
+              disabled={busy || rangeInvalid}
               onClick={onPreview}
             >
               Preview
@@ -224,7 +268,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.primaryBtn}
-              disabled={busy || selected.size === 0}
+              disabled={busy || rangeInvalid || selected.size === 0}
               onClick={() => onGenerate()}
             >
               Generar

@@ -6,6 +6,17 @@
   width: min(320px, calc(100vw - 24px));
 }
 
+.rangeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.rangeRow .field {
+  margin-bottom: 0;
+}
+
 .scenarioList {
   display: grid;
   grid-template-columns: 1fr 1fr;
