@@ -1,5 +1,6 @@
 /**
- * Helpers para promos con benefitValueManual (valor al aplicar).
+ * Helpers para promos: valor al aplicar (benefitValueManual) y modalidad opcional.
+ * Modalidad MANUAL/SUGERIDA = «opcional»; benefitValueManual es independiente.
  */
 
 export function benefitUnitLabel(benefitType) {
@@ -16,25 +17,55 @@ export function benefitUnitLabel(benefitType) {
   }
 }
 
+function normalizeSuggestion(s) {
+  if (!s) return null;
+  const id = s.id ?? s.promotionRuleId;
+  if (id == null) return null;
+  const modality = String(s.modality || 'MANUAL').toUpperCase();
+  return {
+    id: Number(id),
+    code: s.code || null,
+    label: s.label || s.code || `Promo #${id}`,
+    benefitType: s.benefitType || 'PERCENT',
+    modality,
+    layer: s.layer || null,
+    defaultOn: s.defaultOn != null ? Boolean(s.defaultOn) : modality === 'SUGERIDA',
+    benefitValueManual: Boolean(s.benefitValueManual)
+  };
+}
+
 /** Suggestions del preview que piden valor al aplicar. */
 export function collectManualBenefitSuggestions(preview) {
   const list = Array.isArray(preview?.suggestions) ? preview.suggestions : [];
   const byId = new Map();
   for (const s of list) {
     if (!s || !s.benefitValueManual) continue;
-    const id = s.id ?? s.promotionRuleId;
-    if (id == null) continue;
-    if (!byId.has(id)) {
-      byId.set(id, {
-        id: Number(id),
-        code: s.code || null,
-        label: s.label || s.code || `Promo #${id}`,
-        benefitType: s.benefitType || 'PERCENT',
-        modality: s.modality || 'MANUAL',
-        layer: s.layer || null,
-        defaultOn: Boolean(s.defaultOn)
-      });
-    }
+    const normalized = normalizeSuggestion(s);
+    if (!normalized) continue;
+    if (!byId.has(normalized.id)) byId.set(normalized.id, normalized);
+  }
+  return Array.from(byId.values());
+}
+
+/**
+ * Opcionales disponibles para el desplegable «+ promoción»
+ * (en suggestions y aún no aplicadas).
+ */
+export function collectOptionalPromoChoices(preview, appliedPromos = []) {
+  const appliedIds = new Set(
+    (appliedPromos || [])
+      .map((p) => p?.promotionRuleId ?? p?.id)
+      .filter((id) => id != null)
+      .map(Number)
+  );
+  const list = Array.isArray(preview?.suggestions) ? preview.suggestions : [];
+  const byId = new Map();
+  for (const s of list) {
+    const normalized = normalizeSuggestion(s);
+    if (!normalized) continue;
+    if (normalized.modality !== 'MANUAL' && normalized.modality !== 'SUGERIDA') continue;
+    if (appliedIds.has(normalized.id)) continue;
+    if (!byId.has(normalized.id)) byId.set(normalized.id, normalized);
   }
   return Array.from(byId.values());
 }
@@ -52,12 +83,15 @@ export function mergeManualBenefitSuggestions(lists = []) {
 }
 
 /**
- * De inputs { [ruleId]: string } → maps para API.
- * Solo incluye valores numéricos finitos ≥ 0.
+ * De inputs { [ruleId]: string } + selección opcional → maps para API.
  */
-export function buildBenefitApplyPayload(manualValues = {}) {
+export function buildBenefitApplyPayload({
+  manualValues = {},
+  selectedOptionalIds = [],
+  deselectedRuleIds = []
+} = {}) {
   const benefitValueByRuleId = {};
-  const selectedRuleIds = [];
+  const fromValues = [];
   for (const [key, raw] of Object.entries(manualValues || {})) {
     if (raw === '' || raw == null) continue;
     const n = Number(raw);
@@ -65,7 +99,30 @@ export function buildBenefitApplyPayload(manualValues = {}) {
     const id = parseInt(key, 10);
     if (!Number.isFinite(id)) continue;
     benefitValueByRuleId[id] = n;
-    selectedRuleIds.push(id);
+    fromValues.push(id);
   }
-  return { benefitValueByRuleId, selectedRuleIds };
+  const selectedRuleIds = Array.from(
+    new Set(
+      []
+        .concat(selectedOptionalIds || [])
+        .concat(fromValues)
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id))
+    )
+  );
+  const deselected = Array.from(
+    new Set(
+      (deselectedRuleIds || [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && !selectedRuleIds.includes(id))
+    )
+  );
+  return { benefitValueByRuleId, selectedRuleIds, deselectedRuleIds: deselected };
+}
+
+/** Promo aplicada removible (modalidad opcional). */
+export function isRemovableOptionalPromo(promo) {
+  if (!promo) return false;
+  const modality = String(promo.modality || '').toUpperCase();
+  return modality === 'MANUAL' || modality === 'SUGERIDA';
 }

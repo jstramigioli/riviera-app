@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FiChevronDown, FiChevronRight, FiPlus, FiX } from 'react-icons/fi';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { previewPromotion } from '../services/api';
 import {
@@ -13,6 +13,8 @@ import {
   benefitUnitLabel,
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
+  collectOptionalPromoChoices,
+  isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
 } from '../utils/promoManualBenefit';
 import styles from './ConsultaBalancePanel.module.css';
@@ -24,6 +26,7 @@ export default function ConsultaBalancePanel({
   segments = [],
   selectedRoomsPerBlock = {},
   notes = '',
+  onNotesChange,
   source = '',
   onSourceChange,
   reservationStatus = 'PENDIENTE',
@@ -36,8 +39,13 @@ export default function ConsultaBalancePanel({
   const [promoError, setPromoError] = useState(null);
   const [segmentQuotes, setSegmentQuotes] = useState([]);
   const [manualSuggestions, setManualSuggestions] = useState([]);
+  const [optionalChoices, setOptionalChoices] = useState([]);
   const [manualValues, setManualValues] = useState({});
+  const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
+  const [deselectedRuleIds, setDeselectedRuleIds] = useState([]);
   const [showNightBreakdown, setShowNightBreakdown] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const addMenuRef = useRef(null);
 
   const segmentNightGroups = useMemo(
     () => collectSegmentNights(segments, selectedRoomsPerBlock),
@@ -53,7 +61,15 @@ export default function ConsultaBalancePanel({
     (seg) => (seg.nights && seg.nights.length > 0) || seg.subtotal > 0
   );
 
-  const applyPayload = useMemo(() => buildBenefitApplyPayload(manualValues), [manualValues]);
+  const applyPayload = useMemo(
+    () =>
+      buildBenefitApplyPayload({
+        manualValues,
+        selectedOptionalIds,
+        deselectedRuleIds
+      }),
+    [manualValues, selectedOptionalIds, deselectedRuleIds]
+  );
 
   useEffect(() => {
     onPromoApplyChange?.(applyPayload);
@@ -63,7 +79,22 @@ export default function ConsultaBalancePanel({
     setShowNightBreakdown(false);
     setManualValues({});
     setManualSuggestions([]);
+    setOptionalChoices([]);
+    setSelectedOptionalIds([]);
+    setDeselectedRuleIds([]);
+    setAddMenuOpen(false);
   }, [segments, selectedRoomsPerBlock]);
+
+  useEffect(() => {
+    if (!addMenuOpen) return undefined;
+    const onDocClick = (event) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target)) {
+        setAddMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [addMenuOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +103,7 @@ export default function ConsultaBalancePanel({
       if (!segmentNightGroups.length || !hasSelection) {
         setSegmentQuotes([]);
         setManualSuggestions([]);
+        setOptionalChoices([]);
         setPromoError(null);
         return;
       }
@@ -79,7 +111,8 @@ export default function ConsultaBalancePanel({
       setPromoLoading(true);
       setPromoError(null);
 
-      const { benefitValueByRuleId, selectedRuleIds } = applyPayload;
+      const { benefitValueByRuleId, selectedRuleIds, deselectedRuleIds: deselected } =
+        applyPayload;
 
       try {
         const results = await Promise.all(
@@ -101,7 +134,8 @@ export default function ConsultaBalancePanel({
                   nights: fallbackNights,
                   promos: []
                 },
-                suggestions: []
+                valueSuggestions: [],
+                optionalChoices: []
               };
             }
 
@@ -116,13 +150,12 @@ export default function ConsultaBalancePanel({
                 nightPrices: seg.nightPrices,
                 hotelId: 'default-hotel',
                 selectedRuleIds,
+                deselectedRuleIds: deselected,
                 benefitValueByRuleId,
                 applySuggestedDefaults: true
               });
               const nights = mergeNightsWithPreview(seg.nights, preview);
               const promos = flattenPreviewAppliedRules(preview);
-              // Descuento canónico = suma de promos sobre bruto (motor), no suma de noches
-              // post–free (que subcuenta el % de noches gratis).
               const discountFromPromos = promos.reduce(
                 (sum, p) => sum + (Number(p.montoARS) || 0),
                 0
@@ -139,7 +172,8 @@ export default function ConsultaBalancePanel({
                   nights,
                   promos
                 },
-                suggestions: collectManualBenefitSuggestions(preview)
+                valueSuggestions: collectManualBenefitSuggestions(preview),
+                optionalChoices: collectOptionalPromoChoices(preview, promos)
               };
             } catch (err) {
               console.warn('Preview promo RATE falló; se muestra tarifa sin descuento', err);
@@ -151,7 +185,8 @@ export default function ConsultaBalancePanel({
                   nights: fallbackNights,
                   promos: []
                 },
-                suggestions: []
+                valueSuggestions: [],
+                optionalChoices: []
               };
             }
           })
@@ -159,13 +194,19 @@ export default function ConsultaBalancePanel({
 
         if (!cancelled) {
           setSegmentQuotes(results.map((r) => r.quote));
-          setManualSuggestions(mergeManualBenefitSuggestions(results.map((r) => r.suggestions)));
+          setManualSuggestions(
+            mergeManualBenefitSuggestions(results.map((r) => r.valueSuggestions))
+          );
+          setOptionalChoices(
+            mergeManualBenefitSuggestions(results.map((r) => r.optionalChoices))
+          );
           setPromoError(null);
         }
       } catch (error) {
         if (!cancelled) {
           setPromoError('No se pudo estimar el efecto de promociones');
           setManualSuggestions([]);
+          setOptionalChoices([]);
           setSegmentQuotes(
             segmentNightGroups.map((seg) => ({
               segmentIndex: seg.segmentIndex,
@@ -215,6 +256,54 @@ export default function ConsultaBalancePanel({
     setManualValues((prev) => ({ ...prev, [ruleId]: value }));
   };
 
+  const addOptionalPromo = (choice) => {
+    if (!choice || choice.id == null) return;
+    const id = Number(choice.id);
+    if (choice.defaultOn) {
+      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    } else {
+      setSelectedOptionalIds((prev) =>
+        prev.includes(id) ? prev : [...prev, id]
+      );
+    }
+    setAddMenuOpen(false);
+  };
+
+  const removeOptionalPromo = (promo) => {
+    const id = Number(promo?.promotionRuleId ?? promo?.id);
+    if (!Number.isFinite(id)) return;
+    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
+      setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    } else {
+      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    }
+    setManualValues((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
+
+  const notesField = (
+    <div className={styles.notesField} data-testid="balance-notes">
+      <label className={styles.metaLabel} htmlFor="balance-notes">
+        Notas de la reserva
+      </label>
+      <textarea
+        id="balance-notes"
+        className={styles.notesTextarea}
+        value={notes || ''}
+        onChange={(e) => onNotesChange?.(e.target.value)}
+        placeholder="Notas de la reserva"
+        rows={3}
+        disabled={disabled}
+      />
+    </div>
+  );
+
   if (!hasSelection) {
     return (
       <aside className={styles.panel} aria-label="Tarifas y promociones">
@@ -222,6 +311,7 @@ export default function ConsultaBalancePanel({
         <p className={styles.emptyHint}>
           Seleccioná habitación en cada tramo para ver el desglose y las promociones.
         </p>
+        {notesField}
       </aside>
     );
   }
@@ -331,25 +421,79 @@ export default function ConsultaBalancePanel({
 
           {quote.hasPromos ? (
             <div className={styles.promoList} data-testid="confirmation-promos">
-              {quote.promos.map((promo) => (
-                <div
-                  key={promo.promotionRuleId || promo.code}
-                  className={styles.promoRow}
-                >
-                  <span className={styles.quoteLabel}>
-                    {promo.label}
-                    {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
-                    {promo.freeNightCount
-                      ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
-                      : ''}
-                  </span>
-                  <span className={styles.promoValue}>
-                    −{formatConfirmationMoney(promo.montoARS)}
-                  </span>
-                </div>
-              ))}
+              {quote.promos.map((promo) => {
+                const removable = isRemovableOptionalPromo(promo);
+                return (
+                  <div
+                    key={promo.promotionRuleId || promo.code}
+                    className={styles.promoRow}
+                  >
+                    <span className={styles.quoteLabel}>
+                      {promo.label}
+                      {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                      {promo.freeNightCount
+                        ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
+                        : ''}
+                    </span>
+                    <span className={styles.promoValueGroup}>
+                      <span className={styles.promoValue}>
+                        −{formatConfirmationMoney(promo.montoARS)}
+                      </span>
+                      {removable ? (
+                        <button
+                          type="button"
+                          className={styles.promoRemoveBtn}
+                          onClick={() => removeOptionalPromo(promo)}
+                          aria-label={`Quitar ${promo.label}`}
+                          disabled={disabled || promoLoading}
+                          data-testid={`promo-remove-${promo.promotionRuleId}`}
+                        >
+                          <FiX aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
+
+          <div className={styles.addPromoWrap} ref={addMenuRef}>
+            <button
+              type="button"
+              className={styles.addPromoBtn}
+              onClick={() => setAddMenuOpen((v) => !v)}
+              aria-expanded={addMenuOpen}
+              aria-haspopup="listbox"
+              disabled={disabled || promoLoading || optionalChoices.length === 0}
+              data-testid="add-optional-promo"
+            >
+              <FiPlus aria-hidden="true" />
+              promoción
+            </button>
+            {addMenuOpen && optionalChoices.length > 0 ? (
+              <ul
+                className={styles.addPromoMenu}
+                role="listbox"
+                aria-label="Promociones opcionales"
+              >
+                {optionalChoices.map((choice) => (
+                  <li key={choice.id} role="option">
+                    <button
+                      type="button"
+                      className={styles.addPromoOption}
+                      onClick={() => addOptionalPromo(choice)}
+                    >
+                      {choice.label}
+                      {choice.defaultOn ? (
+                        <span className={styles.addPromoMeta}>por defecto</span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
 
           <div className={`${styles.quoteRow} ${styles.quoteTotal}`}>
             <span className={styles.quoteLabel}>Total</span>
@@ -357,6 +501,8 @@ export default function ConsultaBalancePanel({
               {formatConfirmationMoney(quote.totalARS)}
             </span>
           </div>
+
+          {notesField}
         </div>
       </section>
 
@@ -364,13 +510,6 @@ export default function ConsultaBalancePanel({
         <h2 id="balance-meta-heading" className={styles.heading}>
           Datos
         </h2>
-
-        {notes && notes.trim() !== '' ? (
-          <div className={styles.metaField}>
-            <span className={styles.metaLabel}>Notas</span>
-            <p className={styles.notesText}>{notes}</p>
-          </div>
-        ) : null}
 
         <div className={styles.metaField}>
           <label className={styles.metaLabel} htmlFor="balance-source">

@@ -283,7 +283,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(withSel.descuentoARS).toBe(5000);
   });
 
-  it('SUGERIDA = manual por defecto activado (defaultOn)', () => {
+  it('SUGERIDA = opcional por defecto activado (defaultOn)', () => {
     const sugerida = { ...efectivoRule, id: 3, modality: 'SUGERIDA', code: 'SUG_10' };
     const without = evaluateSettlementRules([sugerida], {
       layer: 'SETTLEMENT',

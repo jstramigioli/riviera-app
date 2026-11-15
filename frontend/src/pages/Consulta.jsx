@@ -290,14 +290,16 @@ export default function Consulta() {
   const [reservationStatus, setReservationStatus] = useState('PENDIENTE');
   const [promoApply, setPromoApply] = useState({
     benefitValueByRuleId: {},
-    selectedRuleIds: []
+    selectedRuleIds: [],
+    deselectedRuleIds: []
   });
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
   const [pendingPromoApply, setPendingPromoApply] = useState({
     benefitValueByRuleId: {},
-    selectedRuleIds: []
+    selectedRuleIds: [],
+    deselectedRuleIds: []
   });
 
   // Estados para el modal de eliminación de segmentos
@@ -364,7 +366,9 @@ export default function Consulta() {
   );
 
   const handlePromoApplyChange = useCallback((next) => {
-    setPromoApply(next || { benefitValueByRuleId: {}, selectedRuleIds: [] });
+    setPromoApply(
+      next || { benefitValueByRuleId: {}, selectedRuleIds: [], deselectedRuleIds: [] }
+    );
   }, []);
 
   useEffect(() => {
@@ -3007,7 +3011,8 @@ export default function Consulta() {
         opts.benefitValueByRuleId && typeof opts.benefitValueByRuleId === 'object'
           ? opts.benefitValueByRuleId
           : {},
-      selectedRuleIds: Array.isArray(opts.selectedRuleIds) ? opts.selectedRuleIds : []
+      selectedRuleIds: Array.isArray(opts.selectedRuleIds) ? opts.selectedRuleIds : [],
+      deselectedRuleIds: Array.isArray(opts.deselectedRuleIds) ? opts.deselectedRuleIds : []
     };
 
     setIsCreatingReservation(true);
@@ -3178,6 +3183,7 @@ export default function Consulta() {
         source: source || null,
         isMultiRoom: false,
         selectedRuleIds: promoApply.selectedRuleIds,
+        deselectedRuleIds: promoApply.deselectedRuleIds,
         benefitValueByRuleId: promoApply.benefitValueByRuleId
       };
 
@@ -3192,6 +3198,7 @@ export default function Consulta() {
           segments: reservationData.segments,
           applyRateChanges,
           selectedRuleIds: promoApply.selectedRuleIds,
+          deselectedRuleIds: promoApply.deselectedRuleIds,
           benefitValueByRuleId: promoApply.benefitValueByRuleId
         });
         notify({
@@ -3545,20 +3552,6 @@ export default function Consulta() {
 
             {guestsSelect}
             {bedsField}
-
-            <div className={styles.notesFieldContainer}>
-              <div className={styles.formGroup}>
-                <label htmlFor="consulta-notes">Notas</label>
-                <textarea
-                  id="consulta-notes"
-                  className={styles.notesTextarea}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notas"
-                  rows={1}
-                />
-              </div>
-            </div>
           </div>
         )}
 
@@ -4012,6 +4005,7 @@ export default function Consulta() {
               segments={segments}
               selectedRoomsPerBlock={selectedRoomsPerBlock}
               notes={notes}
+              onNotesChange={setNotes}
               source={source}
               onSourceChange={setSource}
               reservationStatus={reservationStatus}
