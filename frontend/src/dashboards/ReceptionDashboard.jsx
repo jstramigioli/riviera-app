@@ -266,7 +266,7 @@ export default function ReceptionDashboard() {
             Egresos
           </h2>
           {checkoutRows.length === 0 ? (
-            <p className={styles.empty}>Sin egresos pendientes de finalizar.</p>
+            <p className={styles.empty}>Sin egresos de hoy ni atrasados.</p>
           ) : (
             <table className={styles.dataTable}>
               <thead>

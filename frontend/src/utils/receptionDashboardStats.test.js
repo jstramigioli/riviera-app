@@ -122,7 +122,7 @@ describe('receptionDashboardStats', () => {
     expect(items.find((i) => i.reservationId === 2).overdue).toBe(true);
   });
 
-  it('egresos lista todas las INGRESADA pendientes de finalizar', () => {
+  it('egresos solo checkout <= hoy (hoy + atrasados, sin futuras)', () => {
     const reservations = [
       {
         id: 10,
@@ -151,12 +151,26 @@ describe('receptionDashboardStats', () => {
             isActive: true
           }
         ]
+      },
+      {
+        id: 12,
+        status: 'INGRESADA',
+        mainClient: { firstName: 'Eva', lastName: 'Soto' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-04',
+            endDate: '2024-01-05',
+            guestCount: 1,
+            isActive: true
+          }
+        ]
       }
     ];
     const items = pendingCheckoutItems('2024-01-05', rooms, reservations);
-    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.reservationId).sort()).toEqual([11, 12]);
     expect(items.find((i) => i.reservationId === 11).late).toBe(true);
-    expect(items.find((i) => i.reservationId === 10).late).toBe(false);
+    expect(items.find((i) => i.reservationId === 12).late).toBe(false);
   });
 
   it('buildReceptionDashboardModel arma ingresos y mañana', () => {

@@ -184,7 +184,7 @@ function daysBetweenIso(fromIso, toIso) {
 }
 
 /**
- * Todas las INGRESADA pendientes de finalizar (checkout previsto hoy, futuro o atrasado).
+ * INGRESADA con checkout previsto <= hoy (hoy + atrasados). Sin futuras.
  */
 export function pendingCheckoutItems(todayIso, rooms = [], reservations = []) {
   const roomsById = buildRoomsById(rooms);
@@ -193,6 +193,7 @@ export function pendingCheckoutItems(todayIso, rooms = [], reservations = []) {
     if (reservation?.status !== 'INGRESADA') continue;
     const segments = activeSegments(reservation);
     const { start, end } = stayBounds(reservation);
+    if (!end || end > todayIso) continue;
     const guestName = mainClientDisplayName(reservation);
     const room = movementRoomLabel(
       reservation,
