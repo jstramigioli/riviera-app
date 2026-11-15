@@ -21,7 +21,6 @@ const { ensureHolderAsGuest } = require('./guestHelpers');
 const {
   loadActivePromotionRules,
   evaluateRateRules,
-  evaluateFreeNightsForStay,
   computeHotelOccupancyPercent
 } = require('./promotionEngine');
 
@@ -87,7 +86,6 @@ async function syncLodgingChargesAndNightRates(
     where: { reservationId: reservaId }
   });
 
-  let totalNights = 0;
   let rateRules = [];
   try {
     rateRules = await loadActivePromotionRules(prisma, { layer: 'RATE' });
@@ -95,12 +93,18 @@ async function syncLodgingChargesAndNightRates(
     console.warn('⚠️ PromotionRule RATE no disponible:', err.message);
   }
 
+  // Pasada 1: armar la estadía completa (todos los segmentos = un tramo).
+  // FREE_NIGHTS / minStay / condiciones se evalúan una sola vez sobre este plan.
+  const stayNights = [];
+  let stayCheckIn = null;
+  let stayCheckOut = null;
+  let stayRoomTypeId = null;
+  let stayServiceTypeId = null;
+
   for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
     const segment = segments[segmentIndex];
-    // Componentes secundarios de virtual solo bloquean ocupación; no generan cargos
-    if (isVirtualBlockingSegment(segment)) {
-      continue;
-    }
+    if (isVirtualBlockingSegment(segment)) continue;
+
     const originalSegment = originalSegments[segmentIndex] || {};
     const startIso = civilFromDb(segment.startDate);
     const endIso = civilFromDb(segment.endDate);
@@ -138,8 +142,6 @@ async function syncLodgingChargesAndNightRates(
       }
     }
 
-    // Primera pasada: precios originales por noche (FREE_NIGHTS necesita la estadía completa).
-    const nightPlans = [];
     for (let i = 0; i < days; i++) {
       const currentDate = dateOnlyUTC(startIso);
       currentDate.setUTCDate(currentDate.getUTCDate() + i);
@@ -151,8 +153,14 @@ async function syncLodgingChargesAndNightRates(
       const originalAmount = quoted
         ? parseFloat(quoted.finalRate ?? quoted.serviceRate ?? quoted.baseRate)
         : parseFloat(segment.baseRate);
-      nightPlans.push({
-        index: i,
+      stayNights.push({
+        globalIndex: stayNights.length,
+        localIndex: i,
+        segmentDays: days,
+        segment,
+        roomTypeId,
+        serviceTypeId,
+        serviceTypeLabel,
         currentDate,
         dateKey,
         quoted,
@@ -160,138 +168,121 @@ async function syncLodgingChargesAndNightRates(
       });
     }
 
-    let freeByIndex = {};
-    if (rateRules.length && nightPlans.length) {
-      let occupancyPercent = null;
-      try {
-        const hotelIdForOcc = await resolveHotelId(serviceTypeId);
-        occupancyPercent = await computeHotelOccupancyPercent(prisma, {
-          hotelId: hotelIdForOcc,
-          date: dateOnlyUTC(startIso)
-        });
-      } catch {
-        occupancyPercent = null;
-      }
-      const freeEval = evaluateFreeNightsForStay(
-        rateRules,
-        {
-          layer: 'RATE',
-          asOfDate: dateOnlyUTC(startIso),
-          checkIn: startIso,
-          checkOut: endIso,
-          nights: days,
-          roomTypeId,
-          serviceTypeId,
-          occupancyPercent,
-          selectedRuleIds,
-          deselectedRuleIds,
-          benefitValueByRuleId,
-          applySuggestedDefaults: true
-        },
-        nightPlans.map((n) => n.originalAmount)
-      );
-      for (const [localIdx, detail] of Object.entries(freeEval.byIndex || {})) {
-        const plan = nightPlans[Number(localIdx)];
-        if (plan) freeByIndex[plan.index] = detail;
-      }
-    }
-
-    for (const plan of nightPlans) {
-      const { currentDate, quoted, originalAmount, index } = plan;
-
-      let promoDiscount = 0;
-      let promoRuleId = null;
-      let promoPercent = null;
-      let pricedAmount = originalAmount;
-
-      if (freeByIndex[index]) {
-        const free = freeByIndex[index];
-        pricedAmount = 0;
-        promoDiscount = free.discountARS;
-        promoRuleId = free.promotionRuleId || null;
-        promoPercent = 100;
-      } else if (rateRules.length) {
-        let occupancyPercent = null;
-        try {
-          const hotelIdForOcc = await resolveHotelId(serviceTypeId);
-          occupancyPercent = await computeHotelOccupancyPercent(prisma, {
-            hotelId: hotelIdForOcc,
-            date: currentDate
-          });
-        } catch {
-          occupancyPercent = null;
-        }
-        const rateEval = evaluateRateRules(rateRules, {
-          layer: 'RATE',
-          asOfDate: currentDate,
-          checkIn: startIso,
-          checkOut: endIso,
-          nights: days,
-          roomTypeId,
-          serviceTypeId,
-          nightPrice: originalAmount,
-          occupancyPercent,
-          selectedRuleIds,
-          deselectedRuleIds,
-          benefitValueByRuleId,
-          // AUTO + SUGERIDA (default ON). MANUAL/opcional OFF requiere selectedRuleIds.
-          applySuggestedDefaults: true
-        });
-        if (rateEval.aplica) {
-          pricedAmount = rateEval.finalARS;
-          promoDiscount = rateEval.discountARS;
-          promoRuleId = rateEval.promotionRuleId || null;
-          promoPercent = rateEval.promotionPercent;
-        }
-      }
-
-      const dateStr = currentDate.toLocaleDateString('es-AR', {
-        timeZone: 'UTC',
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short'
-      });
-
-      const promoNote =
-        promoDiscount > 0 && promoRuleId
-          ? freeByIndex[index]
-            ? ` | Promo#${promoRuleId} noche sin cargo −$${promoDiscount}`
-            : ` | Promo#${promoRuleId} −$${promoDiscount}`
-          : '';
-
-      await prisma.cargo.create({
-        data: {
-          ...financialRefs,
-          roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
-          serviceTypeId: serviceTypeId || null,
-          descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
-          monto: pricedAmount,
-          notas:
-            `Noche ${index + 1} de ${days} - Habitación ${segment.room?.name || 'N/A'}` + promoNote,
-          fecha: currentDate
-        }
-      });
-
-      await prisma.reservationNightRate.create({
-        data: {
-          reservationId: reservaId,
-          date: currentDate,
-          baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
-          dynamicRate: originalAmount,
-          finalRate: pricedAmount,
-          serviceType: serviceTypeId || 'base',
-          serviceRate: originalAmount,
-          manualOverride: false,
-          promotionRuleId: promoRuleId,
-          promotionDiscountARS: promoDiscount > 0 ? promoDiscount : null,
-          promotionPercent: promoPercent
-        }
-      });
-
-      totalNights += 1;
-    }
+    if (startIso && (!stayCheckIn || startIso < stayCheckIn)) stayCheckIn = startIso;
+    if (endIso && (!stayCheckOut || endIso > stayCheckOut)) stayCheckOut = endIso;
+    if (stayRoomTypeId == null && roomTypeId != null) stayRoomTypeId = roomTypeId;
+    if (stayServiceTypeId == null && serviceTypeId != null) stayServiceTypeId = serviceTypeId;
   }
 
+  const nightPrices = stayNights.map((n) => n.originalAmount);
+  let perNightPromo = null;
+  if (rateRules.length && nightPrices.length) {
+    let occupancyPercent = null;
+    try {
+      const hotelIdForOcc = await resolveHotelId(stayServiceTypeId);
+      occupancyPercent = await computeHotelOccupancyPercent(prisma, {
+        hotelId: hotelIdForOcc,
+        date: dateOnlyUTC(stayCheckIn || stayNights[0].dateKey)
+      });
+    } catch {
+      occupancyPercent = null;
+    }
+    perNightPromo = evaluateRateRules(rateRules, {
+      layer: 'RATE',
+      asOfDate: dateOnlyUTC(stayCheckIn || stayNights[0].dateKey),
+      checkIn: stayCheckIn,
+      checkOut: stayCheckOut,
+      nights: nightPrices.length,
+      roomTypeId: stayRoomTypeId,
+      serviceTypeId: stayServiceTypeId,
+      nightPrices,
+      occupancyPercent,
+      selectedRuleIds,
+      deselectedRuleIds,
+      benefitValueByRuleId,
+      applySuggestedDefaults: true
+    });
+  }
+
+  const nightResults = Array.isArray(perNightPromo?.nights) ? perNightPromo.nights : [];
+
+  for (const plan of stayNights) {
+    const {
+      globalIndex,
+      localIndex,
+      segmentDays,
+      segment,
+      roomTypeId,
+      serviceTypeId,
+      serviceTypeLabel,
+      currentDate,
+      quoted,
+      originalAmount
+    } = plan;
+
+    const nightEval = nightResults[globalIndex] || null;
+    let promoDiscount = 0;
+    let promoRuleId = null;
+    let promoPercent = null;
+    let pricedAmount = originalAmount;
+    let isFreeNight = false;
+
+    if (nightEval) {
+      pricedAmount = Number(nightEval.finalARS);
+      if (!Number.isFinite(pricedAmount)) pricedAmount = originalAmount;
+      promoDiscount = Number(nightEval.discountARS) || 0;
+      promoRuleId = nightEval.promotionRuleId || null;
+      promoPercent = nightEval.percent != null ? nightEval.percent : null;
+      isFreeNight = Boolean(nightEval.freeNight);
+      if (isFreeNight) promoPercent = 100;
+    }
+
+    const dateStr = currentDate.toLocaleDateString('es-AR', {
+      timeZone: 'UTC',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+
+    const promoNote =
+      promoDiscount > 0 && promoRuleId
+        ? isFreeNight
+          ? ` | Promo#${promoRuleId} noche sin cargo −$${promoDiscount}`
+          : ` | Promo#${promoRuleId} −$${promoDiscount}`
+        : '';
+
+    await prisma.cargo.create({
+      data: {
+        ...financialRefs,
+        roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
+        serviceTypeId: serviceTypeId || null,
+        descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
+        monto: pricedAmount,
+        notas:
+          `Noche ${localIndex + 1} de ${segmentDays} - Habitación ${segment.room?.name || 'N/A'}` +
+          promoNote,
+        fecha: currentDate
+      }
+    });
+
+    await prisma.reservationNightRate.create({
+      data: {
+        reservationId: reservaId,
+        date: currentDate,
+        baseRate: parseFloat(quoted?.baseRate ?? segment.baseRate),
+        dynamicRate: originalAmount,
+        finalRate: pricedAmount,
+        serviceType: serviceTypeId || 'base',
+        serviceRate: originalAmount,
+        manualOverride: false,
+        promotionRuleId: promoRuleId,
+        promotionDiscountARS: promoDiscount > 0 ? promoDiscount : null,
+        promotionPercent: promoPercent
+      }
+    });
+  }
+
+  const totalNights = stayNights.length;
   console.log(`✅ ${totalNights} cargos + night rates sincronizados para reserva #${reservaId}`);
   return { totalNights };
 }

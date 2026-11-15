@@ -259,11 +259,20 @@
   background: rgba(63, 95, 138, 0.08);
 }
 
+.addPromoName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .addPromoMeta {
   color: var(--color-primary-dark);
   font-size: 0.75em;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .manualPromoBlock {

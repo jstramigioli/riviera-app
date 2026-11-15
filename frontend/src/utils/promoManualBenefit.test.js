@@ -3,6 +3,7 @@ import {
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
   collectOptionalPromoChoices,
+  formatOptionalBenefitValue,
   isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
 } from './promoManualBenefit';
@@ -13,6 +14,28 @@ describe('promoManualBenefit', () => {
     expect(benefitUnitLabel('FREE_NIGHTS')).toBe('noches');
     expect(benefitUnitLabel('FIXED_PER_NIGHT')).toBe('ARS/noche');
     expect(benefitUnitLabel('FIXED')).toBe('ARS');
+  });
+
+  it('formatOptionalBenefitValue por tipo', () => {
+    expect(formatOptionalBenefitValue({ benefitType: 'PERCENT', benefitValue: 10 })).toBe(
+      '−10%'
+    );
+    expect(
+      formatOptionalBenefitValue({ benefitType: 'FREE_NIGHTS', benefitValue: 1 })
+    ).toBe('−1 noche');
+    expect(
+      formatOptionalBenefitValue({ benefitType: 'FREE_NIGHTS', benefitValue: 2 })
+    ).toBe('−2 noches');
+    expect(formatOptionalBenefitValue({ benefitType: 'FIXED', benefitValue: 5000 })).toBe(
+      '−$5.000'
+    );
+    expect(
+      formatOptionalBenefitValue({
+        benefitType: 'PERCENT',
+        benefitValueManual: true,
+        benefitValue: null
+      })
+    ).toBeNull();
   });
 
   it('collectManualBenefitSuggestions solo benefitValueManual', () => {
@@ -29,6 +52,7 @@ describe('promoManualBenefit', () => {
         code: null,
         label: 'Cortesía',
         benefitType: 'PERCENT',
+        benefitValue: null,
         modality: 'MANUAL',
         layer: null,
         defaultOn: false,
@@ -37,18 +61,33 @@ describe('promoManualBenefit', () => {
     ]);
   });
 
-  it('collectOptionalPromoChoices excluye ya aplicadas', () => {
+  it('collectOptionalPromoChoices excluye ya aplicadas y conserva valor', () => {
     const choices = collectOptionalPromoChoices(
       {
         suggestions: [
-          { id: 9, label: '4x3', modality: 'SUGERIDA', defaultOn: true },
-          { id: 11, label: 'Extra', modality: 'MANUAL', defaultOn: false },
+          {
+            id: 9,
+            label: '4x3',
+            modality: 'SUGERIDA',
+            defaultOn: true,
+            benefitType: 'FREE_NIGHTS',
+            benefitValue: 1
+          },
+          {
+            id: 11,
+            label: 'Extra',
+            modality: 'MANUAL',
+            defaultOn: false,
+            benefitType: 'PERCENT',
+            benefitValue: 10
+          },
           { id: 1, label: 'Auto', modality: 'AUTO' }
         ]
       },
       [{ promotionRuleId: 9, label: '4x3' }]
     );
     expect(choices.map((c) => c.id)).toEqual([11]);
+    expect(formatOptionalBenefitValue(choices[0])).toBe('−10%');
   });
 
   it('mergeManualBenefitSuggestions dedupe por id', () => {

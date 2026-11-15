@@ -233,6 +233,13 @@ export function summarizeConfirmationQuote(segmentQuotes = []) {
     const prev = promoById.get(id);
     if (!prev) {
       promoById.set(id, { ...promo });
+    } else if (
+      String(promo.benefitType || prev.benefitType || '').toUpperCase() === 'FREE_NIGHTS' ||
+      (promo.freeNightCount || 0) > 0
+    ) {
+      // FREE_NIGHTS es a nivel estadía: no sumar si se repite por segmento.
+      prev.montoARS = Math.max(prev.montoARS, money(promo.montoARS));
+      prev.freeNightCount = Math.max(prev.freeNightCount || 0, promo.freeNightCount || 0);
     } else {
       prev.montoARS = money(prev.montoARS + money(promo.montoARS));
       prev.freeNightCount = (prev.freeNightCount || 0) + (promo.freeNightCount || 0);

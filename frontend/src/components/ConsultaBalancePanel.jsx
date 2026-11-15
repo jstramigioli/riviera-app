@@ -14,9 +14,11 @@ import {
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
   collectOptionalPromoChoices,
+  formatOptionalBenefitValue,
   isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
 } from '../utils/promoManualBenefit';
+import { buildStayNightPlan } from '../utils/stayPromoPreview';
 import styles from './ConsultaBalancePanel.module.css';
 
 /**
@@ -123,92 +125,90 @@ export default function ConsultaBalancePanel({
         applyPayload;
 
       try {
-        const results = await Promise.all(
-          segmentNightGroups.map(async (seg) => {
-            const fallbackNights = (seg.nights || []).map((night) => ({
-              ...night,
-              discountARS: 0,
-              finalARS: night.originalARS,
-              freeNight: false,
-              promoLabel: null
-            }));
+        const stay = buildStayNightPlan(segmentNightGroups);
+        const fallbackQuotes = segmentNightGroups.map((seg) => ({
+          segmentIndex: seg.segmentIndex,
+          subtotal: seg.subtotal,
+          discountARS: 0,
+          nights: (seg.nights || []).map((night) => ({
+            ...night,
+            discountARS: 0,
+            finalARS: night.originalARS,
+            freeNight: false,
+            promoLabel: null
+          })),
+          promos: []
+        }));
 
-            if (!seg.nightPrices.length) {
-              return {
-                quote: {
-                  segmentIndex: seg.segmentIndex,
-                  subtotal: seg.subtotal,
-                  discountARS: 0,
-                  nights: fallbackNights,
-                  promos: []
-                },
-                valueSuggestions: [],
-                optionalChoices: []
-              };
-            }
+        if (!stay.nightPrices.length) {
+          if (!cancelled) {
+            setSegmentQuotes(fallbackQuotes);
+            setManualSuggestions([]);
+            setOptionalChoices([]);
+            setPromoError(null);
+          }
+          return;
+        }
 
-            try {
-              const preview = await previewPromotion({
-                layer: 'RATE',
-                checkIn: seg.checkIn,
-                checkOut: seg.checkOut,
-                nights: seg.nightPrices.length,
-                roomTypeId: seg.roomTypeId,
-                serviceTypeId: seg.serviceTypeId,
-                nightPrices: seg.nightPrices,
-                hotelId: 'default-hotel',
-                selectedRuleIds,
-                deselectedRuleIds: deselected,
-                benefitValueByRuleId,
-                applySuggestedDefaults: true
-              });
-              const nights = mergeNightsWithPreview(seg.nights, preview);
-              const promos = flattenPreviewAppliedRules(preview);
-              const discountFromPromos = promos.reduce(
-                (sum, p) => sum + (Number(p.montoARS) || 0),
-                0
-              );
-              const discountARS =
-                preview?.discountARS != null && Number.isFinite(Number(preview.discountARS))
-                  ? Number(preview.discountARS)
-                  : discountFromPromos;
-              return {
-                quote: {
-                  segmentIndex: seg.segmentIndex,
-                  subtotal: seg.subtotal,
-                  discountARS,
-                  nights,
-                  promos
-                },
-                valueSuggestions: collectManualBenefitSuggestions(preview),
-                optionalChoices: collectOptionalPromoChoices(preview, promos)
-              };
-            } catch (err) {
-              console.warn('Preview promo RATE falló; se muestra tarifa sin descuento', err);
-              return {
-                quote: {
-                  segmentIndex: seg.segmentIndex,
-                  subtotal: seg.subtotal,
-                  discountARS: 0,
-                  nights: fallbackNights,
-                  promos: []
-                },
-                valueSuggestions: [],
-                optionalChoices: []
-              };
-            }
-          })
-        );
-
-        if (!cancelled) {
-          setSegmentQuotes(results.map((r) => r.quote));
-          setManualSuggestions(
-            mergeManualBenefitSuggestions(results.map((r) => r.valueSuggestions))
+        try {
+          // Una sola evaluación RATE sobre la estadía completa (no por segmento).
+          const preview = await previewPromotion({
+            layer: 'RATE',
+            checkIn: stay.checkIn,
+            checkOut: stay.checkOut,
+            nights: stay.nightPrices.length,
+            roomTypeId: stay.roomTypeId,
+            serviceTypeId: stay.serviceTypeId,
+            nightPrices: stay.nightPrices,
+            hotelId: 'default-hotel',
+            selectedRuleIds,
+            deselectedRuleIds: deselected,
+            benefitValueByRuleId,
+            applySuggestedDefaults: true
+          });
+          const stayNightsMerged = mergeNightsWithPreview(stay.nights, preview);
+          const promos = flattenPreviewAppliedRules(preview);
+          const discountFromPromos = promos.reduce(
+            (sum, p) => sum + (Number(p.montoARS) || 0),
+            0
           );
-          setOptionalChoices(
-            mergeManualBenefitSuggestions(results.map((r) => r.optionalChoices))
-          );
-          setPromoError(null);
+          const stayDiscount =
+            preview?.discountARS != null && Number.isFinite(Number(preview.discountARS))
+              ? Number(preview.discountARS)
+              : discountFromPromos;
+
+          const quotes = stay.offsets.map((off, idx) => {
+            const nights = stayNightsMerged
+              .slice(off.start, off.end)
+              .map((night, local) => ({
+                ...night,
+                nightIndex: local,
+                segmentIndex: off.segmentIndex
+              }));
+            return {
+              segmentIndex: off.segmentIndex,
+              subtotal: off.subtotal,
+              // Promos + descuento canónico una sola vez (estadía completa).
+              discountARS: idx === 0 ? stayDiscount : 0,
+              nights,
+              promos: idx === 0 ? promos : []
+            };
+          });
+
+          if (!cancelled) {
+            setSegmentQuotes(quotes.length ? quotes : fallbackQuotes);
+            setManualSuggestions(collectManualBenefitSuggestions(preview));
+            setOptionalChoices(collectOptionalPromoChoices(preview, promos));
+            setPromoError(null);
+          }
+        } catch (err) {
+          console.warn('Preview promo RATE falló; se muestra tarifa sin descuento', err);
+          if (!cancelled) {
+            setSegmentQuotes(fallbackQuotes);
+            setManualSuggestions([]);
+            setOptionalChoices([]);
+            setPromoError(null);
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -544,20 +544,23 @@ export default function ConsultaBalancePanel({
                 role="listbox"
                 aria-label="Promociones opcionales"
               >
-                {optionalChoices.map((choice) => (
-                  <li key={choice.id} role="option">
-                    <button
-                      type="button"
-                      className={styles.addPromoOption}
-                      onClick={() => addOptionalPromo(choice)}
-                    >
-                      {choice.label}
-                      {choice.defaultOn ? (
-                        <span className={styles.addPromoMeta}>por defecto</span>
-                      ) : null}
-                    </button>
-                  </li>
-                ))}
+                {optionalChoices.map((choice) => {
+                  const valueLabel = formatOptionalBenefitValue(choice);
+                  return (
+                    <li key={choice.id} role="option">
+                      <button
+                        type="button"
+                        className={styles.addPromoOption}
+                        onClick={() => addOptionalPromo(choice)}
+                      >
+                        <span className={styles.addPromoName}>{choice.label}</span>
+                        {valueLabel ? (
+                          <span className={styles.addPromoMeta}>{valueLabel}</span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
           </div>

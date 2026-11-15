@@ -17,16 +17,47 @@ export function benefitUnitLabel(benefitType) {
   }
 }
 
+/**
+ * Valor legible para el menú «+ promoción»: −10%, −1 noche, −$1.200.
+ * Sin valor fijo (manual / vacío) → null.
+ */
+export function formatOptionalBenefitValue(choice) {
+  if (!choice) return null;
+  if (choice.benefitValueManual && (choice.benefitValue == null || choice.benefitValue === '')) {
+    return null;
+  }
+  const raw = choice.benefitValue;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  const type = String(choice.benefitType || 'PERCENT').toUpperCase();
+  if (type === 'PERCENT') return `−${n}%`;
+  if (type === 'FREE_NIGHTS') {
+    const nights = Math.max(0, Math.floor(n));
+    return nights === 1 ? '−1 noche' : `−${nights} noches`;
+  }
+  const money = new Intl.NumberFormat('es-AR', {
+    maximumFractionDigits: n % 1 === 0 ? 0 : 2
+  }).format(n);
+  if (type === 'FIXED_PER_NIGHT') return `−$${money}/noche`;
+  return `−$${money}`;
+}
+
 function normalizeSuggestion(s) {
   if (!s) return null;
   const id = s.id ?? s.promotionRuleId;
   if (id == null) return null;
   const modality = String(s.modality || 'MANUAL').toUpperCase();
+  const benefitValue =
+    s.benefitValue != null && s.benefitValue !== '' && Number.isFinite(Number(s.benefitValue))
+      ? Number(s.benefitValue)
+      : null;
   return {
     id: Number(id),
     code: s.code || null,
     label: s.label || s.code || `Promo #${id}`,
     benefitType: s.benefitType || 'PERCENT',
+    benefitValue,
     modality,
     layer: s.layer || null,
     defaultOn: s.defaultOn != null ? Boolean(s.defaultOn) : modality === 'SUGERIDA',
