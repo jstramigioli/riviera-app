@@ -225,15 +225,6 @@
   border-left: 3px solid var(--color-primary);
 }
 
-.sideCompareToolbar {
-  display: none;
-  flex: 0 0 auto;
-  justify-content: flex-end;
-  padding: 6px 12px;
-  border-bottom: 1px solid rgba(51, 77, 112, 0.14);
-  background: rgba(255, 255, 255, 0.4);
-}
-
 .sideCompareHeader {
   flex: 0 0 auto;
   display: flex;
@@ -258,7 +249,7 @@
 }
 
 .sideCompareToggle {
-  display: inline;
+  display: none;
   appearance: none;
   border: none;
   background: transparent;
@@ -438,8 +429,8 @@
     border-right: none;
   }
 
-  .sideCompareToolbar {
-    display: flex;
+  .sideCompareToggle {
+    display: inline;
   }
 
   .sideCompareColCollapsed {

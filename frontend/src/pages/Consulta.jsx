@@ -4174,9 +4174,9 @@ export default function Consulta() {
                   actualCompareOpen ? '' : ` ${styles.sideCompareColCollapsed}`
                 }`}
                 data-testid="edit-rate-compare-current"
-                aria-label="Reserva actual"
               >
-                <div className={styles.sideCompareToolbar}>
+                <div className={styles.sideCompareHeader}>
+                  <span className={styles.sideCompareLabel}>Actual</span>
                   <button
                     type="button"
                     className={styles.sideCompareToggle}
@@ -4184,7 +4184,7 @@ export default function Consulta() {
                     aria-expanded={actualCompareOpen}
                     data-testid="edit-rate-compare-toggle-actual"
                   >
-                    {actualCompareOpen ? 'Ocultar detalle' : 'Ver detalle'}
+                    {actualCompareOpen ? 'Ocultar' : 'Ver reserva actual'}
                   </button>
                 </div>
                 {actualCompareOpen ? (
@@ -4224,8 +4224,10 @@ export default function Consulta() {
               <div
                 className={`${styles.sideCompareCol} ${styles.sideCompareColModified}`}
                 data-testid="edit-rate-compare-modified"
-                aria-label="Reserva modificada"
               >
+                <div className={`${styles.sideCompareHeader} ${styles.sideCompareHeaderNew}`}>
+                  <span className={styles.sideCompareLabel}>Modificada</span>
+                </div>
                 <div className={styles.sideCompareScroll}>
                   <div className={styles.sideStay}>
                     {formData.mainClient?.id ||
