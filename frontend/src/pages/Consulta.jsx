@@ -4174,9 +4174,9 @@ export default function Consulta() {
                   actualCompareOpen ? '' : ` ${styles.sideCompareColCollapsed}`
                 }`}
                 data-testid="edit-rate-compare-current"
+                aria-label="Reserva actual"
               >
-                <div className={styles.sideCompareHeader}>
-                  <span className={styles.sideCompareLabel}>Actual</span>
+                <div className={styles.sideCompareToolbar}>
                   <button
                     type="button"
                     className={styles.sideCompareToggle}
@@ -4184,7 +4184,7 @@ export default function Consulta() {
                     aria-expanded={actualCompareOpen}
                     data-testid="edit-rate-compare-toggle-actual"
                   >
-                    {actualCompareOpen ? 'Ocultar' : 'Ver reserva actual'}
+                    {actualCompareOpen ? 'Ocultar detalle' : 'Ver detalle'}
                   </button>
                 </div>
                 {actualCompareOpen ? (
@@ -4203,7 +4203,7 @@ export default function Consulta() {
                   <div className={styles.sideBalance}>
                     <ConsultaBalancePanel
                       mode="snapshot"
-                      title="Tarifa actual"
+                      title="Tarifa"
                       embedded
                       showSnapshotHint={false}
                       segments={originalEditSnapshot.segments}
@@ -4224,10 +4224,8 @@ export default function Consulta() {
               <div
                 className={`${styles.sideCompareCol} ${styles.sideCompareColModified}`}
                 data-testid="edit-rate-compare-modified"
+                aria-label="Reserva modificada"
               >
-                <div className={`${styles.sideCompareHeader} ${styles.sideCompareHeaderNew}`}>
-                  <span className={styles.sideCompareLabel}>Modificada</span>
-                </div>
                 <div className={styles.sideCompareScroll}>
                   <div className={styles.sideStay}>
                     {formData.mainClient?.id ||
@@ -4250,7 +4248,7 @@ export default function Consulta() {
                   <div className={styles.sideBalance}>
                     <ConsultaBalancePanel
                       mode="editable"
-                      title="Tarifa nueva"
+                      title="Tarifa"
                       embedded
                       segments={segments}
                       selectedRoomsPerBlock={selectedRoomsPerBlock}
