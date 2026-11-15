@@ -84,6 +84,39 @@ describe('reservationConfirmationQuote', () => {
     expect(free.freeNightCount).toBe(1);
   });
 
+  it('flattenPreviewAppliedRules no duplica PERCENT top + nights', () => {
+    const rules = flattenPreviewAppliedRules({
+      discountARS: 105600,
+      appliedRules: [
+        {
+          promotionRuleId: 10,
+          code: 'AUTO10',
+          label: '10%',
+          montoARS: 105600,
+          porcentaje: 10,
+          benefitType: 'PERCENT'
+        }
+      ],
+      freeNights: { appliedRules: [] },
+      nights: [
+        {
+          nightIndex: 0,
+          appliedRules: [
+            { promotionRuleId: 10, code: 'AUTO10', label: '10%', montoARS: 26400, porcentaje: 10 }
+          ]
+        },
+        {
+          nightIndex: 1,
+          appliedRules: [
+            { promotionRuleId: 10, code: 'AUTO10', label: '10%', montoARS: 26400, porcentaje: 10 }
+          ]
+        }
+      ]
+    });
+    expect(rules).toHaveLength(1);
+    expect(rules[0].montoARS).toBe(105600);
+  });
+
   it('flattenPreviewAppliedRules no duplica FREE_NIGHTS cuando top espeja freeNights', () => {
     const freeRule = {
       promotionRuleId: 99,

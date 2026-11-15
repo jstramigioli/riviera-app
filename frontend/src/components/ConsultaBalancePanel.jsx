@@ -121,7 +121,16 @@ export default function ConsultaBalancePanel({
               });
               const nights = mergeNightsWithPreview(seg.nights, preview);
               const promos = flattenPreviewAppliedRules(preview);
-              const discountARS = nights.reduce((sum, n) => sum + (n.discountARS || 0), 0);
+              // Descuento canónico = suma de promos sobre bruto (motor), no suma de noches
+              // post–free (que subcuenta el % de noches gratis).
+              const discountFromPromos = promos.reduce(
+                (sum, p) => sum + (Number(p.montoARS) || 0),
+                0
+              );
+              const discountARS =
+                preview?.discountARS != null && Number.isFinite(Number(preview.discountARS))
+                  ? Number(preview.discountARS)
+                  : discountFromPromos;
               return {
                 quote: {
                   segmentIndex: seg.segmentIndex,
