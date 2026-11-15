@@ -224,6 +224,8 @@ model Reservation {
   parentReservationId Int?
   /// Patente del vehículo (estacionamiento), cargada vía check-in online o recepción.
   vehiclePlate        String?
+  /// Reserva creada/guardada con precio manual de estadía (sin promos RATE automáticas).
+  createdWithManualRate Boolean              @default(false)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   guests              Guest[]

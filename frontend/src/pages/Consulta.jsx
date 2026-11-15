@@ -293,6 +293,11 @@ export default function Consulta() {
     selectedRuleIds: [],
     deselectedRuleIds: []
   });
+  const [manualPricing, setManualPricing] = useState({
+    createdWithManualRate: false,
+    manualStayTotal: null,
+    nightAmounts: null
+  });
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [showPastDateWarning, setShowPastDateWarning] = useState(false);
   const [pendingReservationStatus, setPendingReservationStatus] = useState('PENDIENTE');
@@ -368,6 +373,16 @@ export default function Consulta() {
   const handlePromoApplyChange = useCallback((next) => {
     setPromoApply(
       next || { benefitValueByRuleId: {}, selectedRuleIds: [], deselectedRuleIds: [] }
+    );
+  }, []);
+
+  const handleManualPricingChange = useCallback((next) => {
+    setManualPricing(
+      next || {
+        createdWithManualRate: false,
+        manualStayTotal: null,
+        nightAmounts: null
+      }
     );
   }, []);
 
@@ -3112,9 +3127,25 @@ export default function Consulta() {
         console.log('Usando cliente existente con ID:', clientId);
       }
 
+      const useManualRate = Boolean(manualPricing?.createdWithManualRate);
+      const manualAmounts = Array.isArray(manualPricing?.nightAmounts)
+        ? manualPricing.nightAmounts
+        : null;
+      if (useManualRate) {
+        if (
+          manualPricing.manualStayTotal == null ||
+          !manualAmounts ||
+          manualAmounts.length === 0
+        ) {
+          throw new Error('Indicá el total de estadía en Precio manual.');
+        }
+      }
+
       // Preparar datos de la reserva
+      let stayNightCursor = 0;
       const reservationData = {
         mainClientId: clientId,
+        createdWithManualRate: useManualRate,
         segments: segments.map((segment, index) => {
           // Validar serviceType
           if (!segment.serviceType || segment.serviceType === '') {
@@ -3149,6 +3180,10 @@ export default function Consulta() {
             } else if (roomPrice && roomPrice > 0) {
               baseRate = roomPrice;
             }
+          } else if (useManualRate && manualAmounts) {
+            const slice = manualAmounts.slice(stayNightCursor, stayNightCursor + nights);
+            const segTotal = slice.reduce((s, n) => s + (Number(n) || 0), 0);
+            baseRate = nights > 0 ? segTotal / nights : 0;
           } else if (totalAmount && totalAmount > 0) {
             baseRate = totalAmount / nights;
           } else if (roomPrice && roomPrice > 0) {
@@ -3164,14 +3199,28 @@ export default function Consulta() {
             throw new Error(`El segmento ${index + 1} debe tener al menos 1 huésped.`);
           }
 
-          const nightRates = nightlyRates.map((rate) => ({
-            date: rate.dateString || rate.date,
-            baseRate: rate.baseRate,
-            serviceRate: rate.serviceRate ?? rate.finalRate ?? rate.baseRate,
-            finalRate: rate.finalRate ?? rate.serviceRate ?? rate.baseRate,
-            seasonBlockId: rate.seasonBlockId || null,
-            seasonBlockName: rate.seasonBlockName || null
-          }));
+          const nightRates = nightlyRates.map((rate, nightIdx) => {
+            const manualAmount =
+              useManualRate && manualAmounts
+                ? Number(manualAmounts[stayNightCursor + nightIdx])
+                : null;
+            const catalog =
+              rate.serviceRate ?? rate.finalRate ?? rate.baseRate ?? 0;
+            const amount =
+              manualAmount != null && Number.isFinite(manualAmount)
+                ? manualAmount
+                : catalog;
+            return {
+              date: rate.dateString || rate.date,
+              baseRate: rate.baseRate,
+              serviceRate: amount,
+              finalRate: amount,
+              seasonBlockId: rate.seasonBlockId || null,
+              seasonBlockName: rate.seasonBlockName || null,
+              manualOverride: useManualRate
+            };
+          });
+          stayNightCursor += nights;
           
           const roomPayload = roomSelectionPayload(selectedRoomsPerBlock[index]);
           return {
@@ -3195,9 +3244,9 @@ export default function Consulta() {
         notes: notes,
         source: source || null,
         isMultiRoom: false,
-        selectedRuleIds: promoApply.selectedRuleIds,
-        deselectedRuleIds: promoApply.deselectedRuleIds,
-        benefitValueByRuleId: promoApply.benefitValueByRuleId
+        selectedRuleIds: useManualRate ? [] : promoApply.selectedRuleIds,
+        deselectedRuleIds: useManualRate ? [] : promoApply.deselectedRuleIds,
+        benefitValueByRuleId: useManualRate ? {} : promoApply.benefitValueByRuleId
       };
 
       console.log('Datos de reserva a enviar:', reservationData);
@@ -3210,9 +3259,10 @@ export default function Consulta() {
           source: source || null,
           segments: reservationData.segments,
           applyRateChanges,
-          selectedRuleIds: promoApply.selectedRuleIds,
-          deselectedRuleIds: promoApply.deselectedRuleIds,
-          benefitValueByRuleId: promoApply.benefitValueByRuleId
+          createdWithManualRate: useManualRate,
+          selectedRuleIds: reservationData.selectedRuleIds,
+          deselectedRuleIds: reservationData.deselectedRuleIds,
+          benefitValueByRuleId: reservationData.benefitValueByRuleId
         });
         notify({
           title: 'Reserva actualizada',
@@ -3960,8 +4010,9 @@ export default function Consulta() {
                 onSourceChange={setSource}
                 reservationStatus={reservationStatus}
                 onStatusChange={setReservationStatus}
-                onPromoApplyChange={handlePromoApplyChange}
-                isEditing={Boolean(editingReservationId)}
+              onPromoApplyChange={handlePromoApplyChange}
+              onManualPricingChange={handleManualPricingChange}
+              isEditing={Boolean(editingReservationId)}
                 disabled={isCreatingReservation}
                 showActions={Boolean(
                   segments.length > 0 && segments[0].checkIn && segments[0].checkOut

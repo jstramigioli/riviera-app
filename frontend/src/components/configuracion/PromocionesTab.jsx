@@ -1274,6 +1274,56 @@ function PromocionesTab() {
                   {...fieldErrorProps('benefitCapARS', formErrors.benefitCapARS)}
                 />
               </label>
+            </div>
+
+            <section className={styles.section}>
+              <div className={styles.conditionsHeader}>
+                <h4 className={styles.sectionTitle}>Condiciones</h4>
+                <button type="button" className={styles.ghostBtn} onClick={addCondition}>
+                  <FiPlus aria-hidden="true" />
+                  Agregar
+                </button>
+              </div>
+              {form.conditions.length > 0 && (
+                <div className={styles.conditions}>
+                  {form.conditions.map((c, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && (
+                        <div className={styles.conditionAnd} aria-hidden="true">
+                          y
+                        </div>
+                      )}
+                      <div className={styles.conditionRow}>
+                        <select
+                          value={c.type}
+                          onChange={(e) => changeConditionType(index, e.target.value)}
+                          aria-label="Variable"
+                        >
+                          {CONDITION_VARS.map((v) => (
+                            <option key={v.value} value={v.value}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                        {renderOperator(c, index)}
+                        {renderValue(c, index)}
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          onClick={() => removeCondition(index)}
+                          aria-label="Quitar condición"
+                          title="Quitar"
+                        >
+                          <FiX aria-hidden="true" />
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <div className={styles.formGrid}>
               <div className={styles.benefitRow}>
                 <label className={styles.field}>
                   Beneficio
@@ -1376,53 +1426,6 @@ function PromocionesTab() {
                 </label>
               </div>
             )}
-
-            <section className={styles.section}>
-              <div className={styles.conditionsHeader}>
-                <h4 className={styles.sectionTitle}>Condiciones</h4>
-                <button type="button" className={styles.ghostBtn} onClick={addCondition}>
-                  <FiPlus aria-hidden="true" />
-                  Agregar
-                </button>
-              </div>
-              {form.conditions.length > 0 && (
-                <div className={styles.conditions}>
-                  {form.conditions.map((c, index) => (
-                    <React.Fragment key={index}>
-                      {index > 0 && (
-                        <div className={styles.conditionAnd} aria-hidden="true">
-                          y
-                        </div>
-                      )}
-                      <div className={styles.conditionRow}>
-                        <select
-                          value={c.type}
-                          onChange={(e) => changeConditionType(index, e.target.value)}
-                          aria-label="Variable"
-                        >
-                          {CONDITION_VARS.map((v) => (
-                            <option key={v.value} value={v.value}>
-                              {v.label}
-                            </option>
-                          ))}
-                        </select>
-                        {renderOperator(c, index)}
-                        {renderValue(c, index)}
-                        <button
-                          type="button"
-                          className={styles.iconBtn}
-                          onClick={() => removeCondition(index)}
-                          aria-label="Quitar condición"
-                          title="Quitar"
-                        >
-                          <FiX aria-hidden="true" />
-                        </button>
-                      </div>
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
-            </section>
 
             <div className={styles.formActions}>
               <button

@@ -50,7 +50,17 @@ function normalizePromoApplyOpts(opts = {}) {
     opts.benefitValueByRuleId && typeof opts.benefitValueByRuleId === 'object'
       ? opts.benefitValueByRuleId
       : {};
-  return { selectedRuleIds, deselectedRuleIds, benefitValueByRuleId };
+  const createdWithManualRate = Boolean(
+    opts.createdWithManualRate === true ||
+      opts.createdWithManualRate === 'true' ||
+      opts.createdWithManualRate === 1
+  );
+  return {
+    selectedRuleIds,
+    deselectedRuleIds,
+    benefitValueByRuleId,
+    createdWithManualRate
+  };
 }
 
 /**
@@ -65,8 +75,17 @@ async function syncLodgingChargesAndNightRates(
   originalSegments = [],
   promoOpts = {}
 ) {
-  const { selectedRuleIds, deselectedRuleIds, benefitValueByRuleId } =
-    normalizePromoApplyOpts(promoOpts);
+  const {
+    selectedRuleIds,
+    deselectedRuleIds,
+    benefitValueByRuleId,
+    createdWithManualRate
+  } = normalizePromoApplyOpts(promoOpts);
+  const useManualRates =
+    createdWithManualRate ||
+    (originalSegments || []).some((seg) =>
+      (seg?.nightRates || []).some((nr) => nr && nr.manualOverride)
+    );
   const reservaId = parseInt(reservationId, 10);
   if (!Array.isArray(segments) || segments.length === 0) {
     return { totalNights: 0 };
@@ -87,10 +106,12 @@ async function syncLodgingChargesAndNightRates(
   });
 
   let rateRules = [];
-  try {
-    rateRules = await loadActivePromotionRules(prisma, { layer: 'RATE' });
-  } catch (err) {
-    console.warn('⚠️ PromotionRule RATE no disponible:', err.message);
+  if (!useManualRates) {
+    try {
+      rateRules = await loadActivePromotionRules(prisma, { layer: 'RATE' });
+    } catch (err) {
+      console.warn('⚠️ PromotionRule RATE no disponible:', err.message);
+    }
   }
 
   // Pasada 1: armar la estadía completa (todos los segmentos = un tramo).
@@ -176,7 +197,7 @@ async function syncLodgingChargesAndNightRates(
 
   const nightPrices = stayNights.map((n) => n.originalAmount);
   let perNightPromo = null;
-  if (rateRules.length && nightPrices.length) {
+  if (!useManualRates && rateRules.length && nightPrices.length) {
     let occupancyPercent = null;
     try {
       const hotelIdForOcc = await resolveHotelId(stayServiceTypeId);
@@ -274,10 +295,11 @@ async function syncLodgingChargesAndNightRates(
         finalRate: pricedAmount,
         serviceType: serviceTypeId || 'base',
         serviceRate: originalAmount,
-        manualOverride: false,
-        promotionRuleId: promoRuleId,
-        promotionDiscountARS: promoDiscount > 0 ? promoDiscount : null,
-        promotionPercent: promoPercent
+        manualOverride: useManualRates,
+        promotionRuleId: useManualRates ? null : promoRuleId,
+        promotionDiscountARS:
+          !useManualRates && promoDiscount > 0 ? promoDiscount : null,
+        promotionPercent: useManualRates ? null : promoPercent
       }
     });
   }
@@ -506,13 +528,15 @@ async function createReservationWithSegments(reservationData) {
     selectedRuleIds,
     deselectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    benefitValueByRuleId,
+    createdWithManualRate
   } = reservationData;
   const promoOpts = normalizePromoApplyOpts({
     selectedRuleIds,
     deselectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    benefitValueByRuleId,
+    createdWithManualRate
   });
 
   // Expandir virtual_X → componentes físicos + virtualRoomId
@@ -541,7 +565,8 @@ async function createReservationWithSegments(reservationData) {
       notes,
       source: normalizeReservationSource(source),
       isMultiRoom: logicalCount > 1 || isMultiRoom,
-      parentReservationId: parentReservationId ? parseInt(parentReservationId) : null
+      parentReservationId: parentReservationId ? parseInt(parentReservationId) : null,
+      createdWithManualRate: promoOpts.createdWithManualRate
     }
   });
   await ensureReservationAccount(prisma, reservation.id, mainClientId);
@@ -761,13 +786,15 @@ async function updateReservationWithSegments(reservationId, updateData) {
     selectedRuleIds,
     deselectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    benefitValueByRuleId,
+    createdWithManualRate
   } = updateData;
   const promoOpts = normalizePromoApplyOpts({
     selectedRuleIds,
     deselectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    benefitValueByRuleId,
+    createdWithManualRate
   });
 
   const id = parseInt(reservationId, 10);
@@ -781,7 +808,10 @@ async function updateReservationWithSegments(reservationId, updateData) {
       ...(source !== undefined
         ? { source: normalizeReservationSource(source) }
         : {}),
-      ...(mainClientId != null ? { mainClientId: parseInt(mainClientId, 10) } : {})
+      ...(mainClientId != null ? { mainClientId: parseInt(mainClientId, 10) } : {}),
+      ...(createdWithManualRate !== undefined
+        ? { createdWithManualRate: promoOpts.createdWithManualRate }
+        : {})
     }
   });
 

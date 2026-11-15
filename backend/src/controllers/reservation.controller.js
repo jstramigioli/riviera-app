@@ -110,7 +110,8 @@ exports.createMultiSegmentReservation = async (req, res) => {
     selectedRuleIds,
     deselectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    benefitValueByRuleId,
+    createdWithManualRate
   } = req.body;
   
   if (!mainClientId || !segments || !Array.isArray(segments) || segments.length === 0) {
@@ -130,7 +131,8 @@ exports.createMultiSegmentReservation = async (req, res) => {
       selectedRuleIds,
       deselectedRuleIds,
       promotionRuleIds,
-      benefitValueByRuleId
+      benefitValueByRuleId,
+      createdWithManualRate
     };
 
     console.log('📦 Datos recibidos para crear reserva:', JSON.stringify(reservationData, null, 2));

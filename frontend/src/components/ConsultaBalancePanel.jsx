@@ -485,7 +485,7 @@ export default function ConsultaBalancePanel({
           <h2 id="balance-quote-heading" className={styles.heading}>
             Tarifa
           </h2>
-          {billedNights.length > 0 ? (
+          {billedNights.length > 0 && !isManualPricing ? (
             <button
               type="button"
               className={styles.breakdownIconBtn}
@@ -507,6 +507,62 @@ export default function ConsultaBalancePanel({
             </button>
           ) : null}
         </div>
+
+        <div
+          className={styles.pricingTabs}
+          role="tablist"
+          aria-label="Modo de tarifa"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isManualPricing}
+            className={`${styles.pricingTab} ${!isManualPricing ? styles.pricingTabActive : ''}`}
+            onClick={() => setPricingMode('automatic')}
+            disabled={disabled}
+            data-testid="pricing-tab-automatic"
+          >
+            Automática
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isManualPricing}
+            className={`${styles.pricingTab} ${isManualPricing ? styles.pricingTabActive : ''}`}
+            onClick={() => {
+              setPricingMode('manual');
+              if (manualStayTotalInput === '' && baseSubtotal > 0) {
+                setManualStayTotalInput(String(Math.round(baseSubtotal * 100) / 100));
+              }
+            }}
+            disabled={disabled}
+            data-testid="pricing-tab-manual"
+          >
+            Precio manual
+          </button>
+        </div>
+
+        {isManualPricing ? (
+          <label className={styles.manualTotalField} htmlFor="balance-manual-total">
+            <span className={styles.metaLabel}>Total estadía (ARS)</span>
+            <input
+              id="balance-manual-total"
+              type="number"
+              min="0"
+              step="0.01"
+              className={styles.manualTotalInput}
+              value={manualStayTotalInput}
+              onChange={(e) => setManualStayTotalInput(e.target.value)}
+              placeholder="0"
+              disabled={disabled}
+              data-testid="manual-stay-total"
+            />
+            <span className={styles.quoteHint}>
+              Se reparte en promedio por noche; los centavos restantes van a las primeras
+              noches.
+            </span>
+          </label>
+        ) : null}
 
         <div className={styles.quoteRows}>
           {showNightBreakdown && billedNights.length > 0 ? (
@@ -545,13 +601,15 @@ export default function ConsultaBalancePanel({
             <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
           ) : null}
 
-          {promoLoading ? (
+          {!isManualPricing && promoLoading ? (
             <div className={styles.quoteHint}>Calculando promociones…</div>
           ) : null}
 
-          {promoError ? <div className={styles.quoteWarn}>{promoError}</div> : null}
+          {!isManualPricing && promoError ? (
+            <div className={styles.quoteWarn}>{promoError}</div>
+          ) : null}
 
-          {manualSuggestions.length > 0 ? (
+          {!isManualPricing && manualSuggestions.length > 0 ? (
             <div className={styles.manualPromoBlock} data-testid="confirmation-manual-promos">
               <div className={styles.manualPromoTitle}>Valor al aplicar</div>
               <p className={styles.quoteHint}>
@@ -581,7 +639,7 @@ export default function ConsultaBalancePanel({
             </div>
           ) : null}
 
-          {quote.hasPromos ? (
+          {!isManualPricing && quote.hasPromos ? (
             <div className={styles.promoList} data-testid="confirmation-promos">
               {quote.promos.map((promo) => {
                 const removable = isRemovableOptionalPromo(promo);
@@ -621,45 +679,47 @@ export default function ConsultaBalancePanel({
             </div>
           ) : null}
 
-          <div className={styles.addPromoWrap} ref={addMenuRef}>
-            <button
-              type="button"
-              className={styles.addPromoBtn}
-              onClick={() => setAddMenuOpen((v) => !v)}
-              aria-expanded={addMenuOpen}
-              aria-haspopup="listbox"
-              disabled={disabled || promoLoading || optionalChoices.length === 0}
-              data-testid="add-optional-promo"
-            >
-              <FiPlus aria-hidden="true" />
-              promoción
-            </button>
-            {addMenuOpen && optionalChoices.length > 0 ? (
-              <ul
-                className={styles.addPromoMenu}
-                role="listbox"
-                aria-label="Promociones opcionales"
+          {!isManualPricing ? (
+            <div className={styles.addPromoWrap} ref={addMenuRef}>
+              <button
+                type="button"
+                className={styles.addPromoBtn}
+                onClick={() => setAddMenuOpen((v) => !v)}
+                aria-expanded={addMenuOpen}
+                aria-haspopup="listbox"
+                disabled={disabled || promoLoading || optionalChoices.length === 0}
+                data-testid="add-optional-promo"
               >
-                {optionalChoices.map((choice) => {
-                  const valueLabel = formatOptionalBenefitValue(choice);
-                  return (
-                    <li key={choice.id} role="option">
-                      <button
-                        type="button"
-                        className={styles.addPromoOption}
-                        onClick={() => addOptionalPromo(choice)}
-                      >
-                        <span className={styles.addPromoName}>{choice.label}</span>
-                        {valueLabel ? (
-                          <span className={styles.addPromoMeta}>{valueLabel}</span>
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
+                <FiPlus aria-hidden="true" />
+                promoción
+              </button>
+              {addMenuOpen && optionalChoices.length > 0 ? (
+                <ul
+                  className={styles.addPromoMenu}
+                  role="listbox"
+                  aria-label="Promociones opcionales"
+                >
+                  {optionalChoices.map((choice) => {
+                    const valueLabel = formatOptionalBenefitValue(choice);
+                    return (
+                      <li key={choice.id} role="option">
+                        <button
+                          type="button"
+                          className={styles.addPromoOption}
+                          onClick={() => addOptionalPromo(choice)}
+                        >
+                          <span className={styles.addPromoName}>{choice.label}</span>
+                          {valueLabel ? (
+                            <span className={styles.addPromoMeta}>{valueLabel}</span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className={`${styles.quoteRow} ${styles.quoteTotal}`}>
             <span className={styles.quoteLabel}>Total</span>
