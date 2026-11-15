@@ -340,6 +340,7 @@ export default function Consulta() {
   const [originalStayTotal, setOriginalStayTotal] = useState(null);
   const [originalEditSnapshot, setOriginalEditSnapshot] = useState(null);
   const [balanceQuoteTotal, setBalanceQuoteTotal] = useState(null);
+  const [actualCompareOpen, setActualCompareOpen] = useState(true);
   const [editPrefillReady, setEditPrefillReady] = useState(!initialEditReservationId);
   const { confirm, confirmDialog } = useConfirmDialog();
   const handleBalanceQuoteChange = useCallback((quote) => {
@@ -1339,6 +1340,16 @@ export default function Consulta() {
     }, 0);
     return () => clearTimeout(t);
   }, [editPrefillReady, editingReservationId]);
+
+  // Comparativa: Actual abierta en desktop; colapsada por defecto bajo 1280px.
+  useEffect(() => {
+    if (!editingReservationId) return undefined;
+    const mq = window.matchMedia('(max-width: 1279px)');
+    const sync = () => setActualCompareOpen(!mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, [editingReservationId]);
 
   // Cargar datos de la consulta desde el modal o desde la tabla de consultas
   useEffect(() => {
@@ -4104,16 +4115,81 @@ export default function Consulta() {
           }
         >
           {editingReservationId && originalEditSnapshot ? (
-            <div className={styles.sideCompare} data-testid="edit-rate-compare">
-              <div className={styles.sideCompareCol} data-testid="edit-rate-compare-current">
-                <div className={styles.sideCompareHeader}>
-                  <span className={styles.sideCompareLabel}>Actual</span>
-                  <span className={styles.sideCompareTotal}>
-                    {formatConfirmationMoney(originalEditSnapshot.totalAmount || 0)}
+            (() => {
+              const actualTotal = Number(originalEditSnapshot.totalAmount) || 0;
+              const catalogNew =
+                balanceQuoteTotal != null && Number.isFinite(Number(balanceQuoteTotal))
+                  ? Number(balanceQuoteTotal)
+                  : actualTotal;
+              const nuevaTotal = applyRateChanges ? catalogNew : actualTotal;
+              const delta =
+                Math.round((nuevaTotal - actualTotal) * 100) / 100;
+              const deltaClass =
+                delta === 0
+                  ? styles.compareDeltaZero
+                  : delta > 0
+                    ? styles.compareDeltaUp
+                    : styles.compareDeltaDown;
+              const deltaLabel =
+                delta === 0
+                  ? 'Sin diferencia'
+                  : `${delta > 0 ? '+' : ''}${formatConfirmationMoney(delta)}`;
+
+              return (
+            <div className={styles.sideCompareWrap} data-testid="edit-rate-compare">
+              <div
+                className={styles.compareSummaryBar}
+                role="region"
+                aria-label="Resumen de tarifas"
+                data-testid="edit-rate-compare-summary"
+              >
+                <div className={styles.compareSummaryCell}>
+                  <span className={styles.compareSummaryLabel}>Actual</span>
+                  <span className={styles.compareSummaryValueMuted}>
+                    {formatConfirmationMoney(actualTotal)}
                   </span>
                 </div>
+                <div className={styles.compareSummaryCell}>
+                  <span className={styles.compareSummaryLabel}>Diferencia</span>
+                  <span className={`${styles.compareSummaryValue} ${deltaClass}`}>
+                    {deltaLabel}
+                  </span>
+                </div>
+                <div className={styles.compareSummaryCell}>
+                  <span className={styles.compareSummaryLabel}>Nueva</span>
+                  <span className={styles.compareSummaryValueEmphasis}>
+                    {formatConfirmationMoney(nuevaTotal)}
+                  </span>
+                </div>
+                {!applyRateChanges ? (
+                  <p className={styles.compareSummaryNote}>
+                    Se mantienen tarifas actuales
+                  </p>
+                ) : null}
+              </div>
+
+              <div className={styles.sideCompare}>
+              <div
+                className={`${styles.sideCompareCol} ${styles.sideCompareColCurrent}${
+                  actualCompareOpen ? '' : ` ${styles.sideCompareColCollapsed}`
+                }`}
+                data-testid="edit-rate-compare-current"
+              >
+                <div className={styles.sideCompareHeader}>
+                  <span className={styles.sideCompareLabel}>Actual</span>
+                  <button
+                    type="button"
+                    className={styles.sideCompareToggle}
+                    onClick={() => setActualCompareOpen((v) => !v)}
+                    aria-expanded={actualCompareOpen}
+                    data-testid="edit-rate-compare-toggle-actual"
+                  >
+                    {actualCompareOpen ? 'Ocultar' : 'Ver reserva actual'}
+                  </button>
+                </div>
+                {actualCompareOpen ? (
                 <div className={styles.sideCompareScroll}>
-                  <div className={styles.sideStay}>
+                  <div className={`${styles.sideStay} ${styles.sideStayQuiet}`}>
                     <ReservationStayTimeline
                       reservation={originalEditSnapshot.timelineReservation}
                       getServiceTypeLabel={getServiceTypeLabel}
@@ -4129,6 +4205,7 @@ export default function Consulta() {
                       mode="snapshot"
                       title="Tarifa actual"
                       embedded
+                      showSnapshotHint={false}
                       segments={originalEditSnapshot.segments}
                       selectedRoomsPerBlock={
                         originalEditSnapshot.selectedRoomsPerBlock
@@ -4141,18 +4218,15 @@ export default function Consulta() {
                     />
                   </div>
                 </div>
+                ) : null}
               </div>
 
-              <div className={styles.sideCompareCol} data-testid="edit-rate-compare-modified">
+              <div
+                className={`${styles.sideCompareCol} ${styles.sideCompareColModified}`}
+                data-testid="edit-rate-compare-modified"
+              >
                 <div className={`${styles.sideCompareHeader} ${styles.sideCompareHeaderNew}`}>
                   <span className={styles.sideCompareLabel}>Modificada</span>
-                  <span className={styles.sideCompareTotal}>
-                    {formatConfirmationMoney(
-                      balanceQuoteTotal != null
-                        ? balanceQuoteTotal
-                        : originalEditSnapshot.totalAmount || 0
-                    )}
-                  </span>
                 </div>
                 <div className={styles.sideCompareScroll}>
                   <div className={styles.sideStay}>
@@ -4212,7 +4286,10 @@ export default function Consulta() {
                   </div>
                 </div>
               </div>
+              </div>
             </div>
+              );
+            })()
           ) : (
             <div className={styles.sideScroll}>
               <div className={styles.sideStay}>

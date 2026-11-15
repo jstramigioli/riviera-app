@@ -57,7 +57,8 @@ export default function ConsultaBalancePanel({
   title = 'Tarifa',
   showMeta = true,
   showNotes = true,
-  embedded = false
+  embedded = false,
+  showSnapshotHint = true
 }) {
   const isSnapshot = mode === 'snapshot';
   const [promoLoading, setPromoLoading] = useState(false);
@@ -586,11 +587,11 @@ export default function ConsultaBalancePanel({
               Precio manual
             </button>
           </div>
-        ) : (
+        ) : showSnapshotHint ? (
           <p className={styles.quoteHint} data-testid="snapshot-rate-hint">
             Tarifas fijas de la reserva (sin recalcular).
           </p>
-        )}
+        ) : null}
 
         {!isSnapshot && isManualPricing ? (
           <label className={styles.manualTotalField} htmlFor="balance-manual-total">
