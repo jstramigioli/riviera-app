@@ -65,6 +65,11 @@
   overflow: hidden;
 }
 
+/* Edición: panel derecho más ancho para comparativa Actual | Modificada */
+.twoColEditing {
+  grid-template-columns: minmax(300px, 0.95fr) minmax(560px, 1.55fr);
+}
+
 .colForm,
 .colSide {
   min-width: 0;
@@ -101,6 +106,72 @@
 
 /* Un solo scroll: timeline de estadía + balance/tarifas */
 .sideScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.colSideCompare {
+  background: var(--color-bg-white);
+}
+
+.sideCompare {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+}
+
+.sideCompareCol {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-primary-light);
+}
+
+.sideCompareCol:last-child {
+  border-right: none;
+  background: #e8eef6;
+}
+
+.sideCompareHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(51, 77, 112, 0.22);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sideCompareHeaderNew {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.sideCompareLabel {
+  font-size: var(--font-size-small);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary-dark);
+}
+
+.sideCompareTotal {
+  font-size: var(--font-size-medium);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-dark);
+}
+
+.sideCompareScroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -220,9 +291,19 @@
   text-align: left;
 }
 
+@media (max-width: 1280px) {
+  .twoColEditing {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(480px, 1.45fr);
+  }
+}
+
 @media (max-width: 1100px) {
   .twoCol {
     grid-template-columns: minmax(320px, 1.3fr) minmax(260px, 0.95fr);
+  }
+
+  .twoColEditing {
+    grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.4fr);
   }
 }
 
@@ -234,7 +315,8 @@
     padding: 0 0 72px;
   }
 
-  .twoCol {
+  .twoCol,
+  .twoColEditing {
     grid-template-columns: 1fr;
     overflow: visible;
   }
@@ -251,8 +333,23 @@
     overflow: visible;
   }
 
-  .sideScroll {
+  .sideScroll,
+  .sideCompareScroll {
     overflow: visible;
+  }
+
+  .sideCompare {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .sideCompareCol {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sideCompareCol:last-child {
+    border-bottom: none;
   }
 
   .unifiedContainer,

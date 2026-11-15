@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, fetchRooms, fetchRoomTypes, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
+import { fetchClients, findAvailableRooms, createReservation, updateReservation, fetchReservation, getCalculatedRates, getReservationPricingDetails, fetchRooms, fetchRoomTypes, fetchQueryByClient, fetchQuery, createQuery, createMultiSegmentQuery, updateMultiSegmentQuery, updateQuery, deleteQuery } from '../services/api';
 import { useTags } from '../hooks/useTags';
 import { useAppNotice } from '../hooks/useAppNotice';
 import ConsultaBalancePanel from '../components/ConsultaBalancePanel';
@@ -41,6 +41,7 @@ import {
   formatConfirmationMoney
 } from '../utils/reservationConfirmationQuote';
 import { resolveReservationTotal } from '../utils/reservationStayTimeline';
+import { buildEditReservationSnapshot } from '../utils/buildEditReservationSnapshot';
 import { previewRoomRatePromo } from '../utils/roomPromoPreview';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import BedPreferenceFields from '../components/BedPreferenceFields';
@@ -337,6 +338,7 @@ export default function Consulta() {
   const [applyRateChanges, setApplyRateChanges] = useState(true);
   const [originalBaseRatesByBlock, setOriginalBaseRatesByBlock] = useState({});
   const [originalStayTotal, setOriginalStayTotal] = useState(null);
+  const [originalEditSnapshot, setOriginalEditSnapshot] = useState(null);
   const [balanceQuoteTotal, setBalanceQuoteTotal] = useState(null);
   const [editPrefillReady, setEditPrefillReady] = useState(!initialEditReservationId);
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -1188,6 +1190,38 @@ export default function Consulta() {
         const checkIn = String(first?.startDate || full.checkIn || '').slice(0, 10);
         const checkOut = String(first?.endDate || full.checkOut || '').slice(0, 10);
 
+        let nightRates = [];
+        try {
+          const pricing = await getReservationPricingDetails(full.id);
+          nightRates = Array.isArray(pricing?.reservation?.nightRates)
+            ? pricing.reservation.nightRates
+            : [];
+        } catch (pricingErr) {
+          console.warn('No se pudieron cargar nightRates para snapshot de edición', pricingErr);
+        }
+
+        const editSnapshot = buildEditReservationSnapshot({
+          full,
+          collapsed,
+          loadedSegments:
+            loadedSegments.length > 0
+              ? loadedSegments
+              : [
+                  {
+                    id: Date.now(),
+                    checkIn,
+                    checkOut,
+                    requiredGuests: guestCount,
+                    requiredTags: [],
+                    ...bedFieldsFrom(first || {}),
+                    requiredRoomId: null,
+                    requirementsNotes: '',
+                    serviceType
+                  }
+                ],
+          nightRates
+        });
+
         setFormData((prev) => ({
           ...prev,
           checkIn,
@@ -1232,7 +1266,10 @@ export default function Consulta() {
         setHasSearchedPerBlock({});
         setShowLargerCapacityPerBlock({});
         setOriginalBaseRatesByBlock(ratesByBlock);
-        setOriginalStayTotal(resolveReservationTotal(full));
+        setOriginalStayTotal(
+          editSnapshot.totalAmount || resolveReservationTotal(full)
+        );
+        setOriginalEditSnapshot(editSnapshot);
         setBalanceQuoteTotal(null);
 
         if (roomsByBlock[0]?.roomType) {
@@ -3544,7 +3581,11 @@ export default function Consulta() {
         <h1 className={styles.pageTitle}>{pageTitle}</h1>
       </header>
 
-      <div className={styles.twoCol}>
+      <div
+        className={`${styles.twoCol}${
+          editingReservationId ? ` ${styles.twoColEditing}` : ''
+        }`}
+      >
         <div className={styles.colForm}>
       {/* Contenedor unificado: cabecera densa + tramos */}
       <div className={styles.unifiedContainer}>
@@ -4052,55 +4093,181 @@ export default function Consulta() {
 
         </div>
 
-        <aside className={styles.colSide} aria-label="Estadía y tarifas">
-          <div className={styles.sideScroll}>
-            <div className={styles.sideStay}>
-              {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
-                <ReservationStayTimeline
-                  reservation={timelineReservation}
-                  getServiceTypeLabel={getServiceTypeLabel}
-                  onClientClick={handleClientClick}
-                  orientation="vertical"
-                  compact
-                  hideTotal
-                  embedded
+        <aside
+          className={`${styles.colSide}${
+            editingReservationId ? ` ${styles.colSideCompare}` : ''
+          }`}
+          aria-label={
+            editingReservationId
+              ? 'Comparativa reserva actual vs modificada'
+              : 'Estadía y tarifas'
+          }
+        >
+          {editingReservationId && originalEditSnapshot ? (
+            <div className={styles.sideCompare} data-testid="edit-rate-compare">
+              <div className={styles.sideCompareCol} data-testid="edit-rate-compare-current">
+                <div className={styles.sideCompareHeader}>
+                  <span className={styles.sideCompareLabel}>Actual</span>
+                  <span className={styles.sideCompareTotal}>
+                    {formatConfirmationMoney(originalEditSnapshot.totalAmount || 0)}
+                  </span>
+                </div>
+                <div className={styles.sideCompareScroll}>
+                  <div className={styles.sideStay}>
+                    <ReservationStayTimeline
+                      reservation={originalEditSnapshot.timelineReservation}
+                      getServiceTypeLabel={getServiceTypeLabel}
+                      onClientClick={handleClientClick}
+                      orientation="vertical"
+                      compact
+                      hideTotal
+                      embedded
+                    />
+                  </div>
+                  <div className={styles.sideBalance}>
+                    <ConsultaBalancePanel
+                      mode="snapshot"
+                      title="Tarifa actual"
+                      embedded
+                      segments={originalEditSnapshot.segments}
+                      selectedRoomsPerBlock={
+                        originalEditSnapshot.selectedRoomsPerBlock
+                      }
+                      showMeta={false}
+                      showNotes={false}
+                      showActions={false}
+                      isEditing
+                      disabled
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.sideCompareCol} data-testid="edit-rate-compare-modified">
+                <div className={`${styles.sideCompareHeader} ${styles.sideCompareHeaderNew}`}>
+                  <span className={styles.sideCompareLabel}>Modificada</span>
+                  <span className={styles.sideCompareTotal}>
+                    {formatConfirmationMoney(
+                      balanceQuoteTotal != null
+                        ? balanceQuoteTotal
+                        : originalEditSnapshot.totalAmount || 0
+                    )}
+                  </span>
+                </div>
+                <div className={styles.sideCompareScroll}>
+                  <div className={styles.sideStay}>
+                    {formData.mainClient?.id ||
+                    segments.some((s) => s.checkIn && s.checkOut) ? (
+                      <ReservationStayTimeline
+                        reservation={timelineReservation}
+                        getServiceTypeLabel={getServiceTypeLabel}
+                        onClientClick={handleClientClick}
+                        orientation="vertical"
+                        compact
+                        hideTotal
+                        embedded
+                      />
+                    ) : (
+                      <p className={styles.colEmptyHint}>
+                        Completá fechas y habitación para ver la estadía modificada.
+                      </p>
+                    )}
+                  </div>
+                  <div className={styles.sideBalance}>
+                    <ConsultaBalancePanel
+                      mode="editable"
+                      title="Tarifa nueva"
+                      embedded
+                      segments={segments}
+                      selectedRoomsPerBlock={selectedRoomsPerBlock}
+                      notes={notes}
+                      onNotesChange={setNotes}
+                      source={source}
+                      onSourceChange={setSource}
+                      reservationStatus={reservationStatus}
+                      onStatusChange={setReservationStatus}
+                      onPromoApplyChange={handlePromoApplyChange}
+                      onManualPricingChange={handleManualPricingChange}
+                      onQuoteChange={handleBalanceQuoteChange}
+                      isEditing
+                      disabled={isCreatingReservation}
+                      showActions={Boolean(
+                        segments.length > 0 &&
+                          segments[0].checkIn &&
+                          segments[0].checkOut
+                      )}
+                      onCopy={handleCopyReservationData}
+                      onCreateReservation={() =>
+                        handleCreateReservation(reservationStatus, promoApply)
+                      }
+                      canConfirm={canConfirmReservation}
+                      isCreatingReservation={isCreatingReservation}
+                      applyRateChanges={applyRateChanges}
+                      onApplyRateChanges={setApplyRateChanges}
+                      hasClientName={Boolean(
+                        formData.mainClient.firstName &&
+                          formData.mainClient.lastName
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.sideScroll}>
+              <div className={styles.sideStay}>
+                {formData.mainClient?.id ||
+                segments.some((s) => s.checkIn && s.checkOut) ? (
+                  <ReservationStayTimeline
+                    reservation={timelineReservation}
+                    getServiceTypeLabel={getServiceTypeLabel}
+                    onClientClick={handleClientClick}
+                    orientation="vertical"
+                    compact
+                    hideTotal
+                    embedded
+                  />
+                ) : (
+                  <p className={styles.colEmptyHint}>
+                    La estadía aparece al completar cliente y fechas.
+                  </p>
+                )}
+              </div>
+              <div className={styles.sideBalance}>
+                <ConsultaBalancePanel
+                  segments={segments}
+                  selectedRoomsPerBlock={selectedRoomsPerBlock}
+                  notes={notes}
+                  onNotesChange={setNotes}
+                  source={source}
+                  onSourceChange={setSource}
+                  reservationStatus={reservationStatus}
+                  onStatusChange={setReservationStatus}
+                  onPromoApplyChange={handlePromoApplyChange}
+                  onManualPricingChange={handleManualPricingChange}
+                  onQuoteChange={handleBalanceQuoteChange}
+                  isEditing={Boolean(editingReservationId)}
+                  disabled={isCreatingReservation}
+                  showActions={Boolean(
+                    segments.length > 0 &&
+                      segments[0].checkIn &&
+                      segments[0].checkOut
+                  )}
+                  onCopy={handleCopyReservationData}
+                  onCreateReservation={() =>
+                    handleCreateReservation(reservationStatus, promoApply)
+                  }
+                  canConfirm={canConfirmReservation}
+                  isCreatingReservation={isCreatingReservation}
+                  applyRateChanges={applyRateChanges}
+                  onApplyRateChanges={setApplyRateChanges}
+                  hasClientName={Boolean(
+                    formData.mainClient.firstName && formData.mainClient.lastName
+                  )}
                 />
-              ) : (
-                <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
-              )}
+              </div>
             </div>
-            <div className={styles.sideBalance}>
-              <ConsultaBalancePanel
-                segments={segments}
-                selectedRoomsPerBlock={selectedRoomsPerBlock}
-                notes={notes}
-                onNotesChange={setNotes}
-                source={source}
-                onSourceChange={setSource}
-                reservationStatus={reservationStatus}
-                onStatusChange={setReservationStatus}
-              onPromoApplyChange={handlePromoApplyChange}
-              onManualPricingChange={handleManualPricingChange}
-              onQuoteChange={handleBalanceQuoteChange}
-              isEditing={Boolean(editingReservationId)}
-                disabled={isCreatingReservation}
-                showActions={Boolean(
-                  segments.length > 0 && segments[0].checkIn && segments[0].checkOut
-                )}
-                onCopy={handleCopyReservationData}
-                onCreateReservation={() =>
-                  handleCreateReservation(reservationStatus, promoApply)
-                }
-                canConfirm={canConfirmReservation}
-                isCreatingReservation={isCreatingReservation}
-                applyRateChanges={applyRateChanges}
-                onApplyRateChanges={setApplyRateChanges}
-                hasClientName={Boolean(
-                  formData.mainClient.firstName && formData.mainClient.lastName
-                )}
-              />
-            </div>
-          </div>
+          )}
         </aside>
       </div>
 

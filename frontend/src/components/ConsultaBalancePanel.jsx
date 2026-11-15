@@ -29,6 +29,7 @@ import styles from './ConsultaBalancePanel.module.css';
 
 /**
  * Panel derecho de Consulta: tarifas, promos y datos de confirmación inline.
+ * mode='snapshot': tarifas fijas de la reserva actual (sin auto/manual ni promos editables).
  */
 export default function ConsultaBalancePanel({
   segments = [],
@@ -51,8 +52,14 @@ export default function ConsultaBalancePanel({
   applyRateChanges = true,
   onApplyRateChanges,
   hasClientName = false,
-  onQuoteChange
+  onQuoteChange,
+  mode = 'editable',
+  title = 'Tarifa',
+  showMeta = true,
+  showNotes = true,
+  embedded = false
 }) {
+  const isSnapshot = mode === 'snapshot';
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState(null);
   const [segmentQuotes, setSegmentQuotes] = useState([]);
@@ -94,8 +101,9 @@ export default function ConsultaBalancePanel({
   );
 
   useEffect(() => {
+    if (isSnapshot) return;
     onPromoApplyChange?.(applyPayload);
-  }, [applyPayload, onPromoApplyChange]);
+  }, [applyPayload, onPromoApplyChange, isSnapshot]);
 
   const stayNightCount = useMemo(
     () => segmentNightGroups.reduce((sum, seg) => sum + (seg.nights?.length || 0), 0),
@@ -109,6 +117,7 @@ export default function ConsultaBalancePanel({
   }, [manualStayTotalInput]);
 
   useEffect(() => {
+    if (isSnapshot) return;
     if (!isManualPricing) {
       onManualPricingChange?.({
         createdWithManualRate: false,
@@ -127,6 +136,7 @@ export default function ConsultaBalancePanel({
       nightAmounts: amounts
     });
   }, [
+    isSnapshot,
     isManualPricing,
     manualStayTotal,
     stayNightCount,
@@ -165,6 +175,30 @@ export default function ConsultaBalancePanel({
         setManualSuggestions([]);
         setOptionalChoices([]);
         setPromoError(null);
+        return;
+      }
+
+      // Snapshot de reserva actual: tarifas fijas, sin motor de promos.
+      if (isSnapshot) {
+        if (!cancelled) {
+          setSegmentQuotes(
+            segmentNightGroups.map((seg) => ({
+              segmentIndex: seg.segmentIndex,
+              subtotal: seg.subtotal || 0,
+              discountARS: 0,
+              nights: (seg.nights || []).map((n) => ({
+                ...n,
+                discountARS: 0,
+                finalARS: n.originalARS
+              })),
+              promos: []
+            }))
+          );
+          setManualSuggestions([]);
+          setOptionalChoices([]);
+          setPromoError(null);
+          setPromoLoading(false);
+        }
         return;
       }
 
@@ -335,7 +369,8 @@ export default function ConsultaBalancePanel({
     hasSelection,
     pricingMode,
     manualStayTotal,
-    stayNightCount
+    stayNightCount,
+    isSnapshot
   ]);
 
   const quote = useMemo(() => {
@@ -396,7 +431,7 @@ export default function ConsultaBalancePanel({
     });
   };
 
-  const notesField = (
+  const notesField = showNotes ? (
     <div className={styles.notesField} data-testid="balance-notes">
       <label className={styles.metaLabel} htmlFor="balance-notes">
         Notas de la reserva
@@ -408,12 +443,14 @@ export default function ConsultaBalancePanel({
         onChange={(e) => onNotesChange?.(e.target.value)}
         placeholder="Notas de la reserva"
         rows={3}
-        disabled={disabled}
+        disabled={disabled || isSnapshot}
+        readOnly={isSnapshot}
       />
     </div>
-  );
+  ) : null;
 
-  const actionsFooter = showActions ? (
+  const PanelTag = embedded ? 'div' : 'aside';
+  const actionsFooter = showActions && !isSnapshot ? (
     <div className={styles.actionsFooter} data-testid="balance-actions">
       <button
         type="button"
@@ -469,26 +506,28 @@ export default function ConsultaBalancePanel({
 
   if (!hasSelection) {
     return (
-      <aside className={styles.panel} aria-label="Tarifas y promociones">
+      <PanelTag className={styles.panel} aria-label="Tarifas y promociones">
         <div className={styles.panelBody}>
-          <h2 className={styles.heading}>Tarifa</h2>
+          <h2 className={styles.heading}>{title}</h2>
           <p className={styles.emptyHint}>
-            Seleccioná habitación en cada tramo para ver el desglose y las promociones.
+            {isSnapshot
+              ? 'Sin tarifas guardadas en la reserva actual.'
+              : 'Seleccioná habitación en cada tramo para ver el desglose y las promociones.'}
           </p>
           {notesField}
         </div>
         {actionsFooter}
-      </aside>
+      </PanelTag>
     );
   }
 
   return (
-    <aside className={styles.panel} aria-label="Tarifas y promociones">
+    <PanelTag className={styles.panel} aria-label="Tarifas y promociones">
       <div className={styles.panelBody}>
       <section className={styles.section} aria-labelledby="balance-quote-heading">
         <div className={styles.headingRow}>
           <h2 id="balance-quote-heading" className={styles.heading}>
-            Tarifa
+            {title}
           </h2>
           {billedNights.length > 0 && !isManualPricing ? (
             <button
@@ -513,41 +552,47 @@ export default function ConsultaBalancePanel({
           ) : null}
         </div>
 
-        <div
-          className={styles.pricingTabs}
-          role="tablist"
-          aria-label="Modo de tarifa"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!isManualPricing}
-            className={`${styles.pricingTab} ${!isManualPricing ? styles.pricingTabActive : ''}`}
-            onClick={() => setPricingMode('automatic')}
-            disabled={disabled}
-            data-testid="pricing-tab-automatic"
+        {!isSnapshot ? (
+          <div
+            className={styles.pricingTabs}
+            role="tablist"
+            aria-label="Modo de tarifa"
           >
-            Automática
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isManualPricing}
-            className={`${styles.pricingTab} ${isManualPricing ? styles.pricingTabActive : ''}`}
-            onClick={() => {
-              setPricingMode('manual');
-              if (manualStayTotalInput === '' && baseSubtotal > 0) {
-                setManualStayTotalInput(String(Math.round(baseSubtotal * 100) / 100));
-              }
-            }}
-            disabled={disabled}
-            data-testid="pricing-tab-manual"
-          >
-            Precio manual
-          </button>
-        </div>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isManualPricing}
+              className={`${styles.pricingTab} ${!isManualPricing ? styles.pricingTabActive : ''}`}
+              onClick={() => setPricingMode('automatic')}
+              disabled={disabled}
+              data-testid="pricing-tab-automatic"
+            >
+              Automática
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isManualPricing}
+              className={`${styles.pricingTab} ${isManualPricing ? styles.pricingTabActive : ''}`}
+              onClick={() => {
+                setPricingMode('manual');
+                if (manualStayTotalInput === '' && baseSubtotal > 0) {
+                  setManualStayTotalInput(String(Math.round(baseSubtotal * 100) / 100));
+                }
+              }}
+              disabled={disabled}
+              data-testid="pricing-tab-manual"
+            >
+              Precio manual
+            </button>
+          </div>
+        ) : (
+          <p className={styles.quoteHint} data-testid="snapshot-rate-hint">
+            Tarifas fijas de la reserva (sin recalcular).
+          </p>
+        )}
 
-        {isManualPricing ? (
+        {!isSnapshot && isManualPricing ? (
           <label className={styles.manualTotalField} htmlFor="balance-manual-total">
             <span className={styles.metaLabel}>Total estadía (ARS)</span>
             <input
@@ -602,15 +647,15 @@ export default function ConsultaBalancePanel({
             <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
           ) : null}
 
-          {!isManualPricing && promoLoading ? (
+          {!isSnapshot && !isManualPricing && promoLoading ? (
             <div className={styles.quoteHint}>Calculando promociones…</div>
           ) : null}
 
-          {!isManualPricing && promoError ? (
+          {!isSnapshot && !isManualPricing && promoError ? (
             <div className={styles.quoteWarn}>{promoError}</div>
           ) : null}
 
-          {!isManualPricing && manualSuggestions.length > 0 ? (
+          {!isSnapshot && !isManualPricing && manualSuggestions.length > 0 ? (
             <div className={styles.manualPromoBlock} data-testid="confirmation-manual-promos">
               <div className={styles.manualPromoTitle}>Valor al aplicar</div>
               <p className={styles.quoteHint}>
@@ -640,7 +685,7 @@ export default function ConsultaBalancePanel({
             </div>
           ) : null}
 
-          {!isManualPricing && quote.hasPromos ? (
+          {!isSnapshot && !isManualPricing && quote.hasPromos ? (
             <div className={styles.promoList} data-testid="confirmation-promos">
               {quote.promos.map((promo) => {
                 const removable = isRemovableOptionalPromo(promo);
@@ -680,7 +725,7 @@ export default function ConsultaBalancePanel({
             </div>
           ) : null}
 
-          {!isManualPricing ? (
+          {!isSnapshot && !isManualPricing ? (
             <div className={styles.addPromoWrap} ref={addMenuRef}>
               <button
                 type="button"
@@ -733,51 +778,53 @@ export default function ConsultaBalancePanel({
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="balance-meta-heading">
-        <h2 id="balance-meta-heading" className={styles.heading}>
-          Datos
-        </h2>
+      {showMeta ? (
+        <section className={styles.section} aria-labelledby="balance-meta-heading">
+          <h2 id="balance-meta-heading" className={styles.heading}>
+            Datos
+          </h2>
 
-        <div className={styles.metaField}>
-          <label className={styles.metaLabel} htmlFor="balance-source">
-            Reservado por
-          </label>
-          <select
-            id="balance-source"
-            className={styles.statusSelect}
-            value={source || ''}
-            onChange={(e) => onSourceChange?.(e.target.value)}
-            aria-label="Reservado por"
-            disabled={disabled}
-          >
-            <option value="">No especificado</option>
-            {RESERVATION_SOURCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className={styles.metaField}>
+            <label className={styles.metaLabel} htmlFor="balance-source">
+              Reservado por
+            </label>
+            <select
+              id="balance-source"
+              className={styles.statusSelect}
+              value={source || ''}
+              onChange={(e) => onSourceChange?.(e.target.value)}
+              aria-label="Reservado por"
+              disabled={disabled || isSnapshot}
+            >
+              <option value="">No especificado</option>
+              {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className={styles.metaField}>
-          <label className={styles.metaLabel} htmlFor="balance-status">
-            {isEditing ? 'Estado' : 'Estado inicial'}
-          </label>
-          <select
-            id="balance-status"
-            className={styles.statusSelect}
-            value={reservationStatus}
-            onChange={(e) => onStatusChange?.(e.target.value)}
-            disabled={disabled}
-          >
-            <option value="PENDIENTE">Pendiente</option>
-            <option value="CONFIRMADA">Confirmada</option>
-            <option value="INGRESADA">Ingresada</option>
-          </select>
-        </div>
-      </section>
+          <div className={styles.metaField}>
+            <label className={styles.metaLabel} htmlFor="balance-status">
+              {isEditing ? 'Estado' : 'Estado inicial'}
+            </label>
+            <select
+              id="balance-status"
+              className={styles.statusSelect}
+              value={reservationStatus}
+              onChange={(e) => onStatusChange?.(e.target.value)}
+              disabled={disabled || isSnapshot}
+            >
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="CONFIRMADA">Confirmada</option>
+              <option value="INGRESADA">Ingresada</option>
+            </select>
+          </div>
+        </section>
+      ) : null}
       </div>
       {actionsFooter}
-    </aside>
+    </PanelTag>
   );
 }
