@@ -448,6 +448,52 @@ describe('promotionEngine rate + stacking', () => {
     expect(wrongLayer.discountARS || 0).toBe(0);
   });
 
+  it('AUTO FIXED total no lo come otro AUTO % EXCLUSIVE sin stackingGroup', () => {
+    const autoPct = {
+      id: 10,
+      code: 'AUTO10',
+      label: 'Auto 10%',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      stackingGroup: null,
+      benefitType: 'PERCENT',
+      benefitValue: 10,
+      conditions: []
+    };
+    const autoFixed = {
+      id: 12,
+      code: 'FIXED10K',
+      label: 'Fijo 10000',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      stackingGroup: null,
+      benefitType: 'FIXED',
+      benefitValue: 10000,
+      conditions: []
+    };
+    const prices = [100000, 100000, 100000, 100000, 100000, 100000];
+    const stay = evaluateRateRules([autoPct, autoFixed], {
+      layer: 'RATE',
+      nights: 6,
+      nightPrices: prices,
+      applySuggestedDefaults: true
+    });
+    const codes = stay.appliedRules.map((r) => r.code).sort();
+    expect(codes).toEqual(['AUTO10', 'FIXED10K']);
+    expect(stay.appliedRules.find((r) => r.code === 'FIXED10K').montoARS).toBeCloseTo(
+      10000,
+      0
+    );
+    expect(stay.appliedRules.find((r) => r.code === 'AUTO10').montoARS).toBe(60000);
+    expect(stay.discountARS).toBeCloseTo(70000, 0);
+  });
+
   it('SUGERIDA % sin condiciones no la come EXCLUSIVE de un AUTO', () => {
     const auto = {
       id: 10,

@@ -563,13 +563,22 @@ function selectByStacking(matchedRules, benefitFn) {
   if (!matchedRules.length) return [];
   const groups = new Map();
   for (const rule of matchedRules) {
-    // Opcionales (SUGERIDA/MANUAL) sin stackingGroup propio no compiten en EXCLUSIVE
-    // contra AUTO: si no, un % opcional default ON «desaparece» del preview.
+    // Sin stackingGroup explícito:
+    // - Opcionales (SUGERIDA/MANUAL) no compiten en EXCLUSIVE contra AUTO.
+    // - RATE AUTO tampoco comparten un __global__: si no, un FIXED $10.000
+    //   sin condiciones lo «come» otro AUTO % EXCLUSIVE (mismo default UI) y
+    //   desaparece del preview aunque kind/layer/modality sean correctos.
+    //   Exclusión mutua RATE = stackingGroup compartido.
+    // - SETTLEMENT sigue en __global__ (p.ej. un solo descuento de pago).
     const isOptional =
       rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
-    const key =
-      rule.stackingGroup ||
-      (isOptional && rule.id != null ? `optional:${rule.id}` : '__global__');
+    const layer = String(rule.layer || '').toUpperCase();
+    let key = rule.stackingGroup || null;
+    if (!key) {
+      if (isOptional && rule.id != null) key = `optional:${rule.id}`;
+      else if (layer === 'RATE' && rule.id != null) key = `rate:${rule.id}`;
+      else key = '__global__';
+    }
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(rule);
   }
