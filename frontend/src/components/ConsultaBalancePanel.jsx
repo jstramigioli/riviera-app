@@ -36,14 +36,11 @@ export default function ConsultaBalancePanel({
   disabled = false,
   showActions = false,
   onCopy,
-  onSaveConsulta,
   onCreateReservation,
   canConfirm = false,
-  isSavingConsulta = false,
   isCreatingReservation = false,
   applyRateChanges = true,
   onApplyRateChanges,
-  hasClientId = false,
   hasClientName = false
 }) {
   const [promoLoading, setPromoLoading] = useState(false);
@@ -315,20 +312,78 @@ export default function ConsultaBalancePanel({
     </div>
   );
 
+  const actionsFooter = showActions ? (
+    <div className={styles.actionsFooter} data-testid="balance-actions">
+      <button
+        type="button"
+        className={styles.copyIconBtn}
+        onClick={onCopy}
+        title="Copiar datos al portapapeles"
+        aria-label="Copiar datos al portapapeles"
+        disabled={disabled}
+      >
+        <FiCopy aria-hidden="true" />
+      </button>
+
+      {isEditing ? (
+        <label
+          className={styles.rateToggle}
+          title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
+        >
+          <input
+            type="checkbox"
+            checked={applyRateChanges}
+            onChange={(e) => onApplyRateChanges?.(e.target.checked)}
+            data-testid="apply-rate-changes-toggle"
+          />
+          Aplicar cambios de tarifa
+        </label>
+      ) : null}
+
+      {hasClientName ? (
+        <button
+          type="button"
+          className={styles.confirmBtn}
+          onClick={onCreateReservation}
+          disabled={!canConfirm || isCreatingReservation || disabled}
+          title={
+            !canConfirm
+              ? 'Seleccioná una habitación para cada segmento'
+              : isEditing
+                ? 'Modificar la reserva'
+                : 'Crear la reserva'
+          }
+        >
+          {isCreatingReservation
+            ? isEditing
+              ? 'Modificando…'
+              : 'Creando…'
+            : isEditing
+              ? 'Modificar reserva'
+              : 'Crear reserva'}
+        </button>
+      ) : null}
+    </div>
+  ) : null;
+
   if (!hasSelection) {
     return (
       <aside className={styles.panel} aria-label="Tarifas y promociones">
-        <h2 className={styles.heading}>Tarifa</h2>
-        <p className={styles.emptyHint}>
-          Seleccioná habitación en cada tramo para ver el desglose y las promociones.
-        </p>
-        {notesField}
+        <div className={styles.panelBody}>
+          <h2 className={styles.heading}>Tarifa</h2>
+          <p className={styles.emptyHint}>
+            Seleccioná habitación en cada tramo para ver el desglose y las promociones.
+          </p>
+          {notesField}
+        </div>
+        {actionsFooter}
       </aside>
     );
   }
 
   return (
     <aside className={styles.panel} aria-label="Tarifas y promociones">
+      <div className={styles.panelBody}>
       <section className={styles.section} aria-labelledby="balance-quote-heading">
         <div className={styles.headingRow}>
           <h2 id="balance-quote-heading" className={styles.heading}>
@@ -437,32 +492,33 @@ export default function ConsultaBalancePanel({
                 return (
                   <div
                     key={promo.promotionRuleId || promo.code}
-                    className={styles.promoRow}
+                    className={styles.promoBlock}
                   >
-                    <span className={styles.quoteLabel}>
-                      {promo.label}
-                      {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
-                      {promo.freeNightCount
-                        ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
-                        : ''}
-                    </span>
-                    <span className={styles.promoValueGroup}>
+                    <div className={styles.promoRow}>
+                      <span className={styles.quoteLabel}>
+                        {promo.label}
+                        {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                        {promo.freeNightCount
+                          ? ` · ${promo.freeNightCount} noche${promo.freeNightCount === 1 ? '' : 's'} sin cargo`
+                          : ''}
+                      </span>
                       <span className={styles.promoValue}>
                         −{formatConfirmationMoney(promo.montoARS)}
                       </span>
-                      {removable ? (
-                        <button
-                          type="button"
-                          className={styles.promoRemoveBtn}
-                          onClick={() => removeOptionalPromo(promo)}
-                          aria-label={`Quitar ${promo.label}`}
-                          disabled={disabled || promoLoading}
-                          data-testid={`promo-remove-${promo.promotionRuleId}`}
-                        >
-                          <FiX aria-hidden="true" />
-                        </button>
-                      ) : null}
-                    </span>
+                    </div>
+                    {removable ? (
+                      <button
+                        type="button"
+                        className={styles.promoRemoveBtn}
+                        onClick={() => removeOptionalPromo(promo)}
+                        aria-label={`Quitar ${promo.label}`}
+                        disabled={disabled || promoLoading}
+                        data-testid={`promo-remove-${promo.promotionRuleId}`}
+                      >
+                        <FiX aria-hidden="true" />
+                        <span>Quitar</span>
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -560,76 +616,8 @@ export default function ConsultaBalancePanel({
           </select>
         </div>
       </section>
-
-      {showActions ? (
-        <div className={styles.actionsFooter} data-testid="balance-actions">
-          <div className={styles.actionsSecondary}>
-            <button
-              type="button"
-              className={styles.copyIconBtn}
-              onClick={onCopy}
-              title="Copiar datos al portapapeles"
-              aria-label="Copiar datos al portapapeles"
-              disabled={disabled}
-            >
-              <FiCopy aria-hidden="true" />
-            </button>
-
-            {!isEditing ? (
-              <button
-                type="button"
-                className={styles.draftBtn}
-                onClick={onSaveConsulta}
-                disabled={disabled || isSavingConsulta || !hasClientId}
-                title={
-                  !hasClientId
-                    ? 'Seleccioná un cliente para guardar la consulta'
-                    : 'Guardar datos como consulta recuperable, sin confirmar reserva'
-                }
-              >
-                {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
-              </button>
-            ) : (
-              <label
-                className={styles.rateToggle}
-                title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
-              >
-                <input
-                  type="checkbox"
-                  checked={applyRateChanges}
-                  onChange={(e) => onApplyRateChanges?.(e.target.checked)}
-                  data-testid="apply-rate-changes-toggle"
-                />
-                Aplicar cambios de tarifa
-              </label>
-            )}
-          </div>
-
-          {hasClientName ? (
-            <button
-              type="button"
-              className={styles.confirmBtn}
-              onClick={onCreateReservation}
-              disabled={!canConfirm || isCreatingReservation || disabled}
-              title={
-                !canConfirm
-                  ? 'Seleccioná una habitación para cada segmento'
-                  : isEditing
-                    ? 'Modificar la reserva'
-                    : 'Crear la reserva'
-              }
-            >
-              {isCreatingReservation
-                ? isEditing
-                  ? 'Modificando…'
-                  : 'Creando…'
-                : isEditing
-                  ? 'Modificar reserva'
-                  : 'Crear reserva'}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      </div>
+      {actionsFooter}
     </aside>
   );
 }

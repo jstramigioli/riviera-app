@@ -3953,16 +3953,13 @@ export default function Consulta() {
                 segments.length > 0 && segments[0].checkIn && segments[0].checkOut
               )}
               onCopy={handleCopyReservationData}
-              onSaveConsulta={handleSaveConsulta}
               onCreateReservation={() =>
                 handleCreateReservation(reservationStatus, promoApply)
               }
               canConfirm={canConfirmReservation}
-              isSavingConsulta={isSavingConsulta}
               isCreatingReservation={isCreatingReservation}
               applyRateChanges={applyRateChanges}
               onApplyRateChanges={setApplyRateChanges}
-              hasClientId={Boolean(formData.mainClient.id)}
               hasClientName={Boolean(
                 formData.mainClient.firstName && formData.mainClient.lastName
               )}
