@@ -50,7 +50,8 @@ export default function ConsultaBalancePanel({
   isCreatingReservation = false,
   applyRateChanges = true,
   onApplyRateChanges,
-  hasClientName = false
+  hasClientName = false,
+  onQuoteChange
 }) {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState(null);
@@ -348,6 +349,10 @@ export default function ConsultaBalancePanel({
       hasPromos: false
     };
   }, [segmentQuotes, baseSubtotal, segmentNightGroups]);
+
+  useEffect(() => {
+    onQuoteChange?.(quote);
+  }, [quote, onQuoteChange]);
 
   /** Noches con tarifa > 0 (oculta noche=0 del desglose). En manual muestra todas. */
   const billedNights = useMemo(() => {

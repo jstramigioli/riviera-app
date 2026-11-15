@@ -36,8 +36,13 @@ import {
   maxBedPreferenceLimits,
   clampBedPreferenceToLimits
 } from '../utils/bedConfig';
-import { buildDraftReservationForTimeline } from '../utils/reservationConfirmationQuote';
+import {
+  buildDraftReservationForTimeline,
+  formatConfirmationMoney
+} from '../utils/reservationConfirmationQuote';
+import { resolveReservationTotal } from '../utils/reservationStayTimeline';
 import { previewRoomRatePromo } from '../utils/roomPromoPreview';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import BedPreferenceFields from '../components/BedPreferenceFields';
 import styles from '../styles/Consulta.module.css';
 
@@ -331,7 +336,14 @@ export default function Consulta() {
   const [editingReservationStatus, setEditingReservationStatus] = useState(null);
   const [applyRateChanges, setApplyRateChanges] = useState(true);
   const [originalBaseRatesByBlock, setOriginalBaseRatesByBlock] = useState({});
+  const [originalStayTotal, setOriginalStayTotal] = useState(null);
+  const [balanceQuoteTotal, setBalanceQuoteTotal] = useState(null);
   const [editPrefillReady, setEditPrefillReady] = useState(!initialEditReservationId);
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const handleBalanceQuoteChange = useCallback((quote) => {
+    const total = Number(quote?.totalARS);
+    setBalanceQuoteTotal(Number.isFinite(total) ? total : null);
+  }, []);
 
   // Estados para gestión de consultas
   const [currentQueryId, setCurrentQueryId] = useState(null);
@@ -1164,12 +1176,10 @@ export default function Consulta() {
 
         const roomsByBlock = {};
         const ratesByBlock = {};
-        const searchedByBlock = {};
         collapsed.forEach((seg, index) => {
           const room = selectedRoomFromCollapsedSegment(seg);
           roomsByBlock[index] = room;
           ratesByBlock[index] = Number(seg.baseRate) || 0;
-          searchedByBlock[index] = true;
         });
 
         const first = collapsed[0] || null;
@@ -1215,13 +1225,15 @@ export default function Consulta() {
         });
 
         setSelectedRoomsPerBlock(roomsByBlock);
-        setAvailableRoomsPerBlock(
-          Object.fromEntries(
-            Object.entries(roomsByBlock).map(([idx, room]) => [idx, room ? [room] : []])
-          )
-        );
-        setHasSearchedPerBlock(searchedByBlock);
+        // No sembrar solo la habitación asignada: se re-busca el listado completo
+        // (excludeReservationId) y se conserva la actual preseleccionada.
+        setAvailableRoomsPerBlock({});
+        setAllAvailableRoomsPerBlock({});
+        setHasSearchedPerBlock({});
+        setShowLargerCapacityPerBlock({});
         setOriginalBaseRatesByBlock(ratesByBlock);
+        setOriginalStayTotal(resolveReservationTotal(full));
+        setBalanceQuoteTotal(null);
 
         if (roomsByBlock[0]?.roomType) {
           setSelectedRoomType(roomsByBlock[0].roomType);
@@ -3252,6 +3264,63 @@ export default function Consulta() {
       console.log('Datos de reserva a enviar:', reservationData);
 
       if (editingReservationId) {
+        const previousTotal = Number(originalStayTotal);
+        const catalogNew =
+          balanceQuoteTotal != null && Number.isFinite(Number(balanceQuoteTotal))
+            ? Number(balanceQuoteTotal)
+            : reservationData.segments.reduce((sum, seg, index) => {
+                const nights = Math.ceil(
+                  (new Date(seg.endDate) - new Date(seg.startDate)) / (1000 * 60 * 60 * 24)
+                );
+                return sum + (Number(seg.baseRate) || 0) * Math.max(0, nights);
+              }, 0);
+        const newTotal = applyRateChanges
+          ? catalogNew
+          : Number.isFinite(previousTotal) && previousTotal > 0
+            ? previousTotal
+            : catalogNew;
+        const prevLabel = formatConfirmationMoney(
+          Number.isFinite(previousTotal) && previousTotal > 0 ? previousTotal : 0
+        );
+        const newLabel = formatConfirmationMoney(newTotal);
+        const delta = Math.round((newTotal - (Number.isFinite(previousTotal) ? previousTotal : 0)) * 100) / 100;
+        const deltaLabel =
+          delta === 0
+            ? 'Sin diferencia'
+            : `${delta > 0 ? '+' : ''}${formatConfirmationMoney(delta)}`;
+
+        const confirmed = await confirm({
+          title: `Confirmar cambios · reserva #${editingReservationId}`,
+          message: (
+            <div>
+              <p style={{ margin: '0 0 0.75rem' }}>
+                Revisá la tarifa antes de guardar:
+              </p>
+              <p style={{ margin: '0 0 0.35rem' }}>
+                <strong>Tarifa anterior:</strong> {prevLabel}
+              </p>
+              <p style={{ margin: '0 0 0.35rem' }}>
+                <strong>Tarifa nueva:</strong> {newLabel}
+              </p>
+              <p style={{ margin: '0 0 0.75rem' }}>
+                <strong>Diferencia:</strong> {deltaLabel}
+              </p>
+              <p style={{ margin: 0, opacity: 0.85 }}>
+                {applyRateChanges
+                  ? 'Se actualizarán las tarifas y cargos de alojamiento.'
+                  : 'No se regenerarán tarifas: se conservan los montos actuales de la reserva.'}
+              </p>
+            </div>
+          ),
+          confirmText: 'Guardar cambios',
+          cancelText: 'Volver',
+          type: 'default',
+          confirmButtonClass: 'default'
+        });
+        if (!confirmed) {
+          return;
+        }
+
         await updateReservation(editingReservationId, {
           mainClientId: clientId,
           status: status || editingReservationStatus || 'PENDIENTE',
@@ -4012,6 +4081,7 @@ export default function Consulta() {
                 onStatusChange={setReservationStatus}
               onPromoApplyChange={handlePromoApplyChange}
               onManualPricingChange={handleManualPricingChange}
+              onQuoteChange={handleBalanceQuoteChange}
               isEditing={Boolean(editingReservationId)}
                 disabled={isCreatingReservation}
                 showActions={Boolean(
@@ -4107,6 +4177,7 @@ export default function Consulta() {
         onCancel={handleCancelDeleteSegments}
       />
 
+      {confirmDialog}
       {noticeDialog}
     </div>
   );
