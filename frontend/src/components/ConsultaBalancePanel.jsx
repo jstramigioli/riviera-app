@@ -557,10 +557,6 @@ export default function ConsultaBalancePanel({
               disabled={disabled}
               data-testid="manual-stay-total"
             />
-            <span className={styles.quoteHint}>
-              Se reparte en promedio por noche; los centavos restantes van a las primeras
-              noches.
-            </span>
           </label>
         ) : null}
 
