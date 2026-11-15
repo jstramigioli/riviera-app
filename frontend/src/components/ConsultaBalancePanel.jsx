@@ -220,9 +220,32 @@ export default function ConsultaBalancePanel({
   return (
     <aside className={styles.panel} aria-label="Tarifas y promociones">
       <section className={styles.section} aria-labelledby="balance-quote-heading">
-        <h2 id="balance-quote-heading" className={styles.heading}>
-          Tarifa
-        </h2>
+        <div className={styles.headingRow}>
+          <h2 id="balance-quote-heading" className={styles.heading}>
+            Tarifa
+          </h2>
+          {billedNights.length > 0 ? (
+            <button
+              type="button"
+              className={styles.breakdownIconBtn}
+              onClick={() => setShowNightBreakdown((v) => !v)}
+              aria-expanded={showNightBreakdown}
+              aria-controls="balance-night-breakdown"
+              aria-label={
+                showNightBreakdown
+                  ? 'Ocultar desglose por noche'
+                  : 'Ver desglose por noche'
+              }
+              data-testid="confirmation-night-breakdown-toggle"
+            >
+              {showNightBreakdown ? (
+                <FiChevronDown aria-hidden="true" />
+              ) : (
+                <FiChevronRight aria-hidden="true" />
+              )}
+            </button>
+          ) : null}
+        </div>
 
         <div className={styles.quoteRows}>
           {showNightBreakdown && billedNights.length > 0 ? (
@@ -251,29 +274,7 @@ export default function ConsultaBalancePanel({
           ) : null}
 
           <div className={styles.quoteRow}>
-            <span className={styles.subtotalLabelGroup}>
-              {billedNights.length > 0 ? (
-                <button
-                  type="button"
-                  className={styles.breakdownIconBtn}
-                  onClick={() => setShowNightBreakdown((v) => !v)}
-                  aria-expanded={showNightBreakdown}
-                  aria-controls="balance-night-breakdown"
-                  aria-label={
-                    showNightBreakdown
-                      ? 'Ocultar desglose por noche'
-                      : 'Ver desglose por noche'
-                  }
-                >
-                  {showNightBreakdown ? (
-                    <FiChevronDown aria-hidden="true" />
-                  ) : (
-                    <FiChevronRight aria-hidden="true" />
-                  )}
-                </button>
-              ) : null}
-              <span className={styles.quoteLabel}>Subtotal</span>
-            </span>
+            <span className={styles.quoteLabel}>Subtotal</span>
             <span className={styles.quoteValue}>
               {formatConfirmationMoney(quote.subtotalARS)}
             </span>

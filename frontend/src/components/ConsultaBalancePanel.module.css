@@ -23,8 +23,16 @@
   color: var(--color-primary-dark);
 }
 
-.heading {
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0 0 8px;
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
   font-size: var(--font-size-medium);
   font-weight: 600;
   color: var(--color-text-dark);
@@ -174,13 +182,6 @@
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
   min-width: 2.5rem;
-}
-
-.subtotalLabelGroup {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
 }
 
 .breakdownIconBtn {
