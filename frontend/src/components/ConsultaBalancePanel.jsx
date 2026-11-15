@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FiChevronDown, FiChevronRight, FiPlus, FiX } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiCopy, FiPlus, FiX } from 'react-icons/fi';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { previewPromotion } from '../services/api';
 import {
@@ -33,7 +33,18 @@ export default function ConsultaBalancePanel({
   onStatusChange,
   onPromoApplyChange,
   isEditing = false,
-  disabled = false
+  disabled = false,
+  showActions = false,
+  onCopy,
+  onSaveConsulta,
+  onCreateReservation,
+  canConfirm = false,
+  isSavingConsulta = false,
+  isCreatingReservation = false,
+  applyRateChanges = true,
+  onApplyRateChanges,
+  hasClientId = false,
+  hasClientName = false
 }) {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState(null);
@@ -549,6 +560,76 @@ export default function ConsultaBalancePanel({
           </select>
         </div>
       </section>
+
+      {showActions ? (
+        <div className={styles.actionsFooter} data-testid="balance-actions">
+          <div className={styles.actionsSecondary}>
+            <button
+              type="button"
+              className={styles.copyIconBtn}
+              onClick={onCopy}
+              title="Copiar datos al portapapeles"
+              aria-label="Copiar datos al portapapeles"
+              disabled={disabled}
+            >
+              <FiCopy aria-hidden="true" />
+            </button>
+
+            {!isEditing ? (
+              <button
+                type="button"
+                className={styles.draftBtn}
+                onClick={onSaveConsulta}
+                disabled={disabled || isSavingConsulta || !hasClientId}
+                title={
+                  !hasClientId
+                    ? 'Seleccioná un cliente para guardar la consulta'
+                    : 'Guardar datos como consulta recuperable, sin confirmar reserva'
+                }
+              >
+                {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
+              </button>
+            ) : (
+              <label
+                className={styles.rateToggle}
+                title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
+              >
+                <input
+                  type="checkbox"
+                  checked={applyRateChanges}
+                  onChange={(e) => onApplyRateChanges?.(e.target.checked)}
+                  data-testid="apply-rate-changes-toggle"
+                />
+                Aplicar cambios de tarifa
+              </label>
+            )}
+          </div>
+
+          {hasClientName ? (
+            <button
+              type="button"
+              className={styles.confirmBtn}
+              onClick={onCreateReservation}
+              disabled={!canConfirm || isCreatingReservation || disabled}
+              title={
+                !canConfirm
+                  ? 'Seleccioná una habitación para cada segmento'
+                  : isEditing
+                    ? 'Modificar la reserva'
+                    : 'Crear la reserva'
+              }
+            >
+              {isCreatingReservation
+                ? isEditing
+                  ? 'Modificando…'
+                  : 'Creando…'
+                : isEditing
+                  ? 'Modificar reserva'
+                  : 'Crear reserva'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </aside>
   );
 }
