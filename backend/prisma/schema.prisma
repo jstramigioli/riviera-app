@@ -954,15 +954,16 @@ enum UserRole {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  username     String    @unique
-  displayName  String
-  passwordHash String
-  role         UserRole
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  sessions     Session[]
+  id                String             @id @default(cuid())
+  username          String             @unique
+  displayName       String
+  passwordHash      String
+  role              UserRole
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  notificationReads NotificationRead[]
 }
 
 model Session {
@@ -1074,4 +1075,55 @@ model MenuItemVariety {
 enum ServiceAdjustmentMode {
   FIXED
   PERCENTAGE
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  DANGER
+}
+
+enum NotificationLinkType {
+  RESERVATION
+  CLIENT
+  ROOM
+  NONE
+}
+
+/// Notificación operativa / manual. Leer (por usuario) ≠ resolver (cierre global).
+model AppNotification {
+  id           String                 @id @default(cuid())
+  type         String
+  severity     NotificationSeverity   @default(INFO)
+  title        String
+  body         String?
+  linkType     NotificationLinkType   @default(NONE)
+  linkId       String?
+  /// Clave estable p.ej. PENDING_ARRIVAL:42 — upsert en sync.
+  dedupeKey    String?                @unique
+  audienceRole String?
+  source       String                 @default("SYSTEM")
+  meta         Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  resolvedAt   DateTime?
+  resolvedById String?
+  reads        NotificationRead[]
+
+  @@index([resolvedAt, createdAt])
+  @@index([type])
+  @@index([audienceRole])
+  @@index([createdAt])
+}
+
+model NotificationRead {
+  id             String          @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime        @default(now())
+  notification   AppNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
 }

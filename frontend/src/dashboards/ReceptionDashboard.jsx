@@ -12,6 +12,7 @@ import { updateReservationStatusOnServer } from '../utils/apiUtils';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import PaymentForm from '../components/PaymentForm';
+import NotificationsPanel from './NotificationsPanel';
 import styles from './ReceptionDashboard.module.css';
 
 function civilLocalDate(dayIso) {
@@ -162,19 +163,7 @@ export default function ReceptionDashboard() {
     });
   };
 
-  const checkoutRows = useMemo(() => {
-    const seen = new Set();
-    const rows = [];
-    for (const item of [
-      ...(model.today?.checkOutItems || []),
-      ...(model.today?.lateCheckouts || [])
-    ]) {
-      if (seen.has(item.reservationId)) continue;
-      seen.add(item.reservationId);
-      rows.push(item);
-    }
-    return rows;
-  }, [model.today]);
+  const checkoutRows = model.today?.checkOutItems || [];
 
   if (loading) {
     return <div className={styles.loading}>Cargando dashboard…</div>;
@@ -191,7 +180,7 @@ export default function ReceptionDashboard() {
     );
   }
 
-  const { today, meals, notifications } = model;
+  const { today, meals } = model;
   const dayTitle = formatDayTitle(todayIso);
 
   return (
@@ -216,7 +205,7 @@ export default function ReceptionDashboard() {
             Ingresos
           </h2>
           {today.checkInItems.length === 0 ? (
-            <p className={styles.empty}>Sin ingresos previstos hoy.</p>
+            <p className={styles.empty}>Sin ingresos pendientes.</p>
           ) : (
             <table className={styles.dataTable}>
               <thead>
@@ -237,13 +226,19 @@ export default function ReceptionDashboard() {
                       >
                         {item.guestName || item.label}
                       </button>
+                      {item.overdue ? (
+                        <span className={styles.lateHint}>
+                          {' '}
+                          atrasado ({item.plannedCheckIn})
+                        </span>
+                      ) : null}
                     </td>
                     <td>{item.guests ?? '—'}</td>
                     <td>
                       {item.pending ? (
                         <button
                           type="button"
-                          className={`${styles.statusBtn} ${styles.statusPending}`}
+                          className={styles.statusBtn}
                           disabled={statusBusyId === item.reservationId}
                           onClick={() => setStatus(item.reservationId, 'INGRESADA')}
                         >
@@ -271,7 +266,7 @@ export default function ReceptionDashboard() {
             Egresos
           </h2>
           {checkoutRows.length === 0 ? (
-            <p className={styles.empty}>Sin egresos previstos hoy.</p>
+            <p className={styles.empty}>Sin egresos pendientes de finalizar.</p>
           ) : (
             <table className={styles.dataTable}>
               <thead>
@@ -292,26 +287,28 @@ export default function ReceptionDashboard() {
                       >
                         {item.guestName || item.label}
                       </button>
-                      {item.plannedCheckout ? (
-                        <span className={styles.lateHint}> atrasado</span>
+                      {item.late ? (
+                        <span className={styles.lateHint}>
+                          {' '}
+                          atrasado ({item.plannedCheckout})
+                        </span>
+                      ) : item.plannedCheckout ? (
+                        <span className={styles.statusMuted}>
+                          {' '}
+                          · {item.plannedCheckout}
+                        </span>
                       ) : null}
                     </td>
                     <td>{item.guests ?? '—'}</td>
                     <td className={styles.actionsCell}>
-                      {item.status === 'INGRESADA' || item.plannedCheckout ? (
-                        <button
-                          type="button"
-                          className={styles.actionBtn}
-                          disabled={statusBusyId === item.reservationId}
-                          onClick={() => setStatus(item.reservationId, 'FINALIZADA')}
-                        >
-                          Finalizar reserva
-                        </button>
-                      ) : item.status === 'FINALIZADA' ? (
-                        <span className={styles.statusMuted}>Finalizada</span>
-                      ) : (
-                        <span className={styles.statusMuted}>{item.status || '—'}</span>
-                      )}
+                      <button
+                        type="button"
+                        className={styles.actionBtn}
+                        disabled={statusBusyId === item.reservationId}
+                        onClick={() => setStatus(item.reservationId, 'FINALIZADA')}
+                      >
+                        Finalizar reserva
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -472,28 +469,7 @@ export default function ReceptionDashboard() {
           )}
         </section>
 
-        {notifications.length > 0 ? (
-          <section
-            className={`${styles.module} ${styles.moduleWide}`}
-            aria-labelledby="dash-notif"
-          >
-            <h2 id="dash-notif" className={styles.moduleTitle}>
-              Notificaciones
-            </h2>
-            {notifications.map((n) => (
-              <div key={n.id} className={styles.notifItem}>
-                <div className={styles.notifTitle}>{n.title}</div>
-                <button
-                  type="button"
-                  className={`${styles.listLink} ${styles.notifBody}`}
-                  onClick={() => openReservation(n.reservationId)}
-                >
-                  {n.body}
-                </button>
-              </div>
-            ))}
-          </section>
-        ) : null}
+        <NotificationsPanel todayIso={todayIso} />
       </div>
 
       <FloatingActionButton

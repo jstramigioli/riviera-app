@@ -169,45 +169,122 @@ function guestCountForReservation(reservation) {
   return Math.max(fromRequired, fromGuestsList, fromSegs, 1);
 }
 
+const PRE_CHECKIN_STATUSES = new Set([
+  'PENDIENTE',
+  'CONFIRMADA',
+  'pending',
+  'confirmed'
+]);
+
+function daysBetweenIso(fromIso, toIso) {
+  const a = Date.parse(`${fromIso}T00:00:00Z`);
+  const b = Date.parse(`${toIso}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86400000);
+}
+
 /**
- * Checkout previsto < hoy y aún INGRESADA (no finalizó manualmente).
+ * Todas las INGRESADA pendientes de finalizar (checkout previsto hoy, futuro o atrasado).
  */
-export function lateCheckoutItems(todayIso, rooms = [], reservations = []) {
+export function pendingCheckoutItems(todayIso, rooms = [], reservations = []) {
   const roomsById = buildRoomsById(rooms);
   const items = [];
   for (const reservation of reservations || []) {
     if (reservation?.status !== 'INGRESADA') continue;
     const segments = activeSegments(reservation);
-    const { end } = stayBounds(reservation);
-    if (!end || end >= todayIso) continue;
+    const { start, end } = stayBounds(reservation);
     const guestName = mainClientDisplayName(reservation);
-    const room = movementRoomLabel(reservation, segments, end, 'out', roomsById);
+    const room = movementRoomLabel(
+      reservation,
+      segments,
+      end || todayIso,
+      'out',
+      roomsById
+    );
+    const late = Boolean(end && end < todayIso);
     items.push({
       reservationId: reservation.id,
       roomLabel: room,
       guestName,
       guests: guestCountForReservation(reservation),
       status: reservation.status,
+      plannedCheckIn: start,
       plannedCheckout: end,
-      daysLate: Math.max(1, Math.round((Date.parse(`${todayIso}T00:00:00Z`) - Date.parse(`${end}T00:00:00Z`)) / 86400000)),
+      late,
+      daysLate: late ? Math.max(1, daysBetweenIso(end, todayIso)) : 0,
       label: movementListLabel(room, guestName)
     });
   }
-  items.sort((a, b) => String(a.plannedCheckout).localeCompare(String(b.plannedCheckout)));
+  items.sort((a, b) => {
+    const ae = a.plannedCheckout || '9999-99-99';
+    const be = b.plannedCheckout || '9999-99-99';
+    return String(ae).localeCompare(String(be));
+  });
   return items;
 }
 
-/** Llegadas de hoy aún no ingresadas (PENDIENTE / CONFIRMADA). */
-export function pendingArrivalItems(todayIso, dayStats) {
-  const pendingStatuses = new Set(['PENDIENTE', 'CONFIRMADA', 'pending', 'confirmed']);
+/** @deprecated usar pendingCheckoutItems; se mantiene por compat de tests. */
+export function lateCheckoutItems(todayIso, rooms = [], reservations = []) {
+  return pendingCheckoutItems(todayIso, rooms, reservations).filter((i) => i.late);
+}
+
+/**
+ * Ingresos: check-in de hoy (cualquier estado no cancelado) + anteriores
+ * aún PENDIENTE/CONFIRMADA (pre-reserva / confirmada).
+ */
+export function buildCheckInPanelItems(todayIso, rooms = [], reservations = []) {
+  const roomsById = buildRoomsById(rooms);
   const items = [];
-  for (const item of dayStats?.checkInItems || []) {
-    const status = item.status || item.reservationStatus;
-    // checkInItems may not carry status — enrich below if needed
-    if (status && !pendingStatuses.has(status)) continue;
-    items.push(item);
+  const seen = new Set();
+
+  for (const reservation of reservations || []) {
+    if (
+      reservation?.status === 'CANCELADA' ||
+      reservation?.status === 'NO_PRESENTADA' ||
+      reservation?.status === 'cancelled' ||
+      reservation?.status === 'no_show' ||
+      reservation?.status === 'FINALIZADA'
+    ) {
+      continue;
+    }
+    const segments = activeSegments(reservation);
+    const { start } = stayBounds(reservation);
+    if (!start) continue;
+
+    const isToday = start === todayIso;
+    const isOverduePending =
+      start < todayIso && PRE_CHECKIN_STATUSES.has(reservation.status);
+    if (!isToday && !isOverduePending) continue;
+    if (seen.has(reservation.id)) continue;
+    seen.add(reservation.id);
+
+    const guestName = mainClientDisplayName(reservation);
+    const room = movementRoomLabel(reservation, segments, start, 'in', roomsById);
+    const pending = PRE_CHECKIN_STATUSES.has(reservation.status);
+    items.push({
+      reservationId: reservation.id,
+      roomLabel: room,
+      guestName,
+      guests: guestCountForReservation(reservation),
+      status: reservation.status,
+      pending,
+      plannedCheckIn: start,
+      overdue: isOverduePending,
+      daysOverdue: isOverduePending ? Math.max(1, daysBetweenIso(start, todayIso)) : 0,
+      label: movementListLabel(room, guestName)
+    });
   }
+
+  items.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    return String(a.plannedCheckIn).localeCompare(String(b.plannedCheckIn));
+  });
   return items;
+}
+
+/** Llegadas aún no ingresadas (hoy o anteriores). */
+export function pendingArrivalItems(todayIso, rooms = [], reservations = []) {
+  return buildCheckInPanelItems(todayIso, rooms, reservations).filter((i) => i.pending);
 }
 
 function enrichMovementItemsWithStatus(items, reservations) {
@@ -310,27 +387,30 @@ export function buildReceptionDashboardModel({
   const tomorrow = computeDayInfoStats(tomorrowIso, capacityRooms, reservations, serviceTypes);
   const meals = computeDayInfoStats(mealsIso, capacityRooms, reservations, serviceTypes);
 
-  const checkInItems = enrichMovementItemsWithStatus(today.checkInItems, reservations);
-  const checkOutItems = enrichMovementItemsWithStatus(today.checkOutItems, reservations);
-  const lateItems = lateCheckoutItems(todayIso, capacityRooms, reservations);
+  const checkInItems = buildCheckInPanelItems(todayIso, capacityRooms, reservations);
+  const checkOutItems = pendingCheckoutItems(todayIso, capacityRooms, reservations);
+  const lateItems = checkOutItems.filter((i) => i.late);
   const pendingArrivals = checkInItems.filter((i) => i.pending);
   const byType = occupancyByRoomType(todayIso, capacityRooms, reservations);
 
+  // Derivadas operativas (el panel real usa API persistida; estas alimentan sync).
   const notifications = [
     ...lateItems.map((item) => ({
       id: `late-${item.reservationId}`,
-      kind: 'late_checkout',
-      severity: 'warning',
+      kind: 'LATE_CHECKOUT',
+      severity: 'WARNING',
       title: 'Checkout atrasado',
       body: `${item.label} · previsto ${item.plannedCheckout}`,
       reservationId: item.reservationId
     })),
     ...pendingArrivals.map((item) => ({
       id: `arrival-${item.reservationId}`,
-      kind: 'pending_arrival',
-      severity: 'info',
-      title: 'Ingreso pendiente',
-      body: item.label,
+      kind: 'PENDING_ARRIVAL',
+      severity: 'INFO',
+      title: item.overdue ? 'Ingreso atrasado' : 'Ingreso pendiente',
+      body: item.overdue
+        ? `${item.label} · previsto ${item.plannedCheckIn}`
+        : item.label,
       reservationId: item.reservationId
     }))
   ];

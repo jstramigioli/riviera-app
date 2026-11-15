@@ -37,6 +37,7 @@ const authRoutes = require('./routes/auth.routes');
 const auditRoutes = require('./routes/audit.routes');
 const onlineCheckInRoutes = require('./routes/onlineCheckIn.routes');
 const publicCheckInRoutes = require('./routes/publicCheckIn.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const { requireAuth, requirePermission } = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -116,6 +117,7 @@ app.use('/api/menu-items', ops, menuItemRoutes);
 app.use('/api/consumptions', finanzas, consumptionRoutes);
 app.use('/api/alojamiento', finanzas, alojamientoRoutes);
 app.use('/api/calendar', ops, calendarRoutes);
+app.use('/api/notifications', reservas, notificationRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {
