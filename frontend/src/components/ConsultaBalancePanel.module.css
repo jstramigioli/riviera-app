@@ -421,6 +421,125 @@
   cursor: not-allowed;
 }
 
+.actionsFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light, var(--color-border));
+}
+
+.actionsSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.copyIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--color-bg-white, #fff);
+  color: var(--color-primary-dark);
+  cursor: pointer;
+}
+
+.copyIconBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copyIconBtn:hover:not(:disabled),
+.copyIconBtn:focus-visible:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.copyIconBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.copyIconBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.draftBtn,
+.confirmBtn {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 6px);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.draftBtn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white, #fff);
+  color: var(--color-text-dark);
+}
+
+.draftBtn:hover:not(:disabled),
+.draftBtn:focus-visible:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.draftBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.draftBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.confirmBtn {
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  margin-left: auto;
+}
+
+.confirmBtn:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.confirmBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.35);
+}
+
+.confirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rateToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+}
+
 .statusSelect {
   width: 100%;
   min-height: 36px;

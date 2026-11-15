@@ -3918,70 +3918,6 @@ export default function Consulta() {
         )}
       </div>
 
-      {/* Botones de acción */}
-      {segments.length > 0 && segments[0].checkIn && segments[0].checkOut && (
-        <div className={styles.createReservationButtonContainer}>
-          <div className={styles.actionSecondaryGroup}>
-            <button
-              type="button"
-              className={styles.copyButton}
-              onClick={handleCopyReservationData}
-              title="Copiar datos de la consulta al portapapeles"
-            >
-              Copiar datos
-            </button>
-
-            {!editingReservationId && (
-              <button
-                type="button"
-                className={styles.draftButton}
-                onClick={handleSaveConsulta}
-                disabled={isSavingConsulta || !formData.mainClient.id}
-                title={
-                  !formData.mainClient.id
-                    ? 'Seleccioná un cliente para guardar la consulta'
-                    : 'Guardar datos como consulta recuperable, sin confirmar reserva'
-                }
-              >
-                {isSavingConsulta ? 'Guardando…' : 'Guardar consulta'}
-              </button>
-            )}
-
-            {editingReservationId && (
-              <label
-                className={styles.rateToggle}
-                title="Si está apagado, podés cambiar habitación/fechas sin regenerar cargos ni tarifas"
-              >
-                <input
-                  type="checkbox"
-                  checked={applyRateChanges}
-                  onChange={(e) => setApplyRateChanges(e.target.checked)}
-                  data-testid="apply-rate-changes-toggle"
-                />
-                Aplicar cambios de tarifa
-              </label>
-            )}
-          </div>
-
-          {formData.mainClient.firstName && formData.mainClient.lastName && (
-            <button
-              type="button"
-              className={styles.confirmButton}
-              onClick={() => handleCreateReservation(reservationStatus, promoApply)}
-              disabled={!canConfirmReservation || isCreatingReservation}
-              title={
-                !segments.every((_, index) => selectedRoomsPerBlock[index])
-                  ? 'Seleccioná una habitación para cada segmento'
-                  : (editingReservationId ? 'Modificar la reserva' : 'Crear la reserva')
-              }
-            >
-              {isCreatingReservation
-                ? (editingReservationId ? 'Modificando…' : 'Creando…')
-                : (editingReservationId ? 'Modificar reserva' : 'Crear reserva')}
-            </button>
-          )}
-        </div>
-      )}
         </div>
 
         <aside className={styles.colSide} aria-label="Estadía y tarifas">
@@ -4013,6 +3949,23 @@ export default function Consulta() {
               onPromoApplyChange={handlePromoApplyChange}
               isEditing={Boolean(editingReservationId)}
               disabled={isCreatingReservation}
+              showActions={Boolean(
+                segments.length > 0 && segments[0].checkIn && segments[0].checkOut
+              )}
+              onCopy={handleCopyReservationData}
+              onSaveConsulta={handleSaveConsulta}
+              onCreateReservation={() =>
+                handleCreateReservation(reservationStatus, promoApply)
+              }
+              canConfirm={canConfirmReservation}
+              isSavingConsulta={isSavingConsulta}
+              isCreatingReservation={isCreatingReservation}
+              applyRateChanges={applyRateChanges}
+              onApplyRateChanges={setApplyRateChanges}
+              hasClientId={Boolean(formData.mainClient.id)}
+              hasClientName={Boolean(
+                formData.mainClient.firstName && formData.mainClient.lastName
+              )}
             />
           </div>
         </aside>
