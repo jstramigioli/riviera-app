@@ -176,37 +176,53 @@
   min-width: 2.5rem;
 }
 
-.breakdownBlock {
-  margin-top: 10px;
+.subtotalLabelGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
-.breakdownToggle {
-  background: none;
-  border: none;
+.breakdownIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  color: var(--color-primary);
-  font-family: var(--font-main);
-  font-size: var(--font-size-small);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.breakdownToggle:hover,
-.breakdownToggle:focus-visible {
+  margin: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
   color: var(--color-primary-dark);
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 0;
 }
 
-.breakdownToggle:focus-visible {
+.breakdownIconBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.breakdownIconBtn:hover,
+.breakdownIconBtn:focus-visible {
+  color: var(--color-primary);
+  background: rgba(63, 95, 138, 0.08);
+}
+
+.breakdownIconBtn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
-  border-radius: 2px;
+}
+
+.breakdownBlock {
+  margin: 0 0 4px;
 }
 
 .breakdownTable {
   width: 100%;
-  margin-top: 8px;
+  margin: 0;
   border-collapse: collapse;
   font-size: var(--font-size-small);
 }
