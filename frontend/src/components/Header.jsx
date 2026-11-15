@@ -49,6 +49,14 @@ function Header() {
         <div className={styles.navLinks}>
           {can('reservas') ? (
             <Link
+              to="/dashboard"
+              className={`${styles.navLink} ${location.pathname === '/' || location.pathname === '/dashboard' ? styles.active : ''}`}
+            >
+              Dashboard
+            </Link>
+          ) : null}
+          {can('reservas') ? (
+            <Link
               to="/libro-de-reservas"
               className={`${styles.navLink} ${location.pathname === '/libro-de-reservas' ? styles.active : ''}`}
             >
