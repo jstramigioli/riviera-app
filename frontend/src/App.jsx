@@ -36,6 +36,7 @@ import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
 import Clientes from './pages/Clientes';
 import PublicCheckIn from './pages/PublicCheckIn';
+import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 
 function firstRoomIdFromReservation(reservation) {
   const segments = reservation?.segments;
@@ -700,6 +701,7 @@ function App() {
               )}
             />
           </Routes>
+          <SimulatedTodayDebugFab />
         </Router>
       </TagsProvider>
     </AuthProvider>

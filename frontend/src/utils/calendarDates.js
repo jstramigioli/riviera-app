@@ -6,6 +6,12 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
+/** localStorage: fecha simulada de debug (yyyy-MM-dd) o ausente = reloj real. */
+export const SIMULATED_TODAY_STORAGE_KEY = 'riviera.debug.simulatedToday';
+export const SIMULATED_TODAY_EVENT = 'riviera:simulated-today';
+
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function toDateOnlyUtc(input) {
   if (typeof input === 'string') {
     const iso = input.length >= 10 ? input.slice(0, 10) : input;
@@ -20,10 +26,75 @@ export function isoDate(input) {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 }
 
-/** Hoy local del navegador como yyyy-MM-dd (hotel "hoy"). */
-export function todayIsoLocal() {
+/** Reloj real del navegador (ignora simulación). */
+export function realTodayIsoLocal() {
   const n = new Date();
   return `${n.getFullYear()}-${pad2(n.getMonth() + 1)}-${pad2(n.getDate())}`;
+}
+
+export function getSimulatedTodayIso() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(SIMULATED_TODAY_STORAGE_KEY);
+    if (raw && ISO_DAY_RE.test(raw)) return raw;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function isSimulatedTodayActive() {
+  return Boolean(getSimulatedTodayIso());
+}
+
+function emitSimulatedTodayChange() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(SIMULATED_TODAY_EVENT, { detail: getSimulatedTodayIso() })
+  );
+}
+
+/** null/'' → desactiva y vuelve a fecha real. */
+export function setSimulatedTodayIso(isoOrNull) {
+  try {
+    if (typeof localStorage === 'undefined') return getSimulatedTodayIso();
+    if (!isoOrNull || !ISO_DAY_RE.test(String(isoOrNull).slice(0, 10))) {
+      localStorage.removeItem(SIMULATED_TODAY_STORAGE_KEY);
+    } else {
+      localStorage.setItem(SIMULATED_TODAY_STORAGE_KEY, String(isoOrNull).slice(0, 10));
+    }
+  } catch {
+    /* ignore */
+  }
+  emitSimulatedTodayChange();
+  return getSimulatedTodayIso();
+}
+
+export function clearSimulatedToday() {
+  return setSimulatedTodayIso(null);
+}
+
+/**
+ * Hoy del hotel para UI/flujos: fecha simulada si está activa, si no reloj local.
+ */
+export function todayIsoLocal() {
+  return getSimulatedTodayIso() || realTodayIsoLocal();
+}
+
+/** Suscripción a cambios de simulación (misma pestaña + storage). */
+export function subscribeSimulatedToday(onChange) {
+  if (typeof window === 'undefined') return () => {};
+  const notify = () => onChange(getSimulatedTodayIso());
+  const onCustom = () => notify();
+  const onStorage = (e) => {
+    if (e.key === SIMULATED_TODAY_STORAGE_KEY || e.key === null) notify();
+  };
+  window.addEventListener(SIMULATED_TODAY_EVENT, onCustom);
+  window.addEventListener('storage', onStorage);
+  return () => {
+    window.removeEventListener(SIMULATED_TODAY_EVENT, onCustom);
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 export function shiftIso(iso, days) {

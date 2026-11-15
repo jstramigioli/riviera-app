@@ -14,6 +14,7 @@ import DayInfoSidePanel from './DayInfoSidePanel';
 import FloatingActionButton from './FloatingActionButton';
 import { fetchCalendar, fetchReservation } from '../services/api';
 import {
+  subscribeSimulatedToday,
   todayIsoLocal,
   shiftIso,
   daysBetween,
@@ -107,6 +108,7 @@ export default function LibroReservasBoard({
   const scrollTargetIso = useRef(null);
   /** true = alinear a la izquierda; false = centrar en el viewport de días. */
   const scrollAlignStart = useRef(false);
+  const jumpToTodayRef = useRef(null);
   const loadingLock = useRef(false);
   const pendingScrollAdjust = useRef(null);
   const daysRef = useRef(days);
@@ -164,6 +166,15 @@ export default function LibroReservasBoard({
 
   useEffect(() => {
     setTodayIso(todayIsoLocal());
+    return subscribeSimulatedToday(() => {
+      const next = todayIsoLocal();
+      setTodayIso(next);
+      centeredOnce.current = false;
+      scrollTargetIso.current = next;
+      scrollAlignStart.current = false;
+      // Recentrar ventana en el nuevo «hoy» (simulado o real)
+      void jumpToTodayRef.current?.();
+    });
   }, []);
 
   const syncFilterMenuPos = useCallback(() => {
@@ -378,41 +389,42 @@ export default function LibroReservasBoard({
   };
 
   async function jumpToToday() {
-    const real = todayIsoLocal();
-    setTodayIso(real);
+    const today = todayIsoLocal();
+    setTodayIso(today);
     centeredOnce.current = false;
-    scrollTargetIso.current = real;
+    scrollTargetIso.current = today;
     scrollAlignStart.current = false;
     const needed = Math.min(MAX_WINDOW_DAYS, Math.max(visibleDays * 2 + 7, CHUNK * 2));
     const half = Math.floor(needed / 2);
     try {
-      const probe = await fetchCalendar(shiftIso(real, -half), needed);
-      const todayOpen = (probe.days || []).some((d) => d.iso === real && !d.closed);
+      const probe = await fetchCalendar(shiftIso(today, -half), needed);
+      const todayOpen = (probe.days || []).some((d) => d.iso === today && !d.closed);
       const openPeriods = probe.openPeriods || [];
       if (todayOpen || !openPeriods.length) {
-        scrollTargetIso.current = real;
+        scrollTargetIso.current = today;
         scrollAlignStart.current = false;
-        await loadWindow(shiftIso(real, -half), needed, { side: 'replace' });
+        await loadWindow(shiftIso(today, -half), needed, { side: 'replace' });
         return;
       }
       const futurePeriod = openPeriods
-        .filter((p) => p.openTo >= real)
+        .filter((p) => p.openTo >= today)
         .sort((a, b) => a.openFrom.localeCompare(b.openFrom))[0];
       const focus = futurePeriod
-        ? futurePeriod.openFrom < real
-          ? real
+        ? futurePeriod.openFrom < today
+          ? today
           : futurePeriod.openFrom
-        : openPeriods.slice(-1)[0]?.openFrom || real;
-      const alignStart = focus > real;
+        : openPeriods.slice(-1)[0]?.openFrom || today;
+      const alignStart = focus > today;
       scrollTargetIso.current = focus;
       scrollAlignStart.current = alignStart;
       const startOffset = alignStart ? Math.min(EDGE_DAYS, half) : half;
       await loadWindow(shiftIso(focus, -startOffset), needed, { side: 'replace' });
     } catch (err) {
       console.error(err);
-      await loadWindow(shiftIso(real, -half), needed, { side: 'replace' });
+      await loadWindow(shiftIso(today, -half), needed, { side: 'replace' });
     }
   }
+  jumpToTodayRef.current = jumpToToday;
 
   // Recargar ventana actual tras cambios de estado/reservas (p.ej. cancelación)
   useEffect(() => {

@@ -42,6 +42,7 @@ import {
 } from '../utils/reservationConfirmationQuote';
 import { resolveReservationTotal } from '../utils/reservationStayTimeline';
 import { buildEditReservationSnapshot } from '../utils/buildEditReservationSnapshot';
+import { shiftIso, todayIsoLocal } from '../utils/calendarDates';
 import { previewRoomRatePromo } from '../utils/roomPromoPreview';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import BedPreferenceFields from '../components/BedPreferenceFields';
@@ -147,50 +148,33 @@ export default function Consulta() {
 
   // Función para obtener las fechas por defecto basadas en bloques de temporada
   const getDefaultDates = useCallback(async () => {
-    // console.log('🎯 getDefaultDates iniciada');
     try {
-      const today = new Date();
-      const todayString = format(today, 'yyyy-MM-dd');
-      // console.log('📅 Fecha de hoy:', { today: today, todayString: todayString, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      const todayString = todayIsoLocal();
       
       // Obtener todos los bloques de temporada
-      // console.log('🔍 Buscando bloques de temporada...');
       const seasonBlocksResponse = await fetch(`http://localhost:3001/api/season-blocks?hotelId=default-hotel`);
       
       if (seasonBlocksResponse.ok) {
         const seasonBlocksData = await seasonBlocksResponse.json();
         const seasonBlocks = seasonBlocksData.data || [];
         
-        // console.log('📋 Bloques de temporada encontrados:', seasonBlocks.length);
-        
         // Buscar bloques que empiecen hoy o en el futuro
         const availableBlocks = seasonBlocks
           .filter(block => {
             if (block.isDraft) return false;
-            // Extraer solo la parte de fecha para evitar problemas de zona horaria
             const blockStartDate = block.startDate.split('T')[0];
-            return blockStartDate >= todayString; // El bloque debe empezar hoy o después
+            return blockStartDate >= todayString;
           })
           .sort((a, b) => {
-            // Ordenar por fecha de inicio usando strings extraídos
             const startDateA = a.startDate.split('T')[0];
             const startDateB = b.startDate.split('T')[0];
             return startDateA.localeCompare(startDateB);
           });
         
-        // console.log('📋 Bloques disponibles:', availableBlocks.map(b => ({ name: b.name, startDate: b.startDate.split('T')[0], endDate: b.endDate.split('T')[0] })));
-        
         if (availableBlocks.length > 0) {
-          // Usar el primer día del primer bloque disponible
           const firstBlock = availableBlocks[0];
-          
-          // Extraer solo la parte de fecha (YYYY-MM-DD) del string ISO para evitar problemas de zona horaria
-          const startDateISO = firstBlock.startDate.split('T')[0]; // Obtener "2025-10-10"de "2025-10-10T00:00:00.000Z"
-          const checkInDate = startDateISO;
-          const checkOutDate = format(addDays(new Date(startDateISO + 'T12:00:00'), 1), 'yyyy-MM-dd');
-          
-          // console.log('✅ Usando fechas del primer bloque disponible:', { bloque: firstBlock.name, checkIn: checkInDate, checkOut: checkOutDate });
-          return { checkIn: checkInDate, checkOut: checkOutDate };
+          const startDateISO = firstBlock.startDate.split('T')[0];
+          return { checkIn: startDateISO, checkOut: shiftIso(startDateISO, 1) };
         }
       } else {
         console.error('❌ Error en respuesta de API:', {
@@ -199,19 +183,11 @@ export default function Consulta() {
         });
       }
       
-      // Si no hay bloques de temporada o hay error, usar fechas por defecto (hoy y mañana)
-      const checkInDate = todayString;
-      const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
-      console.log('⚠️ No se encontraron bloques de temporada o hay error. Usando fechas por defecto:', { checkIn: checkInDate, checkOut: checkOutDate });
-      return { checkIn: checkInDate, checkOut: checkOutDate };
+      return { checkIn: todayString, checkOut: shiftIso(todayString, 1) };
     } catch (error) {
       console.error('❌ Error obteniendo fechas por defecto:', error);
-      // En caso de error, usar fechas por defecto
-      const today = new Date();
-      const checkInDate = format(today, 'yyyy-MM-dd');
-      const checkOutDate = format(addDays(today, 1), 'yyyy-MM-dd');
-      console.log('🔄 Usando fechas de fallback:', { checkIn: checkInDate, checkOut: checkOutDate });
-      return { checkIn: checkInDate, checkOut: checkOutDate };
+      const todayString = todayIsoLocal();
+      return { checkIn: todayString, checkOut: shiftIso(todayString, 1) };
     }
   }, []);
 
@@ -451,10 +427,9 @@ export default function Consulta() {
       // Check-out será el día siguiente al check-in
       checkOutDate = format(addDays(new Date(checkInDate + 'T00:00:00'), 1), 'yyyy-MM-dd');
     } else {
-      // Si no hay bloque anterior, usar fechas por defecto
-      const today = format(new Date(), 'yyyy-MM-dd');
-      checkInDate = today;
-      checkOutDate = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+      // Si no hay bloque anterior, usar fechas por defecto («hoy» app / simulado)
+      checkInDate = todayIsoLocal();
+      checkOutDate = shiftIso(checkInDate, 1);
     }
     
     // Heredar habitación, servicio y requisitos del tramo anterior (no fechas)
@@ -3128,14 +3103,10 @@ export default function Consulta() {
       
       // Verificar si hay fechas pasadas y mostrar advertencia (solo si no se está saltando la advertencia)
       if (!skipPastDateWarning) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const hasPastDates = segments.some(segment => {
-          const checkIn = new Date(segment.checkIn);
-          checkIn.setHours(0, 0, 0, 0);
-          return checkIn < today;
-        });
+        const todayIso = todayIsoLocal();
+        const hasPastDates = segments.some(
+          (segment) => String(segment.checkIn || '').slice(0, 10) < todayIso
+        );
         
         if (hasPastDates) {
           setPendingReservationStatus(status);

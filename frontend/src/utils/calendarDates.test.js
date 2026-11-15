@@ -1,14 +1,27 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   isoDate,
   shiftIso,
   daysBetween,
   todayIsoLocal,
+  realTodayIsoLocal,
+  setSimulatedTodayIso,
+  clearSimulatedToday,
+  getSimulatedTodayIso,
   formatDateUi,
-  toDateOnlyUtc
+  toDateOnlyUtc,
+  SIMULATED_TODAY_STORAGE_KEY
 } from './calendarDates';
 
 describe('calendarDates', () => {
+  beforeEach(() => {
+    clearSimulatedToday();
+  });
+
+  afterEach(() => {
+    clearSimulatedToday();
+  });
+
   it('shifts civil days across month boundaries', () => {
     expect(shiftIso('2026-10-29', 5)).toBe('2026-11-03');
     expect(daysBetween('2026-10-01', '2026-10-11')).toBe(10);
@@ -18,10 +31,19 @@ describe('calendarDates', () => {
     expect(formatDateUi('2026-10-28')).toBe('28/10/2026');
   });
 
-  it('todayIsoLocal matches local yyyy-MM-dd', () => {
+  it('realTodayIsoLocal matches local yyyy-MM-dd', () => {
     const n = new Date();
     const expected = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
-    expect(todayIsoLocal()).toBe(expected);
+    expect(realTodayIsoLocal()).toBe(expected);
+  });
+
+  it('todayIsoLocal uses simulated date from localStorage', () => {
+    setSimulatedTodayIso('2026-01-15');
+    expect(getSimulatedTodayIso()).toBe('2026-01-15');
+    expect(todayIsoLocal()).toBe('2026-01-15');
+    expect(localStorage.getItem(SIMULATED_TODAY_STORAGE_KEY)).toBe('2026-01-15');
+    clearSimulatedToday();
+    expect(todayIsoLocal()).toBe(realTodayIsoLocal());
   });
 
   it('isoDate from UTC date-only Date', () => {
