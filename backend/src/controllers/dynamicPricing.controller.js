@@ -6,6 +6,7 @@ const {
   toDateOnlyString,
   blockCoversDate
 } = require('../services/canonicalPricingService');
+const { buildMergedAvailablePeriods } = require('../utils/serviceAvailabilityPeriods');
 
 class DynamicPricingController {
 
@@ -577,39 +578,29 @@ class DynamicPricingController {
         serviceExistsInAnyBlock
       });
       
-      if (!requestedService && serviceExistsInAnyBlock) {
-        // El servicio existe en algún bloque pero no en todos - disponibilidad parcial
-        const availablePeriods = [];
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        
-        // Encontrar bloques que tienen el servicio solicitado
+      const collectBlocksWithRequestedService = () => {
         const blocksWithService = [];
         for (let i = 0; i < seasonBlocks.length; i++) {
           const blockServices = allBlocksServices[i];
-          if (blockServices.some(service => service.id === serviceType)) {
+          if (blockServices.some((service) => service.id === serviceType)) {
             blocksWithService.push(seasonBlocks[i]);
           }
         }
-        
-        // Calcular períodos disponibles
-        for (const block of blocksWithService) {
-          const blockStart = new Date(block.startDate);
-          const blockEnd = new Date(block.endDate);
-          
-          // Calcular intersección entre el período solicitado y el bloque
-          const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
-          const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
-          
-          if (periodStart < periodEnd) {
-            availablePeriods.push({
-              startDate: periodStart.toISOString().split('T')[0],
-              endDate: periodEnd.toISOString().split('T')[0],
-              blockName: block.name
-            });
-          }
-        }
-        
+        return blocksWithService;
+      };
+
+      // Períodos half-open [checkIn, checkOut) fusionados: un tramo continuo
+      // aunque crucen varios bloques de temporada (p.ej. 21–24 + 25–30 → 21–30).
+      const buildPartialAvailabilityPeriods = () =>
+        buildMergedAvailablePeriods(
+          { checkIn: start, checkOut: end },
+          collectBlocksWithRequestedService()
+        );
+
+      if (!requestedService && serviceExistsInAnyBlock) {
+        // El servicio existe en algún bloque pero no en todos - disponibilidad parcial
+        const availablePeriods = buildPartialAvailabilityPeriods();
+
         return res.status(200).json({
           success: true,
           availability: 'partial_availability',
@@ -628,39 +619,8 @@ class DynamicPricingController {
         
         if (isPartiallyAvailable) {
           errorMessage = `Servicio no disponible: El servicio '${requestedServiceName}' está disponible parcialmente para el período solicitado. Está disponible en algunos bloques de temporada pero no en todos.`;
-          
-          // Calcular períodos disponibles para el servicio solicitado
-          const availablePeriods = [];
-          const startDate = new Date(start);
-          const endDate = new Date(end);
-          
-          // Encontrar bloques que tienen el servicio solicitado
-          const blocksWithService = [];
-          for (let i = 0; i < seasonBlocks.length; i++) {
-            const blockServices = allBlocksServices[i];
-            if (blockServices.some(service => service.id === serviceType)) {
-              blocksWithService.push(seasonBlocks[i]);
-            }
-          }
-          
-          // Calcular períodos disponibles
-          for (const block of blocksWithService) {
-            const blockStart = new Date(block.startDate);
-            const blockEnd = new Date(block.endDate);
-            
-            // Calcular intersección entre el período solicitado y el bloque
-            const periodStart = new Date(Math.max(startDate.getTime(), blockStart.getTime()));
-            const periodEnd = new Date(Math.min(endDate.getTime(), blockEnd.getTime()));
-            
-            if (periodStart < periodEnd) {
-              availablePeriods.push({
-                startDate: periodStart.toISOString().split('T')[0],
-                endDate: periodEnd.toISOString().split('T')[0],
-                blockName: block.name
-              });
-            }
-          }
-          
+          const availablePeriods = buildPartialAvailabilityPeriods();
+
           return res.status(200).json({
             success: true,
             availability: 'partial_availability',

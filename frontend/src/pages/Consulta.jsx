@@ -469,16 +469,29 @@ export default function Consulta() {
     // cuando se detecte el cambio de activeBlockIndex
   };
 
-  // Función helper para obtener un servicio alternativo
+  // Alternativa para gaps sin el servicio pedido: preferir desayuno sobre solo alojamiento.
   const getAlternativeServiceType = (excludeServiceType) => {
     if (!serviceTypes || serviceTypes.length === 0) return '';
-    
-    // Buscar un servicio diferente al excluido
-    const alternative = serviceTypes.find(st => st.id !== excludeServiceType);
-    if (alternative) return alternative.id;
-    
-    // Si no hay alternativas, usar el primer servicio disponible
-    return serviceTypes[0].id;
+    const others = serviceTypes.filter((st) => st.id !== excludeServiceType);
+    if (!others.length) return serviceTypes[0].id;
+
+    const score = (st) => {
+      const blob = `${st.name || ''} ${st.id || ''}`.toLowerCase();
+      if (blob.includes('media') || blob.includes('pensión') || blob.includes('pension')) {
+        return 30;
+      }
+      if (blob.includes('desayuno') || blob.includes('breakfast')) return 20;
+      if (
+        blob.includes('solo aloj') ||
+        blob.includes('sin desayuno') ||
+        blob.includes('solo_alojamiento')
+      ) {
+        return 5;
+      }
+      return 10 + (Number(st.orderIndex) || 0);
+    };
+    others.sort((a, b) => score(b) - score(a));
+    return others[0].id;
   };
 
   // Función para crear segmentos automáticamente basados en períodos disponibles
@@ -495,7 +508,7 @@ export default function Consulta() {
     
     // console.log('📅 Fechas originales:', { originalStart: originalStart.toISOString().split('T')[0], originalEnd: originalEnd.toISOString().split('T')[0] });
     
-    // Ordenar períodos disponibles por fecha de inicio
+    // Ordenar períodos; el backend ya fusiona contiguos por servicio (no por temporada).
     const sortedPeriods = [...availablePeriods].sort((a, b) => 
       new Date(a.startDate) - new Date(b.startDate)
     );
@@ -3756,7 +3769,7 @@ export default function Consulta() {
                           Dividir la reserva en tramos
                         </button>
                         <p className={styles.splitPeriodsHint}>
-                          Esto creará {availablePeriods.length} segmento{availablePeriods.length > 1 ? 's' : ''} de reserva para los períodos donde el servicio está disponible.
+                          Se crearán tramos según la disponibilidad del servicio (antes/después), sin partir por bloques de temporada.
                         </p>
                     </>
                   ) : (
