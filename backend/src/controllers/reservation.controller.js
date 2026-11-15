@@ -108,6 +108,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
     isMultiRoom = false,
     includeHolderAsGuest = true,
     selectedRuleIds,
+    deselectedRuleIds,
     promotionRuleIds,
     benefitValueByRuleId
   } = req.body;
@@ -127,6 +128,7 @@ exports.createMultiSegmentReservation = async (req, res) => {
       isMultiRoom,
       includeHolderAsGuest,
       selectedRuleIds,
+      deselectedRuleIds,
       promotionRuleIds,
       benefitValueByRuleId
     };

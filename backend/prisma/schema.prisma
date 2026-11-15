@@ -296,8 +296,9 @@ enum PromotionKind {
 }
 
 /// Cómo se materializa la regla en operación.
-/// AUTO = automática; MANUAL = manual (por defecto desactivado);
-/// SUGERIDA = manual (por defecto activado).
+/// AUTO = automática; MANUAL = opcional (por defecto desactivado);
+/// SUGERIDA = opcional (por defecto activado).
+/// benefitValueManual (valor al aplicar) es independiente de la modalidad.
 enum PromotionModality {
   AUTO
   MANUAL

@@ -159,7 +159,12 @@ export function flattenPreviewAppliedRules(preview) {
         montoARS: monto,
         porcentaje: rule.porcentaje ?? rule.percent ?? null,
         benefitType: rule.benefitType || null,
-        freeNightCount: freeCount
+        freeNightCount: freeCount,
+        modality: rule.modality || null,
+        defaultOn:
+          rule.defaultOn != null
+            ? Boolean(rule.defaultOn)
+            : String(rule.modality || '').toUpperCase() === 'SUGERIDA'
       });
     } else if (freeCount > 0 && (prev.freeNightCount || 0) > 0) {
       // Misma FREE_NIGHTS repetida por fuentes espejo: no acumular.

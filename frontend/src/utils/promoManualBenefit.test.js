@@ -2,6 +2,8 @@ import {
   benefitUnitLabel,
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
+  collectOptionalPromoChoices,
+  isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
 } from './promoManualBenefit';
 
@@ -29,9 +31,24 @@ describe('promoManualBenefit', () => {
         benefitType: 'PERCENT',
         modality: 'MANUAL',
         layer: null,
-        defaultOn: false
+        defaultOn: false,
+        benefitValueManual: true
       }
     ]);
+  });
+
+  it('collectOptionalPromoChoices excluye ya aplicadas', () => {
+    const choices = collectOptionalPromoChoices(
+      {
+        suggestions: [
+          { id: 9, label: '4x3', modality: 'SUGERIDA', defaultOn: true },
+          { id: 11, label: 'Extra', modality: 'MANUAL', defaultOn: false },
+          { id: 1, label: 'Auto', modality: 'AUTO' }
+        ]
+      },
+      [{ promotionRuleId: 9, label: '4x3' }]
+    );
+    expect(choices.map((c) => c.id)).toEqual([11]);
   });
 
   it('mergeManualBenefitSuggestions dedupe por id', () => {
@@ -43,18 +60,29 @@ describe('promoManualBenefit', () => {
     expect(merged[0].label).toBe('A');
   });
 
-  it('buildBenefitApplyPayload ignora vacíos e inválidos', () => {
+  it('buildBenefitApplyPayload une opcionales + valor al aplicar', () => {
     expect(
       buildBenefitApplyPayload({
-        10: '15',
-        11: '',
-        12: '-1',
-        13: 'abc',
-        14: '0'
+        manualValues: {
+          10: '15',
+          11: '',
+          12: '-1',
+          13: 'abc',
+          14: '0'
+        },
+        selectedOptionalIds: [11, 9],
+        deselectedRuleIds: [9, 20]
       })
     ).toEqual({
       benefitValueByRuleId: { 10: 15, 14: 0 },
-      selectedRuleIds: [10, 14]
+      selectedRuleIds: [11, 9, 10, 14],
+      deselectedRuleIds: [20]
     });
+  });
+
+  it('isRemovableOptionalPromo', () => {
+    expect(isRemovableOptionalPromo({ modality: 'SUGERIDA' })).toBe(true);
+    expect(isRemovableOptionalPromo({ modality: 'MANUAL' })).toBe(true);
+    expect(isRemovableOptionalPromo({ modality: 'AUTO' })).toBe(false);
   });
 });

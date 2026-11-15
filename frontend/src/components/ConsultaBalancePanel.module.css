@@ -126,6 +126,130 @@
   font-variant-numeric: tabular-nums;
 }
 
+.promoValueGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.promoRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-primary-dark);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.promoRemoveBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.promoRemoveBtn:hover,
+.promoRemoveBtn:focus-visible {
+  color: var(--color-danger, #c92a2a);
+  background: rgba(201, 42, 42, 0.08);
+}
+
+.promoRemoveBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.addPromoWrap {
+  position: relative;
+  align-self: flex-start;
+}
+
+.addPromoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-primary-dark);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addPromoBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.addPromoBtn:hover:not(:disabled),
+.addPromoBtn:focus-visible:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.addPromoBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.addPromoBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.addPromoMenu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 220px;
+  max-width: 320px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.addPromoOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-dark);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
+  text-align: left;
+  cursor: pointer;
+}
+
+.addPromoOption:hover,
+.addPromoOption:focus-visible {
+  background: rgba(63, 95, 138, 0.08);
+}
+
+.addPromoMeta {
+  color: var(--color-primary-dark);
+  font-size: 0.75em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .manualPromoBlock {
   display: flex;
   flex-direction: column;
@@ -263,12 +387,38 @@
   font-weight: 600;
 }
 
-.notesText {
-  margin: 0;
+.notesField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-main);
+  font-size: var(--font-size-small);
   color: var(--color-text-dark);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  white-space: pre-wrap;
+  background: var(--color-bg-white, #fff);
+  box-sizing: border-box;
+}
+
+.notesTextarea:focus,
+.notesTextarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.notesTextarea:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .statusSelect {

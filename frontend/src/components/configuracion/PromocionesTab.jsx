@@ -28,8 +28,8 @@ const EMPTY_FORM = {
 
 const MODALITY_LABEL = {
   AUTO: 'Automática',
-  MANUAL: 'Manual (por defecto desactivado)',
-  SUGERIDA: 'Manual (por defecto activado)'
+  MANUAL: 'Opcional (por defecto desactivado)',
+  SUGERIDA: 'Opcional (por defecto activado)'
 };
 
 /** Variables del editor (Variable | Operador | Valor). */
@@ -1260,8 +1260,8 @@ function PromocionesTab() {
                   onChange={(e) => setField('modality', e.target.value)}
                 >
                   <option value="AUTO">Automática</option>
-                  <option value="SUGERIDA">Manual (por defecto activado)</option>
-                  <option value="MANUAL">Manual (por defecto desactivado)</option>
+                  <option value="SUGERIDA">Opcional (por defecto activado)</option>
+                  <option value="MANUAL">Opcional (por defecto desactivado)</option>
                 </select>
               </label>
               <label className={styles.field}>

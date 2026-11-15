@@ -43,18 +43,22 @@ function normalizePromoApplyOpts(opts = {}) {
     .concat(opts.promotionRuleIds || [])
     .map((id) => parseInt(id, 10))
     .filter((id) => Number.isFinite(id));
+  const deselectedRuleIds = []
+    .concat(opts.deselectedRuleIds || [])
+    .map((id) => parseInt(id, 10))
+    .filter((id) => Number.isFinite(id) && !selectedRuleIds.includes(id));
   const benefitValueByRuleId =
     opts.benefitValueByRuleId && typeof opts.benefitValueByRuleId === 'object'
       ? opts.benefitValueByRuleId
       : {};
-  return { selectedRuleIds, benefitValueByRuleId };
+  return { selectedRuleIds, deselectedRuleIds, benefitValueByRuleId };
 }
 
 /**
  * Regenera cargos de alojamiento + ReservationNightRate desde segmentos activos.
  * Conserva cargos con subcategoriaCargoId (consumos/servicios/otros).
  * Prioridad de monto: nightRates del payload → motor canónico → baseRate del segmento.
- * promoOpts: { selectedRuleIds, benefitValueByRuleId } para valor manual al aplicar.
+ * promoOpts: { selectedRuleIds, deselectedRuleIds, benefitValueByRuleId }.
  */
 async function syncLodgingChargesAndNightRates(
   reservationId,
@@ -62,7 +66,8 @@ async function syncLodgingChargesAndNightRates(
   originalSegments = [],
   promoOpts = {}
 ) {
-  const { selectedRuleIds, benefitValueByRuleId } = normalizePromoApplyOpts(promoOpts);
+  const { selectedRuleIds, deselectedRuleIds, benefitValueByRuleId } =
+    normalizePromoApplyOpts(promoOpts);
   const reservaId = parseInt(reservationId, 10);
   if (!Array.isArray(segments) || segments.length === 0) {
     return { totalNights: 0 };
@@ -179,6 +184,7 @@ async function syncLodgingChargesAndNightRates(
           serviceTypeId,
           occupancyPercent,
           selectedRuleIds,
+          deselectedRuleIds,
           benefitValueByRuleId,
           applySuggestedDefaults: true
         },
@@ -226,8 +232,9 @@ async function syncLodgingChargesAndNightRates(
           nightPrice: originalAmount,
           occupancyPercent,
           selectedRuleIds,
+          deselectedRuleIds,
           benefitValueByRuleId,
-          // AUTO + SUGERIDA (default ON). MANUAL sigue requiriendo selectedRuleIds.
+          // AUTO + SUGERIDA (default ON). MANUAL/opcional OFF requiere selectedRuleIds.
           applySuggestedDefaults: true
         });
         if (rateEval.aplica) {
@@ -506,11 +513,13 @@ async function createReservationWithSegments(reservationData) {
     /// Por defecto el responsable se incorpora como huésped (removible después).
     includeHolderAsGuest = true,
     selectedRuleIds,
+    deselectedRuleIds,
     promotionRuleIds,
     benefitValueByRuleId
   } = reservationData;
   const promoOpts = normalizePromoApplyOpts({
     selectedRuleIds,
+    deselectedRuleIds,
     promotionRuleIds,
     benefitValueByRuleId
   });
@@ -759,11 +768,13 @@ async function updateReservationWithSegments(reservationId, updateData) {
     mainClientId,
     applyRateChanges = true,
     selectedRuleIds,
+    deselectedRuleIds,
     promotionRuleIds,
     benefitValueByRuleId
   } = updateData;
   const promoOpts = normalizePromoApplyOpts({
     selectedRuleIds,
+    deselectedRuleIds,
     promotionRuleIds,
     benefitValueByRuleId
   });

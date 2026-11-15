@@ -1,7 +1,8 @@
 /**
  * Motor de reglas de promociones / descuentos.
  * Condiciones AND → beneficio → modalidad (AUTO|MANUAL|SUGERIDA) → capa (SETTLEMENT|RATE).
- * MANUAL = manual (por defecto desactivado); SUGERIDA = manual (por defecto activado).
+ * MANUAL = opcional (por defecto desactivado); SUGERIDA = opcional (por defecto activado).
+ * «Valor manual» (benefitValueManual) es independiente de la modalidad.
  * Snapshot en DiscountApplication / ReservationNightRate; solo forward.
  */
 
@@ -347,9 +348,17 @@ function modalityIsSuggestion(rule) {
   return rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
 }
 
-/** SUGERIDA = manual (por defecto activado); MANUAL = manual (por defecto desactivado). */
+/** SUGERIDA = opcional (default ON); MANUAL = opcional (default OFF). */
 function modalityDefaultOn(rule) {
   return rule?.modality === 'SUGERIDA';
+}
+
+function withModalityMeta(rule, payload = {}) {
+  return {
+    ...payload,
+    modality: rule?.modality || 'AUTO',
+    defaultOn: modalityDefaultOn(rule)
+  };
 }
 
 /**
@@ -792,17 +801,19 @@ function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
     }
     if (ruleDiscount > 0) {
       totalDiscount = roundMoney(totalDiscount + ruleDiscount);
-      appliedRules.push({
-        promotionRuleId: rule.id,
-        code: rule.code,
-        label: rule.label,
-        benefitType: 'FREE_NIGHTS',
-        benefitValue: toNumber(rule.benefitValue),
-        freeNightCount: available.length,
-        nightIndices: available,
-        montoARS: ruleDiscount,
-        porcentaje: 100
-      });
+      appliedRules.push(
+        withModalityMeta(rule, {
+          promotionRuleId: rule.id,
+          code: rule.code,
+          label: rule.label,
+          benefitType: 'FREE_NIGHTS',
+          benefitValue: toNumber(rule.benefitValue),
+          freeNightCount: available.length,
+          nightIndices: available,
+          montoARS: ruleDiscount,
+          porcentaje: 100
+        })
+      );
     }
   }
 
@@ -888,15 +899,17 @@ function evaluateNonFreeStayBenefits(nonFreeRules, ctx, nightPrices) {
   const appliedRules = [];
   for (const rule of selected) {
     const preview = benefitFn(rule);
-    appliedRules.push({
-      promotionRuleId: rule.id,
-      code: rule.code,
-      label: rule.label,
-      benefitType: rule.benefitType || null,
-      benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
-      montoARS: preview.descuentoARS,
-      porcentaje: preview.percent
-    });
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType || null,
+        benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
+        montoARS: preview.descuentoARS,
+        porcentaje: preview.percent
+      })
+    );
     preview.nightDiscounts.forEach((d, i) => {
       nightDiscountSum[i] = roundMoney(toNumber(nightDiscountSum[i]) + toNumber(d));
     });
@@ -1012,15 +1025,17 @@ function evaluateRateRules(rules, ctx) {
   for (const rule of selected) {
     const r = applyRateBenefit(rule, nightPrice, nights);
     totalDiscount = roundMoney(totalDiscount + r.discountARS);
-    appliedRules.push({
-      promotionRuleId: rule.id,
-      code: rule.code,
-      label: rule.label,
-      benefitType: rule.benefitType || null,
-      benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
-      montoARS: r.discountARS,
-      porcentaje: r.percent
-    });
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType || null,
+        benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
+        montoARS: r.discountARS,
+        porcentaje: r.percent
+      })
+    );
   }
   totalDiscount = Math.min(nightPrice, totalDiscount);
 
