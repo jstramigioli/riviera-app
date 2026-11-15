@@ -22,6 +22,7 @@ import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
+import RegimenTab from '../components/ReservationTabs/RegimenTab';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import { FiMail, FiCopy, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -38,7 +39,14 @@ function firstRoomIdFromReservation(reservation) {
 }
 
 const resolveInitialTab = (activeTab) => {
-  if (activeTab === 'financiero' || activeTab === 'huespedes') return activeTab;
+  if (
+    activeTab === 'financiero' ||
+    activeTab === 'huespedes' ||
+    activeTab === 'regimen' ||
+    activeTab === 'comidas'
+  ) {
+    return activeTab === 'comidas' ? 'regimen' : activeTab;
+  }
   return null;
 };
 
@@ -497,6 +505,15 @@ const ReservationDetails = () => {
             onClientClick={handleClientClick}
           />
         );
+      case 'regimen':
+        return (
+          <RegimenTab
+            reservation={reservation}
+            onSaved={(updated) => {
+              setReservation((prev) => ({ ...prev, ...updated }));
+            }}
+          />
+        );
       default:
         return null;
     }
@@ -674,6 +691,13 @@ const ReservationDetails = () => {
               onClick={() => setActiveTab('huespedes')}
             >
               Huéspedes
+            </button>
+            <button
+              className={`${styles.sectionButton} ${activeTab === 'regimen' ? styles.active : ''}`}
+              onClick={() => setActiveTab('regimen')}
+              data-testid="reservation-tab-regimen"
+            >
+              Régimen
             </button>
           </div>
         </div>

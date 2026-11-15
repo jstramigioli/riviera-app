@@ -118,6 +118,7 @@ export async function fetchPaymentsByGuest(guestId) {
 export async function updateReservation(id, data) {
   const res = await fetch(`${API_URL}/reservations/${id}`, {
     method: 'PUT',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });

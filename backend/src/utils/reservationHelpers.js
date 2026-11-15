@@ -779,6 +779,10 @@ async function updateReservationWithSegments(reservationId, updateData) {
   const {
     status,
     notes,
+    notaComidas,
+    dietVegetariano,
+    dietVegano,
+    dietCeliaco,
     source,
     segments,
     mainClientId,
@@ -805,6 +809,12 @@ async function updateReservationWithSegments(reservationId, updateData) {
     data: {
       status: status || undefined,
       notes: notes !== undefined ? notes : undefined,
+      ...(notaComidas !== undefined ? { notaComidas } : {}),
+      ...(dietVegetariano !== undefined
+        ? { dietVegetariano: Boolean(dietVegetariano) }
+        : {}),
+      ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
+      ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
       ...(source !== undefined
         ? { source: normalizeReservationSource(source) }
         : {}),

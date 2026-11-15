@@ -7,13 +7,37 @@ import {
   todayIsoLocal
 } from '../utils/calendarDates';
 import { buildReceptionDashboardModel } from '../utils/receptionDashboardStats';
-import { fetchRooms, fetchReservations, fetchServiceTypes } from '../services/api';
+import {
+  fetchRooms,
+  fetchReservations,
+  fetchServiceTypes,
+  getReservationsWithBalances
+} from '../services/api';
 import { updateReservationStatusOnServer } from '../utils/apiUtils';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
 import styles from './ReceptionDashboard.module.css';
+
+function formatSaldo(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '—';
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(n);
+}
+
+function isSettledBalance(row) {
+  if (!row) return null;
+  if (row.estadoPago === 'PAGADO' || row.estadoPago === 'A_FAVOR') return true;
+  const saldo = Number(row.saldo);
+  if (Number.isFinite(saldo)) return saldo <= 0;
+  return null;
+}
 
 function civilLocalDate(dayIso) {
   const [y, m, d] = String(dayIso).split('-').map(Number);
@@ -78,6 +102,10 @@ export default function ReceptionDashboard() {
   const [selectedDinner, setSelectedDinner] = useState(() => new Set());
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentReservaId, setPaymentReservaId] = useState(null);
+  const [balancesByReservationId, setBalancesByReservationId] = useState(
+    () => new Map()
+  );
 
   useEffect(() => {
     return subscribeSimulatedToday(() => {
@@ -95,14 +123,21 @@ export default function ReceptionDashboard() {
       setError(null);
     }
     try {
-      const [roomsData, reservationsData, servicePayload] = await Promise.all([
-        fetchRooms(),
-        fetchReservations(),
-        fetchServiceTypes().catch(() => [])
-      ]);
+      const [roomsData, reservationsData, servicePayload, balances] =
+        await Promise.all([
+          fetchRooms(),
+          fetchReservations(),
+          fetchServiceTypes().catch(() => []),
+          getReservationsWithBalances().catch(() => [])
+        ]);
       setRooms(roomsData || []);
       setReservations(reservationsData || []);
       setServiceTypes(Array.isArray(servicePayload) ? servicePayload : []);
+      const map = new Map();
+      for (const row of balances || []) {
+        if (row?.id != null) map.set(Number(row.id), row);
+      }
+      setBalancesByReservationId(map);
     } catch (err) {
       setError(err?.message || 'Error al cargar el dashboard');
     } finally {
@@ -273,45 +308,77 @@ export default function ReceptionDashboard() {
                 <tr>
                   <th>Nombre</th>
                   <th>Huéspedes</th>
+                  <th>Saldo</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {checkoutRows.map((item) => (
-                  <tr key={`out-${item.reservationId}`}>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.listLink}
-                        onClick={() => openReservation(item.reservationId)}
-                      >
-                        {item.guestName || item.label}
-                      </button>
-                      {item.late ? (
-                        <span className={styles.lateHint}>
-                          {' '}
-                          atrasado ({item.plannedCheckout})
-                        </span>
-                      ) : item.plannedCheckout ? (
-                        <span className={styles.statusMuted}>
-                          {' '}
-                          · {item.plannedCheckout}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td>{item.guests ?? '—'}</td>
-                    <td className={styles.actionsCell}>
-                      <button
-                        type="button"
-                        className={styles.actionBtn}
-                        disabled={statusBusyId === item.reservationId}
-                        onClick={() => setStatus(item.reservationId, 'FINALIZADA')}
-                      >
-                        Finalizar reserva
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {checkoutRows.map((item) => {
+                  const bal = balancesByReservationId.get(
+                    Number(item.reservationId)
+                  );
+                  const settled = isSettledBalance(bal);
+                  return (
+                    <tr key={`out-${item.reservationId}`}>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.listLink}
+                          onClick={() => openReservation(item.reservationId)}
+                        >
+                          {item.guestName || item.label}
+                        </button>
+                        {item.late ? (
+                          <span className={styles.lateHint}>
+                            {' '}
+                            atrasado ({item.plannedCheckout})
+                          </span>
+                        ) : item.plannedCheckout ? (
+                          <span className={styles.statusMuted}>
+                            {' '}
+                            · {item.plannedCheckout}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td>{item.guests ?? '—'}</td>
+                      <td>
+                        {settled === true ? (
+                          <span className={styles.statusDone}>Saldado</span>
+                        ) : settled === false ? (
+                          <span className={styles.lateHint}>
+                            No saldado · {formatSaldo(bal?.saldo)}
+                          </span>
+                        ) : (
+                          <span className={styles.statusMuted}>Sin folio</span>
+                        )}
+                      </td>
+                      <td className={styles.actionsCell}>
+                        {settled === false ? (
+                          <button
+                            type="button"
+                            className={styles.actionBtn}
+                            onClick={() => {
+                              setPaymentReservaId(item.reservationId);
+                              setPaymentOpen(true);
+                            }}
+                          >
+                            Agregar pagos
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          disabled={statusBusyId === item.reservationId}
+                          onClick={() =>
+                            setStatus(item.reservationId, 'FINALIZADA')
+                          }
+                        >
+                          Finalizar reserva
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -477,7 +544,10 @@ export default function ReceptionDashboard() {
         onCreateQuery={() => navigate('/consulta')}
         onCreateReservation={() => navigate('/consulta?modo=reserva')}
         onCreateConsumption={() => setConsumptionOpen(true)}
-        onCreatePayment={() => setPaymentOpen(true)}
+        onCreatePayment={() => {
+          setPaymentReservaId(null);
+          setPaymentOpen(true);
+        }}
       />
 
       <ConsumptionOrderModal
@@ -491,10 +561,14 @@ export default function ReceptionDashboard() {
       />
       {paymentOpen ? (
         <PaymentForm
-          reservaId={null}
-          onClose={() => setPaymentOpen(false)}
+          reservaId={paymentReservaId}
+          onClose={() => {
+            setPaymentOpen(false);
+            setPaymentReservaId(null);
+          }}
           onSuccess={() => {
             setPaymentOpen(false);
+            setPaymentReservaId(null);
             load({ quiet: true });
           }}
         />

@@ -218,6 +218,11 @@ model Reservation {
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
+  /// Notas de comidas / régimen alimentario (cocina-recepción).
+  notaComidas         String?
+  dietVegetariano     Boolean                @default(false)
+  dietVegano          Boolean                @default(false)
+  dietCeliaco         Boolean                @default(false)
   /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
   source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
