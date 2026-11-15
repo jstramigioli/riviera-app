@@ -407,6 +407,22 @@
   z-index: 6;
 }
 
+/* Finalizadas: menos énfasis que las activas */
+.barFinished {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.barFinished:hover,
+.barFinished.barHovered {
+  filter: brightness(0.97);
+  outline-color: var(--color-border-dark);
+}
+
+.barFinished .barText {
+  font-weight: 500;
+}
+
 .barText {
   font-weight: 600;
   font-size: 10px;

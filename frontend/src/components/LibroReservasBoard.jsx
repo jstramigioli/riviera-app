@@ -706,24 +706,33 @@ export default function LibroReservasBoard({
                       style.width
                     );
                     const hovered = hoveredReservationId === b.reservationId;
+                    const finished = b.status === 'FINALIZADA';
                     const sourceColor =
-                      b.source && sourceColors[b.source]
+                      !finished && b.source && sourceColors[b.source]
                         ? sourceColors[b.source]
                         : null;
-                    const barStyle = sourceColor
-                      ? {
-                          ...style,
-                          backgroundColor: sourceColor,
-                          borderColor: sourceColor,
-                          color: contrastTextColor(sourceColor)
-                        }
-                      : style;
+                    // Finalizadas: gris claro (menos énfasis que el color del medio)
+                    const finishedStyle = {
+                      backgroundColor: '#e5e7eb',
+                      borderColor: '#d1d5db',
+                      color: '#6b7280'
+                    };
+                    const barStyle = finished
+                      ? { ...style, ...finishedStyle }
+                      : sourceColor
+                        ? {
+                            ...style,
+                            backgroundColor: sourceColor,
+                            borderColor: sourceColor,
+                            color: contrastTextColor(sourceColor)
+                          }
+                        : style;
                     const medio = sourceLabel(b.source);
                     return (
                       <button
                         type="button"
                         key={`${b.segmentId}-${b.startOffset}`}
-                        className={`${styles.bar} ${hovered ? styles.barHovered : ''}`}
+                        className={`${styles.bar} ${finished ? styles.barFinished : ''} ${hovered ? styles.barHovered : ''}`}
                         style={barStyle}
                         title={`${label} · ${medio} · ${formatDateUi(b.startDate)} → ${formatDateUi(b.endDate)}`}
                         onClick={() => handleBarClick(b)}
