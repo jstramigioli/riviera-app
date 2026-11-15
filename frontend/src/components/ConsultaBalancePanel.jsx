@@ -19,7 +19,13 @@ import {
   mergeManualBenefitSuggestions
 } from '../utils/promoManualBenefit';
 import { buildStayNightPlan } from '../utils/stayPromoPreview';
+import {
+  applyDistributedTotalsToNights,
+  distributeStayTotal
+} from '../utils/distributeStayTotal';
 import styles from './ConsultaBalancePanel.module.css';
+
+/** @typedef {'automatic' | 'manual'} PricingMode */
 
 /**
  * Panel derecho de Consulta: tarifas, promos y datos de confirmación inline.
@@ -34,6 +40,7 @@ export default function ConsultaBalancePanel({
   reservationStatus = 'PENDIENTE',
   onStatusChange,
   onPromoApplyChange,
+  onManualPricingChange,
   isEditing = false,
   disabled = false,
   showActions = false,
@@ -55,7 +62,11 @@ export default function ConsultaBalancePanel({
   const [deselectedRuleIds, setDeselectedRuleIds] = useState([]);
   const [showNightBreakdown, setShowNightBreakdown] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  /** @type {[PricingMode, function]} */
+  const [pricingMode, setPricingMode] = useState('automatic');
+  const [manualStayTotalInput, setManualStayTotalInput] = useState('');
   const addMenuRef = useRef(null);
+  const isManualPricing = pricingMode === 'manual';
 
   const segmentNightGroups = useMemo(
     () => collectSegmentNights(segments, selectedRoomsPerBlock),
@@ -85,6 +96,42 @@ export default function ConsultaBalancePanel({
     onPromoApplyChange?.(applyPayload);
   }, [applyPayload, onPromoApplyChange]);
 
+  const stayNightCount = useMemo(
+    () => segmentNightGroups.reduce((sum, seg) => sum + (seg.nights?.length || 0), 0),
+    [segmentNightGroups]
+  );
+
+  const manualStayTotal = useMemo(() => {
+    if (manualStayTotalInput === '' || manualStayTotalInput == null) return null;
+    const n = Number(manualStayTotalInput);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }, [manualStayTotalInput]);
+
+  useEffect(() => {
+    if (!isManualPricing) {
+      onManualPricingChange?.({
+        createdWithManualRate: false,
+        manualStayTotal: null,
+        nightAmounts: null
+      });
+      return;
+    }
+    const amounts =
+      manualStayTotal == null || stayNightCount <= 0
+        ? null
+        : distributeStayTotal(manualStayTotal, stayNightCount);
+    onManualPricingChange?.({
+      createdWithManualRate: true,
+      manualStayTotal,
+      nightAmounts: amounts
+    });
+  }, [
+    isManualPricing,
+    manualStayTotal,
+    stayNightCount,
+    onManualPricingChange
+  ]);
+
   useEffect(() => {
     setShowNightBreakdown(false);
     setManualValues({});
@@ -93,6 +140,8 @@ export default function ConsultaBalancePanel({
     setSelectedOptionalIds([]);
     setDeselectedRuleIds([]);
     setAddMenuOpen(false);
+    setPricingMode('automatic');
+    setManualStayTotalInput('');
   }, [segments, selectedRoomsPerBlock]);
 
   useEffect(() => {
@@ -115,6 +164,45 @@ export default function ConsultaBalancePanel({
         setManualSuggestions([]);
         setOptionalChoices([]);
         setPromoError(null);
+        return;
+      }
+
+      // Precio manual: sin preview de promos; total = input repartido.
+      if (pricingMode === 'manual') {
+        if (manualStayTotal == null || stayNightCount <= 0) {
+          if (!cancelled) {
+            setSegmentQuotes([]);
+            setManualSuggestions([]);
+            setOptionalChoices([]);
+            setPromoError(null);
+            setPromoLoading(false);
+          }
+          return;
+        }
+        const stay = buildStayNightPlan(segmentNightGroups);
+        const distributed = applyDistributedTotalsToNights(stay.nights, manualStayTotal);
+        const quotes = stay.offsets.map((off) => {
+          const nights = distributed.slice(off.start, off.end).map((night, local) => ({
+            ...night,
+            nightIndex: local,
+            segmentIndex: off.segmentIndex
+          }));
+          const subtotal = nights.reduce((sum, n) => sum + (Number(n.finalARS) || 0), 0);
+          return {
+            segmentIndex: off.segmentIndex,
+            subtotal,
+            discountARS: 0,
+            nights,
+            promos: []
+          };
+        });
+        if (!cancelled) {
+          setSegmentQuotes(quotes);
+          setManualSuggestions([]);
+          setOptionalChoices([]);
+          setPromoError(null);
+          setPromoLoading(false);
+        }
         return;
       }
 
@@ -240,7 +328,14 @@ export default function ConsultaBalancePanel({
     return () => {
       cancelled = true;
     };
-  }, [segmentNightGroups, applyPayload, hasSelection]);
+  }, [
+    segmentNightGroups,
+    applyPayload,
+    hasSelection,
+    pricingMode,
+    manualStayTotal,
+    stayNightCount
+  ]);
 
   const quote = useMemo(() => {
     if (segmentQuotes.length) return summarizeConfirmationQuote(segmentQuotes);
@@ -254,11 +349,12 @@ export default function ConsultaBalancePanel({
     };
   }, [segmentQuotes, baseSubtotal, segmentNightGroups]);
 
-  /** Noches con tarifa > 0 (oculta noche=0 del desglose). */
-  const billedNights = useMemo(
-    () => (quote.nights || []).filter((night) => Number(night.originalARS) > 0),
-    [quote.nights]
-  );
+  /** Noches con tarifa > 0 (oculta noche=0 del desglose). En manual muestra todas. */
+  const billedNights = useMemo(() => {
+    const nights = quote.nights || [];
+    if (isManualPricing) return nights;
+    return nights.filter((night) => Number(night.originalARS) > 0);
+  }, [quote.nights, isManualPricing]);
 
   const setManualValue = (ruleId, value) => {
     setManualValues((prev) => ({ ...prev, [ruleId]: value }));

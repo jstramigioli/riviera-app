@@ -4,6 +4,7 @@ const {
   evaluateSettlementRules,
   evaluateRateRules,
   applyRateBenefit,
+  allocateFixedStayDiscounts,
   selectByStacking,
   isRuleVigente,
   computeFreeNightCount,
@@ -486,12 +487,45 @@ describe('promotionEngine rate + stacking', () => {
     });
     const codes = stay.appliedRules.map((r) => r.code).sort();
     expect(codes).toEqual(['AUTO10', 'FIXED10K']);
-    expect(stay.appliedRules.find((r) => r.code === 'FIXED10K').montoARS).toBeCloseTo(
-      10000,
+    expect(stay.appliedRules.find((r) => r.code === 'FIXED10K').montoARS).toBe(10000);
+    expect(stay.appliedRules.find((r) => r.code === 'AUTO10').montoARS).toBe(60000);
+    expect(stay.discountARS).toBe(70000);
+    const nightDiscSum = (stay.nights || []).reduce(
+      (s, n) => s + (Number(n.discountARS) || 0),
       0
     );
-    expect(stay.appliedRules.find((r) => r.code === 'AUTO10').montoARS).toBe(60000);
-    expect(stay.discountARS).toBeCloseTo(70000, 0);
+    expect(Number(nightDiscSum.toFixed(2))).toBe(70000);
+  });
+
+  it('FIXED 10000 en N noches: monto exacto (no 10000.12)', () => {
+    const prices = [183333.33, 183333.33, 183333.34, 200000, 200000, 200000];
+    const alloc = allocateFixedStayDiscounts(10000, prices);
+    const cents = alloc.reduce((s, d) => s + Math.round(d * 100), 0);
+    expect(cents).toBe(1000000);
+    expect(Number(alloc.reduce((s, d) => s + d, 0).toFixed(2))).toBe(10000);
+
+    const rule = {
+      id: 12,
+      code: 'FIXED10K',
+      label: 'Fijo',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'FIXED',
+      benefitValue: 10000,
+      conditions: []
+    };
+    const stay = evaluateRateRules([rule], {
+      layer: 'RATE',
+      nights: prices.length,
+      nightPrices: prices,
+      applySuggestedDefaults: true
+    });
+    expect(stay.appliedRules[0].montoARS).toBe(10000);
+    expect(stay.discountARS).toBe(10000);
+    expect(stay.discountARS).not.toBe(10000.12);
   });
 
   it('SUGERIDA % sin condiciones no la come EXCLUSIVE de un AUTO', () => {

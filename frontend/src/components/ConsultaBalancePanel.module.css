@@ -9,16 +9,17 @@
   gap: 0;
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
   font-family: var(--font-main);
   font-size: var(--font-size-base);
   color: var(--color-text-dark);
 }
 
+/* El scroll vive en .sideScroll (timeline + balance); el body no tiene scroll propio */
 .panelBody {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   padding: 12px 14px 16px;
   display: flex;
   flex-direction: column;
@@ -448,6 +449,9 @@
 
 .actionsFooter {
   flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

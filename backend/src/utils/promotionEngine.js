@@ -845,8 +845,44 @@ function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
 }
 
 /**
+ * Reparte un monto FIXED de estadía en centavos exactos entre noches
+ * (promedio + resto a las primeras; respeta tope por noche).
+ * Evita basura tipo $10000 → $10000.02 por round(value/n)*n.
+ */
+function allocateFixedStayDiscounts(totalARS, nightPrices) {
+  const prices = Array.isArray(nightPrices) ? nightPrices.map(toNumber) : [];
+  const n = prices.length;
+  if (n === 0) return [];
+
+  const caps = prices.map((p) => Math.max(0, Math.round(roundMoney(p) * 100)));
+  const capSum = caps.reduce((sum, c) => sum + c, 0);
+  let target = Math.min(Math.round(roundMoney(totalARS) * 100), capSum);
+  if (target <= 0) return prices.map(() => 0);
+
+  const base = Math.floor(target / n);
+  let rem = target - base * n;
+  const alloc = [];
+  for (let i = 0; i < n; i++) {
+    const want = base + (rem > 0 ? 1 : 0);
+    if (rem > 0) rem -= 1;
+    alloc.push(Math.min(want, caps[i]));
+  }
+  let leftover = target - alloc.reduce((sum, c) => sum + c, 0);
+  for (let i = 0; leftover > 0 && i < n; i++) {
+    const room = caps[i] - alloc[i];
+    if (room <= 0) continue;
+    const add = Math.min(room, leftover);
+    alloc[i] += add;
+    leftover -= add;
+  }
+  return alloc.map((c) => c / 100);
+}
+
+/**
  * Ajuste RATE sobre precio de una noche.
  * FREE_NIGHTS no aplica aquí (requiere estadía completa → evaluateFreeNightsForStay).
+ * FIXED total de estadía: en path de una sola noche usa el valor completo (tope noche);
+ * el reparto multi-noche exacto vive en evaluateNonFreeStayBenefits.
  */
 function applyRateBenefit(rule, nightPrice, nights = 1) {
   const base = toNumber(nightPrice);
@@ -868,7 +904,9 @@ function applyRateBenefit(rule, nightPrice, nights = 1) {
   } else if (rule.benefitType === 'FIXED_PER_NIGHT') {
     discount = roundMoney(value);
   } else if (rule.benefitType === 'FIXED') {
-    discount = roundMoney(value / Math.max(1, nights));
+    // Una noche / path legacy: monto completo topeado por la noche.
+    // Estadía multi-noche: evaluateNonFreeStayBenefits → allocateFixedStayDiscounts.
+    discount = roundMoney(value);
   }
   discount = applyCap(discount, rule.benefitCapARS);
   discount = Math.min(discount, base);
@@ -897,6 +935,19 @@ function evaluateNonFreeStayBenefits(nonFreeRules, ctx, nightPrices) {
     let descuentoARS = 0;
     const nightDiscounts = [];
     let percent = null;
+    if (rule.benefitType === 'FIXED') {
+      let fixedTotal = toNumber(rule.benefitValue);
+      fixedTotal = applyCap(fixedTotal, rule.benefitCapARS);
+      const allocated = allocateFixedStayDiscounts(fixedTotal, nightPrices);
+      // Suma en centavos → evita 10000.02 / 10000.12 por float.
+      const cents = allocated.reduce(
+        (sum, d) => sum + Math.round(roundMoney(d) * 100),
+        0
+      );
+      for (const d of allocated) nightDiscounts.push(d);
+      descuentoARS = cents / 100;
+      return { descuentoARS, nightDiscounts, percent: null };
+    }
     for (const price of nightPrices) {
       const r = applyRateBenefit(rule, price, nightsCount);
       nightDiscounts.push(r.discountARS);
@@ -1138,6 +1189,7 @@ module.exports = {
   pickCheapestNightIndices,
   evaluateFreeNightsForStay,
   applyRateBenefit,
+  allocateFixedStayDiscounts,
   evaluateRateRules,
   loadActivePromotionRules,
   computeHotelOccupancyPercent

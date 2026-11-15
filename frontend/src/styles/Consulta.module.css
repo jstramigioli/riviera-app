@@ -99,6 +99,16 @@
   color: var(--color-text-dark);
 }
 
+/* Un solo scroll: timeline de estadía + balance/tarifas */
+.sideScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .sideStay {
   flex: 0 0 auto;
   padding: 12px 14px;
@@ -107,9 +117,9 @@
 
 .sideBalance {
   padding: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   background: transparent;
@@ -238,6 +248,10 @@
   .colSide {
     position: static;
     max-height: none;
+    overflow: visible;
+  }
+
+  .sideScroll {
     overflow: visible;
   }
 

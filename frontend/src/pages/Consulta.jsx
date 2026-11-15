@@ -3934,49 +3934,51 @@ export default function Consulta() {
         </div>
 
         <aside className={styles.colSide} aria-label="Estadía y tarifas">
-          <div className={styles.sideStay}>
-            {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
-              <ReservationStayTimeline
-                reservation={timelineReservation}
-                getServiceTypeLabel={getServiceTypeLabel}
-                onClientClick={handleClientClick}
-                orientation="vertical"
-                compact
-                hideTotal
-                embedded
+          <div className={styles.sideScroll}>
+            <div className={styles.sideStay}>
+              {formData.mainClient?.id || segments.some((s) => s.checkIn && s.checkOut) ? (
+                <ReservationStayTimeline
+                  reservation={timelineReservation}
+                  getServiceTypeLabel={getServiceTypeLabel}
+                  onClientClick={handleClientClick}
+                  orientation="vertical"
+                  compact
+                  hideTotal
+                  embedded
+                />
+              ) : (
+                <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
+              )}
+            </div>
+            <div className={styles.sideBalance}>
+              <ConsultaBalancePanel
+                segments={segments}
+                selectedRoomsPerBlock={selectedRoomsPerBlock}
+                notes={notes}
+                onNotesChange={setNotes}
+                source={source}
+                onSourceChange={setSource}
+                reservationStatus={reservationStatus}
+                onStatusChange={setReservationStatus}
+                onPromoApplyChange={handlePromoApplyChange}
+                isEditing={Boolean(editingReservationId)}
+                disabled={isCreatingReservation}
+                showActions={Boolean(
+                  segments.length > 0 && segments[0].checkIn && segments[0].checkOut
+                )}
+                onCopy={handleCopyReservationData}
+                onCreateReservation={() =>
+                  handleCreateReservation(reservationStatus, promoApply)
+                }
+                canConfirm={canConfirmReservation}
+                isCreatingReservation={isCreatingReservation}
+                applyRateChanges={applyRateChanges}
+                onApplyRateChanges={setApplyRateChanges}
+                hasClientName={Boolean(
+                  formData.mainClient.firstName && formData.mainClient.lastName
+                )}
               />
-            ) : (
-              <p className={styles.colEmptyHint}>La estadía aparece al completar cliente y fechas.</p>
-            )}
-          </div>
-          <div className={styles.sideBalance}>
-            <ConsultaBalancePanel
-              segments={segments}
-              selectedRoomsPerBlock={selectedRoomsPerBlock}
-              notes={notes}
-              onNotesChange={setNotes}
-              source={source}
-              onSourceChange={setSource}
-              reservationStatus={reservationStatus}
-              onStatusChange={setReservationStatus}
-              onPromoApplyChange={handlePromoApplyChange}
-              isEditing={Boolean(editingReservationId)}
-              disabled={isCreatingReservation}
-              showActions={Boolean(
-                segments.length > 0 && segments[0].checkIn && segments[0].checkOut
-              )}
-              onCopy={handleCopyReservationData}
-              onCreateReservation={() =>
-                handleCreateReservation(reservationStatus, promoApply)
-              }
-              canConfirm={canConfirmReservation}
-              isCreatingReservation={isCreatingReservation}
-              applyRateChanges={applyRateChanges}
-              onApplyRateChanges={setApplyRateChanges}
-              hasClientName={Boolean(
-                formData.mainClient.firstName && formData.mainClient.lastName
-              )}
-            />
+            </div>
           </div>
         </aside>
       </div>
