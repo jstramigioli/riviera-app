@@ -155,6 +155,20 @@ export function occupancyByRoomType(dayIso, rooms = [], reservations = []) {
     .sort((a, b) => a.typeName.localeCompare(b.typeName, 'es'));
 }
 
+function guestCountForReservation(reservation) {
+  if (!reservation) return 1;
+  const fromRequired = Number(reservation.requiredGuests) || 0;
+  const fromGuestsList = Array.isArray(reservation.guests)
+    ? reservation.guests.length
+    : 0;
+  const segs = activeSegments(reservation);
+  const fromSegs = segs.reduce((sum, s) => {
+    const n = Number(s.guestCount);
+    return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+  }, 0);
+  return Math.max(fromRequired, fromGuestsList, fromSegs, 1);
+}
+
 /**
  * Checkout previsto < hoy y aún INGRESADA (no finalizó manualmente).
  */
@@ -172,6 +186,8 @@ export function lateCheckoutItems(todayIso, rooms = [], reservations = []) {
       reservationId: reservation.id,
       roomLabel: room,
       guestName,
+      guests: guestCountForReservation(reservation),
+      status: reservation.status,
       plannedCheckout: end,
       daysLate: Math.max(1, Math.round((Date.parse(`${todayIso}T00:00:00Z`) - Date.parse(`${end}T00:00:00Z`)) / 86400000)),
       label: movementListLabel(room, guestName)
@@ -200,8 +216,12 @@ function enrichMovementItemsWithStatus(items, reservations) {
     const res = byId.get(item.reservationId);
     return {
       ...item,
+      guestName: item.guestName || mainClientDisplayName(res),
+      guests: guestCountForReservation(res),
       status: res?.status || null,
-      pending: res ? !['INGRESADA', 'FINALIZADA', 'CANCELADA', 'NO_PRESENTADA'].includes(res.status) : false
+      pending: res
+        ? !['INGRESADA', 'FINALIZADA', 'CANCELADA', 'NO_PRESENTADA'].includes(res.status)
+        : false
     };
   });
 }
