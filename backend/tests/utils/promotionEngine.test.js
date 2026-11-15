@@ -448,6 +448,50 @@ describe('promotionEngine rate + stacking', () => {
     expect(wrongLayer.discountARS || 0).toBe(0);
   });
 
+  it('FREE_NIGHTS + PERCENT: ambas sobre bruto (sin cascada)', () => {
+    const free = {
+      id: 9,
+      code: 'PROMO_4X3',
+      label: '4x3',
+      activo: true,
+      prioridad: 100,
+      modality: 'SUGERIDA',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'FREE_NIGHTS',
+      benefitValue: 1,
+      conditions: [{ type: 'NIGHTS', params: { op: 'gte', value: 4 } }]
+    };
+    const pct = {
+      id: 10,
+      code: 'AUTO10',
+      label: 'Auto 10%',
+      activo: true,
+      prioridad: 90,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 10,
+      conditions: []
+    };
+    const prices = [264000, 264000, 264000, 264000]; // bruto 1.056.000
+    const stay = evaluateRateRules([free, pct], {
+      layer: 'RATE',
+      nights: 4,
+      nightPrices: prices,
+      applySuggestedDefaults: true
+    });
+    expect(stay.originalARS).toBe(1056000);
+    const freeRule = stay.appliedRules.find((r) => r.code === 'PROMO_4X3');
+    const pctRule = stay.appliedRules.find((r) => r.code === 'AUTO10');
+    expect(freeRule.montoARS).toBe(264000);
+    // % sobre bruto completo (incl. noche gratis), no sobre subtotal post–free.
+    expect(pctRule.montoARS).toBe(105600);
+    expect(stay.discountARS).toBe(264000 + 105600);
+    expect(stay.finalARS).toBe(1056000 - 264000 - 105600);
+  });
+
   it('FREE_NIGHTS: benefitValue=noches gratis; mínimo pagadas vía NIGHTS', () => {
     const rule = {
       id: 30,

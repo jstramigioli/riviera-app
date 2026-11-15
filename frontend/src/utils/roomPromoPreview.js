@@ -69,9 +69,14 @@ export async function previewRoomRatePromo({
     });
 
     const merged = mergeNightsWithPreview(nights, preview);
-    const discountARS = money(merged.reduce((sum, n) => sum + (n.discountARS || 0), 0));
-    const finalARS = money(Math.max(0, originalARS - discountARS));
     const promos = flattenPreviewAppliedRules(preview);
+    const discountFromPromos = money(promos.reduce((sum, p) => sum + (Number(p.montoARS) || 0), 0));
+    const discountARS = money(
+      preview?.discountARS != null && Number.isFinite(Number(preview.discountARS))
+        ? Number(preview.discountARS)
+        : discountFromPromos
+    );
+    const finalARS = money(Math.max(0, originalARS - discountARS));
     const promoLabel =
       promos.length > 0
         ? promos.map((p) => p.label).filter(Boolean).join(' · ')

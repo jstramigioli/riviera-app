@@ -127,8 +127,19 @@ export function flattenPreviewAppliedRules(preview) {
     // Ya contadas vía freeNights.appliedRules (espejo del motor stay).
     return id == null || !freeIds.has(id);
   });
+  const topIds = new Set(
+    fromTop.map((r) => r?.promotionRuleId ?? r?.id ?? r?.code).filter((id) => id != null)
+  );
+  // Solo usar appliedRules por noche si el top no trae esa regla (evita doble conteo %).
   const fromNights = Array.isArray(preview.nights)
-    ? preview.nights.flatMap((n) => (Array.isArray(n.appliedRules) ? n.appliedRules : []))
+    ? preview.nights.flatMap((n) => (Array.isArray(n.appliedRules) ? n.appliedRules : [])).filter(
+        (r) => {
+          const id = r?.promotionRuleId ?? r?.id ?? r?.code;
+          if (id == null) return false;
+          if (freeIds.has(id) || topIds.has(id)) return false;
+          return true;
+        }
+      )
     : [];
 
   const merged = [...fromFree, ...fromTop, ...fromNights];
