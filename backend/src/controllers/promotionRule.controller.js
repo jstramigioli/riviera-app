@@ -12,6 +12,7 @@ const {
   computeHotelOccupancyPercent
 } = require('../utils/promotionEngine');
 const { resolvePaymentMethodConfig } = require('../utils/paymentMethodService');
+const { resolveLayerAndBenefitBase } = require('../utils/promotionRuleLayer');
 
 const CONDITION_TYPES = new Set([
   'DATE_RANGE', // fecha creación reserva
@@ -143,11 +144,15 @@ exports.createPromotionRule = async (req, res) => {
 
     const conditions = normalizeConditions(body.conditions);
     const benefitType = String(body.benefitType || 'PERCENT').toUpperCase();
-    const benefitBase = String(body.benefitBase || 'DEBT_CANCELLED').toUpperCase();
-    const layer = String(body.layer || 'SETTLEMENT').toUpperCase();
     const modality = String(body.modality || 'AUTO').toUpperCase();
     const stacking = String(body.stacking || 'EXCLUSIVE').toUpperCase();
     const kind = String(body.kind || 'DESCUENTO').toUpperCase();
+    const { layer, benefitBase } = resolveLayerAndBenefitBase({
+      kind,
+      benefitType,
+      layer: body.layer,
+      benefitBase: body.benefitBase
+    });
     const benefitValueManual = Boolean(body.benefitValueManual);
     const benefitValueError = validateBenefitValue({
       benefitValueManual,
@@ -233,7 +238,6 @@ exports.updatePromotionRule = async (req, res) => {
       data.prioridad = Number(body.prioridad);
     }
     if (body.modality != null) data.modality = String(body.modality).toUpperCase();
-    if (body.layer != null) data.layer = String(body.layer).toUpperCase();
     if (body.stacking != null) data.stacking = String(body.stacking).toUpperCase();
     if (body.stackingGroup !== undefined) {
       data.stackingGroup = body.stackingGroup ? String(body.stackingGroup).trim() : null;
@@ -247,7 +251,21 @@ exports.updatePromotionRule = async (req, res) => {
     if (body.aplicaEnParcial != null) data.aplicaEnParcial = Boolean(body.aplicaEnParcial);
     if (body.aplicaEnSeña != null) data.aplicaEnSeña = Boolean(body.aplicaEnSeña);
     if (body.benefitType != null) data.benefitType = String(body.benefitType).toUpperCase();
-    if (body.benefitBase != null) data.benefitBase = String(body.benefitBase).toUpperCase();
+    if (
+      body.kind != null ||
+      body.benefitType != null ||
+      body.layer != null ||
+      body.benefitBase != null
+    ) {
+      const resolved = resolveLayerAndBenefitBase({
+        kind: data.kind != null ? data.kind : existing.kind,
+        benefitType: data.benefitType != null ? data.benefitType : existing.benefitType,
+        layer: body.layer != null ? body.layer : existing.layer,
+        benefitBase: body.benefitBase != null ? body.benefitBase : existing.benefitBase
+      });
+      data.layer = resolved.layer;
+      data.benefitBase = resolved.benefitBase;
+    }
     if (body.benefitValueManual != null) {
       data.benefitValueManual = Boolean(body.benefitValueManual);
     }

@@ -408,6 +408,46 @@ describe('promotionEngine rate + stacking', () => {
     expect(miss.aplica).toBe(false);
   });
 
+  it('evaluateRateRules AUTO PERCENT sin condiciones (Consulta)', () => {
+    const rule = {
+      id: 10,
+      code: 'PROMO_PRUEBA_AUTOMATICA',
+      label: 'Promo prueba automática',
+      kind: 'PROMO',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 10,
+      benefitBase: 'RATE_NIGHT',
+      conditions: []
+    };
+    expect(ruleMatchesConditions(rule, { nights: 3 })).toBe(true);
+
+    const stay = evaluateRateRules([rule], {
+      layer: 'RATE',
+      nights: 3,
+      nightPrices: [100000, 100000, 100000],
+      applySuggestedDefaults: true
+    });
+    expect(stay.aplica).toBe(true);
+    expect(stay.discountARS).toBe(30000);
+    expect(stay.appliedRules).toHaveLength(1);
+    expect(stay.appliedRules[0].code).toBe('PROMO_PRUEBA_AUTOMATICA');
+
+    // Misma regla mal guardada en SETTLEMENT: Consulta (layer RATE) no la ve.
+    const wrongLayer = evaluateRateRules([{ ...rule, layer: 'SETTLEMENT' }], {
+      layer: 'RATE',
+      nights: 3,
+      nightPrices: [100000, 100000, 100000],
+      applySuggestedDefaults: true
+    });
+    expect(wrongLayer.aplica).toBe(false);
+    expect(wrongLayer.discountARS || 0).toBe(0);
+  });
+
   it('FREE_NIGHTS: benefitValue=noches gratis; mínimo pagadas vía NIGHTS', () => {
     const rule = {
       id: 30,

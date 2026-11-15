@@ -720,6 +720,9 @@ function PromocionesTab() {
       params: paramsFromCondition(c)
     }));
     const isFreeNights = form.benefitType === 'FREE_NIGHTS';
+    // PROMO (y FREE_NIGHTS) → RATE para que Consulta/cotización las vea.
+    // DESCUENTO → SETTLEMENT (caja / medios de pago).
+    const isRateLayer = isFreeNights || form.kind === 'PROMO';
     return {
       code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
@@ -728,7 +731,7 @@ function PromocionesTab() {
       activo: editingId ? Boolean(form.activo) : true,
       prioridad: 100,
       modality: form.modality,
-      layer: isFreeNights ? 'RATE' : 'SETTLEMENT',
+      layer: isRateLayer ? 'RATE' : 'SETTLEMENT',
       stacking: 'EXCLUSIVE',
       stackingGroup: null,
       vigenteDesde: null,
@@ -738,7 +741,7 @@ function PromocionesTab() {
       benefitType: form.benefitType,
       benefitValue: form.benefitValueManual ? 0 : Number(form.benefitValue) || 0,
       benefitValueManual: Boolean(form.benefitValueManual),
-      benefitBase: isFreeNights ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
+      benefitBase: isRateLayer ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
       benefitCapARS: form.benefitCapARS === '' ? null : Number(form.benefitCapARS),
       descripcionInterna: String(form.descripcionInterna || '').trim() || null,
       conditions

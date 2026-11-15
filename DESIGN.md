@@ -94,7 +94,7 @@ Copy corto, operativo, en español rioplatense de mostrador. Controles nombran l
 - **Tabs de tramo:** underline navy en activo; inactivos muted; sin cards por tab.
 - **Lista de habitaciones:** fila seleccionable; selección = fondo `primary-light` + borde navy (no Material blue).
 - **Lista de habitaciones (Consulta):** fila horizontal con nombre · chip de tipo (borde fino, sin fondo sólido raro) · descripción; sin badge de capacidad. Si hay promo automática: **nombre de la promo a la izquierda del precio tachado**, **valor promocional debajo**. Solo el listado de habitaciones hace scroll (el formulario y acciones quedan fijos). El desglose por noche vive en el panel derecho (no expandir en la card).
-- **Panel derecho (timeline + balance):** arriba timeline de estadía; debajo **Tarifa** con orden: desglose por noche colapsable (chevron junto a Subtotal; solo noches con tarifa > 0) → Subtotal → promos RATE → Total; luego **Reservado por** y **Estado inicial**; sin modal de confirmación.
+- **Panel derecho (timeline + balance):** arriba timeline de estadía; debajo **Tarifa** con orden: chevron fijo junto al título Tarifa (no baja al expandir) → desglose por noche colapsable (solo Noche + Tarifa; sin Promo/Final por noche; solo noches con tarifa > 0) → Subtotal → promos RATE (descuento agregado) → Total; luego **Reservado por** y **Estado inicial**; sin modal de confirmación.
 
 ## Layout & spacing
 
