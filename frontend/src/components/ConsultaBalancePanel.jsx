@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { previewPromotion } from '../services/api';
 import {
@@ -195,6 +196,12 @@ export default function ConsultaBalancePanel({
     };
   }, [segmentQuotes, baseSubtotal, segmentNightGroups]);
 
+  /** Noches con tarifa > 0 (oculta noche=0 del desglose). */
+  const billedNights = useMemo(
+    () => (quote.nights || []).filter((night) => Number(night.originalARS) > 0),
+    [quote.nights]
+  );
+
   const setManualValue = (ruleId, value) => {
     setManualValues((prev) => ({ ...prev, [ruleId]: value }));
   };
@@ -218,12 +225,71 @@ export default function ConsultaBalancePanel({
         </h2>
 
         <div className={styles.quoteRows}>
+          {showNightBreakdown && billedNights.length > 0 ? (
+            <div
+              id="balance-night-breakdown"
+              className={styles.breakdownBlock}
+              data-testid="confirmation-night-breakdown-wrap"
+            >
+              <table className={styles.breakdownTable} data-testid="confirmation-night-breakdown">
+                <thead>
+                  <tr>
+                    <th scope="col">Noche</th>
+                    <th scope="col">Tarifa</th>
+                    <th scope="col">Promo</th>
+                    <th scope="col">Final</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billedNights.map((night) => (
+                    <tr key={`${night.date}-${night.nightIndex}`}>
+                      <td>{night.dateLabel}</td>
+                      <td>{formatConfirmationMoney(night.originalARS)}</td>
+                      <td>
+                        {night.discountARS > 0
+                          ? `−${formatConfirmationMoney(night.discountARS)}`
+                          : '—'}
+                      </td>
+                      <td>{formatConfirmationMoney(night.finalARS ?? night.originalARS)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
           <div className={styles.quoteRow}>
-            <span className={styles.quoteLabel}>Subtotal</span>
+            <span className={styles.subtotalLabelGroup}>
+              {billedNights.length > 0 ? (
+                <button
+                  type="button"
+                  className={styles.breakdownIconBtn}
+                  onClick={() => setShowNightBreakdown((v) => !v)}
+                  aria-expanded={showNightBreakdown}
+                  aria-controls="balance-night-breakdown"
+                  aria-label={
+                    showNightBreakdown
+                      ? 'Ocultar desglose por noche'
+                      : 'Ver desglose por noche'
+                  }
+                >
+                  {showNightBreakdown ? (
+                    <FiChevronDown aria-hidden="true" />
+                  ) : (
+                    <FiChevronRight aria-hidden="true" />
+                  )}
+                </button>
+              ) : null}
+              <span className={styles.quoteLabel}>Subtotal</span>
+            </span>
             <span className={styles.quoteValue}>
               {formatConfirmationMoney(quote.subtotalARS)}
             </span>
           </div>
+
+          {billedNights.length === 0 && quote.nights.length === 0 ? (
+            <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
+          ) : null}
 
           {promoLoading ? (
             <div className={styles.quoteHint}>Calculando promociones…</div>
@@ -290,47 +356,6 @@ export default function ConsultaBalancePanel({
             </span>
           </div>
         </div>
-
-        {quote.nights.length > 0 ? (
-          <div className={styles.breakdownBlock}>
-            <button
-              type="button"
-              className={styles.breakdownToggle}
-              onClick={() => setShowNightBreakdown((v) => !v)}
-              aria-expanded={showNightBreakdown}
-            >
-              {showNightBreakdown ? 'Ocultar desglose por noche' : 'Ver desglose por noche'}
-            </button>
-            {showNightBreakdown ? (
-              <table className={styles.breakdownTable} data-testid="confirmation-night-breakdown">
-                <thead>
-                  <tr>
-                    <th scope="col">Noche</th>
-                    <th scope="col">Tarifa</th>
-                    <th scope="col">Promo</th>
-                    <th scope="col">Final</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {quote.nights.map((night) => (
-                    <tr key={`${night.date}-${night.nightIndex}`}>
-                      <td>{night.dateLabel}</td>
-                      <td>{formatConfirmationMoney(night.originalARS)}</td>
-                      <td>
-                        {night.discountARS > 0
-                          ? `−${formatConfirmationMoney(night.discountARS)}`
-                          : '—'}
-                      </td>
-                      <td>{formatConfirmationMoney(night.finalARS ?? night.originalARS)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : null}
-          </div>
-        ) : (
-          <div className={styles.quoteHint}>No hay tarifas cargadas para los tramos</div>
-        )}
       </section>
 
       <section className={styles.section} aria-labelledby="balance-meta-heading">
