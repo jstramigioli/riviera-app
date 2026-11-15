@@ -563,7 +563,13 @@ function selectByStacking(matchedRules, benefitFn) {
   if (!matchedRules.length) return [];
   const groups = new Map();
   for (const rule of matchedRules) {
-    const key = rule.stackingGroup || '__global__';
+    // Opcionales (SUGERIDA/MANUAL) sin stackingGroup propio no compiten en EXCLUSIVE
+    // contra AUTO: si no, un % opcional default ON «desaparece» del preview.
+    const isOptional =
+      rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
+    const key =
+      rule.stackingGroup ||
+      (isOptional && rule.id != null ? `optional:${rule.id}` : '__global__');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(rule);
   }

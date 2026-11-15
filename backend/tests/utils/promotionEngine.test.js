@@ -448,6 +448,45 @@ describe('promotionEngine rate + stacking', () => {
     expect(wrongLayer.discountARS || 0).toBe(0);
   });
 
+  it('SUGERIDA % sin condiciones no la come EXCLUSIVE de un AUTO', () => {
+    const auto = {
+      id: 10,
+      code: 'AUTO10',
+      label: 'Auto',
+      activo: true,
+      prioridad: 100,
+      modality: 'AUTO',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 10,
+      conditions: []
+    };
+    const sugerida = {
+      id: 11,
+      code: 'OPT_ON',
+      label: 'Opcional ON',
+      activo: true,
+      prioridad: 100,
+      modality: 'SUGERIDA',
+      layer: 'RATE',
+      stacking: 'EXCLUSIVE',
+      benefitType: 'PERCENT',
+      benefitValue: 10,
+      conditions: []
+    };
+    const stay = evaluateRateRules([auto, sugerida], {
+      layer: 'RATE',
+      nights: 4,
+      nightPrices: [264000, 264000, 264000, 264000],
+      applySuggestedDefaults: true
+    });
+    const codes = stay.appliedRules.map((r) => r.code).sort();
+    expect(codes).toEqual(['AUTO10', 'OPT_ON']);
+    expect(stay.appliedRules.find((r) => r.code === 'OPT_ON').modality).toBe('SUGERIDA');
+    expect(stay.discountARS).toBe(211200); // 10%+10% sobre bruto (independientes, tope bruto)
+  });
+
   it('FREE_NIGHTS + PERCENT: ambas sobre bruto (sin cascada)', () => {
     const free = {
       id: 9,
