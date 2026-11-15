@@ -236,8 +236,6 @@ export default function ConsultaBalancePanel({
                   <tr>
                     <th scope="col">Noche</th>
                     <th scope="col">Tarifa</th>
-                    <th scope="col">Promo</th>
-                    <th scope="col">Final</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -245,12 +243,6 @@ export default function ConsultaBalancePanel({
                     <tr key={`${night.date}-${night.nightIndex}`}>
                       <td>{night.dateLabel}</td>
                       <td>{formatConfirmationMoney(night.originalARS)}</td>
-                      <td>
-                        {night.discountARS > 0
-                          ? `−${formatConfirmationMoney(night.discountARS)}`
-                          : '—'}
-                      </td>
-                      <td>{formatConfirmationMoney(night.finalARS ?? night.originalARS)}</td>
                     </tr>
                   ))}
                 </tbody>
