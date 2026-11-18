@@ -80,6 +80,7 @@ vi.mock('../services/api', () => ({
       }
     ]
   }),
+  createExternalAccount: vi.fn().mockResolvedValue({ id: 999, label: 'Bar mesa 3' }),
   fetchReservation: vi.fn().mockResolvedValue({
     id: 22,
     mainClientId: 5,
@@ -103,6 +104,7 @@ vi.mock('../services/api', () => ({
 
 import {
   createPago,
+  createExternalAccount,
   fetchCuentasParaPago,
   getClientBillingProfile,
   previewPromotion,
@@ -131,7 +133,7 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
-  it('monto a saldar calcula lo que el cliente debe abonar', async () => {
+  it('monto a saldar calcula abono en el resumen sticky (sin banner verde)', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       if (payload.mode === 'settle') {
         return {
@@ -158,15 +160,18 @@ describe('PaymentForm facturación', () => {
     render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
+    expect(screen.queryByTestId('payment-tender-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary')).toHaveTextContent('—')
+
     fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
       target: { value: '100000' }
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('payment-tender-banner')).toBeInTheDocument()
+      expect(screen.getByTestId('payment-summary')).toHaveTextContent(/90\.000/)
     })
-    expect(screen.getByText(/El cliente debe abonar/i)).toBeInTheDocument()
-    expect(screen.getByTestId('payment-tender-banner')).toHaveTextContent(/90\.000/)
+    expect(screen.getByText(/Cliente abona/i)).toBeInTheDocument()
+    expect(screen.queryByText(/El cliente debe abonar/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
     await waitFor(() =>
@@ -175,6 +180,21 @@ describe('PaymentForm facturación', () => {
         expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Pago' })
       )
     )
+  })
+
+  it('permite elegir USD y no muestra label Cuenta redundante', async () => {
+    render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+
+    expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-account-search')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()
+
+    const moneda = screen.getByTestId('payment-moneda')
+    expect(moneda).not.toBeDisabled()
+    fireEvent.change(moneda, { target: { value: 'USD' } })
+    expect(moneda).toHaveValue('USD')
+    expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
   })
 
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {
@@ -388,16 +408,20 @@ describe('PaymentForm facturación', () => {
     )
   })
 
-  it('sin reservaId carga Select con cuentas para pago', async () => {
+  it('sin reservaId busca cuentas y permite filtrar por texto', async () => {
     render(<PaymentForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
 
-    const select = screen.getByLabelText(/Cuenta/i)
-    expect(select).toBeInTheDocument()
+    const search = screen.getByTestId('payment-account-search')
+    fireEvent.focus(search)
     await waitFor(() => {
       expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
     })
+    fireEvent.change(search, { target: { value: 'Pérez' } })
+    expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'zzzz-no-match' } })
+    expect(screen.getByText(/Sin coincidencias/i)).toBeInTheDocument()
   })
 
   it('Transferencia muestra comprobante opcional y lo sube tras crear', async () => {

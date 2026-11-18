@@ -3,6 +3,7 @@ import { FiPlus, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
   createAccountPago,
+  createExternalAccount,
   fetchReservation,
   fetchCuentasParaPago,
   fetchPaymentMethodConfigs,
@@ -42,6 +43,11 @@ const AMOUNT_MODE_INGRESADO = 'ingresado';
 const AMOUNT_MODE_SALDAR = 'saldar';
 const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
 const COMPROBANTE_ACCEPT = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png';
+/** Monedas habilitadas en el sistema (alineado al backend). */
+const SYSTEM_CURRENCIES = [
+  { code: 'ARS', label: 'Pesos Argentinos (ARS)' },
+  { code: 'USD', label: 'Dólares (USD)' }
+];
 
 function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
@@ -101,6 +107,12 @@ const PaymentForm = ({
   const needsAccountPick = reservaIdProp == null && accountIdProp == null;
   const [reservationOptions, setReservationOptions] = useState([]);
   const [pickedOptionKey, setPickedOptionKey] = useState('');
+  const [accountQuery, setAccountQuery] = useState('');
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [showCreateExternal, setShowCreateExternal] = useState(false);
+  const [externalLabel, setExternalLabel] = useState('');
+  const [creatingExternal, setCreatingExternal] = useState(false);
+  const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [mode, setMode] = useState(MODE_PAGO);
@@ -535,6 +547,11 @@ const PaymentForm = ({
       setAmountMode(AMOUNT_MODE_INGRESADO);
       setMontoASaldar('');
     }
+    if (field === 'moneda' && value !== 'ARS' && !isDevolucion) {
+      // Monto a saldar es en ARS de cuenta; otra moneda implica modo ingresado.
+      setAmountMode(AMOUNT_MODE_INGRESADO);
+      setMontoASaldar('');
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -587,6 +604,97 @@ const PaymentForm = ({
     }
     return Array.from(byKey.values());
   }, [reservationOptions]);
+
+  const accountOptionText = useCallback((row) => {
+    if (!row) return '';
+    const kind =
+      row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL' ? 'Externa' : 'Reserva';
+    const label = reservationOptionLabel(row);
+    const parts = [
+      kind,
+      label,
+      row.reservationId != null ? String(row.reservationId) : '',
+      row.accountId != null ? String(row.accountId) : '',
+      row.roomName || '',
+      row.clientLastName || '',
+      row.clientName || '',
+      row.label || ''
+    ];
+    return parts.filter(Boolean).join(' ').toLowerCase();
+  }, []);
+
+  const filteredAccountOptions = useMemo(() => {
+    const q = String(accountQuery || '').trim().toLowerCase();
+    if (!q) return occupiedOptions;
+    return occupiedOptions.filter((row) => accountOptionText(row).includes(q));
+  }, [occupiedOptions, accountQuery, accountOptionText]);
+
+  const pickedAccountLabel = useMemo(() => {
+    if (!pickedRow) return '';
+    const kind =
+      pickedRow.origen === 'EXTERNA' || pickedRow.accountKind === 'EXTERNAL'
+        ? 'Externa'
+        : 'Reserva';
+    return `${kind} · ${reservationOptionLabel(pickedRow)}`;
+  }, [pickedRow]);
+
+  useEffect(() => {
+    if (!accountMenuOpen && !showCreateExternal) return undefined;
+    const onDocClick = (e) => {
+      if (accountPickerRef.current && !accountPickerRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [accountMenuOpen, showCreateExternal]);
+
+  const reloadAccountOptions = useCallback(async () => {
+    if (!needsAccountPick) return [];
+    const optionsRes = await fetchCuentasParaPago();
+    const list = optionsRes.data || optionsRes || [];
+    const next = Array.isArray(list) ? list : [];
+    setReservationOptions(next);
+    return next;
+  }, [needsAccountPick]);
+
+  const pickAccountOption = (row) => {
+    const key = optionKey(row);
+    setPickedOptionKey(key);
+    setAccountQuery('');
+    setAccountMenuOpen(false);
+    setShowCreateExternal(false);
+  };
+
+  const handleCreateExternalAccount = async () => {
+    const label = String(externalLabel || '').trim();
+    if (!label) {
+      setError('Indicá un nombre para la cuenta externa');
+      return;
+    }
+    try {
+      setCreatingExternal(true);
+      setError(null);
+      const created = await createExternalAccount({ label });
+      const list = await reloadAccountOptions();
+      const createdId = created?.id ?? created?.accountId ?? null;
+      const match =
+        (createdId != null &&
+          list.find((r) => Number(r.accountId) === Number(createdId))) ||
+        list.find(
+          (r) =>
+            (r.origen === 'EXTERNA' || r.accountKind === 'EXTERNAL') &&
+            String(r.label || '').trim().toLowerCase() === label.toLowerCase()
+        );
+      if (match) pickAccountOption(match);
+      setExternalLabel('');
+      setShowCreateExternal(false);
+    } catch (err) {
+      setError(err?.message || 'Error al crear cuenta externa');
+    } finally {
+      setCreatingExternal(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -761,6 +869,8 @@ const PaymentForm = ({
     }
   };
 
+  const hasIngresadoAmount = (parseFloat(formData.monto) || 0) > 0;
+
   const formatPrice = (price) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
 
@@ -817,37 +927,125 @@ const PaymentForm = ({
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.formBody}>
           {needsAccountPick && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-reservation">Cuenta *</label>
-                <select
-                  id="payment-reservation"
-                  value={pickedOptionKey}
-                  onChange={(e) => setPickedOptionKey(e.target.value)}
-                  required
-                  disabled={loadingMeta || loading}
-                >
-                  <option value="">
-                    {loadingMeta
-                      ? 'Cargando…'
-                      : occupiedOptions.length === 0
-                        ? 'Sin cuentas abiertas'
-                        : 'Seleccionar reserva o cuenta externa…'}
-                  </option>
-                  {occupiedOptions.map((row) => (
-                    <option key={optionKey(row)} value={optionKey(row)}>
-                      {row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
-                        ? `Externa · ${reservationOptionLabel(row)}`
-                        : `Reserva · ${reservationOptionLabel(row)}`}
-                    </option>
-                  ))}
-                </select>
+            <div className={`${styles.formRow} ${styles.formRowFull}`}>
+              <div className={styles.formGroup} ref={accountPickerRef}>
+                <div className={styles.accountPickerRow}>
+                  <div className={styles.accountCombobox}>
+                    <input
+                      id="payment-reservation"
+                      type="text"
+                      role="combobox"
+                      aria-expanded={accountMenuOpen}
+                      aria-controls="payment-account-listbox"
+                      aria-autocomplete="list"
+                      aria-label="Seleccionar reserva o cuenta externa"
+                      placeholder={
+                        loadingMeta
+                          ? 'Cargando…'
+                          : occupiedOptions.length === 0
+                            ? 'Sin cuentas abiertas'
+                            : 'Seleccionar reserva o cuenta externa…'
+                      }
+                      value={accountMenuOpen ? accountQuery : pickedAccountLabel || accountQuery}
+                      onChange={(e) => {
+                        setAccountQuery(e.target.value);
+                        setAccountMenuOpen(true);
+                        if (pickedOptionKey) setPickedOptionKey('');
+                      }}
+                      onFocus={() => {
+                        setAccountMenuOpen(true);
+                        setAccountQuery('');
+                      }}
+                      required={!pickedOptionKey}
+                      disabled={loadingMeta || loading}
+                      data-testid="payment-account-search"
+                      autoComplete="off"
+                    />
+                    {accountMenuOpen ? (
+                      <ul
+                        id="payment-account-listbox"
+                        className={styles.accountMenu}
+                        role="listbox"
+                        aria-label="Cuentas y reservas"
+                      >
+                        {filteredAccountOptions.length === 0 ? (
+                          <li className={styles.accountMenuEmpty} role="presentation">
+                            Sin coincidencias
+                          </li>
+                        ) : (
+                          filteredAccountOptions.map((row) => {
+                            const key = optionKey(row);
+                            const kind =
+                              row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
+                                ? 'Externa'
+                                : 'Reserva';
+                            return (
+                              <li key={key} role="option" aria-selected={pickedOptionKey === key}>
+                                <button
+                                  type="button"
+                                  className={styles.accountOption}
+                                  onClick={() => pickAccountOption(row)}
+                                >
+                                  <span className={styles.accountOptionKind}>{kind}</span>
+                                  <span className={styles.accountOptionLabel}>
+                                    {reservationOptionLabel(row)}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.createExternalBtn}
+                    disabled={loading || creatingExternal}
+                    onClick={() => {
+                      setShowCreateExternal((v) => !v);
+                      setAccountMenuOpen(false);
+                    }}
+                    data-testid="payment-create-external"
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Crear cuenta externa
+                  </button>
+                </div>
+                {showCreateExternal ? (
+                  <div
+                    className={styles.createExternalPanel}
+                    aria-label="Alta cuenta externa"
+                  >
+                    <input
+                      type="text"
+                      value={externalLabel}
+                      onChange={(e) => setExternalLabel(e.target.value)}
+                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                      aria-label="Etiqueta de cuenta externa"
+                      disabled={loading || creatingExternal}
+                      data-testid="payment-external-label"
+                    />
+                    <button
+                      type="button"
+                      className={styles.createExternalConfirm}
+                      disabled={loading || creatingExternal}
+                      onClick={handleCreateExternalAccount}
+                    >
+                      {creatingExternal ? 'Creando…' : 'Crear'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
 
-          <div className={styles.amountModes} data-testid="payment-amount-modes">
+          <div
+            className={`${styles.amountModes} ${styles.amountModesSameBox}`}
+            data-testid="payment-amount-modes"
+          >
             <div
               className={`${styles.amountModeBlock} ${
                 isDevolucion || amountMode === AMOUNT_MODE_INGRESADO
@@ -869,20 +1067,12 @@ const PaymentForm = ({
                     setMontoASaldar('');
                   }
                 }}
-                placeholder="Lo que abona el cliente"
+                placeholder="0"
                 step="0.01"
                 min="0"
                 required={isDevolucion || amountMode === AMOUNT_MODE_INGRESADO}
                 disabled={loading}
-                aria-describedby={
-                  !isDevolucion ? 'payment-monto-ingresado-help' : undefined
-                }
               />
-              {!isDevolucion ? (
-                <span id="payment-monto-ingresado-help" className={styles.helpText}>
-                  Dinero recibido. Los descuentos calculan el crédito a cuenta.
-                </span>
-              ) : null}
             </div>
 
             {!isDevolucion ? (
@@ -903,18 +1093,14 @@ const PaymentForm = ({
                   }}
                   placeholder={
                     saldoPendiente != null && Number(saldoPendiente) > 0
-                      ? `Saldo pendiente $ ${formatArs(saldoPendiente)}`
-                      : 'Crédito a cancelar en la cuenta'
+                      ? formatArs(saldoPendiente)
+                      : '0'
                   }
                   step="0.01"
                   min="0"
                   required={amountMode === AMOUNT_MODE_SALDAR}
                   disabled={loading}
-                  aria-describedby="payment-monto-saldar-help"
                 />
-                <span id="payment-monto-saldar-help" className={styles.helpText}>
-                  Objetivo de crédito (p.ej. total/saldo). Se calcula cuánto debe abonar.
-                </span>
                 {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
                   <button
                     type="button"
@@ -930,32 +1116,6 @@ const PaymentForm = ({
             ) : null}
           </div>
 
-          {isSaldarMode &&
-            montoASaldarARS > 0 &&
-            manualPromoPreview &&
-            !manualPromoPreview.probeOnly && (
-              <div
-                className={styles.tenderBanner}
-                role="status"
-                data-testid="payment-tender-banner"
-              >
-                <span className={styles.tenderLabel}>El cliente debe abonar</span>
-                <strong className={styles.tenderValue}>
-                  $ {formatArs(tenderMontoARS)}
-                </strong>
-                {manualPromoPreview.descuentoARS > 0 ? (
-                  <span className={styles.helpText}>
-                    Para saldar $ {formatArs(montoASaldarARS)} con desc. ${' '}
-                    {formatArs(manualPromoPreview.descuentoARS)}
-                  </span>
-                ) : (
-                  <span className={styles.helpText}>
-                    Sin descuento aplicable: abona el mismo monto a saldar.
-                  </span>
-                )}
-              </div>
-            )}
-
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="payment-moneda">Moneda *</label>
@@ -964,16 +1124,15 @@ const PaymentForm = ({
                 value={formData.moneda}
                 onChange={(e) => handleInputChange('moneda', e.target.value)}
                 required
-                disabled={loading || isSaldarMode}
+                disabled={loading}
+                data-testid="payment-moneda"
               >
-                <option value="ARS">Pesos Argentinos (ARS)</option>
-                <option value="USD">Dólares (USD)</option>
+                {SYSTEM_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
-              {isSaldarMode ? (
-                <span className={styles.helpText}>
-                  El monto a saldar se calcula en ARS (moneda de la cuenta).
-                </span>
-              ) : null}
             </div>
           </div>
 
@@ -1543,7 +1702,10 @@ const PaymentForm = ({
             </div>
           )}
 
-          <div className={styles.paymentSummary}>
+          </div>
+
+          <div className={styles.stickyFooter}>
+          <div className={styles.paymentSummary} data-testid="payment-summary">
             <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del pago'}</h3>
             <div className={styles.summaryRow}>
               <span>Motivo:</span>
@@ -1553,11 +1715,17 @@ const PaymentForm = ({
               <>
                 <div className={styles.summaryRow}>
                   <span>Monto a saldar:</span>
-                  <span className={styles.amount}>{formatPrice(montoASaldarARS)}</span>
+                  <span className={styles.amount}>
+                    {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
+                  </span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span>Cliente abona:</span>
-                  <span className={styles.amountARS}>{formatPrice(tenderMontoARS)}</span>
+                  <span className={styles.amountARS}>
+                    {montoASaldarARS > 0 && tenderMontoARS > 0
+                      ? formatPrice(tenderMontoARS)
+                      : '—'}
+                  </span>
                 </div>
               </>
             ) : (
@@ -1565,23 +1733,31 @@ const PaymentForm = ({
                 <div className={styles.summaryRow}>
                   <span>Monto original:</span>
                   <span className={isDevolucion ? styles.amountARS : styles.amount}>
-                    {isDevolucion ? '−' : ''}
-                    {formData.moneda === 'USD'
-                      ? formatPriceUSD(parseFloat(formData.monto) || 0)
-                      : formatPrice(parseFloat(formData.monto) || 0)}
+                    {hasIngresadoAmount
+                      ? `${isDevolucion ? '−' : ''}${
+                          formData.moneda === 'USD'
+                            ? formatPriceUSD(parseFloat(formData.monto) || 0)
+                            : formatPrice(parseFloat(formData.monto) || 0)
+                        }`
+                      : '—'}
                   </span>
                 </div>
                 {formData.moneda === 'USD' && (
                   <div className={styles.summaryRow}>
                     <span>Tipo de cambio:</span>
-                    <span>{parseFloat(formData.tipoCambio) || 0}</span>
+                    <span>
+                      {parseFloat(formData.tipoCambio) > 0
+                        ? parseFloat(formData.tipoCambio)
+                        : '—'}
+                    </span>
                   </div>
                 )}
                 <div className={styles.summaryRow}>
                   <span>Equivalente en ARS:</span>
                   <span className={styles.amountARS}>
-                    {isDevolucion ? '−' : ''}
-                    {formatPrice(montoARS)}
+                    {hasIngresadoAmount
+                      ? `${isDevolucion ? '−' : ''}${formatPrice(montoARS)}`
+                      : '—'}
                   </span>
                 </div>
               </>
@@ -1607,6 +1783,7 @@ const PaymentForm = ({
                   ? 'Guardar devolución'
                   : 'Guardar pago'}
             </button>
+          </div>
           </div>
         </form>
       </div>
