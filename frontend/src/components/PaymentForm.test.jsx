@@ -131,6 +131,38 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
+  it('pide preview settlement al elegir medio aunque no haya monto', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    await waitFor(() => expect(previewPromotion).toHaveBeenCalled())
+    expect(previewPromotion.mock.calls.some((c) => c[0]?.layer === 'SETTLEMENT')).toBe(
+      true
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
+  })
+
   it('lista cada promo aplicada con nombre y monto (no un solo −10%)', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       expect(payload.applySuggestedDefaults).toBe(true)

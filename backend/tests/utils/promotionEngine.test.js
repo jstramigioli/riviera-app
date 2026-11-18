@@ -334,6 +334,52 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(deselected.aplica).toBe(false);
     expect(deselected.descuentoARS).toBe(0);
   });
+
+  it('SETTLEMENT: descuento de medio gana al % sin condiciones (EXCLUSIVE)', () => {
+    const always = {
+      ...efectivoRule,
+      id: 2,
+      code: 'ALWAYS_10',
+      label: 'Siempre 10%',
+      conditions: [],
+      stacking: 'EXCLUSIVE',
+      stackingGroup: null,
+      prioridad: 100
+    };
+    const debito = {
+      ...efectivoRule,
+      id: 14,
+      code: 'DEBITO_20',
+      label: '20% debito',
+      benefitValue: 20,
+      conditions: [{ type: 'PAYMENT_METHOD', params: { paymentMethodConfigId: 2 } }],
+      stacking: 'EXCLUSIVE',
+      stackingGroup: null,
+      prioridad: 100
+    };
+
+    const onDebito = evaluateSettlementRules([always, debito], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 2,
+      dineroARS: 10000,
+      mode: 'received'
+    });
+    expect(onDebito.aplica).toBe(true);
+    expect(onDebito.appliedRules[0].promotionRuleId).toBe(14);
+    expect(onDebito.appliedRules[0].label).toBe('20% debito');
+    expect(onDebito.porcentaje).toBe(20);
+    expect(onDebito.promotionRuleId).toBe(14);
+
+    const onTransfer = evaluateSettlementRules([always, debito], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 4,
+      dineroARS: 10000,
+      mode: 'received'
+    });
+    expect(onTransfer.aplica).toBe(true);
+    expect(onTransfer.appliedRules[0].promotionRuleId).toBe(2);
+    expect(onTransfer.appliedRules[0].label).toBe('Siempre 10%');
+  });
 });
 
 describe('promotionEngine rate + stacking', () => {

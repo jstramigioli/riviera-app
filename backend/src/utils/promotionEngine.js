@@ -555,6 +555,37 @@ function sortByPriority(rules) {
   });
 }
 
+function hasPaymentMethodCondition(rule) {
+  return (rule?.conditions || []).some((c) => c && c.type === 'PAYMENT_METHOD');
+}
+
+function paymentMethodConfigIdFromRule(rule) {
+  for (const c of rule?.conditions || []) {
+    if (!c || c.type !== 'PAYMENT_METHOD') continue;
+    const p = parseParams(c.params);
+    if (p.paymentMethodConfigId != null && Number.isFinite(Number(p.paymentMethodConfigId))) {
+      return Number(p.paymentMethodConfigId);
+    }
+  }
+  return null;
+}
+
+/**
+ * SETTLEMENT EXCLUSIVE: el descuento ligado a medio de pago gana frente a
+ * uno sin condiciones (si no, el «siempre» con id menor tapa Efectivo/Débito).
+ */
+function sortBySettlementExclusivePriority(rules) {
+  return [...rules].sort((a, b) => {
+    const aPm = hasPaymentMethodCondition(a) ? 1 : 0;
+    const bPm = hasPaymentMethodCondition(b) ? 1 : 0;
+    if (bPm !== aPm) return bPm - aPm;
+    const pa = a.prioridad ?? 100;
+    const pb = b.prioridad ?? 100;
+    if (pb !== pa) return pb - pa;
+    return Number(a.id) - Number(b.id);
+  });
+}
+
 /**
  * Selección según stacking (EXCLUSIVE / BEST_OF / STACKABLE).
  * Agrupa por stackingGroup (null = grupo global).
@@ -569,7 +600,8 @@ function selectByStacking(matchedRules, benefitFn) {
     //   sin condiciones lo «come» otro AUTO % EXCLUSIVE (mismo default UI) y
     //   desaparece del preview aunque kind/layer/modality sean correctos.
     //   Exclusión mutua RATE = stackingGroup compartido.
-    // - SETTLEMENT sigue en __global__ (p.ej. un solo descuento de pago).
+    // - SETTLEMENT: medio de pago vs «sin condiciones» en grupos distintos
+    //   para que Débito/Efectivo no los coma un DESCUENTO global EXCLUSIVE.
     const isOptional =
       rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
     const layer = String(rule.layer || '').toUpperCase();
@@ -577,7 +609,10 @@ function selectByStacking(matchedRules, benefitFn) {
     if (!key) {
       if (isOptional && rule.id != null) key = `optional:${rule.id}`;
       else if (layer === 'RATE' && rule.id != null) key = `rate:${rule.id}`;
-      else key = '__global__';
+      else if (layer === 'SETTLEMENT') {
+        const pmId = paymentMethodConfigIdFromRule(rule);
+        key = pmId != null ? `settlement:pm:${pmId}` : 'settlement:general';
+      } else key = '__global__';
     }
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(rule);
@@ -585,7 +620,11 @@ function selectByStacking(matchedRules, benefitFn) {
 
   const selected = [];
   for (const [, groupRules] of groups) {
-    const ordered = sortByPriority(groupRules);
+    const layer = String(groupRules[0]?.layer || '').toUpperCase();
+    const ordered =
+      layer === 'SETTLEMENT'
+        ? sortBySettlementExclusivePriority(groupRules)
+        : sortByPriority(groupRules);
     const policy = ordered[0].stacking || 'EXCLUSIVE';
     if (policy === 'STACKABLE') {
       selected.push(...ordered);
@@ -686,7 +725,8 @@ function evaluateSettlementRules(rules, ctx) {
   const appliedRules = [];
 
   if (percentRules.length) {
-    const primary = sortByPriority(percentRules)[0];
+    // Si hay % de medio + % sin condiciones, el de medio tiene prioridad.
+    const primary = sortBySettlementExclusivePriority(percentRules)[0];
     const preview = benefitFn(primary);
     combined = { ...preview };
     appliedRules.push(
@@ -727,14 +767,18 @@ function evaluateSettlementRules(rules, ctx) {
     );
   }
 
-  const primary = selected[0];
+  const primary =
+    appliedRules.length && selected.length
+      ? selected.find((r) => Number(r.id) === Number(appliedRules[0].promotionRuleId)) ||
+        sortBySettlementExclusivePriority(selected)[0]
+      : selected[0] || null;
   return {
     ...combined,
     selectedRules: selected,
     suggestions,
     config: ruleToSettlementConfig(primary),
     appliedRules,
-    promotionRuleId: primary.id
+    promotionRuleId: primary?.id ?? appliedRules[0]?.promotionRuleId ?? null
   };
 }
 

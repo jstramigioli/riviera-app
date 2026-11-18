@@ -260,12 +260,25 @@ const PaymentForm = ({
       setOptionalChoices([]);
       return undefined;
     }
-    if (!montoARS || montoARS <= 0) {
+    // Sin método aún (configs cargando): no pedir preview.
+    if (!formData.metodo && !selectedMethodConfig?.id) {
       setManualPromoSuggestions([]);
       setManualPromoPreview(null);
       setOptionalChoices([]);
       return undefined;
     }
+
+    // Con monto real → received. Sin monto pero con saldo → settle (muestra elegibles).
+    // Sin ambos → sonda received con base 10000 solo para listar nombre/% aplicables.
+    const hasRealMonto = Number(montoARS) > 0;
+    const hasSaldo = saldoPendiente != null && Number(saldoPendiente) > 0;
+    const mode = hasRealMonto || !hasSaldo ? 'received' : 'settle';
+    const dineroARS = hasRealMonto
+      ? montoARS
+      : hasSaldo
+        ? undefined
+        : 10000;
+    const probeOnly = !hasRealMonto;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -279,10 +292,10 @@ const PaymentForm = ({
           layer: 'SETTLEMENT',
           metodo: formData.metodo,
           paymentMethodConfigId: selectedMethodConfig?.id,
-          dineroARS: montoARS,
+          dineroARS,
           saldoPendiente,
           motivo: motivoActual,
-          mode: 'received',
+          mode,
           selectedRuleIds,
           deselectedRuleIds: deselected,
           benefitValueByRuleId,
@@ -291,7 +304,11 @@ const PaymentForm = ({
         if (cancelled) return;
         const mapped = mapSettlementPreview(preview, saldoPendiente);
         setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
-        setManualPromoPreview(mapped);
+        setManualPromoPreview(
+          mapped
+            ? { ...mapped, probeOnly }
+            : null
+        );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
       } catch (err) {
         if (!cancelled) {
@@ -987,6 +1004,13 @@ const PaymentForm = ({
                 role="status"
                 data-testid="payment-applied-promos"
               >
+                {manualPromoPreview.probeOnly ? (
+                  <p className={styles.helpText}>
+                    Descuentos que aplican con este medio
+                    {Number(montoARS) > 0 ? '' : ' (ingresá el monto para ver el importe exacto)'}
+                    .
+                  </p>
+                ) : null}
                 {manualPromoPreview.appliedRules.map((promo) => {
                   const removable = isRemovableOptionalPromo(promo);
                   return (
@@ -1000,7 +1024,9 @@ const PaymentForm = ({
                           {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
                         </span>
                         <span className={styles.promoValue}>
-                          −$ {formatArs(promo.montoARS)}
+                          {manualPromoPreview.probeOnly && promo.porcentaje != null
+                            ? `−${promo.porcentaje}%`
+                            : `−$ ${formatArs(promo.montoARS)}`}
                         </span>
                       </div>
                       {removable ? (
@@ -1019,29 +1045,31 @@ const PaymentForm = ({
                     </div>
                   );
                 })}
-                <ul className={styles.discountList}>
-                  <li>
-                    Recibe / registra:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Crédito a cuenta:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
-                  </li>
-                  {saldoPendiente != null && (
+                {!manualPromoPreview.probeOnly ? (
+                  <ul className={styles.discountList}>
                     <li>
-                      Saldo restante proyectado:{' '}
-                      <strong>
-                        ${' '}
-                        {formatArs(
-                          roundMoney(
-                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
-                          )
-                        )}
-                      </strong>
+                      Recibe / registra:{' '}
+                      <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
                     </li>
-                  )}
-                </ul>
+                    <li>
+                      Crédito a cuenta:{' '}
+                      <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                    </li>
+                    {saldoPendiente != null && (
+                      <li>
+                        Saldo restante proyectado:{' '}
+                        <strong>
+                          ${' '}
+                          {formatArs(
+                            roundMoney(
+                              saldoPendiente - (manualPromoPreview.creditoARS || 0)
+                            )
+                          )}
+                        </strong>
+                      </li>
+                    )}
+                  </ul>
+                ) : null}
               </div>
             ) : (
               <div className={styles.discountPreview} role="status">
