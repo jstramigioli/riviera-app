@@ -332,6 +332,20 @@ const PaymentForm = ({
             : null
         );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
+        // Sincronizar el otro campo según descuentos (fuente = amountMode).
+        if (!probeOnly && mapped?.aplica) {
+          if (hasSaldar && mapped.dineroARS != null) {
+            const nextIngresado = String(roundMoney(mapped.dineroARS));
+            setFormData((prev) =>
+              prev.monto === nextIngresado && prev.moneda === 'ARS'
+                ? prev
+                : { ...prev, monto: nextIngresado, moneda: 'ARS' }
+            );
+          } else if (hasIngresado && mapped.creditoARS != null) {
+            const nextSaldar = String(roundMoney(mapped.creditoARS));
+            setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           console.warn('Preview promos settlement falló', err);
@@ -545,12 +559,13 @@ const PaymentForm = ({
     }
     if (field === 'monto' && !isDevolucion) {
       setAmountMode(AMOUNT_MODE_INGRESADO);
-      setMontoASaldar('');
+      if (!value || !(parseFloat(value) > 0)) {
+        setMontoASaldar('');
+      }
     }
     if (field === 'moneda' && value !== 'ARS' && !isDevolucion) {
-      // Monto a saldar es en ARS de cuenta; otra moneda implica modo ingresado.
+      // Monto a saldar es ARS de cuenta; otra moneda usa modo ingresado como fuente.
       setAmountMode(AMOUNT_MODE_INGRESADO);
-      setMontoASaldar('');
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -559,7 +574,11 @@ const PaymentForm = ({
     setError(null);
     setAmountMode(AMOUNT_MODE_SALDAR);
     setMontoASaldar(value);
-    setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+    if (!value || !(parseFloat(value) > 0)) {
+      setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+    } else {
+      setFormData((prev) => (prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }));
+    }
   };
 
   const useSaldoPendienteAsSaldar = () => {
@@ -1062,16 +1081,14 @@ const PaymentForm = ({
                 value={formData.monto}
                 onChange={(e) => handleInputChange('monto', e.target.value)}
                 onFocus={() => {
-                  if (!isDevolucion) {
-                    setAmountMode(AMOUNT_MODE_INGRESADO);
-                    setMontoASaldar('');
-                  }
+                  if (!isDevolucion) setAmountMode(AMOUNT_MODE_INGRESADO);
                 }}
                 placeholder="0"
                 step="0.01"
                 min="0"
                 required={isDevolucion || amountMode === AMOUNT_MODE_INGRESADO}
                 disabled={loading}
+                data-testid="payment-monto-ingresado"
               />
             </div>
 
@@ -1089,7 +1106,9 @@ const PaymentForm = ({
                   onChange={(e) => handleMontoASaldarChange(e.target.value)}
                   onFocus={() => {
                     setAmountMode(AMOUNT_MODE_SALDAR);
-                    setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+                    setFormData((prev) =>
+                      prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }
+                    );
                   }}
                   placeholder={
                     saldoPendiente != null && Number(saldoPendiente) > 0
@@ -1100,6 +1119,7 @@ const PaymentForm = ({
                   min="0"
                   required={amountMode === AMOUNT_MODE_SALDAR}
                   disabled={loading}
+                  data-testid="payment-monto-saldar"
                 />
                 {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
                   <button
@@ -1279,12 +1299,6 @@ const PaymentForm = ({
                 role="status"
                 data-testid="payment-applied-promos"
               >
-                {manualPromoPreview.probeOnly ? (
-                  <p className={styles.helpText}>
-                    Descuentos que aplican con este medio (completá monto ingresado o a
-                    saldar para ver el importe exacto).
-                  </p>
-                ) : null}
                 {manualPromoPreview.appliedRules.map((promo) => {
                   const removable = isRemovableOptionalPromo(promo);
                   return (

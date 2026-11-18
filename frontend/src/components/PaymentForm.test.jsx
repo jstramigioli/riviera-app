@@ -170,6 +170,10 @@ describe('PaymentForm facturación', () => {
     await waitFor(() => {
       expect(screen.getByTestId('payment-summary')).toHaveTextContent(/90\.000/)
     })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)
+    })
+    expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
     expect(screen.getByText(/Cliente abona/i)).toBeInTheDocument()
     expect(screen.queryByText(/El cliente debe abonar/i)).not.toBeInTheDocument()
 
@@ -180,6 +184,71 @@ describe('PaymentForm facturación', () => {
         expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Pago' })
       )
     )
+  })
+
+  it('monto ingresado actualiza monto a saldar según descuento', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      if (payload.mode === 'received') {
+        return {
+          aplica: true,
+          dineroARS: 9000,
+          descuentoARS: 1000,
+          creditoARS: 10000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 1000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return { aplica: false }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '9000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(10000)
+    })
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(9000)
+  })
+
+  it('no muestra el help text de completar monto para ver descuentos', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument())
+
+    expect(
+      screen.queryByText(/completá monto ingresado o a saldar/i)
+    ).not.toBeInTheDocument()
   })
 
   it('permite elegir USD y no muestra label Cuenta redundante', async () => {
