@@ -377,6 +377,96 @@
 }
 
 /* Responsive */
+.amountModes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+@media (max-width: 640px) {
+  .amountModes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.amountModeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.amountModeBlock label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.amountModeBlock input[type='number'] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.amountModeActive {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.useSaldoBtn {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.useSaldoBtn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.useSaldoBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tenderBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+}
+
+.tenderLabel {
+  font-size: 0.8125rem;
+  color: #166534;
+  font-weight: 500;
+}
+
+.tenderValue {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #14532d;
+  font-variant-numeric: tabular-nums;
+}
+
 .discountPreview {
   margin: 0 0 16px;
   padding: 12px 14px;

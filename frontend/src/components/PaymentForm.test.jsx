@@ -131,6 +131,52 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
+  it('monto a saldar calcula lo que el cliente debe abonar', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      if (payload.mode === 'settle') {
+        return {
+          aplica: true,
+          dineroARS: 90000,
+          descuentoARS: 10000,
+          creditoARS: 100000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 10000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return { aplica: false }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '100000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-tender-banner')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/El cliente debe abonar/i)).toBeInTheDocument()
+    expect(screen.getByTestId('payment-tender-banner')).toHaveTextContent(/90\.000/)
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Pago' })
+      )
+    )
+  })
+
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {
     previewPromotion.mockResolvedValue({
       aplica: true,
@@ -216,7 +262,7 @@ describe('PaymentForm facturación', () => {
     render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '9000' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '9000' } })
 
     await waitFor(() => {
       expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
@@ -288,7 +334,7 @@ describe('PaymentForm facturación', () => {
     fireEvent.click(sena)
     expect(sena).toBeChecked()
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '1500' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '1500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
 
     await waitFor(() =>
@@ -313,7 +359,7 @@ describe('PaymentForm facturación', () => {
       expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
     })
     fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText(/^Monto \*$/i), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
 
     await waitFor(() =>
@@ -357,7 +403,7 @@ describe('PaymentForm facturación', () => {
     expect(input).toBeInTheDocument()
     fireEvent.change(input, { target: { files: [file] } })
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '2000' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '2000' } })
     fireEvent.change(screen.getByLabelText(/Fecha de facturación/i), {
       target: { value: '2026-11-13' }
     })

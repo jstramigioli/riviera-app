@@ -38,6 +38,8 @@ import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
 const MODE_DEVOLUCION = 'devolucion';
+const AMOUNT_MODE_INGRESADO = 'ingresado';
+const AMOUNT_MODE_SALDAR = 'saldar';
 const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
 const COMPROBANTE_ACCEPT = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png';
 
@@ -160,16 +162,19 @@ const PaymentForm = ({
   const [saldoPendiente, setSaldoPendiente] = useState(null);
   const [pagosOrigen, setPagosOrigen] = useState([]);
   const [pagoOrigenId, setPagoOrigenId] = useState('');
+  const [amountMode, setAmountMode] = useState(AMOUNT_MODE_INGRESADO);
+  const [montoASaldar, setMontoASaldar] = useState('');
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
-  const [settlePromoPreview, setSettlePromoPreview] = useState(null);
   const [optionalChoices, setOptionalChoices] = useState([]);
   const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
   const [deselectedRuleIds, setDeselectedRuleIds] = useState([]);
   const [addPromoOpen, setAddPromoOpen] = useState(false);
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
+  const isSaldarMode = !isDevolucion && amountMode === AMOUNT_MODE_SALDAR;
+  const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
   const manualPromoApply = useMemo(
     () =>
@@ -268,17 +273,17 @@ const PaymentForm = ({
       return undefined;
     }
 
-    // Con monto real → received. Sin monto pero con saldo → settle (muestra elegibles).
-    // Sin ambos → sonda received con base 10000 solo para listar nombre/% aplicables.
-    const hasRealMonto = Number(montoARS) > 0;
-    const hasSaldo = saldoPendiente != null && Number(saldoPendiente) > 0;
-    const mode = hasRealMonto || !hasSaldo ? 'received' : 'settle';
-    const dineroARS = hasRealMonto
-      ? montoARS
-      : hasSaldo
-        ? undefined
-        : 10000;
-    const probeOnly = !hasRealMonto;
+    const hasIngresado = amountMode === AMOUNT_MODE_INGRESADO && Number(montoARS) > 0;
+    const hasSaldar = amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0;
+    // Sonda: listar elegibles aunque aún no haya monto (nombre + %).
+    const probeOnly = !hasIngresado && !hasSaldar;
+    const previewMode = hasSaldar || (probeOnly && saldoPendiente != null && saldoPendiente > 0)
+      ? 'settle'
+      : 'received';
+    const dineroARS = hasIngresado ? montoARS : probeOnly && previewMode === 'received' ? 10000 : undefined;
+    const saldoForPreview = hasSaldar
+      ? montoASaldarARS
+      : saldoPendiente;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -293,20 +298,25 @@ const PaymentForm = ({
           metodo: formData.metodo,
           paymentMethodConfigId: selectedMethodConfig?.id,
           dineroARS,
-          saldoPendiente,
+          saldoPendiente: saldoForPreview,
           motivo: motivoActual,
-          mode,
+          mode: previewMode,
           selectedRuleIds,
           deselectedRuleIds: deselected,
           benefitValueByRuleId,
           applySuggestedDefaults: true
         });
         if (cancelled) return;
-        const mapped = mapSettlementPreview(preview, saldoPendiente);
+        const mapped = mapSettlementPreview(preview, saldoForPreview);
         setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
         setManualPromoPreview(
           mapped
-            ? { ...mapped, probeOnly }
+            ? {
+                ...mapped,
+                probeOnly,
+                amountMode,
+                saldoARS: mapped.saldoARS ?? (hasSaldar ? montoASaldarARS : saldoPendiente)
+              }
             : null
         );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
@@ -326,65 +336,12 @@ const PaymentForm = ({
     };
   }, [
     isDevolucion,
+    amountMode,
     montoARS,
+    montoASaldarARS,
     formData.metodo,
     selectedMethodConfig?.id,
     saldoPendiente,
-    motivoActual,
-    manualPromoApply
-  ]);
-
-  // Preview "cobrar saldo" desde motor de promociones (no mirror hardcodeado del medio).
-  useEffect(() => {
-    if (isDevolucion || saldoPendiente == null || saldoPendiente <= 0) {
-      setSettlePromoPreview(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const {
-          benefitValueByRuleId,
-          selectedRuleIds,
-          deselectedRuleIds: deselected
-        } = manualPromoApply;
-        const preview = await previewPromotion({
-          layer: 'SETTLEMENT',
-          metodo: formData.metodo,
-          paymentMethodConfigId: selectedMethodConfig?.id,
-          saldoPendiente,
-          motivo: motivoActual,
-          mode: 'settle',
-          selectedRuleIds,
-          deselectedRuleIds: deselected,
-          benefitValueByRuleId,
-          applySuggestedDefaults: true
-        });
-        if (cancelled) return;
-        const mapped = mapSettlementPreview(preview, saldoPendiente);
-        setSettlePromoPreview(
-          mapped
-            ? { ...mapped, saldoARS: mapped.saldoARS ?? saldoPendiente }
-            : null
-        );
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('Preview settle promociones falló', err);
-          setSettlePromoPreview(null);
-        }
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [
-    isDevolucion,
-    saldoPendiente,
-    formData.metodo,
-    selectedMethodConfig?.id,
     motivoActual,
     manualPromoApply
   ]);
@@ -574,8 +531,42 @@ const PaymentForm = ({
         return;
       }
     }
+    if (field === 'monto' && !isDevolucion) {
+      setAmountMode(AMOUNT_MODE_INGRESADO);
+      setMontoASaldar('');
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const handleMontoASaldarChange = (value) => {
+    setError(null);
+    setAmountMode(AMOUNT_MODE_SALDAR);
+    setMontoASaldar(value);
+    setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+  };
+
+  const useSaldoPendienteAsSaldar = () => {
+    if (saldoPendiente == null || Number(saldoPendiente) <= 0) return;
+    handleMontoASaldarChange(String(roundMoney(saldoPendiente)));
+  };
+
+  /** Monto de caja a registrar (ARS) según modo. */
+  const tenderMontoARS = useMemo(() => {
+    if (isDevolucion) return montoARS;
+    if (amountMode === AMOUNT_MODE_SALDAR) {
+      if (manualPromoPreview?.aplica && manualPromoPreview.dineroARS != null) {
+        return roundMoney(manualPromoPreview.dineroARS);
+      }
+      return montoASaldarARS > 0 ? montoASaldarARS : 0;
+    }
+    return montoARS;
+  }, [
+    isDevolucion,
+    amountMode,
+    montoARS,
+    montoASaldarARS,
+    manualPromoPreview
+  ]);
 
   const handleComprobanteChange = (fileList) => {
     setError(null);
@@ -609,9 +600,20 @@ const PaymentForm = ({
       return;
     }
 
-    if (!formData.monto || parseFloat(formData.monto) <= 0) {
-      setError('El monto debe ser mayor a 0');
-      return;
+    if (isDevolucion || amountMode === AMOUNT_MODE_INGRESADO) {
+      if (!formData.monto || parseFloat(formData.monto) <= 0) {
+        setError('El monto ingresado debe ser mayor a 0');
+        return;
+      }
+    } else if (amountMode === AMOUNT_MODE_SALDAR) {
+      if (!(montoASaldarARS > 0)) {
+        setError('El monto a saldar debe ser mayor a 0');
+        return;
+      }
+      if (!(tenderMontoARS > 0)) {
+        setError('No se pudo calcular cuánto debe abonar el cliente');
+        return;
+      }
     }
 
     if (isDevolucion && !pagoOrigenId) {
@@ -686,10 +688,17 @@ const PaymentForm = ({
 
       // fecha del pago: la fija el servidor (ahora). Solo se envía fecha de facturación si aplica.
       // Devolución: monto positivo en UI; el backend lo guarda negativo en el saldo.
+      // Modo saldar: se registra lo que el cliente abona (dinero); el motor aplica el descuento.
+      const submitMonto =
+        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
+          ? tenderMontoARS
+          : parseFloat(formData.monto);
+      const submitMoneda =
+        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
       const pagoData = {
-        monto: parseFloat(formData.monto),
-        moneda: formData.moneda,
-        tipoCambio: formData.moneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
+        monto: submitMonto,
+        moneda: submitMoneda,
+        tipoCambio: submitMoneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
         metodo: formData.metodo,
         paymentMethodConfigId: selectedMethodConfig?.id ?? undefined,
         pagoOrigenId: isDevolucion ? Number(pagoOrigenId) : undefined,
@@ -783,7 +792,9 @@ const PaymentForm = ({
             id="tab-nuevo-pago"
             aria-selected={!isDevolucion}
             className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => setMode(MODE_PAGO)}
+            onClick={() => {
+              setMode(MODE_PAGO);
+            }}
             disabled={loading}
           >
             Nuevo pago
@@ -794,7 +805,11 @@ const PaymentForm = ({
             id="tab-nueva-devolucion"
             aria-selected={isDevolucion}
             className={`${styles.modeTab} ${isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => setMode(MODE_DEVOLUCION)}
+            onClick={() => {
+              setMode(MODE_DEVOLUCION);
+              setAmountMode(AMOUNT_MODE_INGRESADO);
+              setMontoASaldar('');
+            }}
             disabled={loading}
           >
             Nueva devolución
@@ -832,21 +847,116 @@ const PaymentForm = ({
             </div>
           )}
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-monto">Monto *</label>
+          <div className={styles.amountModes} data-testid="payment-amount-modes">
+            <div
+              className={`${styles.amountModeBlock} ${
+                isDevolucion || amountMode === AMOUNT_MODE_INGRESADO
+                  ? styles.amountModeActive
+                  : ''
+              }`}
+            >
+              <label htmlFor="payment-monto">
+                {isDevolucion ? 'Monto *' : 'Monto ingresado'}
+              </label>
               <input
                 id="payment-monto"
                 type="number"
                 value={formData.monto}
                 onChange={(e) => handleInputChange('monto', e.target.value)}
-                placeholder="0.00"
+                onFocus={() => {
+                  if (!isDevolucion) {
+                    setAmountMode(AMOUNT_MODE_INGRESADO);
+                    setMontoASaldar('');
+                  }
+                }}
+                placeholder="Lo que abona el cliente"
                 step="0.01"
                 min="0"
-                required
+                required={isDevolucion || amountMode === AMOUNT_MODE_INGRESADO}
+                disabled={loading}
+                aria-describedby={
+                  !isDevolucion ? 'payment-monto-ingresado-help' : undefined
+                }
               />
+              {!isDevolucion ? (
+                <span id="payment-monto-ingresado-help" className={styles.helpText}>
+                  Dinero recibido. Los descuentos calculan el crédito a cuenta.
+                </span>
+              ) : null}
             </div>
 
+            {!isDevolucion ? (
+              <div
+                className={`${styles.amountModeBlock} ${
+                  amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+                }`}
+              >
+                <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+                <input
+                  id="payment-monto-saldar"
+                  type="number"
+                  value={montoASaldar}
+                  onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                  onFocus={() => {
+                    setAmountMode(AMOUNT_MODE_SALDAR);
+                    setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+                  }}
+                  placeholder={
+                    saldoPendiente != null && Number(saldoPendiente) > 0
+                      ? `Saldo pendiente $ ${formatArs(saldoPendiente)}`
+                      : 'Crédito a cancelar en la cuenta'
+                  }
+                  step="0.01"
+                  min="0"
+                  required={amountMode === AMOUNT_MODE_SALDAR}
+                  disabled={loading}
+                  aria-describedby="payment-monto-saldar-help"
+                />
+                <span id="payment-monto-saldar-help" className={styles.helpText}>
+                  Objetivo de crédito (p.ej. total/saldo). Se calcula cuánto debe abonar.
+                </span>
+                {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
+                  <button
+                    type="button"
+                    className={styles.useSaldoBtn}
+                    disabled={loading}
+                    onClick={useSaldoPendienteAsSaldar}
+                    data-testid="payment-use-saldo"
+                  >
+                    Usar saldo pendiente ($ {formatArs(saldoPendiente)})
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {isSaldarMode &&
+            montoASaldarARS > 0 &&
+            manualPromoPreview &&
+            !manualPromoPreview.probeOnly && (
+              <div
+                className={styles.tenderBanner}
+                role="status"
+                data-testid="payment-tender-banner"
+              >
+                <span className={styles.tenderLabel}>El cliente debe abonar</span>
+                <strong className={styles.tenderValue}>
+                  $ {formatArs(tenderMontoARS)}
+                </strong>
+                {manualPromoPreview.descuentoARS > 0 ? (
+                  <span className={styles.helpText}>
+                    Para saldar $ {formatArs(montoASaldarARS)} con desc. ${' '}
+                    {formatArs(manualPromoPreview.descuentoARS)}
+                  </span>
+                ) : (
+                  <span className={styles.helpText}>
+                    Sin descuento aplicable: abona el mismo monto a saldar.
+                  </span>
+                )}
+              </div>
+            )}
+
+          <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="payment-moneda">Moneda *</label>
               <select
@@ -854,10 +964,16 @@ const PaymentForm = ({
                 value={formData.moneda}
                 onChange={(e) => handleInputChange('moneda', e.target.value)}
                 required
+                disabled={loading || isSaldarMode}
               >
                 <option value="ARS">Pesos Argentinos (ARS)</option>
                 <option value="USD">Dólares (USD)</option>
               </select>
+              {isSaldarMode ? (
+                <span className={styles.helpText}>
+                  El monto a saldar se calcula en ARS (moneda de la cuenta).
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -1006,9 +1122,8 @@ const PaymentForm = ({
               >
                 {manualPromoPreview.probeOnly ? (
                   <p className={styles.helpText}>
-                    Descuentos que aplican con este medio
-                    {Number(montoARS) > 0 ? '' : ' (ingresá el monto para ver el importe exacto)'}
-                    .
+                    Descuentos que aplican con este medio (completá monto ingresado o a
+                    saldar para ver el importe exacto).
                   </p>
                 ) : null}
                 {manualPromoPreview.appliedRules.map((promo) => {
@@ -1132,33 +1247,6 @@ const PaymentForm = ({
               ) : null}
             </div>
           )}
-
-          {!isDevolucion &&
-            settlePromoPreview?.aplica &&
-            saldoPendiente != null &&
-            saldoPendiente > 0 && (
-              <div className={styles.settleRow}>
-                <button
-                  type="button"
-                  className={styles.settleButton}
-                  disabled={loading}
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      moneda: 'ARS',
-                      monto: String(settlePromoPreview.dineroARS)
-                    }));
-                  }}
-                >
-                  Cobrar saldo con este medio ($ {formatArs(settlePromoPreview.dineroARS)})
-                </button>
-                <span className={styles.helpText}>
-                  Cancela $ {formatArs(settlePromoPreview.saldoARS)} pidiendo ${' '}
-                  {formatArs(settlePromoPreview.dineroARS)} (desc. ${' '}
-                  {formatArs(settlePromoPreview.descuentoARS)})
-                </span>
-              </div>
-            )}
 
           {showComprobanteField && (
             <div className={styles.formRow}>
@@ -1474,28 +1562,43 @@ const PaymentForm = ({
               <span>Motivo:</span>
               <span>{motivoActual}</span>
             </div>
-            <div className={styles.summaryRow}>
-              <span>Monto original:</span>
-              <span className={isDevolucion ? styles.amountARS : styles.amount}>
-                {isDevolucion ? '−' : ''}
-                {formData.moneda === 'USD'
-                  ? formatPriceUSD(parseFloat(formData.monto) || 0)
-                  : formatPrice(parseFloat(formData.monto) || 0)}
-              </span>
-            </div>
-            {formData.moneda === 'USD' && (
-              <div className={styles.summaryRow}>
-                <span>Tipo de cambio:</span>
-                <span>{parseFloat(formData.tipoCambio) || 0}</span>
-              </div>
+            {isSaldarMode ? (
+              <>
+                <div className={styles.summaryRow}>
+                  <span>Monto a saldar:</span>
+                  <span className={styles.amount}>{formatPrice(montoASaldarARS)}</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Cliente abona:</span>
+                  <span className={styles.amountARS}>{formatPrice(tenderMontoARS)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.summaryRow}>
+                  <span>Monto original:</span>
+                  <span className={isDevolucion ? styles.amountARS : styles.amount}>
+                    {isDevolucion ? '−' : ''}
+                    {formData.moneda === 'USD'
+                      ? formatPriceUSD(parseFloat(formData.monto) || 0)
+                      : formatPrice(parseFloat(formData.monto) || 0)}
+                  </span>
+                </div>
+                {formData.moneda === 'USD' && (
+                  <div className={styles.summaryRow}>
+                    <span>Tipo de cambio:</span>
+                    <span>{parseFloat(formData.tipoCambio) || 0}</span>
+                  </div>
+                )}
+                <div className={styles.summaryRow}>
+                  <span>Equivalente en ARS:</span>
+                  <span className={styles.amountARS}>
+                    {isDevolucion ? '−' : ''}
+                    {formatPrice(montoARS)}
+                  </span>
+                </div>
+              </>
             )}
-            <div className={styles.summaryRow}>
-              <span>Equivalente en ARS:</span>
-              <span className={styles.amountARS}>
-                {isDevolucion ? '−' : ''}
-                {formatPrice(montoARS)}
-              </span>
-            </div>
           </div>
 
           {error && <div className={styles.errorMessage}>{error}</div>}
