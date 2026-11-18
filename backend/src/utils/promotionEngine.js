@@ -689,15 +689,17 @@ function evaluateSettlementRules(rules, ctx) {
     const primary = sortByPriority(percentRules)[0];
     const preview = benefitFn(primary);
     combined = { ...preview };
-    appliedRules.push({
-      promotionRuleId: primary.id,
-      code: primary.code,
-      label: primary.label,
-      benefitType: primary.benefitType,
-      benefitValue: toNumber(primary.benefitValue),
-      montoARS: preview.descuentoARS,
-      porcentaje: preview.porcentaje
-    });
+    appliedRules.push(
+      withModalityMeta(primary, {
+        promotionRuleId: primary.id,
+        code: primary.code,
+        label: primary.label,
+        benefitType: primary.benefitType,
+        benefitValue: toNumber(primary.benefitValue),
+        montoARS: preview.descuentoARS,
+        porcentaje: preview.porcentaje
+      })
+    );
   }
 
   for (const rule of fixedRules) {
@@ -712,15 +714,17 @@ function evaluateSettlementRules(rules, ctx) {
       combined.dineroARS = roundMoney(toNumber(ctx.dineroARS));
       combined.creditoARS = roundMoney(toNumber(combined.dineroARS) + toNumber(combined.descuentoARS));
     }
-    appliedRules.push({
-      promotionRuleId: rule.id,
-      code: rule.code,
-      label: rule.label,
-      benefitType: rule.benefitType,
-      benefitValue: toNumber(rule.benefitValue),
-      montoARS: preview.descuentoARS,
-      porcentaje: null
-    });
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType,
+        benefitValue: toNumber(rule.benefitValue),
+        montoARS: preview.descuentoARS,
+        porcentaje: null
+      })
+    );
   }
 
   const primary = selected[0];

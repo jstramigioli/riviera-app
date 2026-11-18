@@ -7,6 +7,7 @@ vi.mock('../services/api', () => ({
   createAccountPago: vi.fn(),
   uploadPagoAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
+  previewPromotion: vi.fn().mockResolvedValue({ aplica: false }),
   fetchPaymentMethodConfigs: vi.fn().mockResolvedValue([
     {
       id: 1,
@@ -104,6 +105,7 @@ import {
   createPago,
   fetchCuentasParaPago,
   getClientBillingProfile,
+  previewPromotion,
   uploadPagoAdjuntos
 } from '../services/api'
 
@@ -112,6 +114,86 @@ describe('PaymentForm facturación', () => {
     vi.clearAllMocks()
     createPago.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
     uploadPagoAdjuntos.mockResolvedValue([])
+    previewPromotion.mockResolvedValue({ aplica: false })
+  })
+
+  it('muestra medios del backend sin porcentaje hardcodeado en el label', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    const metodo = screen.getByLabelText(/Método de pago/i)
+    const efectivo = Array.from(metodo.querySelectorAll('option')).find(
+      (o) => o.value === 'Efectivo'
+    )
+    expect(efectivo).toBeTruthy()
+    expect(efectivo.textContent).toBe('Efectivo')
+    expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
+  })
+
+  it('lista cada promo aplicada con nombre y monto (no un solo −10%)', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      expect(payload.applySuggestedDefaults).toBe(true)
+      if (payload.mode === 'settle') {
+        return {
+          aplica: true,
+          dineroARS: 90000,
+          descuentoARS: 10000,
+          creditoARS: 100000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 10000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return {
+        aplica: true,
+        dineroARS: 9000,
+        descuentoARS: 1500,
+        creditoARS: 10500,
+        porcentaje: 10,
+        appliedRules: [
+          {
+            promotionRuleId: 1,
+            label: 'Descuento Efectivo',
+            code: 'EF10',
+            montoARS: 1000,
+            porcentaje: 10,
+            modality: 'AUTO'
+          },
+          {
+            promotionRuleId: 2,
+            label: 'Promo caja fija',
+            code: 'FIX500',
+            montoARS: 500,
+            modality: 'SUGERIDA',
+            defaultOn: true
+          }
+        ],
+        suggestions: []
+      }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '9000' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
+    expect(screen.getByText(/Promo caja fija/i)).toBeInTheDocument()
+    expect(screen.getByText(/−\$ 1\.000,00/)).toBeInTheDocument()
+    expect(screen.getByText(/−\$ 500,00/)).toBeInTheDocument()
+    expect(screen.queryByText(/Descuento 10% \(Efectivo\)/i)).not.toBeInTheDocument()
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {

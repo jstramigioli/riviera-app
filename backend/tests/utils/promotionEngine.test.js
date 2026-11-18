@@ -317,6 +317,22 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     });
     expect(withDefaults.aplica).toBe(true);
     expect(withDefaults.descuentoARS).toBe(5000);
+    expect(withDefaults.appliedRules[0].modality).toBe('SUGERIDA');
+    expect(withDefaults.appliedRules[0].defaultOn).toBe(true);
+    expect(withDefaults.appliedRules[0].label).toBeTruthy();
+    expect(withDefaults.appliedRules[0].montoARS).toBe(5000);
+
+    const deselected = evaluateSettlementRules([sugerida], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 45000,
+      mode: 'received',
+      selectedRuleIds: [],
+      applySuggestedDefaults: true,
+      deselectedRuleIds: [3]
+    });
+    expect(deselected.aplica).toBe(false);
+    expect(deselected.descuentoARS).toBe(0);
   });
 });
 

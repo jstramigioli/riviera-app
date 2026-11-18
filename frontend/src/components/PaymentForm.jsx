@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiSave, FiX } from 'react-icons/fi';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FiPlus, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
   createAccountPago,
@@ -17,7 +17,10 @@ import {
 import {
   benefitUnitLabel,
   buildBenefitApplyPayload,
-  collectManualBenefitSuggestions
+  collectManualBenefitSuggestions,
+  collectOptionalPromoChoices,
+  formatOptionalBenefitValue,
+  isRemovableOptionalPromo
 } from '../utils/promoManualBenefit';
 import {
   DEFAULT_PAGO_MOTIVO,
@@ -30,12 +33,7 @@ import {
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
-import {
-  computeCashToSettle,
-  computeDiscountFromReceived,
-  formatArs,
-  roundMoney
-} from '../utils/paymentDiscount';
+import { formatArs, roundMoney } from '../utils/paymentDiscount';
 import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
@@ -61,6 +59,35 @@ function optionKey(row) {
   if (row.accountId != null) return `a:${row.accountId}`;
   if (row.reservationId != null) return `r:${row.reservationId}`;
   return '';
+}
+
+/** Normaliza respuesta SETTLEMENT del motor de promociones para la UI de Nuevo pago. */
+function mapSettlementPreview(preview, saldoPendiente = null) {
+  const appliedRules = Array.isArray(preview?.appliedRules)
+    ? preview.appliedRules
+        .filter((r) => r && (Number(r.montoARS) > 0 || r.promotionRuleId != null))
+        .map((r) => ({
+          promotionRuleId: r.promotionRuleId ?? r.id ?? null,
+          code: r.code || null,
+          label: r.label || r.code || 'Descuento',
+          montoARS: Number(r.montoARS) || 0,
+          porcentaje: r.porcentaje != null ? Number(r.porcentaje) : null,
+          modality: r.modality || 'AUTO',
+          defaultOn: r.defaultOn != null ? Boolean(r.defaultOn) : r.modality === 'SUGERIDA'
+        }))
+    : [];
+  if (!preview?.aplica && appliedRules.length === 0) return null;
+  const primary = appliedRules[0] || null;
+  return {
+    aplica: Boolean(preview?.aplica) || appliedRules.length > 0,
+    descuentoARS: preview?.descuentoARS,
+    creditoARS: preview?.creditoARS,
+    dineroARS: preview?.dineroARS,
+    porcentaje: preview?.porcentaje,
+    saldoARS: preview?.saldoARS != null ? preview.saldoARS : saldoPendiente,
+    label: primary?.label || null,
+    appliedRules
+  };
 }
 
 const PaymentForm = ({
@@ -136,11 +163,22 @@ const PaymentForm = ({
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
+  const [settlePromoPreview, setSettlePromoPreview] = useState(null);
+  const [optionalChoices, setOptionalChoices] = useState([]);
+  const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
+  const [deselectedRuleIds, setDeselectedRuleIds] = useState([]);
+  const [addPromoOpen, setAddPromoOpen] = useState(false);
+  const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
 
   const manualPromoApply = useMemo(
-    () => buildBenefitApplyPayload(manualPromoValues),
-    [manualPromoValues]
+    () =>
+      buildBenefitApplyPayload({
+        manualValues: manualPromoValues,
+        selectedOptionalIds,
+        deselectedRuleIds
+      }),
+    [manualPromoValues, selectedOptionalIds, deselectedRuleIds]
   );
 
   const selectedMethodConfig = useMemo(() => {
@@ -155,25 +193,6 @@ const PaymentForm = ({
       ? Boolean(selectedMethodConfig.requiereFacturacion)
       : methodRequiresBilling(formData.metodo);
   const billingEnabled = billingForced || requiereFacturacion;
-
-  const discountPreview = useMemo(() => {
-    if (isDevolucion) return null;
-    return computeDiscountFromReceived({
-      dineroARS: montoARS,
-      config: selectedMethodConfig,
-      motivo: motivoActual,
-      saldoPendiente
-    });
-  }, [isDevolucion, montoARS, selectedMethodConfig, motivoActual, saldoPendiente]);
-
-  const settlePreview = useMemo(() => {
-    if (isDevolucion || saldoPendiente == null) return null;
-    return computeCashToSettle({
-      saldoPendiente,
-      config: selectedMethodConfig,
-      motivo: motivoActual
-    });
-  }, [isDevolucion, saldoPendiente, selectedMethodConfig, motivoActual]);
 
   const showInvoiceCardField = billingEnabled && !isCardMethod(formData.metodo);
 
@@ -238,18 +257,24 @@ const PaymentForm = ({
     if (isDevolucion) {
       setManualPromoSuggestions([]);
       setManualPromoPreview(null);
+      setOptionalChoices([]);
       return undefined;
     }
     if (!montoARS || montoARS <= 0) {
       setManualPromoSuggestions([]);
       setManualPromoPreview(null);
+      setOptionalChoices([]);
       return undefined;
     }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const { benefitValueByRuleId, selectedRuleIds } = manualPromoApply;
+        const {
+          benefitValueByRuleId,
+          selectedRuleIds,
+          deselectedRuleIds: deselected
+        } = manualPromoApply;
         const preview = await previewPromotion({
           layer: 'SETTLEMENT',
           metodo: formData.metodo,
@@ -259,26 +284,21 @@ const PaymentForm = ({
           motivo: motivoActual,
           mode: 'received',
           selectedRuleIds,
-          benefitValueByRuleId
+          deselectedRuleIds: deselected,
+          benefitValueByRuleId,
+          applySuggestedDefaults: true
         });
         if (cancelled) return;
+        const mapped = mapSettlementPreview(preview, saldoPendiente);
         setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
-        setManualPromoPreview(
-          preview?.aplica
-            ? {
-                aplica: true,
-                descuentoARS: preview.descuentoARS,
-                creditoARS: preview.creditoARS,
-                dineroARS: preview.dineroARS,
-                porcentaje: preview.porcentaje
-              }
-            : null
-        );
+        setManualPromoPreview(mapped);
+        setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
       } catch (err) {
         if (!cancelled) {
           console.warn('Preview promos settlement falló', err);
           setManualPromoSuggestions([]);
           setManualPromoPreview(null);
+          setOptionalChoices([]);
         }
       }
     }, 250);
@@ -296,6 +316,105 @@ const PaymentForm = ({
     motivoActual,
     manualPromoApply
   ]);
+
+  // Preview "cobrar saldo" desde motor de promociones (no mirror hardcodeado del medio).
+  useEffect(() => {
+    if (isDevolucion || saldoPendiente == null || saldoPendiente <= 0) {
+      setSettlePromoPreview(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const {
+          benefitValueByRuleId,
+          selectedRuleIds,
+          deselectedRuleIds: deselected
+        } = manualPromoApply;
+        const preview = await previewPromotion({
+          layer: 'SETTLEMENT',
+          metodo: formData.metodo,
+          paymentMethodConfigId: selectedMethodConfig?.id,
+          saldoPendiente,
+          motivo: motivoActual,
+          mode: 'settle',
+          selectedRuleIds,
+          deselectedRuleIds: deselected,
+          benefitValueByRuleId,
+          applySuggestedDefaults: true
+        });
+        if (cancelled) return;
+        const mapped = mapSettlementPreview(preview, saldoPendiente);
+        setSettlePromoPreview(
+          mapped
+            ? { ...mapped, saldoARS: mapped.saldoARS ?? saldoPendiente }
+            : null
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Preview settle promociones falló', err);
+          setSettlePromoPreview(null);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    isDevolucion,
+    saldoPendiente,
+    formData.metodo,
+    selectedMethodConfig?.id,
+    motivoActual,
+    manualPromoApply
+  ]);
+
+  useEffect(() => {
+    if (!addPromoOpen) return undefined;
+    const onDocClick = (e) => {
+      if (addPromoRef.current && !addPromoRef.current.contains(e.target)) {
+        setAddPromoOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [addPromoOpen]);
+
+  const setManualPromoValue = (ruleId, value) => {
+    setManualPromoValues((prev) => ({ ...prev, [ruleId]: value }));
+  };
+
+  const addOptionalPromo = (choice) => {
+    if (!choice || choice.id == null) return;
+    const id = Number(choice.id);
+    if (choice.defaultOn) {
+      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    } else {
+      setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    }
+    setAddPromoOpen(false);
+  };
+
+  const removeOptionalPromo = (promo) => {
+    const id = Number(promo?.promotionRuleId ?? promo?.id);
+    if (!Number.isFinite(id)) return;
+    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
+      setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    } else {
+      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    }
+    setManualPromoValues((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (billingForced) {
@@ -564,9 +683,11 @@ const PaymentForm = ({
         requiereFacturacion: billingEnabled,
         factura: facturaPayload,
         selectedRuleIds: isDevolucion ? undefined : manualPromoApply.selectedRuleIds,
+        deselectedRuleIds: isDevolucion ? undefined : manualPromoApply.deselectedRuleIds,
         benefitValueByRuleId: isDevolucion
           ? undefined
-          : manualPromoApply.benefitValueByRuleId
+          : manualPromoApply.benefitValueByRuleId,
+        applySuggestedDefaults: isDevolucion ? undefined : true
       };
 
       let nuevoPago;
@@ -754,23 +875,17 @@ const PaymentForm = ({
                 value={formData.metodo}
                 onChange={(e) => handleInputChange('metodo', e.target.value)}
                 required
+                disabled={loading || methodConfigs.length === 0}
               >
-                {(methodConfigs.length > 0
-                  ? methodConfigs
-                  : [
-                      { id: 'ef', label: 'Efectivo' },
-                      { id: 'td', label: 'Tarjeta Debito' },
-                      { id: 'tc', label: 'Tarjeta Credito' },
-                      { id: 'tr', label: 'Transferencia' }
-                    ]
-                ).map((m) => (
-                  <option key={m.id} value={m.label}>
-                    {m.label}
-                    {m.descuentoActivo && Number(m.descuentoValor) > 0
-                      ? ` (−${Number(m.descuentoValor)}%)`
-                      : ''}
-                  </option>
-                ))}
+                {methodConfigs.length === 0 ? (
+                  <option value="">Cargando medios…</option>
+                ) : (
+                  methodConfigs.map((m) => (
+                    <option key={m.id} value={m.label}>
+                      {m.label}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -850,12 +965,7 @@ const PaymentForm = ({
                       step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
                       className={styles.manualPromoInput}
                       value={manualPromoValues[s.id] ?? ''}
-                      onChange={(e) =>
-                        setManualPromoValues((prev) => ({
-                          ...prev,
-                          [s.id]: e.target.value
-                        }))
-                      }
+                      onChange={(e) => setManualPromoValue(s.id, e.target.value)}
                       placeholder="—"
                       aria-label={`Valor de ${s.label}`}
                       disabled={loading}
@@ -869,73 +979,134 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion && (manualPromoPreview?.aplica || discountPreview?.aplica) && (
-            <div className={styles.discountPreview} role="status">
-              <p className={styles.discountTitle}>
-                {manualPromoPreview?.aplica
-                  ? `Descuento${
-                      manualPromoPreview.porcentaje != null
-                        ? ` ${manualPromoPreview.porcentaje}%`
-                        : ''
-                    }`
-                  : `Descuento ${discountPreview.porcentaje}% (${selectedMethodConfig?.label})`}
-              </p>
-              <ul className={styles.discountList}>
-                <li>
-                  Recibe / registra:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.dineroARS
-                        : discountPreview.dineroARS) || 0
-                    )}
-                  </strong>
-                </li>
-                <li>
-                  Descuento aplicado:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.descuentoARS
-                        : discountPreview.descuentoARS) || 0
-                    )}
-                  </strong>
-                </li>
-                <li>
-                  Crédito a cuenta:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.creditoARS
-                        : discountPreview.creditoARS) || 0
-                    )}
-                  </strong>
-                </li>
-                {saldoPendiente != null && (
+          {!isDevolucion &&
+            manualPromoPreview?.aplica &&
+            (manualPromoPreview.appliedRules?.length > 0 ? (
+              <div
+                className={styles.promoList}
+                role="status"
+                data-testid="payment-applied-promos"
+              >
+                {manualPromoPreview.appliedRules.map((promo) => {
+                  const removable = isRemovableOptionalPromo(promo);
+                  return (
+                    <div
+                      key={promo.promotionRuleId || promo.code || promo.label}
+                      className={styles.promoBlock}
+                    >
+                      <div className={styles.promoRow}>
+                        <span className={styles.promoLabel}>
+                          {promo.label}
+                          {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                        </span>
+                        <span className={styles.promoValue}>
+                          −$ {formatArs(promo.montoARS)}
+                        </span>
+                      </div>
+                      {removable ? (
+                        <button
+                          type="button"
+                          className={styles.promoRemoveBtn}
+                          onClick={() => removeOptionalPromo(promo)}
+                          aria-label={`Quitar ${promo.label}`}
+                          disabled={loading}
+                          data-testid={`payment-promo-remove-${promo.promotionRuleId}`}
+                        >
+                          <FiX aria-hidden="true" />
+                          <span>Quitar</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                <ul className={styles.discountList}>
                   <li>
-                    Saldo restante proyectado:{' '}
-                    <strong>
-                      ${' '}
-                      {formatArs(
-                        roundMoney(
-                          saldoPendiente -
-                            ((manualPromoPreview?.aplica
-                              ? manualPromoPreview.creditoARS
-                              : discountPreview.creditoARS) || 0)
-                        )
-                      )}
-                    </strong>
+                    Recibe / registra:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
                   </li>
-                )}
-              </ul>
+                  <li>
+                    Crédito a cuenta:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                  </li>
+                  {saldoPendiente != null && (
+                    <li>
+                      Saldo restante proyectado:{' '}
+                      <strong>
+                        ${' '}
+                        {formatArs(
+                          roundMoney(
+                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
+                          )
+                        )}
+                      </strong>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <div className={styles.discountPreview} role="status">
+                <p className={styles.discountTitle}>Descuento</p>
+                <ul className={styles.discountList}>
+                  <li>
+                    Recibe / registra:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
+                  </li>
+                  <li>
+                    Descuento aplicado:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.descuentoARS || 0)}</strong>
+                  </li>
+                  <li>
+                    Crédito a cuenta:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                  </li>
+                </ul>
+              </div>
+            ))}
+
+          {!isDevolucion && (
+            <div className={styles.addPromoWrap} ref={addPromoRef}>
+              <button
+                type="button"
+                className={styles.addPromoBtn}
+                onClick={() => setAddPromoOpen((v) => !v)}
+                aria-expanded={addPromoOpen}
+                aria-haspopup="listbox"
+                disabled={loading || optionalChoices.length === 0}
+                data-testid="payment-add-optional-promo"
+              >
+                <FiPlus aria-hidden="true" />
+                promoción
+              </button>
+              {addPromoOpen && optionalChoices.length > 0 ? (
+                <ul
+                  className={styles.addPromoMenu}
+                  role="listbox"
+                  aria-label="Promociones opcionales"
+                >
+                  {optionalChoices.map((choice) => {
+                    const valueLabel = formatOptionalBenefitValue(choice);
+                    return (
+                      <li key={choice.id} role="option">
+                        <button
+                          type="button"
+                          className={styles.addPromoOption}
+                          onClick={() => addOptionalPromo(choice)}
+                        >
+                          <span className={styles.addPromoName}>{choice.label}</span>
+                          {valueLabel ? (
+                            <span className={styles.addPromoMeta}>{valueLabel}</span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
             </div>
           )}
 
           {!isDevolucion &&
-            settlePreview?.aplica &&
+            settlePromoPreview?.aplica &&
             saldoPendiente != null &&
             saldoPendiente > 0 && (
               <div className={styles.settleRow}>
@@ -947,16 +1118,16 @@ const PaymentForm = ({
                     setFormData((prev) => ({
                       ...prev,
                       moneda: 'ARS',
-                      monto: String(settlePreview.dineroARS)
+                      monto: String(settlePromoPreview.dineroARS)
                     }));
                   }}
                 >
-                  Cobrar saldo con este medio ($ {formatArs(settlePreview.dineroARS)})
+                  Cobrar saldo con este medio ($ {formatArs(settlePromoPreview.dineroARS)})
                 </button>
                 <span className={styles.helpText}>
-                  Cancela $ {formatArs(settlePreview.saldoARS)} pidiendo ${' '}
-                  {formatArs(settlePreview.dineroARS)} (desc. ${' '}
-                  {formatArs(settlePreview.descuentoARS)})
+                  Cancela $ {formatArs(settlePromoPreview.saldoARS)} pidiendo ${' '}
+                  {formatArs(settlePromoPreview.dineroARS)} (desc. ${' '}
+                  {formatArs(settlePromoPreview.descuentoARS)})
                 </span>
               </div>
             )}
