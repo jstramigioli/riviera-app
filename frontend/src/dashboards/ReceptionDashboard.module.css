@@ -362,6 +362,226 @@
   font: inherit;
 }
 
+/* Hub Comidas */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.comidasHub {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comidasHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comidasHeader .moduleTitle {
+  margin: 0;
+}
+
+.comidasTotals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.comidasTotalBtn {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  background: var(--dash-primary-light);
+  color: var(--dash-text-dark);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.comidasTotalBtn:hover {
+  border-color: var(--dash-primary);
+  background: #dfe8f3;
+}
+
+.comidasTotalBtn:focus-visible {
+  outline: 3px solid rgba(63, 95, 138, 0.28);
+  outline-offset: 2px;
+}
+
+.comidasTotalBtn:active {
+  transform: translateY(1px);
+}
+
+.comidasTotalLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dash-primary-dark);
+}
+
+.comidasTotalValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--dash-text-dark);
+}
+
+.comidasTotalHint {
+  font-size: 11px;
+  color: var(--dash-muted);
+}
+
+.comidasMenuBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #eef1f5;
+}
+
+.comidasMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comidasMenuTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dash-text-dark);
+}
+
+.comidasMenuNote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dash-muted);
+}
+
+.comidasMenuInput {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: var(--dash-surface);
+  color: var(--dash-text);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.comidasMenuInput:focus {
+  outline: none;
+  border-color: var(--dash-primary);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.comidasMenuInput:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.comidasMenuActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.actionBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--dash-primary);
+  border-radius: 6px;
+  background: var(--dash-primary);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionBtnPrimary:hover:not(:disabled) {
+  background: var(--dash-primary-dark);
+  border-color: var(--dash-primary-dark);
+}
+
+.actionBtnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comidasMenuOk {
+  font-size: 12px;
+  color: var(--dash-success);
+  font-weight: 600;
+}
+
+.comidasMenuWarn {
+  font-size: 12px;
+  color: #9a6700;
+  font-weight: 600;
+}
+
+.comidasMenuError {
+  font-size: 12px;
+  color: var(--dash-danger);
+  font-weight: 600;
+}
+
+.comidasDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comidasDetailToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.comidasDetailTitle {
+  margin: 0;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dash-text-dark);
+}
+
+.comidasDetailToolbar .actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 @media (max-width: 1100px) {
   .module {
     grid-column: span 12;
@@ -369,5 +589,11 @@
 
   .pageTitle {
     font-size: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .comidasTotals {
+    grid-template-columns: 1fr;
   }
 }

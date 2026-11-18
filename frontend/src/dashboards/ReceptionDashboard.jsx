@@ -18,6 +18,7 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
+import ComidasHub from './ComidasHub';
 import styles from './ReceptionDashboard.module.css';
 
 function formatSaldo(amount) {
@@ -49,41 +50,6 @@ function formatDayTitle(dayIso) {
   return raw.charAt(0).toLowerCase() + raw.slice(1);
 }
 
-function printMealRows(title, rows) {
-  const body = rows
-    .map(
-      (r) =>
-        `<tr><td>${escapeHtml(r.guestName || r.label || '—')}</td><td>${escapeHtml(String(r.roomLabel || '—'))}</td><td>${escapeHtml(String(r.guests ?? ''))}</td></tr>`
-    )
-    .join('');
-  const html = `<!doctype html><html><head><title>${escapeHtml(title)}</title>
-<style>
-  body{font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#1f2933;padding:24px}
-  h1{font-size:16px;margin:0 0 12px}
-  table{width:100%;border-collapse:collapse}
-  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #d8dde6}
-  th{font-size:12px;color:#6b7280}
-</style></head><body>
-<h1>${escapeHtml(title)}</h1>
-<table><thead><tr><th>Nombre</th><th>Habitación</th><th>Huéspedes</th></tr></thead>
-<tbody>${body || '<tr><td colspan="3">Sin filas seleccionadas</td></tr>'}</tbody></table>
-</body></html>`;
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=720,height=640');
-  if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 /**
  * Dashboard operativo de recepción.
  * Hoy = todayIsoLocal(); acciones rápidas = mismo FloatingActionButton del Libro.
@@ -98,8 +64,6 @@ export default function ReceptionDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusBusyId, setStatusBusyId] = useState(null);
-  const [selectedBreakfast, setSelectedBreakfast] = useState(() => new Set());
-  const [selectedDinner, setSelectedDinner] = useState(() => new Set());
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentReservaId, setPaymentReservaId] = useState(null);
@@ -149,11 +113,6 @@ export default function ReceptionDashboard() {
     load();
   }, []);
 
-  useEffect(() => {
-    setSelectedBreakfast(new Set());
-    setSelectedDinner(new Set());
-  }, [mealsDateIso]);
-
   const model = useMemo(
     () =>
       buildReceptionDashboardModel({
@@ -186,16 +145,6 @@ export default function ReceptionDashboard() {
     } finally {
       setStatusBusyId(null);
     }
-  };
-
-  const toggleMealSelection = (meal, reservationId) => {
-    const setter = meal === 'breakfast' ? setSelectedBreakfast : setSelectedDinner;
-    setter((prev) => {
-      const next = new Set(prev);
-      if (next.has(reservationId)) next.delete(reservationId);
-      else next.add(reservationId);
-      return next;
-    });
   };
 
   const checkoutRows = model.today?.checkOutItems || [];
@@ -384,157 +333,12 @@ export default function ReceptionDashboard() {
           )}
         </section>
 
-        <section className={styles.module} aria-labelledby="dash-breakfast">
-          <div className={styles.mealHeader}>
-            <h2 id="dash-breakfast" className={styles.moduleTitle}>
-              Desayuno
-            </h2>
-            <div className={styles.mealsToolbar}>
-              <input
-                id="dash-meals-date-b"
-                type="date"
-                className={styles.dateInput}
-                value={mealsDateIso}
-                onChange={(e) => {
-                  if (e.target.value) setMealsDateIso(e.target.value);
-                }}
-                aria-label="Fecha desayuno"
-              />
-              <button
-                type="button"
-                className={styles.actionBtn}
-                disabled={selectedBreakfast.size === 0}
-                onClick={() =>
-                  printMealRows(
-                    `Desayuno · ${mealsDateIso}`,
-                    (meals.breakfastItems || []).filter((r) =>
-                      selectedBreakfast.has(r.reservationId)
-                    )
-                  )
-                }
-              >
-                Imprimir detalle
-              </button>
-            </div>
-          </div>
-          {meals.breakfastItems.length === 0 ? (
-            <p className={styles.empty}>Sin desayunos.</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th className={styles.checkCol} />
-                  <th>Nombre</th>
-                  <th>Habitación</th>
-                  <th>Huéspedes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {meals.breakfastItems.map((item) => (
-                  <tr key={`bf-${item.reservationId}`}>
-                    <td className={styles.checkCol}>
-                      <input
-                        type="checkbox"
-                        checked={selectedBreakfast.has(item.reservationId)}
-                        onChange={() =>
-                          toggleMealSelection('breakfast', item.reservationId)
-                        }
-                        aria-label={`Seleccionar ${item.guestName}`}
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.listLink}
-                        onClick={() => openReservation(item.reservationId)}
-                      >
-                        {item.guestName}
-                      </button>
-                    </td>
-                    <td>{item.roomLabel || '—'}</td>
-                    <td>{item.guests ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-
-        <section className={styles.module} aria-labelledby="dash-dinner">
-          <div className={styles.mealHeader}>
-            <h2 id="dash-dinner" className={styles.moduleTitle}>
-              Cena
-            </h2>
-            <div className={styles.mealsToolbar}>
-              <input
-                id="dash-meals-date-d"
-                type="date"
-                className={styles.dateInput}
-                value={mealsDateIso}
-                onChange={(e) => {
-                  if (e.target.value) setMealsDateIso(e.target.value);
-                }}
-                aria-label="Fecha cena"
-              />
-              <button
-                type="button"
-                className={styles.actionBtn}
-                disabled={selectedDinner.size === 0}
-                onClick={() =>
-                  printMealRows(
-                    `Cena · ${mealsDateIso}`,
-                    (meals.dinnerItems || []).filter((r) =>
-                      selectedDinner.has(r.reservationId)
-                    )
-                  )
-                }
-              >
-                Imprimir detalle
-              </button>
-            </div>
-          </div>
-          {meals.dinnerItems.length === 0 ? (
-            <p className={styles.empty}>Sin cenas.</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th className={styles.checkCol} />
-                  <th>Nombre</th>
-                  <th>Habitación</th>
-                  <th>Huéspedes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {meals.dinnerItems.map((item) => (
-                  <tr key={`dn-${item.reservationId}`}>
-                    <td className={styles.checkCol}>
-                      <input
-                        type="checkbox"
-                        checked={selectedDinner.has(item.reservationId)}
-                        onChange={() =>
-                          toggleMealSelection('dinner', item.reservationId)
-                        }
-                        aria-label={`Seleccionar ${item.guestName}`}
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.listLink}
-                        onClick={() => openReservation(item.reservationId)}
-                      >
-                        {item.guestName}
-                      </button>
-                    </td>
-                    <td>{item.roomLabel || '—'}</td>
-                    <td>{item.guests ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+        <ComidasHub
+          mealsDateIso={mealsDateIso}
+          onMealsDateChange={setMealsDateIso}
+          meals={meals}
+          onOpenReservation={openReservation}
+        />
 
         <NotificationsPanel todayIso={todayIso} />
       </div>
