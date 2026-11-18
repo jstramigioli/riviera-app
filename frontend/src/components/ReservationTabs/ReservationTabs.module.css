@@ -530,49 +530,37 @@
   min-width: 0;
 }
 
-.pagosTableSection {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-}
-
-.pagosTableHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.pagosTableHeader h4 {
-  margin: 0;
-  font-size: 1rem;
-  color: #111827;
-}
-
-.pagosTableHeader span {
+.financialRowMeta {
+  margin-left: 6px;
   font-size: 0.8125rem;
-  color: #6b7280;
+  font-weight: 400;
+  opacity: 0.85;
 }
 
-.pagosEditableTable {
-  min-width: 720px;
-}
-
-.pagosEditableTable .tableInput {
+.pagosTableScroll {
   width: 100%;
-  max-width: 140px;
-  padding: 4px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 0.8125rem;
-  background: #fff;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 8px;
+  box-shadow: none;
 }
 
-.pagoRowEditing {
-  background: #f8fafc;
+.pagosTable {
+  min-width: 760px;
+  width: 100%;
+}
+
+.pagosTable th,
+.pagosTable td {
+  white-space: nowrap;
+}
+
+.pagosTable .notasCell {
+  max-width: 180px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .financialSummaryPanel {

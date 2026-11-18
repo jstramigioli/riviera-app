@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import EstadoFinancieroTab from './EstadoFinancieroTab'
 
@@ -16,15 +16,17 @@ vi.mock('../../hooks/useAppNotice', () => ({
   })
 }))
 
-vi.mock('../../services/api', () => ({
-  fetchPaymentMethodConfigs: vi.fn().mockResolvedValue([
-    { id: 1, label: 'Efectivo' },
-    { id: 2, label: 'Transferencia' }
-  ])
-}))
-
 vi.mock('../PaymentForm', () => ({
-  default: () => null
+  default: ({ initialPago, onClose }) => (
+    <div data-testid="payment-form-modal">
+      <span data-testid="payment-form-mode">
+        {initialPago?.id ? `edit-${initialPago.id}` : 'create'}
+      </span>
+      <button type="button" onClick={onClose}>
+        cerrar
+      </button>
+    </div>
+  )
 }))
 
 vi.mock('./LiquidacionPrint', () => ({
@@ -124,7 +126,6 @@ describe('EstadoFinancieroTab', () => {
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
         onDeleteCargo={vi.fn()}
-        onUpdatePago={vi.fn()}
         onDeletePago={vi.fn()}
       />
     )
@@ -171,8 +172,7 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/vencido/i)
   })
 
-  it('muestra pagos en tabla editable y guarda cambios', async () => {
-    const onUpdatePago = vi.fn().mockResolvedValue({})
+  it('abre el modal Nuevo pago prefilled al editar un pago (no inline)', () => {
     render(
       <EstadoFinancieroTab
         reservation={{ id: 22 }}
@@ -184,24 +184,18 @@ describe('EstadoFinancieroTab', () => {
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
         onDeleteCargo={vi.fn()}
-        onUpdatePago={onUpdatePago}
         onDeletePago={vi.fn()}
       />
     )
 
+    fireEvent.click(screen.getByTestId('financial-row-pagos'))
     expect(screen.getByTestId('financial-pagos-table')).toBeInTheDocument()
     expect(screen.getByText('A010')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('pago-edit-10'))
-    const monto = screen.getByTestId('pago-edit-monto-10')
-    fireEvent.change(monto, { target: { value: '40000' } })
-    fireEvent.click(screen.getByTestId('pago-save-10'))
+    expect(screen.queryByTestId('pago-edit-monto-10')).not.toBeInTheDocument()
 
-    await waitFor(() =>
-      expect(onUpdatePago).toHaveBeenCalledWith(
-        10,
-        expect.objectContaining({ monto: 40000, moneda: 'ARS', metodo: 'Efectivo' })
-      )
-    )
+    fireEvent.click(screen.getByTestId('pago-edit-10'))
+    expect(screen.getByTestId('payment-form-modal')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-form-mode')).toHaveTextContent('edit-10')
   })
 
   it('si el resumen no trae saldo, usa cargos − pagos − descuentos', () => {

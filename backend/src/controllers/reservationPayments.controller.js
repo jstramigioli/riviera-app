@@ -262,9 +262,9 @@ exports.createPago = async (req, res) => {
     promotionRuleIds,
     deselectedRuleIds,
     benefitValueByRuleId,
-    applySuggestedDefaults
+    applySuggestedDefaults,
+    fecha
   } = req.body;
-  // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
     .concat(promotionRuleIds || [])
@@ -377,7 +377,25 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(montoSigned);
     }
 
-    const fechaPago = new Date();
+    let fechaPago = new Date();
+    if (fecha) {
+      const raw = String(fecha).trim();
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        fechaPago = new Date(
+          Number(m[1]),
+          Number(m[2]) - 1,
+          Number(m[3]),
+          12,
+          0,
+          0,
+          0
+        );
+      } else {
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) fechaPago = parsed;
+      }
+    }
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
 
     const nuevoPago = await prisma.$transaction(async (tx) => {

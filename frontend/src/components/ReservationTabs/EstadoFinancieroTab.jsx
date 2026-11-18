@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FaPlus,
   FaChevronDown,
@@ -7,13 +7,11 @@ import {
   FaCheck,
   FaEdit,
   FaPrint,
-  FaTrash,
-  FaSave
+  FaTrash
 } from 'react-icons/fa';
 import { FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 import PaymentForm from '../PaymentForm';
 import LiquidacionPrint from './LiquidacionPrint';
-import { fetchPaymentMethodConfigs } from '../../services/api';
 import { RESERVATION_STATUSES } from '../../utils/reservationStatusUtils';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
@@ -60,31 +58,6 @@ export function resolveSaldoVisualStatus(saldo, reservation, todayIso = civilIso
   return isGuestDeparted(reservation, todayIso) ? 'VENCIDO' : 'PENDIENTE';
 }
 
-function toDateInputValue(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function draftFromPago(pago) {
-  return {
-    monto: String(pago.monto ?? ''),
-    moneda: pago.moneda || 'ARS',
-    tipoCambio: pago.tipoCambio != null ? String(pago.tipoCambio) : '',
-    metodo: pago.metodo || 'Efectivo',
-    motivo: pago.motivo || 'Pago',
-    numeroTarjeta: pago.numeroTarjeta || '',
-    empresa: pago.empresa || '',
-    notas: pago.notas || '',
-    fecha: toDateInputValue(pago.fecha),
-    retirado: Boolean(pago.retirado)
-  };
-}
-
 function discountLabel(d) {
   if (!d) return '—';
   const parts = [];
@@ -122,7 +95,6 @@ const EstadoFinancieroTab = ({
   onAddCargo,
   onUpdateCargo,
   onDeleteCargo,
-  onUpdatePago,
   onDeletePago,
   pendingAction = null,
   onPendingActionHandled,
@@ -132,6 +104,7 @@ const EstadoFinancieroTab = ({
   const { notify, noticeDialog } = useAppNotice();
   const [expandedFinancialRow, setExpandedFinancialRow] = useState('cargos');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [editingPago, setEditingPago] = useState(null);
   const [showCargoModal, setShowCargoModal] = useState(false);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
@@ -142,30 +115,11 @@ const EstadoFinancieroTab = ({
     subcategoriaCargoId: null,
     notas: ''
   });
-  const [methodOptions, setMethodOptions] = useState([]);
-  const [editingPagoId, setEditingPagoId] = useState(null);
-  const [pagoDraft, setPagoDraft] = useState(null);
-  const [savingPagoId, setSavingPagoId] = useState(null);
   const printRef = useRef(null);
   const pendingHandledRef = useRef(null);
 
   useEffect(() => {
     loadCategoriasHibridas();
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await fetchPaymentMethodConfigs();
-        if (!cancelled) setMethodOptions(Array.isArray(list) ? list : []);
-      } catch {
-        if (!cancelled) setMethodOptions([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const loadCategoriasHibridas = async () => {
@@ -271,55 +225,25 @@ const EstadoFinancieroTab = ({
     await onDeleteCargo(cargo.id);
   };
 
-  const handlePaymentSuccess = async () => {
+  const openNewPaymentForm = () => {
+    setEditingPago(null);
+    setShowPaymentForm(true);
+  };
+
+  const openEditPaymentForm = (pago) => {
+    setEditingPago(pago);
+    setShowPaymentForm(true);
+    setExpandedFinancialRow('pagos');
+  };
+
+  const closePaymentForm = () => {
     setShowPaymentForm(false);
+    setEditingPago(null);
+  };
+
+  const handlePaymentSuccess = async () => {
+    closePaymentForm();
     if (onFinancialChange) await onFinancialChange();
-  };
-
-  const startEditPago = (pago) => {
-    setEditingPagoId(pago.id);
-    setPagoDraft(draftFromPago(pago));
-  };
-
-  const cancelEditPago = () => {
-    setEditingPagoId(null);
-    setPagoDraft(null);
-  };
-
-  const setDraftField = (field, value) => {
-    setPagoDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
-  };
-
-  const handleSavePago = async (pagoId) => {
-    if (!onUpdatePago || !pagoDraft) return;
-    const monto = parseFloat(pagoDraft.monto);
-    if (!(monto > 0)) {
-      notify({ title: 'Validación', message: 'El monto debe ser mayor a 0', type: 'warning' });
-      return;
-    }
-    if (pagoDraft.moneda === 'USD' && !(parseFloat(pagoDraft.tipoCambio) > 0)) {
-      notify({ title: 'Validación', message: 'Tipo de cambio requerido para USD', type: 'warning' });
-      return;
-    }
-    try {
-      setSavingPagoId(pagoId);
-      await onUpdatePago(pagoId, {
-        monto,
-        moneda: pagoDraft.moneda,
-        tipoCambio:
-          pagoDraft.moneda === 'USD' ? parseFloat(pagoDraft.tipoCambio) : undefined,
-        metodo: pagoDraft.metodo,
-        motivo: pagoDraft.motivo || 'Pago',
-        numeroTarjeta: pagoDraft.numeroTarjeta || null,
-        empresa: pagoDraft.empresa || null,
-        notas: pagoDraft.notas || null,
-        fecha: pagoDraft.fecha || undefined,
-        retirado: Boolean(pagoDraft.retirado)
-      });
-      cancelEditPago();
-    } finally {
-      setSavingPagoId(null);
-    }
   };
 
   const handleDeletePago = async (pago) => {
@@ -331,7 +255,7 @@ const EstadoFinancieroTab = ({
     });
     if (!ok) return;
     await onDeletePago(pago.id);
-    if (editingPagoId === pago.id) cancelEditPago();
+    if (editingPago?.id === pago.id) closePaymentForm();
   };
 
   const handlePrintLiquidacion = () => {
@@ -396,7 +320,7 @@ const EstadoFinancieroTab = ({
 
     if (pendingAction === 'add-pago') {
       pendingHandledRef.current = pendingAction;
-      setShowPaymentForm(true);
+      openNewPaymentForm();
       onPendingActionHandled?.();
       return;
     }
@@ -437,16 +361,6 @@ const EstadoFinancieroTab = ({
     ...tipoCargoOrder.filter((codigo) => cargosPorTipo[codigo]),
     ...Object.keys(cargosPorTipo).filter((codigo) => !tipoCargoOrder.includes(codigo))
   ].map((codigo) => cargosPorTipo[codigo]);
-
-  const metodoSelectOptions = useMemo(() => {
-    const labels = methodOptions.map((m) => m.label).filter(Boolean);
-    const current = pagoDraft?.metodo;
-    if (current && !labels.includes(current)) labels.unshift(current);
-    if (!labels.length) {
-      return ['Efectivo', 'Transferencia', 'Tarjeta Debito', 'Tarjeta Credito'];
-    }
-    return labels;
-  }, [methodOptions, pagoDraft?.metodo]);
 
   if (!reservation) return null;
 
@@ -515,7 +429,7 @@ const EstadoFinancieroTab = ({
           <button
             type="button"
             className={styles.addButton}
-            onClick={() => setShowPaymentForm(true)}
+            onClick={openNewPaymentForm}
             data-testid="btn-add-pago"
           >
             <FaPlus /> pago
@@ -603,231 +517,132 @@ const EstadoFinancieroTab = ({
                     </div>
                   )}
                 </div>
+
+                <div className={styles.financialRowBlock}>
+                  <button
+                    type="button"
+                    className={styles.financialRowToggle}
+                    onClick={() => toggleFinancialRow('pagos')}
+                    aria-expanded={expandedFinancialRow === 'pagos'}
+                    data-testid="financial-row-pagos"
+                  >
+                    <span className={styles.financialRowLabel}>
+                      <span className={styles.financialRowChevron} aria-hidden="true">
+                        {expandedFinancialRow === 'pagos' ? (
+                          <FaChevronDown />
+                        ) : (
+                          <FaChevronRight />
+                        )}
+                      </span>
+                      Pagos
+                      <span
+                        className={styles.financialRowMeta}
+                        data-testid="financial-pagos-count"
+                      >
+                        {pagoItems.length} registro{pagoItems.length === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <strong data-testid="financial-total-pagos">
+                      {formatCurrency(totalPagos)}
+                    </strong>
+                  </button>
+                  {expandedFinancialRow === 'pagos' && (
+                    <div
+                      className={styles.financialRowDetail}
+                      data-testid="financial-detail-pagos"
+                    >
+                      {pagoItems.length === 0 ? (
+                        <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                      ) : (
+                        <div
+                          className={`${styles.tableContainer} ${styles.pagosTableScroll}`}
+                        >
+                          <table
+                            className={`${styles.dataTable} ${styles.pagosTable}`}
+                            data-testid="financial-pagos-table"
+                          >
+                            <thead>
+                              <tr>
+                                <th>Código</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Moneda</th>
+                                <th>Método</th>
+                                <th>Motivo</th>
+                                <th>Descuento</th>
+                                <th>Notas</th>
+                                <th>Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pagoItems.map((pago) => {
+                                const disc = pago.discountApplication;
+                                return (
+                                  <tr
+                                    key={pago.id}
+                                    data-testid={`financial-pago-row-${pago.id}`}
+                                  >
+                                    <td>{pago.codigo || `#${pago.id}`}</td>
+                                    <td>{formatDate(pago.fecha)}</td>
+                                    <td className={styles.montoCell}>
+                                      {pago.moneda === 'USD'
+                                        ? `$${Number(pago.monto).toFixed(2)} USD`
+                                        : formatCurrency(pago.montoARS ?? pago.monto)}
+                                      {pago.moneda === 'USD' && pago.montoARS != null ? (
+                                        <div className={styles.arsEquivalent}>
+                                          ≈ {formatCurrency(pago.montoARS)}
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td>{pago.moneda || 'ARS'}</td>
+                                    <td>{pago.metodo || '—'}</td>
+                                    <td>{pago.motivo || 'Pago'}</td>
+                                    <td>
+                                      {disc && Number(disc.montoARS) !== 0
+                                        ? formatCurrency(disc.montoARS)
+                                        : '—'}
+                                      {disc && Number(disc.montoARS) !== 0 ? (
+                                        <div className={styles.arsEquivalent}>
+                                          {promoHintFromDiscount(disc)}
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td className={styles.notasCell}>{pago.notas || '—'}</td>
+                                    <td>
+                                      <span className={styles.breakdownActions}>
+                                        <button
+                                          type="button"
+                                          className={styles.editIconButton}
+                                          onClick={() => openEditPaymentForm(pago)}
+                                          title="Editar pago"
+                                          data-testid={`pago-edit-${pago.id}`}
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={styles.deleteIconButton}
+                                          onClick={() => handleDeletePago(pago)}
+                                          title="Eliminar pago"
+                                          data-testid={`pago-delete-${pago.id}`}
+                                          disabled={!onDeletePago}
+                                        >
+                                          <FaTrash />
+                                        </button>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            <section
-              className={styles.pagosTableSection}
-              aria-labelledby="financial-pagos-heading"
-            >
-              <div className={styles.pagosTableHeader}>
-                <h4 id="financial-pagos-heading">Pagos</h4>
-                <span data-testid="financial-pagos-count">
-                  {pagoItems.length} registro{pagoItems.length === 1 ? '' : 's'}
-                </span>
-              </div>
-              {pagoItems.length === 0 ? (
-                <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
-              ) : (
-                <div className={styles.tableContainer}>
-                  <table
-                    className={`${styles.dataTable} ${styles.pagosEditableTable}`}
-                    data-testid="financial-pagos-table"
-                  >
-                    <thead>
-                      <tr>
-                        <th>Código</th>
-                        <th>Fecha</th>
-                        <th>Monto</th>
-                        <th>Moneda</th>
-                        <th>Método</th>
-                        <th>Motivo</th>
-                        <th>Descuento</th>
-                        <th>Notas</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagoItems.map((pago) => {
-                        const editing = editingPagoId === pago.id && pagoDraft;
-                        const disc = pago.discountApplication;
-                        return (
-                          <tr
-                            key={pago.id}
-                            data-testid={`financial-pago-row-${pago.id}`}
-                            className={editing ? styles.pagoRowEditing : undefined}
-                          >
-                            <td>{pago.codigo || `#${pago.id}`}</td>
-                            <td>
-                              {editing ? (
-                                <input
-                                  type="date"
-                                  className={styles.tableInput}
-                                  value={pagoDraft.fecha}
-                                  onChange={(e) => setDraftField('fecha', e.target.value)}
-                                  aria-label="Fecha del pago"
-                                />
-                              ) : (
-                                formatDate(pago.fecha)
-                              )}
-                            </td>
-                            <td className={styles.montoCell}>
-                              {editing ? (
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  className={styles.tableInput}
-                                  value={pagoDraft.monto}
-                                  onChange={(e) => setDraftField('monto', e.target.value)}
-                                  aria-label="Monto del pago"
-                                  data-testid={`pago-edit-monto-${pago.id}`}
-                                />
-                              ) : (
-                                <>
-                                  {pago.moneda === 'USD'
-                                    ? `$${Number(pago.monto).toFixed(2)} USD`
-                                    : formatCurrency(pago.montoARS ?? pago.monto)}
-                                  {pago.moneda === 'USD' && pago.montoARS != null ? (
-                                    <div className={styles.arsEquivalent}>
-                                      ≈ {formatCurrency(pago.montoARS)}
-                                    </div>
-                                  ) : null}
-                                </>
-                              )}
-                            </td>
-                            <td>
-                              {editing ? (
-                                <select
-                                  className={styles.tableInput}
-                                  value={pagoDraft.moneda}
-                                  onChange={(e) => setDraftField('moneda', e.target.value)}
-                                  aria-label="Moneda"
-                                >
-                                  <option value="ARS">ARS</option>
-                                  <option value="USD">USD</option>
-                                </select>
-                              ) : (
-                                pago.moneda || 'ARS'
-                              )}
-                            </td>
-                            <td>
-                              {editing ? (
-                                <select
-                                  className={styles.tableInput}
-                                  value={pagoDraft.metodo}
-                                  onChange={(e) => setDraftField('metodo', e.target.value)}
-                                  aria-label="Método"
-                                >
-                                  {metodoSelectOptions.map((m) => (
-                                    <option key={m} value={m}>
-                                      {m}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                pago.metodo || '—'
-                              )}
-                            </td>
-                            <td>
-                              {editing ? (
-                                <select
-                                  className={styles.tableInput}
-                                  value={pagoDraft.motivo}
-                                  onChange={(e) => setDraftField('motivo', e.target.value)}
-                                  aria-label="Motivo"
-                                >
-                                  <option value="Pago">Pago</option>
-                                  <option value="Seña">Seña</option>
-                                  <option value="Devolución">Devolución</option>
-                                </select>
-                              ) : (
-                                pago.motivo || 'Pago'
-                              )}
-                            </td>
-                            <td>
-                              {disc && Number(disc.montoARS) !== 0
-                                ? formatCurrency(disc.montoARS)
-                                : '—'}
-                              {disc && Number(disc.montoARS) !== 0 ? (
-                                <div className={styles.arsEquivalent}>
-                                  {promoHintFromDiscount(disc)}
-                                </div>
-                              ) : null}
-                            </td>
-                            <td className={styles.notasCell}>
-                              {editing ? (
-                                <input
-                                  type="text"
-                                  className={styles.tableInput}
-                                  value={pagoDraft.notas}
-                                  onChange={(e) => setDraftField('notas', e.target.value)}
-                                  aria-label="Notas"
-                                />
-                              ) : (
-                                pago.notas || '—'
-                              )}
-                            </td>
-                            <td>
-                              {editing ? (
-                                <span className={styles.breakdownActions}>
-                                  {pagoDraft.moneda === 'USD' ? (
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      className={styles.tableInput}
-                                      value={pagoDraft.tipoCambio}
-                                      onChange={(e) =>
-                                        setDraftField('tipoCambio', e.target.value)
-                                      }
-                                      aria-label="Tipo de cambio"
-                                      placeholder="TC"
-                                      title="Tipo de cambio"
-                                    />
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    className={styles.editIconButton}
-                                    onClick={() => handleSavePago(pago.id)}
-                                    disabled={savingPagoId === pago.id}
-                                    title="Guardar"
-                                    data-testid={`pago-save-${pago.id}`}
-                                  >
-                                    <FaSave />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={styles.deleteIconButton}
-                                    onClick={cancelEditPago}
-                                    title="Cancelar"
-                                  >
-                                    <FaTimes />
-                                  </button>
-                                </span>
-                              ) : (
-                                <span className={styles.breakdownActions}>
-                                  <button
-                                    type="button"
-                                    className={styles.editIconButton}
-                                    onClick={() => startEditPago(pago)}
-                                    title="Editar pago"
-                                    data-testid={`pago-edit-${pago.id}`}
-                                    disabled={!onUpdatePago}
-                                  >
-                                    <FaEdit />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={styles.deleteIconButton}
-                                    onClick={() => handleDeletePago(pago)}
-                                    title="Eliminar pago"
-                                    data-testid={`pago-delete-${pago.id}`}
-                                    disabled={!onDeletePago}
-                                  >
-                                    <FaTrash />
-                                  </button>
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
           </div>
 
           <aside
@@ -941,7 +756,8 @@ const EstadoFinancieroTab = ({
       {showPaymentForm && (
         <PaymentForm
           reservaId={reservation.id}
-          onClose={() => setShowPaymentForm(false)}
+          initialPago={editingPago}
+          onClose={closePaymentForm}
           onSuccess={handlePaymentSuccess}
         />
       )}
