@@ -19,7 +19,7 @@ const PERMISSIONS = {
   clientes: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA, ROLES.RECEPCION],
   finanzas: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA, ROLES.RECEPCION],
   /** Menús diarios media pensión (independiente del menú a la carta). */
-  gastronomia: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA, ROLES.RECEPCION]
+  gastronomia: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.RECEPCION]
 };
 
 function roleHasPermission(role, permission) {
