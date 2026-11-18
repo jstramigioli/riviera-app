@@ -10,6 +10,8 @@ import {
   createCargo,
   updateCargo,
   deleteCargo,
+  updatePago,
+  deletePago,
   getReservationCheckIn,
   sendReservationCheckIn
 } from '../services/api.js';
@@ -319,6 +321,30 @@ const ReservationDetails = () => {
     }
   };
 
+  const handleUpdatePago = async (pagoId, pagoData) => {
+    try {
+      await updatePago(pagoId, pagoData);
+      await loadFinancialData();
+      notify({ title: 'Pago actualizado', message: 'El pago se actualizó correctamente.', type: 'success' });
+    } catch (error) {
+      console.error('Error actualizando pago:', error);
+      notify({ title: 'Error', message: error.message, type: 'error' });
+      throw error;
+    }
+  };
+
+  const handleDeletePago = async (pagoId) => {
+    try {
+      await deletePago(pagoId);
+      await loadFinancialData();
+      notify({ title: 'Pago eliminado', message: 'El pago se eliminó correctamente.', type: 'success' });
+    } catch (error) {
+      console.error('Error eliminando pago:', error);
+      notify({ title: 'Error', message: error.message, type: 'error' });
+      throw error;
+    }
+  };
+
   // Utilidades
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
@@ -493,6 +519,8 @@ const ReservationDetails = () => {
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
+            onUpdatePago={handleUpdatePago}
+            onDeletePago={handleDeletePago}
             pendingAction={pendingFinancialAction}
             onPendingActionHandled={() => setPendingFinancialAction(null)}
             onRequestConsumo={() => setConsumptionOpen(true)}

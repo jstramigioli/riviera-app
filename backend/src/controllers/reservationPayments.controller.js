@@ -517,6 +517,7 @@ exports.updatePago = async (req, res) => {
     empresa,
     notas,
     fecha,
+    motivo,
     retirado
   } = req.body;
 
@@ -593,6 +594,13 @@ exports.updatePago = async (req, res) => {
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
+    if (motivo !== undefined) {
+      const motivoNorm = String(motivo || '').trim();
+      if (!motivoNorm) {
+        return res.status(400).json({ error: 'El motivo no puede estar vacío' });
+      }
+      dataToUpdate.motivo = motivoNorm;
+    }
 
     if (retirado !== undefined) {
       const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
@@ -1123,7 +1131,10 @@ exports.getResumenFinanciero = async (req, res) => {
         }
       }),
       prisma.discountApplication.findMany({
-        where: { accountId: account.id }
+        where: { accountId: account.id },
+        include: {
+          promotionRule: { select: { id: true, code: true, label: true } }
+        }
       }),
       prisma.reservation.findUnique({
         where: { id: parseInt(reservaId) },
