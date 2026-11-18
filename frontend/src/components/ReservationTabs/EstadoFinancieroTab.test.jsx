@@ -115,7 +115,7 @@ describe('EstadoFinancieroTab', () => {
   it('calcula saldo con descuentos y muestra panel resumen', async () => {
     render(
       <EstadoFinancieroTab
-        reservation={{ id: 22 }}
+        reservation={{ id: 22, status: 'INGRESADA', checkOut: '2099-12-31' }}
         financialSummary={summary}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
@@ -135,6 +135,40 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('summary-total-descuentos')).toHaveTextContent('5.000')
     expect(screen.getByTestId('financial-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('summary-cargos-breakdown')).toHaveTextContent(/Alojamiento/)
+    expect(screen.getByTestId('saldo-icon-pending')).toBeInTheDocument()
+    expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/Pendiente/)
+  })
+
+  it('muestra check verde si está pagado y alerta roja si vencido tras check-out', () => {
+    const paid = {
+      ...summary,
+      resumen: { ...summary.resumen, totalPagos: 100000, totalDescuentos: 0, saldo: 0 }
+    }
+    const { rerender } = render(
+      <EstadoFinancieroTab
+        reservation={{ id: 22, status: 'INGRESADA' }}
+        financialSummary={paid}
+        loadingFinancial={false}
+        formatDate={(d) => String(d).slice(0, 10)}
+        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        onFinancialChange={vi.fn()}
+      />
+    )
+    expect(screen.getByTestId('saldo-icon-paid')).toBeInTheDocument()
+    expect(screen.getByTestId('financial-saldo-block')).toHaveAttribute('data-status', 'PAGADO')
+
+    rerender(
+      <EstadoFinancieroTab
+        reservation={{ id: 22, status: 'FINALIZADA', checkOut: '2020-01-01' }}
+        financialSummary={summary}
+        loadingFinancial={false}
+        formatDate={(d) => String(d).slice(0, 10)}
+        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        onFinancialChange={vi.fn()}
+      />
+    )
+    expect(screen.getByTestId('saldo-icon-overdue')).toBeInTheDocument()
+    expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/vencido/i)
   })
 
   it('muestra pagos en tabla editable y guarda cambios', async () => {

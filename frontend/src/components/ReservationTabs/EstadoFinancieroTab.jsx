@@ -10,12 +10,55 @@ import {
   FaTrash,
   FaSave
 } from 'react-icons/fa';
+import { FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 import PaymentForm from '../PaymentForm';
 import LiquidacionPrint from './LiquidacionPrint';
 import { fetchPaymentMethodConfigs } from '../../services/api';
+import { RESERVATION_STATUSES } from '../../utils/reservationStatusUtils';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+
+function civilIsoToday() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function civilIsoOf(value) {
+  if (!value) return null;
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Huésped ya retirado / check-out hecho o fecha de salida vencida. */
+export function isGuestDeparted(reservation, todayIso = civilIsoToday()) {
+  const status = String(reservation?.status || '').toUpperCase();
+  if (status === RESERVATION_STATUSES.FINALIZADA) return true;
+  const checkOut = civilIsoOf(reservation?.checkOut);
+  if (!checkOut) return false;
+  return checkOut < todayIso;
+}
+
+/**
+ * Estado visual del saldo en el resumen:
+ * - PAGADO: saldo ≤ 0
+ * - PENDIENTE: saldo > 0 y huésped aún no se fue
+ * - VENCIDO: saldo > 0 y huésped ya check-out / retirado
+ */
+export function resolveSaldoVisualStatus(saldo, reservation, todayIso = civilIsoToday()) {
+  const amount = Number(saldo) || 0;
+  if (amount <= 0) return amount < 0 ? 'A_FAVOR' : 'PAGADO';
+  return isGuestDeparted(reservation, todayIso) ? 'VENCIDO' : 'PENDIENTE';
+}
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -383,8 +426,7 @@ const EstadoFinancieroTab = ({
     financialSummary?.resumen?.saldo != null
       ? Number(financialSummary.resumen.saldo)
       : totalCargos - totalPagos - totalDescuentos;
-  const estadoPago =
-    saldoDisplay > 0 ? 'PENDIENTE' : saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO';
+  const estadoPago = resolveSaldoVisualStatus(saldoDisplay, reservation);
 
   const cargoItems = financialSummary?.cargos?.items || [];
   const pagoItems = financialSummary?.pagos?.items || [];
@@ -844,12 +886,37 @@ const EstadoFinancieroTab = ({
             <div
               className={`${styles.summaryPanelSaldo} ${styles[estadoPago]}`}
               data-testid="financial-saldo-block"
+              data-status={estadoPago}
             >
-              <span>Saldo</span>
+              <span className={styles.summarySaldoLabel}>
+                {estadoPago === 'PAGADO' || estadoPago === 'A_FAVOR' ? (
+                  <FiCheckCircle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusPaid}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-paid"
+                  />
+                ) : null}
+                {estadoPago === 'PENDIENTE' ? (
+                  <FiAlertTriangle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusPending}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-pending"
+                  />
+                ) : null}
+                {estadoPago === 'VENCIDO' ? (
+                  <FiAlertTriangle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusOverdue}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-overdue"
+                  />
+                ) : null}
+                Saldo
+              </span>
               <strong data-testid="financial-saldo">{formatCurrency(saldoDisplay)}</strong>
             </div>
             <div className={styles.estadoPagoTag} data-testid="financial-saldo-estado">
               {estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
+              {estadoPago === 'VENCIDO' && 'Saldo vencido (huésped retirado)'}
               {estadoPago === 'PAGADO' && 'Pagado completamente'}
               {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
             </div>

@@ -634,7 +634,7 @@
 .summaryPanelSaldo {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   margin-top: 8px;
   padding-top: 12px;
@@ -643,8 +643,36 @@
   font-weight: 600;
 }
 
+.summarySaldoLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summaryStatusIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.summaryStatusPaid {
+  color: #047857;
+}
+
+.summaryStatusPending {
+  color: #ca8a04;
+}
+
+.summaryStatusOverdue {
+  color: #dc2626;
+}
+
 .summaryPanelSaldo.PENDIENTE strong {
   color: #b45309;
+}
+
+.summaryPanelSaldo.VENCIDO strong {
+  color: #dc2626;
 }
 
 .summaryPanelSaldo.PAGADO strong {
@@ -652,7 +680,7 @@
 }
 
 .summaryPanelSaldo.A_FAVOR strong {
-  color: #1d4ed8;
+  color: #047857;
 }
 
 .financialSummaryPanel .estadoPagoTag {
