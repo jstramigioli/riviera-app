@@ -590,17 +590,24 @@ exports.createAccountPago = async (req, res) => {
     factura,
     selectedRuleIds,
     promotionRuleIds,
-    benefitValueByRuleId
+    deselectedRuleIds,
+    benefitValueByRuleId,
+    applySuggestedDefaults
   } = req.body || {};
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
     .concat(promotionRuleIds || [])
     .map((id) => parseInt(id, 10))
     .filter((id) => Number.isFinite(id));
+  const acceptedDeselectedRuleIds = Array.isArray(deselectedRuleIds)
+    ? deselectedRuleIds.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id))
+    : [];
   const acceptedBenefitValues =
     benefitValueByRuleId && typeof benefitValueByRuleId === 'object'
       ? benefitValueByRuleId
       : {};
+  const acceptedApplySuggested =
+    applySuggestedDefaults != null ? Boolean(applySuggestedDefaults) : true;
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -775,7 +782,9 @@ exports.createAccountPago = async (req, res) => {
           tipoCambio: tipoCambioFinal,
           saldoPendienteAntes: balanceAntes.saldo,
           selectedRuleIds: acceptedRuleIds,
-          benefitValueByRuleId: acceptedBenefitValues
+          deselectedRuleIds: acceptedDeselectedRuleIds,
+          benefitValueByRuleId: acceptedBenefitValues,
+          applySuggestedDefaults: acceptedApplySuggested
         });
       }
 

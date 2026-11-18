@@ -444,6 +444,141 @@
   color: #0f172a;
 }
 
+.promoList {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.promoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.promoRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.promoLabel {
+  font-size: 0.8125rem;
+  color: #334155;
+  min-width: 0;
+}
+
+.promoValue {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.promoRemoveBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.promoRemoveBtn:hover:not(:disabled) {
+  color: #b91c1c;
+}
+
+.promoRemoveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addPromoWrap {
+  position: relative;
+  margin: 0 0 16px;
+}
+
+.addPromoBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.addPromoBtn:hover:not(:disabled),
+.addPromoBtn:focus-visible:not(:disabled) {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.addPromoBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.addPromoMenu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 240px;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.addPromoOption {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: #0f172a;
+}
+
+.addPromoOption:hover,
+.addPromoOption:focus-visible {
+  background: #f1f5f9;
+}
+
+.addPromoName {
+  min-width: 0;
+}
+
+.addPromoMeta {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .discountList {
   margin: 0;
   padding-left: 1.1rem;

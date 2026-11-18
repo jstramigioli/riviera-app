@@ -131,8 +131,9 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
-  it('aplica descuento solo cuando el preview de promociones lo indica', async () => {
+  it('lista cada promo aplicada con nombre y monto (no un solo −10%)', async () => {
     previewPromotion.mockImplementation(async (payload) => {
+      expect(payload.applySuggestedDefaults).toBe(true)
       if (payload.mode === 'settle') {
         return {
           aplica: true,
@@ -140,16 +141,43 @@ describe('PaymentForm facturación', () => {
           descuentoARS: 10000,
           creditoARS: 100000,
           porcentaje: 10,
-          appliedRules: [{ label: 'Descuento Efectivo', code: 'EF10' }]
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 10000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
         }
       }
       return {
         aplica: true,
         dineroARS: 9000,
-        descuentoARS: 1000,
-        creditoARS: 10000,
+        descuentoARS: 1500,
+        creditoARS: 10500,
         porcentaje: 10,
-        appliedRules: [{ label: 'Descuento Efectivo', code: 'EF10' }]
+        appliedRules: [
+          {
+            promotionRuleId: 1,
+            label: 'Descuento Efectivo',
+            code: 'EF10',
+            montoARS: 1000,
+            porcentaje: 10,
+            modality: 'AUTO'
+          },
+          {
+            promotionRuleId: 2,
+            label: 'Promo caja fija',
+            code: 'FIX500',
+            montoARS: 500,
+            modality: 'SUGERIDA',
+            defaultOn: true
+          }
+        ],
+        suggestions: []
       }
     })
 
@@ -159,9 +187,13 @@ describe('PaymentForm facturación', () => {
     fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '9000' } })
 
     await waitFor(() => {
-      expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
+      expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
     })
-    expect(screen.getByText(/Descuento aplicado/i)).toBeInTheDocument()
+    expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
+    expect(screen.getByText(/Promo caja fija/i)).toBeInTheDocument()
+    expect(screen.getByText(/−\$ 1\.000,00/)).toBeInTheDocument()
+    expect(screen.getByText(/−\$ 500,00/)).toBeInTheDocument()
+    expect(screen.queryByText(/Descuento 10% \(Efectivo\)/i)).not.toBeInTheDocument()
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
