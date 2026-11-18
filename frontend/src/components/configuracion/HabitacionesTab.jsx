@@ -24,11 +24,24 @@ function HabitacionesTab() {
   const [newRoomForm, setNewRoomForm] = useState({
     name: '',
     description: '',
+    superficie: '',
     roomTypeId: '',
     tagIds: [],
     beds: []
   });
   const [saving, setSaving] = useState(false);
+
+  const parseSuperficieForApi = (raw) => {
+    if (raw === '' || raw === null || raw === undefined) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return undefined;
+    return n;
+  };
+
+  const formatSuperficie = (value) => {
+    if (value == null || value === '') return '—';
+    return `${value} m²`;
+  };
 
   useEffect(() => {
     loadData();
@@ -66,6 +79,7 @@ function HabitacionesTab() {
     setEditForm({
       name: room.name,
       description: room.description || '',
+      superficie: room.superficie != null ? String(room.superficie) : '',
       roomTypeId: room.roomTypeId,
       tagIds: room.tags ? room.tags.map(tag => tag.id) : [],
       beds: Array.isArray(room.beds) && room.beds.length > 0
@@ -92,8 +106,16 @@ function HabitacionesTab() {
       notify({ title: 'Validación', message: bedsCheck.message, type: 'warning' });
       return;
     }
+    const superficie = parseSuperficieForApi(editForm.superficie);
+    if (editForm.superficie !== '' && superficie === undefined) {
+      notify({ title: 'Validación', message: 'La superficie debe ser un número ≥ 0 (m²)', type: 'warning' });
+      return;
+    }
     try {
-      const updatedRoom = await updateRoomOnServer(roomId, editForm);
+      const updatedRoom = await updateRoomOnServer(roomId, {
+        ...editForm,
+        superficie
+      });
       setRooms(prev => prev.map(room => 
         room.id === roomId ? updatedRoom : room
       ));
@@ -139,6 +161,7 @@ function HabitacionesTab() {
     setNewRoomForm({
       name: '',
       description: '',
+      superficie: '',
       roomTypeId: initialTypeId,
       tagIds: [],
       beds: defaultBedsForCapacity(maxPeople)
@@ -150,6 +173,7 @@ function HabitacionesTab() {
     setNewRoomForm({
       name: '',
       description: '',
+      superficie: '',
       roomTypeId: '',
       tagIds: [],
       beds: []
@@ -168,15 +192,24 @@ function HabitacionesTab() {
       notify({ title: 'Validación', message: bedsCheck.message, type: 'warning' });
       return;
     }
+    const superficie = parseSuperficieForApi(newRoomForm.superficie);
+    if (newRoomForm.superficie !== '' && superficie === undefined) {
+      notify({ title: 'Validación', message: 'La superficie debe ser un número ≥ 0 (m²)', type: 'warning' });
+      return;
+    }
 
     try {
       setSaving(true);
-      const newRoom = await createRoom(newRoomForm);
+      const newRoom = await createRoom({
+        ...newRoomForm,
+        superficie
+      });
       setRooms(prev => [...prev, newRoom]);
       setShowAddModal(false);
       setNewRoomForm({
         name: '',
         description: '',
+        superficie: '',
         roomTypeId: '',
         tagIds: [],
         beds: []
@@ -396,6 +429,16 @@ function HabitacionesTab() {
                     color: 'var(--color-text-main)',
                     fontSize: 'var(--font-size-small)'
                   }}>
+                    Superficie
+                  </th>
+                  <th style={{ 
+                    padding: '12px', 
+                    textAlign: 'left', 
+                    borderBottom: '2px solid var(--color-border)',
+                    fontWeight: '600',
+                    color: 'var(--color-text-main)',
+                    fontSize: 'var(--font-size-small)'
+                  }}>
                     Descripción
                   </th>
                   <th style={{ 
@@ -485,6 +528,32 @@ function HabitacionesTab() {
                           renderTagSelector(editForm.tagIds)
                         ) : (
                           renderTags(room.tags)
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', minWidth: '100px' }}>
+                        {editingRoom === room.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editForm.superficie ?? ''}
+                              onChange={(e) => handleInputChange('superficie', e.target.value)}
+                              style={{
+                                width: '80px',
+                                padding: '8px',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: '6px',
+                                fontSize: 'var(--font-size-small)'
+                              }}
+                              placeholder="—"
+                            />
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>m²</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
+                            {formatSuperficie(room.superficie)}
+                          </span>
                         )}
                       </td>
                       <td style={{ padding: '12px' }}>
@@ -779,6 +848,35 @@ function HabitacionesTab() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Superficie */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '6px',
+                  fontWeight: '600',
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)'
+                }}>
+                  Superficie (m²)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newRoomForm.superficie}
+                  onChange={(e) => handleNewRoomInputChange('superficie', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '8px',
+                    fontSize: 'var(--font-size-small)',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Opcional"
+                />
               </div>
 
               {/* Descripción */}
