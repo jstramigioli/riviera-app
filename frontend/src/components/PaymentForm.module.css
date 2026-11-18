@@ -534,45 +534,20 @@
   color: #0f172a;
 }
 
-.automaticsRow {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0 0 12px;
-}
-
-.toggleLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #0f172a;
-  cursor: pointer;
-}
-
-.toggleLabel input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: #0f766e;
-  cursor: pointer;
-}
-
 .promoList {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 0 0 8px;
+  padding: 4px 0;
 }
 
 .promoBlock {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 
 .promoRow {
@@ -580,37 +555,47 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
 }
 
 .promoLabel {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: #334155;
   min-width: 0;
 }
 
 .promoValue {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2f9e44;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .promoRemoveBtn {
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 0;
   border: none;
-  background: none;
-  color: #64748b;
+  background: transparent;
+  color: #334155;
   font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
+  line-height: 1.2;
 }
 
-.promoRemoveBtn:hover:not(:disabled) {
-  color: #b91c1c;
+.promoRemoveBtn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.promoRemoveBtn:hover:not(:disabled),
+.promoRemoveBtn:focus-visible:not(:disabled) {
+  color: #c92a2a;
+  text-decoration: underline;
 }
 
 .promoRemoveBtn:disabled {
@@ -620,27 +605,34 @@
 
 .addPromoWrap {
   position: relative;
-  margin: 0 0 16px;
+  align-self: flex-start;
+  margin: 0 0 12px;
 }
 
 .addPromoBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 4px;
+  padding: 4px 8px;
   border: 1px dashed #94a3b8;
-  border-radius: 6px;
-  background: #fff;
+  border-radius: 4px;
+  background: transparent;
   color: #334155;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.addPromoBtn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .addPromoBtn:hover:not(:disabled),
 .addPromoBtn:focus-visible:not(:disabled) {
   border-color: #2563eb;
   color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.06);
 }
 
 .addPromoBtn:disabled {
@@ -653,25 +645,26 @@
   z-index: 20;
   top: calc(100% + 4px);
   left: 0;
-  min-width: 240px;
+  min-width: 220px;
+  max-width: 320px;
   margin: 0;
-  padding: 6px 0;
+  padding: 4px 0;
   list-style: none;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .addPromoOption {
   width: 100%;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border: none;
-  background: none;
+  background: transparent;
   text-align: left;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -680,17 +673,27 @@
 
 .addPromoOption:hover,
 .addPromoOption:focus-visible {
-  background: #f1f5f9;
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .addPromoName {
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .addPromoMeta {
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
+  color: #1e3a8a;
+  font-size: 0.75em;
+  font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.discountPreview {
+  margin: 0 0 16px;
 }
 
 .discountList {

@@ -164,7 +164,6 @@ const PaymentForm = ({
   const [pagoOrigenId, setPagoOrigenId] = useState('');
   const [amountMode, setAmountMode] = useState(AMOUNT_MODE_INGRESADO);
   const [montoASaldar, setMontoASaldar] = useState('');
-  const [automaticsOn, setAutomaticsOn] = useState(true);
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
@@ -305,8 +304,7 @@ const PaymentForm = ({
           selectedRuleIds,
           deselectedRuleIds: deselected,
           benefitValueByRuleId,
-          applySuggestedDefaults: true,
-          applyAutomatics: automaticsOn
+          applySuggestedDefaults: true
         });
         if (cancelled) return;
         const mapped = mapSettlementPreview(preview, saldoForPreview);
@@ -345,8 +343,7 @@ const PaymentForm = ({
     selectedMethodConfig?.id,
     saldoPendiente,
     motivoActual,
-    manualPromoApply,
-    automaticsOn
+    manualPromoApply
   ]);
 
   useEffect(() => {
@@ -367,12 +364,7 @@ const PaymentForm = ({
   const removeOptionalPromo = (promo) => {
     const id = Number(promo?.promotionRuleId ?? promo?.id);
     if (!Number.isFinite(id)) return;
-    const modality = String(promo.modality || '').toUpperCase();
-    if (
-      promo.defaultOn ||
-      modality === 'SUGERIDA' ||
-      modality === 'AUTO'
-    ) {
+    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
       setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
       setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
     } else {
@@ -390,12 +382,8 @@ const PaymentForm = ({
   const addOptionalPromo = (choice) => {
     if (!choice || choice.id == null) return;
     const id = Number(choice.id);
-    const modality = String(choice.modality || '').toUpperCase();
-    if (choice.defaultOn || modality === 'SUGERIDA' || modality === 'AUTO') {
+    if (choice.defaultOn) {
       setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
-      if (modality === 'AUTO') {
-        setAutomaticsOn(true);
-      }
     } else {
       setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     }
@@ -725,8 +713,7 @@ const PaymentForm = ({
         benefitValueByRuleId: isDevolucion
           ? undefined
           : manualPromoApply.benefitValueByRuleId,
-        applySuggestedDefaults: isDevolucion ? undefined : true,
-        applyAutomatics: isDevolucion ? undefined : automaticsOn
+        applySuggestedDefaults: isDevolucion ? undefined : true
       };
 
       let nuevoPago;
@@ -1125,35 +1112,9 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion && (
-            <div className={styles.automaticsRow}>
-              <label className={styles.toggleLabel} htmlFor="payment-automatics-toggle">
-                <input
-                  id="payment-automatics-toggle"
-                  type="checkbox"
-                  checked={automaticsOn}
-                  disabled={loading}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setAutomaticsOn(on);
-                    if (on) {
-                      // Reactiva AUTOs quitados individualmente al volver a activar el grupo.
-                      setDeselectedRuleIds([]);
-                    }
-                  }}
-                  data-testid="payment-automatics-toggle"
-                />
-                <span>Descuentos automáticos</span>
-              </label>
-              <span className={styles.helpText}>
-                Si están activo, se suman con los opcionales que agregues.
-              </span>
-            </div>
-          )}
-
           {!isDevolucion &&
             manualPromoPreview?.aplica &&
-            (manualPromoPreview.appliedRules?.length > 0 ? (
+            manualPromoPreview.appliedRules?.length > 0 && (
               <div
                 className={styles.promoList}
                 role="status"
@@ -1199,51 +1160,8 @@ const PaymentForm = ({
                     </div>
                   );
                 })}
-                {!manualPromoPreview.probeOnly ? (
-                  <ul className={styles.discountList}>
-                    <li>
-                      Recibe / registra:{' '}
-                      <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
-                    </li>
-                    <li>
-                      Crédito a cuenta:{' '}
-                      <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
-                    </li>
-                    {saldoPendiente != null && (
-                      <li>
-                        Saldo restante proyectado:{' '}
-                        <strong>
-                          ${' '}
-                          {formatArs(
-                            roundMoney(
-                              saldoPendiente - (manualPromoPreview.creditoARS || 0)
-                            )
-                          )}
-                        </strong>
-                      </li>
-                    )}
-                  </ul>
-                ) : null}
               </div>
-            ) : (
-              <div className={styles.discountPreview} role="status">
-                <p className={styles.discountTitle}>Descuento</p>
-                <ul className={styles.discountList}>
-                  <li>
-                    Recibe / registra:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Descuento aplicado:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.descuentoARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Crédito a cuenta:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
-                  </li>
-                </ul>
-              </div>
-            ))}
+            )}
 
           {!isDevolucion && (
             <div className={styles.addPromoWrap} ref={addPromoRef}>
@@ -1286,6 +1204,36 @@ const PaymentForm = ({
               ) : null}
             </div>
           )}
+
+          {!isDevolucion &&
+            manualPromoPreview?.aplica &&
+            !manualPromoPreview.probeOnly && (
+              <div className={styles.discountPreview} role="status">
+                <ul className={styles.discountList}>
+                  <li>
+                    Recibe / registra:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
+                  </li>
+                  <li>
+                    Crédito a cuenta:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                  </li>
+                  {saldoPendiente != null && (
+                    <li>
+                      Saldo restante proyectado:{' '}
+                      <strong>
+                        ${' '}
+                        {formatArs(
+                          roundMoney(
+                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
+                          )
+                        )}
+                      </strong>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
 
           {showComprobanteField && (
             <div className={styles.formRow}>

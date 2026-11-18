@@ -209,44 +209,10 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
   })
 
-  it('envía applyAutomatics según el toggle de descuentos automáticos', async () => {
-    previewPromotion.mockResolvedValue({ aplica: false })
-
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
-    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
-
-    await waitFor(() =>
-      expect(previewPromotion).toHaveBeenCalledWith(
-        expect.objectContaining({ applyAutomatics: true })
-      )
-    )
-
-    const toggle = screen.getByTestId('payment-automatics-toggle')
-    expect(toggle).toBeChecked()
-    fireEvent.click(toggle)
-    expect(toggle).not.toBeChecked()
-
-    await waitFor(() =>
-      expect(previewPromotion).toHaveBeenCalledWith(
-        expect.objectContaining({ applyAutomatics: false })
-      )
-    )
-
-    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '5000' } })
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
-
-    await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
-        22,
-        expect.objectContaining({ applyAutomatics: false })
-      )
-    )
-  })
-
-  it('lista cada promo aplicada con nombre y monto (no un solo −10%)', async () => {
+  it('lista promos como Consulta: nombre+monto, Quitar solo opcionales, + promoción', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       expect(payload.applySuggestedDefaults).toBe(true)
-      expect(payload.applyAutomatics).toBe(true)
+      expect(payload.applyAutomatics).toBeUndefined()
       if (payload.mode === 'settle') {
         return {
           aplica: true,
@@ -290,7 +256,15 @@ describe('PaymentForm facturación', () => {
             defaultOn: true
           }
         ],
-        suggestions: []
+        suggestions: [
+          {
+            id: 3,
+            label: 'Cortesía manual',
+            modality: 'MANUAL',
+            benefitType: 'PERCENT',
+            benefitValue: 5
+          }
+        ]
       }
     })
 
@@ -302,11 +276,16 @@ describe('PaymentForm facturación', () => {
     await waitFor(() => {
       expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
     })
+    expect(screen.queryByTestId('payment-automatics-toggle')).not.toBeInTheDocument()
     expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
     expect(screen.getByText(/Promo caja fija/i)).toBeInTheDocument()
     expect(screen.getByText(/−\$ 1\.000,00/)).toBeInTheDocument()
     expect(screen.getByText(/−\$ 500,00/)).toBeInTheDocument()
-    expect(screen.queryByText(/Descuento 10% \(Efectivo\)/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-promo-remove-1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-promo-remove-2')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()
+    expect(screen.getByText(/Recibe \/ registra/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Crédito a cuenta/i).length).toBeGreaterThan(0)
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
