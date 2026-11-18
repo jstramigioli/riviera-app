@@ -30,12 +30,7 @@ import {
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
-import {
-  computeCashToSettle,
-  computeDiscountFromReceived,
-  formatArs,
-  roundMoney
-} from '../utils/paymentDiscount';
+import { formatArs, roundMoney } from '../utils/paymentDiscount';
 import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
@@ -61,6 +56,21 @@ function optionKey(row) {
   if (row.accountId != null) return `a:${row.accountId}`;
   if (row.reservationId != null) return `r:${row.reservationId}`;
   return '';
+}
+
+/** Normaliza respuesta SETTLEMENT del motor de promociones para la UI de Nuevo pago. */
+function mapSettlementPreview(preview, saldoPendiente = null) {
+  if (!preview?.aplica) return null;
+  const primary = preview.appliedRules?.[0] || preview.selectedRules?.[0] || null;
+  return {
+    aplica: true,
+    descuentoARS: preview.descuentoARS,
+    creditoARS: preview.creditoARS,
+    dineroARS: preview.dineroARS,
+    porcentaje: preview.porcentaje,
+    saldoARS: preview.saldoARS != null ? preview.saldoARS : saldoPendiente,
+    label: primary?.label || primary?.code || null
+  };
 }
 
 const PaymentForm = ({
@@ -136,6 +146,7 @@ const PaymentForm = ({
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
+  const [settlePromoPreview, setSettlePromoPreview] = useState(null);
   const showComprobanteField = isTransferencia(formData.metodo);
 
   const manualPromoApply = useMemo(
@@ -155,25 +166,6 @@ const PaymentForm = ({
       ? Boolean(selectedMethodConfig.requiereFacturacion)
       : methodRequiresBilling(formData.metodo);
   const billingEnabled = billingForced || requiereFacturacion;
-
-  const discountPreview = useMemo(() => {
-    if (isDevolucion) return null;
-    return computeDiscountFromReceived({
-      dineroARS: montoARS,
-      config: selectedMethodConfig,
-      motivo: motivoActual,
-      saldoPendiente
-    });
-  }, [isDevolucion, montoARS, selectedMethodConfig, motivoActual, saldoPendiente]);
-
-  const settlePreview = useMemo(() => {
-    if (isDevolucion || saldoPendiente == null) return null;
-    return computeCashToSettle({
-      saldoPendiente,
-      config: selectedMethodConfig,
-      motivo: motivoActual
-    });
-  }, [isDevolucion, saldoPendiente, selectedMethodConfig, motivoActual]);
 
   const showInvoiceCardField = billingEnabled && !isCardMethod(formData.metodo);
 
@@ -263,17 +255,7 @@ const PaymentForm = ({
         });
         if (cancelled) return;
         setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
-        setManualPromoPreview(
-          preview?.aplica
-            ? {
-                aplica: true,
-                descuentoARS: preview.descuentoARS,
-                creditoARS: preview.creditoARS,
-                dineroARS: preview.dineroARS,
-                porcentaje: preview.porcentaje
-              }
-            : null
-        );
+        setManualPromoPreview(mapSettlementPreview(preview, saldoPendiente));
       } catch (err) {
         if (!cancelled) {
           console.warn('Preview promos settlement falló', err);
@@ -293,6 +275,55 @@ const PaymentForm = ({
     formData.metodo,
     selectedMethodConfig?.id,
     saldoPendiente,
+    motivoActual,
+    manualPromoApply
+  ]);
+
+  // Preview "cobrar saldo" desde motor de promociones (no mirror hardcodeado del medio).
+  useEffect(() => {
+    if (isDevolucion || saldoPendiente == null || saldoPendiente <= 0) {
+      setSettlePromoPreview(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const { benefitValueByRuleId, selectedRuleIds } = manualPromoApply;
+        const preview = await previewPromotion({
+          layer: 'SETTLEMENT',
+          metodo: formData.metodo,
+          paymentMethodConfigId: selectedMethodConfig?.id,
+          saldoPendiente,
+          motivo: motivoActual,
+          mode: 'settle',
+          selectedRuleIds,
+          benefitValueByRuleId
+        });
+        if (cancelled) return;
+        const mapped = mapSettlementPreview(preview, saldoPendiente);
+        setSettlePromoPreview(
+          mapped
+            ? { ...mapped, saldoARS: mapped.saldoARS ?? saldoPendiente }
+            : null
+        );
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Preview settle promociones falló', err);
+          setSettlePromoPreview(null);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    isDevolucion,
+    saldoPendiente,
+    formData.metodo,
+    selectedMethodConfig?.id,
     motivoActual,
     manualPromoApply
   ]);
@@ -754,23 +785,17 @@ const PaymentForm = ({
                 value={formData.metodo}
                 onChange={(e) => handleInputChange('metodo', e.target.value)}
                 required
+                disabled={loading || methodConfigs.length === 0}
               >
-                {(methodConfigs.length > 0
-                  ? methodConfigs
-                  : [
-                      { id: 'ef', label: 'Efectivo' },
-                      { id: 'td', label: 'Tarjeta Debito' },
-                      { id: 'tc', label: 'Tarjeta Credito' },
-                      { id: 'tr', label: 'Transferencia' }
-                    ]
-                ).map((m) => (
-                  <option key={m.id} value={m.label}>
-                    {m.label}
-                    {m.descuentoActivo && Number(m.descuentoValor) > 0
-                      ? ` (−${Number(m.descuentoValor)}%)`
-                      : ''}
-                  </option>
-                ))}
+                {methodConfigs.length === 0 ? (
+                  <option value="">Cargando medios…</option>
+                ) : (
+                  methodConfigs.map((m) => (
+                    <option key={m.id} value={m.label}>
+                      {m.label}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -869,50 +894,33 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion && (manualPromoPreview?.aplica || discountPreview?.aplica) && (
+          {!isDevolucion && manualPromoPreview?.aplica && (
             <div className={styles.discountPreview} role="status">
               <p className={styles.discountTitle}>
-                {manualPromoPreview?.aplica
-                  ? `Descuento${
+                {manualPromoPreview.label
+                  ? manualPromoPreview.label
+                  : `Descuento${
                       manualPromoPreview.porcentaje != null
                         ? ` ${manualPromoPreview.porcentaje}%`
                         : ''
-                    }`
-                  : `Descuento ${discountPreview.porcentaje}% (${selectedMethodConfig?.label})`}
+                    }`}
+                {manualPromoPreview.label &&
+                manualPromoPreview.porcentaje != null
+                  ? ` (−${manualPromoPreview.porcentaje}%)`
+                  : ''}
               </p>
               <ul className={styles.discountList}>
                 <li>
                   Recibe / registra:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.dineroARS
-                        : discountPreview.dineroARS) || 0
-                    )}
-                  </strong>
+                  <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
                 </li>
                 <li>
                   Descuento aplicado:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.descuentoARS
-                        : discountPreview.descuentoARS) || 0
-                    )}
-                  </strong>
+                  <strong>$ {formatArs(manualPromoPreview.descuentoARS || 0)}</strong>
                 </li>
                 <li>
                   Crédito a cuenta:{' '}
-                  <strong>
-                    ${' '}
-                    {formatArs(
-                      (manualPromoPreview?.aplica
-                        ? manualPromoPreview.creditoARS
-                        : discountPreview.creditoARS) || 0
-                    )}
-                  </strong>
+                  <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
                 </li>
                 {saldoPendiente != null && (
                   <li>
@@ -921,10 +929,7 @@ const PaymentForm = ({
                       ${' '}
                       {formatArs(
                         roundMoney(
-                          saldoPendiente -
-                            ((manualPromoPreview?.aplica
-                              ? manualPromoPreview.creditoARS
-                              : discountPreview.creditoARS) || 0)
+                          saldoPendiente - (manualPromoPreview.creditoARS || 0)
                         )
                       )}
                     </strong>
@@ -935,7 +940,7 @@ const PaymentForm = ({
           )}
 
           {!isDevolucion &&
-            settlePreview?.aplica &&
+            settlePromoPreview?.aplica &&
             saldoPendiente != null &&
             saldoPendiente > 0 && (
               <div className={styles.settleRow}>
@@ -947,16 +952,16 @@ const PaymentForm = ({
                     setFormData((prev) => ({
                       ...prev,
                       moneda: 'ARS',
-                      monto: String(settlePreview.dineroARS)
+                      monto: String(settlePromoPreview.dineroARS)
                     }));
                   }}
                 >
-                  Cobrar saldo con este medio ($ {formatArs(settlePreview.dineroARS)})
+                  Cobrar saldo con este medio ($ {formatArs(settlePromoPreview.dineroARS)})
                 </button>
                 <span className={styles.helpText}>
-                  Cancela $ {formatArs(settlePreview.saldoARS)} pidiendo ${' '}
-                  {formatArs(settlePreview.dineroARS)} (desc. ${' '}
-                  {formatArs(settlePreview.descuentoARS)})
+                  Cancela $ {formatArs(settlePromoPreview.saldoARS)} pidiendo ${' '}
+                  {formatArs(settlePromoPreview.dineroARS)} (desc. ${' '}
+                  {formatArs(settlePromoPreview.descuentoARS)})
                 </span>
               </div>
             )}
