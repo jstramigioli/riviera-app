@@ -164,6 +164,7 @@ const PaymentForm = ({
   const [pagoOrigenId, setPagoOrigenId] = useState('');
   const [amountMode, setAmountMode] = useState(AMOUNT_MODE_INGRESADO);
   const [montoASaldar, setMontoASaldar] = useState('');
+  const [automaticsOn, setAutomaticsOn] = useState(true);
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
@@ -304,7 +305,8 @@ const PaymentForm = ({
           selectedRuleIds,
           deselectedRuleIds: deselected,
           benefitValueByRuleId,
-          applySuggestedDefaults: true
+          applySuggestedDefaults: true,
+          applyAutomatics: automaticsOn
         });
         if (cancelled) return;
         const mapped = mapSettlementPreview(preview, saldoForPreview);
@@ -343,7 +345,8 @@ const PaymentForm = ({
     selectedMethodConfig?.id,
     saldoPendiente,
     motivoActual,
-    manualPromoApply
+    manualPromoApply,
+    automaticsOn
   ]);
 
   useEffect(() => {
@@ -361,21 +364,15 @@ const PaymentForm = ({
     setManualPromoValues((prev) => ({ ...prev, [ruleId]: value }));
   };
 
-  const addOptionalPromo = (choice) => {
-    if (!choice || choice.id == null) return;
-    const id = Number(choice.id);
-    if (choice.defaultOn) {
-      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
-    } else {
-      setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    }
-    setAddPromoOpen(false);
-  };
-
   const removeOptionalPromo = (promo) => {
     const id = Number(promo?.promotionRuleId ?? promo?.id);
     if (!Number.isFinite(id)) return;
-    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
+    const modality = String(promo.modality || '').toUpperCase();
+    if (
+      promo.defaultOn ||
+      modality === 'SUGERIDA' ||
+      modality === 'AUTO'
+    ) {
       setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
       setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
     } else {
@@ -388,6 +385,21 @@ const PaymentForm = ({
       delete next[String(id)];
       return next;
     });
+  };
+
+  const addOptionalPromo = (choice) => {
+    if (!choice || choice.id == null) return;
+    const id = Number(choice.id);
+    const modality = String(choice.modality || '').toUpperCase();
+    if (choice.defaultOn || modality === 'SUGERIDA' || modality === 'AUTO') {
+      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+      if (modality === 'AUTO') {
+        setAutomaticsOn(true);
+      }
+    } else {
+      setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    }
+    setAddPromoOpen(false);
   };
 
   useEffect(() => {
@@ -713,7 +725,8 @@ const PaymentForm = ({
         benefitValueByRuleId: isDevolucion
           ? undefined
           : manualPromoApply.benefitValueByRuleId,
-        applySuggestedDefaults: isDevolucion ? undefined : true
+        applySuggestedDefaults: isDevolucion ? undefined : true,
+        applyAutomatics: isDevolucion ? undefined : automaticsOn
       };
 
       let nuevoPago;
@@ -1109,6 +1122,32 @@ const PaymentForm = ({
                   </span>
                 </label>
               ))}
+            </div>
+          )}
+
+          {!isDevolucion && (
+            <div className={styles.automaticsRow}>
+              <label className={styles.toggleLabel} htmlFor="payment-automatics-toggle">
+                <input
+                  id="payment-automatics-toggle"
+                  type="checkbox"
+                  checked={automaticsOn}
+                  disabled={loading}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setAutomaticsOn(on);
+                    if (on) {
+                      // Reactiva AUTOs quitados individualmente al volver a activar el grupo.
+                      setDeselectedRuleIds([]);
+                    }
+                  }}
+                  data-testid="payment-automatics-toggle"
+                />
+                <span>Descuentos automáticos</span>
+              </label>
+              <span className={styles.helpText}>
+                Si están activo, se suman con los opcionales que agregues.
+              </span>
             </div>
           )}
 

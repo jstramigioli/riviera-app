@@ -94,7 +94,14 @@ export function collectOptionalPromoChoices(preview, appliedPromos = []) {
   for (const s of list) {
     const normalized = normalizeSuggestion(s);
     if (!normalized) continue;
-    if (normalized.modality !== 'MANUAL' && normalized.modality !== 'SUGERIDA') continue;
+    // Incluye AUTO apagados (deselected) para poder reactivarlos desde «+ promoción».
+    if (
+      normalized.modality !== 'MANUAL' &&
+      normalized.modality !== 'SUGERIDA' &&
+      normalized.modality !== 'AUTO'
+    ) {
+      continue;
+    }
     if (appliedIds.has(normalized.id)) continue;
     if (!byId.has(normalized.id)) byId.set(normalized.id, normalized);
   }
@@ -151,9 +158,9 @@ export function buildBenefitApplyPayload({
   return { benefitValueByRuleId, selectedRuleIds, deselectedRuleIds: deselected };
 }
 
-/** Promo aplicada removible (modalidad opcional). */
+/** Promo aplicada removible (opcional o automático en settlement). */
 export function isRemovableOptionalPromo(promo) {
   if (!promo) return false;
   const modality = String(promo.modality || '').toUpperCase();
-  return modality === 'MANUAL' || modality === 'SUGERIDA';
+  return modality === 'MANUAL' || modality === 'SUGERIDA' || modality === 'AUTO';
 }

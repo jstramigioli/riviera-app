@@ -262,7 +262,8 @@ exports.createPago = async (req, res) => {
     promotionRuleIds,
     deselectedRuleIds,
     benefitValueByRuleId,
-    applySuggestedDefaults
+    applySuggestedDefaults,
+    applyAutomatics
   } = req.body;
   // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
   const acceptedRuleIds = []
@@ -279,6 +280,8 @@ exports.createPago = async (req, res) => {
       : {};
   const acceptedApplySuggested =
     applySuggestedDefaults != null ? Boolean(applySuggestedDefaults) : true;
+  const acceptedApplyAutomatics =
+    applyAutomatics != null ? Boolean(applyAutomatics) : true;
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -466,7 +469,8 @@ exports.createPago = async (req, res) => {
           selectedRuleIds: acceptedRuleIds,
           deselectedRuleIds: acceptedDeselectedRuleIds,
           benefitValueByRuleId: acceptedBenefitValues,
-          applySuggestedDefaults: acceptedApplySuggested
+          applySuggestedDefaults: acceptedApplySuggested,
+          applyAutomatics: acceptedApplyAutomatics
         });
       }
 

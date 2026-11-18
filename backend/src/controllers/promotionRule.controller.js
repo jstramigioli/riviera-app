@@ -409,6 +409,8 @@ exports.previewPromotion = async (req, res) => {
         body.applySuggestedDefaults != null
           ? Boolean(body.applySuggestedDefaults)
           : layer === 'RATE',
+      applyAutomatics:
+        body.applyAutomatics != null ? Boolean(body.applyAutomatics) : true,
       benefitValueByRuleId:
         body.benefitValueByRuleId && typeof body.benefitValueByRuleId === 'object'
           ? body.benefitValueByRuleId

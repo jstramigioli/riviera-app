@@ -592,7 +592,8 @@ exports.createAccountPago = async (req, res) => {
     promotionRuleIds,
     deselectedRuleIds,
     benefitValueByRuleId,
-    applySuggestedDefaults
+    applySuggestedDefaults,
+    applyAutomatics
   } = req.body || {};
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
@@ -608,6 +609,8 @@ exports.createAccountPago = async (req, res) => {
       : {};
   const acceptedApplySuggested =
     applySuggestedDefaults != null ? Boolean(applySuggestedDefaults) : true;
+  const acceptedApplyAutomatics =
+    applyAutomatics != null ? Boolean(applyAutomatics) : true;
 
   if (!monto || !metodo) {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
@@ -784,7 +787,8 @@ exports.createAccountPago = async (req, res) => {
           selectedRuleIds: acceptedRuleIds,
           deselectedRuleIds: acceptedDeselectedRuleIds,
           benefitValueByRuleId: acceptedBenefitValues,
-          applySuggestedDefaults: acceptedApplySuggested
+          applySuggestedDefaults: acceptedApplySuggested,
+          applyAutomatics: acceptedApplyAutomatics
         });
       }
 

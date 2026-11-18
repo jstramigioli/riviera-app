@@ -66,6 +66,7 @@ async function buildSettlementContext(db, {
   deselectedRuleIds,
   benefitValueByRuleId,
   applySuggestedDefaults,
+  applyAutomatics,
   mode
 }) {
   let nights = null;
@@ -139,6 +140,7 @@ async function buildSettlementContext(db, {
     // Paridad con Consulta/RATE: SUGERIDA (opcional default ON) aplica salvo deselection.
     applySuggestedDefaults:
       applySuggestedDefaults != null ? Boolean(applySuggestedDefaults) : true,
+    applyAutomatics: applyAutomatics != null ? Boolean(applyAutomatics) : true,
     benefitValueByRuleId: benefitValueByRuleId || {},
     mode: mode || 'received'
   };
@@ -157,6 +159,7 @@ async function resolveSettlementDiscount(db, {
   deselectedRuleIds,
   benefitValueByRuleId,
   applySuggestedDefaults,
+  applyAutomatics,
   mode = 'received'
 }) {
   let rules = [];
@@ -180,6 +183,7 @@ async function resolveSettlementDiscount(db, {
       deselectedRuleIds,
       benefitValueByRuleId,
       applySuggestedDefaults,
+      applyAutomatics,
       mode
     });
     const evaluated = evaluateSettlementRules(rules, ctx);
@@ -239,7 +243,8 @@ async function createForwardDiscount(db, {
   selectedRuleIds,
   deselectedRuleIds,
   benefitValueByRuleId,
-  applySuggestedDefaults
+  applySuggestedDefaults,
+  applyAutomatics
 }) {
   if (!config && !(selectedRuleIds && selectedRuleIds.length)) return null;
 
@@ -253,6 +258,7 @@ async function createForwardDiscount(db, {
     deselectedRuleIds,
     benefitValueByRuleId,
     applySuggestedDefaults,
+    applyAutomatics,
     mode: 'received'
   });
 

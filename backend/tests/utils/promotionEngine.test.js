@@ -335,7 +335,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(deselected.descuentoARS).toBe(0);
   });
 
-  it('SETTLEMENT: descuento de medio gana al % sin condiciones (EXCLUSIVE)', () => {
+  it('SETTLEMENT: % global + % de medio se SUMAN (no EXCLUSIVE)', () => {
     const always = {
       ...efectivoRule,
       id: 2,
@@ -361,24 +361,76 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     const onDebito = evaluateSettlementRules([always, debito], {
       layer: 'SETTLEMENT',
       paymentMethodConfigId: 2,
-      dineroARS: 10000,
-      mode: 'received'
+      saldoPendiente: 10000,
+      mode: 'settle'
     });
     expect(onDebito.aplica).toBe(true);
-    expect(onDebito.appliedRules[0].promotionRuleId).toBe(14);
-    expect(onDebito.appliedRules[0].label).toBe('20% debito');
-    expect(onDebito.porcentaje).toBe(20);
-    expect(onDebito.promotionRuleId).toBe(14);
+    expect(onDebito.appliedRules).toHaveLength(2);
+    expect(onDebito.porcentaje).toBe(30);
+    expect(onDebito.descuentoARS).toBe(3000);
+    expect(onDebito.dineroARS).toBe(7000);
+    expect(
+      onDebito.appliedRules.map((r) => r.promotionRuleId).sort((a, b) => a - b)
+    ).toEqual([2, 14]);
 
     const onTransfer = evaluateSettlementRules([always, debito], {
       layer: 'SETTLEMENT',
       paymentMethodConfigId: 4,
-      dineroARS: 10000,
-      mode: 'received'
+      saldoPendiente: 10000,
+      mode: 'settle'
     });
     expect(onTransfer.aplica).toBe(true);
+    expect(onTransfer.appliedRules).toHaveLength(1);
     expect(onTransfer.appliedRules[0].promotionRuleId).toBe(2);
-    expect(onTransfer.appliedRules[0].label).toBe('Siempre 10%');
+    expect(onTransfer.porcentaje).toBe(10);
+    expect(onTransfer.descuentoARS).toBe(1000);
+  });
+
+  it('SETTLEMENT: applyAutomatics=false omite AUTO y deja opcionales', () => {
+    const auto = {
+      ...efectivoRule,
+      id: 2,
+      code: 'ALWAYS_10',
+      label: 'Siempre 10%',
+      modality: 'AUTO',
+      conditions: [],
+      stacking: 'EXCLUSIVE'
+    };
+    const optional = {
+      ...efectivoRule,
+      id: 9,
+      code: 'MANUAL_5',
+      label: 'Manual 5%',
+      modality: 'MANUAL',
+      benefitValue: 5,
+      conditions: [],
+      stacking: 'EXCLUSIVE'
+    };
+
+    const off = evaluateSettlementRules([auto, optional], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 10000,
+      mode: 'received',
+      applyAutomatics: false,
+      selectedRuleIds: [9]
+    });
+    expect(off.aplica).toBe(true);
+    expect(off.appliedRules).toHaveLength(1);
+    expect(off.appliedRules[0].promotionRuleId).toBe(9);
+    expect(off.porcentaje).toBe(5);
+
+    const on = evaluateSettlementRules([auto, optional], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      dineroARS: 10000,
+      mode: 'received',
+      applyAutomatics: true,
+      selectedRuleIds: [9]
+    });
+    expect(on.aplica).toBe(true);
+    expect(on.appliedRules).toHaveLength(2);
+    expect(on.porcentaje).toBe(15);
   });
 });
 

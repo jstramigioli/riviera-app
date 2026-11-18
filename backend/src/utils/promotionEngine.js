@@ -331,15 +331,20 @@ function ruleMatchesConditions(rule, ctx) {
 
 function modalityAllowsApply(rule, ctx) {
   const modality = rule.modality || 'AUTO';
-  if (modality === 'AUTO') return true;
   const id = Number(rule.id);
+  const deselected = new Set((ctx.deselectedRuleIds || []).map(Number));
+  if (Number.isFinite(id) && deselected.has(id)) return false;
+
+  if (modality === 'AUTO') {
+    // Nuevo pago: master toggle de automáticos (default ON).
+    if (ctx.applyAutomatics === false) return false;
+    return true;
+  }
   const selected = new Set((ctx.selectedRuleIds || []).map(Number));
   if (selected.has(id)) return true;
   // SUGERIDA = default ON cuando el caller pide aplicar sugeridas (cotización RATE / sync).
-  // deselectedRuleIds permite apagar una sugerida sin listar el resto.
   if (modality === 'SUGERIDA' && ctx.applySuggestedDefaults) {
-    const deselected = new Set((ctx.deselectedRuleIds || []).map(Number));
-    return !deselected.has(id);
+    return true;
   }
   return false;
 }
@@ -555,37 +560,6 @@ function sortByPriority(rules) {
   });
 }
 
-function hasPaymentMethodCondition(rule) {
-  return (rule?.conditions || []).some((c) => c && c.type === 'PAYMENT_METHOD');
-}
-
-function paymentMethodConfigIdFromRule(rule) {
-  for (const c of rule?.conditions || []) {
-    if (!c || c.type !== 'PAYMENT_METHOD') continue;
-    const p = parseParams(c.params);
-    if (p.paymentMethodConfigId != null && Number.isFinite(Number(p.paymentMethodConfigId))) {
-      return Number(p.paymentMethodConfigId);
-    }
-  }
-  return null;
-}
-
-/**
- * SETTLEMENT EXCLUSIVE: el descuento ligado a medio de pago gana frente a
- * uno sin condiciones (si no, el «siempre» con id menor tapa Efectivo/Débito).
- */
-function sortBySettlementExclusivePriority(rules) {
-  return [...rules].sort((a, b) => {
-    const aPm = hasPaymentMethodCondition(a) ? 1 : 0;
-    const bPm = hasPaymentMethodCondition(b) ? 1 : 0;
-    if (bPm !== aPm) return bPm - aPm;
-    const pa = a.prioridad ?? 100;
-    const pb = b.prioridad ?? 100;
-    if (pb !== pa) return pb - pa;
-    return Number(a.id) - Number(b.id);
-  });
-}
-
 /**
  * Selección según stacking (EXCLUSIVE / BEST_OF / STACKABLE).
  * Agrupa por stackingGroup (null = grupo global).
@@ -600,8 +574,7 @@ function selectByStacking(matchedRules, benefitFn) {
     //   sin condiciones lo «come» otro AUTO % EXCLUSIVE (mismo default UI) y
     //   desaparece del preview aunque kind/layer/modality sean correctos.
     //   Exclusión mutua RATE = stackingGroup compartido.
-    // - SETTLEMENT: medio de pago vs «sin condiciones» en grupos distintos
-    //   para que Débito/Efectivo no los coma un DESCUENTO global EXCLUSIVE.
+    // - SETTLEMENT: cada regla en su grupo → se SUMAN (regla de producto Julián).
     const isOptional =
       rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
     const layer = String(rule.layer || '').toUpperCase();
@@ -609,10 +582,8 @@ function selectByStacking(matchedRules, benefitFn) {
     if (!key) {
       if (isOptional && rule.id != null) key = `optional:${rule.id}`;
       else if (layer === 'RATE' && rule.id != null) key = `rate:${rule.id}`;
-      else if (layer === 'SETTLEMENT') {
-        const pmId = paymentMethodConfigIdFromRule(rule);
-        key = pmId != null ? `settlement:pm:${pmId}` : 'settlement:general';
-      } else key = '__global__';
+      else if (layer === 'SETTLEMENT' && rule.id != null) key = `settlement:${rule.id}`;
+      else key = '__global__';
     }
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(rule);
@@ -621,11 +592,12 @@ function selectByStacking(matchedRules, benefitFn) {
   const selected = [];
   for (const [, groupRules] of groups) {
     const layer = String(groupRules[0]?.layer || '').toUpperCase();
-    const ordered =
+    const ordered = sortByPriority(groupRules);
+    // SETTLEMENT siempre suma (AUTO + opcionales), aunque el stacking sea EXCLUSIVE.
+    const policy =
       layer === 'SETTLEMENT'
-        ? sortBySettlementExclusivePriority(groupRules)
-        : sortByPriority(groupRules);
-    const policy = ordered[0].stacking || 'EXCLUSIVE';
+        ? 'STACKABLE'
+        : ordered[0].stacking || 'EXCLUSIVE';
     if (policy === 'STACKABLE') {
       selected.push(...ordered);
       continue;
@@ -675,13 +647,18 @@ function evaluateSettlementRules(rules, ctx) {
     (r) => withEffectiveBenefit(r, ctx)
   );
   const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: false })
-    .filter(
-      (r) =>
-        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
-        (r.benefitValueManual &&
-          modalityAllowsApply(r, ctx) &&
-          effectiveBenefitValue(r, ctx) == null)
-    )
+    .filter((r) => {
+      const allows = modalityAllowsApply(r, ctx);
+      if (
+        r.benefitValueManual &&
+        allows &&
+        effectiveBenefitValue(r, ctx) == null
+      ) {
+        return true;
+      }
+      // Apagadas (AUTO deselected / automáticos off / MANUAL no elegida / SUGERIDA off).
+      return !allows;
+    })
     .map(toSuggestion);
 
   const mode = ctx.mode === 'settle' ? 'settle' : 'received';
@@ -709,50 +686,84 @@ function evaluateSettlementRules(rules, ctx) {
     };
   }
 
-  // Una sola regla PERCENT (paridad Efectivo): usar compute estándar.
-  // STACKABLE: suma descuentos FIXED; si hay varios PERCENT, aplica el de mayor prioridad (no suma %).
-  const percentRules = selected.filter((r) => r.benefitType === 'PERCENT');
-  const fixedRules = selected.filter((r) => r.benefitType !== 'PERCENT');
+  // Julián: los descuentos SETTLEMENT se SUMAN (AUTO + opcionales).
+  const percentRules = sortByPriority(
+    selected.filter((r) => r.benefitType === 'PERCENT')
+  );
+  const fixedRules = sortByPriority(
+    selected.filter((r) => r.benefitType !== 'PERCENT')
+  );
+
+  const totalPercent = percentRules.reduce(
+    (sum, r) => sum + toNumber(r.benefitValue),
+    0
+  );
+  const combinedPercentRule = percentRules.length
+    ? {
+        ...percentRules[0],
+        id: percentRules[0].id,
+        benefitType: 'PERCENT',
+        benefitValue: totalPercent,
+        label: percentRules.map((r) => r.label).filter(Boolean).join(' + '),
+        code: percentRules.map((r) => r.code).filter(Boolean).join('+'),
+        conditions: [],
+        modality: 'AUTO'
+      }
+    : null;
 
   let combined = {
     aplica: false,
-    dineroARS: 0,
+    dineroARS: roundMoney(toNumber(mode === 'settle' ? ctx.saldoPendiente : ctx.dineroARS) || 0),
     descuentoARS: 0,
-    creditoARS: 0,
-    porcentaje: null,
+    creditoARS: roundMoney(toNumber(mode === 'settle' ? ctx.saldoPendiente : ctx.dineroARS) || 0),
+    porcentaje: percentRules.length ? totalPercent : null,
     valorFijo: null
   };
   const appliedRules = [];
 
-  if (percentRules.length) {
-    // Si hay % de medio + % sin condiciones, el de medio tiene prioridad.
-    const primary = sortBySettlementExclusivePriority(percentRules)[0];
-    const preview = benefitFn(primary);
-    combined = { ...preview };
-    appliedRules.push(
-      withModalityMeta(primary, {
-        promotionRuleId: primary.id,
-        code: primary.code,
-        label: primary.label,
-        benefitType: primary.benefitType,
-        benefitValue: toNumber(primary.benefitValue),
-        montoARS: preview.descuentoARS,
-        porcentaje: preview.porcentaje
-      })
-    );
+  let percentDiscountARS = 0;
+  if (combinedPercentRule) {
+    const preview = benefitFn(combinedPercentRule);
+    if (preview.aplica) {
+      combined = { ...preview, porcentaje: totalPercent };
+      percentDiscountARS = toNumber(preview.descuentoARS);
+    }
+    for (const rule of percentRules) {
+      const share =
+        totalPercent > 0 ? toNumber(rule.benefitValue) / totalPercent : 0;
+      const monto = roundMoney(percentDiscountARS * share);
+      if (monto <= 0 && toNumber(rule.benefitValue) <= 0) continue;
+      appliedRules.push(
+        withModalityMeta(rule, {
+          promotionRuleId: rule.id,
+          code: rule.code,
+          label: rule.label,
+          benefitType: rule.benefitType,
+          benefitValue: toNumber(rule.benefitValue),
+          montoARS: monto,
+          porcentaje: toNumber(rule.benefitValue)
+        })
+      );
+    }
   }
 
   for (const rule of fixedRules) {
     const preview = benefitFn(rule);
     if (!preview.aplica) continue;
     combined.aplica = true;
-    combined.descuentoARS = roundMoney(toNumber(combined.descuentoARS) + toNumber(preview.descuentoARS));
+    combined.descuentoARS = roundMoney(
+      toNumber(combined.descuentoARS) + toNumber(preview.descuentoARS)
+    );
     if (mode === 'settle') {
-      combined.dineroARS = roundMoney(Math.max(0, toNumber(ctx.saldoPendiente) - toNumber(combined.descuentoARS)));
+      combined.dineroARS = roundMoney(
+        Math.max(0, toNumber(ctx.saldoPendiente) - toNumber(combined.descuentoARS))
+      );
       combined.creditoARS = roundMoney(toNumber(ctx.saldoPendiente));
     } else {
       combined.dineroARS = roundMoney(toNumber(ctx.dineroARS));
-      combined.creditoARS = roundMoney(toNumber(combined.dineroARS) + toNumber(combined.descuentoARS));
+      combined.creditoARS = roundMoney(
+        toNumber(combined.dineroARS) + toNumber(combined.descuentoARS)
+      );
     }
     appliedRules.push(
       withModalityMeta(rule, {
@@ -770,13 +781,17 @@ function evaluateSettlementRules(rules, ctx) {
   const primary =
     appliedRules.length && selected.length
       ? selected.find((r) => Number(r.id) === Number(appliedRules[0].promotionRuleId)) ||
-        sortBySettlementExclusivePriority(selected)[0]
+        selected[0]
       : selected[0] || null;
   return {
     ...combined,
     selectedRules: selected,
     suggestions,
-    config: ruleToSettlementConfig(primary),
+    config: ruleToSettlementConfig(
+      combinedPercentRule
+        ? { ...primary, benefitValue: totalPercent, benefitType: 'PERCENT' }
+        : primary
+    ),
     appliedRules,
     promotionRuleId: primary?.id ?? appliedRules[0]?.promotionRuleId ?? null
   };
