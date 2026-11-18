@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiChevronLeft, FiPrinter, FiSave } from 'react-icons/fi';
-import {
-  loadMediaPensionMenu,
-  saveMediaPensionMenu
-} from '../utils/mediaPensionMenuStore';
+import { Link } from 'react-router-dom';
+import { FiChevronLeft, FiPrinter } from 'react-icons/fi';
+import { getDailyMenuByDate } from '../services/gastronomiaApi';
 import styles from './ReceptionDashboard.module.css';
 
 function sumGuests(items) {
@@ -45,8 +43,19 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+function menuPreviewLines(menu) {
+  if (!menu?.items?.length) return [];
+  return menu.items
+    .slice()
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    .slice(0, 6)
+    .map((it) => it.nameSnapshot)
+    .filter(Boolean);
+}
+
 /**
- * Hub temático Comidas: totales desayuno/cena → detalle; menú diario MP (texto).
+ * Hub temático Comidas: totales desayuno/cena → detalle;
+ * menú diario MP conectado al módulo Gastronomía.
  */
 export default function ComidasHub({
   mealsDateIso,
@@ -54,14 +63,12 @@ export default function ComidasHub({
   meals,
   onOpenReservation
 }) {
-  const [detailMeal, setDetailMeal] = useState(null); // 'breakfast' | 'dinner' | null
+  const [detailMeal, setDetailMeal] = useState(null);
   const [selectedBreakfast, setSelectedBreakfast] = useState(() => new Set());
   const [selectedDinner, setSelectedDinner] = useState(() => new Set());
-  const [menuText, setMenuText] = useState('');
+  const [dailyMenu, setDailyMenu] = useState(null);
   const [menuLoading, setMenuLoading] = useState(false);
-  const [menuSaving, setMenuSaving] = useState(false);
-  const [menuStatus, setMenuStatus] = useState(null);
-  const [menuDirty, setMenuDirty] = useState(false);
+  const [menuError, setMenuError] = useState(null);
 
   const breakfastItems = meals?.breakfastItems || [];
   const dinnerItems = meals?.dinnerItems || [];
@@ -88,12 +95,14 @@ export default function ComidasHub({
     let cancelled = false;
     (async () => {
       setMenuLoading(true);
-      setMenuStatus(null);
+      setMenuError(null);
       try {
-        const text = await loadMediaPensionMenu(mealsDateIso);
+        const menu = await getDailyMenuByDate(mealsDateIso);
+        if (!cancelled) setDailyMenu(menu);
+      } catch (err) {
         if (!cancelled) {
-          setMenuText(text);
-          setMenuDirty(false);
+          setDailyMenu(null);
+          if (err.status !== 404) setMenuError(err.message);
         }
       } finally {
         if (!cancelled) setMenuLoading(false);
@@ -114,32 +123,6 @@ export default function ComidasHub({
     });
   };
 
-  const handleSaveMenu = async () => {
-    setMenuSaving(true);
-    setMenuStatus(null);
-    try {
-      const result = await saveMediaPensionMenu(mealsDateIso, menuText);
-      setMenuDirty(false);
-      if (result.source === 'config') {
-        setMenuStatus({ type: 'ok', message: 'Menú guardado' });
-      } else {
-        setMenuStatus({
-          type: 'warn',
-          message: result.error
-            ? `Guardado en este navegador (${result.error})`
-            : 'Guardado en este navegador'
-        });
-      }
-    } catch (err) {
-      setMenuStatus({
-        type: 'error',
-        message: err?.message || 'No se pudo guardar el menú'
-      });
-    } finally {
-      setMenuSaving(false);
-    }
-  };
-
   const detailItems =
     detailMeal === 'breakfast'
       ? breakfastItems
@@ -149,6 +132,10 @@ export default function ComidasHub({
   const selectedSet =
     detailMeal === 'breakfast' ? selectedBreakfast : selectedDinner;
   const detailTitle = detailMeal === 'breakfast' ? 'Desayuno' : 'Cena';
+  const preview = menuPreviewLines(dailyMenu);
+  const editPath = dailyMenu?.id
+    ? `/gastronomia?tab=week&id=${dailyMenu.id}`
+    : `/gastronomia?tab=week&date=${mealsDateIso}`;
 
   return (
     <section
@@ -205,53 +192,47 @@ export default function ComidasHub({
             </button>
           </div>
 
-          <div className={styles.comidasMenuBlock}>
+          <div className={styles.comidasMenuBlock} data-testid="comidas-menu-block">
             <div className={styles.comidasMenuHeader}>
               <h3 className={styles.comidasMenuTitle}>Menú diario · media pensión</h3>
               <p className={styles.comidasMenuNote}>
-                Independiente del menú de minutas / snacks de consumos.
+                Gestionado en Gastronomía (no es el menú de minutas / snacks).
               </p>
             </div>
-            <textarea
-              className={styles.comidasMenuInput}
-              value={menuText}
-              onChange={(e) => {
-                setMenuText(e.target.value);
-                setMenuDirty(true);
-                setMenuStatus(null);
-              }}
-              rows={5}
-              placeholder="Ej.: Entrada · Principal · Postre…"
-              disabled={menuLoading || menuSaving}
-              aria-label="Menú diario de media pensión"
-              data-testid="comidas-menu-input"
-            />
+            {menuLoading ? (
+              <p className={styles.empty}>Cargando menú…</p>
+            ) : menuError ? (
+              <p className={styles.empty}>{menuError}</p>
+            ) : dailyMenu ? (
+              <div data-testid="comidas-menu-preview">
+                <p className={styles.comidasMenuNote}>
+                  {dailyMenu.kind === 'BUFFET' ? 'Buffet' : 'Convencional'}
+                  {' · '}
+                  {dailyMenu.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                </p>
+                {preview.length ? (
+                  <ul className={styles.comidasMenuList}>
+                    {preview.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={styles.empty}>Sin platos cargados.</p>
+                )}
+              </div>
+            ) : (
+              <p className={styles.empty} data-testid="comidas-menu-empty">
+                No hay menú para esta fecha.
+              </p>
+            )}
             <div className={styles.comidasMenuActions}>
-              <button
-                type="button"
+              <Link
+                to={editPath}
                 className={styles.actionBtnPrimary}
-                onClick={handleSaveMenu}
-                disabled={menuLoading || menuSaving || !menuDirty}
-                data-testid="comidas-menu-save"
+                data-testid="comidas-menu-edit-link"
               >
-                <FiSave aria-hidden="true" />
-                {menuSaving ? 'Guardando…' : 'Guardar menú'}
-              </button>
-              {menuStatus ? (
-                <span
-                  className={
-                    menuStatus.type === 'error'
-                      ? styles.comidasMenuError
-                      : menuStatus.type === 'warn'
-                        ? styles.comidasMenuWarn
-                        : styles.comidasMenuOk
-                  }
-                  role="status"
-                  data-testid="comidas-menu-status"
-                >
-                  {menuStatus.message}
-                </span>
-              ) : null}
+                {dailyMenu ? 'Editar en Gastronomía' : 'Crear en Gastronomía'}
+              </Link>
             </div>
           </div>
         </>

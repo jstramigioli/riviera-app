@@ -39,6 +39,7 @@ import PublicCheckIn from './pages/PublicCheckIn';
 import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 import FakeReservationsDebugFab from './components/FakeReservationsDebugFab';
 import Dashboard from './pages/Dashboard';
+import Gastronomia from './pages/Gastronomia';
 
 function firstRoomIdFromReservation(reservation) {
   const segments = reservation?.segments;
@@ -695,6 +696,14 @@ function App() {
               element={(
                 <ProtectedRoute permission="reportes">
                   <AppShell><EstadisticasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/gastronomia"
+              element={(
+                <ProtectedRoute permission="gastronomia">
+                  <AppShell><Gastronomia /></AppShell>
                 </ProtectedRoute>
               )}
             />
