@@ -80,6 +80,7 @@ vi.mock('../services/api', () => ({
       }
     ]
   }),
+  createExternalAccount: vi.fn().mockResolvedValue({ id: 999, label: 'Bar mesa 3' }),
   fetchReservation: vi.fn().mockResolvedValue({
     id: 22,
     mainClientId: 5,
@@ -103,6 +104,7 @@ vi.mock('../services/api', () => ({
 
 import {
   createPago,
+  createExternalAccount,
   fetchCuentasParaPago,
   getClientBillingProfile,
   previewPromotion,
@@ -131,9 +133,175 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
-  it('lista cada promo aplicada con nombre y monto (no un solo −10%)', async () => {
+  it('monto a saldar calcula abono en el resumen sticky (sin banner verde)', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      if (payload.mode === 'settle') {
+        return {
+          aplica: true,
+          dineroARS: 90000,
+          descuentoARS: 10000,
+          creditoARS: 100000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 10000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return { aplica: false }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    expect(screen.queryByTestId('payment-tender-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary')).toHaveTextContent('—')
+
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '100000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-summary')).toHaveTextContent(/90\.000/)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)
+    })
+    expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
+    expect(screen.getByText(/Cliente abona/i)).toBeInTheDocument()
+    expect(screen.queryByText(/El cliente debe abonar/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Pago' })
+      )
+    )
+  })
+
+  it('monto ingresado actualiza monto a saldar según descuento', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      if (payload.mode === 'received') {
+        return {
+          aplica: true,
+          dineroARS: 9000,
+          descuentoARS: 1000,
+          creditoARS: 10000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 1000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return { aplica: false }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '9000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(10000)
+    })
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(9000)
+  })
+
+  it('no muestra el help text de completar monto para ver descuentos', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument())
+
+    expect(
+      screen.queryByText(/completá monto ingresado o a saldar/i)
+    ).not.toBeInTheDocument()
+  })
+
+  it('permite elegir USD y no muestra label Cuenta redundante', async () => {
+    render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+
+    expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-account-search')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()
+
+    const moneda = screen.getByTestId('payment-moneda')
+    expect(moneda).not.toBeDisabled()
+    fireEvent.change(moneda, { target: { value: 'USD' } })
+    expect(moneda).toHaveValue('USD')
+    expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
+  })
+
+  it('pide preview settlement al elegir medio aunque no haya monto', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    await waitFor(() => expect(previewPromotion).toHaveBeenCalled())
+    expect(previewPromotion.mock.calls.some((c) => c[0]?.layer === 'SETTLEMENT')).toBe(
+      true
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
+  })
+
+  it('lista promos como Consulta: nombre+monto, Quitar solo opcionales, + promoción', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       expect(payload.applySuggestedDefaults).toBe(true)
+      expect(payload.applyAutomatics).toBeUndefined()
       if (payload.mode === 'settle') {
         return {
           aplica: true,
@@ -177,23 +345,36 @@ describe('PaymentForm facturación', () => {
             defaultOn: true
           }
         ],
-        suggestions: []
+        suggestions: [
+          {
+            id: 3,
+            label: 'Cortesía manual',
+            modality: 'MANUAL',
+            benefitType: 'PERCENT',
+            benefitValue: 5
+          }
+        ]
       }
     })
 
     render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '9000' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '9000' } })
 
     await waitFor(() => {
       expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
     })
+    expect(screen.queryByTestId('payment-automatics-toggle')).not.toBeInTheDocument()
     expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
     expect(screen.getByText(/Promo caja fija/i)).toBeInTheDocument()
     expect(screen.getByText(/−\$ 1\.000,00/)).toBeInTheDocument()
     expect(screen.getByText(/−\$ 500,00/)).toBeInTheDocument()
-    expect(screen.queryByText(/Descuento 10% \(Efectivo\)/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-promo-remove-1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-promo-remove-2')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()
+    expect(screen.getByText(/Recibe \/ registra/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Crédito a cuenta/i).length).toBeGreaterThan(0)
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
@@ -256,7 +437,7 @@ describe('PaymentForm facturación', () => {
     fireEvent.click(sena)
     expect(sena).toBeChecked()
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '1500' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '1500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
 
     await waitFor(() =>
@@ -281,7 +462,7 @@ describe('PaymentForm facturación', () => {
       expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
     })
     fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText(/^Monto \*$/i), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
 
     await waitFor(() =>
@@ -296,16 +477,20 @@ describe('PaymentForm facturación', () => {
     )
   })
 
-  it('sin reservaId carga Select con cuentas para pago', async () => {
+  it('sin reservaId busca cuentas y permite filtrar por texto', async () => {
     render(<PaymentForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
 
-    const select = screen.getByLabelText(/Cuenta/i)
-    expect(select).toBeInTheDocument()
+    const search = screen.getByTestId('payment-account-search')
+    fireEvent.focus(search)
     await waitFor(() => {
       expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
     })
+    fireEvent.change(search, { target: { value: 'Pérez' } })
+    expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'zzzz-no-match' } })
+    expect(screen.getByText(/Sin coincidencias/i)).toBeInTheDocument()
   })
 
   it('Transferencia muestra comprobante opcional y lo sube tras crear', async () => {
@@ -325,7 +510,7 @@ describe('PaymentForm facturación', () => {
     expect(input).toBeInTheDocument()
     fireEvent.change(input, { target: { files: [file] } })
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '2000' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '2000' } })
     fireEvent.change(screen.getByLabelText(/Fecha de facturación/i), {
       target: { value: '2026-11-13' }
     })

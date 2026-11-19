@@ -3,6 +3,7 @@ import { FiPlus, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
   createAccountPago,
+  createExternalAccount,
   fetchReservation,
   fetchCuentasParaPago,
   fetchPaymentMethodConfigs,
@@ -38,8 +39,15 @@ import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
 const MODE_DEVOLUCION = 'devolucion';
+const AMOUNT_MODE_INGRESADO = 'ingresado';
+const AMOUNT_MODE_SALDAR = 'saldar';
 const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
 const COMPROBANTE_ACCEPT = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png';
+/** Monedas habilitadas en el sistema (alineado al backend). */
+const SYSTEM_CURRENCIES = [
+  { code: 'ARS', label: 'Pesos Argentinos (ARS)' },
+  { code: 'USD', label: 'Dólares (USD)' }
+];
 
 function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
@@ -99,6 +107,12 @@ const PaymentForm = ({
   const needsAccountPick = reservaIdProp == null && accountIdProp == null;
   const [reservationOptions, setReservationOptions] = useState([]);
   const [pickedOptionKey, setPickedOptionKey] = useState('');
+  const [accountQuery, setAccountQuery] = useState('');
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [showCreateExternal, setShowCreateExternal] = useState(false);
+  const [externalLabel, setExternalLabel] = useState('');
+  const [creatingExternal, setCreatingExternal] = useState(false);
+  const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [mode, setMode] = useState(MODE_PAGO);
@@ -160,16 +174,19 @@ const PaymentForm = ({
   const [saldoPendiente, setSaldoPendiente] = useState(null);
   const [pagosOrigen, setPagosOrigen] = useState([]);
   const [pagoOrigenId, setPagoOrigenId] = useState('');
+  const [amountMode, setAmountMode] = useState(AMOUNT_MODE_INGRESADO);
+  const [montoASaldar, setMontoASaldar] = useState('');
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
-  const [settlePromoPreview, setSettlePromoPreview] = useState(null);
   const [optionalChoices, setOptionalChoices] = useState([]);
   const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
   const [deselectedRuleIds, setDeselectedRuleIds] = useState([]);
   const [addPromoOpen, setAddPromoOpen] = useState(false);
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
+  const isSaldarMode = !isDevolucion && amountMode === AMOUNT_MODE_SALDAR;
+  const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
   const manualPromoApply = useMemo(
     () =>
@@ -260,12 +277,25 @@ const PaymentForm = ({
       setOptionalChoices([]);
       return undefined;
     }
-    if (!montoARS || montoARS <= 0) {
+    // Sin método aún (configs cargando): no pedir preview.
+    if (!formData.metodo && !selectedMethodConfig?.id) {
       setManualPromoSuggestions([]);
       setManualPromoPreview(null);
       setOptionalChoices([]);
       return undefined;
     }
+
+    const hasIngresado = amountMode === AMOUNT_MODE_INGRESADO && Number(montoARS) > 0;
+    const hasSaldar = amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0;
+    // Sonda: listar elegibles aunque aún no haya monto (nombre + %).
+    const probeOnly = !hasIngresado && !hasSaldar;
+    const previewMode = hasSaldar || (probeOnly && saldoPendiente != null && saldoPendiente > 0)
+      ? 'settle'
+      : 'received';
+    const dineroARS = hasIngresado ? montoARS : probeOnly && previewMode === 'received' ? 10000 : undefined;
+    const saldoForPreview = hasSaldar
+      ? montoASaldarARS
+      : saldoPendiente;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -279,20 +309,43 @@ const PaymentForm = ({
           layer: 'SETTLEMENT',
           metodo: formData.metodo,
           paymentMethodConfigId: selectedMethodConfig?.id,
-          dineroARS: montoARS,
-          saldoPendiente,
+          dineroARS,
+          saldoPendiente: saldoForPreview,
           motivo: motivoActual,
-          mode: 'received',
+          mode: previewMode,
           selectedRuleIds,
           deselectedRuleIds: deselected,
           benefitValueByRuleId,
           applySuggestedDefaults: true
         });
         if (cancelled) return;
-        const mapped = mapSettlementPreview(preview, saldoPendiente);
+        const mapped = mapSettlementPreview(preview, saldoForPreview);
         setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
-        setManualPromoPreview(mapped);
+        setManualPromoPreview(
+          mapped
+            ? {
+                ...mapped,
+                probeOnly,
+                amountMode,
+                saldoARS: mapped.saldoARS ?? (hasSaldar ? montoASaldarARS : saldoPendiente)
+              }
+            : null
+        );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
+        // Sincronizar el otro campo según descuentos (fuente = amountMode).
+        if (!probeOnly && mapped?.aplica) {
+          if (hasSaldar && mapped.dineroARS != null) {
+            const nextIngresado = String(roundMoney(mapped.dineroARS));
+            setFormData((prev) =>
+              prev.monto === nextIngresado && prev.moneda === 'ARS'
+                ? prev
+                : { ...prev, monto: nextIngresado, moneda: 'ARS' }
+            );
+          } else if (hasIngresado && mapped.creditoARS != null) {
+            const nextSaldar = String(roundMoney(mapped.creditoARS));
+            setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           console.warn('Preview promos settlement falló', err);
@@ -309,65 +362,12 @@ const PaymentForm = ({
     };
   }, [
     isDevolucion,
+    amountMode,
     montoARS,
+    montoASaldarARS,
     formData.metodo,
     selectedMethodConfig?.id,
     saldoPendiente,
-    motivoActual,
-    manualPromoApply
-  ]);
-
-  // Preview "cobrar saldo" desde motor de promociones (no mirror hardcodeado del medio).
-  useEffect(() => {
-    if (isDevolucion || saldoPendiente == null || saldoPendiente <= 0) {
-      setSettlePromoPreview(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const {
-          benefitValueByRuleId,
-          selectedRuleIds,
-          deselectedRuleIds: deselected
-        } = manualPromoApply;
-        const preview = await previewPromotion({
-          layer: 'SETTLEMENT',
-          metodo: formData.metodo,
-          paymentMethodConfigId: selectedMethodConfig?.id,
-          saldoPendiente,
-          motivo: motivoActual,
-          mode: 'settle',
-          selectedRuleIds,
-          deselectedRuleIds: deselected,
-          benefitValueByRuleId,
-          applySuggestedDefaults: true
-        });
-        if (cancelled) return;
-        const mapped = mapSettlementPreview(preview, saldoPendiente);
-        setSettlePromoPreview(
-          mapped
-            ? { ...mapped, saldoARS: mapped.saldoARS ?? saldoPendiente }
-            : null
-        );
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('Preview settle promociones falló', err);
-          setSettlePromoPreview(null);
-        }
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [
-    isDevolucion,
-    saldoPendiente,
-    formData.metodo,
-    selectedMethodConfig?.id,
     motivoActual,
     manualPromoApply
   ]);
@@ -387,17 +387,6 @@ const PaymentForm = ({
     setManualPromoValues((prev) => ({ ...prev, [ruleId]: value }));
   };
 
-  const addOptionalPromo = (choice) => {
-    if (!choice || choice.id == null) return;
-    const id = Number(choice.id);
-    if (choice.defaultOn) {
-      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
-    } else {
-      setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    }
-    setAddPromoOpen(false);
-  };
-
   const removeOptionalPromo = (promo) => {
     const id = Number(promo?.promotionRuleId ?? promo?.id);
     if (!Number.isFinite(id)) return;
@@ -414,6 +403,17 @@ const PaymentForm = ({
       delete next[String(id)];
       return next;
     });
+  };
+
+  const addOptionalPromo = (choice) => {
+    if (!choice || choice.id == null) return;
+    const id = Number(choice.id);
+    if (choice.defaultOn) {
+      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    } else {
+      setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    }
+    setAddPromoOpen(false);
   };
 
   useEffect(() => {
@@ -557,8 +557,52 @@ const PaymentForm = ({
         return;
       }
     }
+    if (field === 'monto' && !isDevolucion) {
+      setAmountMode(AMOUNT_MODE_INGRESADO);
+      if (!value || !(parseFloat(value) > 0)) {
+        setMontoASaldar('');
+      }
+    }
+    if (field === 'moneda' && value !== 'ARS' && !isDevolucion) {
+      // Monto a saldar es ARS de cuenta; otra moneda usa modo ingresado como fuente.
+      setAmountMode(AMOUNT_MODE_INGRESADO);
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const handleMontoASaldarChange = (value) => {
+    setError(null);
+    setAmountMode(AMOUNT_MODE_SALDAR);
+    setMontoASaldar(value);
+    if (!value || !(parseFloat(value) > 0)) {
+      setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
+    } else {
+      setFormData((prev) => (prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }));
+    }
+  };
+
+  const useSaldoPendienteAsSaldar = () => {
+    if (saldoPendiente == null || Number(saldoPendiente) <= 0) return;
+    handleMontoASaldarChange(String(roundMoney(saldoPendiente)));
+  };
+
+  /** Monto de caja a registrar (ARS) según modo. */
+  const tenderMontoARS = useMemo(() => {
+    if (isDevolucion) return montoARS;
+    if (amountMode === AMOUNT_MODE_SALDAR) {
+      if (manualPromoPreview?.aplica && manualPromoPreview.dineroARS != null) {
+        return roundMoney(manualPromoPreview.dineroARS);
+      }
+      return montoASaldarARS > 0 ? montoASaldarARS : 0;
+    }
+    return montoARS;
+  }, [
+    isDevolucion,
+    amountMode,
+    montoARS,
+    montoASaldarARS,
+    manualPromoPreview
+  ]);
 
   const handleComprobanteChange = (fileList) => {
     setError(null);
@@ -580,6 +624,97 @@ const PaymentForm = ({
     return Array.from(byKey.values());
   }, [reservationOptions]);
 
+  const accountOptionText = useCallback((row) => {
+    if (!row) return '';
+    const kind =
+      row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL' ? 'Externa' : 'Reserva';
+    const label = reservationOptionLabel(row);
+    const parts = [
+      kind,
+      label,
+      row.reservationId != null ? String(row.reservationId) : '',
+      row.accountId != null ? String(row.accountId) : '',
+      row.roomName || '',
+      row.clientLastName || '',
+      row.clientName || '',
+      row.label || ''
+    ];
+    return parts.filter(Boolean).join(' ').toLowerCase();
+  }, []);
+
+  const filteredAccountOptions = useMemo(() => {
+    const q = String(accountQuery || '').trim().toLowerCase();
+    if (!q) return occupiedOptions;
+    return occupiedOptions.filter((row) => accountOptionText(row).includes(q));
+  }, [occupiedOptions, accountQuery, accountOptionText]);
+
+  const pickedAccountLabel = useMemo(() => {
+    if (!pickedRow) return '';
+    const kind =
+      pickedRow.origen === 'EXTERNA' || pickedRow.accountKind === 'EXTERNAL'
+        ? 'Externa'
+        : 'Reserva';
+    return `${kind} · ${reservationOptionLabel(pickedRow)}`;
+  }, [pickedRow]);
+
+  useEffect(() => {
+    if (!accountMenuOpen && !showCreateExternal) return undefined;
+    const onDocClick = (e) => {
+      if (accountPickerRef.current && !accountPickerRef.current.contains(e.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [accountMenuOpen, showCreateExternal]);
+
+  const reloadAccountOptions = useCallback(async () => {
+    if (!needsAccountPick) return [];
+    const optionsRes = await fetchCuentasParaPago();
+    const list = optionsRes.data || optionsRes || [];
+    const next = Array.isArray(list) ? list : [];
+    setReservationOptions(next);
+    return next;
+  }, [needsAccountPick]);
+
+  const pickAccountOption = (row) => {
+    const key = optionKey(row);
+    setPickedOptionKey(key);
+    setAccountQuery('');
+    setAccountMenuOpen(false);
+    setShowCreateExternal(false);
+  };
+
+  const handleCreateExternalAccount = async () => {
+    const label = String(externalLabel || '').trim();
+    if (!label) {
+      setError('Indicá un nombre para la cuenta externa');
+      return;
+    }
+    try {
+      setCreatingExternal(true);
+      setError(null);
+      const created = await createExternalAccount({ label });
+      const list = await reloadAccountOptions();
+      const createdId = created?.id ?? created?.accountId ?? null;
+      const match =
+        (createdId != null &&
+          list.find((r) => Number(r.accountId) === Number(createdId))) ||
+        list.find(
+          (r) =>
+            (r.origen === 'EXTERNA' || r.accountKind === 'EXTERNAL') &&
+            String(r.label || '').trim().toLowerCase() === label.toLowerCase()
+        );
+      if (match) pickAccountOption(match);
+      setExternalLabel('');
+      setShowCreateExternal(false);
+    } catch (err) {
+      setError(err?.message || 'Error al crear cuenta externa');
+    } finally {
+      setCreatingExternal(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -592,9 +727,20 @@ const PaymentForm = ({
       return;
     }
 
-    if (!formData.monto || parseFloat(formData.monto) <= 0) {
-      setError('El monto debe ser mayor a 0');
-      return;
+    if (isDevolucion || amountMode === AMOUNT_MODE_INGRESADO) {
+      if (!formData.monto || parseFloat(formData.monto) <= 0) {
+        setError('El monto ingresado debe ser mayor a 0');
+        return;
+      }
+    } else if (amountMode === AMOUNT_MODE_SALDAR) {
+      if (!(montoASaldarARS > 0)) {
+        setError('El monto a saldar debe ser mayor a 0');
+        return;
+      }
+      if (!(tenderMontoARS > 0)) {
+        setError('No se pudo calcular cuánto debe abonar el cliente');
+        return;
+      }
     }
 
     if (isDevolucion && !pagoOrigenId) {
@@ -669,10 +815,17 @@ const PaymentForm = ({
 
       // fecha del pago: la fija el servidor (ahora). Solo se envía fecha de facturación si aplica.
       // Devolución: monto positivo en UI; el backend lo guarda negativo en el saldo.
+      // Modo saldar: se registra lo que el cliente abona (dinero); el motor aplica el descuento.
+      const submitMonto =
+        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
+          ? tenderMontoARS
+          : parseFloat(formData.monto);
+      const submitMoneda =
+        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
       const pagoData = {
-        monto: parseFloat(formData.monto),
-        moneda: formData.moneda,
-        tipoCambio: formData.moneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
+        monto: submitMonto,
+        moneda: submitMoneda,
+        tipoCambio: submitMoneda === 'USD' ? parseFloat(formData.tipoCambio) : undefined,
         metodo: formData.metodo,
         paymentMethodConfigId: selectedMethodConfig?.id ?? undefined,
         pagoOrigenId: isDevolucion ? Number(pagoOrigenId) : undefined,
@@ -735,6 +888,8 @@ const PaymentForm = ({
     }
   };
 
+  const hasIngresadoAmount = (parseFloat(formData.monto) || 0) > 0;
+
   const formatPrice = (price) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
 
@@ -766,7 +921,9 @@ const PaymentForm = ({
             id="tab-nuevo-pago"
             aria-selected={!isDevolucion}
             className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => setMode(MODE_PAGO)}
+            onClick={() => {
+              setMode(MODE_PAGO);
+            }}
             disabled={loading}
           >
             Nuevo pago
@@ -777,7 +934,11 @@ const PaymentForm = ({
             id="tab-nueva-devolucion"
             aria-selected={isDevolucion}
             className={`${styles.modeTab} ${isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => setMode(MODE_DEVOLUCION)}
+            onClick={() => {
+              setMode(MODE_DEVOLUCION);
+              setAmountMode(AMOUNT_MODE_INGRESADO);
+              setMontoASaldar('');
+            }}
             disabled={loading}
           >
             Nueva devolución
@@ -785,51 +946,197 @@ const PaymentForm = ({
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.formBody}>
           {needsAccountPick && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-reservation">Cuenta *</label>
-                <select
-                  id="payment-reservation"
-                  value={pickedOptionKey}
-                  onChange={(e) => setPickedOptionKey(e.target.value)}
-                  required
-                  disabled={loadingMeta || loading}
-                >
-                  <option value="">
-                    {loadingMeta
-                      ? 'Cargando…'
-                      : occupiedOptions.length === 0
-                        ? 'Sin cuentas abiertas'
-                        : 'Seleccionar reserva o cuenta externa…'}
-                  </option>
-                  {occupiedOptions.map((row) => (
-                    <option key={optionKey(row)} value={optionKey(row)}>
-                      {row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
-                        ? `Externa · ${reservationOptionLabel(row)}`
-                        : `Reserva · ${reservationOptionLabel(row)}`}
-                    </option>
-                  ))}
-                </select>
+            <div className={`${styles.formRow} ${styles.formRowFull}`}>
+              <div className={styles.formGroup} ref={accountPickerRef}>
+                <div className={styles.accountPickerRow}>
+                  <div className={styles.accountCombobox}>
+                    <input
+                      id="payment-reservation"
+                      type="text"
+                      role="combobox"
+                      aria-expanded={accountMenuOpen}
+                      aria-controls="payment-account-listbox"
+                      aria-autocomplete="list"
+                      aria-label="Seleccionar reserva o cuenta externa"
+                      placeholder={
+                        loadingMeta
+                          ? 'Cargando…'
+                          : occupiedOptions.length === 0
+                            ? 'Sin cuentas abiertas'
+                            : 'Seleccionar reserva o cuenta externa…'
+                      }
+                      value={accountMenuOpen ? accountQuery : pickedAccountLabel || accountQuery}
+                      onChange={(e) => {
+                        setAccountQuery(e.target.value);
+                        setAccountMenuOpen(true);
+                        if (pickedOptionKey) setPickedOptionKey('');
+                      }}
+                      onFocus={() => {
+                        setAccountMenuOpen(true);
+                        setAccountQuery('');
+                      }}
+                      required={!pickedOptionKey}
+                      disabled={loadingMeta || loading}
+                      data-testid="payment-account-search"
+                      autoComplete="off"
+                    />
+                    {accountMenuOpen ? (
+                      <ul
+                        id="payment-account-listbox"
+                        className={styles.accountMenu}
+                        role="listbox"
+                        aria-label="Cuentas y reservas"
+                      >
+                        {filteredAccountOptions.length === 0 ? (
+                          <li className={styles.accountMenuEmpty} role="presentation">
+                            Sin coincidencias
+                          </li>
+                        ) : (
+                          filteredAccountOptions.map((row) => {
+                            const key = optionKey(row);
+                            const kind =
+                              row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
+                                ? 'Externa'
+                                : 'Reserva';
+                            return (
+                              <li key={key} role="option" aria-selected={pickedOptionKey === key}>
+                                <button
+                                  type="button"
+                                  className={styles.accountOption}
+                                  onClick={() => pickAccountOption(row)}
+                                >
+                                  <span className={styles.accountOptionKind}>{kind}</span>
+                                  <span className={styles.accountOptionLabel}>
+                                    {reservationOptionLabel(row)}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.createExternalBtn}
+                    disabled={loading || creatingExternal}
+                    onClick={() => {
+                      setShowCreateExternal((v) => !v);
+                      setAccountMenuOpen(false);
+                    }}
+                    data-testid="payment-create-external"
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Crear cuenta externa
+                  </button>
+                </div>
+                {showCreateExternal ? (
+                  <div
+                    className={styles.createExternalPanel}
+                    aria-label="Alta cuenta externa"
+                  >
+                    <input
+                      type="text"
+                      value={externalLabel}
+                      onChange={(e) => setExternalLabel(e.target.value)}
+                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                      aria-label="Etiqueta de cuenta externa"
+                      disabled={loading || creatingExternal}
+                      data-testid="payment-external-label"
+                    />
+                    <button
+                      type="button"
+                      className={styles.createExternalConfirm}
+                      disabled={loading || creatingExternal}
+                      onClick={handleCreateExternalAccount}
+                    >
+                      {creatingExternal ? 'Creando…' : 'Crear'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-monto">Monto *</label>
+          <div
+            className={`${styles.amountModes} ${styles.amountModesSameBox}`}
+            data-testid="payment-amount-modes"
+          >
+            <div
+              className={`${styles.amountModeBlock} ${
+                isDevolucion || amountMode === AMOUNT_MODE_INGRESADO
+                  ? styles.amountModeActive
+                  : ''
+              }`}
+            >
+              <label htmlFor="payment-monto">
+                {isDevolucion ? 'Monto *' : 'Monto ingresado'}
+              </label>
               <input
                 id="payment-monto"
                 type="number"
                 value={formData.monto}
                 onChange={(e) => handleInputChange('monto', e.target.value)}
-                placeholder="0.00"
+                onFocus={() => {
+                  if (!isDevolucion) setAmountMode(AMOUNT_MODE_INGRESADO);
+                }}
+                placeholder="0"
                 step="0.01"
                 min="0"
-                required
+                required={isDevolucion || amountMode === AMOUNT_MODE_INGRESADO}
+                disabled={loading}
+                data-testid="payment-monto-ingresado"
               />
             </div>
 
+            {!isDevolucion ? (
+              <div
+                className={`${styles.amountModeBlock} ${
+                  amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+                }`}
+              >
+                <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+                <input
+                  id="payment-monto-saldar"
+                  type="number"
+                  value={montoASaldar}
+                  onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                  onFocus={() => {
+                    setAmountMode(AMOUNT_MODE_SALDAR);
+                    setFormData((prev) =>
+                      prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }
+                    );
+                  }}
+                  placeholder={
+                    saldoPendiente != null && Number(saldoPendiente) > 0
+                      ? formatArs(saldoPendiente)
+                      : '0'
+                  }
+                  step="0.01"
+                  min="0"
+                  required={amountMode === AMOUNT_MODE_SALDAR}
+                  disabled={loading}
+                  data-testid="payment-monto-saldar"
+                />
+                {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
+                  <button
+                    type="button"
+                    className={styles.useSaldoBtn}
+                    disabled={loading}
+                    onClick={useSaldoPendienteAsSaldar}
+                    data-testid="payment-use-saldo"
+                  >
+                    Usar saldo pendiente ($ {formatArs(saldoPendiente)})
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="payment-moneda">Moneda *</label>
               <select
@@ -837,9 +1144,14 @@ const PaymentForm = ({
                 value={formData.moneda}
                 onChange={(e) => handleInputChange('moneda', e.target.value)}
                 required
+                disabled={loading}
+                data-testid="payment-moneda"
               >
-                <option value="ARS">Pesos Argentinos (ARS)</option>
-                <option value="USD">Dólares (USD)</option>
+                {SYSTEM_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -981,7 +1293,7 @@ const PaymentForm = ({
 
           {!isDevolucion &&
             manualPromoPreview?.aplica &&
-            (manualPromoPreview.appliedRules?.length > 0 ? (
+            manualPromoPreview.appliedRules?.length > 0 && (
               <div
                 className={styles.promoList}
                 role="status"
@@ -1000,7 +1312,9 @@ const PaymentForm = ({
                           {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
                         </span>
                         <span className={styles.promoValue}>
-                          −$ {formatArs(promo.montoARS)}
+                          {manualPromoPreview.probeOnly && promo.porcentaje != null
+                            ? `−${promo.porcentaje}%`
+                            : `−$ ${formatArs(promo.montoARS)}`}
                         </span>
                       </div>
                       {removable ? (
@@ -1019,49 +1333,8 @@ const PaymentForm = ({
                     </div>
                   );
                 })}
-                <ul className={styles.discountList}>
-                  <li>
-                    Recibe / registra:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Crédito a cuenta:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
-                  </li>
-                  {saldoPendiente != null && (
-                    <li>
-                      Saldo restante proyectado:{' '}
-                      <strong>
-                        ${' '}
-                        {formatArs(
-                          roundMoney(
-                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
-                          )
-                        )}
-                      </strong>
-                    </li>
-                  )}
-                </ul>
               </div>
-            ) : (
-              <div className={styles.discountPreview} role="status">
-                <p className={styles.discountTitle}>Descuento</p>
-                <ul className={styles.discountList}>
-                  <li>
-                    Recibe / registra:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Descuento aplicado:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.descuentoARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Crédito a cuenta:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
-                  </li>
-                </ul>
-              </div>
-            ))}
+            )}
 
           {!isDevolucion && (
             <div className={styles.addPromoWrap} ref={addPromoRef}>
@@ -1106,29 +1379,32 @@ const PaymentForm = ({
           )}
 
           {!isDevolucion &&
-            settlePromoPreview?.aplica &&
-            saldoPendiente != null &&
-            saldoPendiente > 0 && (
-              <div className={styles.settleRow}>
-                <button
-                  type="button"
-                  className={styles.settleButton}
-                  disabled={loading}
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      moneda: 'ARS',
-                      monto: String(settlePromoPreview.dineroARS)
-                    }));
-                  }}
-                >
-                  Cobrar saldo con este medio ($ {formatArs(settlePromoPreview.dineroARS)})
-                </button>
-                <span className={styles.helpText}>
-                  Cancela $ {formatArs(settlePromoPreview.saldoARS)} pidiendo ${' '}
-                  {formatArs(settlePromoPreview.dineroARS)} (desc. ${' '}
-                  {formatArs(settlePromoPreview.descuentoARS)})
-                </span>
+            manualPromoPreview?.aplica &&
+            !manualPromoPreview.probeOnly && (
+              <div className={styles.discountPreview} role="status">
+                <ul className={styles.discountList}>
+                  <li>
+                    Recibe / registra:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
+                  </li>
+                  <li>
+                    Crédito a cuenta:{' '}
+                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                  </li>
+                  {saldoPendiente != null && (
+                    <li>
+                      Saldo restante proyectado:{' '}
+                      <strong>
+                        ${' '}
+                        {formatArs(
+                          roundMoney(
+                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
+                          )
+                        )}
+                      </strong>
+                    </li>
+                  )}
+                </ul>
               </div>
             )}
 
@@ -1440,34 +1716,66 @@ const PaymentForm = ({
             </div>
           )}
 
-          <div className={styles.paymentSummary}>
+          </div>
+
+          <div className={styles.stickyFooter}>
+          <div className={styles.paymentSummary} data-testid="payment-summary">
             <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del pago'}</h3>
             <div className={styles.summaryRow}>
               <span>Motivo:</span>
               <span>{motivoActual}</span>
             </div>
-            <div className={styles.summaryRow}>
-              <span>Monto original:</span>
-              <span className={isDevolucion ? styles.amountARS : styles.amount}>
-                {isDevolucion ? '−' : ''}
-                {formData.moneda === 'USD'
-                  ? formatPriceUSD(parseFloat(formData.monto) || 0)
-                  : formatPrice(parseFloat(formData.monto) || 0)}
-              </span>
-            </div>
-            {formData.moneda === 'USD' && (
-              <div className={styles.summaryRow}>
-                <span>Tipo de cambio:</span>
-                <span>{parseFloat(formData.tipoCambio) || 0}</span>
-              </div>
+            {isSaldarMode ? (
+              <>
+                <div className={styles.summaryRow}>
+                  <span>Monto a saldar:</span>
+                  <span className={styles.amount}>
+                    {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
+                  </span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Cliente abona:</span>
+                  <span className={styles.amountARS}>
+                    {montoASaldarARS > 0 && tenderMontoARS > 0
+                      ? formatPrice(tenderMontoARS)
+                      : '—'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.summaryRow}>
+                  <span>Monto original:</span>
+                  <span className={isDevolucion ? styles.amountARS : styles.amount}>
+                    {hasIngresadoAmount
+                      ? `${isDevolucion ? '−' : ''}${
+                          formData.moneda === 'USD'
+                            ? formatPriceUSD(parseFloat(formData.monto) || 0)
+                            : formatPrice(parseFloat(formData.monto) || 0)
+                        }`
+                      : '—'}
+                  </span>
+                </div>
+                {formData.moneda === 'USD' && (
+                  <div className={styles.summaryRow}>
+                    <span>Tipo de cambio:</span>
+                    <span>
+                      {parseFloat(formData.tipoCambio) > 0
+                        ? parseFloat(formData.tipoCambio)
+                        : '—'}
+                    </span>
+                  </div>
+                )}
+                <div className={styles.summaryRow}>
+                  <span>Equivalente en ARS:</span>
+                  <span className={styles.amountARS}>
+                    {hasIngresadoAmount
+                      ? `${isDevolucion ? '−' : ''}${formatPrice(montoARS)}`
+                      : '—'}
+                  </span>
+                </div>
+              </>
             )}
-            <div className={styles.summaryRow}>
-              <span>Equivalente en ARS:</span>
-              <span className={styles.amountARS}>
-                {isDevolucion ? '−' : ''}
-                {formatPrice(montoARS)}
-              </span>
-            </div>
           </div>
 
           {error && <div className={styles.errorMessage}>{error}</div>}
@@ -1489,6 +1797,7 @@ const PaymentForm = ({
                   ? 'Guardar devolución'
                   : 'Guardar pago'}
             </button>
+          </div>
           </div>
         </form>
       </div>
