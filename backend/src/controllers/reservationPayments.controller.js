@@ -263,9 +263,9 @@ exports.createPago = async (req, res) => {
     deselectedRuleIds,
     benefitValueByRuleId,
     applySuggestedDefaults,
-    applyAutomatics
+    applyAutomatics,
+    fecha
   } = req.body;
-  // fecha del pago: siempre automática en el servidor (no se acepta del cliente)
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
     .concat(promotionRuleIds || [])
@@ -380,7 +380,25 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(montoSigned);
     }
 
-    const fechaPago = new Date();
+    let fechaPago = new Date();
+    if (fecha) {
+      const raw = String(fecha).trim();
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        fechaPago = new Date(
+          Number(m[1]),
+          Number(m[2]) - 1,
+          Number(m[3]),
+          12,
+          0,
+          0,
+          0
+        );
+      } else {
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) fechaPago = parsed;
+      }
+    }
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
@@ -521,6 +539,7 @@ exports.updatePago = async (req, res) => {
     empresa,
     notas,
     fecha,
+    motivo,
     retirado
   } = req.body;
 
@@ -597,6 +616,13 @@ exports.updatePago = async (req, res) => {
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
+    if (motivo !== undefined) {
+      const motivoNorm = String(motivo || '').trim();
+      if (!motivoNorm) {
+        return res.status(400).json({ error: 'El motivo no puede estar vacío' });
+      }
+      dataToUpdate.motivo = motivoNorm;
+    }
 
     if (retirado !== undefined) {
       const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
@@ -1127,7 +1153,10 @@ exports.getResumenFinanciero = async (req, res) => {
         }
       }),
       prisma.discountApplication.findMany({
-        where: { accountId: account.id }
+        where: { accountId: account.id },
+        include: {
+          promotionRule: { select: { id: true, code: true, label: true } }
+        }
       }),
       prisma.reservation.findUnique({
         where: { id: parseInt(reservaId) },

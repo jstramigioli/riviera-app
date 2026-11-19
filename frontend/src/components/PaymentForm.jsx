@@ -4,6 +4,7 @@ import {
   createPago,
   createAccountPago,
   createExternalAccount,
+  updatePago,
   fetchReservation,
   fetchCuentasParaPago,
   fetchPaymentMethodConfigs,
@@ -34,6 +35,15 @@ import {
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
+
+function pagoFechaToInput(value) {
+  if (!value) return todayLocalDateInputValue();
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return todayLocalDateInputValue();
+  return todayLocalDateInputValue(d);
+}
 import { formatArs, roundMoney } from '../utils/paymentDiscount';
 import styles from './PaymentForm.module.css';
 
@@ -101,10 +111,13 @@ function mapSettlementPreview(preview, saldoPendiente = null) {
 const PaymentForm = ({
   reservaId: reservaIdProp = null,
   accountId: accountIdProp = null,
+  initialPago = null,
   onClose,
   onSuccess
 }) => {
-  const needsAccountPick = reservaIdProp == null && accountIdProp == null;
+  const isEditMode = initialPago != null && initialPago.id != null;
+  const needsAccountPick =
+    !isEditMode && reservaIdProp == null && accountIdProp == null;
   const [reservationOptions, setReservationOptions] = useState([]);
   const [pickedOptionKey, setPickedOptionKey] = useState('');
   const [accountQuery, setAccountQuery] = useState('');
@@ -115,8 +128,15 @@ const PaymentForm = ({
   const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
-  const [mode, setMode] = useState(MODE_PAGO);
-  const [esSena, setEsSena] = useState(false);
+  const [mode, setMode] = useState(() => {
+    if (isEditMode && String(initialPago.motivo || '') === MOTIVO_DEVOLUCION) {
+      return MODE_DEVOLUCION;
+    }
+    return MODE_PAGO;
+  });
+  const [esSena, setEsSena] = useState(
+    () => isEditMode && String(initialPago.motivo || '') === 'Seña'
+  );
 
   const pickedRow = useMemo(() => {
     if (!needsAccountPick || !pickedOptionKey) return null;
@@ -152,14 +172,30 @@ const PaymentForm = ({
       ? 'Seña'
       : DEFAULT_PAGO_MOTIVO;
 
-  const [formData, setFormData] = useState({
-    monto: '',
-    moneda: 'ARS',
-    tipoCambio: '',
-    metodo: 'Efectivo',
-    numeroTarjeta: '',
-    empresa: '',
-    notas: ''
+  const [formData, setFormData] = useState(() => {
+    if (!isEditMode) {
+      return {
+        monto: '',
+        moneda: 'ARS',
+        tipoCambio: '',
+        metodo: 'Efectivo',
+        numeroTarjeta: '',
+        empresa: '',
+        notas: '',
+        fecha: todayLocalDateInputValue()
+      };
+    }
+    return {
+      monto: String(Math.abs(Number(initialPago.monto) || 0) || ''),
+      moneda: initialPago.moneda || 'ARS',
+      tipoCambio:
+        initialPago.tipoCambio != null ? String(initialPago.tipoCambio) : '',
+      metodo: initialPago.metodo || 'Efectivo',
+      numeroTarjeta: initialPago.numeroTarjeta || '',
+      empresa: initialPago.empresa || '',
+      notas: initialPago.notas || '',
+      fecha: pagoFechaToInput(initialPago.fecha)
+    };
   });
 
   const [requiereFacturacion, setRequiereFacturacion] = useState(false);
@@ -764,7 +800,7 @@ const PaymentForm = ({
       }
     }
 
-    if (billingEnabled) {
+    if (!isEditMode && billingEnabled) {
       if (!billing.tipo || !['A', 'B'].includes(billing.tipo)) {
         setError('Seleccioná Factura A o Factura B');
         return;
@@ -813,7 +849,6 @@ const PaymentForm = ({
           }
         : undefined;
 
-      // fecha del pago: la fija el servidor (ahora). Solo se envía fecha de facturación si aplica.
       // Devolución: monto positivo en UI; el backend lo guarda negativo en el saldo.
       // Modo saldar: se registra lo que el cliente abona (dinero); el motor aplica el descuento.
       const submitMonto =
@@ -822,6 +857,7 @@ const PaymentForm = ({
           : parseFloat(formData.monto);
       const submitMoneda =
         !isDevolucion && amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
+      const fechaIso = localDateInputToIso(formData.fecha) || new Date().toISOString();
       const pagoData = {
         monto: submitMonto,
         moneda: submitMoneda,
@@ -833,18 +869,31 @@ const PaymentForm = ({
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
         notas: formData.notas || null,
+        fecha: fechaIso,
         requiereFacturacion: billingEnabled,
-        factura: facturaPayload,
-        selectedRuleIds: isDevolucion ? undefined : manualPromoApply.selectedRuleIds,
-        deselectedRuleIds: isDevolucion ? undefined : manualPromoApply.deselectedRuleIds,
-        benefitValueByRuleId: isDevolucion
-          ? undefined
-          : manualPromoApply.benefitValueByRuleId,
-        applySuggestedDefaults: isDevolucion ? undefined : true
+        factura: isEditMode ? undefined : facturaPayload,
+        selectedRuleIds: isDevolucion || isEditMode ? undefined : manualPromoApply.selectedRuleIds,
+        deselectedRuleIds:
+          isDevolucion || isEditMode ? undefined : manualPromoApply.deselectedRuleIds,
+        benefitValueByRuleId:
+          isDevolucion || isEditMode ? undefined : manualPromoApply.benefitValueByRuleId,
+        applySuggestedDefaults: isDevolucion || isEditMode ? undefined : true
       };
 
       let nuevoPago;
-      if (isExternalAccount || (accountId && !reservaId)) {
+      if (isEditMode) {
+        nuevoPago = await updatePago(initialPago.id, {
+          monto: pagoData.monto,
+          moneda: pagoData.moneda,
+          tipoCambio: pagoData.tipoCambio,
+          metodo: pagoData.metodo,
+          motivo: pagoData.motivo,
+          numeroTarjeta: pagoData.numeroTarjeta ?? null,
+          empresa: pagoData.empresa ?? null,
+          notas: pagoData.notas,
+          fecha: pagoData.fecha
+        });
+      } else if (isExternalAccount || (accountId && !reservaId)) {
         nuevoPago = await createAccountPago(accountId, pagoData);
       } else {
         nuevoPago = await createPago(reservaId, pagoData);
@@ -901,7 +950,13 @@ const PaymentForm = ({
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
         <div className={styles.header}>
           <h2 id="payment-form-title">
-            {isDevolucion ? 'Nueva devolución' : 'Nuevo pago'}
+            {isEditMode
+              ? isDevolucion
+                ? 'Editar devolución'
+                : 'Editar pago'
+              : isDevolucion
+                ? 'Nueva devolución'
+                : 'Nuevo pago'}
           </h2>
           <button
             type="button"
@@ -914,36 +969,36 @@ const PaymentForm = ({
           </button>
         </div>
 
-        <div className={styles.modeTabs} role="tablist" aria-label="Tipo de movimiento">
-          <button
-            type="button"
-            role="tab"
-            id="tab-nuevo-pago"
-            aria-selected={!isDevolucion}
-            className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => {
-              setMode(MODE_PAGO);
-            }}
-            disabled={loading}
-          >
-            Nuevo pago
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-nueva-devolucion"
-            aria-selected={isDevolucion}
-            className={`${styles.modeTab} ${isDevolucion ? styles.modeTabActive : ''}`}
-            onClick={() => {
-              setMode(MODE_DEVOLUCION);
-              setAmountMode(AMOUNT_MODE_INGRESADO);
-              setMontoASaldar('');
-            }}
-            disabled={loading}
-          >
-            Nueva devolución
-          </button>
-        </div>
+        {!isEditMode ? (
+          <div className={styles.modeTabs} role="tablist" aria-label="Tipo de movimiento">
+            <button
+              type="button"
+              role="tab"
+              id="tab-nuevo-pago"
+              aria-selected={!isDevolucion}
+              className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
+              onClick={() => setMode(MODE_PAGO)}
+              disabled={loading}
+            >
+              Nuevo pago
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-nueva-devolucion"
+              aria-selected={isDevolucion}
+              className={`${styles.modeTab} ${isDevolucion ? styles.modeTabActive : ''}`}
+              onClick={() => {
+                setMode(MODE_DEVOLUCION);
+                setAmountMode(AMOUNT_MODE_INGRESADO);
+                setMontoASaldar('');
+              }}
+              disabled={loading}
+            >
+              Nueva devolución
+            </button>
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formBody}>
@@ -1061,6 +1116,21 @@ const PaymentForm = ({
             </div>
           )}
 
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="payment-fecha">Fecha *</label>
+              <input
+                id="payment-fecha"
+                type="date"
+                value={formData.fecha}
+                onChange={(e) => handleInputChange('fecha', e.target.value)}
+                required
+                disabled={loading}
+                data-testid="payment-fecha"
+              />
+            </div>
+          </div>
+
           <div
             className={`${styles.amountModes} ${styles.amountModesSameBox}`}
             data-testid="payment-amount-modes"
@@ -1118,14 +1188,14 @@ const PaymentForm = ({
                   step="0.01"
                   min="0"
                   required={amountMode === AMOUNT_MODE_SALDAR}
-                  disabled={loading}
+                  disabled={loading || isEditMode}
                   data-testid="payment-monto-saldar"
                 />
                 {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
                   <button
                     type="button"
                     className={styles.useSaldoBtn}
-                    disabled={loading}
+                    disabled={loading || isEditMode}
                     onClick={useSaldoPendienteAsSaldar}
                     data-testid="payment-use-saldo"
                   >
@@ -1258,7 +1328,7 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion && manualPromoSuggestions.length > 0 && (
+          {!isEditMode && !isDevolucion && manualPromoSuggestions.length > 0 && (
             <div
               className={styles.manualPromoBlock}
               data-testid="payment-manual-promos"
@@ -1291,7 +1361,8 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion &&
+          {!isEditMode &&
+            !isDevolucion &&
             manualPromoPreview?.aplica &&
             manualPromoPreview.appliedRules?.length > 0 && (
               <div
@@ -1336,7 +1407,7 @@ const PaymentForm = ({
               </div>
             )}
 
-          {!isDevolucion && (
+          {!isEditMode && !isDevolucion && (
             <div className={styles.addPromoWrap} ref={addPromoRef}>
               <button
                 type="button"
@@ -1378,7 +1449,8 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isDevolucion &&
+          {!isEditMode &&
+            !isDevolucion &&
             manualPromoPreview?.aplica &&
             !manualPromoPreview.probeOnly && (
               <div className={styles.discountPreview} role="status">
@@ -1509,6 +1581,7 @@ const PaymentForm = ({
             </div>
           </div>
 
+          {!isEditMode ? (
           <div className={styles.billingToggleRow}>
             <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
               <input
@@ -1524,8 +1597,9 @@ const PaymentForm = ({
               )}
             </label>
           </div>
+          ) : null}
 
-          {billingEnabled && (
+          {!isEditMode && billingEnabled && (
             <div className={styles.billingSection}>
               <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
                 <button
@@ -1793,9 +1867,11 @@ const PaymentForm = ({
               <FiSave />
               {loading
                 ? 'Guardando...'
-                : isDevolucion
-                  ? 'Guardar devolución'
-                  : 'Guardar pago'}
+                : isEditMode
+                  ? 'Guardar cambios'
+                  : isDevolucion
+                    ? 'Guardar devolución'
+                    : 'Guardar pago'}
             </button>
           </div>
           </div>

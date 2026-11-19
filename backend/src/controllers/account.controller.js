@@ -593,7 +593,8 @@ exports.createAccountPago = async (req, res) => {
     deselectedRuleIds,
     benefitValueByRuleId,
     applySuggestedDefaults,
-    applyAutomatics
+    applyAutomatics,
+    fecha
   } = req.body || {};
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
@@ -758,7 +759,24 @@ exports.createAccountPago = async (req, res) => {
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
           notas: notas || null,
           motivo: motivoPago,
-          fecha: new Date(),
+          fecha: (() => {
+            if (!fecha) return new Date();
+            const raw = String(fecha).trim();
+            const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) {
+              return new Date(
+                Number(m[1]),
+                Number(m[2]) - 1,
+                Number(m[3]),
+                12,
+                0,
+                0,
+                0
+              );
+            }
+            const parsed = new Date(raw);
+            return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+          })(),
           requiereFacturacion: wantsBilling,
           ...(wantsBilling
             ? { factura: { create: facturaParsed.data } }

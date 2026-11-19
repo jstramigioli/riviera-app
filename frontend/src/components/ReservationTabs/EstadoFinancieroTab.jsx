@@ -6,13 +6,84 @@ import {
   FaTimes,
   FaCheck,
   FaEdit,
-  FaPrint
+  FaPrint,
+  FaTrash
 } from 'react-icons/fa';
+import { FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 import PaymentForm from '../PaymentForm';
 import LiquidacionPrint from './LiquidacionPrint';
+import { RESERVATION_STATUSES } from '../../utils/reservationStatusUtils';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+
+function civilIsoToday() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function civilIsoOf(value) {
+  if (!value) return null;
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Huésped ya retirado / check-out hecho o fecha de salida vencida. */
+export function isGuestDeparted(reservation, todayIso = civilIsoToday()) {
+  const status = String(reservation?.status || '').toUpperCase();
+  if (status === RESERVATION_STATUSES.FINALIZADA) return true;
+  const checkOut = civilIsoOf(reservation?.checkOut);
+  if (!checkOut) return false;
+  return checkOut < todayIso;
+}
+
+/**
+ * Estado visual del saldo en el resumen:
+ * - PAGADO: saldo ≤ 0
+ * - PENDIENTE: saldo > 0 y huésped aún no se fue
+ * - VENCIDO: saldo > 0 y huésped ya check-out / retirado
+ */
+export function resolveSaldoVisualStatus(saldo, reservation, todayIso = civilIsoToday()) {
+  const amount = Number(saldo) || 0;
+  if (amount <= 0) return amount < 0 ? 'A_FAVOR' : 'PAGADO';
+  return isGuestDeparted(reservation, todayIso) ? 'VENCIDO' : 'PENDIENTE';
+}
+
+function discountLabel(d) {
+  if (!d) return '—';
+  const parts = [];
+  if (d.porcentaje != null && d.porcentaje !== '') {
+    parts.push(`${Number(d.porcentaje)}%`);
+  }
+  if (d.notas) parts.push(d.notas);
+  if (d.tipo && !parts.length) parts.push(d.tipo);
+  return parts.length ? parts.join(' · ') : 'Descuento';
+}
+
+function promoHintFromDiscount(d) {
+  if (d?.promotionRule?.label || d?.promotionRule?.code) {
+    return d.promotionRule.label || d.promotionRule.code;
+  }
+  const rules = Array.isArray(d?.appliedRulesJson)
+    ? d.appliedRulesJson
+    : Array.isArray(d?.appliedRulesJson?.appliedRules)
+      ? d.appliedRulesJson.appliedRules
+      : [];
+  const labels = rules
+    .map((r) => r?.label || r?.code)
+    .filter(Boolean);
+  if (labels.length) return labels.join(' + ');
+  return discountLabel(d);
+}
 
 const EstadoFinancieroTab = ({
   reservation,
@@ -24,14 +95,16 @@ const EstadoFinancieroTab = ({
   onAddCargo,
   onUpdateCargo,
   onDeleteCargo,
+  onDeletePago,
   pendingAction = null,
   onPendingActionHandled,
   onRequestConsumo
 }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
-  const [expandedFinancialRow, setExpandedFinancialRow] = useState(null);
+  const [expandedFinancialRow, setExpandedFinancialRow] = useState('cargos');
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [editingPago, setEditingPago] = useState(null);
   const [showCargoModal, setShowCargoModal] = useState(false);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
@@ -152,9 +225,37 @@ const EstadoFinancieroTab = ({
     await onDeleteCargo(cargo.id);
   };
 
-  const handlePaymentSuccess = async () => {
+  const openNewPaymentForm = () => {
+    setEditingPago(null);
+    setShowPaymentForm(true);
+  };
+
+  const openEditPaymentForm = (pago) => {
+    setEditingPago(pago);
+    setShowPaymentForm(true);
+    setExpandedFinancialRow('pagos');
+  };
+
+  const closePaymentForm = () => {
     setShowPaymentForm(false);
+    setEditingPago(null);
+  };
+
+  const handlePaymentSuccess = async () => {
+    closePaymentForm();
     if (onFinancialChange) await onFinancialChange();
+  };
+
+  const handleDeletePago = async (pago) => {
+    if (!onDeletePago) return;
+    const ok = await confirm({
+      title: 'Eliminar pago',
+      message: `¿Eliminar el pago ${pago.codigo || `#${pago.id}`}?`,
+      confirmText: 'Eliminar'
+    });
+    if (!ok) return;
+    await onDeletePago(pago.id);
+    if (editingPago?.id === pago.id) closePaymentForm();
   };
 
   const handlePrintLiquidacion = () => {
@@ -188,7 +289,6 @@ const EstadoFinancieroTab = ({
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
-    // Dos frames: reflow con html/body height:auto antes del diálogo de impresión
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.print();
@@ -197,7 +297,6 @@ const EstadoFinancieroTab = ({
     });
   };
 
-  // Acciones disparadas desde el menú ⋮ del panel del Libro
   useEffect(() => {
     if (!pendingAction) {
       pendingHandledRef.current = null;
@@ -221,7 +320,7 @@ const EstadoFinancieroTab = ({
 
     if (pendingAction === 'add-pago') {
       pendingHandledRef.current = pendingAction;
-      setShowPaymentForm(true);
+      openNewPaymentForm();
       onPendingActionHandled?.();
       return;
     }
@@ -244,21 +343,26 @@ const EstadoFinancieroTab = ({
     onRequestConsumo
   ]);
 
-  if (!reservation) return null;
-
   const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
   const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
-  const saldoDisplay = totalCargos - totalPagos;
-  const estadoPago = saldoDisplay > 0 ? 'PENDIENTE' : (saldoDisplay < 0 ? 'A_FAVOR' : 'PAGADO');
+  const totalDescuentos = Number(financialSummary?.resumen?.totalDescuentos) || 0;
+  const saldoDisplay =
+    financialSummary?.resumen?.saldo != null
+      ? Number(financialSummary.resumen.saldo)
+      : totalCargos - totalPagos - totalDescuentos;
+  const estadoPago = resolveSaldoVisualStatus(saldoDisplay, reservation);
 
   const cargoItems = financialSummary?.cargos?.items || [];
   const pagoItems = financialSummary?.pagos?.items || [];
+  const descuentoItems = financialSummary?.descuentos?.items || [];
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
   const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
   const tiposCargosOrdenados = [
     ...tipoCargoOrder.filter((codigo) => cargosPorTipo[codigo]),
     ...Object.keys(cargosPorTipo).filter((codigo) => !tipoCargoOrder.includes(codigo))
   ].map((codigo) => cargosPorTipo[codigo]);
+
+  if (!reservation) return null;
 
   const toggleFinancialRow = (row) => {
     setExpandedFinancialRow((current) => (current === row ? null : row));
@@ -268,7 +372,6 @@ const EstadoFinancieroTab = ({
 
   const renderCargoActions = (item) => {
     if (isLodgingCargo(item)) {
-      // Alojamiento: solo lectura (tarifa/promos); sin override manual
       return null;
     }
 
@@ -326,7 +429,7 @@ const EstadoFinancieroTab = ({
           <button
             type="button"
             className={styles.addButton}
-            onClick={() => setShowPaymentForm(true)}
+            onClick={openNewPaymentForm}
             data-testid="btn-add-pago"
           >
             <FaPlus /> pago
@@ -345,112 +448,294 @@ const EstadoFinancieroTab = ({
       {loadingFinancial && !financialSummary ? (
         <div className={styles.loading}>Cargando estado financiero...</div>
       ) : financialSummary ? (
-        <div className={styles.financialAlert} data-testid="estado-financiero">
-          <div className={styles.financialAlertBody}>
-            <div className={styles.financialRowBlock}>
-              <button
-                type="button"
-                className={styles.financialRowToggle}
-                onClick={() => toggleFinancialRow('cargos')}
-                aria-expanded={expandedFinancialRow === 'cargos'}
-                data-testid="financial-row-cargos"
-              >
-                <span className={styles.financialRowLabel}>
-                  <span className={styles.financialRowChevron} aria-hidden="true">
-                    {expandedFinancialRow === 'cargos' ? <FaChevronDown /> : <FaChevronRight />}
-                  </span>
-                  Cargos
-                </span>
-                <strong data-testid="financial-total-cargos">{formatCurrency(totalCargos)}</strong>
-              </button>
-              {expandedFinancialRow === 'cargos' && (
-                <div className={styles.financialRowDetail} data-testid="financial-detail-cargos">
-                  {tiposCargosOrdenados.length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {tiposCargosOrdenados.map((tipo) => (
-                        <li key={tipo.codigo} className={styles.breakdownGroup}>
-                          <div className={styles.breakdownGroupHeader}>
-                            <span>{tipo.nombre}</span>
-                            <strong>{formatCurrency(tipo.total)}</strong>
-                          </div>
-                          {(tipo.items || []).map((item) => (
-                            <div key={item.id} className={styles.breakdownItem}>
+        <div className={styles.financialLayout} data-testid="estado-financiero">
+          <div className={styles.financialMain}>
+            <div className={styles.financialAlert}>
+              <div className={styles.financialAlertBody}>
+                <div className={styles.financialRowBlock}>
+                  <button
+                    type="button"
+                    className={styles.financialRowToggle}
+                    onClick={() => toggleFinancialRow('cargos')}
+                    aria-expanded={expandedFinancialRow === 'cargos'}
+                    data-testid="financial-row-cargos"
+                  >
+                    <span className={styles.financialRowLabel}>
+                      <span className={styles.financialRowChevron} aria-hidden="true">
+                        {expandedFinancialRow === 'cargos' ? (
+                          <FaChevronDown />
+                        ) : (
+                          <FaChevronRight />
+                        )}
+                      </span>
+                      Cargos
+                    </span>
+                    <strong data-testid="financial-total-cargos">
+                      {formatCurrency(totalCargos)}
+                    </strong>
+                  </button>
+                  {expandedFinancialRow === 'cargos' && (
+                    <div
+                      className={styles.financialRowDetail}
+                      data-testid="financial-detail-cargos"
+                    >
+                      {tiposCargosOrdenados.length > 0 ? (
+                        <ul className={styles.breakdownList}>
+                          {tiposCargosOrdenados.map((tipo) => (
+                            <li key={tipo.codigo} className={styles.breakdownGroup}>
+                              <div className={styles.breakdownGroupHeader}>
+                                <span>{tipo.nombre}</span>
+                                <strong>{formatCurrency(tipo.total)}</strong>
+                              </div>
+                              {(tipo.items || []).map((item) => (
+                                <div key={item.id} className={styles.breakdownItem}>
+                                  <span>
+                                    {item.descripcion || 'Cargo'}
+                                    {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
+                                  </span>
+                                  {renderMonto(item)}
+                                </div>
+                              ))}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : cargoItems.length > 0 ? (
+                        <ul className={styles.breakdownList}>
+                          {cargoItems.map((item) => (
+                            <li key={item.id} className={styles.breakdownItem}>
                               <span>
                                 {item.descripcion || 'Cargo'}
                                 {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
                               </span>
                               {renderMonto(item)}
-                            </div>
+                            </li>
                           ))}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : cargoItems.length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {cargoItems.map((item) => (
-                        <li key={item.id} className={styles.breakdownItem}>
-                          <span>
-                            {item.descripcion || 'Cargo'}
-                            {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
-                          </span>
-                          {renderMonto(item)}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className={styles.breakdownEmpty}>Sin cargos registrados.</p>
+                        </ul>
+                      ) : (
+                        <p className={styles.breakdownEmpty}>Sin cargos registrados.</p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className={styles.financialRowBlock}>
-              <button
-                type="button"
-                className={styles.financialRowToggle}
-                onClick={() => toggleFinancialRow('pagos')}
-                aria-expanded={expandedFinancialRow === 'pagos'}
-                data-testid="financial-row-pagos"
-              >
-                <span className={styles.financialRowLabel}>
-                  <span className={styles.financialRowChevron} aria-hidden="true">
-                    {expandedFinancialRow === 'pagos' ? <FaChevronDown /> : <FaChevronRight />}
-                  </span>
-                  Pagos
-                </span>
-                <strong data-testid="financial-total-pagos">{formatCurrency(totalPagos)}</strong>
-              </button>
-              {expandedFinancialRow === 'pagos' && (
-                <div className={styles.financialRowDetail} data-testid="financial-detail-pagos">
-                  {pagoItems.length > 0 ? (
-                    <ul className={styles.breakdownList}>
-                      {pagoItems.map((pago) => (
-                        <li key={pago.id} className={styles.breakdownItem}>
-                          <span>
-                            {pago.metodo || 'Pago'}
-                            {pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}
-                          </span>
-                          <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                <div className={styles.financialRowBlock}>
+                  <button
+                    type="button"
+                    className={styles.financialRowToggle}
+                    onClick={() => toggleFinancialRow('pagos')}
+                    aria-expanded={expandedFinancialRow === 'pagos'}
+                    data-testid="financial-row-pagos"
+                  >
+                    <span className={styles.financialRowLabel}>
+                      <span className={styles.financialRowChevron} aria-hidden="true">
+                        {expandedFinancialRow === 'pagos' ? (
+                          <FaChevronDown />
+                        ) : (
+                          <FaChevronRight />
+                        )}
+                      </span>
+                      Pagos
+                      <span
+                        className={styles.financialRowMeta}
+                        data-testid="financial-pagos-count"
+                      >
+                        {pagoItems.length} registro{pagoItems.length === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <strong data-testid="financial-total-pagos">
+                      {formatCurrency(totalPagos)}
+                    </strong>
+                  </button>
+                  {expandedFinancialRow === 'pagos' && (
+                    <div
+                      className={styles.financialRowDetail}
+                      data-testid="financial-detail-pagos"
+                    >
+                      {pagoItems.length === 0 ? (
+                        <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                      ) : (
+                        <div
+                          className={`${styles.tableContainer} ${styles.pagosTableScroll}`}
+                        >
+                          <table
+                            className={`${styles.dataTable} ${styles.pagosTable}`}
+                            data-testid="financial-pagos-table"
+                          >
+                            <thead>
+                              <tr>
+                                <th>Código</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Moneda</th>
+                                <th>Método</th>
+                                <th>Motivo</th>
+                                <th>Descuento</th>
+                                <th>Notas</th>
+                                <th>Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pagoItems.map((pago) => {
+                                const disc = pago.discountApplication;
+                                return (
+                                  <tr
+                                    key={pago.id}
+                                    data-testid={`financial-pago-row-${pago.id}`}
+                                  >
+                                    <td>{pago.codigo || `#${pago.id}`}</td>
+                                    <td>{formatDate(pago.fecha)}</td>
+                                    <td className={styles.montoCell}>
+                                      {pago.moneda === 'USD'
+                                        ? `$${Number(pago.monto).toFixed(2)} USD`
+                                        : formatCurrency(pago.montoARS ?? pago.monto)}
+                                      {pago.moneda === 'USD' && pago.montoARS != null ? (
+                                        <div className={styles.arsEquivalent}>
+                                          ≈ {formatCurrency(pago.montoARS)}
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td>{pago.moneda || 'ARS'}</td>
+                                    <td>{pago.metodo || '—'}</td>
+                                    <td>{pago.motivo || 'Pago'}</td>
+                                    <td>
+                                      {disc && Number(disc.montoARS) !== 0
+                                        ? formatCurrency(disc.montoARS)
+                                        : '—'}
+                                      {disc && Number(disc.montoARS) !== 0 ? (
+                                        <div className={styles.arsEquivalent}>
+                                          {promoHintFromDiscount(disc)}
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td className={styles.notasCell}>{pago.notas || '—'}</td>
+                                    <td>
+                                      <span className={styles.breakdownActions}>
+                                        <button
+                                          type="button"
+                                          className={styles.editIconButton}
+                                          onClick={() => openEditPaymentForm(pago)}
+                                          title="Editar pago"
+                                          data-testid={`pago-edit-${pago.id}`}
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={styles.deleteIconButton}
+                                          onClick={() => handleDeletePago(pago)}
+                                          title="Eliminar pago"
+                                          data-testid={`pago-delete-${pago.id}`}
+                                          disabled={!onDeletePago}
+                                        >
+                                          <FaTrash />
+                                        </button>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+              </div>
+            </div>
+          </div>
+
+          <aside
+            className={styles.financialSummaryPanel}
+            aria-label="Resumen financiero"
+            data-testid="financial-summary-panel"
+          >
+            <h4 className={styles.summaryPanelTitle}>Resumen</h4>
+
+            <div className={styles.summaryPanelRow}>
+              <span>Total de cargos</span>
+              <strong data-testid="summary-total-cargos">
+                {formatCurrency(totalCargos)}
+              </strong>
+            </div>
+            {tiposCargosOrdenados.length > 0 ? (
+              <ul className={styles.summaryPanelSublist} data-testid="summary-cargos-breakdown">
+                {tiposCargosOrdenados.map((tipo) => (
+                  <li key={tipo.codigo}>
+                    <span>{tipo.nombre}</span>
+                    <span>{formatCurrency(tipo.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className={styles.summaryPanelHint}>
+              Incluye tarifas con promociones de tarifa ya aplicadas en los cargos.
+            </p>
+
+            <div className={styles.summaryPanelRow}>
+              <span>Total de pagos</span>
+              <strong data-testid="summary-total-pagos">
+                {formatCurrency(totalPagos)}
+              </strong>
             </div>
 
-            <div className={`${styles.financialRow} ${styles.saldoRow} ${styles[estadoPago]}`}>
-              <span>Saldo:</span>
+            <div className={styles.summaryPanelRow}>
+              <span>Total de descuentos</span>
+              <strong data-testid="summary-total-descuentos">
+                {formatCurrency(totalDescuentos)}
+              </strong>
+            </div>
+            {descuentoItems.length > 0 ? (
+              <ul className={styles.summaryPanelSublist} data-testid="summary-descuentos-list">
+                {descuentoItems.map((d) => (
+                  <li key={d.id}>
+                    <span>{promoHintFromDiscount(d)}</span>
+                    <span>{formatCurrency(d.montoARS)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.summaryPanelHint}>Sin descuentos por medio de pago.</p>
+            )}
+
+            <div
+              className={`${styles.summaryPanelSaldo} ${styles[estadoPago]}`}
+              data-testid="financial-saldo-block"
+              data-status={estadoPago}
+            >
+              <span className={styles.summarySaldoLabel}>
+                {estadoPago === 'PAGADO' || estadoPago === 'A_FAVOR' ? (
+                  <FiCheckCircle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusPaid}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-paid"
+                  />
+                ) : null}
+                {estadoPago === 'PENDIENTE' ? (
+                  <FiAlertTriangle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusPending}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-pending"
+                  />
+                ) : null}
+                {estadoPago === 'VENCIDO' ? (
+                  <FiAlertTriangle
+                    className={`${styles.summaryStatusIcon} ${styles.summaryStatusOverdue}`}
+                    aria-hidden="true"
+                    data-testid="saldo-icon-overdue"
+                  />
+                ) : null}
+                Saldo
+              </span>
               <strong data-testid="financial-saldo">{formatCurrency(saldoDisplay)}</strong>
             </div>
-            <div className={styles.estadoPagoTag}>
+            <div className={styles.estadoPagoTag} data-testid="financial-saldo-estado">
               {estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
+              {estadoPago === 'VENCIDO' && 'Saldo vencido (huésped retirado)'}
               {estadoPago === 'PAGADO' && 'Pagado completamente'}
               {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
             </div>
-          </div>
+          </aside>
         </div>
       ) : (
         <div className={styles.emptyState}>
@@ -471,20 +756,30 @@ const EstadoFinancieroTab = ({
       {showPaymentForm && (
         <PaymentForm
           reservaId={reservation.id}
-          onClose={() => setShowPaymentForm(false)}
+          initialPago={editingPago}
+          onClose={closePaymentForm}
           onSuccess={handlePaymentSuccess}
         />
       )}
 
       {showCargoModal && (
-        <div className={styles.modalOverlay} onClick={() => { resetCargoForm(); setShowCargoModal(false); }}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => {
+            resetCargoForm();
+            setShowCargoModal(false);
+          }}
+        >
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>{editingCargo ? 'Editar cargo' : 'Agregar cargo'}</h3>
               <button
                 type="button"
                 className={styles.closeButton}
-                onClick={() => { resetCargoForm(); setShowCargoModal(false); }}
+                onClick={() => {
+                  resetCargoForm();
+                  setShowCargoModal(false);
+                }}
               >
                 <FaTimes />
               </button>
@@ -516,10 +811,12 @@ const EstadoFinancieroTab = ({
                 <label>Categoría *</label>
                 <select
                   value={newCargo.subcategoriaCargoId || ''}
-                  onChange={(e) => setNewCargo({
-                    ...newCargo,
-                    subcategoriaCargoId: e.target.value ? parseInt(e.target.value, 10) : null
-                  })}
+                  onChange={(e) =>
+                    setNewCargo({
+                      ...newCargo,
+                      subcategoriaCargoId: e.target.value ? parseInt(e.target.value, 10) : null
+                    })
+                  }
                   required
                 >
                   <option value="">Seleccionar categoría</option>
@@ -554,7 +851,10 @@ const EstadoFinancieroTab = ({
                 <button
                   type="button"
                   className={styles.cancelButton}
-                  onClick={() => { resetCargoForm(); setShowCargoModal(false); }}
+                  onClick={() => {
+                    resetCargoForm();
+                    setShowCargoModal(false);
+                  }}
                 >
                   Cancelar
                 </button>

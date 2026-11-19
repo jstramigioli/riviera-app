@@ -5,6 +5,7 @@ import PaymentForm from './PaymentForm'
 vi.mock('../services/api', () => ({
   createPago: vi.fn(),
   createAccountPago: vi.fn(),
+  updatePago: vi.fn(),
   uploadPagoAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
   previewPromotion: vi.fn().mockResolvedValue({ aplica: false }),
@@ -105,18 +106,63 @@ vi.mock('../services/api', () => ({
 import {
   createPago,
   createExternalAccount,
+  updatePago,
   fetchCuentasParaPago,
   getClientBillingProfile,
   previewPromotion,
   uploadPagoAdjuntos
 } from '../services/api'
+import { todayLocalDateInputValue } from '../constants/billing'
 
 describe('PaymentForm facturación', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     createPago.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
+    updatePago.mockResolvedValue({ id: 10, codigo: 'A010' })
     uploadPagoAdjuntos.mockResolvedValue([])
     previewPromotion.mockResolvedValue({ aplica: false })
+  })
+
+  it('fecha del pago defaultea a hoy', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    expect(screen.getByTestId('payment-fecha')).toHaveValue(todayLocalDateInputValue())
+  })
+
+  it('en modo edición prefills y llama updatePago', async () => {
+    const onSuccess = vi.fn()
+    render(
+      <PaymentForm
+        reservaId={22}
+        initialPago={{
+          id: 10,
+          monto: 45000,
+          moneda: 'ARS',
+          metodo: 'Efectivo',
+          motivo: 'Pago',
+          notas: 'Seña parcial',
+          fecha: '2026-11-11T15:00:00.000Z'
+        }}
+        onClose={vi.fn()}
+        onSuccess={onSuccess}
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: /Editar pago/i })).toBeInTheDocument()
+    expect(screen.getByTestId('payment-fecha')).toHaveValue('2026-11-11')
+    expect(screen.getByLabelText(/^Monto/i)).toHaveValue(45000)
+
+    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '40000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }))
+
+    await waitFor(() =>
+      expect(updatePago).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({ monto: 40000, metodo: 'Efectivo', fecha: expect.any(String) })
+      )
+    )
+    expect(createPago).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalled()
   })
 
   it('muestra medios del backend sin porcentaje hardcodeado en el label', async () => {
