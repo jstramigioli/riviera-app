@@ -4,48 +4,57 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(31, 41, 51, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 12px;
 }
 
 .modal {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 90%;
+  background: var(--color-bg-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  width: 100%;
   max-width: 720px;
-  max-height: 90vh;
+  max-height: min(90vh, 900px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-family: var(--font-main);
+  color: var(--color-text-main);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
 }
 
 .header h2 {
   margin: 0;
-  font-size: var(--font-size-large);
-  font-weight: 600;
-  color: #111827;
+  font-size: var(--font-size-xlarge);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-dark);
   display: flex;
   align-items: center;
   gap: 8px;
+  line-height: 1.25;
 }
 
 .modeTabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 16px;
+  background: var(--color-bg-white);
+  flex-shrink: 0;
 }
 
 .modeTab {
@@ -54,20 +63,21 @@
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  padding: 12px 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #6b7280;
+  padding: 10px 8px;
+  font-size: var(--font-size-medium);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
 .modeTab:hover:not(:disabled) {
-  color: #1f2937;
+  color: var(--color-text-dark);
 }
 
 .modeTabActive {
-  color: #1d4ed8;
-  border-bottom-color: #2563eb;
+  color: var(--color-primary-dark);
+  border-bottom-color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -78,7 +88,7 @@
 
 .fieldLabel {
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-main);
   margin-bottom: 6px;
   font-size: 0.875rem;
 }
@@ -87,7 +97,7 @@
   background: none;
   border: none;
   font-size: var(--font-size-large);
-  color: #6b7280;
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -95,8 +105,8 @@
 }
 
 .closeButton:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
 }
 
 .closeButton:disabled {
@@ -116,22 +126,23 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px;
+  padding: 16px;
+  background: var(--color-bg-white);
 }
 
 .stickyFooter {
   flex-shrink: 0;
-  padding: 12px 24px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
-  box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.06);
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
 }
 
 .formRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .formRowFull {
@@ -144,39 +155,45 @@
 }
 
 .formGroup label {
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 6px;
-  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-main);
+  margin-bottom: 4px;
+  font-size: var(--font-size-small);
 }
 
 .formGroup input,
 .formGroup select,
 .formGroup textarea {
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-medium);
+  font-family: inherit;
+  color: var(--color-text-main);
+  background: var(--color-bg-white);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
 }
 
 .formGroup input:focus,
 .formGroup select:focus,
 .formGroup textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
 }
 
 .formGroup textarea {
   resize: vertical;
   min-height: 60px;
+  height: auto;
 }
 
 .helpText {
   margin-top: 4px;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -188,10 +205,10 @@
   justify-content: center;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px dashed #c5ccd8;
-  border-radius: 6px;
-  background: #f5f6f8;
-  color: #6b7280;
+  border: 1px dashed var(--color-border-dark);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
   font-size: 0.8125rem;
   font-weight: 500;
   text-align: center;
@@ -199,9 +216,9 @@
 }
 
 .comprobanteDropzone:hover {
-  border-color: #3f5f8a;
-  color: #334d70;
-  background: rgba(63, 95, 138, 0.06);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 
 .comprobanteDropzone input {
@@ -219,14 +236,14 @@
   background: none;
   border: none;
   padding: 0;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   text-decoration: underline;
   cursor: pointer;
 }
 
 .comprobanteClear:hover:not(:disabled) {
-  color: #374151;
+  color: var(--color-text-main);
 }
 
 .comprobanteClear:disabled {
@@ -235,50 +252,51 @@
 }
 
 .paymentSummary {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px 14px;
+  background-color: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
   margin: 0 0 12px;
 }
 
 .paymentSummary h3 {
-  margin: 0 0 12px 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-dark);
 }
 
 .summaryRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.875rem;
+  margin-bottom: 6px;
+  font-size: var(--font-size-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .summaryRow:last-child {
   margin-bottom: 0;
   padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border-light);
   font-weight: 600;
 }
 
 .amount {
   font-weight: 500;
-  color: #059669;
+  color: var(--color-success);
 }
 
 .amountARS {
   font-weight: 600;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: 1rem;
 }
 
 .errorMessage {
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background-color: var(--color-danger-light);
+  border: 1px solid var(--color-danger-light);
+  color: var(--color-danger);
   padding: 12px;
   border-radius: 6px;
   margin: 16px 0;
@@ -295,20 +313,21 @@
 }
 
 .cancelButton {
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #374151;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-main);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-medium);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .cancelButton:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
+  background-color: var(--color-bg);
+  border-color: var(--color-border-dark);
 }
 
 .cancelButton:disabled {
@@ -317,26 +336,27 @@
 }
 
 .submitButton {
-  background-color: #3b82f6;
+  background-color: var(--color-primary);
   border: none;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  color: var(--color-text-light);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-medium);
+  font-weight: var(--font-weight-semibold);
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.15s;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .submitButton:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary);
 }
 
 .submitButton:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-border-dark);
   cursor: not-allowed;
 }
 
@@ -351,19 +371,19 @@
   gap: 8px 12px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-main);
   cursor: pointer;
 }
 
 .toggleLabel input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #2563eb;
+  accent-color: var(--color-primary);
 }
 
 .billingSection {
-  border: 1px solid #dbeafe;
-  background: #f8fbff;
+  border: 1px solid var(--color-primary-light);
+  background: var(--color-primary-light);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
@@ -378,9 +398,9 @@
 .invoiceTypeButton {
   flex: 1;
   padding: 10px 12px;
-  border: 1px solid #bfdbfe;
-  background: #fff;
-  color: #1e3a8a;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-primary-dark);
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 600;
@@ -388,17 +408,17 @@
 }
 
 .invoiceTypeButton:hover:not(:disabled) {
-  background: #eff6ff;
+  background: var(--color-primary-light);
 }
 
 .invoiceTypeActive {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-light);
 }
 
 .invoiceTypeActive:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--color-primary-dark);
 }
 
 /* Responsive */
@@ -412,9 +432,9 @@
 .amountModesSameBox {
   gap: 16px;
   padding: 12px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-light);
   border-radius: 8px;
-  background: #fff;
+  background: var(--color-bg-white);
 }
 
 @media (max-width: 640px) {
@@ -436,20 +456,20 @@
 .amountModeBlock label {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--color-text-main);
 }
 
 .amountModeBlock input[type='number'] {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.875rem;
 }
 
 .amountModeActive input[type='number'] {
-  border-color: #93c5fd;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  border-color: var(--color-border);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .accountPickerRow {
@@ -480,16 +500,16 @@
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border-light);
   border-radius: 6px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-md);
 }
 
 .accountMenuEmpty {
   padding: 10px 12px;
   font-size: 0.8125rem;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .accountOption {
@@ -507,7 +527,7 @@
 
 .accountOption:hover,
 .accountOption:focus-visible {
-  background: #f1f5f9;
+  background: var(--color-bg);
 }
 
 .accountOptionKind {
@@ -515,12 +535,12 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .accountOptionLabel {
   font-size: 0.875rem;
-  color: #0f172a;
+  color: var(--color-text-dark);
 }
 
 .createExternalBtn {
@@ -529,10 +549,10 @@
   gap: 4px;
   flex: 0 0 auto;
   padding: 8px 10px;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--color-border-dark);
   border-radius: 6px;
-  background: #fff;
-  color: #334155;
+  background: var(--color-bg-white);
+  color: var(--color-text-main);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -540,8 +560,8 @@
 }
 
 .createExternalBtn:hover:not(:disabled) {
-  border-color: #2563eb;
-  color: #1d4ed8;
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
 }
 
 .createExternalBtn:disabled {
@@ -565,8 +585,8 @@
   padding: 8px 12px;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-light);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -583,7 +603,7 @@
   padding: 4px 0;
   border: none;
   background: none;
-  color: #1d4ed8;
+  color: var(--color-primary-dark);
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
@@ -606,37 +626,37 @@
   gap: 6px 12px;
   margin: 0 0 16px;
   padding: 12px 14px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--color-success-light);
   border-radius: 8px;
-  background: #f0fdf4;
+  background: var(--color-success-light);
 }
 
 .tenderLabel {
   font-size: 0.8125rem;
-  color: #166534;
+  color: var(--color-success-dark);
   font-weight: 500;
 }
 
 .tenderValue {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #14532d;
+  color: var(--color-success-dark);
   font-variant-numeric: tabular-nums;
 }
 
 .discountPreview {
   margin: 0 0 16px;
   padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
   border-radius: 6px;
 }
 
 .manualPromoBlock {
   margin: 0 0 16px;
   padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -652,7 +672,7 @@
 
 .manualPromoLabel {
   font-size: 0.8125rem;
-  color: #334155;
+  color: var(--color-text-main);
   flex: 1;
   min-width: 0;
 }
@@ -667,20 +687,20 @@
 .manualPromoInput {
   width: 88px;
   padding: 6px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
 }
 
 .manualPromoInput:focus {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--color-primary);
   outline-offset: 1px;
 }
 
 .manualPromoUnit {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--color-text-muted);
   min-width: 2.5rem;
 }
 
@@ -688,7 +708,7 @@
   margin: 0 0 8px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--color-text-dark);
 }
 
 .promoList {
@@ -717,14 +737,14 @@
 
 .promoLabel {
   font-size: 0.875rem;
-  color: #334155;
+  color: var(--color-text-main);
   min-width: 0;
 }
 
 .promoValue {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #2f9e44;
+  color: var(--color-success);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
@@ -737,7 +757,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--color-text-main);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -751,7 +771,7 @@
 
 .promoRemoveBtn:hover:not(:disabled),
 .promoRemoveBtn:focus-visible:not(:disabled) {
-  color: #c92a2a;
+  color: var(--color-danger-dark);
   text-decoration: underline;
 }
 
@@ -771,10 +791,10 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--color-border-dark);
   border-radius: 4px;
   background: transparent;
-  color: #334155;
+  color: var(--color-text-main);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -787,8 +807,8 @@
 
 .addPromoBtn:hover:not(:disabled),
 .addPromoBtn:focus-visible:not(:disabled) {
-  border-color: #2563eb;
-  color: #1d4ed8;
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
   background: rgba(37, 99, 235, 0.06);
 }
 
@@ -807,8 +827,8 @@
   margin: 0;
   padding: 4px 0;
   list-style: none;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border-light);
   border-radius: 4px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
@@ -825,7 +845,7 @@
   text-align: left;
   cursor: pointer;
   font-size: 0.8125rem;
-  color: #0f172a;
+  color: var(--color-text-dark);
 }
 
 .addPromoOption:hover,
@@ -842,7 +862,7 @@
 }
 
 .addPromoMeta {
-  color: #1e3a8a;
+  color: var(--color-primary-dark);
   font-size: 0.75em;
   font-weight: 600;
   white-space: nowrap;
@@ -856,7 +876,7 @@
 .discountList {
   margin: 0;
   padding-left: 1.1rem;
-  color: #334155;
+  color: var(--color-text-main);
   font-size: 0.8125rem;
   line-height: 1.55;
 }
@@ -870,9 +890,9 @@
 }
 
 .settleButton {
-  border: 1px solid #1d4ed8;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border: 1px solid var(--color-primary-dark);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 0.8125rem;
@@ -881,7 +901,7 @@
 }
 
 .settleButton:hover:not(:disabled) {
-  background: #dbeafe;
+  background: var(--color-primary-light);
 }
 
 .settleButton:disabled {
