@@ -11,6 +11,17 @@ const roomInclude = {
   beds: { orderBy: { orderIndex: 'asc' } }
 };
 
+/** Parsea superficie opcional en m². `undefined` = no tocar; `null`/'' = limpiar. */
+function parseSuperficie(value) {
+  if (value === undefined) return { skip: true };
+  if (value === null || value === '') return { value: null };
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    return { error: 'superficie debe ser un número ≥ 0 (m²)' };
+  }
+  return { value: n };
+}
+
 async function replaceRoomBeds(roomId, beds) {
   await prisma.roomBed.deleteMany({ where: { roomId: Number(roomId) } });
   if (!beds || beds.length === 0) return [];
@@ -60,10 +71,17 @@ exports.getRoomById = async (req, res) => {
 
 // Crear una nueva habitación
 exports.createRoom = async (req, res) => {
-  const { name, description, roomTypeId, tagIds, beds } = req.body;
+  const { name, description, roomTypeId, tagIds, beds, superficie } = req.body;
 
   if (!name || !roomTypeId) {
     return res.status(400).json({ error: 'Name and roomTypeId are required' });
+  }
+
+  const superficieParsed = parseSuperficie(
+    superficie === undefined ? null : superficie
+  );
+  if (superficieParsed.error) {
+    return res.status(400).json({ error: superficieParsed.error });
   }
 
   try {
@@ -90,6 +108,7 @@ exports.createRoom = async (req, res) => {
       data: {
         name,
         description,
+        superficie: superficieParsed.value,
         roomTypeId: Number(roomTypeId),
         maxPeople,
         status: 'available',
@@ -117,9 +136,14 @@ exports.createRoom = async (req, res) => {
 // Actualizar una habitación
 exports.updateRoom = async (req, res) => {
   const { id } = req.params;
-  const { name, description, roomTypeId, orderIndex, tagIds, beds } = req.body;
+  const { name, description, roomTypeId, orderIndex, tagIds, beds, superficie } = req.body;
 
   if (!id) return res.status(400).json({ error: 'Room id is required' });
+
+  const superficieParsed = parseSuperficie(superficie);
+  if (superficieParsed.error) {
+    return res.status(400).json({ error: superficieParsed.error });
+  }
 
   try {
     const existing = await prisma.room.findUnique({
@@ -163,6 +187,7 @@ exports.updateRoom = async (req, res) => {
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
+        ...(!superficieParsed.skip && { superficie: superficieParsed.value }),
         ...(roomTypeId && { roomTypeId: nextRoomTypeId }),
         ...(maxPeople && { maxPeople }),
         ...(orderIndex !== undefined && orderIndex !== null && { orderIndex: Number(orderIndex) }),
