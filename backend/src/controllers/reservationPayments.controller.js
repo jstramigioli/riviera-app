@@ -29,6 +29,13 @@ const {
 } = require('../utils/paymentMethodService');
 const { toNumber, roundMoney } = require('../utils/paymentDiscount');
 const {
+  validateImputaciones,
+  autoDistributeOldestFirst,
+  distributeBonificacion,
+  IMPUTACION_LIST_INCLUDE,
+  imputationToFolioPagoView
+} = require('../utils/pagoImputacion');
+const {
   ADJUNTO_TIPOS,
   assertAdjuntoTipo,
   assertMimeForTipo,
@@ -37,6 +44,7 @@ const {
   deleteStoredFile,
   toPublicAdjunto
 } = require('../utils/pagoAdjuntos');
+
 
 function canSeeFacturacion(user) {
   return roleHasPermission(user?.role, 'facturacion');
@@ -224,17 +232,18 @@ exports.getAllPagos = async (req, res) => {
   }
 };
 
-// Obtener todos los pagos de una reserva
+// Obtener pagos/imputaciones de una reserva (crédito de folio, no caja completa si multi)
 exports.getPagosByReserva = async (req, res) => {
   const { reservaId } = req.params;
   try {
     const account = await ensureReservationAccount(prisma, reservaId);
-    const pagos = await prisma.pago.findMany({
+    const imputaciones = await prisma.pagoImputacion.findMany({
       where: { accountId: account.id },
-      include: { factura: true, ...PAGO_ADJUNTO_INCLUDE },
-      orderBy: { fecha: 'desc' }
+      include: IMPUTACION_LIST_INCLUDE,
+      orderBy: [{ pago: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
     });
-    res.json(redactFacturaIfNeeded(pagos, req.user));
+    const views = imputaciones.map(imputationToFolioPagoView);
+    res.json(redactFacturaIfNeeded(views, req.user));
   } catch (error) {
     console.error('Error obteniendo pagos:', error);
     res.status(500).json({ error: 'Error al obtener los pagos', details: error.message });
@@ -462,22 +471,41 @@ exports.createPago = async (req, res) => {
         },
         include: {
           factura: true,
-          discountApplication: true,
           ...PAGO_ADJUNTO_INCLUDE
         }
       });
 
+      // Flujo A: 100 % a esta reserva
+      const imputacion = await tx.pagoImputacion.create({
+        data: {
+          pagoId: pago.id,
+          accountId: account.id,
+          reservaId: Number(reservaId),
+          montoARS: montoARS,
+          bonificacionARS: new Decimal(0),
+          ordenIndex: 0
+        }
+      });
+
+      let da = null;
       if (isDev && pagoOrigen) {
-        await createReversalDiscount(tx, {
+        const origenImp = await tx.pagoImputacion.findFirst({
+          where: { pagoId: pagoOrigen.id, accountId: account.id },
+          orderBy: { id: 'asc' }
+        });
+        da = await createReversalDiscount(tx, {
           accountId: account.id,
           devolucionPagoId: pago.id,
+          devolucionImputacionId: imputacion.id,
           pagoOrigen,
+          pagoOrigenImputacionId: origenImp?.id ?? null,
           devolucionMontoARSAbs: montoARSAbs
         });
       } else if (!isDev) {
-        await createForwardDiscount(tx, {
+        da = await createForwardDiscount(tx, {
           accountId: account.id,
           pagoId: pago.id,
+          pagoImputacionId: imputacion.id,
           config: methodConfig,
           motivo: motivoPago,
           dineroARS: montoARSAbs,
@@ -490,6 +518,12 @@ exports.createPago = async (req, res) => {
           applySuggestedDefaults: acceptedApplySuggested,
           applyAutomatics: acceptedApplyAutomatics
         });
+        if (da) {
+          await tx.pagoImputacion.update({
+            where: { id: imputacion.id },
+            data: { bonificacionARS: da.montoARS }
+          });
+        }
       }
 
       if (wantsBilling) {
@@ -507,14 +541,19 @@ exports.createPago = async (req, res) => {
       const { balance } = await loadAccountFinancialParts(tx, account.id);
       await syncAccountStatusFromBalance(tx, account.id, balance.saldo);
 
-      return tx.pago.findUnique({
+      const full = await tx.pago.findUnique({
         where: { id: pago.id },
         include: {
           factura: true,
-          discountApplication: true,
+          discountApplications: true,
+          imputaciones: true,
           ...PAGO_ADJUNTO_INCLUDE
         }
       });
+      return {
+        ...full,
+        discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
+      };
     });
     res.status(201).json(nuevoPago);
   } catch (error) {
@@ -649,24 +688,37 @@ exports.updatePago = async (req, res) => {
   }
 };
 
-// Eliminar un pago
+// Eliminar un pago (transaccional: cascade imputaciones + DA; sync todos los folios)
 exports.deletePago = async (req, res) => {
   const { id } = req.params;
   try {
     const pagoId = parseInt(id, 10);
     const existing = await prisma.pago.findUnique({
       where: { id: pagoId },
-      select: { id: true, accountId: true }
+      select: {
+        id: true,
+        accountId: true,
+        imputaciones: { select: { accountId: true } }
+      }
     });
     if (!existing) {
       return res.status(404).json({ error: 'Pago no encontrado' });
     }
 
+    const accountIds = [
+      ...new Set(
+        [
+          existing.accountId,
+          ...(existing.imputaciones || []).map((i) => i.accountId)
+        ].filter(Boolean)
+      )
+    ];
+
     await prisma.pago.delete({ where: { id: pagoId } });
 
-    if (existing.accountId) {
-      const { balance } = await loadAccountFinancialParts(prisma, existing.accountId);
-      await syncAccountStatusFromBalance(prisma, existing.accountId, balance.saldo);
+    for (const accountId of accountIds) {
+      const { balance } = await loadAccountFinancialParts(prisma, accountId);
+      await syncAccountStatusFromBalance(prisma, accountId, balance.saldo);
     }
 
     res.json({ message: 'Pago eliminado exitosamente' });
@@ -1139,10 +1191,10 @@ exports.getResumenFinanciero = async (req, res) => {
   
   try {
     const account = await ensureReservationAccount(prisma, reservaId);
-    const [pagos, cargos, discounts, reserva] = await Promise.all([
-      prisma.pago.findMany({
+    const [imputaciones, cargos, discounts, reserva] = await Promise.all([
+      prisma.pagoImputacion.findMany({
         where: { accountId: account.id },
-        include: { discountApplication: true }
+        select: { montoARS: true }
       }),
       prisma.cargo.findMany({
         where: { accountId: account.id },
@@ -1179,7 +1231,7 @@ exports.getResumenFinanciero = async (req, res) => {
 
     const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
       cargos,
-      pagos,
+      imputaciones,
       discounts
     );
 
@@ -1439,7 +1491,13 @@ exports.getReservasConSaldos = async (req, res) => {
           }
         },
         cargos: { select: { monto: true } },
-        pagos: { select: { id: true, codigo: true, montoARS: true, fecha: true } },
+        imputaciones: {
+          select: {
+            id: true,
+            montoARS: true,
+            pago: { select: { id: true, codigo: true, fecha: true } }
+          }
+        },
         discountApplications: { select: { montoARS: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -1450,7 +1508,11 @@ exports.getReservasConSaldos = async (req, res) => {
       .map((account) => {
         const reserva = account.reservation;
         const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } =
-          calculateAccountBalance(account.cargos, account.pagos, account.discountApplications);
+          calculateAccountBalance(
+            account.cargos,
+            account.imputaciones,
+            account.discountApplications
+          );
 
         return {
           id: reserva.id,
@@ -1467,14 +1529,15 @@ exports.getReservasConSaldos = async (req, res) => {
           totalDescuentos,
           saldo,
           estadoPago,
-          pagos: (account.pagos || [])
-            .map((pago) => ({
-              id: pago.id,
-              codigo: pago.codigo,
-              montoARS: pago.montoARS,
-              fecha: pago.fecha,
+          pagos: (account.imputaciones || [])
+            .map((imp) => ({
+              id: imp.pago?.id,
+              codigo: imp.pago?.codigo,
+              montoARS: imp.montoARS,
+              fecha: imp.pago?.fecha,
+              imputacionId: imp.id
             }))
-            .sort((a, b) => a.id - b.id),
+            .sort((a, b) => (a.id || 0) - (b.id || 0)),
           createdAt: reserva.createdAt,
           updatedAt: reserva.updatedAt
         };
@@ -1487,4 +1550,329 @@ exports.getReservasConSaldos = async (req, res) => {
   }
 };
 
+/**
+ * Flujo B: pago desde ficha cliente con N imputaciones a reservas del titular.
+ * Body: monto, metodo, imputaciones[{reservaId|accountId, montoARS, bonificacionARS?}],
+ *       autoDistribuir?: bool (reparte a saldos más antiguos; FE debería reenviar montos editados).
+ */
+exports.createClientMultiPago = async (req, res) => {
+  const clientId = parseInt(req.params.clientId || req.params.id, 10);
+  const {
+    monto,
+    moneda,
+    tipoCambio,
+    metodo,
+    paymentMethodConfigId,
+    notas,
+    motivo,
+    requiereFacturacion,
+    factura,
+    selectedRuleIds,
+    promotionRuleIds,
+    deselectedRuleIds,
+    benefitValueByRuleId,
+    applySuggestedDefaults,
+    imputaciones: imputacionesBody,
+    autoDistribuir
+  } = req.body || {};
+
+  const acceptedRuleIds = []
+    .concat(selectedRuleIds || [])
+    .concat(promotionRuleIds || [])
+    .map((id) => parseInt(id, 10))
+    .filter((id) => Number.isFinite(id));
+  const acceptedDeselectedRuleIds = Array.isArray(deselectedRuleIds)
+    ? deselectedRuleIds.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id))
+    : [];
+  const acceptedBenefitValues =
+    benefitValueByRuleId && typeof benefitValueByRuleId === 'object' ? benefitValueByRuleId : {};
+  const acceptedApplySuggested =
+    applySuggestedDefaults != null ? Boolean(applySuggestedDefaults) : true;
+
+  if (!Number.isFinite(clientId)) {
+    return res.status(400).json({ error: 'clientId inválido' });
+  }
+  if (!monto || !metodo) {
+    return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
+  }
+
+  const motivoPago = normalizePagoMotivo(motivo ?? DEFAULT_PAGO_MOTIVO);
+  if (!motivoPago || isDevolucionMotivo(motivoPago)) {
+    return res.status(400).json({
+      error: 'Desde cliente solo se admiten cobros (Pago/Seña). Use devolución por reserva.'
+    });
+  }
+
+  const montoAbs = Math.abs(Number(monto));
+  if (!Number.isFinite(montoAbs) || montoAbs <= 0) {
+    return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+  }
+
+  if (['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
+    if (!req.body.numeroTarjeta || !req.body.empresa) {
+      return res.status(400).json({ error: 'Tarjeta: número y empresa requeridos' });
+    }
+  }
+
+  const monedasValidas = ['ARS', 'USD'];
+  const monedaFinal = moneda || 'ARS';
+  if (!monedasValidas.includes(monedaFinal)) {
+    return res.status(400).json({ error: `Moneda inválida. Debe ser una de: ${monedasValidas.join(', ')}` });
+  }
+
+  try {
+    const methodConfig = await resolvePaymentMethodConfig(prisma, {
+      paymentMethodConfigId,
+      metodo
+    });
+    const metodoFinal = methodConfig?.label || metodo;
+    const billingForced = methodConfig
+      ? Boolean(methodConfig.requiereFacturacion)
+      : methodRequiresBilling(metodoFinal);
+    const wantsBilling = billingForced || Boolean(requiereFacturacion);
+    let facturaParsed = null;
+    if (wantsBilling) {
+      facturaParsed = buildFacturaData(
+        { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
+        metodoFinal,
+        req.body.numeroTarjeta
+      );
+      if (facturaParsed.error) {
+        return res.status(400).json({ error: facturaParsed.error });
+      }
+    }
+
+    let tipoCambioFinal = tipoCambio;
+    if (monedaFinal === 'USD') {
+      if (!tipoCambioFinal || tipoCambioFinal <= 0) {
+        const configuracion = await prisma.configuracion.findUnique({
+          where: { clave: 'tipo_cambio_usd' }
+        });
+        if (configuracion && configuracion.activo) {
+          tipoCambioFinal = parseFloat(configuracion.valor);
+        } else {
+          return res.status(400).json({
+            error:
+              'Para pagos en USD, el tipo de cambio es requerido. No se encontró un tipo de cambio global configurado.'
+          });
+        }
+      }
+    }
+
+    const montoARS =
+      monedaFinal === 'USD'
+        ? new Decimal(montoAbs).mul(new Decimal(tipoCambioFinal))
+        : new Decimal(montoAbs);
+    const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
+
+    const clientAccounts = await prisma.account.findMany({
+      where: {
+        OR: [
+          { clientId },
+          { kind: 'RESERVATION', reservation: { mainClientId: clientId } }
+        ]
+      },
+      include: {
+        reservation: { select: { id: true, createdAt: true, status: true } },
+        cargos: { select: { monto: true } },
+        imputaciones: { select: { montoARS: true } },
+        discountApplications: { select: { montoARS: true } }
+      }
+    });
+
+    const accountByReserva = new Map();
+    const accountById = new Map();
+    for (const acc of clientAccounts) {
+      accountById.set(acc.id, acc);
+      if (acc.reservationId) accountByReserva.set(acc.reservationId, acc);
+    }
+
+    let rawImps = Array.isArray(imputacionesBody) ? imputacionesBody : [];
+    if (Boolean(autoDistribuir) && rawImps.length === 0) {
+      const targets = clientAccounts
+        .filter((a) => a.kind === 'RESERVATION' && a.reservation)
+        .map((a) => {
+          const bal = calculateAccountBalance(
+            a.cargos,
+            a.imputaciones,
+            a.discountApplications
+          );
+          return {
+            accountId: a.id,
+            reservaId: a.reservationId,
+            saldoPendiente: bal.saldo,
+            sortKey: a.reservation.createdAt
+          };
+        })
+        .filter((t) => t.saldoPendiente > 0);
+      rawImps = autoDistributeOldestFirst(montoARSAbs, targets);
+    }
+
+    // Resolver accountId desde reservaId
+    const resolvedRows = [];
+    for (const row of rawImps) {
+      let accountId = row.accountId != null ? parseInt(row.accountId, 10) : null;
+      let reservaId = row.reservaId != null ? parseInt(row.reservaId, 10) : null;
+      if (!accountId && reservaId) {
+        let acc = accountByReserva.get(reservaId);
+        if (!acc) {
+          acc = await ensureReservationAccount(prisma, reservaId);
+          const full = await prisma.account.findUnique({
+            where: { id: acc.id },
+            include: { reservation: { select: { mainClientId: true } } }
+          });
+          if (full?.reservation?.mainClientId !== clientId && full?.clientId !== clientId) {
+            return res.status(400).json({
+              error: `La reserva ${reservaId} no pertenece al cliente ${clientId}`
+            });
+          }
+          accountId = full.id;
+          accountById.set(full.id, full);
+          accountByReserva.set(reservaId, full);
+        } else {
+          accountId = acc.id;
+        }
+      }
+      if (!accountId || !accountById.has(accountId)) {
+        return res.status(400).json({
+          error: `Imputación sin cuenta válida del cliente (reservaId=${reservaId}, accountId=${accountId})`
+        });
+      }
+      const acc = accountById.get(accountId);
+      resolvedRows.push({
+        accountId,
+        reservaId: reservaId ?? acc.reservationId ?? null,
+        montoARS: row.montoARS,
+        bonificacionARS: row.bonificacionARS,
+        ordenIndex: row.ordenIndex
+      });
+    }
+
+    // Preview bono total sobre el recibido (contexto: primera cuenta / reglas globales)
+    const { previewSettlementDiscount } = require('../utils/paymentMethodService');
+    const firstAccountId = resolvedRows[0]?.accountId;
+    const { balance: balancePrimero } = firstAccountId
+      ? await loadAccountFinancialParts(prisma, firstAccountId)
+      : { balance: { saldo: 0 } };
+    const preview = await previewSettlementDiscount(prisma, {
+      config: methodConfig,
+      motivo: motivoPago,
+      dineroARS: montoARSAbs,
+      saldoPendienteAntes: balancePrimero.saldo,
+      accountId: firstAccountId,
+      selectedRuleIds: acceptedRuleIds,
+      deselectedRuleIds: acceptedDeselectedRuleIds,
+      benefitValueByRuleId: acceptedBenefitValues,
+      applySuggestedDefaults: acceptedApplySuggested,
+      mode: 'received'
+    });
+    const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
+
+    let withBono = resolvedRows;
+    const hasManualBono = resolvedRows.some((r) => r.bonificacionARS != null && r.bonificacionARS !== '');
+    if (!hasManualBono && bonoTotal > 0) {
+      withBono = distributeBonificacion(resolvedRows, bonoTotal);
+    }
+
+    const normalized = validateImputaciones(withBono, montoARSAbs, {
+      bonificacionTotalARS: bonoTotal
+    });
+
+    const nuevoPago = await prisma.$transaction(async (tx) => {
+      const codigo = await allocateNextPagoCodigo(tx);
+      const anchor = normalized.length === 1 ? normalized[0] : null;
+      const pago = await tx.pago.create({
+        data: {
+          codigo,
+          accountId: anchor ? anchor.accountId : null,
+          reservaId: anchor ? anchor.reservaId : null,
+          paymentMethodConfigId: methodConfig?.id ?? null,
+          monto: new Decimal(montoAbs),
+          moneda: monedaFinal,
+          tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
+          montoARS,
+          metodo: metodoFinal,
+          numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
+            ? req.body.numeroTarjeta
+            : null,
+          empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
+            ? req.body.empresa
+            : null,
+          notas: notas || null,
+          motivo: motivoPago,
+          fecha: new Date(),
+          requiereFacturacion: wantsBilling,
+          ...(wantsBilling ? { factura: { create: facturaParsed.data } } : {})
+        }
+      });
+
+      const createdImps = [];
+      for (const row of normalized) {
+        const { balance: balAntes } = await loadAccountFinancialParts(tx, row.accountId);
+        const imp = await tx.pagoImputacion.create({
+          data: {
+            pagoId: pago.id,
+            accountId: row.accountId,
+            reservaId: row.reservaId,
+            montoARS: new Decimal(row.montoARS),
+            bonificacionARS: new Decimal(row.bonificacionARS || 0),
+            ordenIndex: row.ordenIndex
+          }
+        });
+
+        let da = null;
+        if ((row.bonificacionARS || 0) > 0) {
+          da = await createForwardDiscount(tx, {
+            accountId: row.accountId,
+            pagoId: pago.id,
+            pagoImputacionId: imp.id,
+            config: methodConfig,
+            motivo: motivoPago,
+            dineroARS: Math.abs(row.montoARS),
+            monedaPago: monedaFinal,
+            tipoCambio: tipoCambioFinal,
+            saldoPendienteAntes: balAntes.saldo,
+            selectedRuleIds: acceptedRuleIds,
+            deselectedRuleIds: acceptedDeselectedRuleIds,
+            benefitValueByRuleId: acceptedBenefitValues,
+            applySuggestedDefaults: acceptedApplySuggested,
+            descuentoARSOverride: row.bonificacionARS
+          });
+        }
+
+        const { balance } = await loadAccountFinancialParts(tx, row.accountId);
+        await syncAccountStatusFromBalance(tx, row.accountId, balance.saldo);
+        createdImps.push({ ...imp, discountApplication: da });
+      }
+
+      if (wantsBilling) {
+        await tx.clientBillingProfile.upsert(
+          buildBillingProfileUpsert(clientId, facturaParsed.data)
+        );
+      }
+
+      return tx.pago.findUnique({
+        where: { id: pago.id },
+        include: {
+          factura: true,
+          discountApplications: true,
+          imputaciones: { include: { discountApplications: true } },
+          ...PAGO_ADJUNTO_INCLUDE
+        }
+      });
+    });
+
+    res.status(201).json({
+      ...nuevoPago,
+      discountApplication:
+        (nuevoPago.discountApplications && nuevoPago.discountApplications[0]) || null
+    });
+  } catch (error) {
+    if (error.statusCode === 400) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error('Error creando pago multi-cliente:', error);
+    res.status(500).json({ error: 'Error al crear el pago', details: error.message });
+  }
+};
 

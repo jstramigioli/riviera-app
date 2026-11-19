@@ -171,14 +171,46 @@ function buildBillingProfileUpsert(clientId, facturaData) {
 }
 
 function mapAccountSaldoRow(account) {
+  // Crédito de folio = imputaciones (fallback legacy a pagos del account si no hay filas).
+  const creditos =
+    account.imputaciones && account.imputaciones.length > 0
+      ? account.imputaciones
+      : account.pagos || [];
   const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
     account.cargos || [],
-    account.pagos || [],
+    creditos,
     account.discountApplications || []
   );
   const reservation = account.reservation || null;
   const client = account.client || reservation?.mainClient || null;
   const origen = account.kind === ACCOUNT_KIND.EXTERNAL ? 'EXTERNA' : 'RESERVA';
+
+  const pagosView = (account.imputaciones && account.imputaciones.length > 0
+    ? account.imputaciones.map((imp) => ({
+        id: imp.pago?.id ?? imp.pagoId,
+        codigo: imp.pago?.codigo,
+        montoARS: imp.montoARS,
+        fecha: imp.pago?.fecha,
+        motivo: imp.pago?.motivo,
+        metodo: imp.pago?.metodo,
+        discountApplication:
+          (imp.discountApplications && imp.discountApplications[0]) || null,
+        imputacionId: imp.id,
+        esImputacionParcial: Boolean(imp.pago?._count?.imputaciones > 1)
+      }))
+    : (account.pagos || []).map((pago) => ({
+        id: pago.id,
+        codigo: pago.codigo,
+        montoARS: pago.montoARS,
+        fecha: pago.fecha,
+        motivo: pago.motivo,
+        metodo: pago.metodo,
+        discountApplication:
+          pago.discountApplication ||
+          (pago.discountApplications && pago.discountApplications[0]) ||
+          null
+      }))
+  ).sort((a, b) => (a.id || 0) - (b.id || 0));
 
   return {
     id: account.kind === ACCOUNT_KIND.RESERVATION && reservation ? reservation.id : account.id,
@@ -196,17 +228,7 @@ function mapAccountSaldoRow(account) {
     totalDescuentos,
     saldo,
     estadoPago,
-    pagos: (account.pagos || [])
-      .map((pago) => ({
-        id: pago.id,
-        codigo: pago.codigo,
-        montoARS: pago.montoARS,
-        fecha: pago.fecha,
-        motivo: pago.motivo,
-        metodo: pago.metodo,
-        discountApplication: pago.discountApplication || null
-      }))
-      .sort((a, b) => a.id - b.id),
+    pagos: pagosView,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt
   };
@@ -247,15 +269,23 @@ exports.getAccountsConSaldos = async (req, res) => {
           }
         },
         cargos: { select: { monto: true } },
-        pagos: {
+        imputaciones: {
           select: {
             id: true,
-            codigo: true,
+            pagoId: true,
             montoARS: true,
-            fecha: true,
-            motivo: true,
-            metodo: true,
-            discountApplication: { select: { id: true, montoARS: true, activo: true } }
+            bonificacionARS: true,
+            discountApplications: { select: { id: true, montoARS: true, activo: true } },
+            pago: {
+              select: {
+                id: true,
+                codigo: true,
+                fecha: true,
+                motivo: true,
+                metodo: true,
+                _count: { select: { imputaciones: true } }
+              }
+            }
           }
         },
         discountApplications: { select: { montoARS: true } }
@@ -417,9 +447,19 @@ exports.getAccountById = async (req, res) => {
           include: { subcategoriaCargo: true, roomType: true, serviceType: true },
           orderBy: { fecha: 'asc' }
         },
-        pagos: {
-          include: { factura: true, discountApplication: true },
-          orderBy: { fecha: 'asc' }
+        imputaciones: {
+          include: {
+            discountApplications: true,
+            pago: {
+              include: {
+                factura: true,
+                adjuntos: true,
+                discountApplications: true,
+                imputaciones: { select: { id: true, accountId: true, montoARS: true } }
+              }
+            }
+          },
+          orderBy: { ordenIndex: 'asc' }
         },
         discountApplications: { orderBy: { createdAt: 'asc' } }
       }
@@ -427,14 +467,18 @@ exports.getAccountById = async (req, res) => {
     if (!account) {
       return res.status(404).json({ error: 'Cuenta no encontrada' });
     }
+    const {
+      imputationToFolioPagoView
+    } = require('../utils/pagoImputacion');
+    const pagosView = (account.imputaciones || []).map(imputationToFolioPagoView);
     const balance = calculateAccountBalance(
       account.cargos,
-      account.pagos,
+      account.imputaciones,
       account.discountApplications
     );
     res.json({
       ...account,
-      pagos: redactFacturaIfNeeded(account.pagos, req.user),
+      pagos: redactFacturaIfNeeded(pagosView, req.user),
       resumen: balance
     });
   } catch (error) {
@@ -499,16 +543,17 @@ exports.getAccountCargos = async (req, res) => {
 exports.getAccountPagos = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const pagos = await prisma.pago.findMany({
+    const {
+      IMPUTACION_LIST_INCLUDE,
+      imputationToFolioPagoView
+    } = require('../utils/pagoImputacion');
+    const imputaciones = await prisma.pagoImputacion.findMany({
       where: { accountId: id },
-      include: {
-        factura: true,
-        discountApplication: true,
-        adjuntos: { orderBy: { createdAt: 'asc' } }
-      },
-      orderBy: { fecha: 'asc' }
+      include: IMPUTACION_LIST_INCLUDE,
+      orderBy: [{ pago: { fecha: 'asc' } }, { ordenIndex: 'asc' }]
     });
-    res.json(redactFacturaIfNeeded(pagos, req.user));
+    const views = imputaciones.map(imputationToFolioPagoView);
+    res.json(redactFacturaIfNeeded(views, req.user));
   } catch (error) {
     console.error('Error pagos account:', error);
     res.status(500).json({ error: 'Error al obtener pagos', details: error.message });
@@ -551,15 +596,15 @@ exports.createAccountCargo = async (req, res) => {
       include: { subcategoriaCargo: true }
     });
 
-    const [cargos, pagos, discounts] = await Promise.all([
+    const [cargos, imputaciones, discounts] = await Promise.all([
       prisma.cargo.findMany({ where: { accountId }, select: { monto: true } }),
-      prisma.pago.findMany({ where: { accountId }, select: { montoARS: true } }),
+      prisma.pagoImputacion.findMany({ where: { accountId }, select: { montoARS: true } }),
       prisma.discountApplication.findMany({ where: { accountId }, select: { montoARS: true } })
     ]);
     await syncAccountStatusFromBalance(
       prisma,
       accountId,
-      calculateAccountBalance(cargos, pagos, discounts).saldo
+      calculateAccountBalance(cargos, imputaciones, discounts).saldo
     );
 
     res.status(201).json(cargo);
@@ -782,20 +827,39 @@ exports.createAccountPago = async (req, res) => {
             ? { factura: { create: facturaParsed.data } }
             : {})
         },
-        include: { factura: true, adjuntos: true, discountApplication: true }
+        include: { factura: true, adjuntos: true }
       });
 
+      const imputacion = await tx.pagoImputacion.create({
+        data: {
+          pagoId: pago.id,
+          accountId: account.id,
+          reservaId: account.reservationId ?? null,
+          montoARS,
+          bonificacionARS: new Decimal(0),
+          ordenIndex: 0
+        }
+      });
+
+      let da = null;
       if (isDev && pagoOrigen) {
-        await createReversalDiscount(tx, {
+        const origenImp = await tx.pagoImputacion.findFirst({
+          where: { pagoId: pagoOrigen.id, accountId: account.id },
+          orderBy: { id: 'asc' }
+        });
+        da = await createReversalDiscount(tx, {
           accountId,
           devolucionPagoId: pago.id,
+          devolucionImputacionId: imputacion.id,
           pagoOrigen,
+          pagoOrigenImputacionId: origenImp?.id ?? null,
           devolucionMontoARSAbs: montoARSAbs
         });
       } else if (!isDev) {
-        await createForwardDiscount(tx, {
+        da = await createForwardDiscount(tx, {
           accountId,
           pagoId: pago.id,
+          pagoImputacionId: imputacion.id,
           config: methodConfig,
           motivo: motivoPago,
           dineroARS: montoARSAbs,
@@ -808,6 +872,12 @@ exports.createAccountPago = async (req, res) => {
           applySuggestedDefaults: acceptedApplySuggested,
           applyAutomatics: acceptedApplyAutomatics
         });
+        if (da) {
+          await tx.pagoImputacion.update({
+            where: { id: imputacion.id },
+            data: { bonificacionARS: da.montoARS }
+          });
+        }
       }
 
       if (wantsBilling) {
@@ -825,10 +895,19 @@ exports.createAccountPago = async (req, res) => {
       const { balance } = await loadAccountFinancialParts(tx, accountId);
       await syncAccountStatusFromBalance(tx, accountId, balance.saldo);
 
-      return tx.pago.findUnique({
+      const full = await tx.pago.findUnique({
         where: { id: pago.id },
-        include: { factura: true, adjuntos: true, discountApplication: true }
+        include: {
+          factura: true,
+          adjuntos: true,
+          discountApplications: true,
+          imputaciones: true
+        }
       });
+      return {
+        ...full,
+        discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
+      };
     });
 
     res.status(201).json(nuevoPago);

@@ -48,11 +48,13 @@ async function resolvePaymentMethodConfig(db, { paymentMethodConfigId, metodo } 
 }
 
 async function loadAccountFinancialParts(db, accountId) {
-  const [cargos, pagos, discounts] = await Promise.all([
+  const [cargos, imputaciones, discounts] = await Promise.all([
     db.cargo.findMany({ where: { accountId }, select: { monto: true } }),
-    db.pago.findMany({ where: { accountId }, select: { montoARS: true } }),
+    // Crédito de folio = imputaciones (no Pago.montoARS directo; evita doble conteo multi).
+    db.pagoImputacion.findMany({ where: { accountId }, select: { montoARS: true } }),
     db.discountApplication.findMany({ where: { accountId }, select: { montoARS: true } })
   ]);
+  const pagos = imputaciones;
   return { cargos, pagos, discounts, balance: calculateAccountBalance(cargos, pagos, discounts) };
 }
 
@@ -234,6 +236,7 @@ async function resolveSettlementDiscount(db, {
 async function createForwardDiscount(db, {
   accountId,
   pagoId,
+  pagoImputacionId = null,
   config,
   motivo,
   dineroARS,
@@ -244,31 +247,50 @@ async function createForwardDiscount(db, {
   deselectedRuleIds,
   benefitValueByRuleId,
   applySuggestedDefaults,
-  applyAutomatics
+  applyAutomatics,
+  /** Si se pasa, no recalcula: usa este monto de bono (multi-prorrateo). */
+  descuentoARSOverride = null
 }) {
-  if (!config && !(selectedRuleIds && selectedRuleIds.length)) return null;
-
-  const resolved = await resolveSettlementDiscount(db, {
-    config,
-    motivo,
-    dineroARS,
-    saldoPendienteAntes,
-    accountId,
-    selectedRuleIds,
-    deselectedRuleIds,
-    benefitValueByRuleId,
-    applySuggestedDefaults,
-    applyAutomatics,
-    mode: 'received'
-  });
-
-  if (!resolved.aplica || resolved.descuentoARS <= 0) {
+  if (!config && !(selectedRuleIds && selectedRuleIds.length) && descuentoARSOverride == null) {
     return null;
   }
 
-  const primaryRuleId = resolved.promotionRuleId || resolved.appliedRules?.[0]?.promotionRuleId || null;
+  let descuentoARS;
+  let porcentaje = null;
+  let valorFijo = null;
+  let appliedRules = null;
+  let promotionRuleId = null;
+
+  if (descuentoARSOverride != null) {
+    descuentoARS = roundMoney(Math.max(0, toNumber(descuentoARSOverride)));
+    if (descuentoARS <= 0) return null;
+  } else {
+    const resolved = await resolveSettlementDiscount(db, {
+      config,
+      motivo,
+      dineroARS,
+      saldoPendienteAntes,
+      accountId,
+      selectedRuleIds,
+      deselectedRuleIds,
+      benefitValueByRuleId,
+      applySuggestedDefaults,
+      applyAutomatics,
+      mode: 'received'
+    });
+
+    if (!resolved.aplica || resolved.descuentoARS <= 0) {
+      return null;
+    }
+    descuentoARS = resolved.descuentoARS;
+    porcentaje = resolved.porcentaje;
+    valorFijo = resolved.valorFijo;
+    appliedRules = resolved.appliedRules || null;
+    promotionRuleId = resolved.promotionRuleId || resolved.appliedRules?.[0]?.promotionRuleId || null;
+  }
+
   const tipo =
-    primaryRuleId != null
+    promotionRuleId != null
       ? 'PROMOTION'
       : selectedRuleIds?.length
         ? 'MANUAL'
@@ -278,19 +300,20 @@ async function createForwardDiscount(db, {
     data: {
       accountId,
       pagoId,
+      pagoImputacionId: pagoImputacionId != null ? Number(pagoImputacionId) : null,
       paymentMethodConfigId: config?.id ?? null,
-      promotionRuleId: primaryRuleId,
+      promotionRuleId,
       tipo,
       baseCalculoARS: new Decimal(roundMoney(dineroARS)),
-      porcentaje: resolved.porcentaje != null ? new Decimal(resolved.porcentaje) : null,
-      valorFijo: resolved.valorFijo != null ? new Decimal(resolved.valorFijo) : null,
-      montoARS: new Decimal(resolved.descuentoARS),
+      porcentaje: porcentaje != null ? new Decimal(porcentaje) : null,
+      valorFijo: valorFijo != null ? new Decimal(valorFijo) : null,
+      montoARS: new Decimal(descuentoARS),
       monedaPago: monedaPago || 'ARS',
       tipoCambio:
         tipoCambio != null && Number(tipoCambio) > 0 ? new Decimal(tipoCambio) : null,
-      appliedRulesJson: resolved.appliedRules || null,
+      appliedRulesJson: appliedRules,
       activo: true,
-      notas: resolved.appliedRules?.map((r) => r.code).filter(Boolean).join(',') || null
+      notas: appliedRules?.map((r) => r.code).filter(Boolean).join(',') || null
     }
   });
 }
@@ -301,11 +324,22 @@ async function createForwardDiscount(db, {
 async function createReversalDiscount(db, {
   accountId,
   devolucionPagoId,
+  devolucionImputacionId = null,
   pagoOrigen,
-  devolucionMontoARSAbs
+  devolucionMontoARSAbs,
+  /** Imputación origen (multi); si null, toma DA forward del account o del pago. */
+  pagoOrigenImputacionId = null
 }) {
-  const original = await db.discountApplication.findUnique({
-    where: { pagoId: pagoOrigen.id }
+  const original = await db.discountApplication.findFirst({
+    where: {
+      pagoId: pagoOrigen.id,
+      tipo: { not: 'REVERSAL' },
+      montoARS: { gt: 0 },
+      ...(pagoOrigenImputacionId != null
+        ? { pagoImputacionId: Number(pagoOrigenImputacionId) }
+        : { accountId: Number(accountId) })
+    },
+    orderBy: { id: 'asc' }
   });
   if (!original || !original.activo || toNumber(original.montoARS) <= 0) {
     return null;
@@ -324,9 +358,19 @@ async function createReversalDiscount(db, {
     return null;
   }
 
+  const origenMonto =
+    pagoOrigenImputacionId != null
+      ? (
+          await db.pagoImputacion.findUnique({
+            where: { id: Number(pagoOrigenImputacionId) },
+            select: { montoARS: true }
+          })
+        )?.montoARS ?? pagoOrigen.montoARS
+      : pagoOrigen.montoARS;
+
   const { descuentoRevertidoARS } = computeDiscountReversal({
     originalDiscountARS: toNumber(original.montoARS),
-    originalPagoARS: pagoOrigen.montoARS,
+    originalPagoARS: origenMonto,
     devolucionARS: devolucionMontoARSAbs
   });
 
@@ -337,6 +381,8 @@ async function createReversalDiscount(db, {
     data: {
       accountId,
       pagoId: devolucionPagoId,
+      pagoImputacionId:
+        devolucionImputacionId != null ? Number(devolucionImputacionId) : null,
       paymentMethodConfigId: original.paymentMethodConfigId,
       promotionRuleId: original.promotionRuleId,
       tipo: 'REVERSAL',

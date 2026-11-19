@@ -577,12 +577,19 @@ const EstadoFinancieroTab = ({
                             <tbody>
                               {pagoItems.map((pago) => {
                                 const disc = pago.discountApplication;
+                                const codigo =
+                                  pago.pagoCodigo || pago.codigo || `#${pago.id}`;
                                 return (
                                   <tr
-                                    key={pago.id}
-                                    data-testid={`financial-pago-row-${pago.id}`}
+                                    key={pago.imputacionId || pago.id}
+                                    data-testid={`financial-pago-row-${pago.imputacionId || pago.id}`}
                                   >
-                                    <td>{pago.codigo || `#${pago.id}`}</td>
+                                    <td>
+                                      {codigo}
+                                      {pago.esImputacionParcial
+                                        ? ` · parte de ${formatCurrency(pago.pagoTotalARS)}`
+                                        : ''}
+                                    </td>
                                     <td>{formatDate(pago.fecha)}</td>
                                     <td className={styles.montoCell}>
                                       {pago.moneda === 'USD'

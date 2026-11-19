@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchClients, fetchReservations, getClientBalance } from '../services/api';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
+import MultiPagoClientPanel from '../components/MultiPagoClientPanel';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 
@@ -520,6 +521,13 @@ const ClientDetails = () => {
                   </div>
                 </div>
               </div>
+
+              <MultiPagoClientPanel
+                clientId={parseInt(clientId, 10)}
+                reservationsBalance={clientBalance?.reservations || []}
+                formatPrice={formatPrice}
+                onCreated={() => loadClientData()}
+              />
             </div>
           )}
 
