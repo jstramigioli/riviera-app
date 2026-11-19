@@ -103,6 +103,14 @@ function Header() {
               Estadísticas
             </Link>
           ) : null}
+          {can('gastronomia') ? (
+            <Link
+              to="/gastronomia"
+              className={`${styles.navLink} ${location.pathname.startsWith('/gastronomia') ? styles.active : ''}`}
+            >
+              Gastronomía
+            </Link>
+          ) : null}
         </div>
       </div>
       <div className={styles.navRight}>

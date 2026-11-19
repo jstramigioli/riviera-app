@@ -1132,3 +1132,67 @@ model NotificationRead {
   @@unique([notificationId, userId])
   @@index([userId])
 }
+
+/// Menú diario de media pensión (Gastronomía). Independiente del menú a la carta (MenuItem).
+enum DailyMenuKind {
+  CONVENTIONAL
+  BUFFET
+}
+
+enum DailyMenuStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum DailyMenuSection {
+  ENTRADA
+  ENSALADA
+  PRIMER_PLATO
+  SEGUNDO_PLATO
+  POSTRE
+  BUFFET
+}
+
+model DishCatalog {
+  id         Int             @id @default(autoincrement())
+  name       String
+  /// Nombre normalizado (NFD, sin acentos, lower) para búsqueda / anti-duplicados.
+  nameNorm   String          @unique
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  lastUsedAt DateTime?
+  usageCount Int             @default(0)
+  items      DailyMenuItem[]
+
+  @@index([lastUsedAt])
+  @@index([usageCount])
+}
+
+model DailyMenu {
+  id          Int             @id @default(autoincrement())
+  date        DateTime        @unique @db.Date
+  kind        DailyMenuKind
+  status      DailyMenuStatus @default(DRAFT)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  publishedAt DateTime?
+  items       DailyMenuItem[]
+
+  @@index([status, date])
+}
+
+model DailyMenuItem {
+  id              Int              @id @default(autoincrement())
+  dailyMenuId     Int
+  section         DailyMenuSection
+  sortOrder       Int              @default(0)
+  nameSnapshot    String
+  descriptionSnap String?
+  dishCatalogId   Int?
+  dailyMenu       DailyMenu        @relation(fields: [dailyMenuId], references: [id], onDelete: Cascade)
+  dishCatalog     DishCatalog?     @relation(fields: [dishCatalogId], references: [id], onDelete: SetNull)
+
+  @@index([dailyMenuId, section, sortOrder])
+  @@index([dishCatalogId])
+}
