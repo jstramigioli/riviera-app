@@ -472,16 +472,15 @@
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-.accountPickerRow {
+.allocationsList {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  align-items: stretch;
 }
 
 .accountCombobox {
   position: relative;
-  flex: 1 1 220px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -495,7 +494,7 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
   margin: 0;
   padding: 4px 0;
@@ -510,6 +509,12 @@
   padding: 10px 12px;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+.accountMenuCreate {
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 4px;
+  padding: 4px 0 0;
 }
 
 .accountOption {
@@ -543,28 +548,124 @@
   color: var(--color-text-dark);
 }
 
-.createExternalBtn {
+.allocationChip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.allocationChipMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.allocationChipLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.allocationMonto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.allocationMonto input {
+  width: 110px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-dark);
+}
+
+.allocationRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.allocationRemove:hover:not(:disabled) {
+  background: var(--color-bg-white);
+  color: var(--color-text-dark);
+}
+
+.allocationRemove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addAllocationBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  flex: 0 0 auto;
-  padding: 8px 10px;
-  border: 1px dashed var(--color-border-dark);
-  border-radius: 6px;
-  background: var(--color-bg-white);
-  color: var(--color-text-main);
+  margin-top: 8px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--color-primary-dark);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
 }
 
-.createExternalBtn:hover:not(:disabled) {
-  border-color: var(--color-primary);
+.addAllocationBtn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.addAllocationBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.allocationHint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.createExternalInMenu {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
   color: var(--color-primary-dark);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
-.createExternalBtn:disabled {
+.createExternalInMenu:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.createExternalInMenu:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -573,7 +674,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
+  padding: 8px 12px;
 }
 
 .createExternalPanel input {
