@@ -425,10 +425,14 @@ const EstadoFinancieroTab = ({
                   {pagoItems.length > 0 ? (
                     <ul className={styles.breakdownList}>
                       {pagoItems.map((pago) => (
-                        <li key={pago.id} className={styles.breakdownItem}>
+                        <li key={pago.imputacionId || pago.id} className={styles.breakdownItem}>
                           <span>
                             {pago.metodo || 'Pago'}
                             {pago.fecha ? ` · ${formatDate(pago.fecha)}` : ''}
+                            {pago.pagoCodigo ? ` · ${pago.pagoCodigo}` : ''}
+                            {pago.esImputacionParcial
+                              ? ` · parte de ${formatCurrency(pago.pagoTotalARS)}`
+                              : ''}
                           </span>
                           <span>{formatCurrency(pago.montoARS ?? pago.monto)}</span>
                         </li>

@@ -1118,6 +1118,21 @@ export async function createPago(reservaId, data) {
   return res.json();
 }
 
+/** Flujo B: pago cliente con N imputaciones a reservas. */
+export async function createClientMultiPago(clientId, data) {
+  const res = await fetch(`${API_URL}/clients/${clientId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creating multi pago');
+  }
+  return res.json();
+}
+
 // Pagos - Actualizar un pago
 export async function updatePago(pagoId, data) {
   const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
@@ -1719,6 +1734,7 @@ export default {
   getAllPagos,
   getPagosByReserva,
   createPago,
+  createClientMultiPago,
   updatePago,
   deletePago,
   uploadPagoAdjuntos,

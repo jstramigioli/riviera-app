@@ -257,7 +257,7 @@ exports.getClientBalance = async (req, res) => {
           include: {
             reservation: { select: { id: true, status: true } },
             cargos: { select: { monto: true } },
-            pagos: { select: { montoARS: true } },
+            imputaciones: { select: { montoARS: true } },
             discountApplications: { select: { montoARS: true } },
           },
         },
@@ -269,9 +269,11 @@ exports.getClientBalance = async (req, res) => {
     }
 
     // Preferir Accounts; fallback legacy a reservations si aún no hay folio.
+    // Saldo por folio usa imputaciones (no Pago directo).
     const accounts = (client.accounts || []).map((account) => ({
       ...account,
       reservationId: account.reservationId || account.reservation?.id || null,
+      pagos: account.imputaciones || [],
     }));
 
     const byAccount = aggregateAccountsBalance(accounts);
