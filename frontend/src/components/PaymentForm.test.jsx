@@ -5,6 +5,7 @@ import PaymentForm from './PaymentForm'
 vi.mock('../services/api', () => ({
   createPago: vi.fn(),
   createAccountPago: vi.fn(),
+  createClientMultiPago: vi.fn(),
   updatePago: vi.fn(),
   uploadPagoAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
@@ -77,15 +78,39 @@ vi.mock('../services/api', () => ({
         roomName: '101',
         clientId: 5,
         clientLastName: 'Pérez',
-        label: '101 - Pérez'
+        label: '101 - Pérez',
+        accountKind: 'RESERVATION',
+        origen: 'RESERVA'
+      },
+      {
+        reservationId: 22,
+        accountId: 202,
+        roomName: '202',
+        clientId: 5,
+        clientLastName: 'Pérez',
+        label: '202 - Pérez',
+        accountKind: 'RESERVATION',
+        origen: 'RESERVA'
+      },
+      {
+        reservationId: null,
+        accountId: 303,
+        label: 'Bar viejo',
+        clientId: 5,
+        accountKind: 'EXTERNAL',
+        origen: 'EXTERNA'
       }
     ]
   }),
-  createExternalAccount: vi.fn().mockResolvedValue({ id: 999, label: 'Bar mesa 3' }),
+  createExternalAccount: vi.fn().mockResolvedValue({
+    success: true,
+    data: { id: 999, label: 'Bar mesa 3' }
+  }),
   fetchReservation: vi.fn().mockResolvedValue({
     id: 22,
     mainClientId: 5,
-    mainClient: { id: 5, firstName: 'Ana', lastName: 'Pérez' }
+    mainClient: { id: 5, firstName: 'Ana', lastName: 'Pérez' },
+    account: { id: 202 }
   }),
   getClientBillingProfile: vi.fn().mockResolvedValue({
     lastInvoiceType: 'B',
@@ -105,6 +130,7 @@ vi.mock('../services/api', () => ({
 
 import {
   createPago,
+  createClientMultiPago,
   createExternalAccount,
   updatePago,
   fetchCuentasParaPago,
@@ -118,6 +144,7 @@ describe('PaymentForm facturación', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     createPago.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
+    createClientMultiPago.mockResolvedValue({ id: 2, codigo: 'A002', adjuntos: [] })
     updatePago.mockResolvedValue({ id: 10, codigo: 'A010' })
     uploadPagoAdjuntos.mockResolvedValue([])
     previewPromotion.mockResolvedValue({ aplica: false })
@@ -150,9 +177,11 @@ describe('PaymentForm facturación', () => {
 
     expect(screen.getByRole('heading', { name: /Editar pago/i })).toBeInTheDocument()
     expect(screen.getByTestId('payment-fecha')).toHaveValue('2026-11-11')
-    expect(screen.getByLabelText(/^Monto/i)).toHaveValue(45000)
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(45000)
 
-    fireEvent.change(screen.getByLabelText(/^Monto/i), { target: { value: '40000' } })
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
+      target: { value: '40000' }
+    })
     fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }))
 
     await waitFor(() =>
@@ -303,6 +332,7 @@ describe('PaymentForm facturación', () => {
 
     expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-account-search')).toBeInTheDocument()
+    fireEvent.focus(screen.getByTestId('payment-account-search'))
     expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()
 
     const moneda = screen.getByTestId('payment-moneda')
@@ -310,6 +340,60 @@ describe('PaymentForm facturación', () => {
     fireEvent.change(moneda, { target: { value: 'USD' } })
     expect(moneda).toHaveValue('USD')
     expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
+  })
+
+  it('tras elegir reserva muestra chip y permite agregar otra; externa vive en el combobox', async () => {
+    render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+
+    const search = screen.getByTestId('payment-account-search')
+    fireEvent.focus(search)
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: /101 - Pérez/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-add-allocation')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/101 - Pérez/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('payment-account-search')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('payment-add-allocation'))
+    const search2 = await screen.findByTestId('payment-account-search')
+    fireEvent.focus(search2)
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /202 - Pérez/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('option', { name: /202 - Pérez/i }))
+
+    await waitFor(() => expect(screen.getByTestId('payment-alloc-hint')).toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), { target: { value: '1000' } })
+    const montoInputs = screen.getAllByLabelText(/Monto imputado/i)
+    fireEvent.change(montoInputs[0], { target: { value: '600' } })
+    fireEvent.change(montoInputs[1], { target: { value: '400' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+
+    await waitFor(() =>
+      expect(createClientMultiPago).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({
+          monto: 1000,
+          imputaciones: expect.arrayContaining([
+            expect.objectContaining({ reservaId: 11, montoARS: 600 }),
+            expect.objectContaining({ reservaId: 22, montoARS: 400 })
+          ])
+        })
+      )
+    )
+  })
+
+  it('desde reserva también ofrece agregar otra imputación', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('payment-add-allocation')).toBeInTheDocument())
+    expect(screen.getByText(/202 - Pérez/i)).toBeInTheDocument()
   })
 
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {

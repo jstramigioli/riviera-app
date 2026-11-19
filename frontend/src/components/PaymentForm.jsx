@@ -3,6 +3,7 @@ import { FiPlus, FiSave, FiX } from 'react-icons/fi';
 import {
   createPago,
   createAccountPago,
+  createClientMultiPago,
   createExternalAccount,
   updatePago,
   fetchReservation,
@@ -74,9 +75,25 @@ function reservationOptionLabel(row) {
 }
 
 function optionKey(row) {
+  if (!row) return '';
   if (row.accountId != null) return `a:${row.accountId}`;
   if (row.reservationId != null) return `r:${row.reservationId}`;
   return '';
+}
+
+function isExternalRow(row) {
+  return Boolean(row && (row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'));
+}
+
+let allocSeq = 0;
+function newAllocRow(partial = {}) {
+  allocSeq += 1;
+  return {
+    localId: `alloc-${allocSeq}`,
+    optionKey: '',
+    monto: '',
+    ...partial
+  };
 }
 
 /** Normaliza respuesta SETTLEMENT del motor de promociones para la UI de Nuevo pago. */
@@ -116,12 +133,11 @@ const PaymentForm = ({
   onSuccess
 }) => {
   const isEditMode = initialPago != null && initialPago.id != null;
-  const needsAccountPick =
-    !isEditMode && reservaIdProp == null && accountIdProp == null;
+  const showAllocationUi = !isEditMode;
   const [reservationOptions, setReservationOptions] = useState([]);
-  const [pickedOptionKey, setPickedOptionKey] = useState('');
+  const [allocations, setAllocations] = useState(() => [newAllocRow()]);
+  const [activeAllocId, setActiveAllocId] = useState(null);
   const [accountQuery, setAccountQuery] = useState('');
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showCreateExternal, setShowCreateExternal] = useState(false);
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
@@ -138,34 +154,58 @@ const PaymentForm = ({
     () => isEditMode && String(initialPago.motivo || '') === 'Seña'
   );
 
-  const pickedRow = useMemo(() => {
-    if (!needsAccountPick || !pickedOptionKey) return null;
-    return reservationOptions.find((r) => optionKey(r) === pickedOptionKey) || null;
-  }, [needsAccountPick, pickedOptionKey, reservationOptions]);
+  const optionByKey = useMemo(() => {
+    const map = new Map();
+    for (const row of reservationOptions) {
+      const key = optionKey(row);
+      if (key) map.set(key, row);
+    }
+    return map;
+  }, [reservationOptions]);
 
-  const isExternalAccount = needsAccountPick
-    ? pickedRow?.accountKind === 'EXTERNAL' || pickedRow?.origen === 'EXTERNA'
-    : accountIdProp != null && reservaIdProp == null;
+  const assignedAllocations = useMemo(
+    () =>
+      allocations
+        .map((alloc) => ({
+          ...alloc,
+          row: alloc.optionKey ? optionByKey.get(alloc.optionKey) || null : null
+        }))
+        .filter((alloc) => alloc.optionKey && alloc.row),
+    [allocations, optionByKey]
+  );
 
-  const reservaId = needsAccountPick
-    ? pickedRow?.reservationId
-      ? Number(pickedRow.reservationId)
-      : null
-    : reservaIdProp != null
+  const isMultiAlloc = assignedAllocations.length > 1;
+  const pickedRow = assignedAllocations[0]?.row || null;
+
+  const isExternalAccount = isEditMode
+    ? accountIdProp != null && reservaIdProp == null
+    : assignedAllocations.length > 0
+      ? assignedAllocations.every((a) => isExternalRow(a.row))
+      : accountIdProp != null && reservaIdProp == null;
+
+  const reservaId = isEditMode
+    ? reservaIdProp != null
       ? Number(reservaIdProp)
-      : null;
-
-  const accountId = needsAccountPick
-    ? pickedRow?.accountId
-      ? Number(pickedRow.accountId)
       : null
-    : accountIdProp != null
+    : pickedRow?.reservationId
+      ? Number(pickedRow.reservationId)
+      : reservaIdProp != null && assignedAllocations.length === 0
+        ? Number(reservaIdProp)
+        : null;
+
+  const accountId = isEditMode
+    ? accountIdProp != null
       ? Number(accountIdProp)
-      : null;
+      : null
+    : pickedRow?.accountId
+      ? Number(pickedRow.accountId)
+      : accountIdProp != null && assignedAllocations.length === 0
+        ? Number(accountIdProp)
+        : null;
 
   const isDevolucion = mode === MODE_DEVOLUCION;
-  // Seña solo en Account de reserva (decisión PGH-130).
-  const canUseSena = !isExternalAccount;
+  // Seña solo en Account de reserva 1:1 (decisión PGH-130).
+  const canUseSena = !isExternalAccount && !isMultiAlloc;
   const motivoActual = isDevolucion
     ? MOTIVO_DEVOLUCION
     : esSena && canUseSena
@@ -476,17 +516,18 @@ const PaymentForm = ({
       try {
         let saldo = null;
         let pagos = [];
-        if (resolvedAccountId) {
+        // Preferir resumen de reserva (vista de folio con imputaciones) cuando hay reservationId.
+        if (resolvedReservaId) {
+          const summary = await getReservationFinancialSummary(resolvedReservaId);
+          saldo = summary?.resumen?.saldo;
+          pagos = Array.isArray(summary?.pagos?.items) ? summary.pagos.items : [];
+        } else if (resolvedAccountId) {
           const [resumenRes, pagosRes] = await Promise.all([
             fetchAccountResumen(resolvedAccountId),
             fetchAccountPagos(resolvedAccountId)
           ]);
           saldo = resumenRes?.resumen?.saldo;
           pagos = Array.isArray(pagosRes) ? pagosRes : [];
-        } else if (resolvedReservaId) {
-          const summary = await getReservationFinancialSummary(resolvedReservaId);
-          saldo = summary?.resumen?.saldo;
-          pagos = Array.isArray(summary?.pagos?.items) ? summary.pagos.items : [];
         }
         if (cancelled) return;
         setSaldoPendiente(saldo != null ? Number(saldo) : null);
@@ -516,20 +557,86 @@ const PaymentForm = ({
   useEffect(() => {
     let cancelled = false;
     async function boot() {
+      if (isEditMode) {
+        if (reservaIdProp) {
+          try {
+            setLoadingMeta(true);
+            const reservation = await fetchReservation(reservaIdProp);
+            const cid = reservation?.mainClient?.id || reservation?.mainClientId || null;
+            if (!cancelled) {
+              setClientId(cid);
+              if (cid) await applyBillingPrefill(cid);
+            }
+          } catch (err) {
+            if (!cancelled) setError(err.message || 'Error cargando datos del pago');
+          } finally {
+            if (!cancelled) setLoadingMeta(false);
+          }
+        }
+        return;
+      }
+
       setLoadingMeta(true);
       setError(null);
       try {
-        if (needsAccountPick) {
-          const optionsRes = await fetchCuentasParaPago();
-          const list = optionsRes.data || optionsRes || [];
-          if (!cancelled) setReservationOptions(Array.isArray(list) ? list : []);
-        } else if (reservaIdProp) {
-          const reservation = await fetchReservation(reservaIdProp);
-          const cid = reservation?.mainClient?.id || reservation?.mainClientId || null;
-          if (!cancelled) {
-            setClientId(cid);
-            if (cid) await applyBillingPrefill(cid);
+        const optionsRes = await fetchCuentasParaPago();
+        const list = Array.isArray(optionsRes.data)
+          ? optionsRes.data
+          : Array.isArray(optionsRes)
+            ? optionsRes
+            : [];
+        if (cancelled) return;
+        setReservationOptions(list);
+
+        let seedKey = '';
+        let seedClientId = null;
+        if (reservaIdProp != null) {
+          const match =
+            list.find((r) => Number(r.reservationId) === Number(reservaIdProp)) || null;
+          if (match) {
+            seedKey = optionKey(match);
+            seedClientId = match.clientId || null;
+          } else {
+            const reservation = await fetchReservation(reservaIdProp);
+            if (cancelled) return;
+            seedClientId =
+              reservation?.mainClient?.id || reservation?.mainClientId || null;
+            const synthetic = {
+              reservationId: Number(reservaIdProp),
+              accountId: reservation?.account?.id ?? reservation?.accountId ?? null,
+              accountKind: 'RESERVATION',
+              origen: 'RESERVA',
+              clientId: seedClientId,
+              clientLastName: reservation?.mainClient?.lastName || '',
+              clientName: reservation?.mainClient
+                ? `${reservation.mainClient.firstName || ''} ${reservation.mainClient.lastName || ''}`.trim()
+                : '',
+              roomName: reservation?.segments?.[0]?.room?.name || null,
+              label: null
+            };
+            setReservationOptions((prev) => {
+              const key = optionKey(synthetic);
+              if (!key || prev.some((r) => optionKey(r) === key)) return prev;
+              return [...prev, synthetic];
+            });
+            seedKey = optionKey(synthetic);
           }
+        } else if (accountIdProp != null) {
+          const match = list.find((r) => Number(r.accountId) === Number(accountIdProp));
+          if (match) {
+            seedKey = optionKey(match);
+            seedClientId = match.clientId || null;
+          }
+        }
+
+        if (seedKey) {
+          setAllocations([newAllocRow({ optionKey: seedKey })]);
+          setActiveAllocId(null);
+          setClientId(seedClientId);
+          if (seedClientId) await applyBillingPrefill(seedClientId);
+        } else {
+          setAllocations([newAllocRow()]);
+          setActiveAllocId(null);
         }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Error cargando datos del pago');
@@ -541,14 +648,14 @@ const PaymentForm = ({
     return () => {
       cancelled = true;
     };
-  }, [needsAccountPick, reservaIdProp, applyBillingPrefill]);
+  }, [isEditMode, reservaIdProp, accountIdProp, applyBillingPrefill]);
 
   useEffect(() => {
-    if (!needsAccountPick || !pickedRow) return;
+    if (isEditMode || !pickedRow) return;
     const cid = pickedRow?.clientId || null;
     setClientId(cid);
     if (cid) applyBillingPrefill(cid);
-  }, [needsAccountPick, pickedRow, applyBillingPrefill]);
+  }, [isEditMode, pickedRow, applyBillingPrefill]);
 
   const loadTipoCambioGlobal = async () => {
     try {
@@ -678,50 +785,115 @@ const PaymentForm = ({
     return parts.filter(Boolean).join(' ').toLowerCase();
   }, []);
 
+  const takenOptionKeys = useMemo(
+    () => new Set(allocations.map((a) => a.optionKey).filter(Boolean)),
+    [allocations]
+  );
+
   const filteredAccountOptions = useMemo(() => {
     const q = String(accountQuery || '').trim().toLowerCase();
-    if (!q) return occupiedOptions;
-    return occupiedOptions.filter((row) => accountOptionText(row).includes(q));
-  }, [occupiedOptions, accountQuery, accountOptionText]);
-
-  const pickedAccountLabel = useMemo(() => {
-    if (!pickedRow) return '';
-    const kind =
-      pickedRow.origen === 'EXTERNA' || pickedRow.accountKind === 'EXTERNAL'
-        ? 'Externa'
-        : 'Reserva';
-    return `${kind} · ${reservationOptionLabel(pickedRow)}`;
-  }, [pickedRow]);
+    const available = occupiedOptions.filter((row) => {
+      const key = optionKey(row);
+      if (!key || takenOptionKeys.has(key)) return false;
+      // Multi: preferir mismo cliente si ya hay una asignación con clientId.
+      if (clientId != null && row.clientId != null && Number(row.clientId) !== Number(clientId)) {
+        return assignedAllocations.length === 0;
+      }
+      if (clientId != null && assignedAllocations.length > 0 && row.clientId == null) {
+        // Externas sin cliente: permitir solo si aún no hay multi de otro titular.
+        return true;
+      }
+      return true;
+    });
+    if (!q) return available;
+    return available.filter((row) => accountOptionText(row).includes(q));
+  }, [
+    occupiedOptions,
+    accountQuery,
+    accountOptionText,
+    takenOptionKeys,
+    clientId,
+    assignedAllocations.length
+  ]);
 
   useEffect(() => {
-    if (!accountMenuOpen && !showCreateExternal) return undefined;
+    if (!activeAllocId && !showCreateExternal) return undefined;
     const onDocClick = (e) => {
       if (accountPickerRef.current && !accountPickerRef.current.contains(e.target)) {
-        setAccountMenuOpen(false);
+        setActiveAllocId(null);
+        setShowCreateExternal(false);
       }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [accountMenuOpen, showCreateExternal]);
+  }, [activeAllocId, showCreateExternal]);
 
   const reloadAccountOptions = useCallback(async () => {
-    if (!needsAccountPick) return [];
+    if (isEditMode) return [];
     const optionsRes = await fetchCuentasParaPago();
-    const list = optionsRes.data || optionsRes || [];
-    const next = Array.isArray(list) ? list : [];
-    setReservationOptions(next);
-    return next;
-  }, [needsAccountPick]);
+    const list = Array.isArray(optionsRes.data)
+      ? optionsRes.data
+      : Array.isArray(optionsRes)
+        ? optionsRes
+        : [];
+    setReservationOptions(list);
+    return list;
+  }, [isEditMode]);
 
-  const pickAccountOption = (row) => {
+  const pickAccountOption = (row, allocLocalId) => {
     const key = optionKey(row);
-    setPickedOptionKey(key);
+    if (!key) return;
+    setAllocations((prev) =>
+      prev.map((a) =>
+        a.localId === allocLocalId ? { ...a, optionKey: key, monto: a.monto || '' } : a
+      )
+    );
     setAccountQuery('');
-    setAccountMenuOpen(false);
+    setActiveAllocId(null);
+    setShowCreateExternal(false);
+    setError(null);
+  };
+
+  const clearAllocation = (allocLocalId) => {
+    setAllocations((prev) => {
+      const next = prev.filter((a) => a.localId !== allocLocalId);
+      if (next.length === 0) return [newAllocRow()];
+      // Si no queda fila vacía de búsqueda y tampoco hay asignadas… keep at least one search row
+      if (next.every((a) => a.optionKey)) {
+        // ok: all assigned; user can add another via button
+        return next;
+      }
+      return next;
+    });
+    setActiveAllocId(null);
     setShowCreateExternal(false);
   };
 
-  const handleCreateExternalAccount = async () => {
+  const addAllocationRow = () => {
+    if (isDevolucion) return;
+    setAllocations((prev) => {
+      const hasEmpty = prev.some((a) => !a.optionKey);
+      if (hasEmpty) {
+        const empty = prev.find((a) => !a.optionKey);
+        setActiveAllocId(empty.localId);
+        return prev;
+      }
+      const row = newAllocRow();
+      setActiveAllocId(row.localId);
+      return [...prev, row];
+    });
+    setAccountQuery('');
+    setShowCreateExternal(false);
+  };
+
+  const setAllocationMonto = (allocLocalId, value) => {
+    setAllocations((prev) =>
+      prev.map((a) => (a.localId === allocLocalId ? { ...a, monto: value } : a))
+    );
+    setError(null);
+  };
+
+  const handleCreateExternalAccount = async (allocLocalId) => {
     const label = String(externalLabel || '').trim();
     if (!label) {
       setError('Indicá un nombre para la cuenta externa');
@@ -730,7 +902,11 @@ const PaymentForm = ({
     try {
       setCreatingExternal(true);
       setError(null);
-      const created = await createExternalAccount({ label });
+      const createdRes = await createExternalAccount({
+        label,
+        clientId: clientId || undefined
+      });
+      const created = createdRes?.data || createdRes;
       const list = await reloadAccountOptions();
       const createdId = created?.id ?? created?.accountId ?? null;
       const match =
@@ -738,10 +914,10 @@ const PaymentForm = ({
           list.find((r) => Number(r.accountId) === Number(createdId))) ||
         list.find(
           (r) =>
-            (r.origen === 'EXTERNA' || r.accountKind === 'EXTERNAL') &&
+            isExternalRow(r) &&
             String(r.label || '').trim().toLowerCase() === label.toLowerCase()
         );
-      if (match) pickAccountOption(match);
+      if (match) pickAccountOption(match, allocLocalId);
       setExternalLabel('');
       setShowCreateExternal(false);
     } catch (err) {
@@ -754,13 +930,45 @@ const PaymentForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!reservaId && !accountId) {
+    if (!isEditMode && assignedAllocations.length === 0) {
+      setError('Seleccioná una reserva o cuenta externa');
+      return;
+    }
+    if (isEditMode && !reservaId && !accountId) {
       setError('Seleccioná una cuenta');
       return;
     }
-    if (esSena && isExternalAccount) {
+    if (esSena && (isExternalAccount || isMultiAlloc)) {
       setError('La seña solo se registra en la cuenta de una reserva');
       return;
+    }
+    if (isMultiAlloc && isDevolucion) {
+      setError('La devolución se registra sobre una sola reserva');
+      return;
+    }
+    if (isMultiAlloc && !clientId) {
+      setError('Para imputar a varias cuentas hace falta un cliente titular');
+      return;
+    }
+    if (isMultiAlloc) {
+      const distSum = assignedAllocations.reduce(
+        (s, a) => s + (Number(a.monto) || 0),
+        0
+      );
+      const recibido =
+        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
+          ? tenderMontoARS
+          : montoARS;
+      if (assignedAllocations.some((a) => !(Number(a.monto) > 0))) {
+        setError('Indicá el monto a imputar en cada reserva/cuenta');
+        return;
+      }
+      if (Math.abs(roundMoney(distSum) - roundMoney(recibido)) > 0.009) {
+        setError(
+          `La suma imputada (${formatArs(distSum)}) debe coincidir con lo recibido (${formatArs(recibido)})`
+        );
+        return;
+      }
     }
 
     if (isDevolucion || amountMode === AMOUNT_MODE_INGRESADO) {
@@ -893,6 +1101,16 @@ const PaymentForm = ({
           notas: pagoData.notas,
           fecha: pagoData.fecha
         });
+      } else if (isMultiAlloc) {
+        nuevoPago = await createClientMultiPago(clientId, {
+          ...pagoData,
+          imputaciones: assignedAllocations.map((a, index) => ({
+            accountId: a.row.accountId != null ? Number(a.row.accountId) : undefined,
+            reservaId: a.row.reservationId != null ? Number(a.row.reservationId) : undefined,
+            montoARS: roundMoney(Number(a.monto) || 0),
+            ordenIndex: index
+          }))
+        });
       } else if (isExternalAccount || (accountId && !reservaId)) {
         nuevoPago = await createAccountPago(accountId, pagoData);
       } else {
@@ -1002,115 +1220,200 @@ const PaymentForm = ({
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formBody}>
-          {needsAccountPick && (
+          {showAllocationUi && (
             <div className={`${styles.formRow} ${styles.formRowFull}`}>
               <div className={styles.formGroup} ref={accountPickerRef}>
-                <div className={styles.accountPickerRow}>
-                  <div className={styles.accountCombobox}>
-                    <input
-                      id="payment-reservation"
-                      type="text"
-                      role="combobox"
-                      aria-expanded={accountMenuOpen}
-                      aria-controls="payment-account-listbox"
-                      aria-autocomplete="list"
-                      aria-label="Seleccionar reserva o cuenta externa"
-                      placeholder={
-                        loadingMeta
-                          ? 'Cargando…'
-                          : occupiedOptions.length === 0
-                            ? 'Sin cuentas abiertas'
-                            : 'Seleccionar reserva o cuenta externa…'
-                      }
-                      value={accountMenuOpen ? accountQuery : pickedAccountLabel || accountQuery}
-                      onChange={(e) => {
-                        setAccountQuery(e.target.value);
-                        setAccountMenuOpen(true);
-                        if (pickedOptionKey) setPickedOptionKey('');
-                      }}
-                      onFocus={() => {
-                        setAccountMenuOpen(true);
-                        setAccountQuery('');
-                      }}
-                      required={!pickedOptionKey}
-                      disabled={loadingMeta || loading}
-                      data-testid="payment-account-search"
-                      autoComplete="off"
-                    />
-                    {accountMenuOpen ? (
-                      <ul
-                        id="payment-account-listbox"
-                        className={styles.accountMenu}
-                        role="listbox"
-                        aria-label="Cuentas y reservas"
-                      >
-                        {filteredAccountOptions.length === 0 ? (
-                          <li className={styles.accountMenuEmpty} role="presentation">
-                            Sin coincidencias
-                          </li>
-                        ) : (
-                          filteredAccountOptions.map((row) => {
-                            const key = optionKey(row);
-                            const kind =
-                              row.origen === 'EXTERNA' || row.accountKind === 'EXTERNAL'
-                                ? 'Externa'
-                                : 'Reserva';
-                            return (
-                              <li key={key} role="option" aria-selected={pickedOptionKey === key}>
+                <div className={styles.allocationsList} data-testid="payment-allocations">
+                  {allocations.map((alloc) => {
+                    const row = alloc.optionKey
+                      ? optionByKey.get(alloc.optionKey) || null
+                      : null;
+                    const isAssigned = Boolean(row);
+                    const menuOpen = activeAllocId === alloc.localId;
+                    const kind = isAssigned
+                      ? isExternalRow(row)
+                        ? 'Externa'
+                        : 'Reserva'
+                      : null;
+
+                    if (isAssigned) {
+                      return (
+                        <div
+                          key={alloc.localId}
+                          className={styles.allocationChip}
+                          data-testid={`payment-alloc-chip-${alloc.localId}`}
+                        >
+                          <div className={styles.allocationChipMain}>
+                            <span className={styles.accountOptionKind}>{kind}</span>
+                            <span className={styles.allocationChipLabel}>
+                              {reservationOptionLabel(row)}
+                            </span>
+                          </div>
+                          {isMultiAlloc && !isDevolucion ? (
+                            <label className={styles.allocationMonto}>
+                              <span>Imputa</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={alloc.monto}
+                                onChange={(e) =>
+                                  setAllocationMonto(alloc.localId, e.target.value)
+                                }
+                                disabled={loading}
+                                aria-label={`Monto imputado a ${reservationOptionLabel(row)}`}
+                                data-testid={`payment-alloc-monto-${alloc.localId}`}
+                              />
+                            </label>
+                          ) : null}
+                          <button
+                            type="button"
+                            className={styles.allocationRemove}
+                            onClick={() => clearAllocation(alloc.localId)}
+                            disabled={loading}
+                            aria-label="Quitar imputación"
+                          >
+                            <FiX aria-hidden="true" />
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={alloc.localId} className={styles.accountCombobox}>
+                        <input
+                          id={
+                            alloc.localId === allocations[0]?.localId
+                              ? 'payment-reservation'
+                              : undefined
+                          }
+                          type="text"
+                          role="combobox"
+                          aria-expanded={menuOpen}
+                          aria-controls={`payment-account-listbox-${alloc.localId}`}
+                          aria-autocomplete="list"
+                          aria-label="Seleccionar reserva o cuenta externa"
+                          placeholder={
+                            loadingMeta
+                              ? 'Cargando…'
+                              : occupiedOptions.length === 0
+                                ? 'Sin cuentas abiertas'
+                                : 'Buscar reserva o cuenta externa…'
+                          }
+                          value={accountQuery}
+                          onChange={(e) => {
+                            setAccountQuery(e.target.value);
+                            setActiveAllocId(alloc.localId);
+                            setShowCreateExternal(false);
+                          }}
+                          onFocus={() => {
+                            setActiveAllocId(alloc.localId);
+                            setAccountQuery('');
+                            setShowCreateExternal(false);
+                          }}
+                          required={assignedAllocations.length === 0}
+                          disabled={loadingMeta || loading}
+                          data-testid="payment-account-search"
+                          autoComplete="off"
+                        />
+                        {menuOpen ? (
+                          <ul
+                            id={`payment-account-listbox-${alloc.localId}`}
+                            className={styles.accountMenu}
+                            role="listbox"
+                            aria-label="Cuentas y reservas"
+                          >
+                            {filteredAccountOptions.length === 0 ? (
+                              <li className={styles.accountMenuEmpty} role="presentation">
+                                Sin coincidencias
+                              </li>
+                            ) : (
+                              filteredAccountOptions.map((opt) => {
+                                const key = optionKey(opt);
+                                const optKind = isExternalRow(opt) ? 'Externa' : 'Reserva';
+                                return (
+                                  <li key={key} role="presentation">
+                                    <button
+                                      type="button"
+                                      role="option"
+                                      aria-selected={false}
+                                      className={styles.accountOption}
+                                      onClick={() => pickAccountOption(opt, alloc.localId)}
+                                    >
+                                      <span className={styles.accountOptionKind}>{optKind}</span>
+                                      <span className={styles.accountOptionLabel}>
+                                        {reservationOptionLabel(opt)}
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })
+                            )}
+                            <li
+                              className={styles.accountMenuCreate}
+                              role="presentation"
+                            >
+                              {!showCreateExternal ? (
                                 <button
                                   type="button"
-                                  className={styles.accountOption}
-                                  onClick={() => pickAccountOption(row)}
+                                  className={styles.createExternalInMenu}
+                                  disabled={loading || creatingExternal}
+                                  onClick={() => setShowCreateExternal(true)}
+                                  data-testid="payment-create-external"
                                 >
-                                  <span className={styles.accountOptionKind}>{kind}</span>
-                                  <span className={styles.accountOptionLabel}>
-                                    {reservationOptionLabel(row)}
-                                  </span>
+                                  <FiPlus aria-hidden="true" />
+                                  Crear cuenta externa
                                 </button>
-                              </li>
-                            );
-                          })
-                        )}
-                      </ul>
-                    ) : null}
-                  </div>
+                              ) : (
+                                <div
+                                  className={styles.createExternalPanel}
+                                  aria-label="Alta cuenta externa"
+                                >
+                                  <input
+                                    type="text"
+                                    value={externalLabel}
+                                    onChange={(e) => setExternalLabel(e.target.value)}
+                                    placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                                    aria-label="Etiqueta de cuenta externa"
+                                    disabled={loading || creatingExternal}
+                                    data-testid="payment-external-label"
+                                  />
+                                  <button
+                                    type="button"
+                                    className={styles.createExternalConfirm}
+                                    disabled={loading || creatingExternal}
+                                    onClick={() => handleCreateExternalAccount(alloc.localId)}
+                                  >
+                                    {creatingExternal ? 'Creando…' : 'Crear'}
+                                  </button>
+                                </div>
+                              )}
+                            </li>
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!isDevolucion && assignedAllocations.length > 0 ? (
                   <button
                     type="button"
-                    className={styles.createExternalBtn}
-                    disabled={loading || creatingExternal}
-                    onClick={() => {
-                      setShowCreateExternal((v) => !v);
-                      setAccountMenuOpen(false);
-                    }}
-                    data-testid="payment-create-external"
+                    className={styles.addAllocationBtn}
+                    disabled={loading || loadingMeta}
+                    onClick={addAllocationRow}
+                    data-testid="payment-add-allocation"
                   >
                     <FiPlus aria-hidden="true" />
-                    Crear cuenta externa
+                    Agregar otra reserva
                   </button>
-                </div>
-                {showCreateExternal ? (
-                  <div
-                    className={styles.createExternalPanel}
-                    aria-label="Alta cuenta externa"
-                  >
-                    <input
-                      type="text"
-                      value={externalLabel}
-                      onChange={(e) => setExternalLabel(e.target.value)}
-                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
-                      aria-label="Etiqueta de cuenta externa"
-                      disabled={loading || creatingExternal}
-                      data-testid="payment-external-label"
-                    />
-                    <button
-                      type="button"
-                      className={styles.createExternalConfirm}
-                      disabled={loading || creatingExternal}
-                      onClick={handleCreateExternalAccount}
-                    >
-                      {creatingExternal ? 'Creando…' : 'Crear'}
-                    </button>
-                  </div>
+                ) : null}
+
+                {isMultiAlloc && !isDevolucion ? (
+                  <p className={styles.allocationHint} data-testid="payment-alloc-hint">
+                    Distribuí lo recibido entre las imputaciones. La suma debe coincidir con el
+                    monto del pago.
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -1782,7 +2085,7 @@ const PaymentForm = ({
                 </div>
               )}
 
-              {clientId == null && needsAccountPick && (
+              {clientId == null && showAllocationUi && (
                 <p className={styles.helpText}>
                   Elegí una reserva para prellenar datos del cliente.
                 </p>
