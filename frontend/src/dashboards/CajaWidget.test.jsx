@@ -40,7 +40,7 @@ vi.mock('../components/PaymentForm', () => ({
 }))
 
 import { getAllPagos } from '../services/api'
-import CajaWidget from './CajaWidget'
+import CajaWidget, { pagoInHorizon } from './CajaWidget'
 
 const TODAY = '2026-11-20'
 
@@ -112,5 +112,44 @@ describe('CajaWidget', () => {
 
     fireEvent.click(screen.getByTestId('pago-edit-1'))
     expect(screen.getByTestId('payment-form')).toHaveTextContent('edit-1')
+  })
+
+  it('pagoInHorizon compara por día civil local', () => {
+    expect(
+      pagoInHorizon({ fecha: '2026-11-20T15:00:00.000Z' }, TODAY, 1)
+    ).toBe(true)
+    expect(
+      pagoInHorizon({ fecha: '2026-11-19T15:00:00.000Z' }, TODAY, 1)
+    ).toBe(false)
+    expect(
+      pagoInHorizon({ fecha: '2026-11-18T15:00:00.000Z' }, TODAY, 3)
+    ).toBe(true)
+  })
+
+  it('vuelve a pedir pagos cuando cambia refreshToken', async () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <CajaWidget todayIso={TODAY} refreshToken={0} />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getAllPagos).toHaveBeenCalledTimes(1)
+    })
+
+    getAllPagos.mockResolvedValue([
+      makePago({ id: 99, fecha: '2026-11-20T15:00:00.000Z', codigo: 'A099' }),
+    ])
+
+    rerender(
+      <MemoryRouter>
+        <CajaWidget todayIso={TODAY} refreshToken={1} />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(getAllPagos).toHaveBeenCalledTimes(2)
+      expect(screen.getByTestId('pago-row-99')).toBeInTheDocument()
+    })
   })
 })

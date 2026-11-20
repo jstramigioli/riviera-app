@@ -25,14 +25,22 @@ function addDaysIso(iso, delta) {
   return `${yy}-${mm}-${dd}`;
 }
 
-function pagoInHorizon(pago, todayIso, days) {
-  if (!pago?.fecha) return false;
-  const fecha = new Date(pago.fecha);
-  if (Number.isNaN(fecha.getTime())) return false;
+/** Día civil local (YYYY-MM-DD) — evita que medianoche UTC caiga en el día anterior. */
+function toLocalIsoDate(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+export function pagoInHorizon(pago, todayIso, days) {
+  const fechaIso = toLocalIsoDate(pago?.fecha);
+  if (!fechaIso || !todayIso) return false;
   const fromIso = addDaysIso(todayIso, -(Math.max(1, days) - 1));
-  const from = new Date(`${fromIso}T00:00:00`);
-  const to = new Date(`${todayIso}T23:59:59.999`);
-  return fecha >= from && fecha <= to;
+  return fechaIso >= fromIso && fechaIso <= todayIso;
 }
 
 function RangeFilter({ value, onChange, labelledBy }) {
@@ -58,8 +66,9 @@ function RangeFilter({ value, onChange, labelledBy }) {
 /**
  * Widget Caja del dashboard: historial de pagos (misma tabla que Estado de cuentas)
  * con rango Hoy | 3 días | 7 días, crear y editar.
+ * `refreshToken`: el padre lo incrementa tras crear/editar pago fuera del widget (FAB).
  */
-export default function CajaWidget({ todayIso, className = '' }) {
+export default function CajaWidget({ todayIso, refreshToken = 0, className = '' }) {
   const navigate = useNavigate();
   const { can } = useAuth();
   const canFacturacion = can('facturacion');
@@ -87,8 +96,10 @@ export default function CajaWidget({ todayIso, className = '' }) {
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    load({ quiet: refreshToken > 0 });
+    // refreshToken: recarga tras pago creado/editado desde el FAB del dashboard
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load es estable en la práctica
+  }, [refreshToken]);
 
   const horizonPayments = useMemo(
     () =>
