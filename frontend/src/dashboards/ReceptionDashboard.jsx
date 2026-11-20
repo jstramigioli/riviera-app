@@ -460,6 +460,7 @@ export default function ReceptionDashboard() {
       ) : null}
 
       <div className={styles.masonry} data-testid="reception-masonry">
+        <div className={styles.masonryColMain}>
         <section
           className={`${styles.module} ${styles.tileMovements}`}
           aria-labelledby="dash-movements"
@@ -704,6 +705,10 @@ export default function ReceptionDashboard() {
           </div>
         </section>
 
+        <CajaWidget todayIso={todayIso} refreshToken={cajaRefreshToken} />
+        </div>
+
+        <div className={styles.masonryColSide}>
         <ComidasHub
           mealsDateIso={mealsDateIso}
           onMealsDateChange={setMealsDateIso}
@@ -711,9 +716,8 @@ export default function ReceptionDashboard() {
           onOpenReservation={openReservation}
         />
 
-        <CajaWidget todayIso={todayIso} refreshToken={cajaRefreshToken} />
-
         <NotificationsPanel />
+        </div>
       </div>
 
       <FloatingActionButton
