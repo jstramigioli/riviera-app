@@ -224,6 +224,7 @@ export default function ReceptionDashboard() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentReservaId, setPaymentReservaId] = useState(null);
   const [paymentMontoASaldar, setPaymentMontoASaldar] = useState(null);
+  const [cajaRefreshToken, setCajaRefreshToken] = useState(0);
   const [balancesByReservationId, setBalancesByReservationId] = useState(
     () => new Map()
   );
@@ -645,7 +646,7 @@ export default function ReceptionDashboard() {
           onOpenReservation={openReservation}
         />
 
-        <CajaWidget todayIso={todayIso} />
+        <CajaWidget todayIso={todayIso} refreshToken={cajaRefreshToken} />
 
         <NotificationsPanel />
       </div>
@@ -684,6 +685,7 @@ export default function ReceptionDashboard() {
             setPaymentOpen(false);
             setPaymentReservaId(null);
             setPaymentMontoASaldar(null);
+            setCajaRefreshToken((n) => n + 1);
             load({ quiet: true });
           }}
         />
