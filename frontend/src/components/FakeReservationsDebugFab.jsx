@@ -34,7 +34,7 @@ function defaultRange() {
 }
 
 export default function FakeReservationsDebugFab() {
-  const { user } = useAuth();
+  const { realUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [scenarios, setScenarios] = useState([]);
@@ -46,7 +46,8 @@ export default function FakeReservationsDebugFab() {
   const rootRef = useRef(null);
   const panelId = useId();
 
-  const isAdmin = user?.role === ROLES.ADMIN;
+  /** Rol real de sesión: el FAB sigue disponible aunque se simule otro rol. */
+  const isAdmin = realUser?.role === ROLES.ADMIN;
 
   useEffect(() => {
     if (!isAdmin) return undefined;

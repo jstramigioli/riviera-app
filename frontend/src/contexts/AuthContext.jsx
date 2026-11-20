@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { loginRequest, logoutRequest, meRequest } from '../services/authApi';
 import { hasPermission } from '../auth/permissions';
+import { ROLES } from '../auth/roles';
+import {
+  clearSimulatedRole,
+  getSimulatedRole,
+  subscribeSimulatedRole
+} from '../utils/simulatedRole';
 
 const AuthContext = createContext(null);
 
@@ -9,6 +15,7 @@ export function AuthProvider({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bootError, setBootError] = useState(null);
+  const [simulatedRole, setSimulatedRoleState] = useState(() => getSimulatedRole());
 
   const applySession = useCallback((payload) => {
     setUser(payload?.user || null);
@@ -53,6 +60,10 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
   }, [applySession]);
 
+  useEffect(() => {
+    return subscribeSimulatedRole(setSimulatedRoleState);
+  }, []);
+
   const login = useCallback(async (username, password) => {
     const data = await loginRequest(username, password);
     applySession(data);
@@ -65,6 +76,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Aunque falle el backend, limpiamos la sesión local
     }
+    clearSimulatedRole();
     applySession(null);
   }, [applySession]);
 
@@ -72,13 +84,30 @@ export function AuthProvider({ children }) {
     await logout();
   }, [logout]);
 
+  const isRealAdmin = user?.role === ROLES.ADMIN;
+  const activeSimulatedRole =
+    isRealAdmin && simulatedRole && simulatedRole !== user?.role
+      ? simulatedRole
+      : null;
+
+  const effectiveUser = useMemo(() => {
+    if (!user) return null;
+    if (!activeSimulatedRole) return user;
+    return { ...user, role: activeSimulatedRole };
+  }, [user, activeSimulatedRole]);
+
   const can = useCallback((permission) => {
+    if (activeSimulatedRole) {
+      return hasPermission(activeSimulatedRole, permission);
+    }
     if (permissions.includes(permission)) return true;
     return hasPermission(user?.role, permission);
-  }, [permissions, user]);
+  }, [permissions, user, activeSimulatedRole]);
 
   const value = useMemo(() => ({
-    user,
+    user: effectiveUser,
+    realUser: user,
+    simulatedRole: activeSimulatedRole,
     permissions,
     loading,
     bootError,
@@ -88,7 +117,19 @@ export function AuthProvider({ children }) {
     switchUser,
     refresh,
     can
-  }), [user, permissions, loading, bootError, login, logout, switchUser, refresh, can]);
+  }), [
+    effectiveUser,
+    user,
+    activeSimulatedRole,
+    permissions,
+    loading,
+    bootError,
+    login,
+    logout,
+    switchUser,
+    refresh,
+    can
+  ]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -41,25 +41,6 @@
   text-transform: none;
 }
 
-.toolbarMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  color: var(--dash-muted);
-  font-size: 12px;
-}
-
-.previewSelect {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--dash-border);
-  border-radius: 6px;
-  background: var(--dash-surface);
-  color: var(--dash-text);
-  font-size: 12px;
-}
-
 /* Columna principal (Movimientos/Caja) + lateral fija angosta (Comidas/Notifs) */
 .masonry {
   display: grid;

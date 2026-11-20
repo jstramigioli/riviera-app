@@ -38,6 +38,7 @@ import Clientes from './pages/Clientes';
 import PublicCheckIn from './pages/PublicCheckIn';
 import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 import FakeReservationsDebugFab from './components/FakeReservationsDebugFab';
+import SimulatedRoleDebugFab from './components/SimulatedRoleDebugFab';
 import Dashboard from './pages/Dashboard';
 import Gastronomia from './pages/Gastronomia';
 
@@ -722,6 +723,7 @@ function App() {
           </Routes>
           <SimulatedTodayDebugFab />
           <FakeReservationsDebugFab />
+          <SimulatedRoleDebugFab />
         </Router>
       </TagsProvider>
     </AuthProvider>

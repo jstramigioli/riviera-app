@@ -1,63 +1,15 @@
-import { roleLabel } from '../auth/roles';
+import { ROLES } from '../auth/roles';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  PREVIEWABLE_DASHBOARD_ROLES,
-  resolveDashboardComponent
-} from '../dashboards/registry';
-import { useDashboardPreviewRole } from '../dashboards/useDashboardPreviewRole';
-import styles from '../dashboards/ReceptionDashboard.module.css';
+import { resolveDashboardComponent } from '../dashboards/registry';
 
 /**
  * Shell multi-rol del dashboard.
- * Resuelve el componente según rol efectivo; Admin puede previsualizar otros roles.
+ * Resuelve el componente según el rol efectivo de sesión (incluye simulación debug).
  */
 export default function Dashboard() {
   const { user } = useAuth();
-  const { isAdmin, previewRole, setPreviewRole, effectiveRole } =
-    useDashboardPreviewRole(user?.role);
+  const role = user?.role || ROLES.RECEPCION;
+  const DashboardView = resolveDashboardComponent(role);
 
-  const DashboardView = resolveDashboardComponent(effectiveRole);
-
-  return (
-    <>
-      {isAdmin ? (
-        <div
-          className={styles.toolbarMeta}
-          style={{
-            padding: '10px 20px 0',
-            background: '#f4f5f7'
-          }}
-        >
-          Previsualizar como
-          <select
-            className={styles.previewSelect}
-            value={previewRole || user?.role || ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === user?.role) setPreviewRole(null);
-              else setPreviewRole(value);
-            }}
-            aria-label="Previsualizar dashboard como rol"
-          >
-            {PREVIEWABLE_DASHBOARD_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {roleLabel(role)}
-                {role === user?.role ? ' (tu rol)' : ''}
-              </option>
-            ))}
-          </select>
-          {previewRole && previewRole !== user?.role ? (
-            <button
-              type="button"
-              className={styles.retryBtn}
-              onClick={() => setPreviewRole(null)}
-            >
-              Quitar preview
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <DashboardView role={effectiveRole} />
-    </>
-  );
+  return <DashboardView role={role} />;
 }
