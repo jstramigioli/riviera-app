@@ -297,8 +297,12 @@ export default function ReservationBar({
     return firstName ? firstName[0].toUpperCase() : 'C';
   };
 
-  // Obtener la cantidad de personas (huéspedes + cliente principal)
-  const totalGuests = (reservation.guests?.length || 0) + 1; // +1 por el cliente principal
+  // Ocupación = Guest[] (el responsable no suma plaza salvo que figure como huésped)
+  const segmentGuestCount = reservation.segments?.find((s) => s.isActive !== false)?.guestCount;
+  const totalGuests =
+    reservation.guests?.length > 0
+      ? reservation.guests.length
+      : Number(segmentGuestCount) || reservation.requiredGuests || 0;
   const guestCount = `x${totalGuests}`;
   
   // Determinar si hay espacio para mostrar el contador de personas

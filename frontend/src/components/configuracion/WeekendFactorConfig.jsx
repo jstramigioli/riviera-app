@@ -42,7 +42,7 @@ export default function WeekendFactorConfig({ config, onConfigChange }) {
   const dayColors = {
     5: '#e74c3c', // Viernes - rojo
     6: '#e74c3c', // Sábado - rojo
-    0: '#e74c3c'  // Domingo - rojo
+    0: '#e74c3c' // Domingo - rojo
   };
 
   // Ordenar los días en el orden correcto: Viernes, Sábado, Domingo

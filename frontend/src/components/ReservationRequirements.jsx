@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTags } from '../hooks/useTags';
 import { fetchRooms } from '../services/api';
+import BedPreferenceFields from './BedPreferenceFields';
+import {
+  roomCanSatisfyBedPreference,
+  maxBedPreferenceLimits,
+  clampBedPreferenceToLimits
+} from '../utils/bedConfig';
 import '../styles/variables.css';
 
 function ReservationRequirements({ 
@@ -32,11 +38,29 @@ function ReservationRequirements({
     room.maxPeople >= (requirements.requiredGuests || 1)
   );
 
+  // Tope = max capacidad de tipos de habitación (vía rooms → roomType / maxPeople)
+  const maxGuestCapacity = rooms.length
+    ? Math.max(...rooms.map((room) => room.roomType?.maxPeople || room.maxPeople || 1))
+    : 1;
+
+  const guestsCount = requirements.requiredGuests || 1;
+  const bedLimits = {
+    ...maxBedPreferenceLimits(rooms, guestsCount),
+    guests: guestsCount
+  };
+
   const handleGuestsChange = (guests) => {
+    const parsed = parseInt(guests, 10) || 1;
+    const capped = Math.min(Math.max(1, parsed), Math.max(1, maxGuestCapacity));
+    const nextLimits = {
+      ...maxBedPreferenceLimits(rooms, capped),
+      guests: capped
+    };
     const newRequirements = {
       ...requirements,
-      requiredGuests: parseInt(guests) || 1,
-      requiredRoomId: null // Reset habitación específica al cambiar cantidad de huéspedes
+      requiredGuests: capped,
+      requiredRoomId: null, // Reset habitación específica al cambiar cantidad de huéspedes
+      ...clampBedPreferenceToLimits(requirements, nextLimits)
     };
     onRequirementsChange(newRequirements);
   };
@@ -61,6 +85,11 @@ function ReservationRequirements({
       requiredTags: selectedRoomId ? [] : requirements.requiredTags // Reset etiquetas al seleccionar habitación específica, mantener si es "No"
     });
   };
+
+  const selectedRoom = rooms.find((r) => r.id === requirements.requiredRoomId);
+  const bedWarning = selectedRoom
+    ? roomCanSatisfyBedPreference(selectedRoom.beds || [], requirements)
+    : { complies: true };
 
   return (
     <div style={{
@@ -91,8 +120,9 @@ function ReservationRequirements({
           Cantidad de Huéspedes *:
         </label>
         <select
-          value={requirements.requiredGuests || 1}
+          value={Math.min(requirements.requiredGuests || 1, maxGuestCapacity)}
           onChange={(e) => handleGuestsChange(e.target.value)}
+          aria-label="Cantidad de huéspedes"
           style={{
             width: '100%',
             padding: '12px',
@@ -102,15 +132,25 @@ function ReservationRequirements({
             backgroundColor: 'var(--color-bg-white)'
           }}
         >
-          <option value={1}>1 huésped</option>
-          <option value={2}>2 huéspedes</option>
-          <option value={3}>3 huéspedes</option>
-          <option value={4}>4 huéspedes</option>
-          <option value={5}>5 huéspedes</option>
-          <option value={6}>6 huéspedes</option>
-          <option value={7}>7 huéspedes</option>
-          <option value={8}>8 huéspedes</option>
+          {Array.from({ length: Math.max(1, maxGuestCapacity) }, (_, i) => i + 1).map((num) => (
+            <option key={num} value={num}>
+              {num} {num === 1 ? 'huésped' : 'huéspedes'}
+            </option>
+          ))}
         </select>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <BedPreferenceFields
+          value={requirements}
+          maxDoubleBeds={bedLimits.maxDoubleBeds}
+          maxSingleBeds={bedLimits.maxSingleBeds}
+          guests={guestsCount}
+          onChange={(pref) => onRequirementsChange({
+            ...requirements,
+            ...clampBedPreferenceToLimits(pref, bedLimits)
+          })}
+        />
       </div>
 
       {/* Habitación Específica */}
@@ -136,9 +176,9 @@ function ReservationRequirements({
             backgroundColor: 'var(--color-bg-white)'
           }}
         >
-          <option value="">No</option>
+          <option value=""> No</option>
           {loadingRooms ? (
-            <option disabled>Cargando habitaciones...</option>
+            <option disabled> Cargando habitaciones...</option>
           ) : (
             filteredRooms.map(room => (
               <option key={room.id} value={room.id}>
@@ -147,6 +187,11 @@ function ReservationRequirements({
             ))
           )}
         </select>
+        {!bedWarning.complies && (
+          <div role="status" style={{ marginTop: '8px', color: '#9a3412', fontSize: 'var(--font-size-small)' }}>
+            Aviso camas: {bedWarning.message}
+          </div>
+        )}
       </div>
 
       {/* Requerimientos */}

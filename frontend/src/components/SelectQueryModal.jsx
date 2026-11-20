@@ -1,3 +1,4 @@
+import { FiX } from 'react-icons/fi';
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,8 +16,8 @@ function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery,
     <div className={styles.modalBackdrop} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>Consultas recientes de {clientName}</h2>
-          <button className={styles.closeButton} onClick={onClose}>✕</button>
+          <h2> Consultas recientes de {clientName}</h2>
+          <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar"><FiX /></button>
         </div>
 
         <div className={styles.modalBody}>
@@ -33,7 +34,7 @@ function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery,
                 onClick={() => onSelectQuery(query)}
               >
                 <div className={styles.queryHeader}>
-                  <span className={styles.queryId}>Consulta #{query.id}</span>
+                  <span className={styles.queryId}> Consulta #{query.id}</span>
                   <span className={styles.queryDate}>
                     Actualizada: {formatDate(query.updatedAt)}
                   </span>
@@ -41,25 +42,25 @@ function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery,
                 <div className={styles.queryDetails}>
                   {query.checkIn && query.checkOut && (
                     <div className={styles.queryDetail}>
-                      <span className={styles.detailLabel}>📅 Estadía:</span>
+                      <span className={styles.detailLabel}> Estadía:</span>
                       <span>{formatDate(query.checkIn)} - {formatDate(query.checkOut)}</span>
                     </div>
                   )}
                   {query.requiredGuests && (
                     <div className={styles.queryDetail}>
-                      <span className={styles.detailLabel}>👥 Huéspedes:</span>
+                      <span className={styles.detailLabel}> Huéspedes:</span>
                       <span>{query.requiredGuests}</span>
                     </div>
                   )}
                   {query.room && (
                     <div className={styles.queryDetail}>
-                      <span className={styles.detailLabel}>🏠 Habitación:</span>
+                      <span className={styles.detailLabel}> Habitación:</span>
                       <span>{query.room.name}</span>
                     </div>
                   )}
                   {query.requirementsNotes && (
                     <div className={styles.queryDetail}>
-                      <span className={styles.detailLabel}>📝 Notas:</span>
+                      <span className={styles.detailLabel}> Notas:</span>
                       <span className={styles.notesPreview}>{query.requirementsNotes}</span>
                     </div>
                   )}

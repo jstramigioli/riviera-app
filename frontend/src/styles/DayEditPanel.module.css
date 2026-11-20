@@ -8,7 +8,7 @@
 
 .section {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   border: 1px solid #e9ecef;
@@ -18,9 +18,9 @@
 .sectionTitle {
   margin: 0 0 1rem 0;
   color: #2c3e50;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
-  border-bottom: 2px solid #667eea;
+  border-bottom: 2px solid var(--color-primary);
   padding-bottom: 0.5rem;
 }
 
@@ -56,7 +56,7 @@
 .radio {
   width: 18px;
   height: 18px;
-  accent-color: #667eea;
+  accent-color: var(--color-primary);
 }
 
 .checkboxText,
@@ -70,7 +70,7 @@
 }
 
 .radioIcon {
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 0.9rem;
 }
 
@@ -106,7 +106,7 @@
 
 .input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -125,7 +125,7 @@
 
 .textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -203,14 +203,14 @@
 
 .priceNote {
   font-size: 0.7rem;
-  color: #667eea;
+  color: var(--color-primary);
   margin-top: 0.25rem;
   font-style: italic;
 }
 
 .priceNote {
   font-size: 0.7rem;
-  color: #667eea;
+  color: var(--color-primary);
   margin-top: 0.25rem;
   font-style: italic;
 }
@@ -226,7 +226,7 @@
 .smallCheckbox {
   width: 16px;
   height: 16px;
-  accent-color: #667eea;
+  accent-color: var(--color-primary);
 }
 
 .smallCheckboxText {
@@ -252,7 +252,7 @@
 
 .smallInput:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
@@ -287,7 +287,7 @@
 .cancelButton:hover {
   background: #5a6268;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 .saveButton {
@@ -298,7 +298,7 @@
 .saveButton:hover {
   background: #218838;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Responsive Design */

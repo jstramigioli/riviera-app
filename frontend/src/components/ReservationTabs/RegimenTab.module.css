@@ -1,0 +1,108 @@
+.root {
+  padding: 12px 4px 24px;
+  max-width: 520px;
+  font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: #3a4250;
+}
+
+.heading {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2933;
+}
+
+.hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.flags {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+}
+
+.notesLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.notes {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  font: inherit;
+  color: #1f2933;
+  resize: vertical;
+  min-height: 96px;
+}
+
+.notes:focus {
+  outline: 2px solid #3f5f8a;
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.saveBtn {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #3f5f8a;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #334d70;
+}
+
+.saveBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.saved {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f9e44;
+}
+
+.error {
+  margin: 10px 0 0;
+  color: #e03131;
+  font-size: 12px;
+}

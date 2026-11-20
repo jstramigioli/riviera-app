@@ -34,13 +34,13 @@
 .currentConfig {
   background-color: #f0f9ff;
   border: 1px solid #bae6fd;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
 }
 
 .currentConfig h3 {
   margin: 0 0 16px 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #0369a1;
 }
@@ -76,14 +76,14 @@
 .formSection {
   background-color: white;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 .formSection h3 {
   margin: 0 0 20px 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #111827;
 }
@@ -206,13 +206,13 @@
 .infoSection {
   background-color: #f9fafb;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
 }
 
 .infoSection h3 {
   margin: 0 0 16px 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: #111827;
 }
@@ -252,7 +252,7 @@
   }
   
   .header h2 {
-    font-size: 1.5rem;
+    font-size: var(--font-size-large);
   }
   
   .currentConfig,

@@ -20,7 +20,7 @@
 .headerContent h2 {
   margin: 0;
   color: #2d3748;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -58,7 +58,7 @@
 
 .section {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
@@ -66,7 +66,7 @@
 .section h3 {
   margin: 0 0 8px 0;
   color: #2d3748;
-  font-size: 1.25rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -155,7 +155,7 @@
 
 .badge {
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.75rem;
   font-weight: 500;
   display: inline-flex;
@@ -210,7 +210,7 @@
 .toggleButton {
   width: auto !important;
   padding: 4px 8px !important;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
 }
 
 .toggleButton.active {
@@ -289,7 +289,7 @@
 
 .modalContent {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;

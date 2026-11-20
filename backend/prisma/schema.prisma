@@ -21,7 +21,6 @@ model Hotel {
   dailyRoomRates       DailyRoomRate[]
   dynamicPricingConfig DynamicPricingConfig?
   openDays             OpenDay[]
-  roundingConfig       RoundingConfig?
   seasonBlocks         SeasonBlock[]
   serviceTypes         ServiceType[]
 }
@@ -40,7 +39,6 @@ model RoomType {
   maxPeople              Int                     @default(1)
   orderIndex             Int                     @default(0)
   dailyRoomRates         DailyRoomRate[]
-  proportionCoefficients ProportionCoefficient[]
   segments               ReservationSegment[]
   rooms                  Room[]
   seasonPrices           SeasonPrice[]
@@ -48,14 +46,35 @@ model RoomType {
   cargos                 Cargo[]                 // Relación con cargos de alojamiento
 }
 
+enum BedType {
+  double
+  single
+}
+
+/// Cama física de una habitación. Matrimonial (double) puede ser separable en 2 individuales.
+model RoomBed {
+  id          Int     @id @default(autoincrement())
+  roomId      Int
+  bedType     BedType
+  /// Solo aplica a matrimoniales: si true, puede usarse como 2 individuales.
+  isSeparable Boolean @default(false)
+  orderIndex  Int     @default(0)
+  room        Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
 model Room {
   id                    Int                    @id @default(autoincrement())
   name                  String
   description           String?
+  /// Superficie opcional en m² (editable en Config → Habitaciones).
+  superficie            Float?
   maxPeople             Int
   status                String
   orderIndex            Int                    @default(0)
   roomTypeId            Int
+  beds                  RoomBed[]
   segments              ReservationSegment[]
   roomType              RoomType               @relation(fields: [roomTypeId], references: [id])
   gapPromotions         RoomGapPromotion[]
@@ -122,13 +141,49 @@ model Client {
   province        String?
   city            String?
   notes           String?
+  /// Patente del vehículo (estacionamiento); misma clave que check-in / reserva.
+  vehiclePlate    String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   queries         Query[]       @relation("ClientQueries")
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
+  accounts        Account[]
+  /// Apariciones como huésped de una reserva (opcional; el titular usa mainClientId).
+  guestStays      Guest[]
+  /// Datos de facturación aparte del perfil (reutilizables en próximos pagos).
+  billingProfile  ClientBillingProfile?
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
+/// Perfil de facturación del cliente (no modifica el perfil personal).
+model ClientBillingProfile {
+  id                Int      @id @default(autoincrement())
+  clientId          Int      @unique
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Último tipo usado: A | B
+  lastInvoiceType   String?
+  firstName         String?
+  lastName          String?
+  documentType      String?
+  documentNumber    String?
+  address           String?
+  email             String?
+  businessName      String?
+  cuit              String?
+  commercialAddress String?
+  ivaCondition      String?  @default("Responsable Inscripto")
+  cardNumber        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+/// Persona que se aloja en una reserva. Independiente del responsable (mainClientId).
+/// Si clientId apunta al titular, el responsable también es huésped; se puede quitar.
 model Guest {
   id             Int          @id @default(autoincrement())
   firstName      String
@@ -140,9 +195,24 @@ model Guest {
   address        String?
   city           String?
   reservationId  Int?
+  /// Vínculo opcional a Client (titular u otro cliente de la agenda).
+  clientId       Int?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
+  client         Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([reservationId, clientId])
+}
+
+/// Canal / quién reservó (consulta o reserva).
+enum ReservationSource {
+  WHATSAPP
+  MAIL
+  WEBSITE
+  BOOKING
+  MOSTRADOR
 }
 
 model Reservation {
@@ -150,8 +220,19 @@ model Reservation {
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
+  /// Notas de comidas / régimen alimentario (cocina-recepción).
+  notaComidas         String?
+  dietVegetariano     Boolean                @default(false)
+  dietVegano          Boolean                @default(false)
+  dietCeliaco         Boolean                @default(false)
+  /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
+  source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
   parentReservationId Int?
+  /// Patente del vehículo (estacionamiento), cargada vía check-in online o recepción.
+  vehiclePlate        String?
+  /// Reserva creada/guardada con precio manual de estadía (sin promos RATE automáticas).
+  createdWithManualRate Boolean              @default(false)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
   guests              Guest[]
@@ -161,40 +242,318 @@ model Reservation {
   nightRates          ReservationNightRate[]
   segments            ReservationSegment[]
   pagos               Pago[]
+  imputaciones        PagoImputacion[]
   cargos              Cargo[]
+  onlineCheckIns      OnlineCheckIn[]
+  /// Folio financiero 1:1 (Account kind=RESERVATION).
+  account             Account?
+
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([source])
+}
+
+enum AccountKind {
+  RESERVATION
+  EXTERNAL
+}
+
+enum AccountStatus {
+  OPEN
+  CLOSED
+}
+
+/// Contenedor financiero (folio). 1:1 con Reservation o cuenta externa (walk-in / bar / city ledger).
+model Account {
+  id            Int           @id @default(autoincrement())
+  kind          AccountKind
+  /// Solo RESERVATION: obligatorio y unique.
+  reservationId Int?          @unique
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  /// Titular opcional; en EXTERNAL el label suele bastar.
+  clientId      Int?
+  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  label         String?
+  /// OPEN mientras haya saldo pendiente; CLOSED cuando saldo = 0 (cierre operativo).
+  status        AccountStatus @default(OPEN)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  cargos                Cargo[]
+  pagos                 Pago[]
+  imputaciones          PagoImputacion[]
+  discountApplications  DiscountApplication[]
+
+  @@index([kind, status])
+  @@index([clientId])
+  @@index([createdAt])
+}
+
+enum PaymentDiscountTipo {
+  PERCENT
+  FIXED
+}
+
+enum DiscountApplicationTipo {
+  PAYMENT_METHOD
+  MANUAL
+  REVERSAL
+  PROMOTION
+}
+
+enum PromotionKind {
+  PROMO
+  DESCUENTO
+}
+
+/// Cómo se materializa la regla en operación.
+/// AUTO = automática; MANUAL = opcional (por defecto desactivado);
+/// SUGERIDA = opcional (por defecto activado).
+/// benefitValueManual (valor al aplicar) es independiente de la modalidad.
+enum PromotionModality {
+  AUTO
+  MANUAL
+  SUGERIDA
+}
+
+/// Capa contable: crédito al pagar vs baja de tarifa/cargo.
+enum PromotionLayer {
+  SETTLEMENT
+  RATE
+}
+
+enum PromotionStacking {
+  EXCLUSIVE
+  STACKABLE
+  BEST_OF
+}
+
+enum PromotionBenefitType {
+  PERCENT
+  FIXED
+  FIXED_PER_NIGHT
+  /// Noches sin cargo: benefitValue = noches gratis (no se cobran).
+  /// Mínimo de noches pagadas / estadía = condición NIGHTS normal.
+  /// Se aplican a las noches más baratas de la estadía.
+  FREE_NIGHTS
+}
+
+enum PromotionBenefitBase {
+  DEBT_CANCELLED
+  RATE_NIGHT
+  LODGING_TOTAL
+  PAYMENT_RECEIVED
+}
+
+enum PromotionConditionType {
+  DATE_RANGE
+  STAY_DATE
+  NIGHTS
+  MIN_NIGHTS
+  MAX_NIGHTS
+  ROOM_TYPE
+  SERVICE_TYPE
+  PAYMENT_METHOD
+  OCCUPANCY_HOTEL
+  OCCUPANCY_HOTEL_MAX
+  OCCUPANCY_HOTEL_MIN
+  DAYS_OF_WEEK
+}
+
+/// Catálogo administrable de medios de pago.
+/// Campos descuento* = vista de compatibilidad; fuente de verdad = PromotionRule.
+model PaymentMethodConfig {
+  id                  Int                  @id @default(autoincrement())
+  code                String               @unique
+  label               String
+  activo              Boolean              @default(true)
+  ordenIndex          Int                  @default(0)
+  requiereFacturacion Boolean              @default(false)
+  descuentoActivo     Boolean              @default(false)
+  descuentoTipo       PaymentDiscountTipo  @default(PERCENT)
+  /// Legacy / mirror de regla PAYMENT_METHOD. No hardcodear lógica de negocio aquí.
+  descuentoValor      Decimal              @default(0) @db.Decimal(10, 4)
+  aplicaEnParcial     Boolean              @default(true)
+  aplicaEnSeña        Boolean              @default(true)
+  notas               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pagos               Pago[]
+  discountApplications DiscountApplication[]
+
+  @@index([activo, ordenIndex])
+}
+
+/// Regla componible de promoción / descuento (condiciones AND → beneficio → modalidad).
+model PromotionRule {
+  id                   Int                    @id @default(autoincrement())
+  code                 String                 @unique
+  label                String
+  kind                 PromotionKind          @default(DESCUENTO)
+  activo               Boolean                @default(true)
+  prioridad            Int                    @default(100)
+  modality             PromotionModality      @default(AUTO)
+  layer                PromotionLayer         @default(SETTLEMENT)
+  stacking             PromotionStacking      @default(EXCLUSIVE)
+  stackingGroup        String?
+  vigenteDesde         DateTime?
+  vigenteHasta         DateTime?
+  aplicaEnParcial      Boolean                @default(true)
+  aplicaEnSeña         Boolean                @default(true)
+  benefitType          PromotionBenefitType   @default(PERCENT)
+  benefitValue         Decimal                @default(0) @db.Decimal(12, 4)
+  /// Si true, benefitValue de catálogo se ignora; el valor se pasa al aplicar
+  /// (ctx.benefitValueByRuleId). En Config el campo Valor queda deshabilitado.
+  benefitValueManual   Boolean                @default(false)
+  benefitBase          PromotionBenefitBase   @default(DEBT_CANCELLED)
+  benefitCapARS        Decimal?               @db.Decimal(12, 2)
+  /// Nota interna de staff (solo Configuración); no se muestra en cobros/folio.
+  descripcionInterna   String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  conditions           PromotionCondition[]
+  discountApplications DiscountApplication[]
+
+  @@index([activo, prioridad])
+  @@index([layer, modality])
+  @@index([vigenteDesde, vigenteHasta])
+}
+
+model PromotionCondition {
+  id        Int                     @id @default(autoincrement())
+  ruleId    Int
+  rule      PromotionRule           @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  type      PromotionConditionType
+  /// Params tipados por `type` (ids, umbrales, fechas ISO, etc.).
+  params    Json
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  @@index([ruleId])
+  @@index([type])
+}
+
+/// Crédito de folio por descuento/promo (o su reversión). Snapshot; no recalcular live.
+/// Post-imputaciones: DA por PagoImputacion; pagoId ya no es unique.
+model DiscountApplication {
+  id                     Int                     @id @default(autoincrement())
+  accountId              Int
+  account                Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Pago de caja que originó (o revierte) el descuento. No unique: multi-imputación.
+  pagoId                 Int
+  pago                   Pago                    @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// Imputación de folio a la que aplica el crédito (backfill 1:1 en migrate).
+  pagoImputacionId       Int?
+  pagoImputacion         PagoImputacion?         @relation(fields: [pagoImputacionId], references: [id], onDelete: Cascade)
+  paymentMethodConfigId  Int?
+  paymentMethodConfig    PaymentMethodConfig?    @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
+  promotionRuleId        Int?
+  promotionRule          PromotionRule?          @relation(fields: [promotionRuleId], references: [id], onDelete: SetNull)
+  tipo                   DiscountApplicationTipo @default(PAYMENT_METHOD)
+  /// Monto del pago (ARS, abs) sobre el que se calculó / snapshot.
+  baseCalculoARS         Decimal                 @db.Decimal(10, 2)
+  porcentaje             Decimal?                @db.Decimal(10, 4)
+  valorFijo              Decimal?                @db.Decimal(10, 2)
+  /// Crédito positivo que baja el saldo; reversión = negativo.
+  montoARS               Decimal                 @db.Decimal(10, 2)
+  monedaPago             String?
+  tipoCambio             Decimal?                @db.Decimal(10, 4)
+  /// Snapshot de reglas aplicadas (ids/codes/montos) para trazabilidad / stacking.
+  appliedRulesJson       Json?
+  /// Si es reversión, apunta a la aplicación original.
+  reversoDeId            Int?
+  reversoDe              DiscountApplication?    @relation("DiscountReversal", fields: [reversoDeId], references: [id], onDelete: SetNull)
+  reversiones            DiscountApplication[]   @relation("DiscountReversal")
+  activo                 Boolean                 @default(true)
+  notas                  String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@index([accountId])
+  @@index([pagoId])
+  @@index([pagoImputacionId])
+  @@index([paymentMethodConfigId])
+  @@index([promotionRuleId])
+  @@index([reversoDeId])
+  @@index([activo])
+}
+
+enum OnlineCheckInStatus {
+  PENDING
+  SENT
+  COMPLETED
+  EXPIRED
+}
+
+/// Check-in online vinculado a una reserva (token público + respuestas).
+model OnlineCheckIn {
+  id             String              @id @default(cuid())
+  reservationId  Int
+  token          String              @unique
+  status         OnlineCheckInStatus @default(PENDING)
+  sentAt         DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  firstName      String?
+  lastName       String?
+  email          String?
+  phone          String?
+  documentType   String?
+  documentNumber String?
+  country        String?
+  province       String?
+  city           String?
+  address        String?
+  vehiclePlate   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  reservation    Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([reservationId])
+  @@index([status])
 }
 
 model QueryGroup {
-  id           String   @id
+  id           String             @id
   mainClientId Int?
   notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  mainClient   Client?  @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
+  /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
+  source       ReservationSource?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  mainClient   Client?            @relation("ClientQueryGroups", fields: [mainClientId], references: [id])
+
+  @@index([source])
 }
 
 model Query {
-  id                Int              @id @default(autoincrement())
-  mainClientId      Int?
-  checkIn           DateTime?
-  checkOut          DateTime?
-  totalAmount       Float?
-  reservationType   String?          @default("con_desayuno")
-  serviceType       String?          @default("base")
-  fixed             Boolean?         @default(false)
-  requiredGuests    Int?
-  requiredRoomId    Int?
-  requirementsNotes String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  queryGroupId      String?
-  segmentIndex      Int?
-  requiredTags      Int[]
-  mainClient        Client?          @relation("ClientQueries", fields: [mainClientId], references: [id])
-  guests            QueryGuest[]
-  nightRates        QueryNightRate[]
+  id                   Int              @id @default(autoincrement())
+  mainClientId         Int?
+  checkIn              DateTime?
+  checkOut             DateTime?
+  totalAmount          Float?
+  reservationType      String?          @default("con_desayuno")
+  serviceType          String?          @default("base")
+  fixed                Boolean?         @default(false)
+  requiredGuests       Int?
+  requiredRoomId       Int?
+  requirementsNotes    String?
+  /// Preferencia de camas independiente de la config física. true = Sin preferencia.
+  bedPreferenceNone    Boolean          @default(true)
+  preferredDoubleBeds  Int              @default(0)
+  preferredSingleBeds  Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  queryGroupId         String?
+  segmentIndex         Int?
+  requiredTags         Int[]
+  mainClient           Client?          @relation("ClientQueries", fields: [mainClientId], references: [id])
+  guests               QueryGuest[]
+  nightRates           QueryNightRate[]
 
   @@index([queryGroupId])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model QueryGuest {
@@ -349,21 +708,16 @@ model ReservationNightRate {
   holidayAdjustment      Float?
   gapPromotionAmount     Float?
   serviceAdjustment      Float?
+  /// Promo modalidad RATE (snapshot; no DynamicPricing).
+  promotionRuleId        Int?
+  promotionDiscountARS   Float?
+  promotionPercent       Float?
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
   reservation            Reservation @relation(fields: [reservationId], references: [id])
 
   @@unique([reservationId, date])
-}
-
-model RoundingConfig {
-  id        String   @id @default(cuid())
-  hotelId   String   @unique
-  multiple  Int      @default(1)
-  mode      String   @default("nearest")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  @@index([promotionRuleId])
 }
 
 model SeasonBlock {
@@ -375,7 +729,6 @@ model SeasonBlock {
   endDate                DateTime
   orderIndex             Int                     @default(0)
   useBlockServices       Boolean                 @default(false)
-  useProportions         Boolean                 @default(false)
   referenceRoomTypeId    Int?
   serviceAdjustmentMode  String                  @default("PERCENTAGE")
   isDraft                Boolean                 @default(true)
@@ -383,7 +736,6 @@ model SeasonBlock {
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
-  proportionCoefficients ProportionCoefficient[]
   hotel                  Hotel                   @relation(fields: [hotelId], references: [id])
   seasonPrices           SeasonPrice[]
 
@@ -404,19 +756,6 @@ model SeasonPrice {
   serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
 
   @@unique([seasonBlockId, roomTypeId, serviceTypeId])
-}
-
-model ProportionCoefficient {
-  id            String      @id @default(cuid())
-  seasonBlockId String
-  roomTypeId    Int
-  coefficient   Float       @default(1.0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  roomType      RoomType    @relation(fields: [roomTypeId], references: [id])
-  seasonBlock   SeasonBlock @relation(fields: [seasonBlockId], references: [id], onDelete: Cascade)
-
-  @@unique([seasonBlockId, roomTypeId])
 }
 
 model ServiceType {
@@ -453,47 +792,144 @@ model BlockServiceSelection {
 }
 
 model ReservationSegment {
-  id                 Int          @id @default(autoincrement())
-  reservationId      Int
-  startDate          DateTime
-  endDate            DateTime
-  roomId             Int
-  roomTypeId         Int?
-  virtualRoomId      Int?
-  services           String[]
-  serviceAdjustments Json?
-  baseRate           Float
-  rateAdjustments    Json?
-  guestCount         Int
-  reason             String?
-  notes              String?
-  isActive           Boolean      @default(true)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  requiredRoomId     Int?
-  requiredTags       Int[]        @default([])
-  reservation        Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  room               Room         @relation(fields: [roomId], references: [id])
-  roomType           RoomType?    @relation(fields: [roomTypeId], references: [id])
-  virtualRoom        VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
+  id                   Int          @id @default(autoincrement())
+  reservationId        Int
+  startDate            DateTime
+  endDate              DateTime
+  roomId               Int
+  roomTypeId           Int?
+  virtualRoomId        Int?
+  services             String[]
+  serviceAdjustments   Json?
+  baseRate             Float
+  rateAdjustments      Json?
+  guestCount           Int
+  reason               String?
+  notes                String?
+  isActive             Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  requiredRoomId       Int?
+  requiredTags         Int[]        @default([])
+  /// Preferencia de camas independiente de la config física. true = Sin preferencia.
+  bedPreferenceNone    Boolean      @default(true)
+  preferredDoubleBeds  Int          @default(0)
+  preferredSingleBeds  Int          @default(0)
+  reservation          Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room                 Room         @relation(fields: [roomId], references: [id])
+  roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])
+  virtualRoom          VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
 }
 
+/// Ingreso de caja. El crédito de folio vive en PagoImputacion (1..N).
 model Pago {
-  id         Int         @id @default(autoincrement())
-  reservaId  Int
-  reserva    Reservation @relation(fields: [reservaId], references: [id], onDelete: Cascade)
-  fecha      DateTime    @default(now())
-  monto      Decimal     @db.Decimal(10, 2)
-  moneda     String      @default("ARS") // ARS o USD
-  tipoCambio Decimal?    @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
-  montoARS   Decimal     @db.Decimal(10, 2) // Monto equivalente en pesos argentinos
-  metodo     String      // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
-  numeroTarjeta String?  // Número de tarjeta (solo para métodos de tarjeta)
-  empresa    String?     // Empresa de la tarjeta (solo para métodos de tarjeta)
-  referencia String?     // Número de comprobante, referencia bancaria, etc.
-  notas      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id                      Int                   @id @default(autoincrement())
+  codigo                  String                @unique // A000…A999, B000… (papelitos / Estado de cuentas)
+  /// Ancla opcional (flujo 1 reserva / EXTERNAL). Null cuando el pago se reparte a N folios.
+  accountId               Int?
+  account                 Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Dual-write legado; null en EXTERNAL o multi-imputación.
+  reservaId               Int?
+  reserva                 Reservation?          @relation(fields: [reservaId], references: [id], onDelete: SetNull)
+  /// FK al catálogo de medios (MVP). `metodo` sigue siendo label para listados.
+  paymentMethodConfigId   Int?
+  paymentMethodConfig     PaymentMethodConfig?  @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
+  /// Devolución: pago original obligatorio (bloquea devolución libre).
+  pagoOrigenId            Int?
+  pagoOrigen              Pago?                 @relation("PagoDevolucion", fields: [pagoOrigenId], references: [id], onDelete: Restrict)
+  devoluciones            Pago[]                @relation("PagoDevolucion")
+  fecha                   DateTime              @default(now())
+  monto                   Decimal               @db.Decimal(10, 2)
+  moneda                  String                @default("ARS") // ARS o USD
+  tipoCambio              Decimal?              @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
+  montoARS                Decimal               @db.Decimal(10, 2) // Monto equivalente en pesos argentinos (caja, una vez)
+  metodo                  String                // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
+  numeroTarjeta           String?               // Número de tarjeta (solo para métodos de tarjeta)
+  empresa                 String?               // Empresa de la tarjeta (solo para métodos de tarjeta)
+  referencia              String?               // Número de comprobante, referencia bancaria, etc.
+  notas                   String?
+  /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación). Solo en Account de reserva.
+  motivo                  String                @default("Pago")
+  requiereFacturacion     Boolean               @default(false)
+  /// Dinero/papel físico retirado (no aplica a Transferencia)
+  retirado                Boolean               @default(false)
+  factura                 PagoFactura?
+  adjuntos                PagoAdjunto[]
+  imputaciones            PagoImputacion[]
+  discountApplications    DiscountApplication[]
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  @@index([accountId])
+  @@index([reservaId])
+  @@index([paymentMethodConfigId])
+  @@index([pagoOrigenId])
+}
+
+/// Crédito de folio: parte de un Pago imputada a un Account/reserva.
+model PagoImputacion {
+  id               Int      @id @default(autoincrement())
+  pagoId           Int
+  pago             Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  accountId        Int
+  account          Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  /// Dual-write; null en EXTERNAL.
+  reservaId        Int?
+  reserva          Reservation? @relation(fields: [reservaId], references: [id], onDelete: Restrict)
+  /// Parte del dinero recibido (ARS) imputada a este folio (+ cobro / − devolución).
+  montoARS         Decimal  @db.Decimal(10, 2)
+  /// Parte de bonificación SETTLEMENT asignada (trazabilidad UI; debe alinarse con DA).
+  bonificacionARS  Decimal  @default(0) @db.Decimal(10, 2)
+  ordenIndex       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  discountApplications DiscountApplication[]
+
+  @@unique([pagoId, accountId])
+  @@index([accountId])
+  @@index([reservaId])
+  @@index([pagoId])
+}
+
+/// Archivos de factura PDF o comprobante de transferencia (JPG/PNG/PDF).
+model PagoAdjunto {
+  id           Int      @id @default(autoincrement())
+  pagoId       Int
+  pago         Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// FACTURA | COMPROBANTE
+  tipo         String
+  originalName String
+  storedName   String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  @@index([pagoId, tipo])
+}
+
+/// Snapshot de facturación asociado a un pago (Factura A o B).
+model PagoFactura {
+  id                Int      @id @default(autoincrement())
+  pagoId            Int      @unique
+  pago              Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// A | B
+  tipo              String
+  /// Fecha de facturación (día; puede diferir de Pago.fecha)
+  fecha             DateTime @default(now())
+  motivo            String?
+  firstName         String?
+  lastName          String?
+  documentType      String?
+  documentNumber    String?
+  address           String?
+  email             String?
+  businessName      String?
+  cuit              String?
+  commercialAddress String?
+  ivaCondition      String?
+  cardNumber        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model SubcategoriaCargo {
@@ -517,7 +953,11 @@ model SubcategoriaCargo {
 
 model Cargo {
   id                  Int                @id @default(autoincrement())
-  reservaId           Int
+  /// FK financiera canónica (Account).
+  accountId           Int
+  account             Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Dual-write legado: obligatorio en cuentas RESERVATION; null en EXTERNAL.
+  reservaId           Int?
   
   // Para cargos de alojamiento (campos directos - dinámicos)
   roomTypeId          Int?               // Tipo de habitación para cargos de alojamiento
@@ -527,7 +967,7 @@ model Cargo {
   subcategoriaCargoId Int?               // Servicios, Consumos, Otros
   
   // Relaciones
-  reserva             Reservation        @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  reserva             Reservation?       @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   subcategoriaCargo   SubcategoriaCargo? @relation(fields: [subcategoriaCargoId], references: [id], onDelete: Restrict)
   roomType            RoomType?          @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   serviceType         ServiceType?       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
@@ -539,6 +979,68 @@ model Cargo {
   notas               String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
+
+  @@index([accountId])
+  @@index([reservaId])
+}
+
+enum UserRole {
+  ADMIN
+  PROPIETARIO
+  GERENCIA
+  RECEPCION
+  CAMARERO
+  COCINA
+  MUCAMA
+  MANTENIMIENTO
+}
+
+model User {
+  id                String             @id @default(cuid())
+  username          String             @unique
+  displayName       String
+  passwordHash      String
+  role              UserRole
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  notificationReads NotificationRead[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Registro de cambios de datos (quién / qué / cuándo). Escrito por extensión Prisma + contexto ALS de auth.
+model AuditLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  actorUserId     String?
+  actorUsername   String?
+  actorDisplayName String?
+  actorRole       String?
+  action          String   // CREATE | UPDATE | DELETE | CREATE_MANY | UPDATE_MANY | DELETE_MANY | UPSERT
+  entity          String   // nombre de modelo Prisma (Reservation, Client, ...)
+  entityId        String?  // id como string (soporta Int y cuid)
+  summary         String
+  before          Json?
+  after           Json?
+  diff            Json?
+  meta            Json?
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@index([actorUserId])
+  @@index([action])
 }
 
 enum ReservationStatus {
@@ -560,7 +1062,190 @@ model Configuracion {
   updatedAt   DateTime @updatedAt
 }
 
+/// Grupo del menú = subcategoría CONSUMO (codigo). Ya no usa enum fijo.
+/// Subgrupos tipados en MenuSubgroup; MenuItem.subgroup guarda el nombre.
+
+model MenuSubgroup {
+  id         Int      @id @default(autoincrement())
+  /// Codigo del grupo CONSUMO (BEBIDAS, MINUTAS, CAFETERIA, …)
+  category   String
+  name       String
+  ordenIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([category, name])
+  @@index([category, ordenIndex])
+}
+
+model MenuItem {
+  id          Int      @id @default(autoincrement())
+  /// Codigo de SubcategoriaCargo CONSUMO (ej. BEBIDAS)
+  category    String
+  /// Subgrupo dentro del grupo (Excel: Ensaladas, Licuados, etc.)
+  subgroup    String?
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  description String?
+  isActive    Boolean  @default(true)
+  ordenIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  varieties   MenuItemVariety[]
+
+  @@index([category, isActive])
+  @@index([category, subgroup])
+  @@index([name])
+}
+
+/// Variedad de un ítem (ej. Chica / Grande) con precio propio.
+/// Si el ítem no tiene variedades, se usa MenuItem.price.
+model MenuItemVariety {
+  id         Int      @id @default(autoincrement())
+  menuItemId Int
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  ordenIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@unique([menuItemId, name])
+}
+
 enum ServiceAdjustmentMode {
   FIXED
   PERCENTAGE
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  DANGER
+}
+
+enum NotificationLinkType {
+  RESERVATION
+  CLIENT
+  ROOM
+  NONE
+}
+
+/// Notificación operativa / manual. Leer (por usuario) ≠ resolver (cierre global).
+model AppNotification {
+  id           String                 @id @default(cuid())
+  type         String
+  severity     NotificationSeverity   @default(INFO)
+  title        String
+  body         String?
+  linkType     NotificationLinkType   @default(NONE)
+  linkId       String?
+  /// Clave estable p.ej. PENDING_ARRIVAL:42 — upsert en sync.
+  dedupeKey    String?                @unique
+  audienceRole String?
+  source       String                 @default("SYSTEM")
+  meta         Json?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  resolvedAt   DateTime?
+  resolvedById String?
+  reads        NotificationRead[]
+
+  @@index([resolvedAt, createdAt])
+  @@index([type])
+  @@index([audienceRole])
+  @@index([createdAt])
+}
+
+model NotificationRead {
+  id             String          @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime        @default(now())
+  notification   AppNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+/// Menú diario de media pensión (Gastronomía). Independiente del menú a la carta (MenuItem).
+enum DailyMenuKind {
+  CONVENTIONAL
+  BUFFET
+}
+
+enum DailyMenuStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum DailyMenuSection {
+  ENTRADA
+  ENSALADA
+  SOPA
+  PRIMER_PLATO
+  SEGUNDO_PLATO
+  PLATO_INFANTIL
+  POSTRE
+  BUFFET
+}
+
+/// Categoría del catálogo de platos (1º y 2º plato → PLATO_PRINCIPAL).
+enum DishCatalogCategory {
+  ENTRADA
+  ENSALADA
+  SOPA
+  PLATO_PRINCIPAL
+  PLATO_INFANTIL
+  POSTRE
+  BUFFET
+}
+
+model DishCatalog {
+  id         Int                 @id @default(autoincrement())
+  name       String
+  /// Nombre normalizado (NFD, sin acentos, lower) para búsqueda / anti-duplicados.
+  nameNorm   String
+  category   DishCatalogCategory
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  lastUsedAt DateTime?
+  usageCount Int                 @default(0)
+  items      DailyMenuItem[]
+
+  @@unique([nameNorm, category])
+  @@index([category])
+  @@index([lastUsedAt])
+  @@index([usageCount])
+}
+
+model DailyMenu {
+  id          Int             @id @default(autoincrement())
+  date        DateTime        @unique @db.Date
+  kind        DailyMenuKind
+  status      DailyMenuStatus @default(DRAFT)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  publishedAt DateTime?
+  items       DailyMenuItem[]
+
+  @@index([status, date])
+}
+
+model DailyMenuItem {
+  id              Int              @id @default(autoincrement())
+  dailyMenuId     Int
+  section         DailyMenuSection
+  sortOrder       Int              @default(0)
+  nameSnapshot    String
+  descriptionSnap String?
+  dishCatalogId   Int?
+  dailyMenu       DailyMenu        @relation(fields: [dailyMenuId], references: [id], onDelete: Cascade)
+  dishCatalog     DishCatalog?     @relation(fields: [dishCatalogId], references: [id], onDelete: SetNull)
+
+  @@index([dailyMenuId, section, sortOrder])
+  @@index([dishCatalogId])
 }

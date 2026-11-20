@@ -217,4 +217,72 @@ describe('Controlador de Clientes', () => {
         .expect(404);
     });
   });
+
+  describe('GET /api/clients/:id/balance', () => {
+    it('debería calcular balance desde cargos y pagos de las reservas', async () => {
+      global.mockPrisma.client.findUnique.mockResolvedValue({
+        id: 1212,
+        firstName: 'Julián',
+        lastName: 'Stramigioli',
+        reservations: [
+          {
+            id: 9,
+            status: 'PENDIENTE',
+            cargos: [
+              {
+                id: 1,
+                descripcion: 'Alojamiento',
+                monto: 414000,
+                fecha: '2026-01-01T00:00:00.000Z',
+                notas: null,
+                reservaId: 9,
+                accountId: null,
+                subcategoriaCargoId: null,
+                roomTypeId: 1,
+                serviceTypeId: null
+              }
+            ],
+            pagos: [
+              {
+                id: 2,
+                codigo: 'A001',
+                fecha: '2026-01-02T00:00:00.000Z',
+                monto: 424000,
+                moneda: 'ARS',
+                tipoCambio: null,
+                montoARS: 424000,
+                metodo: 'Efectivo',
+                motivo: 'Pago',
+                notas: null,
+                referencia: null,
+                numeroTarjeta: null,
+                empresa: null,
+                requiereFacturacion: false,
+                reservaId: 9,
+                accountId: null
+              }
+            ],
+          },
+        ],
+      });
+
+      const response = await request(app)
+        .get('/api/clients/1212/balance')
+        .expect(200);
+
+      expect(response.body.totalCharges).toBe(414000);
+      expect(response.body.totalPayments).toBe(424000);
+      expect(response.body.balance).toBe(-10000);
+      expect(response.body.isDebtor).toBe(false);
+      expect(response.body.reservations).toHaveLength(1);
+      expect(response.body.cargos).toHaveLength(1);
+      expect(response.body.pagos).toHaveLength(1);
+      expect(response.body.cargos[0]).toEqual(
+        expect.objectContaining({ id: 1, descripcion: 'Alojamiento', monto: 414000 })
+      );
+      expect(response.body.pagos[0]).toEqual(
+        expect.objectContaining({ id: 2, codigo: 'A001', montoARS: 424000 })
+      );
+    });
+  });
 });

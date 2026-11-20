@@ -10,12 +10,12 @@
 
 .bar:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .bar.expanded {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .bar.editing {
@@ -49,7 +49,7 @@
   width: 28px;
   height: 28px;
   margin-right: 20px;
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 1.4rem;
   transition: transform 0.2s ease;
 }
@@ -79,14 +79,14 @@
   align-items: center;
   gap: 8px;
   color: #6c757d;
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 500;
   white-space: nowrap;
 }
 
 .calendarIcon {
-  font-size: 1.1rem;
-  color: #667eea;
+  font-size: var(--font-size-medium);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
@@ -215,7 +215,7 @@
   width: 20px;
   height: 20px;
   border: 2px solid #e9ecef;
-  border-top: 2px solid #667eea;
+  border-top: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -278,7 +278,7 @@
 .formGroup input:focus,
 .formGroup textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
@@ -381,7 +381,7 @@
 
 .priceInput:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .priceDisplay {
@@ -417,7 +417,7 @@
 .adjustmentInput:focus,
 .modeSelect:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 .serviceDisplay {
@@ -448,7 +448,7 @@
   
   .title {
     max-width: none;
-    font-size: 1.3rem;
+    font-size: var(--font-size-large);
   }
   
   .subtitle {
@@ -472,7 +472,7 @@
     width: 24px;
     height: 24px;
     margin-right: 16px;
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .info {
@@ -480,7 +480,7 @@
   }
   
   .title {
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .subtitle {

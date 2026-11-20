@@ -38,37 +38,37 @@ function ClientStats({ clients }) {
     <div className={styles.statsContainer}>
       <div className={styles.statsGrid}>
         <div className={styles.statSection}>
-          <h3>📊 Resumen General</h3>
+          <h3> Resumen General</h3>
           <div className={styles.statsCards}>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.totalClients}</span>
-              <span className={styles.statLabel}>Total de Clientes</span>
+              <span className={styles.statLabel}> Total de Clientes</span>
             </div>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.argentineClients}</span>
-              <span className={styles.statLabel}>Argentinos</span>
+              <span className={styles.statLabel}> Argentinos</span>
             </div>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.foreignClients}</span>
-              <span className={styles.statLabel}>Extranjeros</span>
+              <span className={styles.statLabel}> Extranjeros</span>
             </div>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.clientsWithEmail}</span>
-              <span className={styles.statLabel}>Con Email</span>
+              <span className={styles.statLabel}> Con Email</span>
             </div>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.clientsWithPhone}</span>
-              <span className={styles.statLabel}>Con Teléfono</span>
+              <span className={styles.statLabel}> Con Teléfono</span>
             </div>
             <div className={styles.statCard}>
               <span className={styles.statNumber}>{stats.clientsWithPromotions}</span>
-              <span className={styles.statLabel}>Quieren Promociones</span>
+              <span className={styles.statLabel}> Quieren Promociones</span>
             </div>
           </div>
         </div>
 
         <div className={styles.statSection}>
-          <h3>🗺️ Distribución por Provincia</h3>
+          <h3> Distribución por Provincia</h3>
           <div className={styles.provinceStats}>
             <div className={styles.provinceChart}>
               {topProvinces.map(([province, count]) => {
@@ -92,7 +92,7 @@ function ClientStats({ clients }) {
               {otherCount > 0 && (
                 <div className={styles.provinceBar}>
                   <div className={styles.provinceInfo}>
-                    <span className={styles.provinceName}>Otros</span>
+                    <span className={styles.provinceName}> Otros</span>
                     <span className={styles.provinceCount}>
                       {otherCount} ({((otherCount / totalClientsWithProvince) * 100).toFixed(1)}%)
                     </span>
@@ -108,22 +108,22 @@ function ClientStats({ clients }) {
             </div>
             
             <div className={styles.provinceSummary}>
-              <p><strong>Total con provincia:</strong> {totalClientsWithProvince}</p>
-              <p><strong>Sin provincia:</strong> {stats.clientsWithoutProvince}</p>
-              <p><strong>Provincias únicas:</strong> {Object.keys(provinceStats).length}</p>
+              <p><strong> Total con provincia:</strong> {totalClientsWithProvince}</p>
+              <p><strong> Sin provincia:</strong> {stats.clientsWithoutProvince}</p>
+              <p><strong> Provincias únicas:</strong> {Object.keys(provinceStats).length}</p>
             </div>
           </div>
         </div>
 
         <div className={styles.statSection}>
-          <h3>📋 Detalle por Provincia</h3>
+          <h3> Detalle por Provincia</h3>
           <div className={styles.provinceTable}>
             <table>
               <thead>
                 <tr>
-                  <th>Provincia</th>
-                  <th>Cantidad</th>
-                  <th>Porcentaje</th>
+                  <th> Provincia</th>
+                  <th> Cantidad</th>
+                  <th> Porcentaje</th>
                 </tr>
               </thead>
               <tbody>

@@ -10,7 +10,7 @@
   margin-top: 0;
   margin-bottom: 16px;
   color: #333;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
 }
 
 .modeSelector {

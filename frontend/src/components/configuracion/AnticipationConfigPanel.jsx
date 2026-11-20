@@ -67,7 +67,7 @@ export default function AnticipationConfigPanel({ config, onConfigChange }) {
 
   return (
     <div className={styles.container}>
-      <h3>Configuración de Anticipación</h3>
+      <h3> Configuración de Anticipación</h3>
       
       <div className={styles.modeSelector}>
         <label>
@@ -105,15 +105,15 @@ export default function AnticipationConfigPanel({ config, onConfigChange }) {
             />
           </label>
           <div className={styles.explanation}>
-            <p>El factor de anticipación será máximo cuando falten {maxDays} días o más, y 0 cuando sea el día de la fecha.</p>
-            <p>Ejemplo: Si faltan 15 días de 30, el factor será 15/30 = 0.5 (50%)</p>
+            <p> El factor de anticipación será máximo cuando falten {maxDays} días o más, y 0 cuando sea el día de la fecha.</p>
+            <p> Ejemplo: Si faltan 15 días de 30, el factor será 15/30 = 0.5 (50%)</p>
           </div>
         </div>
       )}
 
       {mode === 'ESCALONADO' && (
         <div className={styles.steppedConfig}>
-          <h4>Pasos de anticipación:</h4>
+          <h4> Pasos de anticipación:</h4>
           <div className={styles.stepsContainer}>
             {steps.map((step, index) => (
               <div key={index} className={styles.stepRow}>
@@ -125,7 +125,7 @@ export default function AnticipationConfigPanel({ config, onConfigChange }) {
                   onChange={(e) => handleStepChange(index, 'days', e.target.value)}
                   placeholder="Días"
                 />
-                <span>días =</span>
+                <span> días =</span>
                 <input
                   type="number"
                   min="0"
@@ -152,8 +152,8 @@ export default function AnticipationConfigPanel({ config, onConfigChange }) {
             + Agregar paso
           </button>
           <div className={styles.explanation}>
-            <p>El factor de anticipación será el peso del primer paso que se cumpla.</p>
-            <p>Ejemplo: Si faltan 10 días, se aplicará el peso del paso de 7 días (0.4 = 40%)</p>
+            <p> El factor de anticipación será el peso del primer paso que se cumpla.</p>
+            <p> Ejemplo: Si faltan 10 días, se aplicará el peso del paso de 7 días (0.4 = 40%)</p>
           </div>
         </div>
       )}

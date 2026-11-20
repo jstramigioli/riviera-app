@@ -1,0 +1,1259 @@
+/**
+ * Motor de reglas de promociones / descuentos.
+ * Condiciones AND → beneficio → modalidad (AUTO|MANUAL|SUGERIDA) → capa (SETTLEMENT|RATE).
+ * MANUAL = opcional (por defecto desactivado); SUGERIDA = opcional (por defecto activado).
+ * «Valor manual» (benefitValueManual) es independiente de la modalidad.
+ * Snapshot en DiscountApplication / ReservationNightRate; solo forward.
+ */
+
+const {
+  roundMoney,
+  toNumber,
+  rateFromPercent,
+  computeDiscountFromReceived,
+  computeCashToSettle
+} = require('./paymentDiscount');
+const { NON_OCCUPYING_STATUSES } = require('../constants/reservationStatus');
+
+function toDateOnlyString(date) {
+  if (!date) return null;
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    return date.slice(0, 10);
+  }
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function civilDaysBetween(checkIn, checkOut) {
+  const a = toDateOnlyString(checkIn);
+  const b = toDateOnlyString(checkOut);
+  if (!a || !b) return null;
+  const t0 = Date.parse(`${a}T12:00:00.000Z`);
+  const t1 = Date.parse(`${b}T12:00:00.000Z`);
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return null;
+  return Math.max(0, Math.round((t1 - t0) / 86400000));
+}
+
+function parseParams(params) {
+  if (params == null) return {};
+  if (typeof params === 'string') {
+    try {
+      return JSON.parse(params);
+    } catch {
+      return {};
+    }
+  }
+  return typeof params === 'object' ? params : {};
+}
+
+function isRuleVigente(rule, asOfDate) {
+  const day = toDateOnlyString(asOfDate) || toDateOnlyString(new Date());
+  const from = rule.vigenteDesde ? toDateOnlyString(rule.vigenteDesde) : null;
+  const to = rule.vigenteHasta ? toDateOnlyString(rule.vigenteHasta) : null;
+  if (from && day < from) return false;
+  if (to && day > to) return false;
+  return true;
+}
+
+function normalizeOp(op, fallback = 'eq') {
+  const v = String(op || fallback).toLowerCase().trim();
+  if (v === 'eq' || v === '=' || v === 'equals' || v === 'igual a' || v === 'igual') return 'eq';
+  if (v === 'neq' || v === '!=' || v === 'ne' || v === 'not' || v === '≠' || v === 'distinto de' || v === 'distinto') {
+    return 'neq';
+  }
+  if (v === 'gte' || v === '>=' || v === 'min' || v === '≥' || v === 'mayor o igual a' || v === 'mayor o igual') {
+    return 'gte';
+  }
+  if (v === 'lte' || v === '<=' || v === 'max' || v === '≤' || v === 'menor o igual a' || v === 'menor o igual') {
+    return 'lte';
+  }
+  if (v === 'gt' || v === '>' || v === 'mayor a' || v === 'mayor') return 'gt';
+  if (v === 'lt' || v === '<' || v === 'menor a' || v === 'menor') return 'lt';
+  return fallback;
+}
+
+function compareNumber(actual, op, expected) {
+  const a = Number(actual);
+  const e = Number(expected);
+  if (!Number.isFinite(a) || !Number.isFinite(e)) return false;
+  switch (normalizeOp(op, 'eq')) {
+    case 'eq':
+      return a === e;
+    case 'neq':
+      return a !== e;
+    case 'gt':
+      return a > e;
+    case 'gte':
+      return a >= e;
+    case 'lt':
+      return a < e;
+    case 'lte':
+      return a <= e;
+    default:
+      return false;
+  }
+}
+
+function resolveNights(ctx) {
+  if (ctx.nights != null) return Number(ctx.nights);
+  return civilDaysBetween(ctx.checkIn, ctx.checkOut);
+}
+
+/** Fecha de creación de la reserva (no confundir con estadía). */
+function resolveBookingCreatedDay(ctx) {
+  return (
+    toDateOnlyString(ctx.reservationDate) ||
+    toDateOnlyString(ctx.createdAt) ||
+    toDateOnlyString(ctx.bookingCreatedAt)
+  );
+}
+
+function weekdayFromDateOnly(day) {
+  if (!day) return null;
+  const t = Date.parse(`${day}T12:00:00.000Z`);
+  if (!Number.isFinite(t)) return null;
+  return new Date(t).getUTCDay(); // 0=Dom … 6=Sáb
+}
+
+/** Noches de estadía [checkIn, checkOut) como yyyy-MM-dd. */
+function stayNightDates(ctx) {
+  const start = toDateOnlyString(ctx.checkIn);
+  const end = toDateOnlyString(ctx.checkOut);
+  if (!start) return [];
+  if (!end || end <= start) return [start];
+  const nights = [];
+  let cursor = start;
+  while (cursor < end) {
+    nights.push(cursor);
+    const t = Date.parse(`${cursor}T12:00:00.000Z`) + 86400000;
+    cursor = new Date(t).toISOString().slice(0, 10);
+    if (nights.length > 366) break;
+  }
+  return nights;
+}
+
+function normalizeDateOp(op, fallback = 'between') {
+  const v = String(op || fallback).toLowerCase();
+  if (v === 'between' || v === 'entre') return 'between';
+  if (v === 'includes' || v === 'incluye' || v === 'include') return 'includes';
+  if (
+    v === 'excludes' ||
+    v === 'exclude' ||
+    v === 'not_includes' ||
+    v === 'not-includes' ||
+    v === 'no_incluye' ||
+    v === 'no-incluye' ||
+    v === 'no incluye'
+  ) {
+    return 'excludes';
+  }
+  return fallback;
+}
+
+function dayInRange(day, from, to) {
+  if (!day) return false;
+  const d = String(day).slice(0, 10);
+  if (from && d < String(from).slice(0, 10)) return false;
+  if (to && d > String(to).slice(0, 10)) return false;
+  return true;
+}
+
+/** Solape de estadía [checkIn, checkOut) con [from, to] inclusive. */
+function stayOverlapsRange(ctx, from, to) {
+  const nights = stayNightDates(ctx);
+  if (!nights.length) return false;
+  if (!from && !to) return true;
+  return nights.some((n) => dayInRange(n, from, to));
+}
+
+function stayWeekdays(ctx) {
+  return new Set(stayNightDates(ctx).map(weekdayFromDateOnly).filter((d) => d != null));
+}
+
+function matchStayWeekdays(ctx, days, op) {
+  const wanted = (days || []).map(Number);
+  if (!wanted.length) return true;
+  const present = stayWeekdays(ctx);
+  if (!present.size) return false;
+  const hits = wanted.some((d) => present.has(d));
+  return normalizeDateOp(op, 'includes') === 'excludes' ? !hits : hits;
+}
+
+function matchIdList(actual, ids, asNumber) {
+  if (actual == null) return false;
+  const list = (ids || []).map((id) => (asNumber ? Number(id) : String(id)));
+  const value = asNumber ? Number(actual) : String(actual);
+  return list.includes(value);
+}
+
+function applyEqualityOp(matched, op) {
+  return normalizeOp(op, 'eq') === 'neq' ? !matched : matched;
+}
+
+/**
+ * Rango para STAY_DATE incluye / no incluye.
+ * Siempre from/to; mismo día = inicio=fin.
+ * Compat: `date` / `dates` legacy → rango (un día o min..max).
+ */
+function resolveStayIncludeRange(params) {
+  let from = toDateOnlyString(params.from || params.desde || null);
+  let to = toDateOnlyString(params.to || params.hasta || null);
+  if (!from && !to) {
+    const points = [];
+    if (Array.isArray(params.dates)) {
+      params.dates.forEach((v) => {
+        const d = toDateOnlyString(v);
+        if (d) points.push(d);
+      });
+    } else {
+      const d = toDateOnlyString(params.date || params.fecha || params.day);
+      if (d) points.push(d);
+    }
+    if (points.length) {
+      points.sort();
+      from = points[0];
+      to = points[points.length - 1];
+    }
+  }
+  // Mismo día = inicio=fin cuando solo hay un extremo
+  if (from && !to) to = from;
+  if (!from && to) from = to;
+  return { from, to };
+}
+
+function evaluateStayDateCondition(params, ctx) {
+  const op = normalizeDateOp(params.op, 'between');
+  if (op === 'between') {
+    const from = params.from || params.desde || null;
+    const to = params.to || params.hasta || null;
+    return stayOverlapsRange(ctx, from, to);
+  }
+  // incluye / no incluye: siempre rango (mismo día = inicio=fin)
+  const { from, to } = resolveStayIncludeRange(params);
+  if (from || to) {
+    const hits = stayOverlapsRange(ctx, from, to);
+    return op === 'excludes' ? !hits : hits;
+  }
+  // Compat legacy: STAY_DATE con days/weekdays → weekday match (ahora DAYS_OF_WEEK)
+  const days = params.days || params.weekdays || [];
+  if (days.length) return matchStayWeekdays(ctx, days, op);
+  return false;
+}
+
+function evaluateCondition(condition, ctx) {
+  const params = parseParams(condition.params);
+  switch (condition.type) {
+    case 'DATE_RANGE': {
+      // Fecha creación reserva (booking), no estadía
+      const day = resolveBookingCreatedDay(ctx);
+      const from = params.from || params.desde || null;
+      const to = params.to || params.hasta || null;
+      if (!day) return false;
+      return dayInRange(day, from, to);
+    }
+    case 'STAY_DATE': {
+      return evaluateStayDateCondition(params, ctx);
+    }
+    case 'NIGHTS': {
+      const nights = resolveNights(ctx);
+      if (nights == null) return false;
+      return compareNumber(nights, params.op || 'gte', params.value ?? params.nights ?? 0);
+    }
+    case 'MIN_NIGHTS': {
+      const nights = resolveNights(ctx);
+      if (nights == null) return false;
+      return nights >= Number(params.minNights ?? params.value ?? 0);
+    }
+    case 'MAX_NIGHTS': {
+      const nights = resolveNights(ctx);
+      if (nights == null) return false;
+      return nights <= Number(params.maxNights ?? params.value ?? 0);
+    }
+    case 'ROOM_TYPE': {
+      const ids = params.roomTypeIds || params.ids || (params.roomTypeId != null ? [params.roomTypeId] : []);
+      if (!ids.length) return true;
+      const matched = matchIdList(ctx.roomTypeId, ids, true);
+      return applyEqualityOp(matched, params.op);
+    }
+    case 'SERVICE_TYPE': {
+      const ids = params.serviceTypeIds || params.ids || (params.serviceTypeId != null ? [params.serviceTypeId] : []);
+      if (!ids.length) return true;
+      const matched = matchIdList(ctx.serviceTypeId, ids, false);
+      return applyEqualityOp(matched, params.op);
+    }
+    case 'PAYMENT_METHOD': {
+      let matched = null;
+      if (ctx.paymentMethodConfigId != null && params.paymentMethodConfigId != null) {
+        matched = Number(ctx.paymentMethodConfigId) === Number(params.paymentMethodConfigId);
+      } else if (ctx.paymentMethodCode && params.paymentMethodCode) {
+        matched =
+          String(ctx.paymentMethodCode).toUpperCase() === String(params.paymentMethodCode).toUpperCase();
+      } else if (ctx.paymentMethodConfigId != null && Array.isArray(params.paymentMethodConfigIds)) {
+        matched = params.paymentMethodConfigIds.map(Number).includes(Number(ctx.paymentMethodConfigId));
+      }
+      if (matched == null) return false;
+      return applyEqualityOp(matched, params.op);
+    }
+    case 'OCCUPANCY_HOTEL': {
+      if (ctx.occupancyPercent == null) return false;
+      return compareNumber(
+        ctx.occupancyPercent,
+        params.op || 'lte',
+        params.percent ?? params.value ?? params.maxPercent ?? params.minPercent ?? 0
+      );
+    }
+    case 'OCCUPANCY_HOTEL_MAX': {
+      if (ctx.occupancyPercent == null) return false;
+      return Number(ctx.occupancyPercent) <= Number(params.maxPercent ?? params.value ?? 100);
+    }
+    case 'OCCUPANCY_HOTEL_MIN': {
+      if (ctx.occupancyPercent == null) return false;
+      return Number(ctx.occupancyPercent) >= Number(params.minPercent ?? params.value ?? 0);
+    }
+    case 'DAYS_OF_WEEK': {
+      // Compat: días de la semana sobre noches de estadía (incluye / no incluye)
+      return evaluateStayDateCondition(
+        { ...params, op: params.op || 'includes' },
+        ctx
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+function ruleMatchesConditions(rule, ctx) {
+  const conditions = rule.conditions || [];
+  if (!conditions.length) return true;
+  return conditions.every((c) => evaluateCondition(c, ctx));
+}
+
+function modalityAllowsApply(rule, ctx) {
+  const modality = rule.modality || 'AUTO';
+  const id = Number(rule.id);
+  const deselected = new Set((ctx.deselectedRuleIds || []).map(Number));
+  if (Number.isFinite(id) && deselected.has(id)) return false;
+
+  if (modality === 'AUTO') {
+    // Nuevo pago: master toggle de automáticos (default ON).
+    if (ctx.applyAutomatics === false) return false;
+    return true;
+  }
+  const selected = new Set((ctx.selectedRuleIds || []).map(Number));
+  if (selected.has(id)) return true;
+  // SUGERIDA = default ON cuando el caller pide aplicar sugeridas (cotización RATE / sync).
+  if (modality === 'SUGERIDA' && ctx.applySuggestedDefaults) {
+    return true;
+  }
+  return false;
+}
+
+function modalityIsSuggestion(rule) {
+  return rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
+}
+
+/** SUGERIDA = opcional (default ON); MANUAL = opcional (default OFF). */
+function modalityDefaultOn(rule) {
+  return rule?.modality === 'SUGERIDA';
+}
+
+function withModalityMeta(rule, payload = {}) {
+  return {
+    ...payload,
+    modality: rule?.modality || 'AUTO',
+    defaultOn: modalityDefaultOn(rule)
+  };
+}
+
+/**
+ * Override de valor al aplicar: ctx.benefitValueByRuleId[id|code].
+ * Si la regla tiene benefitValueManual y no hay override → null (falta definir).
+ */
+function lookupBenefitOverride(rule, ctx) {
+  if (!ctx || !rule) return undefined;
+  const map = ctx.benefitValueByRuleId || ctx.benefitValueOverrides || null;
+  if (!map || typeof map !== 'object') return undefined;
+  const id = Number(rule.id);
+  if (Number.isFinite(id) && map[id] != null && map[id] !== '') return map[id];
+  if (Number.isFinite(id) && map[String(id)] != null && map[String(id)] !== '') {
+    return map[String(id)];
+  }
+  if (rule.code != null && map[rule.code] != null && map[rule.code] !== '') {
+    return map[rule.code];
+  }
+  return undefined;
+}
+
+function effectiveBenefitValue(rule, ctx) {
+  const override = lookupBenefitOverride(rule, ctx);
+  if (override !== undefined) {
+    const n = toNumber(override);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (rule.benefitValueManual) return null;
+  return toNumber(rule.benefitValue);
+}
+
+function withEffectiveBenefit(rule, ctx) {
+  const value = effectiveBenefitValue(rule, ctx);
+  if (value == null) return { ...rule, benefitValue: 0 };
+  if (!rule.benefitValueManual && lookupBenefitOverride(rule, ctx) === undefined) {
+    return rule;
+  }
+  return { ...rule, benefitValue: value };
+}
+
+function toSuggestion(rule) {
+  return {
+    ...rule,
+    defaultOn: modalityDefaultOn(rule),
+    benefitValueManual: Boolean(rule.benefitValueManual)
+  };
+}
+
+/**
+ * Config legacy-compatible para paymentDiscount (PERCENT / FIXED settlement).
+ */
+function ruleToSettlementConfig(rule) {
+  if (!rule) {
+    return {
+      descuentoActivo: false,
+      descuentoTipo: 'PERCENT',
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true
+    };
+  }
+  const benefitType = rule.benefitType || 'PERCENT';
+  if (benefitType === 'FREE_NIGHTS') {
+    return {
+      descuentoActivo: false,
+      descuentoTipo: 'PERCENT',
+      descuentoValor: 0,
+      aplicaEnParcial: true,
+      aplicaEnSeña: true,
+      benefitType,
+      benefitBase: rule.benefitBase || 'RATE_NIGHT',
+      benefitCapARS: null,
+      promotionRuleId: rule.id,
+      promotionCode: rule.code,
+      promotionLabel: rule.label,
+      stacking: rule.stacking || 'EXCLUSIVE',
+      stackingGroup: rule.stackingGroup || null,
+      prioridad: rule.prioridad ?? 100,
+      modality: rule.modality,
+      layer: rule.layer || 'RATE'
+    };
+  }
+  return {
+    descuentoActivo: true,
+    descuentoTipo: benefitType === 'FIXED' || benefitType === 'FIXED_PER_NIGHT' ? 'FIXED' : 'PERCENT',
+    descuentoValor: toNumber(rule.benefitValue),
+    aplicaEnParcial: rule.aplicaEnParcial !== false,
+    aplicaEnSeña: rule.aplicaEnSeña !== false,
+    benefitType,
+    benefitBase: rule.benefitBase || 'DEBT_CANCELLED',
+    benefitCapARS: rule.benefitCapARS != null ? toNumber(rule.benefitCapARS) : null,
+    promotionRuleId: rule.id,
+    promotionCode: rule.code,
+    promotionLabel: rule.label,
+    stacking: rule.stacking || 'EXCLUSIVE',
+    stackingGroup: rule.stackingGroup || null,
+    prioridad: rule.prioridad ?? 100,
+    modality: rule.modality,
+    layer: rule.layer
+  };
+}
+
+function applyCap(amount, cap) {
+  const a = roundMoney(amount);
+  if (cap == null || !Number.isFinite(Number(cap)) || Number(cap) <= 0) return a;
+  return roundMoney(Math.min(a, Number(cap)));
+}
+
+/**
+ * Beneficio settlement sobre dinero recibido / saldo.
+ * FIXED_PER_NIGHT usa ctx.nights.
+ */
+function computeSettlementBenefit({ rule, dineroARS, saldoPendiente, motivo, mode }) {
+  const config = ruleToSettlementConfig(rule);
+  const nights = Math.max(1, Number(rule._ctxNights) || 1);
+
+  if (config.descuentoTipo === 'PERCENT') {
+    if (mode === 'settle') {
+      return computeCashToSettle({ saldoPendiente, config, motivo });
+    }
+    return computeDiscountFromReceived({
+      dineroARS,
+      config,
+      motivo,
+      saldoPendiente
+    });
+  }
+
+  // FIXED / FIXED_PER_NIGHT: crédito = dinero + fijo (parcial) o dinero a pedir = saldo - fijo (total)
+  let fixed = toNumber(config.descuentoValor);
+  if (rule.benefitType === 'FIXED_PER_NIGHT') {
+    fixed = roundMoney(fixed * nights);
+  }
+  fixed = applyCap(fixed, config.benefitCapARS);
+
+  if (motivo === 'Seña' && config.aplicaEnSeña === false) {
+    return {
+      aplica: false,
+      dineroARS: roundMoney(dineroARS || 0),
+      descuentoARS: 0,
+      creditoARS: roundMoney(dineroARS || saldoPendiente || 0),
+      porcentaje: null,
+      motivoNoAplica: 'no_aplica_sena'
+    };
+  }
+
+  if (mode === 'settle') {
+    const saldo = roundMoney(toNumber(saldoPendiente));
+    const descuento = Math.min(fixed, Math.max(0, saldo));
+    const dinero = roundMoney(Math.max(0, saldo - descuento));
+    return {
+      aplica: descuento > 0,
+      saldoARS: saldo,
+      dineroARS: dinero,
+      descuentoARS: descuento,
+      creditoARS: saldo,
+      porcentaje: null,
+      valorFijo: descuento
+    };
+  }
+
+  const dinero = roundMoney(Math.abs(toNumber(dineroARS)));
+  if (config.aplicaEnParcial === false && saldoPendiente != null) {
+    const creditoTentativo = roundMoney(dinero + fixed);
+    if (creditoTentativo + 0.005 < toNumber(saldoPendiente)) {
+      return {
+        aplica: false,
+        dineroARS: dinero,
+        descuentoARS: 0,
+        creditoARS: dinero,
+        porcentaje: null,
+        motivoNoAplica: 'solo_pago_total'
+      };
+    }
+  }
+  const descuento = fixed;
+  const credito = roundMoney(dinero + descuento);
+  return {
+    aplica: descuento > 0,
+    dineroARS: dinero,
+    descuentoARS: descuento,
+    creditoARS: credito,
+    porcentaje: null,
+    valorFijo: descuento
+  };
+}
+
+function sortByPriority(rules) {
+  return [...rules].sort((a, b) => {
+    const pa = a.prioridad ?? 100;
+    const pb = b.prioridad ?? 100;
+    if (pb !== pa) return pb - pa;
+    return Number(a.id) - Number(b.id);
+  });
+}
+
+/**
+ * Selección según stacking (EXCLUSIVE / BEST_OF / STACKABLE).
+ * Agrupa por stackingGroup (null = grupo global).
+ */
+function selectByStacking(matchedRules, benefitFn) {
+  if (!matchedRules.length) return [];
+  const groups = new Map();
+  for (const rule of matchedRules) {
+    // Sin stackingGroup explícito:
+    // - Opcionales (SUGERIDA/MANUAL) no compiten en EXCLUSIVE contra AUTO.
+    // - RATE AUTO tampoco comparten un __global__: si no, un FIXED $10.000
+    //   sin condiciones lo «come» otro AUTO % EXCLUSIVE (mismo default UI) y
+    //   desaparece del preview aunque kind/layer/modality sean correctos.
+    //   Exclusión mutua RATE = stackingGroup compartido.
+    // - SETTLEMENT: cada regla en su grupo → se SUMAN (regla de producto Julián).
+    const isOptional =
+      rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
+    const layer = String(rule.layer || '').toUpperCase();
+    let key = rule.stackingGroup || null;
+    if (!key) {
+      if (isOptional && rule.id != null) key = `optional:${rule.id}`;
+      else if (layer === 'RATE' && rule.id != null) key = `rate:${rule.id}`;
+      else if (layer === 'SETTLEMENT' && rule.id != null) key = `settlement:${rule.id}`;
+      else key = '__global__';
+    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(rule);
+  }
+
+  const selected = [];
+  for (const [, groupRules] of groups) {
+    const layer = String(groupRules[0]?.layer || '').toUpperCase();
+    const ordered = sortByPriority(groupRules);
+    // SETTLEMENT siempre suma (AUTO + opcionales), aunque el stacking sea EXCLUSIVE.
+    const policy =
+      layer === 'SETTLEMENT'
+        ? 'STACKABLE'
+        : ordered[0].stacking || 'EXCLUSIVE';
+    if (policy === 'STACKABLE') {
+      selected.push(...ordered);
+      continue;
+    }
+    if (policy === 'BEST_OF') {
+      let best = null;
+      let bestAmount = -1;
+      for (const rule of ordered) {
+        const preview = benefitFn(rule);
+        const amount = preview?.descuentoARS != null ? toNumber(preview.descuentoARS) : 0;
+        if (amount > bestAmount) {
+          bestAmount = amount;
+          best = rule;
+        }
+      }
+      if (best) selected.push(best);
+      continue;
+    }
+    // EXCLUSIVE
+    selected.push(ordered[0]);
+  }
+  return sortByPriority(selected);
+}
+
+function filterEligibleRules(rules, ctx, { forApply = true } = {}) {
+  const layer = ctx.layer || 'SETTLEMENT';
+  return (rules || []).filter((rule) => {
+    if (!rule || rule.activo === false) return false;
+    if ((rule.layer || 'SETTLEMENT') !== layer) return false;
+    if (!isRuleVigente(rule, ctx.asOfDate)) return false;
+    if (!ruleMatchesConditions(rule, ctx)) return false;
+    if (forApply && !modalityAllowsApply(rule, ctx)) return false;
+    // Valor manual: sin override al aplicar → no aplica (queda en suggestions).
+    if (forApply && rule.benefitValueManual) {
+      const v = effectiveBenefitValue(rule, ctx);
+      if (v == null || Number.isNaN(v)) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Evalúa reglas settlement y devuelve preview + config agregada.
+ */
+function evaluateSettlementRules(rules, ctx) {
+  const matched = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: true }).map(
+    (r) => withEffectiveBenefit(r, ctx)
+  );
+  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'SETTLEMENT' }, { forApply: false })
+    .filter((r) => {
+      const allows = modalityAllowsApply(r, ctx);
+      if (
+        r.benefitValueManual &&
+        allows &&
+        effectiveBenefitValue(r, ctx) == null
+      ) {
+        return true;
+      }
+      // Apagadas (AUTO deselected / automáticos off / MANUAL no elegida / SUGERIDA off).
+      return !allows;
+    })
+    .map(toSuggestion);
+
+  const mode = ctx.mode === 'settle' ? 'settle' : 'received';
+  const benefitFn = (rule) =>
+    computeSettlementBenefit({
+      rule: { ...rule, _ctxNights: ctx.nights },
+      dineroARS: ctx.dineroARS,
+      saldoPendiente: ctx.saldoPendiente,
+      motivo: ctx.motivo || 'Pago',
+      mode
+    });
+
+  const selected = selectByStacking(matched, benefitFn);
+  if (!selected.length) {
+    return {
+      aplica: false,
+      selectedRules: [],
+      suggestions,
+      dineroARS: roundMoney(toNumber(ctx.dineroARS || ctx.saldoPendiente || 0)),
+      descuentoARS: 0,
+      creditoARS: roundMoney(toNumber(ctx.dineroARS || ctx.saldoPendiente || 0)),
+      porcentaje: null,
+      config: ruleToSettlementConfig(null),
+      appliedRules: []
+    };
+  }
+
+  // Julián: los descuentos SETTLEMENT se SUMAN (AUTO + opcionales).
+  const percentRules = sortByPriority(
+    selected.filter((r) => r.benefitType === 'PERCENT')
+  );
+  const fixedRules = sortByPriority(
+    selected.filter((r) => r.benefitType !== 'PERCENT')
+  );
+
+  const totalPercent = percentRules.reduce(
+    (sum, r) => sum + toNumber(r.benefitValue),
+    0
+  );
+  const combinedPercentRule = percentRules.length
+    ? {
+        ...percentRules[0],
+        id: percentRules[0].id,
+        benefitType: 'PERCENT',
+        benefitValue: totalPercent,
+        label: percentRules.map((r) => r.label).filter(Boolean).join(' + '),
+        code: percentRules.map((r) => r.code).filter(Boolean).join('+'),
+        conditions: [],
+        modality: 'AUTO'
+      }
+    : null;
+
+  let combined = {
+    aplica: false,
+    dineroARS: roundMoney(toNumber(mode === 'settle' ? ctx.saldoPendiente : ctx.dineroARS) || 0),
+    descuentoARS: 0,
+    creditoARS: roundMoney(toNumber(mode === 'settle' ? ctx.saldoPendiente : ctx.dineroARS) || 0),
+    porcentaje: percentRules.length ? totalPercent : null,
+    valorFijo: null
+  };
+  const appliedRules = [];
+
+  let percentDiscountARS = 0;
+  if (combinedPercentRule) {
+    const preview = benefitFn(combinedPercentRule);
+    if (preview.aplica) {
+      combined = { ...preview, porcentaje: totalPercent };
+      percentDiscountARS = toNumber(preview.descuentoARS);
+    }
+    for (const rule of percentRules) {
+      const share =
+        totalPercent > 0 ? toNumber(rule.benefitValue) / totalPercent : 0;
+      const monto = roundMoney(percentDiscountARS * share);
+      if (monto <= 0 && toNumber(rule.benefitValue) <= 0) continue;
+      appliedRules.push(
+        withModalityMeta(rule, {
+          promotionRuleId: rule.id,
+          code: rule.code,
+          label: rule.label,
+          benefitType: rule.benefitType,
+          benefitValue: toNumber(rule.benefitValue),
+          montoARS: monto,
+          porcentaje: toNumber(rule.benefitValue)
+        })
+      );
+    }
+  }
+
+  for (const rule of fixedRules) {
+    const preview = benefitFn(rule);
+    if (!preview.aplica) continue;
+    combined.aplica = true;
+    combined.descuentoARS = roundMoney(
+      toNumber(combined.descuentoARS) + toNumber(preview.descuentoARS)
+    );
+    if (mode === 'settle') {
+      combined.dineroARS = roundMoney(
+        Math.max(0, toNumber(ctx.saldoPendiente) - toNumber(combined.descuentoARS))
+      );
+      combined.creditoARS = roundMoney(toNumber(ctx.saldoPendiente));
+    } else {
+      combined.dineroARS = roundMoney(toNumber(ctx.dineroARS));
+      combined.creditoARS = roundMoney(
+        toNumber(combined.dineroARS) + toNumber(combined.descuentoARS)
+      );
+    }
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType,
+        benefitValue: toNumber(rule.benefitValue),
+        montoARS: preview.descuentoARS,
+        porcentaje: null
+      })
+    );
+  }
+
+  const primary =
+    appliedRules.length && selected.length
+      ? selected.find((r) => Number(r.id) === Number(appliedRules[0].promotionRuleId)) ||
+        selected[0]
+      : selected[0] || null;
+  return {
+    ...combined,
+    selectedRules: selected,
+    suggestions,
+    config: ruleToSettlementConfig(
+      combinedPercentRule
+        ? { ...primary, benefitValue: totalPercent, benefitType: 'PERCENT' }
+        : primary
+    ),
+    appliedRules,
+    promotionRuleId: primary?.id ?? appliedRules[0]?.promotionRuleId ?? null
+  };
+}
+
+/**
+ * FREE_NIGHTS: benefitValue = noches gratis (no se cobran).
+ * El mínimo de noches pagadas / estadía se define con la condición NIGHTS (AND normal).
+ * Cantidad aplicada = min(benefitValue, totalNights).
+ */
+function computeFreeNightCount(rule, nights) {
+  const free = Math.max(0, Math.floor(toNumber(rule.benefitValue)));
+  if (free <= 0) return 0;
+  const total = Math.max(0, Math.floor(Number(nights) || 0));
+  return Math.min(free, total);
+}
+
+/**
+ * Índices de las noches más baratas (empate → índice menor).
+ */
+function pickCheapestNightIndices(nightPrices, freeCount) {
+  const count = Math.max(0, Math.floor(Number(freeCount) || 0));
+  if (count <= 0 || !Array.isArray(nightPrices) || !nightPrices.length) return [];
+  const ranked = nightPrices
+    .map((price, index) => ({ index, price: toNumber(price) }))
+    .sort((a, b) => {
+      if (a.price !== b.price) return a.price - b.price;
+      return a.index - b.index;
+    });
+  return ranked.slice(0, Math.min(count, ranked.length)).map((r) => r.index);
+}
+
+/**
+ * Evalúa reglas FREE_NIGHTS a nivel estadía (no por noche aislada).
+ * Devuelve byIndex: { [nightIndex]: { discountARS, finalARS, promotionRuleId, percent } }.
+ */
+function evaluateFreeNightsForStay(rules, ctx, nightPrices) {
+  const prices = Array.isArray(nightPrices) ? nightPrices.map(toNumber) : [];
+  const nights = Math.max(prices.length, Number(ctx.nights) || 0);
+  const freeRules = (rules || []).filter((r) => r && r.benefitType === 'FREE_NIGHTS');
+  const matched = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: true }).map(
+    (r) => withEffectiveBenefit(r, ctx)
+  );
+  const suggestions = filterEligibleRules(freeRules, { ...ctx, layer: 'RATE', nights }, { forApply: false })
+    .filter(
+      (r) =>
+        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+        (r.benefitValueManual &&
+          modalityAllowsApply(r, ctx) &&
+          effectiveBenefitValue(r, ctx) == null)
+    )
+    .map(toSuggestion);
+
+  const benefitFn = (rule) => {
+    const freeCount = computeFreeNightCount(rule, nights);
+    const indices = pickCheapestNightIndices(prices, freeCount);
+    const descuentoARS = roundMoney(indices.reduce((sum, i) => sum + toNumber(prices[i]), 0));
+    return { descuentoARS, freeCount, indices };
+  };
+
+  const selected = selectByStacking(matched, benefitFn);
+  const byIndex = {};
+  const appliedRules = [];
+  let totalDiscount = 0;
+  const claimed = new Set();
+
+  for (const rule of selected) {
+    const preview = benefitFn(rule);
+    const available = preview.indices.filter((i) => !claimed.has(i));
+    let ruleDiscount = 0;
+    for (const index of available) {
+      const original = toNumber(prices[index]);
+      claimed.add(index);
+      ruleDiscount = roundMoney(ruleDiscount + original);
+      byIndex[index] = {
+        originalARS: original,
+        discountARS: original,
+        finalARS: 0,
+        percent: 100,
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        freeNight: true
+      };
+    }
+    if (ruleDiscount > 0) {
+      totalDiscount = roundMoney(totalDiscount + ruleDiscount);
+      appliedRules.push(
+        withModalityMeta(rule, {
+          promotionRuleId: rule.id,
+          code: rule.code,
+          label: rule.label,
+          benefitType: 'FREE_NIGHTS',
+          benefitValue: toNumber(rule.benefitValue),
+          freeNightCount: available.length,
+          nightIndices: available,
+          montoARS: ruleDiscount,
+          porcentaje: 100
+        })
+      );
+    }
+  }
+
+  return {
+    aplica: totalDiscount > 0,
+    discountARS: totalDiscount,
+    freeNightCount: Object.keys(byIndex).length,
+    byIndex,
+    selectedRules: selected,
+    suggestions,
+    appliedRules,
+    promotionRuleId: selected[0]?.id ?? null
+  };
+}
+
+/**
+ * Reparte un monto FIXED de estadía en centavos exactos entre noches
+ * (promedio + resto a las primeras; respeta tope por noche).
+ * Evita basura tipo $10000 → $10000.02 por round(value/n)*n.
+ */
+function allocateFixedStayDiscounts(totalARS, nightPrices) {
+  const prices = Array.isArray(nightPrices) ? nightPrices.map(toNumber) : [];
+  const n = prices.length;
+  if (n === 0) return [];
+
+  const caps = prices.map((p) => Math.max(0, Math.round(roundMoney(p) * 100)));
+  const capSum = caps.reduce((sum, c) => sum + c, 0);
+  let target = Math.min(Math.round(roundMoney(totalARS) * 100), capSum);
+  if (target <= 0) return prices.map(() => 0);
+
+  const base = Math.floor(target / n);
+  let rem = target - base * n;
+  const alloc = [];
+  for (let i = 0; i < n; i++) {
+    const want = base + (rem > 0 ? 1 : 0);
+    if (rem > 0) rem -= 1;
+    alloc.push(Math.min(want, caps[i]));
+  }
+  let leftover = target - alloc.reduce((sum, c) => sum + c, 0);
+  for (let i = 0; leftover > 0 && i < n; i++) {
+    const room = caps[i] - alloc[i];
+    if (room <= 0) continue;
+    const add = Math.min(room, leftover);
+    alloc[i] += add;
+    leftover -= add;
+  }
+  return alloc.map((c) => c / 100);
+}
+
+/**
+ * Ajuste RATE sobre precio de una noche.
+ * FREE_NIGHTS no aplica aquí (requiere estadía completa → evaluateFreeNightsForStay).
+ * FIXED total de estadía: en path de una sola noche usa el valor completo (tope noche);
+ * el reparto multi-noche exacto vive en evaluateNonFreeStayBenefits.
+ */
+function applyRateBenefit(rule, nightPrice, nights = 1) {
+  const base = toNumber(nightPrice);
+  if (rule.benefitType === 'FREE_NIGHTS') {
+    return {
+      originalARS: base,
+      discountARS: 0,
+      finalARS: base,
+      percent: null,
+      promotionRuleId: rule.id
+    };
+  }
+  const value = toNumber(rule.benefitValue);
+  let discount = 0;
+  let percent = null;
+  if (rule.benefitType === 'PERCENT') {
+    percent = value;
+    discount = roundMoney(base * rateFromPercent(value));
+  } else if (rule.benefitType === 'FIXED_PER_NIGHT') {
+    discount = roundMoney(value);
+  } else if (rule.benefitType === 'FIXED') {
+    // Una noche / path legacy: monto completo topeado por la noche.
+    // Estadía multi-noche: evaluateNonFreeStayBenefits → allocateFixedStayDiscounts.
+    discount = roundMoney(value);
+  }
+  discount = applyCap(discount, rule.benefitCapARS);
+  discount = Math.min(discount, base);
+  return {
+    originalARS: base,
+    discountARS: discount,
+    finalARS: roundMoney(Math.max(0, base - discount)),
+    percent,
+    promotionRuleId: rule.id
+  };
+}
+
+/**
+ * Beneficios RATE no-FREE sobre estadía: cada regla se calcula sobre la tarifa BRUTA
+ * de cada noche (independiente; sin cascada entre reglas ni exclusión por free nights).
+ */
+function evaluateNonFreeStayBenefits(nonFreeRules, ctx, nightPrices) {
+  const nightsCount = nightPrices.length;
+  const matched = filterEligibleRules(
+    nonFreeRules,
+    { ...ctx, layer: 'RATE', nights: nightsCount },
+    { forApply: true }
+  ).map((r) => withEffectiveBenefit(r, ctx));
+
+  const benefitFn = (rule) => {
+    let descuentoARS = 0;
+    const nightDiscounts = [];
+    let percent = null;
+    if (rule.benefitType === 'FIXED') {
+      let fixedTotal = toNumber(rule.benefitValue);
+      fixedTotal = applyCap(fixedTotal, rule.benefitCapARS);
+      const allocated = allocateFixedStayDiscounts(fixedTotal, nightPrices);
+      // Suma en centavos → evita 10000.02 / 10000.12 por float.
+      const cents = allocated.reduce(
+        (sum, d) => sum + Math.round(roundMoney(d) * 100),
+        0
+      );
+      for (const d of allocated) nightDiscounts.push(d);
+      descuentoARS = cents / 100;
+      return { descuentoARS, nightDiscounts, percent: null };
+    }
+    for (const price of nightPrices) {
+      const r = applyRateBenefit(rule, price, nightsCount);
+      nightDiscounts.push(r.discountARS);
+      descuentoARS = roundMoney(descuentoARS + r.discountARS);
+      if (r.percent != null) percent = r.percent;
+    }
+    return { descuentoARS, nightDiscounts, percent };
+  };
+
+  const selected = selectByStacking(matched, (rule) => ({
+    descuentoARS: benefitFn(rule).descuentoARS
+  }));
+
+  const nightDiscountSum = nightPrices.map(() => 0);
+  const appliedRules = [];
+  for (const rule of selected) {
+    const preview = benefitFn(rule);
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType || null,
+        benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
+        montoARS: preview.descuentoARS,
+        porcentaje: preview.percent
+      })
+    );
+    preview.nightDiscounts.forEach((d, i) => {
+      nightDiscountSum[i] = roundMoney(toNumber(nightDiscountSum[i]) + toNumber(d));
+    });
+  }
+
+  return { selectedRules: selected, appliedRules, nightDiscountSum };
+}
+
+function evaluateRateRules(rules, ctx) {
+  const nightPrices = Array.isArray(ctx.nightPrices) ? ctx.nightPrices.map(toNumber) : null;
+  if (nightPrices && nightPrices.length) {
+    const freeEval = evaluateFreeNightsForStay(rules, ctx, nightPrices);
+    const nonFreeRules = (rules || []).filter((r) => r && r.benefitType !== 'FREE_NIGHTS');
+    const nonFreeEval = evaluateNonFreeStayBenefits(nonFreeRules, ctx, nightPrices);
+
+    // Noches: FREE_NIGHTS pone final=0; el resto aplica beneficios no-FREE desde bruto.
+    // appliedRules canónicos viven a nivel stay (no repetir por noche → evita doble conteo en UI).
+    const perNight = nightPrices.map((price, index) => {
+      if (freeEval.byIndex[index]) {
+        return { ...freeEval.byIndex[index], nightIndex: index, appliedRules: [] };
+      }
+      const discount = Math.min(price, toNumber(nonFreeEval.nightDiscountSum[index]));
+      return {
+        nightIndex: index,
+        originalARS: price,
+        discountARS: discount,
+        finalARS: roundMoney(Math.max(0, price - discount)),
+        percent:
+          nonFreeEval.appliedRules.find((a) => a.porcentaje != null)?.porcentaje ?? null,
+        promotionRuleId: nonFreeEval.appliedRules[0]?.promotionRuleId || null,
+        freeNight: false,
+        appliedRules: []
+      };
+    });
+
+    const appliedRules = [...(freeEval.appliedRules || []), ...nonFreeEval.appliedRules];
+    const originalARS = roundMoney(nightPrices.reduce((s, p) => s + toNumber(p), 0));
+    const discountARS = roundMoney(
+      Math.min(
+        originalARS,
+        appliedRules.reduce((s, a) => s + toNumber(a.montoARS), 0)
+      )
+    );
+    const finalARS = roundMoney(Math.max(0, originalARS - discountARS));
+
+    const nonFreeSuggestions = filterEligibleRules(
+      nonFreeRules,
+      { ...ctx, layer: 'RATE', nights: nightPrices.length },
+      { forApply: false }
+    )
+      .filter(
+        (r) =>
+          (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+          (r.benefitValueManual &&
+            modalityAllowsApply(r, ctx) &&
+            effectiveBenefitValue(r, ctx) == null)
+      )
+      .map(toSuggestion);
+    const suggestionById = new Map();
+    for (const s of [...(freeEval.suggestions || []), ...nonFreeSuggestions]) {
+      if (!s || s.id == null) continue;
+      if (!suggestionById.has(s.id)) suggestionById.set(s.id, s);
+    }
+    return {
+      aplica: discountARS > 0,
+      originalARS,
+      discountARS,
+      finalARS,
+      nights: perNight,
+      freeNights: freeEval,
+      selectedRules: [...(freeEval.selectedRules || []), ...nonFreeEval.selectedRules],
+      suggestions: Array.from(suggestionById.values()),
+      appliedRules,
+      promotionRuleId:
+        freeEval.promotionRuleId || nonFreeEval.appliedRules[0]?.promotionRuleId || null
+    };
+  }
+
+  const matched = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: true })
+    .filter((r) => r.benefitType !== 'FREE_NIGHTS')
+    .map((r) => withEffectiveBenefit(r, ctx));
+  const suggestions = filterEligibleRules(rules, { ...ctx, layer: 'RATE' }, { forApply: false })
+    .filter(
+      (r) =>
+        (modalityIsSuggestion(r) && !modalityAllowsApply(r, ctx)) ||
+        (r.benefitValueManual &&
+          modalityAllowsApply(r, ctx) &&
+          effectiveBenefitValue(r, ctx) == null)
+    )
+    .map(toSuggestion);
+  const nightPrice = toNumber(ctx.nightPrice);
+  const nights = Math.max(1, Number(ctx.nights) || 1);
+  const benefitFn = (rule) => applyRateBenefit(rule, nightPrice, nights);
+  const selected = selectByStacking(matched, (rule) => {
+    const r = benefitFn(rule);
+    return { descuentoARS: r.discountARS };
+  });
+
+  if (!selected.length) {
+    return {
+      aplica: false,
+      finalARS: nightPrice,
+      discountARS: 0,
+      selectedRules: [],
+      suggestions,
+      appliedRules: []
+    };
+  }
+
+  // Sin cascada: cada regla sobre el bruto de la noche; se suman y se topea al bruto.
+  let totalDiscount = 0;
+  const appliedRules = [];
+  for (const rule of selected) {
+    const r = applyRateBenefit(rule, nightPrice, nights);
+    totalDiscount = roundMoney(totalDiscount + r.discountARS);
+    appliedRules.push(
+      withModalityMeta(rule, {
+        promotionRuleId: rule.id,
+        code: rule.code,
+        label: rule.label,
+        benefitType: rule.benefitType || null,
+        benefitValue: rule.benefitValue != null ? toNumber(rule.benefitValue) : null,
+        montoARS: r.discountARS,
+        porcentaje: r.percent
+      })
+    );
+  }
+  totalDiscount = Math.min(nightPrice, totalDiscount);
+
+  return {
+    aplica: totalDiscount > 0,
+    originalARS: nightPrice,
+    discountARS: totalDiscount,
+    finalARS: roundMoney(Math.max(0, nightPrice - totalDiscount)),
+    selectedRules: selected,
+    suggestions,
+    appliedRules,
+    promotionRuleId: selected[0].id,
+    promotionPercent: appliedRules.find((a) => a.porcentaje != null)?.porcentaje ?? null
+  };
+}
+
+async function loadActivePromotionRules(db, { layer } = {}) {
+  return db.promotionRule.findMany({
+    where: {
+      activo: true,
+      ...(layer ? { layer } : {})
+    },
+    include: { conditions: true },
+    orderBy: [{ prioridad: 'desc' }, { id: 'asc' }]
+  });
+}
+
+/**
+ * Ocupación hotel % (métrica operativa del día; no DynamicPricing).
+ */
+async function computeHotelOccupancyPercent(db, { hotelId, date } = {}) {
+  const day = toDateOnlyString(date) || toDateOnlyString(new Date());
+  const dayStart = new Date(`${day}T00:00:00.000Z`);
+  const dayEnd = new Date(`${day}T23:59:59.999Z`);
+
+  const roomWhere = hotelId
+    ? { hotelId: String(hotelId), active: true }
+    : { active: true };
+
+  // Room.active puede no existir; fallback a count simple
+  let totalRooms = 0;
+  try {
+    totalRooms = await db.room.count({
+      where: hotelId ? { hotelId: String(hotelId) } : undefined
+    });
+  } catch {
+    totalRooms = await db.room.count();
+  }
+  if (totalRooms <= 0) return 0;
+
+  const segments = await db.reservationSegment.findMany({
+    where: {
+      startDate: { lte: dayEnd },
+      endDate: { gt: dayStart },
+      reservation: {
+        // Enum canónico: CANCELADA / NO_PRESENTADA (no CANCELLED/NO_SHOW).
+        status: { notIn: NON_OCCUPYING_STATUSES }
+      }
+    },
+    select: { roomId: true }
+  });
+  const occupied = new Set(segments.map((s) => s.roomId).filter(Boolean));
+  return roundMoney((occupied.size / totalRooms) * 100);
+}
+
+module.exports = {
+  toDateOnlyString,
+  civilDaysBetween,
+  parseParams,
+  isRuleVigente,
+  stayNightDates,
+  evaluateCondition,
+  ruleMatchesConditions,
+  modalityAllowsApply,
+  modalityDefaultOn,
+  lookupBenefitOverride,
+  effectiveBenefitValue,
+  withEffectiveBenefit,
+  ruleToSettlementConfig,
+  computeSettlementBenefit,
+  selectByStacking,
+  filterEligibleRules,
+  evaluateSettlementRules,
+  computeFreeNightCount,
+  pickCheapestNightIndices,
+  evaluateFreeNightsForStay,
+  applyRateBenefit,
+  allocateFixedStayDiscounts,
+  evaluateRateRules,
+  loadActivePromotionRules,
+  computeHotelOccupancyPercent
+};

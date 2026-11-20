@@ -1,0 +1,6 @@
+-- Roles adicionales: Propietario (activo) + roles operativos futuros (inactivos para asignación).
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'PROPIETARIO' AFTER 'ADMIN';
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'CAMARERO';
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'COCINA';
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'MUCAMA';
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'MANTENIMIENTO';

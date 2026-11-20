@@ -9,11 +9,21 @@ const usePageTitle = () => {
       '/': 'Libro de Reservas',
       '/libro-de-reservas': 'Libro de Reservas',
       '/consultas-reservas': 'Consultas y Reservas',
-      '/tarifas': 'Tarifas',
-      '/cobros-pagos': 'Cobros y Pagos',
+      '/habitaciones': 'Habitaciones',
+      '/clientes': 'Clientes',
+      '/cobros-pagos': 'Estado de cuentas',
+      '/estado-de-cuentas': 'Estado de cuentas',
       '/estadisticas': 'Estadísticas',
       '/configuracion': 'Configuración'
     };
+
+    if (pathname.startsWith('/habitaciones/') || pathname.startsWith('/rooms/')) {
+      return 'Habitación';
+    }
+
+    if (pathname.startsWith('/clients/')) {
+      return 'Cliente';
+    }
 
     return routes[pathname] || 'Hotel Riviera';
   };

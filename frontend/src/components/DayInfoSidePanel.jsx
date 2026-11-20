@@ -1,180 +1,198 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import SidePanel from './SidePanel';
 import styles from '../styles/DayInfoSidePanel.module.css';
+import { isoDate } from '../utils/calendarDates';
+import { computeDayInfoStats } from '../utils/dayInfoStats';
 
-export default function DayInfoSidePanel({ 
-  selectedDate, 
-  rooms, 
-  reservations, 
-  isOpen, 
-  onClose 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+/** date-fns format() usa TZ local: construir Date civil local evita corrimiento UTC. */
+function civilLocalDate(dayIso) {
+  const [y, m, d] = dayIso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function OccupancyBar({ label, percentage }) {
+  const pct = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
+  const display = pct.toFixed(1);
+
+  return (
+    <div className={styles.occupancyRow}>
+      <div className={styles.occupancyHeader}>
+        <span className={styles.occupancyLabel}>{label}</span>
+        <span className={styles.occupancyPct}>{display}%</span>
+      </div>
+      <div
+        className={styles.occupancyTrack}
+        role="progressbar"
+        aria-valuenow={Number(display)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div className={styles.occupancyFill} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MovementColumn({ title, total, items, variant, icon, onOpenReservation }) {
+  return (
+    <section className={`${styles.movementCol} ${styles[variant]}`}>
+      <header className={styles.movementHeader}>
+        <span className={styles.movementIcon} aria-hidden="true">
+          {icon}
+        </span>
+        <div className={styles.movementTitleBlock}>
+          <div className={styles.movementTitle}>{title}</div>
+          <div className={styles.movementTotal}>{total}</div>
+        </div>
+      </header>
+      <ul className={styles.movementList}>
+        {(items || []).map((item, idx) => (
+          <li key={`${item.reservationId}-${idx}`} className={styles.movementItem}>
+            <span className={styles.movementDot} aria-hidden="true" />
+            <button
+              type="button"
+              className={styles.movementLink}
+              onClick={() => onOpenReservation?.(item.reservationId)}
+            >
+              {item.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export default function DayInfoSidePanel({
+  selectedDate,
+  rooms,
+  reservations,
+  isOpen,
+  onClose,
+  serviceTypes: serviceTypesProp
 }) {
-  if (!selectedDate) return null;
+  const navigate = useNavigate();
+  const [serviceTypesLoaded, setServiceTypesLoaded] = useState([]);
 
-  // Calcular estadísticas del día
-  const calculateDayStats = () => {
-    const dayStart = new Date(selectedDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(selectedDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    console.log('Calculando estadísticas para:', selectedDate.toISOString());
-    console.log('Día inicio:', dayStart.toISOString());
-    console.log('Día fin:', dayEnd.toISOString());
-
-    // Reservas que están activas en este día (ocupando habitación)
-    const activeReservations = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      const checkOut = new Date(reservation.checkOut);
-      // Una habitación está ocupada si:
-      // - El check-in es antes o igual al final del día Y
-      // - El check-out es DESPUÉS del final del día (no en el mismo día)
-      return checkIn <= dayEnd && checkOut > dayEnd;
-    });
-
-    console.log('Reservas activas (excluyendo checkouts del día):', activeReservations.length);
-
-    // Habitaciones ocupadas
-    const occupiedRooms = activeReservations.length;
-    const totalRooms = rooms.length;
-    const roomOccupancyPercentage = totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
-
-    // Pasajeros alojados (asumiendo 1 pasajero por reserva por ahora)
-    const totalGuests = activeReservations.length;
-    const guestOccupancyPercentage = totalRooms > 0 ? (totalGuests / totalRooms) * 100 : 0;
-
-    // Ingresos (check-ins en este día)
-    const checkIns = reservations.filter(reservation => {
-      const checkIn = new Date(reservation.checkIn);
-      return checkIn >= dayStart && checkIn <= dayEnd;
-    }).length;
-
-    console.log('Check-ins encontrados:', checkIns);
-
-    // Salidas (check-outs en este día) - CORREGIDO
-    // Una salida ocurre cuando la fecha de checkout es exactamente este día
-    const checkOuts = reservations.filter(reservation => {
-      const checkOut = new Date(reservation.checkOut);
-      // La reserva termina en este día (checkOut es igual al día actual)
-      const isCheckOutToday = checkOut >= dayStart && checkOut <= dayEnd;
-      
-      if (isCheckOutToday) {
-        console.log('Salida encontrada:', {
-          reservationId: reservation.id,
-          checkOut: checkOut.toISOString(),
-          client: reservation.mainClient?.firstName + ' ' + reservation.mainClient?.lastName
-        });
+  useEffect(() => {
+    if (serviceTypesProp != null || !isOpen) return undefined;
+    let cancelled = false;
+    const loadServiceTypes = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/service-types?hotelId=default-hotel`
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) setServiceTypesLoaded(data.data || []);
+      } catch (error) {
+        console.error('Error loading service types for day info:', error);
       }
-      
-      return isCheckOutToday;
-    }).length;
-
-    console.log('Check-outs encontrados:', checkOuts);
-
-    return {
-      checkIns,
-      checkOuts,
-      occupiedRooms,
-      totalRooms,
-      roomOccupancyPercentage,
-      totalGuests,
-      guestOccupancyPercentage
     };
+    loadServiceTypes();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, serviceTypesProp]);
+
+  const serviceTypes =
+    serviceTypesProp != null ? serviceTypesProp : serviceTypesLoaded;
+
+  const dayIso = useMemo(() => {
+    if (!selectedDate) return null;
+    if (typeof selectedDate === 'string') return selectedDate.slice(0, 10);
+    try {
+      return isoDate(selectedDate);
+    } catch {
+      return format(selectedDate, 'yyyy-MM-dd');
+    }
+  }, [selectedDate]);
+
+  const stats = useMemo(
+    () => computeDayInfoStats(dayIso, rooms, reservations, serviceTypes),
+    [dayIso, rooms, reservations, serviceTypes]
+  );
+
+  const openReservation = (reservationId) => {
+    if (reservationId == null) return;
+    onClose?.();
+    navigate(`/reservations/${reservationId}`);
   };
 
-  const stats = calculateDayStats();
-  const formattedDate = format(selectedDate, 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es });
+  if (!selectedDate || !dayIso) return null;
+
+  const dateForFormat = civilLocalDate(dayIso);
+  const formattedDate = format(dateForFormat, "EEEE, d 'de' MMMM 'de' yyyy", {
+    locale: es
+  });
 
   return (
     <SidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Información del ${format(selectedDate, 'd \'de\' MMMM', { locale: es })}`}
+      title={formattedDate}
       width={450}
     >
       <div className={styles.content}>
-        <div className={styles.dateHeader}>
-          <h3>{formattedDate}</h3>
+        <div className={styles.movementsGrid}>
+          <MovementColumn
+            title="Ingresos"
+            total={stats.checkIns}
+            items={stats.checkInItems}
+            variant="arrivals"
+            icon={<FiArrowDown />}
+            onOpenReservation={openReservation}
+          />
+          <MovementColumn
+            title="Egresos"
+            total={stats.checkOuts}
+            items={stats.checkOutItems}
+            variant="departures"
+            icon={<FiArrowUp />}
+            onOpenReservation={openReservation}
+          />
         </div>
 
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>📥</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.checkIns}</div>
-              <div className={styles.statLabel}>Ingresos de Pasajeros</div>
+        <div className={styles.countsSection}>
+          <div className={styles.countsGrid}>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Pasajeros</span>
+              <span className={styles.countValue}>{stats.totalGuests}</span>
             </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>📤</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.checkOuts}</div>
-              <div className={styles.statLabel}>Salidas</div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Habitaciones ocupadas</span>
+              <span className={styles.countValue}>{stats.occupiedRooms}</span>
             </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>🏨</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.occupiedRooms}</div>
-              <div className={styles.statLabel}>Habitaciones Ocupadas</div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Desayuno</span>
+              <span className={styles.countValue}>{stats.breakfastGuests}</span>
             </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>📊</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</div>
-              <div className={styles.statLabel}>Ocupación (Habitaciones)</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>👥</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.guestOccupancyPercentage.toFixed(1)}%</div>
-              <div className={styles.statLabel}>Ocupación (Pasajeros)</div>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>🛏️</div>
-            <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.totalGuests}</div>
-              <div className={styles.statLabel}>Pasajeros Alojados</div>
+            <div className={styles.countItem}>
+              <span className={styles.countLabel}>Cena</span>
+              <span className={styles.countValue}>{stats.dinnerGuests}</span>
             </div>
           </div>
         </div>
 
-        <div className={styles.summary}>
-          <h4>Resumen del Día</h4>
-          <p>
-            El {format(selectedDate, 'd \'de\' MMMM', { locale: es })} se registraron{' '}
-            <strong>{stats.checkIns} ingresos</strong> y <strong>{stats.checkOuts} salidas</strong>.
-            La ocupación de habitaciones fue del <strong>{stats.roomOccupancyPercentage.toFixed(1)}%</strong> 
-            con <strong>{stats.totalGuests} pasajeros</strong> alojados.
-          </p>
-        </div>
-
-        <div className={styles.details}>
-          <h4>Detalles</h4>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Total de habitaciones:</span>
-            <span className={styles.detailValue}>{stats.totalRooms}</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Habitaciones disponibles:</span>
-            <span className={styles.detailValue}>{stats.totalRooms - stats.occupiedRooms}</span>
-          </div>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Tasa de ocupación:</span>
-            <span className={styles.detailValue}>{stats.roomOccupancyPercentage.toFixed(1)}%</span>
-          </div>
+        <div className={styles.occupancySection}>
+          <h4 className={styles.sectionTitle}>Ocupación</h4>
+          <OccupancyBar
+            label="Ocupación habitaciones"
+            percentage={stats.roomOccupancyPercentage}
+          />
+          <OccupancyBar
+            label="Ocupación pasajeros"
+            percentage={stats.guestOccupancyPercentage}
+          />
         </div>
       </div>
     </SidePanel>
   );
-} 
+}

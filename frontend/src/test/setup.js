@@ -5,23 +5,28 @@ import { vi } from 'vitest'
 // Mock de fetch global
 global.fetch = vi.fn()
 
-// Mock de localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+// localStorage / sessionStorage en memoria (persisten get/set como el browser)
+function createMemoryStorage() {
+  const store = new Map()
+  return {
+    getItem: vi.fn((key) => (store.has(String(key)) ? store.get(String(key)) : null)),
+    setItem: vi.fn((key, value) => {
+      store.set(String(key), String(value))
+    }),
+    removeItem: vi.fn((key) => {
+      store.delete(String(key))
+    }),
+    clear: vi.fn(() => {
+      store.clear()
+    }),
+    get length() {
+      return store.size
+    },
+    key: vi.fn((index) => Array.from(store.keys())[index] ?? null)
+  }
 }
-global.localStorage = localStorageMock
-
-// Mock de sessionStorage
-const sessionStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-}
-global.sessionStorage = sessionStorageMock
+global.localStorage = createMemoryStorage()
+global.sessionStorage = createMemoryStorage()
 
 // Mock de window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
