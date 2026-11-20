@@ -7,6 +7,7 @@ import MultiPagoClientPanel from '../components/MultiPagoClientPanel';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { todayAsLocalDate } from '../utils/calendarDates';
 
 const ClientDetails = () => {
   const { clientId } = useParams();
@@ -138,7 +139,8 @@ const ClientDetails = () => {
     }
     
     // Buscar reservas que estén actualmente activas (check-in pasado, check-out futuro)
-    const now = new Date();
+    // Respetar fecha simulada de debug cuando está activa.
+    const now = todayAsLocalDate();
     const currentReservation = activeReservations.find(r => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);

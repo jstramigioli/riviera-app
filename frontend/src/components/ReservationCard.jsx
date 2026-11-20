@@ -5,6 +5,7 @@ import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import styles from '../styles/ReservationCard.module.css';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { todayAsLocalDate } from '../utils/calendarDates';
 
 const ReservationCard = React.memo(function ReservationCard({
   reservation,
@@ -40,7 +41,7 @@ const ReservationCard = React.memo(function ReservationCard({
   );
 
   const getStatusColor = () => {
-    const today = new Date();
+    const today = todayAsLocalDate();
     const checkIn = new Date(reservation.checkIn);
     const checkOut = new Date(reservation.checkOut);
 

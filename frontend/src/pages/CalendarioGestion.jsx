@@ -6,10 +6,11 @@ import DayEditPanel from '../components/DayEditPanel';
 import { fetchOpenDays, fetchRoomTypes, createOpenDay, updateOpenDay, deleteOpenDay } from '../services/api';
 import styles from '../styles/CalendarioGestion.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { todayAsLocalDate } from '../utils/calendarDates';
 
 export default function CalendarioGestion() {
   const { notify, noticeDialog } = useAppNotice();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => todayAsLocalDate());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isDayEditPanelOpen, setIsDayEditPanelOpen] = useState(false);
   const [openDays, setOpenDays] = useState([]);
@@ -152,7 +153,7 @@ export default function CalendarioGestion() {
   };
 
   const isToday = (day) => {
-    return isSameDay(day, new Date());
+    return isSameDay(day, todayAsLocalDate());
   };
 
   if (loading) {

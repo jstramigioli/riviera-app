@@ -58,6 +58,7 @@ app.use(cors({
     return callback(new Error(`Origen no permitido por CORS: ${origin}`));
   },
   credentials: true
+  // X-Simulated-Today via reflect de Access-Control-Request-Headers (default cors)
 }));
 app.use(express.json());
 app.use(cookieParser());

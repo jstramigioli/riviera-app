@@ -1,9 +1,9 @@
 const { loadCalendar } = require('../services/calendarService');
-const { isoDate } = require('../utils/calendarDates');
+const { todayIsoLocal } = require('../utils/calendarDates');
 
 exports.getCalendar = async (req, res) => {
   try {
-    const start = req.query.start || isoDate(new Date());
+    const start = req.query.start || todayIsoLocal(req);
     const days = Number(req.query.days || 35);
     const data = await loadCalendar(start, days);
     res.json(data);

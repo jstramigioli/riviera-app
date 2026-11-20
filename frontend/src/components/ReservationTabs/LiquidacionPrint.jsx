@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { todayAsLocalDate } from '../../utils/calendarDates';
 import styles from './LiquidacionPrint.module.css';
 
 const civilNights = (checkIn, checkOut) => {
@@ -64,7 +65,7 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
     financialSummary?.resumen?.saldo != null
       ? Number(financialSummary.resumen.saldo)
       : totalCargos - totalPagos - totalDescuentos;
-  const emittedAt = new Date();
+  const emittedAt = todayAsLocalDate();
 
   const tiposOrdenados = [
     ...TIPO_ORDER.filter((c) => cargosPorTipo[c]),

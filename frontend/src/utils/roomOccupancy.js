@@ -1,4 +1,5 @@
 import { RESERVATION_STATUSES } from './reservationStatusUtils';
+import { todayAsLocalDate } from './calendarDates';
 
 export const INACTIVE_ROOM_STATUSES = new Set([
   RESERVATION_STATUSES.CANCELADA,
@@ -30,7 +31,7 @@ export function stayBoundsForRoom(reservation, roomId) {
   return { start, end };
 }
 
-export function occupancyLabel(roomId, reservations, now = new Date()) {
+export function occupancyLabel(roomId, reservations, now = todayAsLocalDate()) {
   const related = reservations.filter(
     (reservation) =>
       reservationTouchesRoom(reservation, roomId) &&

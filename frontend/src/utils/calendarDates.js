@@ -49,9 +49,13 @@ export function isSimulatedTodayActive() {
 
 function emitSimulatedTodayChange() {
   if (typeof window === 'undefined') return;
-  window.dispatchEvent(
-    new CustomEvent(SIMULATED_TODAY_EVENT, { detail: getSimulatedTodayIso() })
-  );
+  try {
+    window.dispatchEvent(
+      new CustomEvent(SIMULATED_TODAY_EVENT, { detail: getSimulatedTodayIso() })
+    );
+  } catch {
+    /* ignore (p.ej. entornos sin CustomEvent completo) */
+  }
 }
 
 /** null/'' → desactiva y vuelve a fecha real. */
@@ -80,6 +84,29 @@ export function clearSimulatedToday() {
 export function todayIsoLocal() {
   return getSimulatedTodayIso() || realTodayIsoLocal();
 }
+
+/**
+ * Date “ahora” en el día civil del hotel (simulado o real).
+ * Con simulación, conserva H:M:S del reloj real sobre el día simulado.
+ */
+export function todayAsLocalDate() {
+  const iso = todayIsoLocal();
+  const [y, m, d] = iso.split('-').map(Number);
+  const real = new Date();
+  if (!getSimulatedTodayIso()) return real;
+  return new Date(
+    y,
+    m - 1,
+    d,
+    real.getHours(),
+    real.getMinutes(),
+    real.getSeconds(),
+    real.getMilliseconds()
+  );
+}
+
+/** Header que el FE envía al backend cuando hay fecha simulada. */
+export const SIMULATED_TODAY_HEADER = 'X-Simulated-Today';
 
 /** Suscripción a cambios de simulación (misma pestaña + storage). */
 export function subscribeSimulatedToday(onChange) {

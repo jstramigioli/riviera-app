@@ -5,7 +5,7 @@ const { calculateAccountBalance } = require('../utils/accountBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
-const { civilFromDb } = require('../utils/calendarDates');
+const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
 const {
   ensureReservationAccount,
   dualWriteReservationRefs,
@@ -72,7 +72,7 @@ function normalizeOptionalString(value) {
   return trimmed || null;
 }
 
-function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
+function buildFacturaData(facturaInput, metodo, numeroTarjetaPago, req) {
   if (!facturaInput || typeof facturaInput !== 'object') {
     return { error: 'Datos de facturación requeridos' };
   }
@@ -82,24 +82,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
     return { error: 'Tipo de factura inválido. Debe ser A o B' };
   }
 
-  let fecha = new Date();
-  if (facturaInput.fecha) {
-    const raw = String(facturaInput.fecha).trim();
-    const dayOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dayOnly) {
-      fecha = new Date(
-        Number(dayOnly[1]),
-        Number(dayOnly[2]) - 1,
-        Number(dayOnly[3]),
-        12,
-        0,
-        0,
-        0
-      );
-    } else {
-      fecha = new Date(raw);
-    }
-  }
+  const fecha = parseFechaInput(facturaInput.fecha, req);
   if (Number.isNaN(fecha.getTime())) {
     return { error: 'Fecha de factura inválida' };
   }
@@ -348,7 +331,8 @@ exports.createPago = async (req, res) => {
     facturaParsed = buildFacturaData(
       { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
       metodoFinal,
-      numeroTarjeta
+      numeroTarjeta,
+      req
     );
     if (facturaParsed.error) {
       return res.status(400).json({ error: facturaParsed.error });
@@ -389,25 +373,7 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(montoSigned);
     }
 
-    let fechaPago = new Date();
-    if (fecha) {
-      const raw = String(fecha).trim();
-      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (m) {
-        fechaPago = new Date(
-          Number(m[1]),
-          Number(m[2]) - 1,
-          Number(m[3]),
-          12,
-          0,
-          0,
-          0
-        );
-      } else {
-        const parsed = new Date(raw);
-        if (!Number.isNaN(parsed.getTime())) fechaPago = parsed;
-      }
-    }
+    const fechaPago = parseFechaInput(fecha, req);
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
@@ -654,7 +620,7 @@ exports.updatePago = async (req, res) => {
     if (numeroTarjeta !== undefined) dataToUpdate.numeroTarjeta = numeroTarjeta;
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
     if (notas !== undefined) dataToUpdate.notas = notas;
-    if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
+    if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
     if (motivo !== undefined) {
       const motivoNorm = String(motivo || '').trim();
       if (!motivoNorm) {
@@ -913,7 +879,7 @@ exports.createCargo = async (req, res) => {
     descripcion,
     monto: new Decimal(monto),
     notas: notas || null,
-    fecha: fecha ? new Date(fecha) : new Date()
+    fecha: parseFechaInput(fecha, req)
   };
 
   let includeClause = {
@@ -1059,7 +1025,7 @@ exports.updateCargo = async (req, res) => {
       dataToUpdate.monto = new Decimal(monto);
     }
     if (notas !== undefined) dataToUpdate.notas = notas;
-    if (fecha !== undefined) dataToUpdate.fecha = new Date(fecha);
+    if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
     
     // Enfoque híbrido para actualización:
     // 1. Si viene roomTypeId + serviceTypeId → Cambiar a alojamiento
@@ -1572,6 +1538,7 @@ exports.createClientMultiPago = async (req, res) => {
     paymentMethodConfigId,
     notas,
     motivo,
+    fecha,
     requiereFacturacion,
     factura,
     selectedRuleIds,
@@ -1642,7 +1609,8 @@ exports.createClientMultiPago = async (req, res) => {
       facturaParsed = buildFacturaData(
         { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
         metodoFinal,
-        req.body.numeroTarjeta
+        req.body.numeroTarjeta,
+        req
       );
       if (facturaParsed.error) {
         return res.status(400).json({ error: facturaParsed.error });
@@ -1671,6 +1639,7 @@ exports.createClientMultiPago = async (req, res) => {
         ? new Decimal(montoAbs).mul(new Decimal(tipoCambioFinal))
         : new Decimal(montoAbs);
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
+    const fechaPago = parseFechaInput(fecha, req);
 
     const clientAccounts = await prisma.account.findMany({
       where: {
@@ -1771,7 +1740,8 @@ exports.createClientMultiPago = async (req, res) => {
       deselectedRuleIds: acceptedDeselectedRuleIds,
       benefitValueByRuleId: acceptedBenefitValues,
       applySuggestedDefaults: acceptedApplySuggested,
-      mode: 'received'
+      mode: 'received',
+      asOfDate: fechaPago
     });
     const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
 
@@ -1807,7 +1777,7 @@ exports.createClientMultiPago = async (req, res) => {
             : null,
           notas: notas || null,
           motivo: motivoPago,
-          fecha: new Date(),
+          fecha: fechaPago,
           requiereFacturacion: wantsBilling,
           ...(wantsBilling ? { factura: { create: facturaParsed.data } } : {})
         }

@@ -8,8 +8,14 @@ const {
   syncAccountStatusFromBalance
 } = require('./accountHelpers');
 const { allocateNextPagoCodigo } = require('./pagoCodigo');
+const { parseFechaInput } = require('./calendarDates');
 
 const DEBUG_NOTES_PREFIX = 'DEBUG batch=';
+
+/** Fecha de negocio anclada al `today` del plan debug (mediodía local). */
+function businessDateFromToday(todayIso) {
+  return parseFechaInput(todayIso, null);
+}
 const OOS = new Set([
   'maintenance',
   'out_of_service',
@@ -317,7 +323,8 @@ async function addLodgingCargo({
   serviceTypeId,
   nights,
   nightAmount,
-  batchId
+  batchId,
+  today
 }) {
   const monto = Number(nightAmount) * nights;
   if (!(monto > 0)) return null;
@@ -329,12 +336,12 @@ async function addLodgingCargo({
       descripcion: `DEBUG alojamiento ${nights} noche(s)`,
       monto: new Prisma.Decimal(monto),
       notas: batchNotes(batchId),
-      fecha: new Date()
+      fecha: businessDateFromToday(today)
     }
   });
 }
 
-async function addConsumptionCargo({ reservationId, account, batchId }) {
+async function addConsumptionCargo({ reservationId, account, batchId, today }) {
   const sub = await resolveConsumoSubcategoria();
   if (!sub) return null;
   return prisma.cargo.create({
@@ -344,12 +351,12 @@ async function addConsumptionCargo({ reservationId, account, batchId }) {
       descripcion: `DEBUG consumo ${sub.nombre}`,
       monto: new Prisma.Decimal(3500),
       notas: batchNotes(batchId),
-      fecha: new Date()
+      fecha: businessDateFromToday(today)
     }
   });
 }
 
-async function addFullPayment({ reservationId, account, amount, batchId }) {
+async function addFullPayment({ reservationId, account, amount, batchId, today }) {
   const monto = Number(amount);
   if (!(monto > 0)) return null;
   const method = await resolveEfectivoMethod();
@@ -367,7 +374,7 @@ async function addFullPayment({ reservationId, account, amount, batchId }) {
       metodo: method?.label || 'Efectivo',
       motivo: 'Pago',
       notas: batchNotes(batchId),
-      fecha: new Date()
+      fecha: businessDateFromToday(today)
     }
   });
 
@@ -562,7 +569,8 @@ async function createFromPlan(plan, options = {}) {
         serviceTypeId: String(item.serviceTypeId),
         nights: item.nights,
         nightAmount: item.nightAmount,
-        batchId
+        batchId,
+        today: plan.today
       });
     }
 
@@ -570,7 +578,8 @@ async function createFromPlan(plan, options = {}) {
       await addConsumptionCargo({
         reservationId: reservation.id,
         account,
-        batchId
+        batchId,
+        today: plan.today
       });
     }
 
@@ -585,7 +594,8 @@ async function createFromPlan(plan, options = {}) {
         reservationId: reservation.id,
         account,
         amount: totalCargos,
-        batchId
+        batchId,
+        today: plan.today
       });
     }
 

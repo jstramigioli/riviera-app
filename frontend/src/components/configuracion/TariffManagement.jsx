@@ -4,6 +4,7 @@ import DynamicPricingConfigPanel from './DynamicPricingConfigPanel';
 import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
 import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiChevronDown } from 'react-icons/fi';
+import { todayAsLocalDate, todayIsoLocal } from '../../utils/calendarDates';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
   // Estados para visualización de tarifas por fecha
   const [pricesByDate, setPricesByDate] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => todayIsoLocal());
   const [loadingPrices, setLoadingPrices] = useState(false);
 
   // Estados para manejo de bloques concluidos
@@ -146,7 +147,7 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
 
       // Función para encontrar la primera fecha disponible
       const findFirstAvailableDate = (existingBlocks) => {
-        const today = new Date();
+        const today = todayAsLocalDate();
         const maxSearchDays = 365; // Buscar hasta 1 año en el futuro
         
         for (let daysFromToday = 0; daysFromToday < maxSearchDays; daysFromToday++) {
@@ -281,15 +282,13 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
   // Función para verificar si un bloque ya concluyó
   const isBlockConcluded = (block) => {
     if (!block.endDate) return false;
-    const today = new Date();
+    const today = todayAsLocalDate();
     const endDate = new Date(block.endDate);
     return endDate < today;
   };
 
   // Función para filtrar y ordenar bloques
   const getFilteredAndSortedBlocks = () => {
-    const today = new Date();
-    
     // Separar bloques activos/futuros de los concluidos
     const activeBlocks = seasonBlocks.filter(block => !isBlockConcluded(block));
     const concludedBlocks = seasonBlocks.filter(block => isBlockConcluded(block));

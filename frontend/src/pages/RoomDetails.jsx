@@ -8,6 +8,7 @@ import {
   reservationTouchesRoom,
   stayBoundsForRoom,
 } from '../utils/roomOccupancy';
+import { todayAsLocalDate } from '../utils/calendarDates';
 import styles from './RoomDetails.module.css';
 
 const TABS = [
@@ -81,7 +82,7 @@ function RoomDetails() {
   }, [reservations, roomId]);
 
   const upcomingReservations = useMemo(() => {
-    const now = new Date();
+    const now = todayAsLocalDate();
     return sortedReservations
       .filter((reservation) => {
         if (INACTIVE_ROOM_STATUSES.has(reservation.status)) return false;
@@ -92,7 +93,7 @@ function RoomDetails() {
   }, [sortedReservations, roomId]);
 
   const currentGuest = useMemo(() => {
-    const now = new Date();
+    const now = todayAsLocalDate();
     const current = reservations.find((reservation) => {
       if (INACTIVE_ROOM_STATUSES.has(reservation.status)) return false;
       const { start, end } = stayBoundsForRoom(reservation, roomId);

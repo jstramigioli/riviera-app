@@ -1,13 +1,6 @@
 const prisma = require('../utils/prisma');
 const { syncOperationalNotifications } = require('../services/notificationSync');
-
-function todayIsoUtc() {
-  const n = new Date();
-  const y = n.getFullYear();
-  const m = String(n.getMonth() + 1).padStart(2, '0');
-  const d = String(n.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+const { todayIsoLocal } = require('../utils/calendarDates');
 
 function serializeNotification(row, userId) {
   const read = (row.reads || []).find((r) => r.userId === userId);
@@ -103,7 +96,7 @@ async function syncNotifications(req, res, next) {
     const date =
       (req.body && req.body.date) ||
       req.query.date ||
-      todayIsoUtc();
+      todayIsoLocal(req);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
       return res.status(400).json({ error: 'date inválida (yyyy-MM-dd)' });
     }

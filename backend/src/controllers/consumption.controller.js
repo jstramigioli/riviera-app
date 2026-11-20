@@ -2,7 +2,12 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { CATEGORY_LABELS } = require('./menuItem.controller');
-const { civilFromDb, isoDate, toDateOnlyUtc } = require('../utils/calendarDates');
+const {
+  civilFromDb,
+  isoDate,
+  toDateOnlyUtc,
+  todayIsoLocal
+} = require('../utils/calendarDates');
 const {
   ensureReservationAccount,
   dualWriteReservationRefs,
@@ -11,15 +16,8 @@ const {
 } = require('../utils/accountHelpers');
 const { calculateAccountBalance } = require('../utils/accountBalance');
 
-function todayCivil() {
-  const now = new Date();
-  return isoDate(
-    new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
-  );
-}
-
-function parseCivilDateParam(raw) {
-  if (raw == null || raw === '') return todayCivil();
+function parseCivilDateParam(raw, req) {
+  if (raw == null || raw === '') return todayIsoLocal(req);
   const s = String(raw).trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
   const d = toDateOnlyUtc(s);
@@ -50,7 +48,7 @@ function reservationLabel(roomName, lastName) {
  */
 exports.getOccupiedRoomsToday = async (req, res) => {
   try {
-    const dateCivil = parseCivilDateParam(req.query.date ?? req.query.fecha);
+    const dateCivil = parseCivilDateParam(req.query.date ?? req.query.fecha, req);
     if (!dateCivil) {
       return res.status(400).json({
         success: false,
@@ -161,7 +159,7 @@ exports.createConsumptionOrder = async (req, res) => {
       accountIdRaw == null || accountIdRaw === '' ? null : Number(accountIdRaw);
     const notes = req.body.notes ? String(req.body.notes).trim() : null;
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
-    const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date);
+    const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date, req);
 
     if (!fechaCivil) {
       return res.status(400).json({

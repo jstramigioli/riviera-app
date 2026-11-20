@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useTags } from '../hooks/useTags';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
+import { shiftIso, todayIsoLocal } from '../utils/calendarDates';
 import styles from '../styles/CreateQueryModal.module.css';
+
+function defaultQueryDates() {
+  const checkIn = todayIsoLocal();
+  return { checkIn, checkOut: shiftIso(checkIn, 1) };
+}
 
 export default function CreateQueryModal({ 
   isOpen, 
@@ -11,13 +16,12 @@ export default function CreateQueryModal({
 }) {
   const navigate = useNavigate();
   const { tags } = useTags();
-  const [formData, setFormData] = useState({
-    checkIn: format(new Date(), 'yyyy-MM-dd'),
-    checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+  const [formData, setFormData] = useState(() => ({
+    ...defaultQueryDates(),
     requiredGuests: 1,
     requiredTags: [],
     source: ''
-  });
+  }));
 
   const [errors, setErrors] = useState({});
 
@@ -90,8 +94,7 @@ export default function CreateQueryModal({
 
   const handleClose = () => {
     setFormData({
-      checkIn: format(new Date(), 'yyyy-MM-dd'),
-      checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      ...defaultQueryDates(),
       requiredGuests: 1,
       requiredTags: [],
       source: ''

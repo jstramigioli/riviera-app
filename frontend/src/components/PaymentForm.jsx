@@ -36,6 +36,9 @@ import {
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
+import { todayAsLocalDate } from '../utils/calendarDates';
+import { formatArs, roundMoney } from '../utils/paymentDiscount';
+import styles from './PaymentForm.module.css';
 
 function pagoFechaToInput(value) {
   if (!value) return todayLocalDateInputValue();
@@ -45,8 +48,6 @@ function pagoFechaToInput(value) {
   if (Number.isNaN(d.getTime())) return todayLocalDateInputValue();
   return todayLocalDateInputValue(d);
 }
-import { formatArs, roundMoney } from '../utils/paymentDiscount';
-import styles from './PaymentForm.module.css';
 
 const MODE_PAGO = 'pago';
 const MODE_DEVOLUCION = 'devolucion';
@@ -1072,7 +1073,8 @@ const PaymentForm = ({
           : parseFloat(formData.monto);
       const submitMoneda =
         !isDevolucion && amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
-      const fechaIso = localDateInputToIso(formData.fecha) || new Date().toISOString();
+      const fechaIso =
+        localDateInputToIso(formData.fecha) || todayAsLocalDate().toISOString();
       const pagoData = {
         monto: submitMonto,
         moneda: submitMoneda,

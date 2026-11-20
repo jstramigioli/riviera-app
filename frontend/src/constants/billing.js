@@ -1,3 +1,5 @@
+import { todayAsLocalDate, todayIsoLocal } from '../utils/calendarDates';
+
 /** Métodos que fuerzan «Requiere facturación» activado. */
 export const BILLING_REQUIRED_METHODS = [
   'Transferencia',
@@ -40,13 +42,14 @@ export function isCardMethod(metodo) {
   return metodo === 'Tarjeta Credito' || metodo === 'Tarjeta Debito';
 }
 
-export function todayLocalDateTimeInputValue(date = new Date()) {
+export function todayLocalDateTimeInputValue(date = todayAsLocalDate()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Valor para input type="date" (YYYY-MM-DD, zona local). */
-export function todayLocalDateInputValue(date = new Date()) {
+/** Valor para input type="date" (YYYY-MM-DD). Sin arg → hoy del hotel (simulado si debug). */
+export function todayLocalDateInputValue(date) {
+  if (date == null) return todayIsoLocal();
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }

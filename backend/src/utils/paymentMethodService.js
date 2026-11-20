@@ -69,7 +69,8 @@ async function buildSettlementContext(db, {
   benefitValueByRuleId,
   applySuggestedDefaults,
   applyAutomatics,
-  mode
+  mode,
+  asOfDate
 }) {
   let nights = null;
   let checkIn = null;
@@ -111,10 +112,18 @@ async function buildSettlementContext(db, {
     }
   }
 
+  const asOf =
+    asOfDate instanceof Date && !Number.isNaN(asOfDate.getTime())
+      ? asOfDate
+      : asOfDate
+        ? new Date(asOfDate)
+        : new Date();
+  const asOfSafe = Number.isNaN(asOf.getTime()) ? new Date() : asOf;
+
   try {
     occupancyPercent = await computeHotelOccupancyPercent(db, {
       hotelId,
-      date: checkIn || new Date()
+      date: checkIn || asOfSafe
     });
   } catch {
     occupancyPercent = null;
@@ -122,7 +131,7 @@ async function buildSettlementContext(db, {
 
   return {
     layer: 'SETTLEMENT',
-    asOfDate: new Date(),
+    asOfDate: asOfSafe,
     motivo: motivo || 'Pago',
     dineroARS,
     saldoPendiente: saldoPendienteAntes,

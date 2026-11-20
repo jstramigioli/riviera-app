@@ -4,6 +4,7 @@ import {
   shiftIso,
   daysBetween,
   todayIsoLocal,
+  todayAsLocalDate,
   realTodayIsoLocal,
   setSimulatedTodayIso,
   clearSimulatedToday,
@@ -44,6 +45,14 @@ describe('calendarDates', () => {
     expect(localStorage.getItem(SIMULATED_TODAY_STORAGE_KEY)).toBe('2026-01-15');
     clearSimulatedToday();
     expect(todayIsoLocal()).toBe(realTodayIsoLocal());
+  });
+
+  it('todayAsLocalDate maps clock onto simulated day', () => {
+    setSimulatedTodayIso('2026-02-20');
+    const d = todayAsLocalDate();
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(1);
+    expect(d.getDate()).toBe(20);
   });
 
   it('isoDate from UTC date-only Date', () => {

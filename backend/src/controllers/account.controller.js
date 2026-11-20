@@ -4,7 +4,7 @@ const { calculateAccountBalance } = require('../utils/accountBalance');
 const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
-const { civilFromDb } = require('../utils/calendarDates');
+const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
 const {
   ACCOUNT_KIND,
   ACCOUNT_STATUS,
@@ -46,7 +46,7 @@ function normalizeOptionalString(value) {
   return trimmed || null;
 }
 
-function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
+function buildFacturaData(facturaInput, metodo, numeroTarjetaPago, req) {
   if (!facturaInput || typeof facturaInput !== 'object') {
     return { error: 'Datos de facturación requeridos' };
   }
@@ -56,24 +56,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaPago) {
     return { error: 'Tipo de factura inválido. Debe ser A o B' };
   }
 
-  let fecha = new Date();
-  if (facturaInput.fecha) {
-    const raw = String(facturaInput.fecha).trim();
-    const dayOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dayOnly) {
-      fecha = new Date(
-        Number(dayOnly[1]),
-        Number(dayOnly[2]) - 1,
-        Number(dayOnly[3]),
-        12,
-        0,
-        0,
-        0
-      );
-    } else {
-      fecha = new Date(raw);
-    }
-  }
+  const fecha = parseFechaInput(facturaInput.fecha, req);
   if (Number.isNaN(fecha.getTime())) {
     return { error: 'Fecha de factura inválida' };
   }
@@ -591,7 +574,7 @@ exports.createAccountCargo = async (req, res) => {
         monto: new Decimal(monto),
         subcategoriaCargoId: parseInt(subcategoriaCargoId, 10),
         notas: notas || null,
-        fecha: fecha ? new Date(fecha) : new Date()
+        fecha: parseFechaInput(fecha, req)
       },
       include: { subcategoriaCargo: true }
     });
@@ -723,7 +706,8 @@ exports.createAccountPago = async (req, res) => {
       facturaParsed = buildFacturaData(
         { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
         metodoFinal,
-        numeroTarjeta
+        numeroTarjeta,
+        req
       );
       if (facturaParsed.error) {
         return res.status(400).json({ error: facturaParsed.error });
@@ -804,24 +788,7 @@ exports.createAccountPago = async (req, res) => {
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
           notas: notas || null,
           motivo: motivoPago,
-          fecha: (() => {
-            if (!fecha) return new Date();
-            const raw = String(fecha).trim();
-            const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (m) {
-              return new Date(
-                Number(m[1]),
-                Number(m[2]) - 1,
-                Number(m[3]),
-                12,
-                0,
-                0,
-                0
-              );
-            }
-            const parsed = new Date(raw);
-            return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-          })(),
+          fecha: parseFechaInput(fecha, req),
           requiereFacturacion: wantsBilling,
           ...(wantsBilling
             ? { factura: { create: facturaParsed.data } }
