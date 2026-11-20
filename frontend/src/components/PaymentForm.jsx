@@ -1223,6 +1223,21 @@ const PaymentForm = ({
           {showAllocationUi && (
             <div className={`${styles.formRow} ${styles.formRowFull}`}>
               <div className={styles.formGroup} ref={accountPickerRef}>
+                <div className={styles.allocationFieldHeader}>
+                  <label
+                    htmlFor={
+                      assignedAllocations.length === 0 ? 'payment-reservation' : undefined
+                    }
+                    id="payment-imputa-label"
+                    data-testid="payment-imputa-label"
+                  >
+                    Imputar a
+                  </label>
+                  <p className={styles.allocationFieldHint} data-testid="payment-imputa-hint">
+                    Elegí a qué reserva o cuenta externa se aplica este pago. Podés repartirlo
+                    en más de una.
+                  </p>
+                </div>
                 <div className={styles.allocationsList} data-testid="payment-allocations">
                   {allocations.map((alloc) => {
                     const row = alloc.optionKey
@@ -1251,7 +1266,7 @@ const PaymentForm = ({
                           </div>
                           {isMultiAlloc && !isDevolucion ? (
                             <label className={styles.allocationMonto}>
-                              <span>Imputa</span>
+                              <span>Monto</span>
                               <input
                                 type="number"
                                 min="0"
@@ -1292,13 +1307,14 @@ const PaymentForm = ({
                           aria-expanded={menuOpen}
                           aria-controls={`payment-account-listbox-${alloc.localId}`}
                           aria-autocomplete="list"
-                          aria-label="Seleccionar reserva o cuenta externa"
+                          aria-labelledby="payment-imputa-label"
+                          aria-label="Elegir reserva o cuenta externa a la que se imputa el pago"
                           placeholder={
                             loadingMeta
                               ? 'Cargando…'
                               : occupiedOptions.length === 0
-                                ? 'Sin cuentas abiertas'
-                                : 'Buscar reserva o cuenta externa…'
+                                ? 'Sin reservas/cuentas — creá una externa'
+                                : 'Buscar por habitación, huésped o cuenta…'
                           }
                           value={accountQuery}
                           onChange={(e) => {
@@ -1321,11 +1337,17 @@ const PaymentForm = ({
                             id={`payment-account-listbox-${alloc.localId}`}
                             className={styles.accountMenu}
                             role="listbox"
-                            aria-label="Cuentas y reservas"
+                            aria-label="Reservas y cuentas externas"
                           >
                             {filteredAccountOptions.length === 0 ? (
-                              <li className={styles.accountMenuEmpty} role="presentation">
-                                Sin coincidencias
+                              <li
+                                className={styles.accountMenuEmpty}
+                                role="presentation"
+                                data-testid="payment-account-empty"
+                              >
+                                {occupiedOptions.length === 0
+                                  ? 'No hay reservas ni cuentas abiertas. Creá una cuenta externa abajo.'
+                                  : 'Sin coincidencias. Probá otro texto o creá una cuenta externa.'}
                               </li>
                             ) : (
                               filteredAccountOptions.map((opt) => {
@@ -1411,8 +1433,8 @@ const PaymentForm = ({
 
                 {isMultiAlloc && !isDevolucion ? (
                   <p className={styles.allocationHint} data-testid="payment-alloc-hint">
-                    Distribuí lo recibido entre las imputaciones. La suma debe coincidir con el
-                    monto del pago.
+                    Indicá cuánto de lo recibido va a cada reserva/cuenta. La suma debe
+                    coincidir con el monto del pago.
                   </p>
                 ) : null}
               </div>

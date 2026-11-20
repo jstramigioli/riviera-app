@@ -4,6 +4,7 @@ import { fetchClients, fetchReservations, getClientBalance } from '../services/a
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
 import MultiPagoClientPanel from '../components/MultiPagoClientPanel';
+import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 
@@ -521,6 +522,13 @@ const ClientDetails = () => {
                   </div>
                 </div>
               </div>
+
+              <ClientBalanceMovements
+                cargos={clientBalance?.cargos || []}
+                pagos={clientBalance?.pagos || []}
+                formatPrice={formatPrice}
+                onChanged={() => loadClientData()}
+              />
 
               <MultiPagoClientPanel
                 clientId={parseInt(clientId, 10)}

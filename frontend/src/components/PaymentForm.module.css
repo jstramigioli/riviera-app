@@ -472,6 +472,25 @@
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
+.allocationFieldHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.allocationFieldHeader label {
+  margin: 0;
+}
+
+.allocationFieldHint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
 .allocationsList {
   display: flex;
   flex-direction: column;
