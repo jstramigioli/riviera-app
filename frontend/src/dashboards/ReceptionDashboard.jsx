@@ -23,6 +23,7 @@ import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
+import CajaWidget from './CajaWidget';
 import styles from './ReceptionDashboard.module.css';
 
 const NOTES_PLACEHOLDER = 'Agregar notas…';
@@ -414,9 +415,9 @@ export default function ReceptionDashboard() {
         </p>
       ) : null}
 
-      <div className={styles.grid}>
+      <div className={styles.masonry} data-testid="reception-masonry">
         <section
-          className={`${styles.module} ${styles.moduleWide}`}
+          className={`${styles.module} ${styles.tileMovements}`}
           aria-labelledby="dash-movements"
         >
           <div className={styles.movementsHeader}>
@@ -612,6 +613,8 @@ export default function ReceptionDashboard() {
             </div>
           </div>
         </section>
+
+        <CajaWidget todayIso={todayIso} />
 
         <ComidasHub
           mealsDateIso={mealsDateIso}

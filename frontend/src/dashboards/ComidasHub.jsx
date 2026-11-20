@@ -139,7 +139,7 @@ export default function ComidasHub({
 
   return (
     <section
-      className={`${styles.module} ${styles.moduleWide} ${styles.comidasHub}`}
+      className={`${styles.module} ${styles.tileComidas} ${styles.comidasHub}`}
       aria-labelledby="dash-comidas"
       data-testid="comidas-hub"
     >

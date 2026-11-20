@@ -17,7 +17,7 @@ const SAMPLE_NOTIFICATION = {
 export default function NotificationsPanel() {
   return (
     <section
-      className={`${styles.module} ${styles.moduleWide}`}
+      className={`${styles.module} ${styles.tileNotifs}`}
       aria-labelledby="dash-notif"
     >
       <div className={styles.mealHeader}>
