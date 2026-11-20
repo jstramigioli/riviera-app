@@ -154,13 +154,13 @@ function buildDailyMenuPdfBuffer(menu) {
     const contentWidth = pageWidth - left - doc.page.margins.right;
     const logoPath = resolveLogoPath();
 
-    // Banda negra (mismo fondo del PNG oficial) + logo sin deformar (~16:9).
+    // Banda azul Riviera + logo sin deformar (~16:9).
     // Solo fijamos altura; el ancho sale de LOGO_ASPECT (no stretch).
     const logoH = logoPath ? 48 : 0;
     const logoW = logoPath ? logoH * LOGO_ASPECT : 0;
     const bandHeight = logoPath ? logoH + 16 : 52;
     doc.save();
-    doc.rect(0, 0, pageWidth, bandHeight).fill(logoPath ? '#000000' : RIVIERA_BLUE);
+    doc.rect(0, 0, pageWidth, bandHeight).fill(RIVIERA_BLUE);
     doc.restore();
 
     if (logoPath) {
@@ -222,16 +222,18 @@ function buildDailyMenuPdfBuffer(menu) {
     } else {
       let printed = 0;
       for (const section of CONVENTIONAL_ORDER) {
-        // Solo título tipográfico «mesa de ensaladas»; sin sección + contenido.
+        // Solo título tipográfico «mesa de ensaladas» (misma tipo que Entrada/Plato);
+        // sin sección + contenido, sin itálica.
         if (section === 'ENSALADA') {
           printed += 1;
           doc
-            .fillColor(TEXT_DARK)
-            .font('Helvetica-Oblique')
-            .fontSize(Math.max(nameSize, 11))
-            .text(MESA_ENSALADAS, left, doc.y, {
+            .fillColor(RIVIERA_BLUE)
+            .font('Helvetica-Bold')
+            .fontSize(9)
+            .text(MESA_ENSALADAS.toUpperCase(), left, doc.y, {
               width: contentWidth,
-              align: 'center'
+              align: 'center',
+              characterSpacing: 1.2
             });
           doc.moveDown(0.55);
           continue;

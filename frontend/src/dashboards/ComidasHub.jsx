@@ -115,7 +115,7 @@ function formatMenuDate(dateValue) {
 
 /**
  * Mini menú estilo PDF A5: secciones con título + todos los ítems (sin logo).
- * ENSALADA: solo tipografía «mesa de ensaladas» (sin sección + contenido).
+ * ENSALADA: solo título «mesa de ensaladas» (misma tipografía que secciones; sin ítems).
  */
 function buildMenuPreviewSections(menu) {
   if (!menu) return [];

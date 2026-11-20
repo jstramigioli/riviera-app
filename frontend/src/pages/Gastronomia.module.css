@@ -277,15 +277,12 @@
   color: var(--g-primary-dark);
 }
 
-/* Solo tipografía: sin sección «Ensaladas» ni caja de contenido. */
+/* Misma tipografía que .sectionTitle (Entrada / Primer plato); sin itálica. */
 .mesaEnsaladasTitle {
-  margin: 4px 0 12px;
-  font-size: 15px;
-  font-weight: 600;
-  font-style: italic;
-  letter-spacing: 0.02em;
-  color: var(--g-text-dark);
-  text-align: center;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--g-primary-dark);
 }
 
 .itemRow {

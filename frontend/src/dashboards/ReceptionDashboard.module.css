@@ -915,14 +915,14 @@
   color: var(--dash-primary);
 }
 
+/* Misma tipografía que .comidasMenuSectionTitle; sin itálica. */
 .comidasMenuMesaEnsaladas {
-  margin: 2px 0;
-  font-size: 12px;
-  font-weight: 600;
-  font-style: italic;
-  letter-spacing: 0.02em;
-  color: var(--dash-text-dark);
-  text-transform: none;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dash-primary);
 }
 
 .comidasMenuList {
