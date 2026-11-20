@@ -59,7 +59,7 @@ function pendingSaldoAmount(row) {
   return Number.isFinite(saldo) && saldo > 0 ? saldo : null;
 }
 
-/** Monto absoluto a devolver cuando hay saldo a favor (saldo < 0). */
+/** Crédito a saldar (absoluto) cuando hay saldo a favor (saldo < 0). */
 export function creditSaldoAmount(row) {
   if (!row) return null;
   const saldo = Number(row.saldo);
@@ -322,9 +322,10 @@ export default function ReceptionDashboard() {
   const openDevolucionForCredit = (reservationId, monto) => {
     if (reservationId == null || !(Number(monto) > 0)) return;
     setPaymentReservaId(reservationId);
-    setPaymentMontoASaldar(null);
+    // Favor = crédito de cuenta → Monto a saldar; al elegir origen con desc. baja lo a devolver.
+    setPaymentMontoASaldar(Number(monto));
     setPaymentInitialMode('devolucion');
-    setPaymentInitialMonto(Number(monto));
+    setPaymentInitialMonto(null);
     setPaymentOpen(true);
   };
 
