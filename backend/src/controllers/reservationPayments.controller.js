@@ -1194,7 +1194,8 @@ exports.getResumenFinanciero = async (req, res) => {
     const [imputaciones, cargos, discounts, reserva] = await Promise.all([
       prisma.pagoImputacion.findMany({
         where: { accountId: account.id },
-        select: { montoARS: true }
+        include: IMPUTACION_LIST_INCLUDE,
+        orderBy: [{ pago: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
       }),
       prisma.cargo.findMany({
         where: { accountId: account.id },
@@ -1228,6 +1229,12 @@ exports.getResumenFinanciero = async (req, res) => {
     if (!reserva) {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
+
+    // Folio view: imputaciones → shape “pago” que espera Estado financiero / liquidación
+    const pagos = redactFacturaIfNeeded(
+      imputaciones.map(imputationToFolioPagoView),
+      req.user
+    );
 
     const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
       cargos,
