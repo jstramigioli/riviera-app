@@ -655,4 +655,25 @@ describe('PaymentForm facturación', () => {
       expect(uploadPagoAdjuntos).toHaveBeenCalledWith(1, 'COMPROBANTE', [file])
     )
   })
+
+  it('initialMode devolucion abre Nueva devolución con monto precargado', async () => {
+    render(
+      <PaymentForm
+        reservaId={22}
+        initialMode="devolucion"
+        initialMonto={12500}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getByRole('heading', { name: /Nueva devolución/i })
+    ).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Nueva devolución/i })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(12500)
+  })
 })

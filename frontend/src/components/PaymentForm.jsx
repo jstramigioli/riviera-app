@@ -131,6 +131,8 @@ const PaymentForm = ({
   accountId: accountIdProp = null,
   initialPago = null,
   initialMontoASaldar = null,
+  initialMode = null,
+  initialMonto = null,
   onClose,
   onSuccess
 }) => {
@@ -148,6 +150,9 @@ const PaymentForm = ({
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [mode, setMode] = useState(() => {
     if (isEditMode && String(initialPago.motivo || '') === MOTIVO_DEVOLUCION) {
+      return MODE_DEVOLUCION;
+    }
+    if (!isEditMode && initialMode === MODE_DEVOLUCION) {
       return MODE_DEVOLUCION;
     }
     return MODE_PAGO;
@@ -216,8 +221,12 @@ const PaymentForm = ({
 
   const [formData, setFormData] = useState(() => {
     if (!isEditMode) {
+      const seedMonto = Number(initialMonto);
       return {
-        monto: '',
+        monto:
+          Number.isFinite(seedMonto) && seedMonto > 0
+            ? String(roundMoney(seedMonto))
+            : '',
         moneda: 'ARS',
         tipoCambio: '',
         metodo: 'Efectivo',

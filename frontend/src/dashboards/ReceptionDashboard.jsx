@@ -59,6 +59,14 @@ function pendingSaldoAmount(row) {
   return Number.isFinite(saldo) && saldo > 0 ? saldo : null;
 }
 
+/** Monto absoluto a devolver cuando hay saldo a favor (saldo < 0). */
+export function creditSaldoAmount(row) {
+  if (!row) return null;
+  const saldo = Number(row.saldo);
+  if (!Number.isFinite(saldo) || saldo >= 0) return null;
+  return Math.abs(saldo);
+}
+
 function statusLabel(status) {
   if (!status) return '—';
   if (status === 'INGRESADA') return 'Ingresada';
@@ -224,6 +232,8 @@ export default function ReceptionDashboard() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentReservaId, setPaymentReservaId] = useState(null);
   const [paymentMontoASaldar, setPaymentMontoASaldar] = useState(null);
+  const [paymentInitialMode, setPaymentInitialMode] = useState(null);
+  const [paymentInitialMonto, setPaymentInitialMonto] = useState(null);
   const [cajaRefreshToken, setCajaRefreshToken] = useState(0);
   const [balancesByReservationId, setBalancesByReservationId] = useState(
     () => new Map()
@@ -292,10 +302,29 @@ export default function ReceptionDashboard() {
     navigate(`/reservations/${reservationId}`);
   };
 
+  const resetPaymentState = () => {
+    setPaymentOpen(false);
+    setPaymentReservaId(null);
+    setPaymentMontoASaldar(null);
+    setPaymentInitialMode(null);
+    setPaymentInitialMonto(null);
+  };
+
   const openPaymentForSaldo = (reservationId, saldo) => {
     if (reservationId == null || !(Number(saldo) > 0)) return;
     setPaymentReservaId(reservationId);
     setPaymentMontoASaldar(Number(saldo));
+    setPaymentInitialMode(null);
+    setPaymentInitialMonto(null);
+    setPaymentOpen(true);
+  };
+
+  const openDevolucionForCredit = (reservationId, monto) => {
+    if (reservationId == null || !(Number(monto) > 0)) return;
+    setPaymentReservaId(reservationId);
+    setPaymentMontoASaldar(null);
+    setPaymentInitialMode('devolucion');
+    setPaymentInitialMonto(Number(monto));
     setPaymentOpen(true);
   };
 
@@ -384,6 +413,20 @@ export default function ReceptionDashboard() {
           title="Registrar pago del saldo pendiente"
         >
           {formatSaldo(pending)}
+        </button>
+      );
+    }
+    const credit = creditSaldoAmount(bal);
+    if (credit != null) {
+      return (
+        <button
+          type="button"
+          className={`${styles.saldoBtn} ${styles.saldoBtnFavor}`}
+          onClick={() => openDevolucionForCredit(reservationId, credit)}
+          title="Registrar devolución del saldo a favor"
+          data-testid="saldo-a-favor"
+        >
+          {formatSaldo(credit)} (a favor)
         </button>
       );
     }
@@ -659,6 +702,8 @@ export default function ReceptionDashboard() {
         onCreatePayment={() => {
           setPaymentReservaId(null);
           setPaymentMontoASaldar(null);
+          setPaymentInitialMode(null);
+          setPaymentInitialMonto(null);
           setPaymentOpen(true);
         }}
       />
@@ -676,15 +721,11 @@ export default function ReceptionDashboard() {
         <PaymentForm
           reservaId={paymentReservaId}
           initialMontoASaldar={paymentMontoASaldar}
-          onClose={() => {
-            setPaymentOpen(false);
-            setPaymentReservaId(null);
-            setPaymentMontoASaldar(null);
-          }}
+          initialMode={paymentInitialMode}
+          initialMonto={paymentInitialMonto}
+          onClose={resetPaymentState}
           onSuccess={() => {
-            setPaymentOpen(false);
-            setPaymentReservaId(null);
-            setPaymentMontoASaldar(null);
+            resetPaymentState();
             setCajaRefreshToken((n) => n + 1);
             load({ quiet: true });
           }}
