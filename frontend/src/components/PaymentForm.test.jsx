@@ -326,11 +326,15 @@ describe('PaymentForm facturación', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('permite elegir USD y no muestra label Cuenta redundante', async () => {
+  it('permite elegir USD y aclara Imputar a (sin label Cuenta redundante)', async () => {
     render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
 
     expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-imputa-label')).toHaveTextContent(/Imputar a/i)
+    expect(screen.getByTestId('payment-imputa-hint')).toHaveTextContent(
+      /reserva o cuenta externa/i
+    )
     expect(screen.getByTestId('payment-account-search')).toBeInTheDocument()
     fireEvent.focus(screen.getByTestId('payment-account-search'))
     expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()

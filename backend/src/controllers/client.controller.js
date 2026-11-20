@@ -256,8 +256,54 @@ exports.getClientBalance = async (req, res) => {
         accounts: {
           include: {
             reservation: { select: { id: true, status: true } },
-            cargos: { select: { monto: true } },
-            imputaciones: { select: { montoARS: true } },
+            cargos: {
+              select: {
+                id: true,
+                descripcion: true,
+                monto: true,
+                fecha: true,
+                notas: true,
+                reservaId: true,
+                accountId: true,
+                subcategoriaCargoId: true,
+                roomTypeId: true,
+                serviceTypeId: true,
+                subcategoriaCargo: {
+                  select: { id: true, nombre: true, tipo: true }
+                }
+              },
+              orderBy: { fecha: 'desc' }
+            },
+            imputaciones: {
+              select: {
+                id: true,
+                montoARS: true,
+                bonificacionARS: true,
+                reservaId: true,
+                accountId: true,
+                ordenIndex: true,
+                pago: {
+                  select: {
+                    id: true,
+                    codigo: true,
+                    fecha: true,
+                    monto: true,
+                    moneda: true,
+                    tipoCambio: true,
+                    montoARS: true,
+                    metodo: true,
+                    motivo: true,
+                    notas: true,
+                    referencia: true,
+                    numeroTarjeta: true,
+                    empresa: true,
+                    requiereFacturacion: true,
+                    _count: { select: { imputaciones: true } }
+                  }
+                }
+              },
+              orderBy: { createdAt: 'desc' }
+            },
             discountApplications: { select: { montoARS: true } },
           },
         },
@@ -280,6 +326,116 @@ exports.getClientBalance = async (req, res) => {
     const byReservation = aggregateReservationsBalance(client.reservations);
     const useAccounts = accounts.length > 0;
 
+    const toNumber = (v) => (v == null ? 0 : Number(v));
+
+    let cargos = [];
+    let pagos = [];
+
+    if (useAccounts) {
+      for (const account of accounts) {
+        const accountLabel =
+          account.label ||
+          (account.reservationId ? `Reserva #${account.reservationId}` : `Cuenta #${account.id}`);
+        for (const cargo of account.cargos || []) {
+          cargos.push({
+            id: cargo.id,
+            descripcion: cargo.descripcion,
+            monto: toNumber(cargo.monto),
+            fecha: cargo.fecha,
+            notas: cargo.notas || null,
+            reservaId: cargo.reservaId || account.reservationId || null,
+            accountId: cargo.accountId || account.id,
+            accountKind: account.kind || null,
+            accountLabel,
+            subcategoriaCargoId: cargo.subcategoriaCargoId || null,
+            subcategoriaNombre: cargo.subcategoriaCargo?.nombre || null,
+            tipoCargo: cargo.subcategoriaCargo?.tipo || (cargo.roomTypeId ? 'ALOJAMIENTO' : null),
+            editable: Boolean(cargo.subcategoriaCargoId)
+          });
+        }
+        for (const imp of account.imputaciones || []) {
+          const pago = imp.pago || {};
+          const imputacionesCount = pago._count?.imputaciones || 1;
+          pagos.push({
+            id: pago.id,
+            imputacionId: imp.id,
+            codigo: pago.codigo || null,
+            fecha: pago.fecha,
+            monto: toNumber(pago.monto),
+            moneda: pago.moneda || 'ARS',
+            tipoCambio: pago.tipoCambio != null ? toNumber(pago.tipoCambio) : null,
+            montoARS: toNumber(imp.montoARS),
+            pagoTotalARS: toNumber(pago.montoARS),
+            bonificacionARS: toNumber(imp.bonificacionARS),
+            metodo: pago.metodo || null,
+            motivo: pago.motivo || 'Pago',
+            notas: pago.notas || null,
+            referencia: pago.referencia || null,
+            numeroTarjeta: pago.numeroTarjeta || null,
+            empresa: pago.empresa || null,
+            requiereFacturacion: Boolean(pago.requiereFacturacion),
+            reservaId: imp.reservaId || account.reservationId || null,
+            accountId: imp.accountId || account.id,
+            accountKind: account.kind || null,
+            accountLabel,
+            esImputacionParcial: imputacionesCount > 1,
+            imputacionesCount
+          });
+        }
+      }
+    } else {
+      for (const reservation of client.reservations || []) {
+        const accountLabel = `Reserva #${reservation.id}`;
+        for (const cargo of reservation.cargos || []) {
+          cargos.push({
+            id: cargo.id,
+            descripcion: cargo.descripcion,
+            monto: toNumber(cargo.monto),
+            fecha: cargo.fecha,
+            notas: cargo.notas || null,
+            reservaId: cargo.reservaId || reservation.id,
+            accountId: cargo.accountId || null,
+            accountKind: 'RESERVATION',
+            accountLabel,
+            subcategoriaCargoId: cargo.subcategoriaCargoId || null,
+            subcategoriaNombre: null,
+            tipoCargo: cargo.subcategoriaCargoId ? null : (cargo.roomTypeId ? 'ALOJAMIENTO' : null),
+            editable: Boolean(cargo.subcategoriaCargoId)
+          });
+        }
+        for (const pago of reservation.pagos || []) {
+          pagos.push({
+            id: pago.id,
+            imputacionId: null,
+            codigo: pago.codigo || null,
+            fecha: pago.fecha,
+            monto: toNumber(pago.monto),
+            moneda: pago.moneda || 'ARS',
+            tipoCambio: pago.tipoCambio != null ? toNumber(pago.tipoCambio) : null,
+            montoARS: toNumber(pago.montoARS),
+            pagoTotalARS: toNumber(pago.montoARS),
+            bonificacionARS: 0,
+            metodo: pago.metodo || null,
+            motivo: pago.motivo || 'Pago',
+            notas: pago.notas || null,
+            referencia: pago.referencia || null,
+            numeroTarjeta: pago.numeroTarjeta || null,
+            empresa: pago.empresa || null,
+            requiereFacturacion: Boolean(pago.requiereFacturacion),
+            reservaId: pago.reservaId || reservation.id,
+            accountId: pago.accountId || null,
+            accountKind: 'RESERVATION',
+            accountLabel,
+            esImputacionParcial: false,
+            imputacionesCount: 1
+          });
+        }
+      }
+    }
+
+    cargos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    pagos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
     res.json({
       clientId: client.id,
       clientName: `${client.firstName} ${client.lastName}`,
@@ -291,6 +447,8 @@ exports.getClientBalance = async (req, res) => {
       accountCount: useAccounts ? byAccount.accountCount : byReservation.reservationCount,
       accounts: useAccounts ? byAccount.accounts : [],
       reservations: useAccounts ? byAccount.reservations : byReservation.reservations,
+      cargos,
+      pagos
     });
   } catch (error) {
     console.error('Error calculating client balance:', error);
