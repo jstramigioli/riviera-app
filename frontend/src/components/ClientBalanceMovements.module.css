@@ -89,6 +89,12 @@
   white-space: nowrap;
 }
 
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -105,6 +111,16 @@
 .iconBtn:hover {
   background: var(--color-bg);
   color: var(--color-primary);
+}
+
+.iconBtnDanger:hover {
+  color: #b42318;
+  background: #fef3f2;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .empty {
@@ -159,9 +175,13 @@
 .detailActions {
   grid-column: 1 / -1;
   margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.editBtn {
+.editBtn,
+.deleteBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -177,6 +197,20 @@
 
 .editBtn:hover {
   background: var(--color-bg);
+}
+
+.deleteBtn {
+  color: #b42318;
+  border-color: #fecdca;
+}
+
+.deleteBtn:hover {
+  background: #fef3f2;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modalOverlay {

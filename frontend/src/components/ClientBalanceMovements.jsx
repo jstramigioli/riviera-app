@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { FaEdit } from 'react-icons/fa';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 import PaymentForm from './PaymentForm';
-import { updateCargo } from '../services/api';
+import { deleteCargo, deletePago, updateCargo } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import styles from './ClientBalanceMovements.module.css';
 
 function formatDate(dateString) {
@@ -25,11 +26,13 @@ const ClientBalanceMovements = ({
   onChanged
 }) => {
   const { notify, noticeDialog } = useAppNotice();
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [selected, setSelected] = useState(null); // { type: 'cargo'|'pago', id, imputacionId? }
   const [editingPago, setEditingPago] = useState(null);
   const [editingCargo, setEditingCargo] = useState(null);
   const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '', notas: '' });
   const [savingCargo, setSavingCargo] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const selectedCargo = useMemo(() => {
     if (!selected || selected.type !== 'cargo') return null;
@@ -79,6 +82,74 @@ const ClientBalanceMovements = ({
 
   const openEditPago = (pago) => {
     setEditingPago(pago);
+  };
+
+  const clearSelectionIf = (predicate) => {
+    setSelected((prev) => (prev && predicate(prev) ? null : prev));
+  };
+
+  const handleDeleteCargo = async (cargo) => {
+    if (!cargo?.id || deletingId === `cargo-${cargo.id}`) return;
+    if (!cargo.editable) {
+      notify({
+        title: 'No eliminable',
+        message:
+          'Los cargos de alojamiento se generan con la reserva y no se eliminan a mano desde aquí.',
+        type: 'warning'
+      });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Eliminar cargo',
+      message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar'
+    });
+    if (!ok) return;
+
+    setDeletingId(`cargo-${cargo.id}`);
+    try {
+      await deleteCargo(cargo.id);
+      clearSelectionIf((s) => s.type === 'cargo' && s.id === cargo.id);
+      if (editingCargo?.id === cargo.id) setEditingCargo(null);
+      notify({ title: 'Cargo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
+      if (onChanged) await onChanged();
+    } catch (err) {
+      notify({
+        title: 'No se pudo eliminar',
+        message: err?.message || 'Error al eliminar el cargo',
+        type: 'error'
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDeletePago = async (pago) => {
+    if (!pago?.id || deletingId === `pago-${pago.id}`) return;
+    const codigo = pago.codigo || `#${pago.id}`;
+    const ok = await confirm({
+      title: 'Eliminar pago',
+      message: `¿Eliminar el pago ${codigo}? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar'
+    });
+    if (!ok) return;
+
+    setDeletingId(`pago-${pago.id}`);
+    try {
+      await deletePago(pago.id);
+      clearSelectionIf((s) => s.type === 'pago' && s.id === pago.id);
+      if (editingPago?.id === pago.id) setEditingPago(null);
+      notify({ title: 'Pago eliminado', message: 'El pago se eliminó correctamente.', type: 'success' });
+      if (onChanged) await onChanged();
+    } catch (err) {
+      notify({
+        title: 'No se pudo eliminar',
+        message: err?.message || 'Error al eliminar el pago',
+        type: 'error'
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleSaveCargo = async (e) => {
@@ -155,19 +226,37 @@ const ClientBalanceMovements = ({
                         <td>{cargo.accountLabel || '—'}</td>
                         <td className={styles.montoCell}>{formatPrice(cargo.monto)}</td>
                         <td>
-                          <button
-                            type="button"
-                            className={styles.iconBtn}
-                            title="Editar cargo"
-                            data-testid={`client-cargo-edit-${cargo.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selectCargo(cargo);
-                              openEditCargo(cargo);
-                            }}
-                          >
-                            <FaEdit aria-hidden="true" />
-                          </button>
+                          <div className={styles.rowActions}>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              title="Editar cargo"
+                              aria-label="Editar cargo"
+                              data-testid={`client-cargo-edit-${cargo.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectCargo(cargo);
+                                openEditCargo(cargo);
+                              }}
+                            >
+                              <FaEdit aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                              title="Eliminar cargo"
+                              aria-label="Eliminar cargo"
+                              data-testid={`client-cargo-delete-${cargo.id}`}
+                              disabled={deletingId === `cargo-${cargo.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectCargo(cargo);
+                                handleDeleteCargo(cargo);
+                              }}
+                            >
+                              <FaTrash aria-hidden="true" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -221,19 +310,37 @@ const ClientBalanceMovements = ({
                         <td>{pago.accountLabel || '—'}</td>
                         <td className={styles.montoCell}>{formatPrice(pago.montoARS)}</td>
                         <td>
-                          <button
-                            type="button"
-                            className={styles.iconBtn}
-                            title="Editar pago"
-                            data-testid={`client-pago-edit-${pago.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selectPago(pago);
-                              openEditPago(pago);
-                            }}
-                          >
-                            <FaEdit aria-hidden="true" />
-                          </button>
+                          <div className={styles.rowActions}>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              title="Editar pago"
+                              aria-label="Editar pago"
+                              data-testid={`client-pago-edit-${pago.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectPago(pago);
+                                openEditPago(pago);
+                              }}
+                            >
+                              <FaEdit aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                              title="Eliminar pago"
+                              aria-label="Eliminar pago"
+                              data-testid={`client-pago-delete-${pago.id}`}
+                              disabled={deletingId === `pago-${pago.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectPago(pago);
+                                handleDeletePago(pago);
+                              }}
+                            >
+                              <FaTrash aria-hidden="true" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -295,6 +402,15 @@ const ClientBalanceMovements = ({
                 data-testid="client-cargo-detail-edit"
               >
                 <FaEdit aria-hidden="true" /> Editar cargo
+              </button>
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                onClick={() => handleDeleteCargo(selectedCargo)}
+                data-testid="client-cargo-detail-delete"
+                disabled={deletingId === `cargo-${selectedCargo.id}`}
+              >
+                <FaTrash aria-hidden="true" /> Eliminar cargo
               </button>
             </div>
           </dl>
@@ -359,6 +475,15 @@ const ClientBalanceMovements = ({
                 data-testid="client-pago-detail-edit"
               >
                 <FaEdit aria-hidden="true" /> Editar pago
+              </button>
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                onClick={() => handleDeletePago(selectedPago)}
+                data-testid="client-pago-detail-delete"
+                disabled={deletingId === `pago-${selectedPago.id}`}
+              >
+                <FaTrash aria-hidden="true" /> Eliminar pago
               </button>
             </div>
           </dl>
@@ -449,6 +574,7 @@ const ClientBalanceMovements = ({
       ) : null}
 
       {noticeDialog}
+      {confirmDialog}
     </div>
   );
 };

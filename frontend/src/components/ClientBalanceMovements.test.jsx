@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ClientBalanceMovements from './ClientBalanceMovements'
+import { deleteCargo, deletePago, updateCargo } from '../services/api'
 
 vi.mock('./PaymentForm', () => ({
   default: ({ onClose }) => (
@@ -13,13 +14,25 @@ vi.mock('./PaymentForm', () => ({
 }))
 
 vi.mock('../services/api', () => ({
-  updateCargo: vi.fn()
+  updateCargo: vi.fn(),
+  deleteCargo: vi.fn(),
+  deletePago: vi.fn()
 }))
+
+const notify = vi.fn()
+const confirm = vi.fn()
 
 vi.mock('../hooks/useAppNotice', () => ({
   useAppNotice: () => ({
-    notify: vi.fn(),
+    notify,
     noticeDialog: null
+  })
+}))
+
+vi.mock('../hooks/useConfirmDialog', () => ({
+  useConfirmDialog: () => ({
+    confirm,
+    confirmDialog: null
   })
 }))
 
@@ -37,6 +50,14 @@ describe('ClientBalanceMovements', () => {
       editable: true,
       subcategoriaCargoId: 3,
       subcategoriaNombre: 'Consumos'
+    },
+    {
+      id: 11,
+      descripcion: 'Alojamiento',
+      monto: 80000,
+      fecha: '2026-01-01T00:00:00.000Z',
+      accountLabel: 'Reserva #9',
+      editable: false
     }
   ]
   const pagos = [
@@ -56,6 +77,14 @@ describe('ClientBalanceMovements', () => {
       accountId: 1
     }
   ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    confirm.mockResolvedValue(true)
+    deleteCargo.mockResolvedValue({})
+    deletePago.mockResolvedValue({})
+    updateCargo.mockResolvedValue({})
+  })
 
   it('muestra tablas de cargos y pagos y detalle al seleccionar', () => {
     render(
@@ -94,5 +123,102 @@ describe('ClientBalanceMovements', () => {
 
     fireEvent.click(screen.getByTestId('client-pago-edit-20'))
     expect(screen.getByTestId('payment-form-mock')).toBeInTheDocument()
+  })
+
+  it('elimina un pago tras confirmar en modal in-app', async () => {
+    const onChanged = vi.fn()
+    render(
+      <ClientBalanceMovements
+        cargos={cargos}
+        pagos={pagos}
+        formatPrice={formatPrice}
+        onChanged={onChanged}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('client-pago-delete-20'))
+
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Eliminar pago',
+          confirmText: 'Eliminar'
+        })
+      )
+    })
+    await waitFor(() => {
+      expect(deletePago).toHaveBeenCalledWith(20)
+    })
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('elimina un cargo editable tras confirmar', async () => {
+    const onChanged = vi.fn()
+    render(
+      <ClientBalanceMovements
+        cargos={cargos}
+        pagos={pagos}
+        formatPrice={formatPrice}
+        onChanged={onChanged}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('client-cargo-delete-10'))
+
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Eliminar cargo',
+          confirmText: 'Eliminar'
+        })
+      )
+    })
+    await waitFor(() => {
+      expect(deleteCargo).toHaveBeenCalledWith(10)
+    })
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('no elimina cargo de alojamiento y avisa', async () => {
+    render(
+      <ClientBalanceMovements
+        cargos={cargos}
+        pagos={pagos}
+        formatPrice={formatPrice}
+        onChanged={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('client-cargo-delete-11'))
+
+    await waitFor(() => {
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'No eliminable',
+          type: 'warning'
+        })
+      )
+    })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(deleteCargo).not.toHaveBeenCalled()
+  })
+
+  it('no llama delete si se cancela el modal', async () => {
+    confirm.mockResolvedValue(false)
+    render(
+      <ClientBalanceMovements
+        cargos={cargos}
+        pagos={pagos}
+        formatPrice={formatPrice}
+        onChanged={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('client-pago-delete-20'))
+
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalled()
+    })
+    expect(deletePago).not.toHaveBeenCalled()
   })
 })
