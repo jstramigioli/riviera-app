@@ -22,11 +22,9 @@ vi.mock('../hooks/useAppNotice', () => ({
   }),
 }))
 
-const confirmMock = vi.fn(async () => false)
-
 vi.mock('../hooks/useConfirmDialog', () => ({
   useConfirmDialog: () => ({
-    confirm: (...args) => confirmMock(...args),
+    confirm: vi.fn(async () => false),
     confirmDialog: null,
   }),
 }))
@@ -42,7 +40,7 @@ vi.mock('../components/PaymentForm', () => ({
   ),
 }))
 
-import { deletePago, getAllPagos } from '../services/api'
+import { getAllPagos } from '../services/api'
 import CajaWidget, { pagoInHorizon } from './CajaWidget'
 
 const TODAY = '2026-11-20'
@@ -67,7 +65,6 @@ function makePago({ id, fecha, codigo }) {
 describe('CajaWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    confirmMock.mockResolvedValue(false)
     getAllPagos.mockResolvedValue([
       makePago({ id: 1, fecha: '2026-11-20T10:00:00' }),
       makePago({ id: 2, fecha: '2026-11-18T10:00:00' }),
@@ -99,7 +96,7 @@ describe('CajaWidget', () => {
     expect(screen.queryByTestId('pago-row-3')).not.toBeInTheDocument()
   })
 
-  it('abre crear y editar pago', async () => {
+  it('abre crear pago y no ofrece editar ni eliminar en el listado', async () => {
     render(
       <MemoryRouter>
         <CajaWidget todayIso={TODAY} />
@@ -109,36 +106,13 @@ describe('CajaWidget', () => {
     await waitFor(() => {
       expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
     })
+
+    expect(screen.queryByTestId('pago-edit-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pago-delete-1')).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('caja-nuevo-pago'))
     expect(screen.getByTestId('payment-form')).toHaveTextContent('create')
-    fireEvent.click(screen.getByRole('button', { name: 'cerrar' }))
-
-    fireEvent.click(screen.getByTestId('pago-edit-1'))
-    expect(screen.getByTestId('payment-form')).toHaveTextContent('edit-1')
-  })
-
-  it('elimina pago tras confirmar en modal in-app', async () => {
-    confirmMock.mockResolvedValue(true)
-    deletePago.mockResolvedValue({ ok: true })
-
-    render(
-      <MemoryRouter>
-        <CajaWidget todayIso={TODAY} />
-      </MemoryRouter>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByTestId('pago-delete-1'))
-
-    await waitFor(() => {
-      expect(confirmMock).toHaveBeenCalled()
-      expect(deletePago).toHaveBeenCalledWith(1)
-      expect(screen.queryByTestId('pago-row-1')).not.toBeInTheDocument()
-    })
   })
 
   it('pagoInHorizon compara por día civil local', () => {
