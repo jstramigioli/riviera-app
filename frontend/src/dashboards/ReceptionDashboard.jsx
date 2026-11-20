@@ -420,15 +420,17 @@ export default function ReceptionDashboard() {
           className={`${styles.module} ${styles.tileMovements}`}
           aria-labelledby="dash-movements"
         >
-          <div className={styles.movementsHeader}>
+          <div className={styles.moduleHeader}>
             <h2 id="dash-movements" className={styles.moduleTitle}>
               Movimientos
             </h2>
-            <RangeFilter
-              value={horizonDays}
-              onChange={setHorizonDays}
-              labelledBy="dash-movements"
-            />
+            <div className={styles.moduleToolbar}>
+              <RangeFilter
+                value={horizonDays}
+                onChange={setHorizonDays}
+                labelledBy="dash-movements"
+              />
+            </div>
           </div>
 
           <div className={styles.movementsSplit}>
@@ -442,98 +444,110 @@ export default function ReceptionDashboard() {
               {checkInRows.length === 0 ? (
                 <p className={styles.empty}>Sin ingresos pendientes.</p>
               ) : (
-                <table className={styles.dataTable}>
-                  <thead>
-                    <tr>
-                      <th>Nombre</th>
-                      <th>Huéspedes</th>
-                      <th>Habitación</th>
-                      <th>Tipo de servicio</th>
-                      <th>Notas</th>
-                      <th>Saldo</th>
-                      <th>Estado</th>
-                      <th className={styles.checkCol}>
-                        <span className={styles.srOnly}>Check-in</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {checkInRows.map((item) => {
-                      const canCheckIn = Boolean(item.pending);
-                      return (
-                        <tr key={`in-${item.reservationId}`}>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.listLink}
-                              onClick={() => openReservation(item.reservationId)}
-                            >
-                              {item.guestName || item.label}
-                            </button>
-                            {item.overdue ? (
-                              <span className={styles.lateHint}>
-                                {' '}
-                                atrasado ({item.plannedCheckIn})
-                              </span>
-                            ) : item.plannedCheckIn &&
-                              item.plannedCheckIn !== todayIso ? (
-                              <span className={styles.statusMuted}>
-                                {' '}
-                                · {item.plannedCheckIn}
-                              </span>
-                            ) : null}
-                          </td>
-                          <td>{item.guests ?? '—'}</td>
-                          <td>{item.roomLabel || '—'}</td>
-                          <td>{item.serviceTypeLabel || '—'}</td>
-                          <td className={styles.notesCell}>
-                            {renderNotesCell(item)}
-                          </td>
-                          <td>{renderSaldoCell(item.reservationId)}</td>
-                          <td>
-                            <span
-                              className={
-                                item.pending
-                                  ? styles.statusPending
-                                  : item.status === 'INGRESADA'
-                                    ? styles.statusDone
-                                    : styles.statusMuted
-                              }
-                            >
-                              {statusLabel(item.status)}
-                            </span>
-                          </td>
-                          <td className={styles.checkCol}>
-                            {canCheckIn ? (
+                <div className={styles.tableScroll}>
+                  <table className={`${styles.dataTable} ${styles.dataTableIn}`}>
+                    <thead>
+                      <tr>
+                        <th className={styles.colName}>Nombre</th>
+                        <th className={styles.colGuests}>Huéspedes</th>
+                        <th className={styles.colRoom}>Habitación</th>
+                        <th className={styles.colService}>Tipo de servicio</th>
+                        <th className={styles.colNotes}>Notas</th>
+                        <th className={styles.colSaldo}>Saldo</th>
+                        <th className={styles.colStatus}>Estado</th>
+                        <th className={styles.checkCol}>
+                          <span className={styles.srOnly}>Check-in</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {checkInRows.map((item) => {
+                        const canCheckIn = Boolean(item.pending);
+                        return (
+                          <tr key={`in-${item.reservationId}`}>
+                            <td className={styles.colName}>
                               <button
                                 type="button"
-                                className={`${styles.checkInBtn} ${styles.checkInBtnIdle}`}
-                                disabled={statusBusyId === item.reservationId}
-                                aria-label={`Marcar ingreso de ${item.guestName || 'reserva'}`}
-                                title="Marcar como ingresada"
-                                onClick={() =>
-                                  setStatus(item.reservationId, 'INGRESADA')
+                                className={styles.listLink}
+                                onClick={() => openReservation(item.reservationId)}
+                              >
+                                {item.guestName || item.label}
+                              </button>
+                              {item.overdue ? (
+                                <span className={styles.lateHint}>
+                                  {' '}
+                                  atrasado ({item.plannedCheckIn})
+                                </span>
+                              ) : item.plannedCheckIn &&
+                                item.plannedCheckIn !== todayIso ? (
+                                <span className={styles.statusMuted}>
+                                  {' '}
+                                  · {item.plannedCheckIn}
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className={styles.colGuests}>
+                              {item.guests ?? '—'}
+                            </td>
+                            <td className={styles.colRoom}>
+                              {item.roomLabel || '—'}
+                            </td>
+                            <td className={styles.colService}>
+                              <span className={styles.cellClamp}>
+                                {item.serviceTypeLabel || '—'}
+                              </span>
+                            </td>
+                            <td className={styles.colNotes}>
+                              {renderNotesCell(item)}
+                            </td>
+                            <td className={styles.colSaldo}>
+                              {renderSaldoCell(item.reservationId)}
+                            </td>
+                            <td className={styles.colStatus}>
+                              <span
+                                className={
+                                  item.pending
+                                    ? styles.statusPending
+                                    : item.status === 'INGRESADA'
+                                      ? styles.statusDone
+                                      : styles.statusMuted
                                 }
                               >
-                                <FiCheck aria-hidden="true" />
-                              </button>
-                            ) : item.status === 'INGRESADA' ? (
-                              <span
-                                className={`${styles.checkInBtn} ${styles.checkInBtnDone}`}
-                                aria-label="Ingresada"
-                                title="Ingresada"
-                              >
-                                <FiCheck aria-hidden="true" />
+                                {statusLabel(item.status)}
                               </span>
-                            ) : (
-                              <span className={styles.statusMuted}>—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className={styles.checkCol}>
+                              {canCheckIn ? (
+                                <button
+                                  type="button"
+                                  className={`${styles.checkInBtn} ${styles.checkInBtnIdle}`}
+                                  disabled={statusBusyId === item.reservationId}
+                                  aria-label={`Marcar ingreso de ${item.guestName || 'reserva'}`}
+                                  title="Marcar como ingresada"
+                                  onClick={() =>
+                                    setStatus(item.reservationId, 'INGRESADA')
+                                  }
+                                >
+                                  <FiCheck aria-hidden="true" />
+                                </button>
+                              ) : item.status === 'INGRESADA' ? (
+                                <span
+                                  className={`${styles.checkInBtn} ${styles.checkInBtnDone}`}
+                                  aria-label="Ingresada"
+                                  title="Ingresada"
+                                >
+                                  <FiCheck aria-hidden="true" />
+                                </span>
+                              ) : (
+                                <span className={styles.statusMuted}>—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
@@ -547,68 +561,78 @@ export default function ReceptionDashboard() {
               {checkoutRows.length === 0 ? (
                 <p className={styles.empty}>Sin egresos en el rango.</p>
               ) : (
-                <table className={styles.dataTable}>
-                  <thead>
-                    <tr>
-                      <th>Nombre</th>
-                      <th>Huéspedes</th>
-                      <th>Habitación</th>
-                      <th>Notas</th>
-                      <th>Saldo</th>
-                      <th>Estado</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {checkoutRows.map((item) => (
-                      <tr key={`out-${item.reservationId}`}>
-                        <td>
-                          <button
-                            type="button"
-                            className={styles.listLink}
-                            onClick={() => openReservation(item.reservationId)}
-                          >
-                            {item.guestName || item.label}
-                          </button>
-                          {item.late ? (
-                            <span className={styles.lateHint}>
-                              {' '}
-                              atrasado ({item.plannedCheckout})
-                            </span>
-                          ) : item.plannedCheckout ? (
-                            <span className={styles.statusMuted}>
-                              {' '}
-                              · {item.plannedCheckout}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td>{item.guests ?? '—'}</td>
-                        <td>{item.roomLabel || '—'}</td>
-                        <td className={styles.notesCell}>
-                          {renderNotesCell(item)}
-                        </td>
-                        <td>{renderSaldoCell(item.reservationId)}</td>
-                        <td>
-                          <span className={styles.statusMuted}>
-                            {statusLabel(item.status)}
-                          </span>
-                        </td>
-                        <td className={styles.actionsCell}>
-                          <button
-                            type="button"
-                            className={styles.actionBtn}
-                            disabled={statusBusyId === item.reservationId}
-                            onClick={() =>
-                              setStatus(item.reservationId, 'FINALIZADA')
-                            }
-                          >
-                            Finalizar reserva
-                          </button>
-                        </td>
+                <div className={styles.tableScroll}>
+                  <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
+                    <thead>
+                      <tr>
+                        <th className={styles.colName}>Nombre</th>
+                        <th className={styles.colGuests}>Huéspedes</th>
+                        <th className={styles.colRoom}>Habitación</th>
+                        <th className={styles.colNotes}>Notas</th>
+                        <th className={styles.colSaldo}>Saldo</th>
+                        <th className={styles.colStatus}>Estado</th>
+                        <th className={styles.colActions}>
+                          <span className={styles.srOnly}>Acciones</span>
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {checkoutRows.map((item) => (
+                        <tr key={`out-${item.reservationId}`}>
+                          <td className={styles.colName}>
+                            <button
+                              type="button"
+                              className={styles.listLink}
+                              onClick={() => openReservation(item.reservationId)}
+                            >
+                              {item.guestName || item.label}
+                            </button>
+                            {item.late ? (
+                              <span className={styles.lateHint}>
+                                {' '}
+                                atrasado ({item.plannedCheckout})
+                              </span>
+                            ) : item.plannedCheckout ? (
+                              <span className={styles.statusMuted}>
+                                {' '}
+                                · {item.plannedCheckout}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className={styles.colGuests}>
+                            {item.guests ?? '—'}
+                          </td>
+                          <td className={styles.colRoom}>
+                            {item.roomLabel || '—'}
+                          </td>
+                          <td className={styles.colNotes}>
+                            {renderNotesCell(item)}
+                          </td>
+                          <td className={styles.colSaldo}>
+                            {renderSaldoCell(item.reservationId)}
+                          </td>
+                          <td className={styles.colStatus}>
+                            <span className={styles.statusMuted}>
+                              {statusLabel(item.status)}
+                            </span>
+                          </td>
+                          <td className={styles.colActions}>
+                            <button
+                              type="button"
+                              className={styles.actionBtn}
+                              disabled={statusBusyId === item.reservationId}
+                              onClick={() =>
+                                setStatus(item.reservationId, 'FINALIZADA')
+                              }
+                            >
+                              Finalizar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

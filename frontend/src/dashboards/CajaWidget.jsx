@@ -7,7 +7,6 @@ import PaymentForm from '../components/PaymentForm';
 import PagosHistorialTable, {
   EMPTY_PAY_FILTERS,
 } from '../components/PagosHistorialTable';
-import cobrosStyles from '../pages/CobrosPagos.module.css';
 import styles from './ReceptionDashboard.module.css';
 
 const RANGE_OPTIONS = [
@@ -126,11 +125,11 @@ export default function CajaWidget({ todayIso, className = '' }) {
       aria-labelledby="dash-caja"
       data-testid="caja-widget"
     >
-      <div className={styles.cajaHeader}>
+      <div className={styles.moduleHeader}>
         <h2 id="dash-caja" className={styles.moduleTitle}>
           Caja
         </h2>
-        <div className={styles.cajaToolbar}>
+        <div className={styles.moduleToolbar}>
           <RangeFilter
             value={horizonDays}
             onChange={setHorizonDays}
@@ -139,7 +138,7 @@ export default function CajaWidget({ todayIso, className = '' }) {
           {hasActivePayFilters ? (
             <button
               type="button"
-              className={cobrosStyles.clearDates}
+              className={styles.textBtn}
               onClick={() => setPayFilters(EMPTY_PAY_FILTERS)}
             >
               Limpiar filtros
