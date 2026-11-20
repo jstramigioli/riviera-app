@@ -123,7 +123,7 @@ describe('DayInfoSidePanel', () => {
     expect(screen.queryByText(/Información del/i)).not.toBeInTheDocument();
   });
 
-  it('muestra ingresos/salidas en columnas con habitación - huésped y ocupación', () => {
+  it('muestra ingresos/egresos en columnas con habitación - huésped y ocupación', () => {
     const onClose = vi.fn();
     renderPanel(
       <DayInfoSidePanel
@@ -136,17 +136,17 @@ describe('DayInfoSidePanel', () => {
       />
     );
 
-    // Día 2: ingreso María hab 15, salida Carlos hab 8
+    // Día 2: ingreso María hab 15, egreso Carlos hab 8
     expect(screen.getByText('Ingresos')).toBeInTheDocument();
-    expect(screen.getByText('Salidas')).toBeInTheDocument();
+    expect(screen.getByText('Egresos')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '15 - María García' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '8 - Carlos López' })).toBeInTheDocument();
 
-    // Totales: el total de ingresos es 1, salidas 3
+    // Totales: el total de ingresos es 1, egresos 3
     const ingresos = screen.getByText('Ingresos').closest('section');
-    const salidas = screen.getByText('Salidas').closest('section');
+    const egresos = screen.getByText('Egresos').closest('section');
     expect(ingresos).toHaveTextContent('1');
-    expect(salidas).toHaveTextContent('3');
+    expect(egresos).toHaveTextContent('3');
 
     screen.getByRole('button', { name: '15 - María García' }).click();
     expect(onClose).toHaveBeenCalled();

@@ -1,5 +1,3 @@
-const prisma = require('../utils/prisma');
-
 function civilOf(value) {
   if (value == null) return null;
   if (typeof value === 'string') return value.slice(0, 10);
@@ -107,75 +105,10 @@ function buildOperationalPayloads(todayIso, reservations = []) {
 
 /**
  * Upsert operativas + auto-resuelve SYSTEM cuya condición ya no aplica.
+ * Desactivado: el dashboard de recepción no genera notifs automáticas por ahora.
  */
-async function syncOperationalNotifications(todayIso) {
-  const reservations = await prisma.reservation.findMany({
-    where: {
-      status: {
-        notIn: ['CANCELADA', 'NO_PRESENTADA']
-      }
-    },
-    include: {
-      mainClient: true,
-      segments: true
-    }
-  });
-
-  const payloads = buildOperationalPayloads(todayIso, reservations);
-  const activeKeys = new Set(payloads.map((p) => p.dedupeKey));
-
-  let upserted = 0;
-  for (const payload of payloads) {
-    await prisma.appNotification.upsert({
-      where: { dedupeKey: payload.dedupeKey },
-      create: {
-        ...payload,
-        resolvedAt: null,
-        resolvedById: null
-      },
-      update: {
-        severity: payload.severity,
-        title: payload.title,
-        body: payload.body,
-        linkType: payload.linkType,
-        linkId: payload.linkId,
-        audienceRole: payload.audienceRole,
-        meta: payload.meta,
-        // Si la condición vuelve, reabrir.
-        resolvedAt: null,
-        resolvedById: null
-      }
-    });
-    upserted += 1;
-  }
-
-  const stale = await prisma.appNotification.findMany({
-    where: {
-      source: 'SYSTEM',
-      type: { in: ['PENDING_ARRIVAL', 'LATE_CHECKOUT'] },
-      resolvedAt: null,
-      dedupeKey: { not: null }
-    },
-    select: { id: true, dedupeKey: true }
-  });
-
-  const toResolve = stale
-    .filter((n) => n.dedupeKey && !activeKeys.has(n.dedupeKey))
-    .map((n) => n.id);
-
-  let autoResolved = 0;
-  if (toResolve.length) {
-    const result = await prisma.appNotification.updateMany({
-      where: { id: { in: toResolve } },
-      data: {
-        resolvedAt: new Date(),
-        resolvedById: null
-      }
-    });
-    autoResolved = result.count;
-  }
-
-  return { upserted, autoResolved, active: payloads.length };
+async function syncOperationalNotifications(_todayIso) {
+  return { upserted: 0, autoResolved: 0, active: 0, disabled: true };
 }
 
 module.exports = {

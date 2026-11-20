@@ -129,6 +129,7 @@ const PaymentForm = ({
   reservaId: reservaIdProp = null,
   accountId: accountIdProp = null,
   initialPago = null,
+  initialMontoASaldar = null,
   onClose,
   onSuccess
 }) => {
@@ -250,8 +251,14 @@ const PaymentForm = ({
   const [saldoPendiente, setSaldoPendiente] = useState(null);
   const [pagosOrigen, setPagosOrigen] = useState([]);
   const [pagoOrigenId, setPagoOrigenId] = useState('');
-  const [amountMode, setAmountMode] = useState(AMOUNT_MODE_INGRESADO);
-  const [montoASaldar, setMontoASaldar] = useState('');
+  const [amountMode, setAmountMode] = useState(() => {
+    const n = Number(initialMontoASaldar);
+    return Number.isFinite(n) && n > 0 ? AMOUNT_MODE_SALDAR : AMOUNT_MODE_INGRESADO;
+  });
+  const [montoASaldar, setMontoASaldar] = useState(() => {
+    const n = Number(initialMontoASaldar);
+    return Number.isFinite(n) && n > 0 ? String(roundMoney(n)) : '';
+  });
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);

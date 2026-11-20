@@ -183,17 +183,40 @@ function daysBetweenIso(fromIso, toIso) {
   return Math.round((b - a) / 86400000);
 }
 
+function serviceTypeDisplayName(reservation, segments, serviceTypesById) {
+  const ref = primaryServiceRef(segments, reservation);
+  if (ref == null || ref === '') return '—';
+  const st = serviceTypesById.get(String(ref));
+  if (st?.name) return String(st.name);
+  return String(ref);
+}
+
+function reservationNotes(reservation) {
+  const raw = reservation?.notes ?? reservation?.notas ?? '';
+  const text = String(raw || '').trim();
+  return text || '—';
+}
+
 /**
- * INGRESADA con checkout previsto <= hoy (hoy + atrasados). Sin futuras.
+ * INGRESADA con checkout previsto en [hoy … hoy+horizonDays-1]
+ * (horizon 1 = hoy + atrasados, sin futuras).
  */
-export function pendingCheckoutItems(todayIso, rooms = [], reservations = []) {
+export function pendingCheckoutItems(
+  todayIso,
+  rooms = [],
+  reservations = [],
+  options = {}
+) {
+  const horizonDays = Math.max(1, Number(options.horizonDays) || 1);
+  const endHorizon = shiftIso(todayIso, horizonDays - 1);
   const roomsById = buildRoomsById(rooms);
+  const serviceTypesById = buildServiceTypesById(options.serviceTypes);
   const items = [];
   for (const reservation of reservations || []) {
     if (reservation?.status !== 'INGRESADA') continue;
     const segments = activeSegments(reservation);
     const { start, end } = stayBounds(reservation);
-    if (!end || end > todayIso) continue;
+    if (!end || end > endHorizon) continue;
     const guestName = mainClientDisplayName(reservation);
     const room = movementRoomLabel(
       reservation,
@@ -213,6 +236,12 @@ export function pendingCheckoutItems(todayIso, rooms = [], reservations = []) {
       plannedCheckout: end,
       late,
       daysLate: late ? Math.max(1, daysBetweenIso(end, todayIso)) : 0,
+      notes: reservationNotes(reservation),
+      serviceTypeLabel: serviceTypeDisplayName(
+        reservation,
+        segments,
+        serviceTypesById
+      ),
       label: movementListLabel(room, guestName)
     });
   }
@@ -230,11 +259,19 @@ export function lateCheckoutItems(todayIso, rooms = [], reservations = []) {
 }
 
 /**
- * Ingresos: check-in de hoy (cualquier estado no cancelado) + anteriores
- * aún PENDIENTE/CONFIRMADA (pre-reserva / confirmada).
+ * Ingresos: check-in en [hoy … hoy+horizonDays-1] + anteriores
+ * aún PENDIENTE/CONFIRMADA. Futuros del horizonte solo si aún no ingresaron.
  */
-export function buildCheckInPanelItems(todayIso, rooms = [], reservations = []) {
+export function buildCheckInPanelItems(
+  todayIso,
+  rooms = [],
+  reservations = [],
+  options = {}
+) {
+  const horizonDays = Math.max(1, Number(options.horizonDays) || 1);
+  const endHorizon = shiftIso(todayIso, horizonDays - 1);
   const roomsById = buildRoomsById(rooms);
+  const serviceTypesById = buildServiceTypesById(options.serviceTypes);
   const items = [];
   const seen = new Set();
 
@@ -252,10 +289,14 @@ export function buildCheckInPanelItems(todayIso, rooms = [], reservations = []) 
     const { start } = stayBounds(reservation);
     if (!start) continue;
 
-    const isToday = start === todayIso;
+    const inHorizon = start >= todayIso && start <= endHorizon;
     const isOverduePending =
       start < todayIso && PRE_CHECKIN_STATUSES.has(reservation.status);
-    if (!isToday && !isOverduePending) continue;
+    if (!inHorizon && !isOverduePending) continue;
+    // Futuros del horizonte: solo pendientes de ingreso.
+    if (start > todayIso && !PRE_CHECKIN_STATUSES.has(reservation.status)) {
+      continue;
+    }
     if (seen.has(reservation.id)) continue;
     seen.add(reservation.id);
 
@@ -271,7 +312,15 @@ export function buildCheckInPanelItems(todayIso, rooms = [], reservations = []) 
       pending,
       plannedCheckIn: start,
       overdue: isOverduePending,
-      daysOverdue: isOverduePending ? Math.max(1, daysBetweenIso(start, todayIso)) : 0,
+      daysOverdue: isOverduePending
+        ? Math.max(1, daysBetweenIso(start, todayIso))
+        : 0,
+      notes: reservationNotes(reservation),
+      serviceTypeLabel: serviceTypeDisplayName(
+        reservation,
+        segments,
+        serviceTypesById
+      ),
       label: movementListLabel(room, guestName)
     });
   }
@@ -370,56 +419,50 @@ function mealDetailItems(dayIso, rooms, reservations, serviceTypes, meal) {
 }
 
 /**
- * @param {{ todayIso: string, mealsDateIso?: string, rooms: any[], reservations: any[], serviceTypes?: any[] }} args
+ * @param {{ todayIso: string, mealsDateIso?: string, rooms: any[], reservations: any[], serviceTypes?: any[], horizonDays?: number }} args
  */
 export function buildReceptionDashboardModel({
   todayIso,
   mealsDateIso,
   rooms = [],
   reservations = [],
-  serviceTypes = []
+  serviceTypes = [],
+  horizonDays = 1
 }) {
   const capacityRooms = physicalInServiceRooms(rooms);
   const oosRooms = (rooms || []).filter(isRoomOutOfService);
   const mealsIso = mealsDateIso || todayIso;
   const tomorrowIso = shiftIso(todayIso, 1);
+  const panelOptions = { horizonDays, serviceTypes };
 
   const today = computeDayInfoStats(todayIso, capacityRooms, reservations, serviceTypes);
   const tomorrow = computeDayInfoStats(tomorrowIso, capacityRooms, reservations, serviceTypes);
   const meals = computeDayInfoStats(mealsIso, capacityRooms, reservations, serviceTypes);
 
-  const checkInItems = buildCheckInPanelItems(todayIso, capacityRooms, reservations);
-  const checkOutItems = pendingCheckoutItems(todayIso, capacityRooms, reservations);
+  const checkInItems = buildCheckInPanelItems(
+    todayIso,
+    capacityRooms,
+    reservations,
+    panelOptions
+  );
+  const checkOutItems = pendingCheckoutItems(
+    todayIso,
+    capacityRooms,
+    reservations,
+    panelOptions
+  );
   const lateItems = checkOutItems.filter((i) => i.late);
   const pendingArrivals = checkInItems.filter((i) => i.pending);
   const byType = occupancyByRoomType(todayIso, capacityRooms, reservations);
 
-  // Derivadas operativas (el panel real usa API persistida; estas alimentan sync).
-  const notifications = [
-    ...lateItems.map((item) => ({
-      id: `late-${item.reservationId}`,
-      kind: 'LATE_CHECKOUT',
-      severity: 'WARNING',
-      title: 'Checkout atrasado',
-      body: `${item.label} · previsto ${item.plannedCheckout}`,
-      reservationId: item.reservationId
-    })),
-    ...pendingArrivals.map((item) => ({
-      id: `arrival-${item.reservationId}`,
-      kind: 'PENDING_ARRIVAL',
-      severity: 'INFO',
-      title: item.overdue ? 'Ingreso atrasado' : 'Ingreso pendiente',
-      body: item.overdue
-        ? `${item.label} · previsto ${item.plannedCheckIn}`
-        : item.label,
-      reservationId: item.reservationId
-    }))
-  ];
+  // Notificaciones auto desactivadas (panel usa muestra estática).
+  const notifications = [];
 
   return {
     todayIso,
     tomorrowIso,
     mealsIso,
+    horizonDays: Math.max(1, Number(horizonDays) || 1),
     capacityRoomsCount: capacityRooms.length,
     outOfServiceCount: oosRooms.length,
     today: {

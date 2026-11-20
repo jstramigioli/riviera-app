@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { FiArrowDown, FiArrowUp, FiCheck } from 'react-icons/fi';
 import {
   subscribeSimulatedToday,
   todayIsoLocal
@@ -20,6 +21,12 @@ import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import styles from './ReceptionDashboard.module.css';
+
+const RANGE_OPTIONS = [
+  { days: 1, label: 'Hoy' },
+  { days: 3, label: '3 días' },
+  { days: 7, label: '7 días' }
+];
 
 function formatSaldo(amount) {
   const n = Number(amount);
@@ -40,6 +47,21 @@ function isSettledBalance(row) {
   return null;
 }
 
+function pendingSaldoAmount(row) {
+  if (!row || isSettledBalance(row) !== false) return null;
+  const saldo = Number(row.saldo);
+  return Number.isFinite(saldo) && saldo > 0 ? saldo : null;
+}
+
+function statusLabel(status) {
+  if (!status) return '—';
+  if (status === 'INGRESADA') return 'Ingresada';
+  if (status === 'PENDIENTE') return 'Pendiente';
+  if (status === 'CONFIRMADA') return 'Confirmada';
+  if (status === 'FINALIZADA') return 'Finalizada';
+  return status;
+}
+
 function civilLocalDate(dayIso) {
   const [y, m, d] = String(dayIso).split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -50,6 +72,26 @@ function formatDayTitle(dayIso) {
   return raw.charAt(0).toLowerCase() + raw.slice(1);
 }
 
+function RangeFilter({ value, onChange, labelledBy }) {
+  return (
+    <div className={styles.rangeGroup} role="group" aria-labelledby={labelledBy}>
+      {RANGE_OPTIONS.map((opt) => (
+        <button
+          key={opt.days}
+          type="button"
+          className={`${styles.rangeBtn} ${
+            value === opt.days ? styles.rangeBtnActive : ''
+          }`}
+          aria-pressed={value === opt.days}
+          onClick={() => onChange(opt.days)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Dashboard operativo de recepción.
  * Hoy = todayIsoLocal(); acciones rápidas = mismo FloatingActionButton del Libro.
@@ -58,6 +100,7 @@ export default function ReceptionDashboard() {
   const navigate = useNavigate();
   const [todayIso, setTodayIso] = useState(() => todayIsoLocal());
   const [mealsDateIso, setMealsDateIso] = useState(() => todayIsoLocal());
+  const [horizonDays, setHorizonDays] = useState(1);
   const [rooms, setRooms] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -67,6 +110,7 @@ export default function ReceptionDashboard() {
   const [consumptionOpen, setConsumptionOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentReservaId, setPaymentReservaId] = useState(null);
+  const [paymentMontoASaldar, setPaymentMontoASaldar] = useState(null);
   const [balancesByReservationId, setBalancesByReservationId] = useState(
     () => new Map()
   );
@@ -120,14 +164,22 @@ export default function ReceptionDashboard() {
         mealsDateIso,
         rooms,
         reservations,
-        serviceTypes
+        serviceTypes,
+        horizonDays
       }),
-    [todayIso, mealsDateIso, rooms, reservations, serviceTypes]
+    [todayIso, mealsDateIso, rooms, reservations, serviceTypes, horizonDays]
   );
 
   const openReservation = (reservationId) => {
     if (reservationId == null) return;
     navigate(`/reservations/${reservationId}`);
+  };
+
+  const openPaymentForSaldo = (reservationId, saldo) => {
+    if (reservationId == null || !(Number(saldo) > 0)) return;
+    setPaymentReservaId(reservationId);
+    setPaymentMontoASaldar(Number(saldo));
+    setPaymentOpen(true);
   };
 
   const setStatus = async (reservationId, newStatus) => {
@@ -148,6 +200,7 @@ export default function ReceptionDashboard() {
   };
 
   const checkoutRows = model.today?.checkOutItems || [];
+  const checkInRows = model.today?.checkInItems || [];
 
   if (loading) {
     return <div className={styles.loading}>Cargando dashboard…</div>;
@@ -164,8 +217,26 @@ export default function ReceptionDashboard() {
     );
   }
 
-  const { today, meals } = model;
+  const { meals } = model;
   const dayTitle = formatDayTitle(todayIso);
+
+  const renderSaldoCell = (reservationId) => {
+    const bal = balancesByReservationId.get(Number(reservationId));
+    const pending = pendingSaldoAmount(bal);
+    if (pending != null) {
+      return (
+        <button
+          type="button"
+          className={styles.saldoBtn}
+          onClick={() => openPaymentForSaldo(reservationId, pending)}
+          title="Registrar pago del saldo pendiente"
+        >
+          {formatSaldo(pending)}
+        </button>
+      );
+    }
+    return <span className={styles.statusMuted}>—</span>;
+  };
 
   return (
     <div className={styles.page}>
@@ -180,157 +251,198 @@ export default function ReceptionDashboard() {
       ) : null}
 
       <div className={styles.grid}>
-        <section className={styles.module} aria-labelledby="dash-checkin">
-          <h2 id="dash-checkin" className={styles.moduleTitle}>
-            <span
-              className={`${styles.timelineDot} ${styles.timelineDotCheckin}`}
-              aria-hidden="true"
+        <section
+          className={`${styles.module} ${styles.moduleWide}`}
+          aria-labelledby="dash-movements"
+        >
+          <div className={styles.movementsHeader}>
+            <h2 id="dash-movements" className={styles.moduleTitle}>
+              Movimientos
+            </h2>
+            <RangeFilter
+              value={horizonDays}
+              onChange={setHorizonDays}
+              labelledBy="dash-movements"
             />
-            Ingresos
-          </h2>
-          {today.checkInItems.length === 0 ? (
-            <p className={styles.empty}>Sin ingresos pendientes.</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Huéspedes</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {today.checkInItems.map((item) => (
-                  <tr key={`in-${item.reservationId}`}>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.listLink}
-                        onClick={() => openReservation(item.reservationId)}
-                      >
-                        {item.guestName || item.label}
-                      </button>
-                      {item.overdue ? (
-                        <span className={styles.lateHint}>
-                          {' '}
-                          atrasado ({item.plannedCheckIn})
-                        </span>
-                      ) : null}
-                    </td>
-                    <td>{item.guests ?? '—'}</td>
-                    <td>
-                      {item.pending ? (
-                        <button
-                          type="button"
-                          className={styles.statusBtn}
-                          disabled={statusBusyId === item.reservationId}
-                          onClick={() => setStatus(item.reservationId, 'INGRESADA')}
-                        >
-                          Pendiente
-                        </button>
-                      ) : item.status === 'INGRESADA' ? (
-                        <span className={styles.statusDone}>Ingresada</span>
-                      ) : (
-                        <span className={styles.statusMuted}>{item.status || '—'}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+          </div>
 
-        <section className={styles.module} aria-labelledby="dash-checkout">
-          <h2 id="dash-checkout" className={styles.moduleTitle}>
-            <span
-              className={`${styles.timelineDot} ${styles.timelineDotCheckout}`}
-              aria-hidden="true"
-            />
-            Egresos
-          </h2>
-          {checkoutRows.length === 0 ? (
-            <p className={styles.empty}>Sin egresos de hoy ni atrasados.</p>
-          ) : (
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Huéspedes</th>
-                  <th>Saldo</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {checkoutRows.map((item) => {
-                  const bal = balancesByReservationId.get(
-                    Number(item.reservationId)
-                  );
-                  const settled = isSettledBalance(bal);
-                  return (
-                    <tr key={`out-${item.reservationId}`}>
-                      <td>
-                        <button
-                          type="button"
-                          className={styles.listLink}
-                          onClick={() => openReservation(item.reservationId)}
-                        >
-                          {item.guestName || item.label}
-                        </button>
-                        {item.late ? (
-                          <span className={styles.lateHint}>
-                            {' '}
-                            atrasado ({item.plannedCheckout})
-                          </span>
-                        ) : item.plannedCheckout ? (
+          <div className={styles.movementsSplit}>
+            <div className={styles.movementPane} aria-labelledby="dash-checkin">
+              <h3 id="dash-checkin" className={styles.movementPaneTitle}>
+                <span className={styles.movementIcon} aria-hidden="true">
+                  <FiArrowDown />
+                </span>
+                Ingresos
+              </h3>
+              {checkInRows.length === 0 ? (
+                <p className={styles.empty}>Sin ingresos pendientes.</p>
+              ) : (
+                <table className={styles.dataTable}>
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Huéspedes</th>
+                      <th>Habitación</th>
+                      <th>Tipo de servicio</th>
+                      <th>Notas</th>
+                      <th>Saldo</th>
+                      <th>Estado</th>
+                      <th className={styles.checkCol}>
+                        <span className={styles.srOnly}>Check-in</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {checkInRows.map((item) => {
+                      const canCheckIn = Boolean(item.pending);
+                      return (
+                        <tr key={`in-${item.reservationId}`}>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.listLink}
+                              onClick={() => openReservation(item.reservationId)}
+                            >
+                              {item.guestName || item.label}
+                            </button>
+                            {item.overdue ? (
+                              <span className={styles.lateHint}>
+                                {' '}
+                                atrasado ({item.plannedCheckIn})
+                              </span>
+                            ) : item.plannedCheckIn &&
+                              item.plannedCheckIn !== todayIso ? (
+                              <span className={styles.statusMuted}>
+                                {' '}
+                                · {item.plannedCheckIn}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td>{item.guests ?? '—'}</td>
+                          <td>{item.roomLabel || '—'}</td>
+                          <td>{item.serviceTypeLabel || '—'}</td>
+                          <td className={styles.notesCell}>{item.notes || '—'}</td>
+                          <td>{renderSaldoCell(item.reservationId)}</td>
+                          <td>
+                            <span
+                              className={
+                                item.pending
+                                  ? styles.statusPending
+                                  : item.status === 'INGRESADA'
+                                    ? styles.statusDone
+                                    : styles.statusMuted
+                              }
+                            >
+                              {statusLabel(item.status)}
+                            </span>
+                          </td>
+                          <td className={styles.checkCol}>
+                            {canCheckIn ? (
+                              <button
+                                type="button"
+                                className={`${styles.checkInBtn} ${styles.checkInBtnIdle}`}
+                                disabled={statusBusyId === item.reservationId}
+                                aria-label={`Marcar ingreso de ${item.guestName || 'reserva'}`}
+                                title="Marcar como ingresada"
+                                onClick={() =>
+                                  setStatus(item.reservationId, 'INGRESADA')
+                                }
+                              >
+                                <FiCheck aria-hidden="true" />
+                              </button>
+                            ) : item.status === 'INGRESADA' ? (
+                              <span
+                                className={`${styles.checkInBtn} ${styles.checkInBtnDone}`}
+                                aria-label="Ingresada"
+                                title="Ingresada"
+                              >
+                                <FiCheck aria-hidden="true" />
+                              </span>
+                            ) : (
+                              <span className={styles.statusMuted}>—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className={styles.movementPane} aria-labelledby="dash-checkout">
+              <h3 id="dash-checkout" className={styles.movementPaneTitle}>
+                <span className={styles.movementIcon} aria-hidden="true">
+                  <FiArrowUp />
+                </span>
+                Egresos
+              </h3>
+              {checkoutRows.length === 0 ? (
+                <p className={styles.empty}>Sin egresos en el rango.</p>
+              ) : (
+                <table className={styles.dataTable}>
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Huéspedes</th>
+                      <th>Habitación</th>
+                      <th>Notas</th>
+                      <th>Saldo</th>
+                      <th>Estado</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {checkoutRows.map((item) => (
+                      <tr key={`out-${item.reservationId}`}>
+                        <td>
+                          <button
+                            type="button"
+                            className={styles.listLink}
+                            onClick={() => openReservation(item.reservationId)}
+                          >
+                            {item.guestName || item.label}
+                          </button>
+                          {item.late ? (
+                            <span className={styles.lateHint}>
+                              {' '}
+                              atrasado ({item.plannedCheckout})
+                            </span>
+                          ) : item.plannedCheckout ? (
+                            <span className={styles.statusMuted}>
+                              {' '}
+                              · {item.plannedCheckout}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>{item.guests ?? '—'}</td>
+                        <td>{item.roomLabel || '—'}</td>
+                        <td className={styles.notesCell}>{item.notes || '—'}</td>
+                        <td>{renderSaldoCell(item.reservationId)}</td>
+                        <td>
                           <span className={styles.statusMuted}>
-                            {' '}
-                            · {item.plannedCheckout}
+                            {statusLabel(item.status)}
                           </span>
-                        ) : null}
-                      </td>
-                      <td>{item.guests ?? '—'}</td>
-                      <td>
-                        {settled === true ? (
-                          <span className={styles.statusDone}>Saldado</span>
-                        ) : settled === false ? (
-                          <span className={styles.lateHint}>
-                            No saldado · {formatSaldo(bal?.saldo)}
-                          </span>
-                        ) : (
-                          <span className={styles.statusMuted}>Sin folio</span>
-                        )}
-                      </td>
-                      <td className={styles.actionsCell}>
-                        {settled === false ? (
+                        </td>
+                        <td className={styles.actionsCell}>
                           <button
                             type="button"
                             className={styles.actionBtn}
-                            onClick={() => {
-                              setPaymentReservaId(item.reservationId);
-                              setPaymentOpen(true);
-                            }}
+                            disabled={statusBusyId === item.reservationId}
+                            onClick={() =>
+                              setStatus(item.reservationId, 'FINALIZADA')
+                            }
                           >
-                            Agregar pagos
+                            Finalizar reserva
                           </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className={styles.actionBtn}
-                          disabled={statusBusyId === item.reservationId}
-                          onClick={() =>
-                            setStatus(item.reservationId, 'FINALIZADA')
-                          }
-                        >
-                          Finalizar reserva
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </section>
 
         <ComidasHub
@@ -340,7 +452,7 @@ export default function ReceptionDashboard() {
           onOpenReservation={openReservation}
         />
 
-        <NotificationsPanel todayIso={todayIso} />
+        <NotificationsPanel />
       </div>
 
       <FloatingActionButton
@@ -350,6 +462,7 @@ export default function ReceptionDashboard() {
         onCreateConsumption={() => setConsumptionOpen(true)}
         onCreatePayment={() => {
           setPaymentReservaId(null);
+          setPaymentMontoASaldar(null);
           setPaymentOpen(true);
         }}
       />
@@ -366,13 +479,16 @@ export default function ReceptionDashboard() {
       {paymentOpen ? (
         <PaymentForm
           reservaId={paymentReservaId}
+          initialMontoASaldar={paymentMontoASaldar}
           onClose={() => {
             setPaymentOpen(false);
             setPaymentReservaId(null);
+            setPaymentMontoASaldar(null);
           }}
           onSuccess={() => {
             setPaymentOpen(false);
             setPaymentReservaId(null);
+            setPaymentMontoASaldar(null);
             load({ quiet: true });
           }}
         />

@@ -151,7 +151,7 @@ export default function DayInfoSidePanel({
             onOpenReservation={openReservation}
           />
           <MovementColumn
-            title="Salidas"
+            title="Egresos"
             total={stats.checkOuts}
             items={stats.checkOutItems}
             variant="departures"

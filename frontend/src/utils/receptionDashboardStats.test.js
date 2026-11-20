@@ -200,6 +200,65 @@ describe('receptionDashboardStats', () => {
     expect(model.today.checkIns).toBe(2);
     expect(model.capacityRoomsCount).toBe(2);
     expect(model.tomorrowIso).toBe('2024-01-03');
-    expect(model.notifications.some((n) => n.kind === 'PENDING_ARRIVAL')).toBe(true);
+    expect(model.notifications).toEqual([]);
+  });
+
+  it('horizonte 3 días incluye ingresos futuros pendientes', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        notes: 'Llega tarde',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-04',
+            endDate: '2024-01-06',
+            guestCount: 2,
+            isActive: true,
+            serviceType: 'desayuno'
+          }
+        ]
+      }
+    ];
+    const todayOnly = buildCheckInPanelItems('2024-01-02', rooms, reservations);
+    expect(todayOnly).toHaveLength(0);
+    const threeDays = buildCheckInPanelItems('2024-01-02', rooms, reservations, {
+      horizonDays: 3,
+      serviceTypes: [{ id: 'desayuno', name: 'Desayuno' }]
+    });
+    expect(threeDays).toHaveLength(1);
+    expect(threeDays[0].notes).toBe('Llega tarde');
+    expect(threeDays[0].serviceTypeLabel).toBe('Desayuno');
+    expect(threeDays[0].roomLabel).toBe('1');
+  });
+
+  it('horizonte 7 días incluye egresos futuros INGRESADA', () => {
+    const reservations = [
+      {
+        id: 10,
+        status: 'INGRESADA',
+        notes: 'Sale temprano',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-01',
+            endDate: '2024-01-10',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    expect(pendingCheckoutItems('2024-01-05', rooms, reservations)).toHaveLength(0);
+    const week = pendingCheckoutItems('2024-01-05', rooms, reservations, {
+      horizonDays: 7
+    });
+    expect(week).toHaveLength(1);
+    expect(week[0].notes).toBe('Sale temprano');
+    expect(week[0].roomLabel).toBe('1');
   });
 });

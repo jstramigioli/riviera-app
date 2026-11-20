@@ -13,7 +13,7 @@
   font-weight: 600;
 }
 
-/* —— Ingresos / Salidas (2 columnas, estilo timeline) —— */
+/* —— Ingresos / Egresos (2 columnas, estilo timeline) —— */
 .movementsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
