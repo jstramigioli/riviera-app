@@ -14,9 +14,11 @@ const {
 const validateReservationStatus = (req, res, next) => {
   const { status } = req.body;
 
-  // Si no se proporciona status, usar el valor por defecto
+  // Create: default PENDIENTE. Update/PATCH parcial (p.ej. solo notes): no inyectar status
   if (!status) {
-    req.body.status = DEFAULT_RESERVATION_STATUS;
+    if (req.method === 'POST') {
+      req.body.status = DEFAULT_RESERVATION_STATUS;
+    }
     return next();
   }
 

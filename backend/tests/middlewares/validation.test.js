@@ -238,6 +238,20 @@ describe('Validation Middlewares', () => {
         .send(validData)
         .expect(200);
     });
+
+    it('should pass PUT with only notes (dashboard Agregar notas)', async () => {
+      await request(app)
+        .put('/test-reservation/1')
+        .send({ notes: 'Llega tarde' })
+        .expect(200);
+    });
+
+    it('should fail PUT when checkIn is sent without checkOut', async () => {
+      await request(app)
+        .put('/test-reservation/1')
+        .send({ checkIn: '2024-01-01' })
+        .expect(400);
+    });
   });
 
   describe('validateRoom', () => {

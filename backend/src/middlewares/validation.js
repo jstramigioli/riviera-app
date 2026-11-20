@@ -53,16 +53,24 @@ const validateReservation = (req, res, next) => {
     resolvedCheckOut = resolvedCheckOut || ends[ends.length - 1];
   }
 
-  if (!resolvedCheckIn) {
-    errors.push('La fecha de check-in es requerida');
-  }
+  // Create siempre exige fechas; update parcial (p.ej. solo notes del dashboard) no
+  const touchesStayDates =
+    checkIn != null ||
+    checkOut != null ||
+    (Array.isArray(segments) && segments.length > 0);
 
-  if (!resolvedCheckOut) {
-    errors.push('La fecha de check-out es requerida');
-  }
+  if (!isUpdate || touchesStayDates) {
+    if (!resolvedCheckIn) {
+      errors.push('La fecha de check-in es requerida');
+    }
 
-  if (resolvedCheckIn && resolvedCheckOut && new Date(resolvedCheckIn) >= new Date(resolvedCheckOut)) {
-    errors.push('La fecha de check-out debe ser posterior al check-in');
+    if (!resolvedCheckOut) {
+      errors.push('La fecha de check-out es requerida');
+    }
+
+    if (resolvedCheckIn && resolvedCheckOut && new Date(resolvedCheckIn) >= new Date(resolvedCheckOut)) {
+      errors.push('La fecha de check-out debe ser posterior al check-in');
+    }
   }
 
   if (totalAmount && (isNaN(totalAmount) || totalAmount <= 0)) {
