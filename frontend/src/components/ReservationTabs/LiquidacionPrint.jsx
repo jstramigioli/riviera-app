@@ -158,8 +158,14 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
   return (
     <div ref={ref} className={styles.sheet} data-testid="liquidacion-print">
       <header className={`${styles.header} ${styles.keepTogether}`}>
-        <div>
-          <h1 className={styles.hotelName}>{hotelName}</h1>
+        <div className={styles.brandBlock}>
+          <img
+            className={styles.logo}
+            src="/riviera-hotel-logo.png"
+            alt={hotelName}
+            width={740}
+            height={410}
+          />
           <p className={styles.docTitle}>Liquidación de estadía</p>
         </div>
         <div className={styles.meta}>

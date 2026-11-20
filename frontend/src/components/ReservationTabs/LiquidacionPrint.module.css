@@ -16,6 +16,25 @@
   margin-bottom: 18px;
 }
 
+.brandBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Logo oficial ~16:9: altura fija, ancho automático (sin stretch). */
+.logo {
+  display: block;
+  height: 48px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: left center;
+  background: #000;
+}
+
 .hotelName {
   margin: 0;
   font-size: 22pt;
@@ -24,7 +43,7 @@
 }
 
 .docTitle {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12pt;
   text-transform: uppercase;
   letter-spacing: 0.08em;

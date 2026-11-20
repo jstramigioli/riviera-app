@@ -32,7 +32,13 @@ const CONVENTIONAL_ORDER = [
 /** Umbral: con 3+ postres se imprime en 2 columnas. */
 const POSTRE_TWO_COL_MIN = 3;
 
+/** Logo oficial Riviera Hotel (blanco sobre negro, ~16:9 / 740×410). */
+const LOGO_ASPECT = 740 / 410;
+
 const LOGO_CANDIDATES = [
+  path.join(__dirname, '../../assets/riviera-hotel-logo.png'),
+  path.join(__dirname, '../../../frontend/public/riviera-hotel-logo.png'),
+  path.join(__dirname, '../../../frontend/src/assets/riviera-hotel-logo.png'),
   path.join(__dirname, '../../assets/logo-hotel.png'),
   path.join(__dirname, '../../../frontend/src/assets/logo-hotel.png')
 ];
@@ -148,19 +154,18 @@ function buildDailyMenuPdfBuffer(menu) {
     const contentWidth = pageWidth - left - doc.page.margins.right;
     const logoPath = resolveLogoPath();
 
-    // Banda superior azul + logo hotel
-    const bandHeight = logoPath ? 64 : 52;
+    // Banda negra (mismo fondo del PNG oficial) + logo sin deformar (~16:9).
+    // Solo fijamos altura; el ancho sale de LOGO_ASPECT (no stretch).
+    const logoH = logoPath ? 48 : 0;
+    const logoW = logoPath ? logoH * LOGO_ASPECT : 0;
+    const bandHeight = logoPath ? logoH + 16 : 52;
     doc.save();
-    doc.rect(0, 0, pageWidth, bandHeight).fill(RIVIERA_BLUE);
+    doc.rect(0, 0, pageWidth, bandHeight).fill(logoPath ? '#000000' : RIVIERA_BLUE);
     doc.restore();
 
     if (logoPath) {
-      const logoW = 110;
-      const logoH = 36;
       doc.image(logoPath, (pageWidth - logoW) / 2, (bandHeight - logoH) / 2, {
-        width: logoW,
-        height: logoH,
-        align: 'center'
+        height: logoH
       });
     } else {
       doc
