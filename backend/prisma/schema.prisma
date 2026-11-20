@@ -1192,17 +1192,31 @@ enum DailyMenuSection {
   BUFFET
 }
 
+/// Categoría del catálogo de platos (1º y 2º plato → PLATO_PRINCIPAL).
+enum DishCatalogCategory {
+  ENTRADA
+  ENSALADA
+  SOPA
+  PLATO_PRINCIPAL
+  PLATO_INFANTIL
+  POSTRE
+  BUFFET
+}
+
 model DishCatalog {
-  id         Int             @id @default(autoincrement())
+  id         Int                 @id @default(autoincrement())
   name       String
   /// Nombre normalizado (NFD, sin acentos, lower) para búsqueda / anti-duplicados.
-  nameNorm   String          @unique
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  nameNorm   String
+  category   DishCatalogCategory
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
   lastUsedAt DateTime?
-  usageCount Int             @default(0)
+  usageCount Int                 @default(0)
   items      DailyMenuItem[]
 
+  @@unique([nameNorm, category])
+  @@index([category])
   @@index([lastUsedAt])
   @@index([usageCount])
 }

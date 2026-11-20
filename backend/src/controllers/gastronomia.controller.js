@@ -1,6 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 const { normalizeDishName } = require('../utils/dishNameNorm');
 const {
+  sectionToDishCategory,
+  isValidDishCategory
+} = require('../utils/dishCatalogCategory');
+const {
   buildDailyMenuPdfBuffer,
   CONVENTIONAL_ORDER,
   MESA_ENSALADAS
@@ -87,13 +91,20 @@ function serializeMenuSummary(menu) {
   };
 }
 
-async function resolveDish(tx, nameRaw, description) {
+async function resolveDish(tx, nameRaw, description, sectionOrCategory) {
   const name = String(nameRaw || '').trim();
   if (!name) return { error: 'Nombre de plato vacío' };
   const nameNorm = normalizeDishName(name);
   if (!nameNorm) return { error: 'Nombre de plato inválido' };
 
-  let dish = await tx.dishCatalog.findUnique({ where: { nameNorm } });
+  const raw = String(sectionOrCategory || '').toUpperCase();
+  const category =
+    sectionToDishCategory(raw) || (isValidDishCategory(raw) ? raw : null);
+  if (!category) return { error: 'Categoría de plato inválida' };
+
+  let dish = await tx.dishCatalog.findUnique({
+    where: { nameNorm_category: { nameNorm, category } }
+  });
   let created = false;
   let softDupe = false;
 
@@ -102,6 +113,7 @@ async function resolveDish(tx, nameRaw, description) {
       data: {
         name,
         nameNorm,
+        category,
         usageCount: 1,
         lastUsedAt: new Date()
       }
@@ -262,7 +274,12 @@ exports.createDailyMenu = async (req, res) => {
       });
 
       for (const row of incoming) {
-        const resolved = await resolveDish(tx, row.name, row.description);
+        const resolved = await resolveDish(
+          tx,
+          row.name,
+          row.description,
+          row.section
+        );
         if (resolved.error) throw new Error(resolved.error);
         if (resolved.softDupe) {
           warnings.push({
@@ -362,7 +379,12 @@ exports.updateDailyMenu = async (req, res) => {
       if (replaceItems) {
         await tx.dailyMenuItem.deleteMany({ where: { dailyMenuId: id } });
         for (const row of incoming) {
-          const resolved = await resolveDish(tx, row.name, row.description);
+          const resolved = await resolveDish(
+            tx,
+            row.name,
+            row.description,
+            row.section
+          );
           if (resolved.error) throw new Error(resolved.error);
           if (resolved.softDupe) {
             warnings.push({
@@ -461,7 +483,13 @@ exports.copyDailyMenu = async (req, res) => {
             data: { usageCount: { increment: 1 }, lastUsedAt: new Date() }
           });
         } else {
-          const resolved = await resolveDish(tx, item.nameSnapshot, item.descriptionSnap);
+          const resolved = await resolveDish(
+            tx,
+            item.nameSnapshot,
+            item.descriptionSnap,
+            item.section
+          );
+          if (resolved.error) throw new Error(resolved.error);
           dishCatalogId = resolved.dish.id;
         }
         await tx.dailyMenuItem.create({
@@ -513,13 +541,32 @@ exports.getDailyMenuPdf = async (req, res) => {
 exports.searchDishes = async (req, res) => {
   try {
     const q = normalizeDishName(req.query.q || '');
-    const take = Math.min(parseInt(req.query.limit, 10) || 20, 50);
-    const where = q
-      ? { nameNorm: { contains: q } }
-      : {};
+    const take = Math.min(parseInt(req.query.limit, 10) || 20, 200);
+    const categoryRaw = String(req.query.category || '').toUpperCase();
+    const sectionRaw = String(req.query.section || '').toUpperCase();
+    let category = null;
+    if (categoryRaw) {
+      if (!isValidDishCategory(categoryRaw)) {
+        return res.status(400).json({ error: 'Categoría inválida' });
+      }
+      category = categoryRaw;
+    } else if (sectionRaw) {
+      category = sectionToDishCategory(sectionRaw);
+      if (!category) {
+        return res.status(400).json({ error: 'Sección inválida' });
+      }
+    }
+    const where = {};
+    if (q) where.nameNorm = { contains: q };
+    if (category) where.category = category;
     const rows = await prisma.dishCatalog.findMany({
       where,
-      orderBy: [{ usageCount: 'desc' }, { lastUsedAt: 'desc' }, { name: 'asc' }],
+      orderBy: [
+        { category: 'asc' },
+        { usageCount: 'desc' },
+        { lastUsedAt: 'desc' },
+        { name: 'asc' }
+      ],
       take
     });
     res.json(rows);
@@ -532,20 +579,38 @@ exports.searchDishes = async (req, res) => {
 exports.renameDish = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const name = String(req.body?.name || '').trim();
+    const current = await prisma.dishCatalog.findUnique({ where: { id } });
+    if (!current) return res.status(404).json({ error: 'Plato no encontrado' });
+
+    const name =
+      req.body?.name != null ? String(req.body.name).trim() : current.name;
     if (!name) return res.status(400).json({ error: 'Nombre requerido' });
     const nameNorm = normalizeDishName(name);
-    const other = await prisma.dishCatalog.findUnique({ where: { nameNorm } });
+
+    let category = current.category;
+    if (req.body?.category != null) {
+      const nextCat = String(req.body.category).toUpperCase();
+      if (!isValidDishCategory(nextCat)) {
+        return res.status(400).json({ error: 'Categoría inválida' });
+      }
+      category = nextCat;
+    }
+
+    const other = await prisma.dishCatalog.findUnique({
+      where: { nameNorm_category: { nameNorm, category } }
+    });
     if (other && other.id !== id) {
       return res.status(409).json({
-        error: 'Ya existe un plato con ese nombre (o equivalente sin acentos)',
+        error:
+          'Ya existe un plato con ese nombre en la misma categoría (o equivalente sin acentos)',
         existingId: other.id,
-        existingName: other.name
+        existingName: other.name,
+        category
       });
     }
     const dish = await prisma.dishCatalog.update({
       where: { id },
-      data: { name, nameNorm }
+      data: { name, nameNorm, category }
     });
     res.json(dish);
   } catch (error) {
@@ -584,5 +649,6 @@ exports._internal = {
   toCivilIso,
   normalizeIncomingItems,
   normalizeDishName,
-  previewFromItems
+  previewFromItems,
+  sectionToDishCategory
 };

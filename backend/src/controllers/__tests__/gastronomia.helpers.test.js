@@ -6,7 +6,8 @@ const {
   parseCivilDate,
   toCivilIso,
   normalizeIncomingItems,
-  previewFromItems
+  previewFromItems,
+  sectionToDishCategory
 } = _internal;
 
 describe('gastronomia helpers', () => {
@@ -75,5 +76,14 @@ describe('gastronomia helpers', () => {
         'CONVENTIONAL'
       )
     ).toBe('Crema de zapallo · Flan');
+  });
+
+  it('sectionToDishCategory mapea 1º/2º a plato principal', () => {
+    expect(sectionToDishCategory('PRIMER_PLATO')).toBe('PLATO_PRINCIPAL');
+    expect(sectionToDishCategory('SEGUNDO_PLATO')).toBe('PLATO_PRINCIPAL');
+    expect(sectionToDishCategory('SOPA')).toBe('SOPA');
+    expect(sectionToDishCategory('POSTRE')).toBe('POSTRE');
+    expect(sectionToDishCategory('PLATO_INFANTIL')).toBe('PLATO_INFANTIL');
+    expect(sectionToDishCategory('NOPE')).toBeNull();
   });
 });

@@ -94,20 +94,23 @@ export async function fetchDailyMenuPdfBlob(id) {
   return res.blob();
 }
 
-export async function searchDishes(q, limit = 20) {
+export async function searchDishes(q, limit = 20, { category, section } = {}) {
   const res = await fetch(
-    `${API_URL}/gastronomia/dishes${qs({ q, limit })}`,
+    `${API_URL}/gastronomia/dishes${qs({ q, limit, category, section })}`,
     { credentials: 'include' }
   );
   return parseJson(res);
 }
 
-export async function renameDish(id, name) {
+export async function renameDish(id, { name, category } = {}) {
+  const body = {};
+  if (name != null) body.name = name;
+  if (category != null) body.category = category;
   const res = await fetch(`${API_URL}/gastronomia/dishes/${id}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name })
+    body: JSON.stringify(body)
   });
   return parseJson(res);
 }

@@ -44,6 +44,23 @@ const SECTIONS = [
   { id: 'POSTRE', label: 'Postres' }
 ];
 
+/** Catálogo: 1º y 2º plato comparten «Plato principal». */
+const CATALOG_CATEGORIES = [
+  { id: 'ENTRADA', label: 'Entrada' },
+  { id: 'ENSALADA', label: 'Ensaladas' },
+  { id: 'SOPA', label: 'Sopa' },
+  { id: 'PLATO_PRINCIPAL', label: 'Plato principal' },
+  { id: 'PLATO_INFANTIL', label: 'Plato infantil' },
+  { id: 'POSTRE', label: 'Postres' },
+  { id: 'BUFFET', label: 'Buffet' }
+];
+
+function sectionToDishCategory(section) {
+  const s = String(section || '').toUpperCase();
+  if (s === 'PRIMER_PLATO' || s === 'SEGUNDO_PLATO') return 'PLATO_PRINCIPAL';
+  return CATALOG_CATEGORIES.some((c) => c.id === s) ? s : null;
+}
+
 /** Postres admiten varios platos; el resto del convencional es 1 por categoría. */
 const MULTI_ITEM_SECTIONS = new Set(['POSTRE']);
 const FIXED_SECTIONS = new Set(
@@ -249,7 +266,7 @@ export default function Gastronomia() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await searchDishes(catalogQ, 50);
+      const rows = await searchDishes(catalogQ, 200);
       setCatalogRows(rows);
     } catch (err) {
       setError(err.message);
@@ -257,6 +274,18 @@ export default function Gastronomia() {
       setLoading(false);
     }
   }, [catalogQ]);
+
+  const catalogByCategory = useMemo(() => {
+    const map = Object.fromEntries(
+      CATALOG_CATEGORIES.map((c) => [c.id, []])
+    );
+    for (const dish of catalogRows) {
+      const cat = dish.category || 'ENTRADA';
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(dish);
+    }
+    return map;
+  }, [catalogRows]);
 
   useEffect(() => {
     if (tab === 'week' && !editId && !editDate) loadWeek();
@@ -348,6 +377,7 @@ export default function Gastronomia() {
   };
 
   const onNameChange = async (index, value) => {
+    const section = editor?.items?.[index]?.section || null;
     setEditor((prev) => {
       if (!prev) return prev;
       const items = prev.items.map((it, i) =>
@@ -361,7 +391,10 @@ export default function Gastronomia() {
       return;
     }
     try {
-      const rows = await searchDishes(value, 8);
+      const category = sectionToDishCategory(section);
+      const rows = await searchDishes(value, 8, {
+        ...(category ? { category } : {})
+      });
       setSuggestions(rows);
     } catch {
       setSuggestions([]);
@@ -964,62 +997,102 @@ export default function Gastronomia() {
             </button>
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Usos</th>
-                <th>Último uso</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {catalogRows.map((dish) => (
-                <tr key={dish.id}>
-                  <td>
-                    <input
-                      defaultValue={dish.name}
-                      aria-label={`Nombre ${dish.name}`}
-                      onBlur={async (e) => {
-                        const next = e.target.value.trim();
-                        if (!next || next === dish.name) return;
-                        try {
-                          await renameDish(dish.id, next);
-                          loadCatalog();
-                        } catch (err) {
-                          setError(err.message);
-                          e.target.value = dish.name;
-                        }
-                      }}
-                    />
-                  </td>
-                  <td>{dish.usageCount}</td>
-                  <td>
-                    {dish.lastUsedAt
-                      ? String(dish.lastUsedAt).slice(0, 10)
-                      : '—'}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      title="Borrar"
-                      onClick={async () => {
-                        try {
-                          await deleteDish(dish.id);
-                          loadCatalog();
-                        } catch (err) {
-                          setError(err.message);
-                        }
-                      }}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {CATALOG_CATEGORIES.map((cat) => {
+            const rows = catalogByCategory[cat.id] || [];
+            return (
+              <div key={cat.id} className={styles.catalogGroup}>
+                <h3 className={styles.sectionTitle}>
+                  {cat.label}
+                  <span className={styles.catalogCount}>{rows.length}</span>
+                </h3>
+                {rows.length ? (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Usos</th>
+                        <th>Último uso</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((dish) => (
+                        <tr key={dish.id}>
+                          <td>
+                            <input
+                              defaultValue={dish.name}
+                              aria-label={`Nombre ${dish.name}`}
+                              onBlur={async (e) => {
+                                const next = e.target.value.trim();
+                                if (!next || next === dish.name) return;
+                                try {
+                                  await renameDish(dish.id, { name: next });
+                                  loadCatalog();
+                                } catch (err) {
+                                  setError(err.message);
+                                  e.target.value = dish.name;
+                                }
+                              }}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className={styles.catalogSelect}
+                              value={dish.category || cat.id}
+                              aria-label={`Categoría ${dish.name}`}
+                              onChange={async (e) => {
+                                const next = e.target.value;
+                                if (next === dish.category) return;
+                                try {
+                                  await renameDish(dish.id, { category: next });
+                                  loadCatalog();
+                                } catch (err) {
+                                  setError(err.message);
+                                  e.target.value = dish.category || cat.id;
+                                }
+                              }}
+                            >
+                              {CATALOG_CATEGORIES.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>{dish.usageCount}</td>
+                          <td>
+                            {dish.lastUsedAt
+                              ? String(dish.lastUsedAt).slice(0, 10)
+                              : '—'}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              title="Borrar"
+                              onClick={async () => {
+                                try {
+                                  await deleteDish(dish.id);
+                                  loadCatalog();
+                                } catch (err) {
+                                  setError(err.message);
+                                }
+                              }}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className={styles.emptyMuted}>Sin platos en esta categoría.</p>
+                )}
+              </div>
+            );
+          })}
           {!catalogRows.length && !loading ? (
             <p className={styles.empty}>Sin platos en el catálogo.</p>
           ) : null}
