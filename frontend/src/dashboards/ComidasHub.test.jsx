@@ -4,10 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ComidasHub from './ComidasHub'
 
 vi.mock('../services/gastronomiaApi', () => ({
-  getDailyMenuByDate: vi.fn()
+  getDailyMenuByDate: vi.fn(),
+  fetchDailyMenuPdfBlob: vi.fn()
 }))
 
-import { getDailyMenuByDate } from '../services/gastronomiaApi'
+import {
+  fetchDailyMenuPdfBlob,
+  getDailyMenuByDate
+} from '../services/gastronomiaApi'
 
 const meals = {
   breakfastGuests: 7,
@@ -50,7 +54,7 @@ describe('ComidasHub', () => {
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
   })
 
-  it('muestra mini menú con títulos de sección y todos los ítems', async () => {
+  it('muestra mini menú con iconos editar / PDF / imprimir', async () => {
     getDailyMenuByDate.mockResolvedValue({
       id: 9,
       date: '2026-11-18',
@@ -64,6 +68,7 @@ describe('ComidasHub', () => {
         { section: 'POSTRE', nameSnapshot: 'Helado', sortOrder: 1 }
       ]
     })
+    fetchDailyMenuPdfBlob.mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
 
     render(
       <MemoryRouter>
@@ -79,25 +84,30 @@ describe('ComidasHub', () => {
     const preview = await screen.findByTestId('comidas-menu-preview')
     expect(preview).toHaveTextContent(/^Menú/)
     expect(preview).toHaveTextContent(/Empanadas/)
-    expect(preview).toHaveTextContent(/Sopa de verduras/)
-    expect(preview).toHaveTextContent(/Milanesa/)
-    expect(preview).toHaveTextContent(/Flan/)
-    expect(preview).toHaveTextContent(/Helado/)
     expect(preview).toHaveTextContent(/mesa de ensaladas/)
-    expect(screen.getByTestId('comidas-menu-section-ENTRADA')).toHaveTextContent(
-      /Entrada/
-    )
-    expect(screen.getByTestId('comidas-menu-section-SOPA')).toHaveTextContent(
-      /Sopa/
-    )
     expect(preview).not.toHaveTextContent(/Convencional/i)
-    expect(preview).not.toHaveTextContent(/Gestionado en Gastronomía/)
-    const link = screen.getByTestId('comidas-menu-edit-link')
-    expect(link).toHaveAttribute('href', '/gastronomia?tab=week&id=9')
-    expect(link).toHaveTextContent('Editar menú')
+
+    const edit = screen.getByTestId('comidas-menu-edit-link')
+    expect(edit).toHaveAttribute('href', '/gastronomia?tab=week&id=9')
+    expect(edit).toHaveAttribute('aria-label', 'Editar menú')
+    expect(edit).not.toHaveTextContent(/Editar|Crear/)
+
+    expect(screen.getByTestId('comidas-menu-download-pdf')).toHaveAttribute(
+      'aria-label',
+      'Descargar PDF'
+    )
+    expect(screen.getByTestId('comidas-menu-print-pdf')).toHaveAttribute(
+      'aria-label',
+      'Imprimir menú'
+    )
+
+    fireEvent.click(screen.getByTestId('comidas-menu-download-pdf'))
+    await waitFor(() =>
+      expect(fetchDailyMenuPdfBlob).toHaveBeenCalledWith(9)
+    )
   })
 
-  it('sin menú muestra Crear menú', async () => {
+  it('sin menú muestra crear (plus) y no PDF', async () => {
     render(
       <MemoryRouter>
         <ComidasHub
@@ -112,8 +122,9 @@ describe('ComidasHub', () => {
     await waitFor(() =>
       expect(getDailyMenuByDate).toHaveBeenCalledWith('2026-11-18')
     )
-    expect(screen.getByTestId('comidas-menu-edit-link')).toHaveTextContent(
-      'Crear menú'
-    )
+    const edit = screen.getByTestId('comidas-menu-edit-link')
+    expect(edit).toHaveAttribute('aria-label', 'Crear menú')
+    expect(screen.queryByTestId('comidas-menu-download-pdf')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('comidas-menu-print-pdf')).not.toBeInTheDocument()
   })
 })

@@ -927,7 +927,35 @@ a.actionBtnPrimary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+}
+
+.comidasIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  background: var(--dash-surface);
+  color: var(--dash-text-dark);
+  cursor: pointer;
+  font: inherit;
+  flex-shrink: 0;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.comidasIconBtn:hover:not(:disabled) {
+  border-color: var(--dash-primary);
+  color: var(--dash-primary-dark);
+}
+
+.comidasIconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .actionBtnPrimary {

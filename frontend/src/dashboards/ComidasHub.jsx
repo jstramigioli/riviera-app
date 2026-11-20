@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiChevronLeft, FiPrinter } from 'react-icons/fi';
-import { getDailyMenuByDate } from '../services/gastronomiaApi';
+import {
+  FiChevronLeft,
+  FiDownload,
+  FiEdit2,
+  FiPlus,
+  FiPrinter
+} from 'react-icons/fi';
+import {
+  fetchDailyMenuPdfBlob,
+  getDailyMenuByDate
+} from '../services/gastronomiaApi';
 import styles from './ReceptionDashboard.module.css';
 
 function sumGuests(items) {
@@ -41,6 +50,31 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+async function openMenuPdf(menuId, mode) {
+  const blob = await fetchDailyMenuPdfBlob(menuId);
+  const url = URL.createObjectURL(blob);
+  if (mode === 'download') {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `menu-riviera-${menuId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const win = window.open(url, '_blank', 'noopener,noreferrer');
+  if (mode === 'print' && win) {
+    win.addEventListener('load', () => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 const MESA_ENSALADAS = 'mesa de ensaladas';
@@ -134,6 +168,8 @@ export default function ComidasHub({
   const [dailyMenu, setDailyMenu] = useState(null);
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
 
   const breakfastItems = meals?.breakfastItems || [];
   const dinnerItems = meals?.dinnerItems || [];
@@ -154,6 +190,7 @@ export default function ComidasHub({
     setSelectedBreakfast(new Set());
     setSelectedDinner(new Set());
     setDetailMeal(null);
+    setPdfError(null);
   }, [mealsDateIso]);
 
   useEffect(() => {
@@ -308,11 +345,68 @@ export default function ComidasHub({
             <div className={styles.comidasMenuActions}>
               <Link
                 to={editPath}
-                className={styles.actionBtnPrimary}
+                className={styles.comidasIconBtn}
                 data-testid="comidas-menu-edit-link"
+                aria-label={dailyMenu ? 'Editar menú' : 'Crear menú'}
+                title={dailyMenu ? 'Editar menú' : 'Crear menú'}
               >
-                {dailyMenu ? 'Editar menú' : 'Crear menú'}
+                {dailyMenu ? (
+                  <FiEdit2 aria-hidden="true" />
+                ) : (
+                  <FiPlus aria-hidden="true" />
+                )}
               </Link>
+              {dailyMenu?.id ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.comidasIconBtn}
+                    data-testid="comidas-menu-download-pdf"
+                    aria-label="Descargar PDF"
+                    title="Descargar PDF"
+                    disabled={pdfBusy}
+                    onClick={async () => {
+                      setPdfBusy(true);
+                      setPdfError(null);
+                      try {
+                        await openMenuPdf(dailyMenu.id, 'download');
+                      } catch (err) {
+                        setPdfError(err.message || 'No se pudo descargar el PDF');
+                      } finally {
+                        setPdfBusy(false);
+                      }
+                    }}
+                  >
+                    <FiDownload aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.comidasIconBtn}
+                    data-testid="comidas-menu-print-pdf"
+                    aria-label="Imprimir menú"
+                    title="Imprimir menú"
+                    disabled={pdfBusy}
+                    onClick={async () => {
+                      setPdfBusy(true);
+                      setPdfError(null);
+                      try {
+                        await openMenuPdf(dailyMenu.id, 'print');
+                      } catch (err) {
+                        setPdfError(err.message || 'No se pudo imprimir el PDF');
+                      } finally {
+                        setPdfBusy(false);
+                      }
+                    }}
+                  >
+                    <FiPrinter aria-hidden="true" />
+                  </button>
+                </>
+              ) : null}
+              {pdfError ? (
+                <p className={styles.comidasMenuError} role="alert">
+                  {pdfError}
+                </p>
+              ) : null}
             </div>
           </div>
         </>
