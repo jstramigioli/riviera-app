@@ -139,15 +139,15 @@ export default function ComidasHub({
 
   return (
     <section
-      className={`${styles.module} ${styles.moduleWide} ${styles.comidasHub}`}
+      className={`${styles.module} ${styles.tileComidas} ${styles.comidasHub}`}
       aria-labelledby="dash-comidas"
       data-testid="comidas-hub"
     >
-      <div className={styles.comidasHeader}>
+      <div className={styles.moduleHeader}>
         <h2 id="dash-comidas" className={styles.moduleTitle}>
           Comidas
         </h2>
-        <div className={styles.mealsToolbar}>
+        <div className={styles.moduleToolbar}>
           <label className={styles.srOnly} htmlFor="dash-comidas-date">
             Fecha de comidas
           </label>

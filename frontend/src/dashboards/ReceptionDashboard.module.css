@@ -33,11 +33,11 @@
 
 .pageTitle {
   margin: 0;
-  font-size: 28px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--dash-text-dark);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.25;
+  letter-spacing: 0;
   text-transform: none;
 }
 
@@ -60,57 +60,122 @@
   font-size: 12px;
 }
 
-.grid {
+/* Grid irregular: columna principal (Movimientos/Caja) + lateral angosta (Comidas/Notifs) */
+.masonry {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(48px, auto);
   gap: 12px;
+  align-items: start;
 }
 
 .module {
-  grid-column: span 6;
   background: var(--dash-surface);
   border: 1px solid var(--dash-border);
   border-radius: 8px;
   box-shadow: var(--dash-shadow);
-  padding: 12px 14px;
+  padding: 12px;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
 }
 
 .moduleWide {
-  grid-column: span 12;
+  grid-column: 1 / -1;
+}
+
+.tileMovements {
+  grid-column: 1 / span 9;
+  min-width: 0;
+}
+
+.tileCaja {
+  grid-column: 1 / span 9;
+  min-width: 0;
+  min-height: 220px;
+}
+
+.tileComidas {
+  grid-column: 10 / span 3;
+  max-width: 320px;
+  width: 100%;
+  justify-self: end;
+}
+
+.tileNotifs {
+  grid-column: 10 / span 3;
+  max-width: 320px;
+  width: 100%;
+  justify-self: end;
+}
+
+.moduleHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.moduleHeader .moduleTitle {
+  margin: 0;
+  min-width: 0;
+}
+
+.moduleToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cajaTableWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(420px, 55vh);
+  overflow: auto;
+  border: 1px solid #eef1f5;
+  border-radius: 6px;
+  background: var(--dash-surface);
 }
 
 .moduleTitle {
-  margin: 0 0 10px;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: var(--dash-text-dark);
-}
-
-.movementsHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.movementsHeader .moduleTitle {
-  margin: 0;
+  line-height: 1.3;
 }
 
 .movementsSplit {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .movementPane {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #eef1f5;
+  border-radius: 6px;
+  background: #fafbfc;
 }
 
 .movementPaneTitle {
@@ -170,15 +235,17 @@
   color: var(--dash-primary-dark);
 }
 
-.notesCell {
-  max-width: 180px;
+.notesCell,
+.colNotes {
+  min-width: 120px;
+  max-width: 200px;
 }
 
 .notesBtn {
   appearance: none;
   display: block;
   width: 100%;
-  max-width: 180px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -190,6 +257,24 @@
   color: var(--dash-text);
   font: inherit;
   cursor: pointer;
+}
+
+.textBtn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--dash-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.textBtn:hover {
+  color: var(--dash-primary-dark);
 }
 
 .notesBtn:hover {
@@ -385,15 +470,31 @@
   font-size: 12px;
 }
 
+.tableScroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 4px;
+}
+
 .dataTable {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  table-layout: auto;
+}
+
+.dataTableIn,
+.dataTableOut {
+  min-width: 100%;
+  width: 100%;
 }
 
 .dataTable th,
 .dataTable td {
-  padding: 6px 4px;
+  padding: 8px 10px;
   text-align: left;
   border-bottom: 1px solid #eef1f5;
   vertical-align: middle;
@@ -402,18 +503,70 @@
 .dataTable th {
   color: var(--dash-muted);
   font-weight: 600;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .dataTable tbody tr:last-child td {
   border-bottom: none;
 }
 
+.colName {
+  min-width: 140px;
+}
+
+.colGuests {
+  width: 72px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.colRoom {
+  min-width: 88px;
+  white-space: nowrap;
+}
+
+.colService {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.colSaldo {
+  width: 88px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.colStatus {
+  width: 88px;
+  white-space: nowrap;
+}
+
+.colActions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.cellClamp {
+  display: block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .checkCol {
-  width: 28px;
+  width: 40px;
+  text-align: center;
 }
 
 .listLink {
   appearance: none;
+  display: inline;
+  max-width: 100%;
   border: 0;
   background: transparent;
   padding: 0;
@@ -422,6 +575,8 @@
   color: var(--dash-primary);
   cursor: pointer;
   font: inherit;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .listLink:hover {
@@ -475,6 +630,9 @@
 }
 
 .actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--dash-border);
@@ -485,6 +643,8 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .actionBtn:hover:not(:disabled) {
@@ -497,33 +657,16 @@
   cursor: not-allowed;
 }
 
-.mealHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.mealHeader .moduleTitle {
-  margin: 0;
-}
-
-.mealsToolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
 .dateInput {
   height: 28px;
+  max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--dash-border);
   border-radius: 6px;
   font: inherit;
+  font-size: 12px;
   color: var(--dash-text);
+  box-sizing: border-box;
 }
 
 .notifList {
@@ -549,9 +692,8 @@
 
 .notifUnread {
   background: #f7fafc;
-  margin: 0 -8px;
-  padding-left: 8px;
-  padding-right: 8px;
+  margin: 0;
+  padding: 8px;
   border-radius: 6px;
 }
 
@@ -644,27 +786,17 @@
 }
 
 .comidasHub {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.comidasHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.comidasHeader .moduleTitle {
-  margin: 0;
+.comidasMenuActions .actionBtnPrimary {
+  width: 100%;
 }
 
 .comidasTotals {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .comidasTotalBtn {
@@ -708,10 +840,10 @@
 }
 
 .comidasTotalValue {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   color: var(--dash-text-dark);
 }
@@ -773,8 +905,9 @@ a.actionBtnPrimary {
 .actionBtnPrimary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  height: 32px;
+  height: 28px;
   padding: 0 12px;
   border: 1px solid var(--dash-primary);
   border-radius: 6px;
@@ -784,6 +917,10 @@ a.actionBtnPrimary {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .actionBtnPrimary:hover:not(:disabled) {
@@ -841,22 +978,50 @@ a.actionBtnPrimary {
   gap: 4px;
 }
 
-@media (max-width: 1100px) {
-  .module {
-    grid-column: span 12;
+@media (max-width: 960px) {
+  .tileMovements,
+  .tileCaja,
+  .moduleWide {
+    grid-column: 1 / -1;
   }
 
-  .movementsSplit {
-    grid-template-columns: 1fr;
+  .tileComidas,
+  .tileNotifs {
+    grid-column: 1 / -1;
+    max-width: 420px;
+    justify-self: stretch;
   }
 
-  .pageTitle {
-    font-size: 22px;
+  .cajaTableWrap {
+    max-height: min(360px, 50vh);
   }
 }
 
 @media (max-width: 640px) {
+  .page {
+    padding: 12px 12px 88px;
+  }
+
+  .masonry {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .tileMovements,
+  .tileCaja,
+  .tileComidas,
+  .tileNotifs {
+    grid-column: auto;
+    max-width: none;
+    justify-self: stretch;
+  }
+
   .comidasTotals {
     grid-template-columns: 1fr;
+  }
+
+  .moduleToolbar {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
