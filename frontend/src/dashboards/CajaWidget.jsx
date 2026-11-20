@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
-import { getAllPagos } from '../services/api';
+import { deletePago, getAllPagos } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppNotice } from '../hooks/useAppNotice';
 import PaymentForm from '../components/PaymentForm';
 import PagosHistorialTable, {
   EMPTY_PAY_FILTERS,
@@ -65,13 +66,14 @@ function RangeFilter({ value, onChange, labelledBy }) {
 
 /**
  * Widget Caja del dashboard: historial de pagos (misma tabla que Estado de cuentas)
- * con rango Hoy | 3 días | 7 días, crear y editar.
+ * con rango Hoy | 3 días | 7 días, crear, editar y eliminar.
  * `refreshToken`: el padre lo incrementa tras crear/editar pago fuera del widget (FAB).
  */
 export default function CajaWidget({ todayIso, refreshToken = 0, className = '' }) {
   const navigate = useNavigate();
   const { can } = useAuth();
   const canFacturacion = can('facturacion');
+  const { notify } = useAppNotice();
   const [horizonDays, setHorizonDays] = useState(1);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +130,19 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
   const closeForm = () => {
     setPaymentOpen(false);
     setEditingPago(null);
+  };
+
+  const handleDeletePago = async (pago) => {
+    if (!pago?.id) return;
+    await deletePago(pago.id);
+    setPayments((prev) => (prev || []).filter((row) => row.id !== pago.id));
+    if (editingPago?.id === pago.id) closeForm();
+    notify({
+      title: 'Pago eliminado',
+      message: `Se eliminó ${pago.codigo || `Nº ${pago.id}`}.`,
+      type: 'success',
+      autoDismiss: true,
+    });
   };
 
   return (
@@ -191,6 +206,7 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
               if (client?.id) navigate(`/clients/${client.id}`);
             }}
             onEditPago={openEdit}
+            onDeletePago={handleDeletePago}
             testId="caja-pagos-table"
           />
         </div>

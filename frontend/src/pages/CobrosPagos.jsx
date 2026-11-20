@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiFilter, FiCheck, FiSquare, FiX } from 'react-icons/fi';
+import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import {
   getAccountsWithBalances,
   getAllPagos,
-  updatePago,
+  deletePago,
   uploadPagoAdjuntos,
   deletePagoAdjunto,
   downloadPagoAdjunto,
@@ -14,18 +14,13 @@ import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
 import PaymentForm from '../components/PaymentForm';
+import PagosHistorialTable, {
+  EMPTY_PAY_FILTERS,
+  ADJUNTO_FACTURA,
+  adjuntosOf,
+  paymentCodeLabel,
+} from '../components/PagosHistorialTable';
 import styles from './CobrosPagos.module.css';
-
-const ADJUNTO_FACTURA = 'FACTURA';
-const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
-
-function isTransferencia(metodo) {
-  return String(metodo || '').trim().toLowerCase() === 'transferencia';
-}
-
-function adjuntosOf(pago, tipo) {
-  return (pago?.adjuntos || []).filter((a) => a.tipo === tipo);
-}
 
 const SECTIONS = {
   cuentas: 'cuentas',
@@ -92,44 +87,8 @@ const DEFAULT_STATUS_FILTERS = {
   A_FAVOR: false,
 };
 
-const EMPTY_PAY_FILTERS = {
-  codigo: '',
-  fechaFrom: '',
-  fechaTo: '',
-  reserva: '',
-  cliente: '',
-  montoMin: '',
-  montoMax: '',
-  metodo: '',
-  motivo: '',
-  referencia: '',
-};
-
-const PAY_COLUMN_KEYS = {
-  codigo: ['codigo'],
-  fecha: ['fechaFrom', 'fechaTo'],
-  reserva: ['reserva'],
-  cliente: ['cliente'],
-  monto: ['montoMin', 'montoMax'],
-  metodo: ['metodo'],
-  motivo: ['motivo'],
-  referencia: ['referencia'],
-};
-
 /** Reservas actualmente alojadas (check-in hecho, aún en casa). */
 const ALOJADAS_STATUS = 'INGRESADA';
-
-function foldAccents(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function includesNormalized(haystack, needle) {
-  if (!needle) return true;
-  return foldAccents(haystack).includes(foldAccents(String(needle).trim()));
-}
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -145,22 +104,6 @@ function formatDisplayDate(value) {
   const iso = toDateInputValue(value);
   if (!iso) return '—';
   return iso.split('-').reverse().join('/');
-}
-
-function formatDisplayDateTime(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
-
-function paymentCodeLabel(pago) {
-  return pago?.codigo || (pago?.id != null ? `Nº ${pago.id}` : '—');
 }
 
 function startOfDay(isoDate) {
@@ -201,9 +144,9 @@ const CobrosPagos = () => {
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
   /** Pagos con comprobante subido en esta visita a Facturación (se ocultan al salir/recargar). */
   const [facturacionSessionDone, setFacturacionSessionDone] = useState(() => new Set());
-  const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const [editingPago, setEditingPago] = useState(null);
 
   const [statusFilters, setStatusFilters] = useState(DEFAULT_STATUS_FILTERS);
   const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
@@ -214,62 +157,6 @@ const CobrosPagos = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
-  const [openPayColumn, setOpenPayColumn] = useState(null);
-  const [payFilterMenuPos, setPayFilterMenuPos] = useState({ top: 0, left: 0 });
-  const payFilterMenuRef = useRef(null);
-  const payFilterBtnRefs = useRef({});
-
-  const setPayFilter = (key, value) => {
-    setPayFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const isPayColumnActive = useCallback(
-    (column) =>
-      (PAY_COLUMN_KEYS[column] || []).some(
-        (key) => String(payFilters[key] || '').trim() !== ''
-      ),
-    [payFilters]
-  );
-
-  const syncPayFilterMenuPos = useCallback((column) => {
-    const btn = payFilterBtnRefs.current[column];
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    setPayFilterMenuPos({ top: rect.bottom + 4, left: rect.left });
-  }, []);
-
-  const togglePayColumn = (column) => {
-    setOpenPayColumn((prev) => {
-      if (prev === column) return null;
-      syncPayFilterMenuPos(column);
-      return column;
-    });
-  };
-
-  useEffect(() => {
-    if (!openPayColumn) return;
-    syncPayFilterMenuPos(openPayColumn);
-    const onPointerDown = (e) => {
-      const btn = payFilterBtnRefs.current[openPayColumn];
-      if (payFilterMenuRef.current?.contains(e.target)) return;
-      if (btn?.contains(e.target)) return;
-      setOpenPayColumn(null);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setOpenPayColumn(null);
-    };
-    const onReposition = () => syncPayFilterMenuPos(openPayColumn);
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('resize', onReposition);
-    window.addEventListener('scroll', onReposition, true);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', onReposition);
-      window.removeEventListener('scroll', onReposition, true);
-    };
-  }, [openPayColumn, syncPayFilterMenuPos]);
 
   useEffect(() => {
     loadData();
@@ -589,101 +476,12 @@ const CobrosPagos = () => {
     clientIdParam,
   ]);
 
-  const paymentMethods = useMemo(() => {
-    const methods = new Set();
-    for (const pago of payments || []) {
-      if (pago?.metodo) methods.add(pago.metodo);
-    }
-    if (payFilters.metodo) methods.add(payFilters.metodo);
-    return Array.from(methods).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [payments, payFilters.metodo]);
-
   const hasActivePayFilters = useMemo(
     () =>
       Object.values(payFilters).some((value) => String(value || '').trim() !== '') ||
       Boolean(clientIdParam),
     [payFilters, clientIdParam]
   );
-
-  const filteredPayments = useMemo(() => {
-    const from = startOfDay(payFilters.fechaFrom);
-    const to = endOfDay(payFilters.fechaTo);
-    const clientId = clientIdParam ? Number(clientIdParam) : null;
-    const codigoNeedle = payFilters.codigo.trim();
-    const reservaNeedle = payFilters.reserva.trim().replace(/^#/, '');
-    const clienteNeedle = payFilters.cliente.trim();
-    const referenciaNeedle = payFilters.referencia.trim();
-    const metodoNeedle = payFilters.metodo;
-    const motivoNeedle = payFilters.motivo;
-    const montoMin =
-      payFilters.montoMin === '' ? null : Number(payFilters.montoMin);
-    const montoMax =
-      payFilters.montoMax === '' ? null : Number(payFilters.montoMax);
-
-    return (payments || [])
-      .filter((pago) => {
-        if (clientId != null && !Number.isNaN(clientId)) {
-          const matchesClient =
-            pago.reserva?.mainClient?.id === clientId ||
-            Number(pago.reserva?.mainClientId) === clientId;
-          if (!matchesClient) return false;
-        }
-
-        if (codigoNeedle && !includesNormalized(paymentCodeLabel(pago), codigoNeedle)) {
-          return false;
-        }
-
-        if (from || to) {
-          const refDate = pago.fecha ? new Date(pago.fecha) : null;
-          if (!refDate || Number.isNaN(refDate.getTime())) return false;
-          if (from && refDate < from) return false;
-          if (to && refDate > to) return false;
-        }
-
-        if (reservaNeedle) {
-          const reservaId = String(pago.reservaId || pago.reserva?.id || '');
-          if (!includesNormalized(reservaId, reservaNeedle)) return false;
-        }
-
-        if (clienteNeedle) {
-          const client = pago.reserva?.mainClient;
-          const clientName = client
-            ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-            : 'Sin cliente';
-          if (!includesNormalized(clientName, clienteNeedle)) return false;
-        }
-
-        const amount = Number(pago.montoARS != null ? pago.montoARS : pago.monto) || 0;
-        if (montoMin != null && !Number.isNaN(montoMin) && amount < montoMin) {
-          return false;
-        }
-        if (montoMax != null && !Number.isNaN(montoMax) && amount > montoMax) {
-          return false;
-        }
-
-        if (metodoNeedle && pago.metodo !== metodoNeedle) {
-          return false;
-        }
-
-        if (motivoNeedle && (pago.motivo || 'Pago') !== motivoNeedle) {
-          return false;
-        }
-
-        if (referenciaNeedle) {
-          const refText = `${pago.referencia || ''} ${pago.empresa || ''}`.trim();
-          if (!includesNormalized(refText, referenciaNeedle)) return false;
-        }
-
-        return true;
-      })
-      .slice()
-      .sort((a, b) => {
-        const da = a.fecha ? new Date(a.fecha).getTime() : 0;
-        const db = b.fecha ? new Date(b.fecha).getTime() : 0;
-        if (db !== da) return db - da;
-        return Number(b.id) - Number(a.id);
-      });
-  }, [payments, payFilters, clientIdParam]);
 
   const mergePagoAdjuntos = (pagoId, nuevos) => {
     setPayments((prev) =>
@@ -703,30 +501,6 @@ const CobrosPagos = () => {
         return { ...pago, adjuntos: existing.filter((a) => a.id !== adjuntoId) };
       })
     );
-  };
-
-  const handleToggleRetirado = async (pago) => {
-    if (!pago?.id || isTransferencia(pago.metodo) || togglingRetiradoId === pago.id) return;
-    const next = !pago.retirado;
-    setTogglingRetiradoId(pago.id);
-    try {
-      const updated = await updatePago(pago.id, { retirado: next });
-      setPayments((prev) =>
-        prev.map((row) =>
-          row.id === pago.id
-            ? { ...row, retirado: updated?.retirado ?? next, adjuntos: updated?.adjuntos ?? row.adjuntos }
-            : row
-        )
-      );
-    } catch (err) {
-      notify({
-        title: 'No se pudo actualizar',
-        message: err?.message || 'Error al marcar retirado',
-        type: 'error',
-      });
-    } finally {
-      setTogglingRetiradoId(null);
-    }
   };
 
   const handleUploadAdjuntos = async (pago, tipo, fileList) => {
@@ -837,18 +611,40 @@ const CobrosPagos = () => {
   };
 
   const handleAddPayment = (reservation) => {
+    setEditingPago(null);
     setSelectedReservation(reservation || null);
     setShowPaymentForm(true);
   };
 
   const handleNewPayment = () => {
+    setEditingPago(null);
     setSelectedReservation(null);
+    setShowPaymentForm(true);
+  };
+
+  const handleEditPago = (pago) => {
+    setSelectedReservation(null);
+    setEditingPago(pago);
     setShowPaymentForm(true);
   };
 
   const handleClosePaymentForm = () => {
     setShowPaymentForm(false);
     setSelectedReservation(null);
+    setEditingPago(null);
+  };
+
+  const handleDeletePago = async (pago) => {
+    if (!pago?.id) return;
+    await deletePago(pago.id);
+    setPayments((prev) => (prev || []).filter((row) => row.id !== pago.id));
+    if (editingPago?.id === pago.id) handleClosePaymentForm();
+    notify({
+      title: 'Pago eliminado',
+      message: `Se eliminó ${paymentCodeLabel(pago)}.`,
+      type: 'success',
+      autoDismiss: true,
+    });
   };
 
   const handleCreateExternalAccount = async () => {
@@ -1270,7 +1066,6 @@ const CobrosPagos = () => {
                       className={styles.clearDates}
                       onClick={() => {
                         setPayFilters(EMPTY_PAY_FILTERS);
-                        setOpenPayColumn(null);
                         if (clientIdParam) {
                           const next = new URLSearchParams(searchParams);
                           next.delete('clientId');
@@ -1312,195 +1107,20 @@ const CobrosPagos = () => {
                 </div>
               )}
 
-              <div className={styles.tableContainer}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      {[
-                        { key: 'codigo', label: 'Código' },
-                        { key: 'fecha', label: 'Fecha' },
-                        { key: 'reserva', label: 'Reserva' },
-                        { key: 'cliente', label: 'Cliente' },
-                        { key: 'monto', label: 'Monto' },
-                        { key: 'metodo', label: 'Método' },
-                        { key: 'motivo', label: 'Motivo' },
-                        { key: 'referencia', label: 'Referencia' },
-                      ].map(({ key, label }) => {
-                        const isOpen = openPayColumn === key;
-                        const isActive = isPayColumnActive(key);
-                        return (
-                          <th key={key} className={styles.columnHeader}>
-                            <div className={styles.columnHeaderInner}>
-                              <span>{label}</span>
-                              <button
-                                type="button"
-                                ref={(el) => {
-                                  payFilterBtnRefs.current[key] = el;
-                                }}
-                                className={`${styles.filterBtn} ${isOpen ? styles.filterBtnOpen : ''} ${isActive ? styles.filterBtnActive : ''}`}
-                                aria-label={`Filtrar ${label}`}
-                                aria-expanded={isOpen}
-                                aria-haspopup="dialog"
-                                onClick={() => togglePayColumn(key)}
-                              >
-                                <FiFilter size={13} aria-hidden="true" />
-                              </button>
-                            </div>
-                          </th>
-                        );
-                      })}
-                      <th>Factura</th>
-                      <th>Retirado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPayments.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} className={styles.emptyCell}>
-                          No hay pagos con los filtros actuales
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredPayments.map((pago) => {
-                        const client = pago.reserva?.mainClient;
-                        const clientName = client
-                          ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-                          : 'Sin cliente';
-                        const amount =
-                          pago.montoARS != null ? pago.montoARS : pago.monto;
-                        const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
-                        const comprobanteFiles = adjuntosOf(pago, ADJUNTO_COMPROBANTE);
-                        const transfer = isTransferencia(pago.metodo);
-                        const busyUpload = uploadingPagoId === pago.id;
-
-                        return (
-                          <tr key={pago.id} className={styles.row}>
-                            <td className={styles.idCell}>{paymentCodeLabel(pago)}</td>
-                            <td className={styles.metaCell}>
-                              {formatDisplayDateTime(pago.fecha)}
-                            </td>
-                            <td className={styles.idCell}>
-                              #{pago.reservaId || pago.reserva?.id || '—'}
-                            </td>
-                            <td>
-                              {client?.id ? (
-                                <button
-                                  type="button"
-                                  className={styles.linkButton}
-                                  onClick={() => handleClientClick(client)}
-                                  title="Ver cliente"
-                                >
-                                  {clientName || 'Sin cliente'}
-                                </button>
-                              ) : (
-                                <span>{clientName || 'Sin cliente'}</span>
-                              )}
-                            </td>
-                            <td className={styles.amountCell}>{formatPrice(amount)}</td>
-                            <td className={styles.metaCell}>{pago.metodo || '—'}</td>
-                            <td className={styles.metaCell}>{pago.motivo || 'Pago'}</td>
-                            <td className={styles.metaCell}>
-                              {pago.referencia || pago.empresa || '—'}
-                            </td>
-                            <td className={styles.facturaCell}>
-                              {!pago.requiereFacturacion ? (
-                                <span className={styles.dashMuted}>—</span>
-                              ) : facturaFiles.length > 0 ? (
-                                <div className={styles.fileList}>
-                                  {facturaFiles.map((file) =>
-                                    renderAdjuntoFileRow(pago, file, {
-                                      showCheck: false,
-                                      canDelete: canFacturacion,
-                                    })
-                                  )}
-                                </div>
-                              ) : (
-                                <span className={styles.facturaPendiente}>Pendiente</span>
-                              )}
-                            </td>
-                            <td className={styles.retiradoCell}>
-                              {transfer ? (
-                                comprobanteFiles.length > 0 ? (
-                                  <div className={styles.fileList}>
-                                    {comprobanteFiles.map((file) =>
-                                      renderAdjuntoFileRow(pago, file, {
-                                        showCheck: false,
-                                        canDelete: true,
-                                      })
-                                    )}
-                                    <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
-                                      <input
-                                        type="file"
-                                        accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
-                                        multiple
-                                        disabled={busyUpload}
-                                        onChange={(e) => {
-                                          handleUploadAdjuntos(
-                                            pago,
-                                            ADJUNTO_COMPROBANTE,
-                                            e.target.files
-                                          );
-                                          e.target.value = '';
-                                        }}
-                                      />
-                                      {busyUpload ? 'Subiendo…' : '+ archivo'}
-                                    </label>
-                                  </div>
-                                ) : (
-                                  <label
-                                    className={`${styles.dropzone} ${styles.dropzonePending} ${busyUpload ? styles.dropzoneBusy : ''}`}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => {
-                                      e.preventDefault();
-                                      handleUploadAdjuntos(
-                                        pago,
-                                        ADJUNTO_COMPROBANTE,
-                                        e.dataTransfer.files
-                                      );
-                                    }}
-                                  >
-                                    <input
-                                      type="file"
-                                      accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
-                                      multiple
-                                      disabled={busyUpload}
-                                      onChange={(e) => {
-                                        handleUploadAdjuntos(
-                                          pago,
-                                          ADJUNTO_COMPROBANTE,
-                                          e.target.files
-                                        );
-                                        e.target.value = '';
-                                      }}
-                                    />
-                                    {busyUpload ? 'Subiendo…' : 'Agregar comprobante'}
-                                  </label>
-                                )
-                              ) : (
-                                <button
-                                  type="button"
-                                  className={`${styles.retiradoToggle} ${pago.retirado ? styles.retiradoOn : styles.retiradoOff}`}
-                                  aria-pressed={Boolean(pago.retirado)}
-                                  aria-label={pago.retirado ? 'Marcado como retirado' : 'No retirado'}
-                                  title={pago.retirado ? 'Retirado (clic para desmarcar)' : 'No retirado (clic para marcar)'}
-                                  disabled={togglingRetiradoId === pago.id}
-                                  onClick={() => handleToggleRetirado(pago)}
-                                >
-                                  {pago.retirado ? (
-                                    <FiCheck aria-hidden="true" />
-                                  ) : (
-                                    <FiSquare aria-hidden="true" />
-                                  )}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <PagosHistorialTable
+                payments={payments}
+                onPaymentsChange={setPayments}
+                payFilters={payFilters}
+                onPayFiltersChange={setPayFilters}
+                enableColumnFilters
+                canDeleteFactura={canFacturacion}
+                clientIdFilter={clientIdParam}
+                emptyMessage="No hay pagos con los filtros actuales"
+                onClientClick={handleClientClick}
+                onEditPago={handleEditPago}
+                onDeletePago={handleDeletePago}
+                testId="estado-cuentas-pagos-table"
+              />
             </section>
           )}
 
@@ -1519,154 +1139,29 @@ const CobrosPagos = () => {
       {showPaymentForm && (
         <PaymentForm
           reservaId={
-            selectedReservation &&
-            selectedReservation.origen !== 'EXTERNA' &&
-            selectedReservation.accountKind !== 'EXTERNAL'
-              ? selectedReservation.reservationId || selectedReservation.id
-              : null
+            editingPago
+              ? editingPago.reservaId || editingPago.reserva?.id || null
+              : selectedReservation &&
+                  selectedReservation.origen !== 'EXTERNA' &&
+                  selectedReservation.accountKind !== 'EXTERNAL'
+                ? selectedReservation.reservationId || selectedReservation.id
+                : null
           }
           accountId={
-            selectedReservation &&
-            (selectedReservation.origen === 'EXTERNA' ||
-              selectedReservation.accountKind === 'EXTERNAL')
-              ? selectedReservation.accountId
-              : null
+            editingPago
+              ? editingPago.accountId || null
+              : selectedReservation &&
+                  (selectedReservation.origen === 'EXTERNA' ||
+                    selectedReservation.accountKind === 'EXTERNAL')
+                ? selectedReservation.accountId
+                : null
           }
+          initialPago={editingPago}
           onClose={handleClosePaymentForm}
           onSuccess={handlePaymentSuccess}
         />
       )}
 
-      {openPayColumn && (
-        <div
-          ref={payFilterMenuRef}
-          className={styles.filterMenu}
-          role="dialog"
-          aria-label={`Filtro ${openPayColumn}`}
-          style={{ top: payFilterMenuPos.top, left: payFilterMenuPos.left }}
-        >
-          {openPayColumn === 'codigo' && (
-            <input
-              type="search"
-              className={styles.columnFilter}
-              aria-label="Filtrar por código"
-              placeholder="Buscar…"
-              autoFocus
-              value={payFilters.codigo}
-              onChange={(e) => setPayFilter('codigo', e.target.value)}
-            />
-          )}
-          {openPayColumn === 'fecha' && (
-            <div className={styles.columnFilterStack}>
-              <label className={styles.columnFilterRow}>
-                <span className={styles.columnFilterLabel}>Desde</span>
-                <input
-                  type="date"
-                  className={styles.columnFilter}
-                  aria-label="Fecha desde"
-                  value={payFilters.fechaFrom}
-                  onChange={(e) => setPayFilter('fechaFrom', e.target.value)}
-                />
-              </label>
-              <label className={styles.columnFilterRow}>
-                <span className={styles.columnFilterLabel}>Hasta</span>
-                <input
-                  type="date"
-                  className={styles.columnFilter}
-                  aria-label="Fecha hasta"
-                  value={payFilters.fechaTo}
-                  min={payFilters.fechaFrom || undefined}
-                  onChange={(e) => setPayFilter('fechaTo', e.target.value)}
-                />
-              </label>
-            </div>
-          )}
-          {openPayColumn === 'reserva' && (
-            <input
-              type="search"
-              className={styles.columnFilter}
-              aria-label="Filtrar por reserva"
-              placeholder="# reserva"
-              autoFocus
-              value={payFilters.reserva}
-              onChange={(e) => setPayFilter('reserva', e.target.value)}
-            />
-          )}
-          {openPayColumn === 'cliente' && (
-            <input
-              type="search"
-              className={styles.columnFilter}
-              aria-label="Buscar cliente"
-              placeholder="Buscar cliente…"
-              autoFocus
-              value={payFilters.cliente}
-              onChange={(e) => setPayFilter('cliente', e.target.value)}
-            />
-          )}
-          {openPayColumn === 'monto' && (
-            <div className={styles.columnFilterStack}>
-              <input
-                type="number"
-                className={styles.columnFilter}
-                aria-label="Monto mínimo"
-                placeholder="Mín"
-                autoFocus
-                value={payFilters.montoMin}
-                onChange={(e) => setPayFilter('montoMin', e.target.value)}
-              />
-              <input
-                type="number"
-                className={styles.columnFilter}
-                aria-label="Monto máximo"
-                placeholder="Máx"
-                value={payFilters.montoMax}
-                onChange={(e) => setPayFilter('montoMax', e.target.value)}
-              />
-            </div>
-          )}
-          {openPayColumn === 'metodo' && (
-            <select
-              className={styles.columnFilter}
-              aria-label="Filtrar por método de pago"
-              autoFocus
-              value={payFilters.metodo}
-              onChange={(e) => setPayFilter('metodo', e.target.value)}
-            >
-              <option value="">Todos</option>
-              {paymentMethods.map((metodo) => (
-                <option key={metodo} value={metodo}>
-                  {metodo}
-                </option>
-              ))}
-            </select>
-          )}
-          {openPayColumn === 'motivo' && (
-            <select
-              className={styles.columnFilter}
-              aria-label="Filtrar por motivo"
-              autoFocus
-              value={payFilters.motivo}
-              onChange={(e) => setPayFilter('motivo', e.target.value)}
-            >
-              <option value="">Todos</option>
-              <option value="Pago">Pago</option>
-              <option value="Seña">Seña</option>
-              <option value="Devolución">Devolución</option>
-            </select>
-          )}
-          {openPayColumn === 'referencia' && (
-            <input
-              type="search"
-              className={styles.columnFilter}
-              aria-label="Filtrar por referencia"
-              placeholder="Buscar…"
-              autoFocus
-              value={payFilters.referencia}
-              onChange={(e) => setPayFilter('referencia', e.target.value)}
-            />
-          )}
-        </div>
-      )}
       {noticeDialog}
       {confirmDialog}
     </div>

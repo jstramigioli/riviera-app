@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiCheck, FiFilter, FiSquare, FiX } from 'react-icons/fi';
+import { FiCheck, FiEdit2, FiFilter, FiSquare, FiTrash2, FiX } from 'react-icons/fi';
 import {
   updatePago,
   uploadPagoAdjuntos,
@@ -118,6 +118,7 @@ export default function PagosHistorialTable({
   emptyMessage = 'No hay pagos con los filtros actuales',
   onClientClick,
   onEditPago,
+  onDeletePago,
   testId = 'pagos-historial-table',
 }) {
   const { notify, noticeDialog } = useAppNotice();
@@ -125,6 +126,7 @@ export default function PagosHistorialTable({
   const [internalFilters, setInternalFilters] = useState(EMPTY_PAY_FILTERS);
   const payFilters = controlledFilters ?? internalFilters;
   const setPayFilters = onPayFiltersChange ?? setInternalFilters;
+  const showRowActions = Boolean(onEditPago || onDeletePago);
 
   const [openPayColumn, setOpenPayColumn] = useState(null);
   const [payFilterMenuPos, setPayFilterMenuPos] = useState({ top: 0, left: 0 });
@@ -133,6 +135,7 @@ export default function PagosHistorialTable({
   const [uploadingPagoId, setUploadingPagoId] = useState(null);
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
   const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
+  const [deletingPagoId, setDeletingPagoId] = useState(null);
 
   const setPayFilter = (key, value) => {
     setPayFilters((prev) => ({ ...prev, [key]: value }));
@@ -393,6 +396,30 @@ export default function PagosHistorialTable({
     }
   };
 
+  const handleDeletePagoClick = async (pago) => {
+    if (!onDeletePago || !pago?.id || deletingPagoId === pago.id) return;
+    const ok = await confirm({
+      title: 'Eliminar pago',
+      message: `¿Eliminar el pago ${paymentCodeLabel(pago)}?`,
+      confirmText: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDeletingPagoId(pago.id);
+    try {
+      await onDeletePago(pago);
+    } catch (err) {
+      notify({
+        title: 'No se pudo eliminar',
+        message: err?.message || 'Error al eliminar el pago',
+        type: 'error',
+      });
+    } finally {
+      setDeletingPagoId(null);
+    }
+  };
+
   const renderAdjuntoFileRow = (pago, file, { canDelete = false } = {}) => {
     const busyDelete = deletingAdjuntoId === file.id;
     return (
@@ -456,12 +483,13 @@ export default function PagosHistorialTable({
               })}
               <th>Factura</th>
               <th>Retirado</th>
+              {showRowActions ? <th className={styles.actionsHeader}>Acciones</th> : null}
             </tr>
           </thead>
           <tbody>
             {filteredPayments.length === 0 ? (
               <tr>
-                <td colSpan={10} className={styles.emptyCell}>
+                <td colSpan={showRowActions ? 11 : 10} className={styles.emptyCell}>
                   {emptyMessage}
                 </td>
               </tr>
@@ -477,24 +505,11 @@ export default function PagosHistorialTable({
                 const transfer = isTransferencia(pago.metodo);
                 const busyUpload = uploadingPagoId === pago.id;
                 const codeLabel = paymentCodeLabel(pago);
+                const busyDeletePago = deletingPagoId === pago.id;
 
                 return (
                   <tr key={pago.id} className={styles.row} data-testid={`pago-row-${pago.id}`}>
-                    <td className={styles.idCell}>
-                      {onEditPago ? (
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={() => onEditPago(pago)}
-                          title="Editar pago"
-                          data-testid={`pago-edit-${pago.id}`}
-                        >
-                          {codeLabel}
-                        </button>
-                      ) : (
-                        codeLabel
-                      )}
-                    </td>
+                    <td className={styles.idCell}>{codeLabel}</td>
                     <td className={styles.metaCell}>
                       {formatDisplayDateTime(pago.fecha)}
                     </td>
@@ -613,6 +628,37 @@ export default function PagosHistorialTable({
                         </button>
                       )}
                     </td>
+                    {showRowActions ? (
+                      <td className={styles.pagoActionsCell}>
+                        <div className={styles.pagoRowActions}>
+                          {onEditPago ? (
+                            <button
+                              type="button"
+                              className={styles.pagoIconBtn}
+                              onClick={() => onEditPago(pago)}
+                              title="Editar"
+                              aria-label="Editar pago"
+                              data-testid={`pago-edit-${pago.id}`}
+                            >
+                              <FiEdit2 aria-hidden="true" />
+                            </button>
+                          ) : null}
+                          {onDeletePago ? (
+                            <button
+                              type="button"
+                              className={`${styles.pagoIconBtn} ${styles.pagoIconBtnDanger}`}
+                              onClick={() => handleDeletePagoClick(pago)}
+                              title="Eliminar"
+                              aria-label="Eliminar pago"
+                              data-testid={`pago-delete-${pago.id}`}
+                              disabled={busyDeletePago}
+                            >
+                              <FiTrash2 aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })
