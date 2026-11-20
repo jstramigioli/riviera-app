@@ -32,6 +32,12 @@ const CONVENTIONAL_ORDER = [
 /** Umbral: con 3+ postres se imprime en 2 columnas. */
 const POSTRE_TWO_COL_MIN = 3;
 
+/** Elementos principales del menú imprimible: ningún < 14 pt. */
+const MAIN_MIN_PT = 14;
+const TITLE_PT = 16;
+const DATE_PT = MAIN_MIN_PT;
+const SECTION_PT = MAIN_MIN_PT;
+
 /** Logo oficial Riviera Hotel (blanco sobre negro, ~16:9 / 740×410). */
 const LOGO_ASPECT = 740 / 410;
 
@@ -183,12 +189,12 @@ function buildDailyMenuPdfBuffer(menu) {
     doc
       .fillColor(TEXT_DARK)
       .font('Helvetica-Bold')
-      .fontSize(16)
+      .fontSize(TITLE_PT)
       .text('Menú', left, doc.y, { width: contentWidth, align: 'center' });
     doc
       .moveDown(0.25)
       .font('Helvetica')
-      .fontSize(11)
+      .fontSize(DATE_PT)
       .fillColor(TEXT_DARK)
       .text(formatMenuDate(menu.date), { align: 'center' });
 
@@ -205,7 +211,9 @@ function buildDailyMenuPdfBuffer(menu) {
 
     const bySection = groupItems(menu.items);
     const itemCount = (menu.items || []).length;
-    const nameSize = itemCount > 18 ? 9 : itemCount > 10 ? 10 : 11;
+    // Platos ≥ MAIN_MIN_PT; densos quedan en 14, pocos suben un poco.
+    const nameSize =
+      itemCount > 18 ? MAIN_MIN_PT : itemCount > 10 ? MAIN_MIN_PT : MAIN_MIN_PT + 1;
     const descSize = Math.max(8, nameSize - 2);
 
     if (menu.kind === 'BUFFET') {
@@ -229,7 +237,7 @@ function buildDailyMenuPdfBuffer(menu) {
           doc
             .fillColor(RIVIERA_BLUE)
             .font('Helvetica-Bold')
-            .fontSize(9)
+            .fontSize(SECTION_PT)
             .text(MESA_ENSALADAS.toUpperCase(), left, doc.y, {
               width: contentWidth,
               align: 'center',
@@ -244,7 +252,7 @@ function buildDailyMenuPdfBuffer(menu) {
         doc
           .fillColor(RIVIERA_BLUE)
           .font('Helvetica-Bold')
-          .fontSize(9)
+          .fontSize(SECTION_PT)
           .text(SECTION_LABELS[section].toUpperCase(), {
             align: 'center',
             characterSpacing: 1.2
@@ -275,5 +283,9 @@ module.exports = {
   SECTION_LABELS,
   CONVENTIONAL_ORDER,
   MESA_ENSALADAS,
-  POSTRE_TWO_COL_MIN
+  POSTRE_TWO_COL_MIN,
+  MAIN_MIN_PT,
+  TITLE_PT,
+  DATE_PT,
+  SECTION_PT
 };

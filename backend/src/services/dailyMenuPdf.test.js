@@ -1,6 +1,20 @@
-const { buildDailyMenuPdfBuffer, POSTRE_TWO_COL_MIN } = require('./dailyMenuPdf');
+const {
+  buildDailyMenuPdfBuffer,
+  POSTRE_TWO_COL_MIN,
+  MAIN_MIN_PT,
+  TITLE_PT,
+  DATE_PT,
+  SECTION_PT
+} = require('./dailyMenuPdf');
 
 describe('dailyMenuPdf', () => {
+  it('elementos principales ≥ 14 pt', () => {
+    expect(MAIN_MIN_PT).toBeGreaterThanOrEqual(14);
+    expect(TITLE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
+    expect(DATE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
+    expect(SECTION_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
+  });
+
   it('genera un PDF con cabecera application/pdf-like bytes', async () => {
     const buf = await buildDailyMenuPdfBuffer({
       date: new Date(Date.UTC(2026, 10, 18, 12)),
