@@ -780,9 +780,7 @@ export default function Gastronomia() {
                   <FiPrinter /> Imprimir
                 </button>
               </>
-            ) : (
-              <p className={styles.empty}>Guardá para generar el PDF A5.</p>
-            )}
+            ) : null}
           </aside>
         </div>
       </div>
@@ -794,9 +792,6 @@ export default function Gastronomia() {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Gastronomía</h1>
-          <p className={styles.subtitle}>
-            Menús diarios de media pensión (independiente del menú a la carta).
-          </p>
         </div>
       </header>
 

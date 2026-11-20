@@ -38,12 +38,6 @@
   letter-spacing: -0.02em;
 }
 
-.subtitle {
-  margin: 4px 0 0;
-  color: var(--g-muted);
-  font-size: 12px;
-}
-
 .tabs {
   display: flex;
   gap: 4px;
