@@ -37,7 +37,12 @@ import {
   todayLocalDateInputValue
 } from '../constants/billing';
 import { todayAsLocalDate } from '../utils/calendarDates';
-import { formatArs, roundMoney } from '../utils/paymentDiscount';
+import {
+  computeRefundFromCash,
+  computeRefundFromCredit,
+  formatArs,
+  roundMoney
+} from '../utils/paymentDiscount';
 import styles from './PaymentForm.module.css';
 
 function pagoFechaToInput(value) {
@@ -278,8 +283,22 @@ const PaymentForm = ({
   const [addPromoOpen, setAddPromoOpen] = useState(false);
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
-  const isSaldarMode = !isDevolucion && amountMode === AMOUNT_MODE_SALDAR;
+  const isSaldarMode = amountMode === AMOUNT_MODE_SALDAR;
   const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
+
+  const selectedPagoOrigen = useMemo(() => {
+    if (!pagoOrigenId) return null;
+    return pagosOrigen.find((p) => String(p.id) === String(pagoOrigenId)) || null;
+  }, [pagosOrigen, pagoOrigenId]);
+
+  const origenPagoARS = selectedPagoOrigen
+    ? roundMoney(Math.abs(Number(selectedPagoOrigen.montoARS) || 0))
+    : 0;
+  const origenDescuentoARS = selectedPagoOrigen
+    ? roundMoney(
+        Math.abs(Number(selectedPagoOrigen.discountApplication?.montoARS) || 0)
+      )
+    : 0;
 
   const manualPromoApply = useMemo(
     () =>
@@ -362,6 +381,45 @@ const PaymentForm = ({
   useEffect(() => {
     calculateMontoARS();
   }, [formData.monto, formData.moneda, formData.tipoCambio]);
+
+  // Devolución: sincronizar monto a devolver ↔ monto a saldar según descuento del pago origen.
+  useEffect(() => {
+    if (!isDevolucion || !selectedPagoOrigen) return;
+    if (!(origenPagoARS > 0)) return;
+
+    if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
+      const r = computeRefundFromCredit({
+        creditoARS: montoASaldarARS,
+        originalPagoARS: origenPagoARS,
+        originalDiscountARS: origenDescuentoARS
+      });
+      const nextCash = String(roundMoney(r.cashARS));
+      setFormData((prev) =>
+        prev.monto === nextCash && prev.moneda === 'ARS'
+          ? prev
+          : { ...prev, monto: nextCash, moneda: 'ARS' }
+      );
+      return;
+    }
+
+    if (amountMode === AMOUNT_MODE_INGRESADO && Number(montoARS) > 0) {
+      const r = computeRefundFromCash({
+        cashARS: montoARS,
+        originalPagoARS: origenPagoARS,
+        originalDiscountARS: origenDescuentoARS
+      });
+      const nextSaldar = String(roundMoney(r.creditoARS));
+      setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
+    }
+  }, [
+    isDevolucion,
+    selectedPagoOrigen,
+    origenPagoARS,
+    origenDescuentoARS,
+    amountMode,
+    montoASaldarARS,
+    montoARS
+  ]);
 
   useEffect(() => {
     if (isDevolucion) {
@@ -717,14 +775,14 @@ const PaymentForm = ({
         return;
       }
     }
-    if (field === 'monto' && !isDevolucion) {
+    if (field === 'monto') {
       setAmountMode(AMOUNT_MODE_INGRESADO);
       if (!value || !(parseFloat(value) > 0)) {
         setMontoASaldar('');
       }
     }
-    if (field === 'moneda' && value !== 'ARS' && !isDevolucion) {
-      // Monto a saldar es ARS de cuenta; otra moneda usa modo ingresado como fuente.
+    if (field === 'moneda' && value !== 'ARS') {
+      // Monto a saldar es ARS de cuenta; otra moneda usa modo ingresado/devuelto como fuente.
       setAmountMode(AMOUNT_MODE_INGRESADO);
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -746,9 +804,18 @@ const PaymentForm = ({
     handleMontoASaldarChange(String(roundMoney(saldoPendiente)));
   };
 
-  /** Monto de caja a registrar (ARS) según modo. */
+  /** Monto de caja a registrar (ARS) según modo. En devolución = efectivo a devolver. */
   const tenderMontoARS = useMemo(() => {
-    if (isDevolucion) return montoARS;
+    if (isDevolucion) {
+      if (amountMode === AMOUNT_MODE_SALDAR && selectedPagoOrigen && montoASaldarARS > 0) {
+        return computeRefundFromCredit({
+          creditoARS: montoASaldarARS,
+          originalPagoARS: origenPagoARS,
+          originalDiscountARS: origenDescuentoARS
+        }).cashARS;
+      }
+      return montoARS;
+    }
     if (amountMode === AMOUNT_MODE_SALDAR) {
       if (manualPromoPreview?.aplica && manualPromoPreview.dineroARS != null) {
         return roundMoney(manualPromoPreview.dineroARS);
@@ -761,7 +828,31 @@ const PaymentForm = ({
     amountMode,
     montoARS,
     montoASaldarARS,
-    manualPromoPreview
+    manualPromoPreview,
+    selectedPagoOrigen,
+    origenPagoARS,
+    origenDescuentoARS
+  ]);
+
+  const refundCreditoARS = useMemo(() => {
+    if (!isDevolucion) return 0;
+    if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
+      return montoASaldarARS;
+    }
+    if (!(montoARS > 0) || !selectedPagoOrigen) return montoARS > 0 ? montoARS : 0;
+    return computeRefundFromCash({
+      cashARS: montoARS,
+      originalPagoARS: origenPagoARS,
+      originalDiscountARS: origenDescuentoARS
+    }).creditoARS;
+  }, [
+    isDevolucion,
+    amountMode,
+    montoASaldarARS,
+    montoARS,
+    selectedPagoOrigen,
+    origenPagoARS,
+    origenDescuentoARS
   ]);
 
   const handleComprobanteChange = (fileList) => {
@@ -988,9 +1079,18 @@ const PaymentForm = ({
       }
     }
 
-    if (isDevolucion || amountMode === AMOUNT_MODE_INGRESADO) {
+    if (isDevolucion && !pagoOrigenId) {
+      setError('Seleccioná el pago de origen a devolver');
+      return;
+    }
+
+    if (amountMode === AMOUNT_MODE_INGRESADO) {
       if (!formData.monto || parseFloat(formData.monto) <= 0) {
-        setError('El monto ingresado debe ser mayor a 0');
+        setError(
+          isDevolucion
+            ? 'El monto a devolver debe ser mayor a 0'
+            : 'El monto ingresado debe ser mayor a 0'
+        );
         return;
       }
     } else if (amountMode === AMOUNT_MODE_SALDAR) {
@@ -999,14 +1099,13 @@ const PaymentForm = ({
         return;
       }
       if (!(tenderMontoARS > 0)) {
-        setError('No se pudo calcular cuánto debe abonar el cliente');
+        setError(
+          isDevolucion
+            ? 'No se pudo calcular cuánto devolver al cliente'
+            : 'No se pudo calcular cuánto debe abonar el cliente'
+        );
         return;
       }
-    }
-
-    if (isDevolucion && !pagoOrigenId) {
-      setError('Seleccioná el pago de origen a devolver');
-      return;
     }
 
     if (formData.moneda === 'USD' && (!formData.tipoCambio || parseFloat(formData.tipoCambio) <= 0)) {
@@ -1074,14 +1173,12 @@ const PaymentForm = ({
           }
         : undefined;
 
-      // Devolución: monto positivo en UI; el backend lo guarda negativo en el saldo.
-      // Modo saldar: se registra lo que el cliente abona (dinero); el motor aplica el descuento.
+      // Devolución: monto positivo en UI (efectivo); el backend lo guarda negativo.
+      // Modo saldar: se registra el efectivo (pago = abono; devolución = a devolver).
       const submitMonto =
-        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
-          ? tenderMontoARS
-          : parseFloat(formData.monto);
+        amountMode === AMOUNT_MODE_SALDAR ? tenderMontoARS : parseFloat(formData.monto);
       const submitMoneda =
-        !isDevolucion && amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
+        amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
       const fechaIso =
         localDateInputToIso(formData.fecha) || todayAsLocalDate().toISOString();
       const pagoData = {
@@ -1480,73 +1577,75 @@ const PaymentForm = ({
           >
             <div
               className={`${styles.amountModeBlock} ${
-                isDevolucion || amountMode === AMOUNT_MODE_INGRESADO
-                  ? styles.amountModeActive
-                  : ''
+                amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
               }`}
             >
               <label htmlFor="payment-monto">
-                {isDevolucion ? 'Monto *' : 'Monto ingresado'}
+                {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
               </label>
               <input
                 id="payment-monto"
                 type="number"
                 value={formData.monto}
                 onChange={(e) => handleInputChange('monto', e.target.value)}
-                onFocus={() => {
-                  if (!isDevolucion) setAmountMode(AMOUNT_MODE_INGRESADO);
-                }}
+                onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
                 placeholder="0"
                 step="0.01"
                 min="0"
-                required={isDevolucion || amountMode === AMOUNT_MODE_INGRESADO}
+                required={amountMode === AMOUNT_MODE_INGRESADO}
                 disabled={loading}
                 data-testid="payment-monto-ingresado"
               />
             </div>
 
-            {!isDevolucion ? (
-              <div
-                className={`${styles.amountModeBlock} ${
-                  amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
-                }`}
-              >
-                <label htmlFor="payment-monto-saldar">Monto a saldar</label>
-                <input
-                  id="payment-monto-saldar"
-                  type="number"
-                  value={montoASaldar}
-                  onChange={(e) => handleMontoASaldarChange(e.target.value)}
-                  onFocus={() => {
-                    setAmountMode(AMOUNT_MODE_SALDAR);
-                    setFormData((prev) =>
-                      prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }
-                    );
-                  }}
-                  placeholder={
-                    saldoPendiente != null && Number(saldoPendiente) > 0
+            <div
+              className={`${styles.amountModeBlock} ${
+                amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+              }`}
+            >
+              <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+              <input
+                id="payment-monto-saldar"
+                type="number"
+                value={montoASaldar}
+                onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                onFocus={() => {
+                  setAmountMode(AMOUNT_MODE_SALDAR);
+                  setFormData((prev) =>
+                    prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }
+                  );
+                }}
+                placeholder={
+                  isDevolucion && selectedPagoOrigen
+                    ? formatArs(roundMoney(origenPagoARS + origenDescuentoARS))
+                    : saldoPendiente != null && Number(saldoPendiente) > 0
                       ? formatArs(saldoPendiente)
                       : '0'
-                  }
-                  step="0.01"
-                  min="0"
-                  required={amountMode === AMOUNT_MODE_SALDAR}
+                }
+                step="0.01"
+                min="0"
+                required={amountMode === AMOUNT_MODE_SALDAR}
+                disabled={loading || isEditMode}
+                data-testid="payment-monto-saldar"
+              />
+              {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
+                <button
+                  type="button"
+                  className={styles.useSaldoBtn}
                   disabled={loading || isEditMode}
-                  data-testid="payment-monto-saldar"
-                />
-                {saldoPendiente != null && Number(saldoPendiente) > 0 ? (
-                  <button
-                    type="button"
-                    className={styles.useSaldoBtn}
-                    disabled={loading || isEditMode}
-                    onClick={useSaldoPendienteAsSaldar}
-                    data-testid="payment-use-saldo"
-                  >
-                    Usar saldo pendiente ($ {formatArs(saldoPendiente)})
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
+                  onClick={useSaldoPendienteAsSaldar}
+                  data-testid="payment-use-saldo"
+                >
+                  Usar saldo pendiente ($ {formatArs(saldoPendiente)})
+                </button>
+              ) : null}
+              {isDevolucion && selectedPagoOrigen && origenDescuentoARS > 0 ? (
+                <span className={styles.helpText} data-testid="payment-refund-discount-hint">
+                  Origen con desc. $ {formatArs(origenDescuentoARS)}: al saldar se calcula
+                  cuánto devolver.
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div className={styles.formRow}>
@@ -2142,7 +2241,32 @@ const PaymentForm = ({
               <span>Motivo:</span>
               <span>{motivoActual}</span>
             </div>
-            {isSaldarMode ? (
+            {isDevolucion ? (
+              <>
+                <div className={styles.summaryRow}>
+                  <span>Monto a saldar:</span>
+                  <span className={styles.amount}>
+                    {refundCreditoARS > 0 ? formatPrice(refundCreditoARS) : '—'}
+                  </span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span>Devolver al cliente:</span>
+                  <span className={styles.amountARS}>
+                    {tenderMontoARS > 0 ? `−${formatPrice(tenderMontoARS)}` : '—'}
+                  </span>
+                </div>
+                {selectedPagoOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0 ? (
+                  <div className={styles.summaryRow}>
+                    <span>Desc. revertido:</span>
+                    <span>
+                      {formatPrice(
+                        roundMoney(Math.max(0, refundCreditoARS - tenderMontoARS))
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+              </>
+            ) : isSaldarMode ? (
               <>
                 <div className={styles.summaryRow}>
                   <span>Monto a saldar:</span>
@@ -2163,13 +2287,11 @@ const PaymentForm = ({
               <>
                 <div className={styles.summaryRow}>
                   <span>Monto original:</span>
-                  <span className={isDevolucion ? styles.amountARS : styles.amount}>
+                  <span className={styles.amount}>
                     {hasIngresadoAmount
-                      ? `${isDevolucion ? '−' : ''}${
-                          formData.moneda === 'USD'
-                            ? formatPriceUSD(parseFloat(formData.monto) || 0)
-                            : formatPrice(parseFloat(formData.monto) || 0)
-                        }`
+                      ? formData.moneda === 'USD'
+                        ? formatPriceUSD(parseFloat(formData.monto) || 0)
+                        : formatPrice(parseFloat(formData.monto) || 0)
                       : '—'}
                   </span>
                 </div>
@@ -2186,9 +2308,7 @@ const PaymentForm = ({
                 <div className={styles.summaryRow}>
                   <span>Equivalente en ARS:</span>
                   <span className={styles.amountARS}>
-                    {hasIngresadoAmount
-                      ? `${isDevolucion ? '−' : ''}${formatPrice(montoARS)}`
-                      : '—'}
+                    {hasIngresadoAmount ? formatPrice(montoARS) : '—'}
                   </span>
                 </div>
               </>

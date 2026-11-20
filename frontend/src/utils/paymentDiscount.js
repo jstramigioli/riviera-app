@@ -184,6 +184,73 @@ export function computeCashToSettle({ saldoPendiente, config, motivo = 'Pago' } 
   };
 }
 
+/**
+ * Reversión proporcional del descuento del pago origen (misma fórmula que backend).
+ */
+export function computeDiscountReversal({
+  originalDiscountARS,
+  originalPagoARS,
+  devolucionARS
+} = {}) {
+  const originalD = Math.abs(toNumber(originalDiscountARS));
+  const originalP = Math.abs(toNumber(originalPagoARS));
+  const dev = Math.abs(toNumber(devolucionARS));
+  if (originalD <= 0 || originalP <= 0 || dev <= 0) {
+    return { descuentoRevertidoARS: 0 };
+  }
+  const ratio = Math.min(1, dev / originalP);
+  return { descuentoRevertidoARS: roundMoney(originalD * ratio) };
+}
+
+/** Desde el efectivo a devolver → crédito a revertir en la cuenta. */
+export function computeRefundFromCash({
+  cashARS,
+  originalPagoARS,
+  originalDiscountARS
+} = {}) {
+  const cash = roundMoney(Math.abs(toNumber(cashARS)));
+  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalD = Math.abs(toNumber(originalDiscountARS));
+  if (!(cash > 0)) {
+    return { cashARS: 0, descuentoRevertidoARS: 0, creditoARS: 0 };
+  }
+  const { descuentoRevertidoARS } = computeDiscountReversal({
+    originalDiscountARS: originalD,
+    originalPagoARS: originalP,
+    devolucionARS: cash
+  });
+  return {
+    cashARS: cash,
+    descuentoRevertidoARS,
+    creditoARS: roundMoney(cash + descuentoRevertidoARS)
+  };
+}
+
+/** Desde el crédito a saldar → cuánto efectivo devolver al cliente. */
+export function computeRefundFromCredit({
+  creditoARS,
+  originalPagoARS,
+  originalDiscountARS
+} = {}) {
+  const credito = roundMoney(Math.abs(toNumber(creditoARS)));
+  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalD = Math.abs(toNumber(originalDiscountARS));
+  const originalCredito = roundMoney(originalP + originalD);
+  if (!(credito > 0)) {
+    return { cashARS: 0, descuentoRevertidoARS: 0, creditoARS: 0 };
+  }
+  if (!(originalP > 0) || !(originalCredito > 0) || !(originalD > 0)) {
+    return { cashARS: credito, descuentoRevertidoARS: 0, creditoARS: credito };
+  }
+  const cash = roundMoney((credito * originalP) / originalCredito);
+  const descuento = roundMoney(credito - cash);
+  return {
+    cashARS: cash,
+    descuentoRevertidoARS: descuento,
+    creditoARS: credito
+  };
+}
+
 export function formatArs(value) {
   return roundMoney(value).toLocaleString('es-AR', {
     minimumFractionDigits: 2,

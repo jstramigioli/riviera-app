@@ -596,7 +596,7 @@ describe('PaymentForm facturación', () => {
       expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
     })
     fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
-    fireEvent.change(screen.getByLabelText(/^Monto \*$/i), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText(/Monto a devolver/i), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
 
     await waitFor(() =>
@@ -604,6 +604,39 @@ describe('PaymentForm facturación', () => {
         22,
         expect.objectContaining({
           monto: 500,
+          motivo: 'Devolución',
+          pagoOrigenId: 77
+        })
+      )
+    )
+  })
+
+  it('devolución: monto a saldar calcula efectivo según descuento del origen', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('tab', { name: 'Nueva devolución' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '100000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)
+    })
+    expect(screen.getByTestId('payment-summary')).toHaveTextContent(/Devolver al cliente/)
+    expect(screen.getByTestId('payment-summary')).toHaveTextContent(/90\.000/)
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          monto: 90000,
           motivo: 'Devolución',
           pagoOrigenId: 77
         })
@@ -675,5 +708,28 @@ describe('PaymentForm facturación', () => {
       'true'
     )
     expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(12500)
+  })
+
+  it('initialMode devolucion + initialMontoASaldar precarga monto a saldar', async () => {
+    render(
+      <PaymentForm
+        reservaId={22}
+        initialMode="devolucion"
+        initialMontoASaldar={100000}
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+    })
+    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)
+    })
   })
 })
