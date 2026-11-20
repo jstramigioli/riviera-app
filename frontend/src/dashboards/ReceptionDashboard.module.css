@@ -171,11 +171,133 @@
 }
 
 .notesCell {
-  max-width: 160px;
+  max-width: 180px;
+}
+
+.notesBtn {
+  appearance: none;
+  display: block;
+  width: 100%;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  color: var(--dash-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.notesBtn:hover {
+  color: var(--dash-primary-dark);
+  text-decoration: underline;
+}
+
+.notesBtnEmpty {
   color: var(--dash-muted);
+  font-style: italic;
+}
+
+.notesOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(31, 41, 51, 0.4);
+  padding: 16px;
+}
+
+.notesDialog {
+  width: min(92vw, 420px);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(31, 41, 51, 0.16);
+}
+
+.notesDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.notesDialogTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dash-text-dark);
+}
+
+.notesCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dash-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.notesCloseBtn:hover:not(:disabled) {
+  background: var(--dash-primary-light);
+  color: var(--dash-text-dark);
+}
+
+.notesCloseBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notesDialogBody {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--dash-text-dark);
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.notesTextarea:focus {
+  outline: 2px solid rgba(63, 95, 138, 0.28);
+  outline-offset: 1px;
+  border-color: var(--dash-primary);
+}
+
+.notesTextarea:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.notesDialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid #eef1f5;
 }
 
 .saldoBtn {

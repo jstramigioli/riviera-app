@@ -193,8 +193,7 @@ function serviceTypeDisplayName(reservation, segments, serviceTypesById) {
 
 function reservationNotes(reservation) {
   const raw = reservation?.notes ?? reservation?.notas ?? '';
-  const text = String(raw || '').trim();
-  return text || '—';
+  return String(raw || '').trim();
 }
 
 /**

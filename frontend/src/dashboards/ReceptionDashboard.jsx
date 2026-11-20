@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiArrowDown, FiArrowUp, FiCheck } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiCheck, FiX } from 'react-icons/fi';
 import {
   subscribeSimulatedToday,
   todayIsoLocal
@@ -14,13 +14,18 @@ import {
   fetchServiceTypes,
   getReservationsWithBalances
 } from '../services/api';
-import { updateReservationStatusOnServer } from '../utils/apiUtils';
+import {
+  updateReservationOnServer,
+  updateReservationStatusOnServer
+} from '../utils/apiUtils';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import styles from './ReceptionDashboard.module.css';
+
+const NOTES_PLACEHOLDER = 'Agregar notas…';
 
 const RANGE_OPTIONS = [
   { days: 1, label: 'Hoy' },
@@ -92,6 +97,113 @@ function RangeFilter({ value, onChange, labelledBy }) {
   );
 }
 
+function displayNotes(notes) {
+  const text = String(notes || '').trim();
+  return text || null;
+}
+
+function NotesEditDialog({
+  open,
+  guestName,
+  initialNotes,
+  saving,
+  error,
+  onClose,
+  onSave
+}) {
+  const [draft, setDraft] = useState(initialNotes || '');
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setDraft(initialNotes || '');
+    const t = window.setTimeout(() => textareaRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [open, initialNotes]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !saving) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, saving, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className={styles.notesOverlay}
+      role="presentation"
+      onClick={() => {
+        if (!saving) onClose();
+      }}
+    >
+      <div
+        className={styles.notesDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dash-notes-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className={styles.notesDialogHeader}>
+          <h3 id="dash-notes-title" className={styles.notesDialogTitle}>
+            Notas{guestName ? ` · ${guestName}` : ''}
+          </h3>
+          <button
+            type="button"
+            className={styles.notesCloseBtn}
+            onClick={onClose}
+            disabled={saving}
+            aria-label="Cerrar"
+          >
+            <FiX aria-hidden="true" />
+          </button>
+        </header>
+        <div className={styles.notesDialogBody}>
+          <label className={styles.srOnly} htmlFor="dash-notes-textarea">
+            Notas de la reserva
+          </label>
+          <textarea
+            id="dash-notes-textarea"
+            ref={textareaRef}
+            className={styles.notesTextarea}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={NOTES_PLACEHOLDER}
+            rows={5}
+            disabled={saving}
+          />
+          {error ? (
+            <p className={styles.inlineError} role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+        <footer className={styles.notesDialogFooter}>
+          <button
+            type="button"
+            className={styles.actionBtn}
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={styles.actionBtnPrimary}
+            disabled={saving}
+            onClick={() => onSave(draft)}
+          >
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Dashboard operativo de recepción.
  * Hoy = todayIsoLocal(); acciones rápidas = mismo FloatingActionButton del Libro.
@@ -114,6 +226,9 @@ export default function ReceptionDashboard() {
   const [balancesByReservationId, setBalancesByReservationId] = useState(
     () => new Map()
   );
+  const [notesEditor, setNotesEditor] = useState(null);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState(null);
 
   useEffect(() => {
     return subscribeSimulatedToday(() => {
@@ -182,6 +297,41 @@ export default function ReceptionDashboard() {
     setPaymentOpen(true);
   };
 
+  const openNotesEditor = (item) => {
+    if (item?.reservationId == null) return;
+    setNotesError(null);
+    setNotesEditor({
+      reservationId: item.reservationId,
+      guestName: item.guestName || item.label || '',
+      notes: displayNotes(item.notes) || ''
+    });
+  };
+
+  const closeNotesEditor = () => {
+    if (notesSaving) return;
+    setNotesEditor(null);
+    setNotesError(null);
+  };
+
+  const saveNotes = async (draft) => {
+    if (!notesEditor?.reservationId) return;
+    const nextNotes = String(draft || '').trim();
+    setNotesSaving(true);
+    setNotesError(null);
+    try {
+      await updateReservationOnServer(
+        notesEditor.reservationId,
+        { notes: nextNotes || null },
+        setReservations
+      );
+      setNotesEditor(null);
+    } catch (err) {
+      setNotesError(err?.message || 'No se pudieron guardar las notas');
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
   const setStatus = async (reservationId, newStatus) => {
     if (reservationId == null || statusBusyId != null) return;
     setStatusBusyId(reservationId);
@@ -236,6 +386,20 @@ export default function ReceptionDashboard() {
       );
     }
     return <span className={styles.statusMuted}>—</span>;
+  };
+
+  const renderNotesCell = (item) => {
+    const text = displayNotes(item.notes);
+    return (
+      <button
+        type="button"
+        className={`${styles.notesBtn} ${text ? '' : styles.notesBtnEmpty}`}
+        onClick={() => openNotesEditor(item)}
+        title={text ? 'Editar notas' : 'Agregar notas'}
+      >
+        {text || NOTES_PLACEHOLDER}
+      </button>
+    );
   };
 
   return (
@@ -321,7 +485,9 @@ export default function ReceptionDashboard() {
                           <td>{item.guests ?? '—'}</td>
                           <td>{item.roomLabel || '—'}</td>
                           <td>{item.serviceTypeLabel || '—'}</td>
-                          <td className={styles.notesCell}>{item.notes || '—'}</td>
+                          <td className={styles.notesCell}>
+                            {renderNotesCell(item)}
+                          </td>
                           <td>{renderSaldoCell(item.reservationId)}</td>
                           <td>
                             <span
@@ -417,7 +583,9 @@ export default function ReceptionDashboard() {
                         </td>
                         <td>{item.guests ?? '—'}</td>
                         <td>{item.roomLabel || '—'}</td>
-                        <td className={styles.notesCell}>{item.notes || '—'}</td>
+                        <td className={styles.notesCell}>
+                          {renderNotesCell(item)}
+                        </td>
                         <td>{renderSaldoCell(item.reservationId)}</td>
                         <td>
                           <span className={styles.statusMuted}>
@@ -493,6 +661,16 @@ export default function ReceptionDashboard() {
           }}
         />
       ) : null}
+
+      <NotesEditDialog
+        open={Boolean(notesEditor)}
+        guestName={notesEditor?.guestName}
+        initialNotes={notesEditor?.notes || ''}
+        saving={notesSaving}
+        error={notesError}
+        onClose={closeNotesEditor}
+        onSave={saveNotes}
+      />
     </div>
   );
 }
