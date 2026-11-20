@@ -4,7 +4,8 @@ const prisma = require('./prisma');
 const { createReservationWithSegments } = require('./reservationHelpers');
 const {
   ensureReservationAccount,
-  dualWriteReservationRefs
+  dualWriteReservationRefs,
+  syncAccountStatusFromBalance
 } = require('./accountHelpers');
 const { allocateNextPagoCodigo } = require('./pagoCodigo');
 
@@ -216,22 +217,63 @@ async function findFreeRoom(rooms, startIso, endIso, reservedIds = new Set()) {
   return null;
 }
 
-async function resolveServiceTypeId(preferredId) {
+async function resolveServiceTypeId(preferredId, { meals = false } = {}) {
   if (preferredId) {
     const found = await prisma.serviceType.findFirst({
       where: { id: String(preferredId), isActive: true }
     });
     if (found) return found.id;
   }
-  const any = await prisma.serviceType.findFirst({
+
+  const active = await prisma.serviceType.findMany({
     where: { isActive: true },
     orderBy: { name: 'asc' }
   });
-  if (!any) throw new Error('No hay ServiceType activo en el hotel');
-  return any.id;
+  if (!active.length) throw new Error('No hay ServiceType activo en el hotel');
+
+  const byHint = (hints) =>
+    active.find((s) => {
+      const n = String(s.name || '').toLowerCase();
+      return hints.some((h) => n.includes(h));
+    });
+
+  if (meals) {
+    const media = byHint(['media pensión', 'media pension', 'pensión', 'pension']);
+    if (media) return media.id;
+    const desayuno = byHint(['desayuno']);
+    if (desayuno) return desayuno.id;
+  }
+
+  const solo = byHint(['solo alojamiento', 'alojamiento']);
+  return (solo || active[0]).id;
 }
 
-async function ensureDebugClient(batchId, index, reuseClient) {
+async function resolveEfectivoMethod() {
+  const cfg = await prisma.paymentMethodConfig.findFirst({
+    where: {
+      activo: true,
+      OR: [
+        { code: 'EFECTIVO' },
+        { label: { equals: 'Efectivo', mode: 'insensitive' } }
+      ]
+    },
+    orderBy: { ordenIndex: 'asc' }
+  });
+  return cfg;
+}
+
+async function resolveConsumoSubcategoria() {
+  return prisma.subcategoriaCargo.findFirst({
+    where: {
+      esActivo: true,
+      tipo: 'CONSUMO',
+      OR: [{ codigo: 'BEBIDAS' }, { codigo: 'MINUTAS' }, { codigo: 'CAFETERIA' }]
+    },
+    orderBy: { ordenIndex: 'asc' }
+  });
+}
+
+async function ensureDebugClient(batchId, index, reuseClient, { withPlate = false } = {}) {
   const email = `debug+${batchId.slice(0, 8)}@riviera.local`;
   if (reuseClient) {
     const existing = await prisma.client.findFirst({
@@ -243,7 +285,15 @@ async function ensureDebugClient(batchId, index, reuseClient) {
       },
       orderBy: { id: 'asc' }
     });
-    if (existing) return existing;
+    if (existing) {
+      if (withPlate && !existing.vehiclePlate) {
+        return prisma.client.update({
+          where: { id: existing.id },
+          data: { vehiclePlate: `DBG${String(100 + index).slice(-3)}` }
+        });
+      }
+      return existing;
+    }
   }
 
   return prisma.client.create({
@@ -253,6 +303,7 @@ async function ensureDebugClient(batchId, index, reuseClient) {
       email: reuseClient ? email : `debug+${batchId}-${index}@riviera.local`,
       documentType: 'DNI',
       documentNumber: `DBG${String(Date.now()).slice(-6)}${index}`,
+      vehiclePlate: withPlate ? `DBG${String(100 + index).slice(-3)}` : null,
       esFicticio: true,
       notes: batchNotes(batchId)
     }
@@ -283,23 +334,57 @@ async function addLodgingCargo({
   });
 }
 
+async function addConsumptionCargo({ reservationId, account, batchId }) {
+  const sub = await resolveConsumoSubcategoria();
+  if (!sub) return null;
+  return prisma.cargo.create({
+    data: {
+      ...dualWriteReservationRefs(account, reservationId),
+      subcategoriaCargoId: sub.id,
+      descripcion: `DEBUG consumo ${sub.nombre}`,
+      monto: new Prisma.Decimal(3500),
+      notas: batchNotes(batchId),
+      fecha: new Date()
+    }
+  });
+}
+
 async function addFullPayment({ reservationId, account, amount, batchId }) {
   const monto = Number(amount);
   if (!(monto > 0)) return null;
+  const method = await resolveEfectivoMethod();
   const codigo = await allocateNextPagoCodigo(prisma);
-  return prisma.pago.create({
+  const montoDec = new Prisma.Decimal(monto);
+
+  const pago = await prisma.pago.create({
     data: {
       ...dualWriteReservationRefs(account, reservationId),
       codigo,
-      monto: new Prisma.Decimal(monto),
-      montoARS: new Prisma.Decimal(monto),
+      paymentMethodConfigId: method?.id ?? null,
+      monto: montoDec,
+      montoARS: montoDec,
       moneda: 'ARS',
-      metodo: 'Efectivo',
+      metodo: method?.label || 'Efectivo',
       motivo: 'Pago',
       notas: batchNotes(batchId),
       fecha: new Date()
     }
   });
+
+  // Crédito de folio: sin PagoImputacion el Estado financiero / saldo no ve el cobro.
+  await prisma.pagoImputacion.create({
+    data: {
+      pagoId: pago.id,
+      accountId: account.id,
+      reservaId: Number(reservationId),
+      montoARS: montoDec,
+      bonificacionARS: new Prisma.Decimal(0),
+      ordenIndex: 0
+    }
+  });
+
+  await syncAccountStatusFromBalance(prisma, account.id, 0);
+  return pago;
 }
 
 function expandScenarioList({ scenarios, pack, roomsCount }) {
@@ -325,7 +410,6 @@ async function buildPlan(options = {}) {
       ? Math.min(30, Math.max(1, Number(options.nights)))
       : null;
   const rooms = await listInServiceRooms();
-  const serviceTypeId = await resolveServiceTypeId(options.serviceTypeId);
   const scenarioKeys = expandScenarioList({
     scenarios: options.scenarios,
     pack: options.pack,
@@ -338,6 +422,8 @@ async function buildPlan(options = {}) {
   for (let i = 0; i < scenarioKeys.length; i += 1) {
     const key = scenarioKeys[i];
     const tpl = SCENARIOS[key];
+    const meals = Boolean(tpl.meals);
+    const serviceTypeId = await resolveServiceTypeId(options.serviceTypeId, { meals });
     const placed = placeStayInRange({
       key,
       tpl,
@@ -372,6 +458,9 @@ async function buildPlan(options = {}) {
     else if (options.settleMode === 'all') settle = true;
     else if (options.settleMode === 'none') settle = false;
 
+    const maxPeople = Math.max(1, Number(room.maxPeople) || 2);
+    const guestCount = Math.min(2, maxPeople);
+
     planned.push({
       scenario: key,
       skipped: false,
@@ -382,10 +471,14 @@ async function buildPlan(options = {}) {
       roomId: room.id,
       roomName: room.name,
       roomTypeId: room.roomTypeId,
-      serviceTypeId,
+      roomMaxPeople: maxPeople,
+      roomSuperficie: room.superficie ?? null,
+      serviceTypeId: String(serviceTypeId),
+      guestCount,
       nightAmount,
       settle,
-      meals: Boolean(tpl.meals)
+      meals,
+      withPlate: key === 'arrival_today' || key === 'stay_active'
     });
   }
 
@@ -410,7 +503,9 @@ async function createFromPlan(plan, options = {}) {
       continue;
     }
     index += 1;
-    const client = await ensureDebugClient(batchId, index, reuseClient);
+    const client = await ensureDebugClient(batchId, index, reuseClient, {
+      withPlate: Boolean(item.withPlate)
+    });
     const reservation = await createReservationWithSegments({
       mainClientId: client.id,
       status: item.status,
@@ -424,11 +519,12 @@ async function createFromPlan(plan, options = {}) {
           roomTypeId: item.roomTypeId,
           startDate: item.checkIn,
           endDate: item.checkOut,
-          guestCount: Math.min(2, item.roomTypeId ? 2 : 2),
-          services: [item.serviceTypeId],
+          guestCount: item.guestCount || 1,
+          services: [String(item.serviceTypeId)],
           baseRate: item.nightAmount,
           reason: `DEBUG ${item.scenario}`,
-          notes: batchNotes(batchId)
+          notes: batchNotes(batchId),
+          bedPreferenceNone: true
         }
       ]
     });
@@ -438,8 +534,14 @@ async function createFromPlan(plan, options = {}) {
         where: { id: reservation.id },
         data: {
           notaComidas: 'DEBUG: sin cebolla',
-          dietVegetariano: true
+          dietVegetariano: true,
+          vehiclePlate: client.vehiclePlate || null
         }
+      });
+    } else if (client.vehiclePlate) {
+      await prisma.reservation.update({
+        where: { id: reservation.id },
+        data: { vehiclePlate: client.vehiclePlate }
       });
     }
 
@@ -450,16 +552,24 @@ async function createFromPlan(plan, options = {}) {
     );
 
     const existingCargos = await prisma.cargo.count({
-      where: { reservaId: reservation.id }
+      where: { accountId: account.id }
     });
     if (existingCargos === 0) {
       await addLodgingCargo({
         reservationId: reservation.id,
         account,
         roomTypeId: item.roomTypeId,
-        serviceTypeId: item.serviceTypeId,
+        serviceTypeId: String(item.serviceTypeId),
         nights: item.nights,
         nightAmount: item.nightAmount,
+        batchId
+      });
+    }
+
+    if (item.meals) {
+      await addConsumptionCargo({
+        reservationId: reservation.id,
+        account,
         batchId
       });
     }
@@ -528,14 +638,54 @@ async function deleteReservationCascade(reservationId) {
   const account = await prisma.account.findUnique({
     where: { reservationId: id }
   });
+
   if (account) {
+    // PagoImputacion.account / .reserva son Restrict: hay que limpiar folio antes.
+    const imputaciones = await prisma.pagoImputacion.findMany({
+      where: { OR: [{ accountId: account.id }, { reservaId: id }] },
+      select: { id: true, pagoId: true }
+    });
+    const pagoIds = [...new Set(imputaciones.map((i) => i.pagoId))];
+
     await prisma.discountApplication.deleteMany({
-      where: { accountId: account.id }
-    }).catch(() => {});
-    await prisma.pago.deleteMany({ where: { accountId: account.id } });
-    await prisma.cargo.deleteMany({ where: { accountId: account.id } });
-    await prisma.account.delete({ where: { id: account.id } });
+      where: {
+        OR: [
+          { accountId: account.id },
+          ...(pagoIds.length ? [{ pagoId: { in: pagoIds } }] : [])
+        ]
+      }
+    });
+
+    if (imputaciones.length) {
+      await prisma.pagoImputacion.deleteMany({
+        where: { id: { in: imputaciones.map((i) => i.id) } }
+      });
+    }
+
+    if (pagoIds.length) {
+      // Borrar solo pagos que ya no tienen otras imputaciones (p.ej. multi-folio).
+      for (const pagoId of pagoIds) {
+        const left = await prisma.pagoImputacion.count({ where: { pagoId } });
+        if (left > 0) continue;
+        await prisma.pagoAdjunto.deleteMany({ where: { pagoId } }).catch(() => {});
+        await prisma.pagoFactura.deleteMany({ where: { pagoId } }).catch(() => {});
+        await prisma.pago.delete({ where: { id: pagoId } }).catch(() => {});
+      }
+    }
+
+    await prisma.pago.deleteMany({
+      where: { OR: [{ accountId: account.id }, { reservaId: id }] }
+    });
+    await prisma.cargo.deleteMany({
+      where: { OR: [{ accountId: account.id }, { reservaId: id }] }
+    });
+    await prisma.account.delete({ where: { id: account.id } }).catch(() => {});
+  } else {
+    await prisma.pagoImputacion.deleteMany({ where: { reservaId: id } }).catch(() => {});
+    await prisma.pago.deleteMany({ where: { reservaId: id } }).catch(() => {});
+    await prisma.cargo.deleteMany({ where: { reservaId: id } }).catch(() => {});
   }
+
   await prisma.guest.deleteMany({ where: { reservationId: id } });
   await prisma.onlineCheckIn.deleteMany({ where: { reservationId: id } }).catch(() => {});
   await prisma.reservationNightRate.deleteMany({ where: { reservationId: id } }).catch(() => {});
