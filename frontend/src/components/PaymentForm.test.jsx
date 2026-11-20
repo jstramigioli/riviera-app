@@ -298,6 +298,29 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(9000)
   })
 
+  it('sin descuento sync 1:1 entre monto ingresado y a saldar', async () => {
+    previewPromotion.mockResolvedValue({ aplica: false })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '50000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(50000)
+    })
+    expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(50000)
+
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '12000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(12000)
+    })
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(12000)
+  })
+
   it('no muestra el help text de completar monto para ver descuentos', async () => {
     previewPromotion.mockResolvedValue({
       aplica: true,

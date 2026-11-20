@@ -482,17 +482,30 @@ const PaymentForm = ({
             : null
         );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
-        // Sincronizar el otro campo según descuentos (fuente = amountMode).
-        if (!probeOnly && mapped?.aplica) {
-          if (hasSaldar && mapped.dineroARS != null) {
-            const nextIngresado = String(roundMoney(mapped.dineroARS));
+        // Sync peer field: con descuento → preview; sin descuento / sin montos del motor → 1:1.
+        // Antes solo corría con mapped.aplica → sin SETTLEMENT los campos quedaban desfasados.
+        if (!probeOnly) {
+          if (hasSaldar) {
+            const nextIngresado = String(
+              roundMoney(
+                mapped?.aplica && mapped.dineroARS != null
+                  ? mapped.dineroARS
+                  : montoASaldarARS
+              )
+            );
             setFormData((prev) =>
               prev.monto === nextIngresado && prev.moneda === 'ARS'
                 ? prev
                 : { ...prev, monto: nextIngresado, moneda: 'ARS' }
             );
-          } else if (hasIngresado && mapped.creditoARS != null) {
-            const nextSaldar = String(roundMoney(mapped.creditoARS));
+          } else if (hasIngresado) {
+            const nextSaldar = String(
+              roundMoney(
+                mapped?.aplica && mapped.creditoARS != null
+                  ? mapped.creditoARS
+                  : montoARS
+              )
+            );
             setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
           }
         }
@@ -502,6 +515,20 @@ const PaymentForm = ({
           setManualPromoSuggestions([]);
           setManualPromoPreview(null);
           setOptionalChoices([]);
+          // Fallback 1:1 si el preview falló (misma regla que sin descuento).
+          if (!probeOnly) {
+            if (hasSaldar) {
+              const nextIngresado = String(roundMoney(montoASaldarARS));
+              setFormData((prev) =>
+                prev.monto === nextIngresado && prev.moneda === 'ARS'
+                  ? prev
+                  : { ...prev, monto: nextIngresado, moneda: 'ARS' }
+              );
+            } else if (hasIngresado) {
+              const nextSaldar = String(roundMoney(montoARS));
+              setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
+            }
+          }
         }
       }
     }, 250);
