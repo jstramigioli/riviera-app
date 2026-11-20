@@ -8,11 +8,12 @@ const {
 } = require('./dailyMenuPdf');
 
 describe('dailyMenuPdf', () => {
-  it('elementos principales ≥ 14 pt', () => {
+  it('elementos principales ≥ 14 pt (fecha más chica para A5)', () => {
     expect(MAIN_MIN_PT).toBeGreaterThanOrEqual(14);
     expect(TITLE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(DATE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
     expect(SECTION_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
+    expect(DATE_PT).toBeLessThan(MAIN_MIN_PT);
+    expect(DATE_PT).toBe(11);
   });
 
   it('genera un PDF con cabecera application/pdf-like bytes', async () => {

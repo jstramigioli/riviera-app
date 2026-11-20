@@ -32,10 +32,11 @@ const CONVENTIONAL_ORDER = [
 /** Umbral: con 3+ postres se imprime en 2 columnas. */
 const POSTRE_TWO_COL_MIN = 3;
 
-/** Elementos principales del menú imprimible: ningún < 14 pt. */
+/** Elementos principales del menú imprimible: ningún < 14 pt (fecha cabe más chica). */
 const MAIN_MIN_PT = 14;
 const TITLE_PT = 16;
-const DATE_PT = MAIN_MIN_PT;
+/** Fecha bajo título: más chica para caber en 1 página A5. */
+const DATE_PT = 11;
 const SECTION_PT = MAIN_MIN_PT;
 
 /** Logo oficial Riviera Hotel (blanco sobre negro, ~16:9 / 740×410). */
