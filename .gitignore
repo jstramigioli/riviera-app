@@ -2,6 +2,7 @@ node_modules/
 
 # Archivos temporales y de prueba
 backups/
+backend/uploads/
 *.test.js
 test-*.js
 check-*.js
@@ -61,3 +62,11 @@ jspm_packages/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Impeccable engine binary (reinstalable con npx impeccable install)
+.cursor/skills/impeccable/scripts/bin/
+.impeccable/questions/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/config.local.json
+

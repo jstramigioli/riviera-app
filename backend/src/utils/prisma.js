@@ -1,14 +1,23 @@
 const { PrismaClient } = require('@prisma/client');
+const { createAuditExtension } = require('../audit/prismaExtension');
 
-const prisma = new PrismaClient();
+const basePrisma = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'error' },
+    { emit: 'event', level: 'warn' }
+  ]
+});
 
-// Manejo de errores de conexión
-prisma.$on('error', (e) => {
+basePrisma.$on('error', (e) => {
   console.error('Prisma error:', e);
 });
 
-prisma.$on('disconnect', () => {
-  console.log('Prisma disconnected');
+basePrisma.$on('warn', (e) => {
+  console.warn('Prisma warn:', e);
 });
 
-module.exports = prisma; 
+/** Cliente con auditoría automática de mutaciones. */
+const prisma = basePrisma.$extends(createAuditExtension(basePrisma));
+
+module.exports = prisma;
+module.exports.basePrisma = basePrisma;

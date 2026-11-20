@@ -8,8 +8,8 @@
   overflow-y: auto;
   position: relative;
   background: var(--color-bg-white);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   margin: 1rem;
   box-sizing: border-box; /* Asegurar que el padding/margin se incluya en el ancho */
   padding-right: 12px; /* Espacio para la barra vertical */
@@ -58,7 +58,7 @@
 }
 
 .monthHeader {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  background: var(--color-primary);
   color: var(--color-text-light);
   text-align: center;
   padding: 0.25rem 0.5rem;
@@ -78,7 +78,7 @@
 }
 
 .monthHeader:hover {
-  background: linear-gradient(135deg, var(--color-primary-dark) 0%, #6a4190 100%);
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -280,7 +280,7 @@
 /* Hover de reservas */
 .reservationBarsContainer .reservation-bar:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   z-index: 15;
 }
 

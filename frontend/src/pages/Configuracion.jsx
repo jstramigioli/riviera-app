@@ -1,162 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import styles from '../styles/App.module.css';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
-import DynamicPricingConfigPanel from '../components/configuracion/DynamicPricingConfigPanel';
-
-import TarifasPreviewPanelV2 from '../components/configuracion/TarifasPreviewPanelV2';
-import TarifasPreviewPanelV3 from '../components/configuracion/TarifasPreviewPanelV3';
-import TariffManagement from '../components/configuracion/TariffManagement';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
+import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
+import MediosPagoTab from '../components/configuracion/MediosPagoTab';
+import PromocionesTab from '../components/configuracion/PromocionesTab';
+import UsuariosTab from '../components/configuracion/UsuariosTab';
+import Auditoria from './Auditoria';
+import { useAuth } from '../contexts/AuthContext';
+import { CARGOS_SUBTABS, filterConfigNav, getEnabledConfigNav } from './configNav';
+import styles from './Configuracion.module.css';
+
+const CARGOS_SUB_IDS = new Set(CARGOS_SUBTABS.map((s) => s.id));
+
+function readInitialCargosSub() {
+  const fromUrl = new URLSearchParams(window.location.search).get('sub');
+  if (fromUrl && CARGOS_SUB_IDS.has(fromUrl)) return fromUrl;
+  const stored = localStorage.getItem('cargosTarifasActiveTab');
+  if (stored && CARGOS_SUB_IDS.has(stored)) return stored;
+  return 'alojamiento';
+}
 
 function ConfiguracionView() {
+  const [searchParams] = useSearchParams();
+  const { can } = useAuth();
+  const [navQuery, setNavQuery] = useState('');
+
+  const enabledNav = useMemo(() => getEnabledConfigNav(can), [can]);
+  const visibleNav = useMemo(
+    () => filterConfigNav(enabledNav, navQuery),
+    [enabledNav, navQuery]
+  );
+
+  const validTabIds = useMemo(() => new Set(enabledNav.map((tab) => tab.id)), [enabledNav]);
+  const defaultTab = enabledNav[0]?.id || 'habitaciones';
+
   const [activeTab, setActiveTab] = useState(() => {
-    // Recuperar la pestaña activa del localStorage o usar 'habitaciones' por defecto
-    return localStorage.getItem('configActiveTab') || 'habitaciones';
+    const fromUrl = new URLSearchParams(window.location.search).get('tab');
+    if (fromUrl && validTabIds.has(fromUrl)) return fromUrl;
+    const stored = localStorage.getItem('configActiveTab');
+    if (stored && validTabIds.has(stored)) return stored;
+    return defaultTab;
   });
 
-  // Guardar la pestaña activa en localStorage cuando cambie
+  const [cargosSubTab, setCargosSubTab] = useState(readInitialCargosSub);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && validTabIds.has(tab)) {
+      setActiveTab(tab);
+    }
+    const sub = searchParams.get('sub');
+    if (sub && CARGOS_SUB_IDS.has(sub)) {
+      setCargosSubTab(sub);
+    }
+  }, [searchParams, validTabIds]);
+
+  useEffect(() => {
+    if (!validTabIds.has(activeTab) && enabledNav.length > 0) {
+      setActiveTab(enabledNav[0].id);
+    }
+  }, [activeTab, enabledNav, validTabIds]);
+
   useEffect(() => {
     localStorage.setItem('configActiveTab', activeTab);
   }, [activeTab]);
 
-  const tabs = [
-    { id: 'hotel', label: 'Hotel', icon: '🏨' },
-    { id: 'habitaciones', label: 'Habitaciones', icon: '🛏️' },
-    { id: 'cargos-tarifas', label: 'Cargos y Tarifas', icon: '💰' },
-    { id: 'calendario', label: 'Calendario', icon: '📅' },
-    { id: 'tipo-cambio', label: 'Tipo de Cambio', icon: '💱' },
-    { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'sistema', label: 'Sistema', icon: '⚙️' }
-  ];
+  useEffect(() => {
+    localStorage.setItem('cargosTarifasActiveTab', cargosSubTab);
+  }, [cargosSubTab]);
+
+  const selectSection = (sectionId, subId) => {
+    setActiveTab(sectionId);
+    if (sectionId === 'cargos-tarifas' && subId && CARGOS_SUB_IDS.has(subId)) {
+      setCargosSubTab(subId);
+    }
+    if (navQuery.trim()) {
+      setNavQuery('');
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'hotel':
-        return (
-          <div style={{ 
-            display: 'flex', 
-            gap: '16px',
-            padding: '16px'
-          }}>
-            {/* Panel de configuración del hotel */}
-            <div style={{ 
-              flex: '1',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden'
-            }}>
-              <HotelConfigPanel />
-            </div>
-          </div>
-        );
+        return <HotelConfigPanel />;
       case 'habitaciones':
-        return (
-          <div style={{ padding: '16px' }}>
-            <HabitacionesTab />
-          </div>
-        );
+        return <HabitacionesTab />;
       case 'cargos-tarifas':
-        return <CargosTarifasTab />;
+        return (
+          <CargosTarifasTab
+            forcedSubTab={cargosSubTab}
+            onSubTabChange={setCargosSubTab}
+          />
+        );
+      case 'menu-consumos':
+        return <MenuConsumosTab />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':
-        return (
-          <div style={{ padding: '16px' }}>
-            <TipoCambioConfig />
-          </div>
-        );
+        return <TipoCambioConfig />;
+      case 'medios-pago':
+        return <MediosPagoTab />;
+      case 'promociones':
+        return <PromocionesTab />;
       case 'usuarios':
-        return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-            <h3>Gestión de Usuarios</h3>
-            <p>Esta funcionalidad estará disponible próximamente.</p>
-          </div>
-        );
+        return <UsuariosTab />;
       case 'sistema':
         return (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+          <div className={styles.placeholder}>
             <h3>Configuración del Sistema</h3>
             <p>Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
+      case 'auditoria':
+        return <Auditoria />;
       default:
-        return <HabitacionesTab />;
+        if (validTabIds.has('habitaciones')) return <HabitacionesTab />;
+        if (validTabIds.has('promociones')) return <PromocionesTab />;
+        if (validTabIds.has('medios-pago')) return <MediosPagoTab />;
+        if (validTabIds.has('auditoria')) return <Auditoria />;
+        return null;
     }
   };
 
   return (
-    <div className={styles.appContainer}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hotel Riviera - Configuración</h1>
-        <p className={styles.subtitle}>Gestiona la configuración del sistema</p>
-      </div>
-      
-      <div style={{ 
-        width: '100%', 
-        padding: '16px',
-        height: 'calc(100vh - 180px)', // Altura ajustada
-        display: 'flex',
-        flexDirection: 'column',
-        marginRight: '16px', // Margin derecho reducido
-        boxSizing: 'border-box', // Incluir padding en el ancho
-        maxWidth: '100vw', // Máximo ancho de la ventana
-        overflow: 'hidden' // Evitar overflow horizontal
-      }}>
-        {/* Pestañas principales */}
-        <div style={{ 
-          display: 'flex', 
-          borderBottom: '2px solid #e9ecef',
-          marginBottom: '16px',
-          backgroundColor: 'white',
-          borderRadius: '12px 12px 0 0',
-          padding: '0 20px',
-          flexShrink: 0 // No se encoja
-        }}>
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '16px 24px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: activeTab === tab.id ? '600' : '400',
-                color: activeTab === tab.id ? '#667eea' : '#6c757d',
-                borderBottom: activeTab === tab.id ? '3px solid #667eea' : '3px solid transparent',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <span>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+    <div className={styles.newLayout}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>Configuración</h2>
+          <label className={styles.navSearchLabel} htmlFor="config-nav-search">
+            Buscar sección
+          </label>
+          <input
+            id="config-nav-search"
+            type="search"
+            className={styles.navSearch}
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            placeholder="Buscar secciones…"
+            autoComplete="off"
+          />
         </div>
+        <nav className={styles.sectionMenu} aria-label="Secciones de configuración">
+          {visibleNav.length === 0 ? (
+            <p className={styles.navEmpty}>Sin resultados</p>
+          ) : (
+            visibleNav.map((section) => {
+              const children = Array.isArray(section.children) ? section.children : [];
+              const showChildren = Boolean(navQuery.trim()) && children.length > 0;
+              return (
+                <div key={section.id} className={styles.navGroup}>
+                  <button
+                    type="button"
+                    onClick={() => selectSection(section.id)}
+                    className={`${styles.sectionButton} ${
+                      activeTab === section.id && !showChildren ? styles.active : ''
+                    } ${
+                      activeTab === section.id && showChildren ? styles.sectionParentActive : ''
+                    }`}
+                  >
+                    {section.label}
+                  </button>
+                  {showChildren
+                    ? children.map((child) => {
+                        const isCargosChild =
+                          section.id === 'cargos-tarifas' && Boolean(child.subId);
+                        const childActive =
+                          activeTab === section.id &&
+                          isCargosChild &&
+                          cargosSubTab === child.subId;
+                        return (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => selectSection(section.id, child.subId)}
+                            className={`${styles.subSectionButton} ${
+                              childActive ? styles.active : ''
+                            }`}
+                          >
+                            {child.label}
+                          </button>
+                        );
+                      })
+                    : null}
+                </div>
+              );
+            })
+          )}
+        </nav>
+      </aside>
 
-        {/* Contenido de la pestaña activa */}
-        <div className={styles.configTabContainer} style={{ 
-          backgroundColor: 'white',
-          borderRadius: '0 0 12px 12px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          overflow: 'auto',
-          flex: 1, // Toma el espacio restante
-          minHeight: 0, // Permite que se encoja
-          width: '100%', // Ancho completo
-          boxSizing: 'border-box' // Incluir padding en el ancho
-        }}>
-          {renderTabContent()}
+      <div className={styles.mainContent}>
+        <div className={styles.mainContentBody}>
+          <section className={styles.section}>
+            <div className={styles.panel}>{renderTabContent()}</div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
 
-export default ConfiguracionView; 
+export default ConfiguracionView;

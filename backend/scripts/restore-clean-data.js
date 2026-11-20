@@ -30,7 +30,7 @@ async function restoreCleanData() {
     await prisma.serviceType.deleteMany();
     await prisma.tag.deleteMany();
     await prisma.dynamicPricingConfig.deleteMany();
-    await prisma.roundingConfig.deleteMany();
+    /* rounding removed */
     console.log('✅ Datos limpiados');
 
     // 2. Restaurar tags (sin relaciones)
@@ -192,27 +192,7 @@ async function restoreCleanData() {
       console.log(`✅ Configuración de precios dinámicos restaurada: ${cleanDynamicPricingData.length}`);
     }
 
-    // 8. Restaurar configuración de redondeo (sin relaciones)
-    console.log('🔢 Restaurando configuración de redondeo...');
-    const roundingData = JSON.parse(fs.readFileSync(path.join(backupPath, 'roundingConfigs.json'), 'utf8'));
-    if (roundingData.length > 0) {
-      const cleanRoundingData = roundingData.map(config => ({
-        id: config.id,
-        hotelId: config.hotelId,
-        multiple: config.multiple,
-        mode: config.mode,
-        createdAt: config.createdAt,
-        updatedAt: config.updatedAt
-      }));
-      
-      await prisma.roundingConfig.createMany({
-        data: cleanRoundingData,
-        skipDuplicates: true
-      });
-      console.log(`✅ Configuración de redondeo restaurada: ${cleanRoundingData.length}`);
-    }
-
-    // 9. Restaurar bloques de temporada (sin relaciones)
+    // 8. Restaurar bloques de temporada (sin relaciones)
     console.log('📅 Restaurando bloques de temporada...');
     const seasonBlocksData = JSON.parse(fs.readFileSync(path.join(backupPath, 'seasonBlocks.json'), 'utf8'));
     if (seasonBlocksData.length > 0) {
@@ -299,7 +279,6 @@ async function restoreCleanData() {
       prisma.serviceType.count(),
       prisma.tag.count(),
       prisma.dynamicPricingConfig.count(),
-      prisma.roundingConfig.count(),
       prisma.seasonBlock.count(),
       prisma.seasonPrice.count(),
       prisma.blockServiceSelection.count()
@@ -313,10 +292,9 @@ async function restoreCleanData() {
     console.log(`🍽️ Tipos de servicio: ${finalCounts[4]}`);
     console.log(`🏷️ Tags: ${finalCounts[5]}`);
     console.log(`⚙️ Configuración de precios: ${finalCounts[6]}`);
-    console.log(`🔢 Configuración de redondeo: ${finalCounts[7]}`);
-    console.log(`📅 Bloques de temporada: ${finalCounts[8]}`);
-    console.log(`💰 Precios de temporada: ${finalCounts[9]}`);
-    console.log(`🍽️ Servicios de bloque: ${finalCounts[10]}`);
+    console.log(`📅 Bloques de temporada: ${finalCounts[7]}`);
+    console.log(`💰 Precios de temporada: ${finalCounts[8]}`);
+    console.log(`🍽️ Servicios de bloque: ${finalCounts[9]}`);
 
   } catch (error) {
     console.error('❌ Error durante la restauración:', error);

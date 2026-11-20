@@ -5,9 +5,12 @@ export function validateReservationConflict(reservations, roomId, checkIn, check
   const newCheckIn = new Date(checkIn);
   const newCheckOut = new Date(checkOut);
   
-  // Buscar reservas existentes para la misma habitación
+  const nonOccupying = new Set(['CANCELADA', 'NO_PRESENTADA', 'cancelled', 'no_show']);
+  // Buscar reservas existentes para la misma habitación (ignorar canceladas / no-show)
   const existingReservations = reservations.filter(res => 
-    res.roomId === roomId && res.id !== excludeReservationId
+    res.roomId === roomId &&
+    res.id !== excludeReservationId &&
+    !nonOccupying.has(res.status)
   );
   
   // Verificar si hay conflictos
@@ -28,21 +31,15 @@ export function validateReservationConflict(reservations, roomId, checkIn, check
   return { hasConflict: false };
 }
 
-// Función para mostrar notificación de conflicto
+// Función para armar notificación de conflicto (sin alert del navegador).
+// El caller debe mostrar el aviso in-app (useAppNotice / NotificationModal).
 export function showConflictNotification(message, position = null) {
   console.warn('Conflicto de reserva:', message);
-  
-  // Si no hay posición específica, usar alert como fallback
-  if (!position) {
-    alert(`⚠️ Conflicto de reserva: ${message}`);
-    return;
-  }
-  
-  // Retornar información para la notificación flotante
+
   return {
-    message,
+    message: `Conflicto de reserva: ${message}`,
     type: 'error',
-    position
+    position: position || null
   };
 }
 

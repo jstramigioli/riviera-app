@@ -1,28 +1,53 @@
+import {
+  getSimulatedTodayIso,
+  SIMULATED_TODAY_HEADER
+} from '../utils/calendarDates';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
-export { API_URL };
+export { API_URL, SIMULATED_TODAY_HEADER };
+
+/** fetch hacia el API: adjunta X-Simulated-Today si el debug de fecha está activo. */
+export async function apiFetch(input, init = {}) {
+  const headers = new Headers(init.headers || {});
+  const simulated = getSimulatedTodayIso();
+  if (simulated) headers.set(SIMULATED_TODAY_HEADER, simulated);
+  return fetch(input, { ...init, headers });
+}
 
 export async function fetchRooms() {
-  const res = await fetch(`${API_URL}/rooms`);
+  const res = await apiFetch(`${API_URL}/rooms`);
   if (!res.ok) throw new Error('Error fetching rooms');
   return res.json();
 }
 
 export async function fetchRoomTypes() {
-  const res = await fetch(`${API_URL}/room-types`);
-  if (!res.ok) throw new Error('Error fetching room types')
-  return res.json()
+  const res = await apiFetch(`${API_URL}/room-types`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching room types');
+  return res.json();
+}
+
+export async function fetchServiceTypes(hotelId = 'default-hotel') {
+  const qs = hotelId ? `?hotelId=${encodeURIComponent(hotelId)}` : '';
+  const res = await apiFetch(`${API_URL}/service-types${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching service types');
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.data || [];
 }
 
 // Funciones para habitaciones virtuales
 export async function fetchVirtualRooms() {
-  const res = await fetch(`${API_URL}/virtual-rooms`);
+  const res = await apiFetch(`${API_URL}/virtual-rooms`);
   if (!res.ok) throw new Error('Error fetching virtual rooms');
   return res.json();
 }
 
 export async function createVirtualRoom(data) {
-  const res = await fetch(`${API_URL}/virtual-rooms`, {
+  const res = await apiFetch(`${API_URL}/virtual-rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -32,7 +57,7 @@ export async function createVirtualRoom(data) {
 }
 
 export async function updateVirtualRoom(id, data) {
-  const res = await fetch(`${API_URL}/virtual-rooms/${id}`, {
+  const res = await apiFetch(`${API_URL}/virtual-rooms/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -42,7 +67,7 @@ export async function updateVirtualRoom(id, data) {
 }
 
 export async function deleteVirtualRoom(id) {
-  const res = await fetch(`${API_URL}/virtual-rooms/${id}`, {
+  const res = await apiFetch(`${API_URL}/virtual-rooms/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error deleting virtual room');
@@ -50,47 +75,86 @@ export async function deleteVirtualRoom(id) {
 }
 
 export async function fetchReservations() {
-  const res = await fetch(`${API_URL}/reservations`);
+  const res = await apiFetch(`${API_URL}/reservations`);
   if (!res.ok) throw new Error('Error fetching reservations');
   return res.json();
 }
 
+/** Calendario Libro de Reservas: ventana civil start + days. */
+export async function fetchCalendar(start, days) {
+  const params = new URLSearchParams({
+    start,
+    days: String(days)
+  });
+  const res = await apiFetch(`${API_URL}/calendar?${params}`);
+  if (!res.ok) {
+    let msg = 'Error fetching calendar';
+    try {
+      const body = await res.json();
+      msg = body.error || msg;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function fetchReservation(id) {
+  const res = await apiFetch(`${API_URL}/reservations/${id}`);
+  if (!res.ok) throw new Error('Error fetching reservation');
+  return res.json();
+}
+
 export async function fetchClients() {
-  const res = await fetch(`${API_URL}/clients`);
+  const res = await apiFetch(`${API_URL}/clients`);
   if (!res.ok) throw new Error('Error fetching clients');
   return res.json();
 }
 
 export async function fetchGuests() {
-  const res = await fetch(`${API_URL}/guests`);
+  const res = await apiFetch(`${API_URL}/guests`);
   if (!res.ok) throw new Error('Error fetching guests');
   return res.json();
 }
 
 export async function fetchPayments() {
-  const res = await fetch(`${API_URL}/payments`);
+  const res = await apiFetch(`${API_URL}/payments`);
   if (!res.ok) throw new Error('Error fetching payments');
   return res.json();
 }
 
 export async function fetchPaymentsByGuest(guestId) {
-  const res = await fetch(`${API_URL}/payments/guest/${guestId}`);
+  const res = await apiFetch(`${API_URL}/payments/guest/${guestId}`);
   if (!res.ok) throw new Error('Error fetching guest payments');
   return res.json();
 }
 
 export async function updateReservation(id, data) {
-  const res = await fetch(`${API_URL}/reservations/${id}`, {
+  const res = await apiFetch(`${API_URL}/reservations/${id}`, {
     method: 'PUT',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating reservation');
+  if (!res.ok) {
+    let message = 'Error updating reservation';
+    try {
+      const err = await res.json();
+      message = err.error || err.message || message;
+      if (Array.isArray(err.details) && err.details.length) {
+        message = `${message}: ${err.details.join('; ')}`;
+      } else if (err.details) {
+        message = `${message}: ${err.details}`;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 
 export async function updateReservationStatus(id, status) {
-  const res = await fetch(`${API_URL}/reservations/${id}/status`, {
+  const res = await apiFetch(`${API_URL}/reservations/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
@@ -99,9 +163,16 @@ export async function updateReservationStatus(id, status) {
   return res.json();
 }
 
+/** Estados canónicos desde el backend (enum Prisma / constant BE) */
+export async function fetchReservationStatuses() {
+  const res = await apiFetch(`${API_URL}/reservations/statuses`);
+  if (!res.ok) throw new Error('Error fetching reservation statuses');
+  return res.json();
+}
+
 export async function createReservation(data) {
   // Siempre usar la ruta de multi-segment ya que todas las reservas usan segmentos
-  const res = await fetch(`${API_URL}/reservations/multi-segment`, {
+  const res = await apiFetch(`${API_URL}/reservations/multi-segment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -132,16 +203,31 @@ export async function createReservation(data) {
   return res.json();
 }
 
-export async function deleteReservation(id) {
-  const res = await fetch(`${API_URL}/reservations/${id}`, {
-    method: 'DELETE'
+export async function deleteReservation(id, { confirmFinancialWipe = false } = {}) {
+  const qs = confirmFinancialWipe ? '?confirmFinancial=true' : '';
+  const res = await apiFetch(`${API_URL}/reservations/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
   });
-  if (!res.ok) throw new Error('Error deleting reservation');
-  return res.ok;
+  if (res.status === 204) return true;
+  let body = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  if (res.status === 409 && body?.code === 'ACCOUNT_HAS_FINANCIALS') {
+    const err = new Error(body.warning || body.error || 'La cuenta tiene pagos o cargos');
+    err.code = body.code;
+    err.financial = body.financial;
+    err.requiresConfirm = true;
+    throw err;
+  }
+  throw new Error(body?.error || 'Error deleting reservation');
 }
 
 export async function updateClient(id, data) {
-  const res = await fetch(`${API_URL}/clients/${id}`, {
+  const res = await apiFetch(`${API_URL}/clients/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -151,7 +237,7 @@ export async function updateClient(id, data) {
 }
 
 export async function deleteClient(id) {
-  const res = await fetch(`${API_URL}/clients/${id}`, {
+  const res = await apiFetch(`${API_URL}/clients/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error deleting client');
@@ -159,7 +245,7 @@ export async function deleteClient(id) {
 }
 
 export async function updateGuest(id, data) {
-  const res = await fetch(`${API_URL}/guests/${id}`, {
+  const res = await apiFetch(`${API_URL}/guests/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -169,13 +255,13 @@ export async function updateGuest(id, data) {
 }
 
 export async function getGuestBalance(guestId) {
-  const res = await fetch(`${API_URL}/guests/${guestId}/balance`);
+  const res = await apiFetch(`${API_URL}/guests/${guestId}/balance`);
   if (!res.ok) throw new Error('Error fetching guest balance');
   return res.json();
 }
 
 export async function createPayment(data) {
-  const res = await fetch(`${API_URL}/payments`, {
+  const res = await apiFetch(`${API_URL}/payments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -185,7 +271,7 @@ export async function createPayment(data) {
 }
 
 export async function createConsumptionCharge(data) {
-  const res = await fetch(`${API_URL}/payments/consumption-charge`, {
+  const res = await apiFetch(`${API_URL}/payments/consumption-charge`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -195,8 +281,33 @@ export async function createConsumptionCharge(data) {
 }
 
 export async function getClientBalance(clientId) {
-  const res = await fetch(`${API_URL}/clients/${clientId}/balance`);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/balance`);
   if (!res.ok) throw new Error('Error fetching client balance');
+  return res.json();
+}
+
+export async function getClientBillingProfile(clientId) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error fetching billing profile');
+  }
+  return res.json();
+}
+
+export async function upsertClientBillingProfile(clientId, data) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/billing-profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error saving billing profile');
+  }
   return res.json();
 }
 
@@ -207,13 +318,13 @@ export const getRates = async (filters = {}) => {
   if (filters.endDate) params.append('endDate', filters.endDate);
   if (filters.roomTypeId) params.append('roomTypeId', filters.roomTypeId);
 
-  const response = await fetch(`${API_URL}/rates/rates?${params}`);
+  const response = await apiFetch(`${API_URL}/rates/rates?${params}`);
   if (!response.ok) throw new Error('Error al obtener tarifas');
   return response.json();
 };
 
 export const createRates = async (rateData) => {
-  const response = await fetch(`${API_URL}/rates/rates`, {
+  const response = await apiFetch(`${API_URL}/rates/rates`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(rateData)
@@ -223,7 +334,7 @@ export const createRates = async (rateData) => {
 };
 
 export const updateRate = async (rateId, updates) => {
-  const response = await fetch(`${API_URL}/rates/rates/${rateId}`, {
+  const response = await apiFetch(`${API_URL}/rates/rates/${rateId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)
@@ -233,7 +344,7 @@ export const updateRate = async (rateId, updates) => {
 };
 
 export const deleteRate = async (rateId) => {
-  const response = await fetch(`${API_URL}/rates/rates/${rateId}`, {
+  const response = await apiFetch(`${API_URL}/rates/rates/${rateId}`, {
     method: 'DELETE'
   });
   if (!response.ok) throw new Error('Error al eliminar tarifa');
@@ -241,7 +352,7 @@ export const deleteRate = async (rateId) => {
 };
 
 export const suggestDynamicPrice = async (suggestionData) => {
-  const response = await fetch(`${API_URL}/rates/rates/suggest`, {
+  const response = await apiFetch(`${API_URL}/rates/rates/suggest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(suggestionData)
@@ -251,37 +362,46 @@ export const suggestDynamicPrice = async (suggestionData) => {
 };
 
 export async function createClient(data) {
-  const res = await fetch(`${API_URL}/clients`, {
+  const res = await apiFetch(`${API_URL}/clients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creating client');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || errorData.details || 'Error creating client');
+  }
   return res.json();
 }
 
 export async function updateRoomOnServer(id, data) {
-  const res = await fetch(`${API_URL}/rooms/${id}`, {
+  const res = await apiFetch(`${API_URL}/rooms/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error updating room');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error updating room');
+  }
   return res.json();
 }
 
 export async function createRoom(data) {
-  const res = await fetch(`${API_URL}/rooms`, {
+  const res = await apiFetch(`${API_URL}/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Error creando habitación');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error creando habitación');
+  }
   return res.json();
 }
 
 export async function deleteRoom(id) {
-  const res = await fetch(`${API_URL}/rooms/${id}`, {
+  const res = await apiFetch(`${API_URL}/rooms/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error eliminando habitación');
@@ -290,7 +410,7 @@ export async function deleteRoom(id) {
 
 // Funciones para tipos de habitaciones
 export async function createRoomType(data) {
-  const res = await fetch(`${API_URL}/room-types`, {
+  const res = await apiFetch(`${API_URL}/room-types`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -303,7 +423,7 @@ export async function createRoomType(data) {
 }
 
 export async function updateRoomType(id, data) {
-  const res = await fetch(`${API_URL}/room-types/${id}`, {
+  const res = await apiFetch(`${API_URL}/room-types/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -313,7 +433,7 @@ export async function updateRoomType(id, data) {
 }
 
 export async function deleteRoomType(id) {
-  const res = await fetch(`${API_URL}/room-types/${id}`, {
+  const res = await apiFetch(`${API_URL}/room-types/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error deleting room type');
@@ -321,7 +441,7 @@ export async function deleteRoomType(id) {
 }
 
 export async function updateRoomTypesOrder(roomTypeIds) {
-  const res = await fetch(`${API_URL}/room-types/order`, {
+  const res = await apiFetch(`${API_URL}/room-types/order`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ roomTypeIds })
@@ -331,13 +451,13 @@ export async function updateRoomTypesOrder(roomTypeIds) {
 }
 
 export async function fetchTags() {
-  const res = await fetch(`${API_URL}/tags`);
+  const res = await apiFetch(`${API_URL}/tags`);
   if (!res.ok) throw new Error('Error fetching tags');
   return res.json();
 }
 
 export async function createTag(data) {
-  const res = await fetch(`${API_URL}/tags`, {
+  const res = await apiFetch(`${API_URL}/tags`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -347,7 +467,7 @@ export async function createTag(data) {
 }
 
 export async function updateTag(id, data) {
-  const res = await fetch(`${API_URL}/tags/${id}`, {
+  const res = await apiFetch(`${API_URL}/tags/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -357,7 +477,7 @@ export async function updateTag(id, data) {
 }
 
 export async function deleteTag(id) {
-  const res = await fetch(`${API_URL}/tags/${id}`, {
+  const res = await apiFetch(`${API_URL}/tags/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error deleting tag');
@@ -381,7 +501,7 @@ export async function findAvailableRooms(params) {
     });
   }
 
-  const res = await fetch(`${API_URL}/reservations/available-rooms?${queryParams}`);
+  const res = await apiFetch(`${API_URL}/reservations/available-rooms?${queryParams}`);
   if (!res.ok) throw new Error('Error finding available rooms');
   return res.json();
 }
@@ -395,13 +515,13 @@ export async function fetchOpenDays(startDate, endDate) {
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
 
-  const res = await fetch(`${API_URL}/open-days?${params}`);
+  const res = await apiFetch(`${API_URL}/open-days?${params}`);
   if (!res.ok) throw new Error('Error fetching open days');
   return res.json();
 }
 
 export async function createOpenDay(data) {
-  const res = await fetch(`${API_URL}/open-days`, {
+  const res = await apiFetch(`${API_URL}/open-days`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -411,7 +531,7 @@ export async function createOpenDay(data) {
 }
 
 export async function updateOpenDay(date, data) {
-  const res = await fetch(`${API_URL}/open-days/date/${date}`, {
+  const res = await apiFetch(`${API_URL}/open-days/date/${date}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -428,7 +548,7 @@ export async function updateOpenDay(date, data) {
 
 export async function deleteOpenDay(date) {
   // Primero necesitamos obtener el ID del día por fecha
-  const openDay = await fetch(`${API_URL}/open-days/date/${date}`);
+  const openDay = await apiFetch(`${API_URL}/open-days/date/${date}`);
   if (!openDay.ok) {
     if (openDay.status === 404) {
       // Si no existe, considerarlo como éxito
@@ -439,7 +559,7 @@ export async function deleteOpenDay(date) {
   
   const dayData = await openDay.json();
   
-  const res = await fetch(`${API_URL}/open-days/${dayData.id}`, {
+  const res = await apiFetch(`${API_URL}/open-days/${dayData.id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Error deleting open day');
@@ -447,7 +567,7 @@ export async function deleteOpenDay(date) {
 }
 
 export async function getPricesForAllRoomTypes(date) {
-  const res = await fetch(`${API_URL}/rates/prices/${date}/all-room-types`);
+  const res = await apiFetch(`${API_URL}/rates/prices/${date}/all-room-types`);
   if (!res.ok) throw new Error('Error fetching prices for all room types');
   return res.json();
 }
@@ -457,20 +577,20 @@ export async function getPricesForDateRange(startDate, endDate) {
   params.append('startDate', startDate);
   params.append('endDate', endDate);
 
-  const res = await fetch(`${API_URL}/rates/prices/range?${params}`);
+  const res = await apiFetch(`${API_URL}/rates/prices/range?${params}`);
   if (!res.ok) throw new Error('Error fetching prices for date range');
   return res.json();
 }
 
 // Funciones para el hotel
 export async function getHotel() {
-  const res = await fetch(`${API_URL}/hotel`);
+  const res = await apiFetch(`${API_URL}/hotel`);
   if (!res.ok) throw new Error('Error fetching hotel data');
   return res.json();
 }
 
 export async function updateHotel(data) {
-  const res = await fetch(`${API_URL}/hotel`, {
+  const res = await apiFetch(`${API_URL}/hotel`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -490,7 +610,7 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
     serviceType
   });
   
-  const res = await fetch(`${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/${roomTypeId}?${params}`);
+  const res = await apiFetch(`${API_URL}/dynamic-pricing/calculated-rates/${hotelId}/${roomTypeId}?${params}`);
   
   if (!res.ok) {
     // Solo manejar errores HTTP reales (500, 404, etc.)
@@ -533,7 +653,7 @@ export async function getCalculatedRates(hotelId, roomTypeId, startDate, endDate
 }
 
 export async function getReservationPricingDetails(reservationId) {
-  const res = await fetch(`${API_URL}/reservations/${reservationId}/pricing`);
+  const res = await apiFetch(`${API_URL}/reservations/${reservationId}/pricing`);
   if (!res.ok) throw new Error('Error fetching reservation pricing details');
   return res.json();
 }
@@ -542,7 +662,7 @@ export async function getDetailedOccupancyScore(params) {
   console.log('=== DEBUG API getDetailedOccupancyScore ===');
   console.log('Parámetros enviados:', params);
   
-  const res = await fetch(`${API_URL}/dynamic-pricing/detailed-occupancy-score`, {
+  const res = await apiFetch(`${API_URL}/dynamic-pricing/detailed-occupancy-score`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
@@ -561,21 +681,21 @@ export async function getDetailedOccupancyScore(params) {
 
 // Funciones para consultas
 export async function fetchQueries() {
-  const res = await fetch(`${API_URL}/queries`);
+  const res = await apiFetch(`${API_URL}/queries`);
   if (!res.ok) throw new Error('Error fetching queries');
   return res.json();
 }
 
 // Funciones para SeasonBlocks
 export async function fetchSeasonBlocks(hotelId = 'default-hotel') {
-  const res = await fetch(`${API_URL}/season-blocks?hotelId=${hotelId}`);
+  const res = await apiFetch(`${API_URL}/season-blocks?hotelId=${hotelId}`);
   if (!res.ok) throw new Error('Error fetching season blocks');
   const data = await res.json();
   return data.data || [];
 }
 
 export async function getActiveSeasonBlock(hotelId, date) {
-  const res = await fetch(`${API_URL}/season-blocks/active?hotelId=${hotelId}&date=${date}`);
+  const res = await apiFetch(`${API_URL}/season-blocks/active?hotelId=${hotelId}&date=${date}`);
   if (!res.ok) {
     if (res.status === 404) {
       return null; // No hay bloque activo para esa fecha
@@ -608,13 +728,13 @@ export async function getNextActiveSeasonBlock(hotelId, fromDate) {
 }
 
 export async function fetchQuery(id) {
-  const res = await fetch(`${API_URL}/queries/${id}`);
+  const res = await apiFetch(`${API_URL}/queries/${id}`);
   if (!res.ok) throw new Error('Error fetching query');
   return res.json();
 }
 
 export async function fetchQueryByClient(clientId) {
-  const res = await fetch(`${API_URL}/queries/client/${clientId}`);
+  const res = await apiFetch(`${API_URL}/queries/client/${clientId}`);
   if (!res.ok) {
     throw new Error('Error fetching queries by client');
   }
@@ -622,7 +742,7 @@ export async function fetchQueryByClient(clientId) {
 }
 
 export async function createQuery(data) {
-  const res = await fetch(`${API_URL}/queries`, {
+  const res = await apiFetch(`${API_URL}/queries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -632,7 +752,7 @@ export async function createQuery(data) {
 }
 
 export async function createMultiSegmentQuery(data) {
-  const res = await fetch(`${API_URL}/queries/multi-segment`, {
+  const res = await apiFetch(`${API_URL}/queries/multi-segment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -652,7 +772,7 @@ export async function createMultiSegmentQuery(data) {
 
 export async function updateMultiSegmentQuery(queryGroupId, data) {
   console.log('📤 Enviando actualización de consulta:', { queryGroupId, data });
-  const res = await fetch(`${API_URL}/queries/multi-segment/${queryGroupId}`, {
+  const res = await apiFetch(`${API_URL}/queries/multi-segment/${queryGroupId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -675,7 +795,7 @@ export async function updateMultiSegmentQuery(queryGroupId, data) {
 }
 
 export async function updateQuery(id, data) {
-  const res = await fetch(`${API_URL}/queries/${id}`, {
+  const res = await apiFetch(`${API_URL}/queries/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -685,15 +805,37 @@ export async function updateQuery(id, data) {
 }
 
 export async function deleteQuery(id) {
-  const res = await fetch(`${API_URL}/queries/${id}`, {
-    method: 'DELETE'
+  const res = await apiFetch(`${API_URL}/queries/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
   });
   if (!res.ok) throw new Error('Error deleting query');
   return res.ok;
 }
 
+/** Elimina todas las consultas. Requiere confirmación en backend. */
+export async function deleteAllQueries() {
+  const res = await apiFetch(`${API_URL}/queries/all`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: 'LIMPIAR_TODAS' })
+  });
+  if (!res.ok) {
+    let message = 'Error al limpiar las consultas';
+    try {
+      const data = await res.json();
+      message = data.message || data.error || message;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function convertQueryToReservation(id) {
-  const res = await fetch(`${API_URL}/queries/${id}/convert-to-reservation`, {
+  const res = await apiFetch(`${API_URL}/queries/${id}/convert-to-reservation`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });
@@ -707,30 +849,279 @@ export async function convertQueryToReservation(id) {
 
 // Obtener resumen financiero de una reserva
 export async function getReservationFinancialSummary(reservaId) {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/resumen`);
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/resumen`);
   if (!res.ok) throw new Error('Error fetching financial summary');
   return res.json();
 }
 
-// Obtener todas las reservas con saldos
+// Obtener todas las reservas con saldos (alias Account RESERVATION)
 export async function getReservationsWithBalances() {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas-saldos`);
-  if (!res.ok) throw new Error('Error fetching reservations with balances');
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas-saldos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore parse errors
+    }
+    const suffix = details ? `: ${details}` : ` (${res.status})`;
+    throw new Error(`Error fetching reservations with balances${suffix}`);
+  }
+  return res.json();
+}
+
+/** Accounts con saldos (RESERVATION + EXTERNAL). kind: ALL|RESERVATION|EXTERNAL */
+export async function getAccountsWithBalances(kind = 'ALL') {
+  const qs = kind && kind !== 'ALL' ? `?kind=${encodeURIComponent(kind)}` : '';
+  const res = await apiFetch(`${API_URL}/accounts/saldos${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let details = '';
+    try {
+      const body = await res.json();
+      details = body?.details || body?.message || body?.error || '';
+    } catch {
+      // ignore
+    }
+    throw new Error(`Error fetching accounts with balances${details ? `: ${details}` : ''}`);
+  }
+  return res.json();
+}
+
+/** Reservas activas para el Select del modal Nuevo pago (incluye futuras / señas). */
+export async function fetchReservasParaPago() {
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas-para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar reservas para pago');
+  }
+  return res.json();
+}
+
+/** Cuentas para cobro: reservas activas + externas OPEN. */
+export async function fetchCuentasParaPago() {
+  const res = await apiFetch(`${API_URL}/accounts/para-pago`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar cuentas para pago');
+  }
+  return res.json();
+}
+
+export async function createExternalAccount(data) {
+  const res = await apiFetch(`${API_URL}/accounts/external`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando cuenta externa');
+  }
+  return res.json();
+}
+
+export async function createAccountPago(accountId, data) {
+  const res = await apiFetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creating pago');
+  }
+  return res.json();
+}
+
+export async function fetchPaymentMethodConfigs({ all = false } = {}) {
+  const qs = all ? '?all=1' : '';
+  const res = await apiFetch(`${API_URL}/payment-method-configs${qs}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando medios de pago');
+  }
+  return res.json();
+}
+
+export async function updatePaymentMethodConfig(id, data) {
+  const res = await apiFetch(`${API_URL}/payment-method-configs/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error actualizando medio de pago');
+  }
+  return res.json();
+}
+
+export async function createPaymentMethodConfig(data) {
+  const res = await apiFetch(`${API_URL}/payment-method-configs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creando medio de pago');
+  }
+  return res.json();
+}
+
+function promotionFetchError(err, fallback) {
+  const msg = err?.message || '';
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return new Error(
+      'No se pudo conectar con el servidor. Verificá que la API esté en marcha.'
+    );
+  }
+  return err instanceof Error ? err : new Error(fallback);
+}
+
+export async function fetchPromotionRules({ all = false, layer } = {}) {
+  const params = new URLSearchParams();
+  if (all) params.set('all', '1');
+  if (layer) params.set('layer', layer);
+  const qs = params.toString() ? `?${params}` : '';
+  let res;
+  try {
+    res = await apiFetch(`${API_URL}/promotion-rules${qs}`, {
+      credentials: 'include'
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error cargando promociones');
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando promociones');
+  }
+  return res.json();
+}
+
+export async function createPromotionRule(data) {
+  let res;
+  try {
+    res = await apiFetch(`${API_URL}/promotion-rules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error creando promoción');
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.details || 'Error creando promoción');
+  }
+  return res.json();
+}
+
+export async function updatePromotionRule(id, data) {
+  let res;
+  try {
+    res = await apiFetch(`${API_URL}/promotion-rules/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+  } catch (err) {
+    throw promotionFetchError(err, 'Error actualizando promoción');
+  }
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.details || 'Error actualizando promoción');
+  }
+  return res.json();
+}
+
+export async function deletePromotionRule(id) {
+  const res = await apiFetch(`${API_URL}/promotion-rules/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error eliminando promoción');
+  }
+  return res.json();
+}
+
+export async function previewPromotion(data) {
+  const res = await apiFetch(`${API_URL}/promotion-rules/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error en preview de promoción');
+  }
+  return res.json();
+}
+
+export async function fetchAccountResumen(accountId) {
+  const res = await apiFetch(`${API_URL}/accounts/${accountId}/resumen`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando resumen de cuenta');
+  }
+  return res.json();
+}
+
+export async function fetchAccountPagos(accountId) {
+  const res = await apiFetch(`${API_URL}/accounts/${accountId}/pagos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error cargando pagos de la cuenta');
+  }
+  return res.json();
+}
+
+// Historial global de pagos
+export async function getAllPagos() {
+  const res = await apiFetch(`${API_URL}/reservation-payments/pagos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error fetching payment history');
   return res.json();
 }
 
 // Pagos - Obtener todos los pagos de una reserva
 export async function getPagosByReserva(reservaId) {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`);
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`);
   if (!res.ok) throw new Error('Error fetching pagos');
   return res.json();
 }
 
 // Pagos - Crear un nuevo pago (con soporte multimoneda)
 export async function createPago(reservaId, data) {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -740,11 +1131,27 @@ export async function createPago(reservaId, data) {
   return res.json();
 }
 
+/** Flujo B: pago cliente con N imputaciones a reservas. */
+export async function createClientMultiPago(clientId, data) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/pagos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error creating multi pago');
+  }
+  return res.json();
+}
+
 // Pagos - Actualizar un pago
 export async function updatePago(pagoId, data) {
-  const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data)
   });
   if (!res.ok) {
@@ -756,7 +1163,7 @@ export async function updatePago(pagoId, data) {
 
 // Pagos - Eliminar un pago
 export async function deletePago(pagoId) {
-  const res = await fetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -766,16 +1173,86 @@ export async function deletePago(pagoId) {
   return res.json();
 }
 
+/** Sube adjuntos FACTURA (PDF) o COMPROBANTE (JPG/PNG/PDF) a un pago. */
+export async function uploadPagoAdjuntos(pagoId, tipo, files) {
+  const form = new FormData();
+  for (const file of files) {
+    form.append('files', file);
+  }
+  const res = await apiFetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${encodeURIComponent(tipo)}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      body: form
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error subiendo adjuntos';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export function getPagoAdjuntoDownloadUrl(pagoId, adjuntoId) {
+  return `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}/download`;
+}
+
+export async function deletePagoAdjunto(pagoId, adjuntoId) {
+  const res = await apiFetch(
+    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}`,
+    {
+      method: 'DELETE',
+      credentials: 'include'
+    }
+  );
+  if (!res.ok) {
+    let message = 'Error eliminando adjunto';
+    try {
+      const error = await res.json();
+      message = error.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
+  const res = await apiFetch(getPagoAdjuntoDownloadUrl(pagoId, adjuntoId), {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    throw new Error('Error descargando adjunto');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename || `adjunto-${adjuntoId}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Cargos - Obtener todos los cargos de una reserva
 export async function getCargosByReserva(reservaId) {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`);
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`);
   if (!res.ok) throw new Error('Error fetching cargos');
   return res.json();
 }
 
 // Cargos - Crear un nuevo cargo
 export async function createCargo(reservaId, data) {
-  const res = await fetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -789,7 +1266,7 @@ export async function createCargo(reservaId, data) {
 
 // Cargos - Actualizar un cargo
 export async function updateCargo(cargoId, data) {
-  const res = await fetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -803,7 +1280,7 @@ export async function updateCargo(cargoId, data) {
 
 // Cargos - Eliminar un cargo
 export async function deleteCargo(cargoId) {
-  const res = await fetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -814,12 +1291,249 @@ export async function deleteCargo(cargoId) {
 }
 
 // ============================================
+// Menú de consumos / comanda POS
+// ============================================
+
+export async function fetchMenuItems({ category, q, active } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (q) params.set('q', q);
+  if (active === true) params.set('active', 'true');
+  if (active === false) params.set('active', 'false');
+  const qs = params.toString();
+  const res = await apiFetch(`${API_URL}/menu-items${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar el menú');
+  }
+  return res.json();
+}
+
+export async function createMenuItem(data) {
+  const res = await apiFetch(`${API_URL}/menu-items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear ítem');
+  }
+  return res.json();
+}
+
+export async function updateMenuItem(id, data) {
+  const res = await apiFetch(`${API_URL}/menu-items/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar ítem');
+  }
+  return res.json();
+}
+
+export async function toggleMenuItem(id) {
+  const res = await apiFetch(`${API_URL}/menu-items/${id}/toggle`, {
+    method: 'PUT',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del ítem');
+  }
+  return res.json();
+}
+
+/** Baja lógica (desactiva). Pasá { hard: true } solo para borrado físico excepcional. */
+export async function deleteMenuItem(id, { hard = false } = {}) {
+  const qs = hard ? '?hard=true' : '';
+  const res = await apiFetch(`${API_URL}/menu-items/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al desactivar ítem');
+  }
+  return res.json();
+}
+
+export async function fetchMenuCategories() {
+  const res = await apiFetch(`${API_URL}/menu-items/categories`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar categorías del menú');
+  }
+  return res.json();
+}
+
+export async function fetchMenuGroups({ includeInactive = false } = {}) {
+  const params = new URLSearchParams();
+  if (includeInactive) params.set('includeInactive', 'true');
+  const qs = params.toString();
+  const res = await apiFetch(`${API_URL}/menu-items/groups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar grupos del menú');
+  }
+  return res.json();
+}
+
+export async function createMenuGroup(data) {
+  const res = await apiFetch(`${API_URL}/menu-items/groups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear grupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuGroup(id, data) {
+  const res = await apiFetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar grupo');
+  }
+  return res.json();
+}
+
+export async function toggleMenuGroup(id) {
+  const res = await apiFetch(`${API_URL}/menu-items/groups/${id}/toggle`, {
+    method: 'PUT',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cambiar estado del grupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuGroup(id) {
+  const res = await apiFetch(`${API_URL}/menu-items/groups/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar grupo');
+  }
+  return res.json();
+}
+
+export async function fetchMenuSubgroups({ category } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  const qs = params.toString();
+  const res = await apiFetch(`${API_URL}/menu-items/subgroups${qs ? `?${qs}` : ''}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al cargar subgrupos');
+  }
+  return res.json();
+}
+
+export async function createMenuSubgroup(data) {
+  const res = await apiFetch(`${API_URL}/menu-items/subgroups`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al crear subgrupo');
+  }
+  return res.json();
+}
+
+export async function updateMenuSubgroup(id, data) {
+  const res = await apiFetch(`${API_URL}/menu-items/subgroups/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al actualizar subgrupo');
+  }
+  return res.json();
+}
+
+export async function deleteMenuSubgroup(id, { clearItems = false } = {}) {
+  const qs = clearItems ? '?clearItems=true' : '';
+  const res = await apiFetch(`${API_URL}/menu-items/subgroups/${id}${qs}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al eliminar subgrupo');
+  }
+  return res.json();
+}
+
+/** Reservas ocupadas en una fecha civil YYYY-MM-DD (default: hoy en el backend). */
+export async function fetchOccupiedRoomsToday(date) {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+  const qs = params.toString();
+  const res = await apiFetch(
+    `${API_URL}/consumptions/occupied-rooms${qs ? `?${qs}` : ''}`,
+    { credentials: 'include' }
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'Error al listar reservas ocupadas');
+  }
+  return res.json();
+}
+
+export async function createConsumptionOrder(data) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al cargar el consumo');
+  }
+  return res.json();
+}
+
+// ============================================
 // FUNCIONES DE CONFIGURACIÓN
 // ============================================
 
 // Obtener todas las configuraciones
 export async function getConfiguraciones() {
-  const res = await fetch(`${API_URL}/configuracion`);
+  const res = await apiFetch(`${API_URL}/configuracion`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error fetching configuraciones');
@@ -829,7 +1543,7 @@ export async function getConfiguraciones() {
 
 // Obtener una configuración específica
 export async function getConfiguracion(clave) {
-  const res = await fetch(`${API_URL}/configuracion/${clave}`);
+  const res = await apiFetch(`${API_URL}/configuracion/${clave}`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error fetching configuracion');
@@ -839,7 +1553,7 @@ export async function getConfiguracion(clave) {
 
 // Crear o actualizar una configuración
 export async function upsertConfiguracion(data) {
-  const res = await fetch(`${API_URL}/configuracion`, {
+  const res = await apiFetch(`${API_URL}/configuracion`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -853,7 +1567,7 @@ export async function upsertConfiguracion(data) {
 
 // Actualizar una configuración
 export async function updateConfiguracion(clave, data) {
-  const res = await fetch(`${API_URL}/configuracion/${clave}`, {
+  const res = await apiFetch(`${API_URL}/configuracion/${clave}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -867,7 +1581,7 @@ export async function updateConfiguracion(clave, data) {
 
 // Eliminar una configuración
 export async function deleteConfiguracion(clave) {
-  const res = await fetch(`${API_URL}/configuracion/${clave}`, {
+  const res = await apiFetch(`${API_URL}/configuracion/${clave}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -879,7 +1593,7 @@ export async function deleteConfiguracion(clave) {
 
 // Obtener el tipo de cambio actual del dólar
 export async function getTipoCambioUSD() {
-  const res = await fetch(`${API_URL}/configuracion/tipo-cambio/usd`);
+  const res = await apiFetch(`${API_URL}/configuracion/tipo-cambio/usd`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error fetching tipo de cambio');
@@ -889,7 +1603,7 @@ export async function getTipoCambioUSD() {
 
 // Establecer el tipo de cambio del dólar
 export async function setTipoCambioUSD(tipoCambio, descripcion) {
-  const res = await fetch(`${API_URL}/configuracion/tipo-cambio/usd`, {
+  const res = await apiFetch(`${API_URL}/configuracion/tipo-cambio/usd`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tipoCambio, descripcion })
@@ -903,7 +1617,7 @@ export async function setTipoCambioUSD(tipoCambio, descripcion) {
 
 // Obtener el tipo de cambio actual para nuevos pagos
 export async function getTipoCambioActual() {
-  const res = await fetch(`${API_URL}/reservation-payments/tipo-cambio-actual`);
+  const res = await apiFetch(`${API_URL}/reservation-payments/tipo-cambio-actual`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error fetching tipo de cambio actual');
@@ -911,9 +1625,72 @@ export async function getTipoCambioActual() {
   return res.json();
 }
 
+function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchAuditLogs(params = {}) {
+  const res = await apiFetch(`${API_URL}/audit-logs${buildQuery(params)}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar auditoría');
+  }
+  return res.json();
+}
+
+export async function fetchAuditLogById(id) {
+  const res = await apiFetch(`${API_URL}/audit-logs/${id}`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar registro');
+  }
+  return res.json();
+}
+
+export async function fetchAuditEntities() {
+  const res = await apiFetch(`${API_URL}/audit-logs/meta/entities`);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || error.error || 'Error al cargar entidades');
+  }
+  return res.json();
+}
+
+export async function getReservationCheckIn(reservationId) {
+  const res = await apiFetch(`${API_URL}/reservations/${reservationId}/check-in`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Error al obtener check-in');
+  }
+  return res.json();
+}
+
+export async function sendReservationCheckIn(reservationId, payload = {}) {
+  const res = await apiFetch(`${API_URL}/reservations/${reservationId}/check-in/send`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Error al enviar check-in');
+  }
+  return data;
+}
+
 export default {
   fetchRooms,
   fetchRoomTypes,
+  fetchServiceTypes,
   fetchReservations,
   fetchClients,
   fetchGuests,
@@ -928,6 +1705,8 @@ export default {
   createPayment,
   createConsumptionCharge,
   getClientBalance,
+  getClientBillingProfile,
+  upsertClientBillingProfile,
   getRates,
   createRates,
   updateRate,
@@ -961,15 +1740,27 @@ export default {
   createQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
+  getAllPagos,
   getPagosByReserva,
   createPago,
+  createClientMultiPago,
   updatePago,
   deletePago,
+  uploadPagoAdjuntos,
+  deletePagoAdjunto,
+  getPagoAdjuntoDownloadUrl,
+  downloadPagoAdjunto,
   getCargosByReserva,
   createCargo,
   updateCargo,
-  deleteCargo
+  deleteCargo,
+  fetchAuditLogs,
+  fetchAuditLogById,
+  fetchAuditEntities,
+  getReservationCheckIn,
+  sendReservationCheckIn
 };

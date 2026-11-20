@@ -1,5 +1,16 @@
 const { PrismaClient } = require('@prisma/client');
+const { normalizeReservationSource } = require('../constants/reservationSource');
+const { normalizeBedPreference } = require('../utils/bedConfig');
 const prisma = new PrismaClient();
+
+function bedPreferenceFields(source = {}) {
+  const pref = normalizeBedPreference(source);
+  return {
+    bedPreferenceNone: pref.bedPreferenceNone,
+    preferredDoubleBeds: pref.preferredDoubleBeds,
+    preferredSingleBeds: pref.preferredSingleBeds
+  };
+}
 
 // Obtener todas las consultas (agrupando multi-segmentos)
 const getAllQueries = async (req, res) => {
@@ -118,13 +129,14 @@ const getQueryById = async (req, res) => {
       return res.json({
         ...query,
         notes: queryGroup?.notes || null, // Notas desde QueryGroup
+        source: queryGroup?.source || null,
         segments: allSegments,
         isMultiSegment: true
       });
     }
     
     // Query antigua sin grupo - retornar como está (sin notas)
-    res.json({ ...query, notes: null, isMultiSegment: false });
+    res.json({ ...query, notes: null, source: null, isMultiSegment: false });
   } catch (error) {
     console.error('Error al obtener consulta:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -148,6 +160,9 @@ const createQuery = async (req, res) => {
       requiredRoomId,
       requiredTags = [],
       requirementsNotes,
+      bedPreferenceNone,
+      preferredDoubleBeds,
+      preferredSingleBeds,
       guests = []
     } = req.body;
 
@@ -167,6 +182,7 @@ const createQuery = async (req, res) => {
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
         requirementsNotes,
+        ...bedPreferenceFields({ bedPreferenceNone, preferredDoubleBeds, preferredSingleBeds }),
         guests: {
           create: guests.map(guest => ({
             firstName: guest.firstName || null,
@@ -205,7 +221,8 @@ const createMultiSegmentQuery = async (req, res) => {
     const {
       mainClientId,
       segments = [],
-      notes
+      notes,
+      source
     } = req.body;
 
     if (!mainClientId) {
@@ -219,12 +236,13 @@ const createMultiSegmentQuery = async (req, res) => {
     // Generar un ID de grupo único
     const queryGroupId = `query-${mainClientId}-${Date.now()}`;
     
-    // Crear el QueryGroup con las notas
+    // Crear el QueryGroup con las notas y el medio de origen
     await prisma.queryGroup.create({
       data: {
         id: queryGroupId,
         mainClientId: parseInt(mainClientId),
-        notes: notes || null
+        notes: notes || null,
+        source: normalizeReservationSource(source)
       }
     });
     
@@ -251,6 +269,7 @@ const createMultiSegmentQuery = async (req, res) => {
           requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
           requiredTags: segment.requiredTags || [],
           requirementsNotes: segment.requirementsNotes || null,
+          ...bedPreferenceFields(segment),
           guests: {
             create: (segment.guests || []).map(guest => ({
               firstName: guest.firstName || null,
@@ -298,7 +317,8 @@ const updateMultiSegmentQuery = async (req, res) => {
     const {
       mainClientId,
       segments = [],
-      notes
+      notes,
+      source
     } = req.body;
 
     // console.log('📝 updateMultiSegmentQuery - Params:', { queryGroupId, mainClientId, segmentCount: segments.length });
@@ -316,7 +336,9 @@ const updateMultiSegmentQuery = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere al menos un segmento' });
     }
 
-    // Actualizar o crear el QueryGroup con las notas
+    const normalizedSource = normalizeReservationSource(source);
+
+    // Actualizar o crear el QueryGroup con las notas y el medio
     const existingGroup = await prisma.queryGroup.findUnique({
       where: { id: queryGroupId }
     });
@@ -326,6 +348,7 @@ const updateMultiSegmentQuery = async (req, res) => {
         where: { id: queryGroupId },
         data: {
           notes: notes || null,
+          source: normalizedSource,
           mainClientId: parseInt(mainClientId)
         }
       });
@@ -334,7 +357,8 @@ const updateMultiSegmentQuery = async (req, res) => {
         data: {
           id: queryGroupId,
           mainClientId: parseInt(mainClientId),
-          notes: notes || null
+          notes: notes || null,
+          source: normalizedSource
         }
       });
     }
@@ -376,7 +400,8 @@ const updateMultiSegmentQuery = async (req, res) => {
         requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
         requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
         requiredTags: segment.requiredTags || [],
-        requirementsNotes: segment.requirementsNotes || null
+        requirementsNotes: segment.requirementsNotes || null,
+        ...bedPreferenceFields(segment)
       };
       
       // console.log(`📝 QueryData preparado para segmento ${i}:`, queryData);
@@ -504,7 +529,10 @@ const updateQuery = async (req, res) => {
       requiredGuests,
       requiredRoomId,
       requiredTags,
-      requirementsNotes
+      requirementsNotes,
+      bedPreferenceNone,
+      preferredDoubleBeds,
+      preferredSingleBeds
     } = req.body;
 
     const query = await prisma.query.update({
@@ -522,7 +550,8 @@ const updateQuery = async (req, res) => {
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
-        requirementsNotes
+        requirementsNotes,
+        ...bedPreferenceFields({ bedPreferenceNone, preferredDoubleBeds, preferredSingleBeds })
       },
       include: {
         guests: {
@@ -565,6 +594,49 @@ const deleteQuery = async (req, res) => {
     res.json({ message: 'Consulta eliminada exitosamente' });
   } catch (error) {
     console.error('Error al eliminar consulta:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+const CLEAR_ALL_CONFIRM_TOKEN = 'LIMPIAR_TODAS';
+
+/**
+ * Elimina todas las consultas y tablas relacionadas.
+ * Requiere body.confirm === 'LIMPIAR_TODAS' (además de auth/permiso reservas).
+ */
+const deleteAllQueries = async (req, res) => {
+  try {
+    if (req.body?.confirm !== CLEAR_ALL_CONFIRM_TOKEN) {
+      return res.status(400).json({
+        error: 'Confirmación requerida',
+        message: `Enviá confirm: "${CLEAR_ALL_CONFIRM_TOKEN}" para vaciar las consultas`
+      });
+    }
+
+    const auditedPrisma = require('../utils/prisma');
+
+    const deleted = await auditedPrisma.$transaction(async (tx) => {
+      const payments = await tx.queryPayment.deleteMany({});
+      const guests = await tx.queryGuest.deleteMany({});
+      const nightRates = await tx.queryNightRate.deleteMany({});
+      const queries = await tx.query.deleteMany({});
+      const groups = await tx.queryGroup.deleteMany({});
+
+      return {
+        payments: payments.count,
+        guests: guests.count,
+        nightRates: nightRates.count,
+        queries: queries.count,
+        groups: groups.count
+      };
+    });
+
+    res.json({
+      message: 'Todas las consultas fueron eliminadas',
+      deleted
+    });
+  } catch (error) {
+    console.error('Error al limpiar consultas:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -792,6 +864,7 @@ module.exports = {
   updateMultiSegmentQuery,
   updateQuery,
   deleteQuery,
+  deleteAllQueries,
   convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,

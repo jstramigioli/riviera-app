@@ -7,7 +7,7 @@ describe('SidePanel', () => {
     open: true,
     onClose: vi.fn(),
     title: 'Test Panel',
-    children: <div>Test content</div>,
+    children: <div> Test content</div>,
     width: 400
   }
 
@@ -48,5 +48,12 @@ describe('SidePanel', () => {
     fireEvent.click(overlay)
     
     expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('hides header when hideHeader is true', () => {
+    render(<SidePanel {...mockProps} hideHeader />)
+    expect(screen.queryByText('Test Panel')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Cerrar panel')).not.toBeInTheDocument()
+    expect(screen.getByText('Test content')).toBeInTheDocument()
   })
 }) 

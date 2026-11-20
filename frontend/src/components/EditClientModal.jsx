@@ -1,5 +1,16 @@
+import { FiX } from 'react-icons/fi';
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
+import {
+  CLIENT_DOCUMENT_TYPES,
+  VEHICLE_PLATE_HINT,
+  VEHICLE_PLATE_LABEL
+} from '../constants/clientFormFields';
+import {
+  createNotesWithAddress,
+  getAddressFromNotes,
+  stripAddressFromNotes
+} from '../utils/clientAddressNotes';
 import api from '../services/api';
 import styles from './EditClientModal.module.css';
 
@@ -14,43 +25,16 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     country: 'AR',
     province: '',
     city: '',
+    vehiclePlate: '',
     wantsPromotions: false,
     notes: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Función para extraer domicilio de las notas
-  const getAddressFromNotes = (notes) => {
-    if (!notes) return '';
-    const addressMatch = notes.match(/Domicilio:\s*(.+)/);
-    return addressMatch ? addressMatch[1].trim() : '';
-  };
-
-  // Función para crear notas con domicilio
-  const createNotesWithAddress = (notes, address) => {
-    if (!address) return notes || '';
-    
-    // Si ya hay notas con domicilio, actualizar
-    if (notes && notes.includes('Domicilio:')) {
-      return notes.replace(/Domicilio:\s*[^\n]*/, `Domicilio: ${address}`);
-    }
-    
-    // Si hay otras notas, agregar domicilio al final
-    if (notes) {
-      return `${notes}\nDomicilio: ${address}`;
-    }
-    
-    // Si no hay notas, crear solo el domicilio
-    return `Domicilio: ${address}`;
-  };
-
   // Inicializar formulario cuando se abre el modal
   useEffect(() => {
     if (client && isOpen) {
-      const address = getAddressFromNotes(client.notes);
-      const notesWithoutAddress = client.notes?.replace(/Domicilio:\s*[^\n]*\n?/, '').trim() || '';
-      
       setFormData({
         firstName: client.firstName || '',
         lastName: client.lastName || '',
@@ -61,9 +45,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         country: client.country || 'AR',
         province: client.province || '',
         city: client.city || '',
+        vehiclePlate: client.vehiclePlate || '',
         wantsPromotions: client.wantsPromotions || false,
-        notes: notesWithoutAddress,
-        address: address
+        notes: stripAddressFromNotes(client.notes),
+        address: getAddressFromNotes(client.notes)
       });
       setError(null);
     }
@@ -102,6 +87,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         country: formData.country,
         province: formData.province,
         city: formData.city,
+        vehiclePlate: formData.vehiclePlate,
         wantsPromotions: formData.wantsPromotions,
         notes: notesWithAddress
       });
@@ -122,26 +108,24 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>✏️ Editar Cliente</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
+          <h2> Editar Cliente</h2>
+          <button className={styles.closeButton} onClick={onClose}><FiX aria-hidden="true" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
           {error && (
             <div className={styles.error}>
-              ❌ {error}
+              {error}
             </div>
           )}
 
           <div className={styles.formGrid}>
             {/* Información Personal */}
             <div className={styles.section}>
-              <h3>👤 Información Personal</h3>
+              <h3> Información Personal</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="firstName">Nombre *</label>
+                <label htmlFor="firstName"> Nombre *</label>
                 <input
                   type="text"
                   id="firstName"
@@ -154,7 +138,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="lastName">Apellido *</label>
+                <label htmlFor="lastName"> Apellido *</label>
                 <input
                   type="text"
                   id="lastName"
@@ -167,7 +151,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="email">Email</label>
+                <label htmlFor="email"> Email</label>
                 <input
                   type="email"
                   id="email"
@@ -179,7 +163,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="phone">Teléfono</label>
+                <label htmlFor="phone"> Teléfono</label>
                 <input
                   type="tel"
                   id="phone"
@@ -193,10 +177,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Documentación */}
             <div className={styles.section}>
-              <h3>📄 Documentación</h3>
+              <h3> Documentación</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="documentType">Tipo de Documento</label>
+                <label htmlFor="documentType"> Tipo de Documento</label>
                 <select
                   id="documentType"
                   name="documentType"
@@ -204,15 +188,14 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   onChange={handleInputChange}
                   className={styles.select}
                 >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
+                  {CLIENT_DOCUMENT_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
               <div className={styles.fieldGroup}>
-                <label htmlFor="documentNumber">Número de Documento</label>
+                <label htmlFor="documentNumber"> Número de Documento</label>
                 <input
                   type="text"
                   id="documentNumber"
@@ -226,7 +209,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Ubicación */}
             <div className={styles.section}>
-              <h3>📍 Ubicación</h3>
+              <h3> Ubicación</h3>
               
               <LocationSelector
                 country={formData.country}
@@ -240,10 +223,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Domicilio */}
             <div className={styles.section}>
-              <h3>🏠 Domicilio</h3>
+              <h3> Domicilio</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="address">Dirección</label>
+                <label htmlFor="address"> Dirección</label>
                 <textarea
                   id="address"
                   name="address"
@@ -256,9 +239,29 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
             </div>
 
+            {/* Vehículo — mismos label/hint que check-in online */}
+            <div className={styles.section}>
+              <h3>Vehículo</h3>
+
+              <div className={styles.fieldGroup}>
+                <label htmlFor="vehiclePlate">{VEHICLE_PLATE_LABEL}</label>
+                <input
+                  type="text"
+                  id="vehiclePlate"
+                  name="vehiclePlate"
+                  value={formData.vehiclePlate}
+                  onChange={handleInputChange}
+                  placeholder="Ej. AB123CD"
+                  autoCapitalize="characters"
+                  className={styles.input}
+                />
+                <span className={styles.hint}>{VEHICLE_PLATE_HINT}</span>
+              </div>
+            </div>
+
             {/* Preferencias */}
             <div className={styles.section}>
-              <h3>⚙️ Preferencias</h3>
+              <h3> Preferencias</h3>
               
               <div className={styles.fieldGroup}>
                 <label className={styles.checkboxLabel}>
@@ -276,10 +279,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
 
             {/* Notas */}
             <div className={styles.section}>
-              <h3>📝 Notas Adicionales</h3>
+              <h3> Notas Adicionales</h3>
               
               <div className={styles.fieldGroup}>
-                <label htmlFor="notes">Notas</label>
+                <label htmlFor="notes"> Notas</label>
                 <textarea
                   id="notes"
                   name="notes"

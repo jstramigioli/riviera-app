@@ -8,6 +8,7 @@ import FloatingActionButton from './FloatingActionButton';
 import { getDetailedOccupancyScore } from '../services/api';
 import styles from '../styles/ReservationGrid.module.css';
 import OccupancyScoreModal from './OccupancyScoreModal';
+import { todayAsLocalDate } from '../utils/calendarDates';
 
 function getDaysArray(start, end) {
   const arr = [];
@@ -177,7 +178,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
       
       // Normalizar fechas a medianoche para evitar problemas de hora
-      const today = new Date();
+      const today = todayAsLocalDate();
       today.setHours(0, 0, 0, 0);
       
       const targetDate = new Date(date);
@@ -455,7 +456,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
 
   // Función para determinar la fecha de centrado automático
   async function getAutoCenterDate() {
-    const today = new Date();
+    const today = todayAsLocalDate();
     today.setHours(0, 0, 0, 0);
     
     console.log('🎯 getAutoCenterDate - Hoy:', format(today, 'yyyy-MM-dd'));
@@ -997,7 +998,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         console.log('Obteniendo información detallada...');
         
         // Normalizar fechas a medianoche para evitar problemas de hora
-        const today = new Date();
+        const today = todayAsLocalDate();
         today.setHours(0, 0, 0, 0);
         
         const targetDate = new Date(date);
@@ -1063,7 +1064,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
         fontSize: '16px',
         color: '#6c757d'
       }}>
-        <div>🔄 Cargando calendario...</div>
+        <div> Cargando calendario...</div>
       </div>
     );
   }
@@ -1117,7 +1118,7 @@ export default function ReservationGrid({ rooms, reservations, setReservations, 
             </tr>
             {dynamicPricingConfig?.enabled && (
               <tr>
-                <th className={styles.occupancyHeader}>Ocupación</th>
+                <th className={styles.occupancyHeader}> Ocupación</th>
                 {days.map((day, colIndex) => {
                   const occupancyScore = occupancyScores[day.toISOString()];
                   const isClosed = isDayClosed(day);

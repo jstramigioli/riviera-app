@@ -17,7 +17,7 @@
 /* Modal Content */
 .modalContent {
   background: var(--color-bg-white);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   width: 100%;
   max-width: 1200px;
   max-height: 90vh;
@@ -45,14 +45,14 @@
   justify-content: space-between;
   padding: 24px 32px;
   border-bottom: 1px solid var(--color-border-light);
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  background: var(--color-primary);
   color: var(--color-text-light);
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-md) 12px 0 0;
 }
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 
@@ -67,7 +67,7 @@
   background: none;
   border: none;
   color: var(--color-text-light);
-  font-size: 1.5rem;
+  font-size: var(--font-size-large);
   cursor: pointer;
   padding: 8px;
   border-radius: 6px;
@@ -198,7 +198,7 @@
 }
 
 .sectionTitle {
-  font-size: 1.1rem;
+  font-size: var(--font-size-medium);
   font-weight: 600;
   color: var(--color-text-dark);
   margin: 0 0 16px 0;
@@ -610,7 +610,7 @@
 .conflictContent {
   background: var(--color-bg-white);
   padding: 32px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   max-width: 500px;
   width: 90%;
   text-align: center;
@@ -622,7 +622,7 @@
 }
 
 .conflictTitle {
-  font-size: 1.3rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
   color: var(--color-text-dark);
   margin: 0 0 12px 0;
@@ -712,7 +712,7 @@
   }
   
   .modalHeader h2 {
-    font-size: 1.2rem;
+    font-size: var(--font-size-large);
   }
   
   .adjustmentInputGroup {

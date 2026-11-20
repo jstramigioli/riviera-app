@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiEdit3, FiTrash2, FiCopy, FiSave, FiX, FiSettings, FiPercent, FiDollarSign, FiInfo, FiCheck } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiEdit3, FiTrash2, FiCopy, FiX, FiCheck } from 'react-icons/fi';
 import Switch from 'react-switch';
 import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
+import { hasActiveSeasonOverlap, toCivilDate } from '../../utils/seasonBlockOverlap';
 import styles from './SeasonBlockBarV2.module.css';
 
 const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened, seasonBlocks = [] }) => {
@@ -36,7 +37,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     roomTypes,
 
     blockServiceSelections,
-    roundingConfig,
     validationErrors,
     updateFormData,
     updatePrice,
@@ -181,25 +181,18 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   }, [hasTariffChanges, isEditing]);
 
-  // Auto-borrador: Si todos los servicios están desactivados, pasar a modo borrador
+  // Solo avisar cuando YA cargaron selecciones y quedaron todas off.
+  // No mutar formData aqui: updateFormData espera (field, value) y durante el load
+  // blockServiceSelections=[] disparaba un falso positivo.
   useEffect(() => {
-    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
-    if (activeServices.length === 0 && !formData.isDraft) {
-      console.log('🚨 Todos los servicios desactivados - pasando a modo borrador');
-      updateFormData({ isDraft: true });
-      showNotification('Bloque pasado a modo borrador: todos los servicios están desactivados', 'warning');
-    }
-  }, [blockServiceSelections, formData.isDraft]);
+    if (loading) return;
+    if (!Array.isArray(blockServiceSelections) || blockServiceSelections.length === 0) return;
 
-  // Validación adicional: Si el bloque está activo pero no tiene servicios habilitados, desactivarlo
-  useEffect(() => {
-    const activeServices = getActiveServiceTypes().filter(s => s.isEnabled);
-    if (activeServices.length === 0 && !formData.isDraft && block && !block.isDraft) {
-      console.log('🚨 Bloque activo sin servicios - desactivando automáticamente');
-      updateFormData({ isDraft: true });
-      showNotification('Bloque desactivado automáticamente: no tiene servicios habilitados', 'warning');
+    const activeServices = blockServiceSelections.filter(s => s.isEnabled);
+    if (activeServices.length === 0 && block && !block.isDraft) {
+      showNotification('Este bloque no tiene servicios habilitados', 'warning');
     }
-  }, [blockServiceSelections, formData.isDraft, block]);
+  }, [loading, blockServiceSelections, block]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -291,42 +284,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     }
   };
 
-  // Función para verificar superposición de fechas
+  // Overlap cerrado por día civil; solo bloques activos; excluye el actual
   const checkDateOverlap = (startDate, endDate, otherBlocks) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    console.log('🔍 checkDateOverlap - Fechas a verificar:', { start, end });
-    console.log('🔍 checkDateOverlap - Bloques a comparar:', otherBlocks.length);
-    
-    return otherBlocks.some(otherBlock => {
-      if (otherBlock.id === block?.id) {
-        console.log('🔍 Excluyendo bloque actual:', otherBlock.id);
-        return false; // Excluir el bloque actual
-      }
-      
-      // 🚨 VALIDACIÓN CRÍTICA: Solo verificar bloques activos (no borradores)
-      if (otherBlock.isDraft) {
-        console.log('🔍 Excluyendo bloque borrador:', otherBlock.id);
-        return false;
-      }
-      
-      const otherStart = new Date(otherBlock.startDate);
-      const otherEnd = new Date(otherBlock.endDate);
-      
-      console.log('🔍 Comparando con bloque activo:', {
-        id: otherBlock.id,
-        name: otherBlock.name,
-        otherStart,
-        otherEnd,
-        isDraft: otherBlock.isDraft
-      });
-      
-      // Verificar si hay superposición
-      const hasOverlap = (start <= otherEnd && end >= otherStart);
-      console.log('🔍 ¿Hay superposición con este bloque activo?', hasOverlap);
-      
-      return hasOverlap;
+    return hasActiveSeasonOverlap(startDate, endDate, otherBlocks || [], block?.id, {
+      includeDrafts: false
     });
   };
 
@@ -393,10 +354,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       console.error('Error in handleConfirm:', error);
       showNotification('Error al guardar los cambios', 'error');
     }
-  };
-
-  const handleProportionToggle = (enabled) => {
-    updateFormData('useProportions', enabled);
   };
 
 
@@ -477,22 +434,34 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   const handleSaveTariffChanges = async () => {
     const saveResult = await saveSeasonBlock();
     if (saveResult.success) {
-      console.log('=== SAVE SUCCESSFUL ===');
-      
       setOriginalPrices([...prices]);
       setHasTariffChanges(false);
       setHasAnyChanges(false);
-      setIsEditing(false); // Desactivar modo edición después de guardar
-      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' }); // Limpiar celda en edición
-      
+      setIsEditing(false);
+      setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
       showNotification('Cambios guardados exitosamente');
-      
-      // Recargar los datos del bloque para sincronizar
       if (onBlockUpdated) {
         onBlockUpdated();
       }
     } else {
       showNotification(saveResult.error || 'Error al guardar los cambios', 'error');
+    }
+  };
+
+  const handleCancelEdit = async () => {
+    setIsEditing(false);
+    if (resetAllData) {
+      const success = await resetAllData();
+      if (success) {
+        setHasTariffChanges(false);
+        setHasAnyChanges(false);
+        setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
+        setEditingField({ name: false, startDate: false, endDate: false, description: false });
+      } else if (onResetBlock) {
+        onResetBlock();
+      }
+    } else if (onResetBlock) {
+      onResetBlock();
     }
   };
 
@@ -532,6 +501,9 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       if (!block) return;
       
       const newDraftStatus = !block.isDraft;
+      // Usar fechas del formulario (editadas), no el snapshot del prop/DB
+      const effectiveStart = toCivilDate(formData.startDate || block.startDate);
+      const effectiveEnd = toCivilDate(formData.endDate || block.endDate);
       
       // Validación: No permitir activar un bloque si todos los servicios están deshabilitados
       if (!newDraftStatus) { // Si se está intentando activar (newDraftStatus = false)
@@ -540,31 +512,33 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           showNotification('No se puede activar un bloque sin servicios habilitados', 'error');
           return;
         }
+
+        if (!effectiveStart || !effectiveEnd) {
+          showNotification('No se puede activar: el bloque debe tener fechas de inicio y fin', 'error');
+          return;
+        }
         
-        // 🚨 VALIDACIÓN CRÍTICA: Verificar superposición de fechas al activar
-        console.log('🔍 Validando superposición al activar bloque...');
-        console.log('📅 Fechas del bloque a activar:', { startDate: block.startDate, endDate: block.endDate });
-        console.log('📋 Bloques existentes:', seasonBlocks?.length || 0);
-        
-        const hasOverlap = checkDateOverlap(block.startDate, block.endDate, seasonBlocks || []);
-        console.log('🔍 ¿Hay superposición al activar?', hasOverlap);
+        const hasOverlap = checkDateOverlap(effectiveStart, effectiveEnd, seasonBlocks || []);
         
         if (hasOverlap) {
-          console.log('🚨 Superposición detectada al activar - bloqueando activación');
           showNotification('No se puede activar: las fechas se superponen con otro bloque activo', 'error');
           return;
         }
       }
       
-      // Llamar a la API para actualizar solo el campo isDraft
+      // Enviar fechas efectivas al activar para no validar fechas viejas en el backend
+      const payload = {
+        isDraft: newDraftStatus
+      };
+      if (effectiveStart) payload.startDate = effectiveStart;
+      if (effectiveEnd) payload.endDate = effectiveEnd;
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/season-blocks/${block.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          isDraft: newDraftStatus
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (response.ok) {
@@ -595,8 +569,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
   // Manejar inicio de edición de precio
   const handlePriceInputFocus = (roomTypeId, serviceTypeId) => {
-    const currentPrice = prices.find(p => 
-      p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
+    const currentPrice = prices.find(p =>
+      Number(p.roomTypeId) === Number(roomTypeId) && p.serviceTypeId === serviceTypeId
     );
     setEditingCell({
       roomTypeId,
@@ -636,34 +610,15 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
 
 
 
-  // Confirmar cambio de precio (aplicar proporciones)
+  // Confirmar cambio de precio (solo la celda editada; sin proporciones)
   const handlePriceInputConfirm = (e) => {
-    console.log('=== HANDLE PRICE INPUT CONFIRM ===');
-    console.log('Event target:', e.target);
-    console.log('Dataset:', e.target.dataset);
-    console.log('Editing cell:', editingCell);
-    
     const roomTypeId = e.target.dataset.roomTypeId;
     const serviceTypeId = e.target.dataset.serviceTypeId;
-    const value = editingCell.value || e.target.value; // Usar editingCell.value como prioridad
-    
-    console.log('roomTypeId:', roomTypeId);
-    console.log('serviceTypeId:', serviceTypeId);
-    console.log('editingCell.value:', editingCell.value);
-    console.log('e.target.value:', e.target.value);
-    console.log('Final value to use:', value);
+    const value = editingCell.value || e.target.value;
     
     if (roomTypeId && serviceTypeId && value !== '') {
-      // Usar el tipo correcto para roomTypeId (puede ser string o number)
       const parsedRoomTypeId = isNaN(roomTypeId) ? roomTypeId : parseInt(roomTypeId);
-      
-      console.log('parsedRoomTypeId:', parsedRoomTypeId);
-      console.log('Calling updatePrice with:', parsedRoomTypeId, serviceTypeId, value, true);
-      
-      // Llamar directamente a updatePrice con applyProportions: true
-      updatePrice(parsedRoomTypeId, serviceTypeId, value, true);
-    } else {
-      console.log('Missing required data for price update');
+      updatePrice(parsedRoomTypeId, serviceTypeId, value);
     }
     
     setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
@@ -686,8 +641,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
   };
 
   const getPriceDisplayInfo = (roomTypeId, serviceTypeId) => {
-    const currentPrice = prices.find(p => 
-      p.roomTypeId === roomTypeId && p.serviceTypeId === serviceTypeId
+    const currentPrice = prices.find(p =>
+      Number(p.roomTypeId) === Number(roomTypeId) && p.serviceTypeId === serviceTypeId
     );
     
     const basePrice = currentPrice?.basePrice || 0;
@@ -708,7 +663,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       <div className={styles.bar}>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner}></div>
-          <span>Cargando bloque...</span>
+          <span> Cargando bloque...</span>
         </div>
       </div>
     );
@@ -718,7 +673,7 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     return (
       <div className={styles.bar}>
         <div className={styles.error}>
-          <span>Error: {error}</span>
+          <span> Error: {error}</span>
           <button onClick={() => setError(null)} className={styles.errorClose}>×</button>
         </div>
       </div>
@@ -833,11 +788,14 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                 })}
                 className={isEditing ? styles.editableField : ''}
                 style={{
-                  color: (formData.description || block?.description) ? '#374151' : '#9ca3af',
+                  color: (formData.description || block?.description) ? 'var(--color-text-main)' : 'var(--color-text-muted)',
                   fontStyle: (formData.description || block?.description) ? 'normal' : 'italic',
-                  minHeight: '24px',
+                  fontSize: 'var(--font-size-base)',
+                  lineHeight: 1.4,
+                  minHeight: '20px',
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  margin: 0
                 }}
               >
                 {(formData.description || block?.description) || (isEditing ? 'Haz clic aquí para agregar una descripción...' : 'Sin descripción')}
@@ -852,8 +810,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           onClick={(e) => e.stopPropagation()}
           title={
             block?.isDraft 
-              ? "Modo Borrador: Los precios no están disponibles para nuevas reservas. Cambia a 'Activo' para que los precios estén vigentes para nuevas reservas."
-              : "Modo Activo: Los precios están vigentes y disponibles para nuevas reservas. Cambia a 'Borrador' para desactivar temporalmente los precios."
+              ? "Modo Borrador: Los precios no están disponibles para nuevas reservas. Cambia a 'Activo'para que los precios estén vigentes para nuevas reservas."
+              : "Modo Activo: Los precios están vigentes y disponibles para nuevas reservas. Cambia a 'Borrador'para desactivar temporalmente los precios."
           }
         >
           <div className={styles.toggleWrapper}>
@@ -868,23 +826,58 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
           </div>
         </div>
 
-        {/* Botones de acción superiores */}
         <div className={styles.topActions} onClick={(e) => e.stopPropagation()}>
           <div className={styles.actionButtonsRow}>
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveTariffChanges}
+                  className={`${styles.actionBtn} ${styles.save}`}
+                  title="Guardar cambios"
+                  aria-label="Guardar cambios"
+                >
+                  <FiCheck aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className={`${styles.actionBtn} ${styles.cancel}`}
+                  title="Cancelar edición"
+                  aria-label="Cancelar edición"
+                >
+                  <FiX aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExpanded(true);
+                  setIsEditing(true);
+                }}
+                className={`${styles.actionBtn} ${styles.edit}`}
+                title="Editar bloque de temporada"
+                aria-label="Editar bloque de temporada"
+              >
+                <FiEdit3 aria-hidden="true" />
+              </button>
+            )}
             <button
               onClick={handleClone}
               className={`${styles.actionBtn} ${styles.clone}`}
               title="Duplicar bloque de temporada"
+              aria-label="Duplicar bloque de temporada"
             >
-              <FiCopy />
+              <FiCopy aria-hidden="true" />
             </button>
-            
             <button
               onClick={() => setShowDeleteConfirmation(true)}
               className={`${styles.actionBtn} ${styles.delete}`}
               title="Eliminar bloque de temporada"
+              aria-label="Eliminar bloque de temporada"
             >
-              <FiTrash2 />
+              <FiTrash2 aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -893,18 +886,10 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
       {/* Contenido expandido */}
       {isExpanded && (
         <div className={styles.expandedContent}>
-          {roundingConfig && roundingConfig.multiple > 1 && (
-            <div className={styles.roundingInfo}>
-              <FiInfo />
-              <span>Redondeo activo: múltiplos de ${roundingConfig.multiple} ({roundingConfig.mode})</span>
-            </div>
-          )}
-          
-
           <table className={styles.pricesGrid}>
             <thead>
               <tr>
-                <th className={styles.roomTypeHeader}>Habitación</th>
+                <th className={styles.roomTypeHeader}> Habitación</th>
                 {getActiveServiceTypes().map(serviceType => {
                   const isServiceEnabled = serviceType.isEnabled;
                   return (
@@ -947,8 +932,8 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                   {getActiveServiceTypes().map(serviceType => {
                     const serviceTypeId = serviceType.serviceTypeId || serviceType.id;
                     const priceInfo = getPriceDisplayInfo(roomType.id, serviceTypeId);
-                    const currentPrice = prices.find(p => 
-                      p.roomTypeId === roomType.id && p.serviceTypeId === serviceTypeId
+                    const currentPrice = prices.find(p =>
+                      Number(p.roomTypeId) === Number(roomType.id) && p.serviceTypeId === serviceTypeId
                     );
                     const isCurrentlyEditing = editingCell.roomTypeId === roomType.id && 
                                               editingCell.serviceTypeId === serviceTypeId;
@@ -976,12 +961,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
                             <div className={styles.finalPrice}>
                               {formatCurrency(priceInfo.roundedPrice)}
                             </div>
-                            {priceInfo.wasRounded && (
-                              <div className={styles.originalPrice} title={`Precio original: ${formatCurrency(priceInfo.adjustedPrice)}`}>
-                                (de {formatCurrency(priceInfo.adjustedPrice)})
-                              </div>
-                            )}
-                            {/* Los ajustes se aplican automáticamente al precio, no se muestran indicadores */}
                           </div>
                         )}
                       </td>
@@ -992,115 +971,6 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
             </tbody>
           </table>
         </div>
-      )}
-
-      {/* Botones de acción inferiores - cuando hay cualquier tipo de cambio Y estamos en modo edición */}
-      {hasAnyChanges && isEditing && (
-        <div className={styles.actionButtons}>
-          <div className={styles.toggleControls}>
-            <label 
-              className={styles.toggleLabel}
-              title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
-            >
-              <Switch
-                checked={formData.useProportions}
-                onChange={handleProportionToggle}
-                onColor="#3b82f6"
-                offColor="#d1d5db"
-                checkedIcon={false}
-                uncheckedIcon={false}
-                width={44}
-                height={24}
-                handleDiameter={18}
-                disabled={!isEditing}
-              />
-              <span className={styles.toggleText}>Mantener proporciones</span>
-            </label>
-            
-          </div>
-          
-          <div className={styles.actionButtonsRight}>
-            <button
-              onClick={handleSaveTariffChanges}
-              className={`${styles.actionButton} ${styles.saveButton}`}
-            >
-              Guardar
-            </button>
-            
-            <button
-              onClick={async () => {
-                console.log('=== CANCEL BUTTON CLICKED ===');
-                setIsEditing(false);
-                
-                // Resetear todos los datos a sus valores originales
-                if (resetAllData) {
-                  console.log('Calling resetAllData to restore all original data');
-                  const success = await resetAllData();
-                  if (success) {
-                    setHasTariffChanges(false);
-                    setHasAnyChanges(false);
-                    setEditingCell({ roomTypeId: null, serviceTypeId: null, value: '' });
-                    setEditingField({ name: false, startDate: false, endDate: false, description: false });
-                    console.log('All data reset successfully');
-                  } else {
-                    console.log('Reset failed, using fallback');
-                    // Fallback al key reset si resetAllData falla
-                    if (onResetBlock) {
-                      onResetBlock();
-                    }
-                  }
-                } else {
-                  console.log('No resetAllData available, using fallback');
-                  // Fallback al key reset si resetAllData no está disponible
-                  if (onResetBlock) {
-                    onResetBlock();
-                  }
-                }
-              }}
-              className={`${styles.actionButton} ${styles.cancelButton}`}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Botón de editar/cancelar - cuando no hay cambios O no estamos en modo edición */}
-      {(!hasAnyChanges || !isEditing) && (
-        <button 
-          className={styles.actionButtons}
-          onClick={() => setIsEditing(!isEditing)}
-          type="button"
-        >
-          {isEditing && (
-            <div className={styles.toggleControls}>
-              <label 
-                className={styles.toggleLabel}
-                title="Mantener proporciones: Cuando está activado, al modificar el precio de un tipo de habitación, los precios de otros tipos se ajustan automáticamente manteniendo las proporciones relativas. Útil para ajustes por inflación o cambios generales de precios."
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Switch
-                  checked={formData.useProportions}
-                  onChange={handleProportionToggle}
-                  onColor="#3b82f6"
-                  offColor="#d1d5db"
-                  checkedIcon={false}
-                  uncheckedIcon={false}
-                  width={44}
-                  height={24}
-                  handleDiameter={18}
-                  disabled={!isEditing}
-                />
-                <span className={styles.toggleText}>Mantener proporciones</span>
-              </label>
-              
-            </div>
-          )}
-          
-          <div className={styles.actionButtonText}>
-            {isEditing ? 'Cancelar' : 'Editar'}
-          </div>
-        </button>
       )}
 
       {/* Modal de confirmación de eliminación */}

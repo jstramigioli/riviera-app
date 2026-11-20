@@ -42,13 +42,13 @@
 }
 .sidepanel-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: var(--font-size-large);
   font-weight: 600;
 }
 .sidepanel-close {
   background: none;
   border: none;
-  font-size: 2rem;
+  font-size: var(--font-size-xlarge);
   line-height: 1;
   cursor: pointer;
   color: #888;

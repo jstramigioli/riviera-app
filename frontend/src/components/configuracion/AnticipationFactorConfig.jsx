@@ -88,7 +88,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'ESCALONADO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: 'var(--font-size-small)' }}>Escalonado</span>
+            <span style={{ fontSize: 'var(--font-size-small)' }}> Escalonado</span>
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
@@ -98,7 +98,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               checked={mode === 'CONTINUO'}
               onChange={(e) => handleModeChange(e.target.value)}
             />
-            <span style={{ fontSize: 'var(--font-size-small)' }}>Continuo</span>
+            <span style={{ fontSize: 'var(--font-size-small)' }}> Continuo</span>
           </label>
         </div>
       </div>
@@ -110,7 +110,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
               fontWeight: '500', 
               color: '#495057', 
               fontSize: 'var(--font-size-small)'
-            }}>Días máximos:</span>
+            }}> Días máximos:</span>
             <input
               type="number"
               min="1"
@@ -175,7 +175,7 @@ export default function AnticipationFactorConfig({ config, onConfigChange }) {
                 <span style={{ 
                   fontSize: 'var(--font-size-small)', 
                   color: '#666' 
-                }}>días =</span>
+                }}> días =</span>
                 <input
                   type="number"
                   min="0"

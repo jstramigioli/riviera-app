@@ -254,7 +254,7 @@ const LocationSelector = ({
           className={styles.select}
           required={required}
         >
-          <option value="">Seleccionar país</option>
+          <option value=""> Seleccionar país</option>
           {countries.map(countryOption => (
             <option key={countryOption.code} value={countryOption.code}>
               {countryOption.name}
@@ -276,7 +276,7 @@ const LocationSelector = ({
             className={styles.select}
             required={required}
           >
-            <option value="">Seleccionar provincia</option>
+            <option value=""> Seleccionar provincia</option>
             {provinces.map(provinceOption => (
               <option key={provinceOption.code} value={provinceOption.code}>
                 {provinceOption.name}
@@ -337,7 +337,7 @@ const LocationSelector = ({
         </div>
         {!isCityValid() && citySearchTerm.trim() && (
           <div className={styles.errorMessage}>
-            ⚠️ Por favor selecciona una ciudad válida de la lista
+            Por favor selecciona una ciudad válida de la lista
           </div>
         )}
       </div>
@@ -346,7 +346,7 @@ const LocationSelector = ({
       {isArgentina && (
         <div className={styles.info}>
           <small>
-            💡 Escribe en el campo ciudad para buscar localidades disponibles. Usa las flechas ↑↓ para navegar y Enter para seleccionar.
+            Escribe en el campo ciudad para buscar localidades disponibles. Usa las flechas ↑↓ para navegar y Enter para seleccionar.
           </small>
         </div>
       )}

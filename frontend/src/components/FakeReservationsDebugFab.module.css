@@ -1,0 +1,53 @@
+.offset {
+  bottom: 48px;
+}
+
+.widePanel {
+  width: min(320px, calc(100vw - 24px));
+}
+
+.rangeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.rangeRow .field {
+  margin-bottom: 0;
+}
+
+.scenarioList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  margin: 0 0 10px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-main, #3a4250);
+  cursor: pointer;
+}
+
+.packRow,
+.cleanRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.packRow button,
+.cleanRow button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 8px;
+  height: 28px;
+  font-size: 11px;
+}

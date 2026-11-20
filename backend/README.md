@@ -33,6 +33,11 @@ npm run export-db        # Exportar backup de la base de datos
 npm run import-db        # Importar datos a la base de datos
 npm run db:fix-sequences # ⚠️ IMPORTANTE: Arreglar secuencias después de restaurar backup
 
+# Seed tarifas reales 2026/27 (idempotente; ver data/tarifas-2026-27.json)
+npm run seed:tarifas-2026-27
+npm run seed:tarifas-2026-27:replace   # reemplaza bloques del seed
+# Opciones extra: node prisma/seed-tarifas-2026-27.js --with-rooms --with-open-days --with-diversidad
+
 # Reservas de Prueba
 npm run generate-test-reservations  # Generar reservas de prueba
 npm run cleanup-test-reservations   # Limpiar reservas de prueba

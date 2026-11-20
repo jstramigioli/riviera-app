@@ -1,0 +1,264 @@
+import { describe, expect, it } from 'vitest';
+import {
+  buildCheckInPanelItems,
+  buildReceptionDashboardModel,
+  isRoomOutOfService,
+  lateCheckoutItems,
+  occupancyByRoomType,
+  pendingCheckoutItems,
+  physicalInServiceRooms
+} from './receptionDashboardStats';
+
+const rooms = [
+  { id: 1, name: '1', maxPeople: 2, status: 'available', roomType: { name: 'Doble' } },
+  { id: 2, name: '2', maxPeople: 2, status: 'maintenance', roomType: { name: 'Doble' } },
+  { id: 3, name: '3', maxPeople: 4, status: 'available', roomType: { name: 'Familiar' } }
+];
+
+describe('receptionDashboardStats', () => {
+  it('excluye fuera de servicio de la capacidad', () => {
+    expect(isRoomOutOfService(rooms[1])).toBe(true);
+    expect(physicalInServiceRooms(rooms)).toHaveLength(2);
+  });
+
+  it('detecta checkouts atrasados solo si siguen INGRESADA', () => {
+    const reservations = [
+      {
+        id: 10,
+        status: 'INGRESADA',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-01',
+            endDate: '2024-01-03',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 11,
+        status: 'FINALIZADA',
+        mainClient: { firstName: 'Luis', lastName: 'Mora' },
+        segments: [
+          {
+            roomId: 3,
+            startDate: '2024-01-01',
+            endDate: '2024-01-02',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+
+    const late = lateCheckoutItems('2024-01-05', rooms, reservations);
+    expect(late).toHaveLength(1);
+    expect(late[0].reservationId).toBe(10);
+  });
+
+  it('ocupacion por tipo usa solo habitaciones en servicio', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-02',
+            endDate: '2024-01-04',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    const byType = occupancyByRoomType('2024-01-02', rooms, reservations);
+    const doble = byType.find((r) => r.typeName === 'Doble');
+    const familiar = byType.find((r) => r.typeName === 'Familiar');
+    expect(doble.total).toBe(1);
+    expect(doble.occupied).toBe(1);
+    expect(familiar.total).toBe(1);
+    expect(familiar.occupied).toBe(0);
+  });
+
+  it('ingresos incluyen hoy y anteriores aún no ingresadas', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-02',
+            endDate: '2024-01-04',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 2,
+        status: 'PENDIENTE',
+        requiredGuests: 1,
+        mainClient: { firstName: 'Luis', lastName: 'Mora' },
+        segments: [
+          {
+            roomId: 3,
+            startDate: '2024-01-01',
+            endDate: '2024-01-03',
+            guestCount: 1,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    const items = buildCheckInPanelItems('2024-01-02', rooms, reservations);
+    expect(items.map((i) => i.reservationId).sort()).toEqual([1, 2]);
+    expect(items.find((i) => i.reservationId === 2).overdue).toBe(true);
+  });
+
+  it('egresos solo checkout <= hoy (hoy + atrasados, sin futuras)', () => {
+    const reservations = [
+      {
+        id: 10,
+        status: 'INGRESADA',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-01',
+            endDate: '2024-01-10',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 11,
+        status: 'INGRESADA',
+        mainClient: { firstName: 'Luis', lastName: 'Mora' },
+        segments: [
+          {
+            roomId: 3,
+            startDate: '2024-01-01',
+            endDate: '2024-01-02',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 12,
+        status: 'INGRESADA',
+        mainClient: { firstName: 'Eva', lastName: 'Soto' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-04',
+            endDate: '2024-01-05',
+            guestCount: 1,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    const items = pendingCheckoutItems('2024-01-05', rooms, reservations);
+    expect(items.map((i) => i.reservationId).sort()).toEqual([11, 12]);
+    expect(items.find((i) => i.reservationId === 11).late).toBe(true);
+    expect(items.find((i) => i.reservationId === 12).late).toBe(false);
+  });
+
+  it('buildReceptionDashboardModel arma ingresos y mañana', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-02',
+            endDate: '2024-01-04',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    const model = buildReceptionDashboardModel({
+      todayIso: '2024-01-02',
+      rooms,
+      reservations,
+      serviceTypes: []
+    });
+    expect(model.today.checkIns).toBe(2);
+    expect(model.capacityRoomsCount).toBe(2);
+    expect(model.tomorrowIso).toBe('2024-01-03');
+    expect(model.notifications).toEqual([]);
+  });
+
+  it('horizonte 3 días incluye ingresos futuros pendientes', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        notes: 'Llega tarde',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-04',
+            endDate: '2024-01-06',
+            guestCount: 2,
+            isActive: true,
+            serviceType: 'desayuno'
+          }
+        ]
+      }
+    ];
+    const todayOnly = buildCheckInPanelItems('2024-01-02', rooms, reservations);
+    expect(todayOnly).toHaveLength(0);
+    const threeDays = buildCheckInPanelItems('2024-01-02', rooms, reservations, {
+      horizonDays: 3,
+      serviceTypes: [{ id: 'desayuno', name: 'Desayuno' }]
+    });
+    expect(threeDays).toHaveLength(1);
+    expect(threeDays[0].notes).toBe('Llega tarde');
+    expect(threeDays[0].serviceTypeLabel).toBe('Desayuno');
+    expect(threeDays[0].roomLabel).toBe('1');
+  });
+
+  it('horizonte 7 días incluye egresos futuros INGRESADA', () => {
+    const reservations = [
+      {
+        id: 10,
+        status: 'INGRESADA',
+        notes: 'Sale temprano',
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-01',
+            endDate: '2024-01-10',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    expect(pendingCheckoutItems('2024-01-05', rooms, reservations)).toHaveLength(0);
+    const week = pendingCheckoutItems('2024-01-05', rooms, reservations, {
+      horizonDays: 7
+    });
+    expect(week).toHaveLength(1);
+    expect(week[0].notes).toBe('Sale temprano');
+    expect(week[0].roomLabel).toBe('1');
+  });
+});

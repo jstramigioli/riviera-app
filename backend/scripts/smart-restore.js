@@ -57,7 +57,6 @@ async function smartRestore() {
       'clients',
       'guests',
       'dynamicPricingConfigs',
-      'roundingConfigs',
       'seasonBlocks',
       'seasonPrices',
       'blockServiceSelections',
@@ -87,7 +86,6 @@ async function smartRestore() {
       'seasonBlocks',
       'openDays',
       'dynamicPricingConfigs',
-      'roundingConfigs',
       'serviceTypes',
       'rooms',
       'roomTypes',
@@ -159,10 +157,7 @@ async function smartRestore() {
                 skipDuplicates: true
               });
             } else if (model === 'roundingConfigs') {
-              await prisma.roundingConfig.createMany({
-                data: data,
-                skipDuplicates: true
-              });
+              /* rounding removed */
             } else if (model === 'seasonBlocks') {
               await prisma.seasonBlock.createMany({
                 data: data,

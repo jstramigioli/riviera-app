@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useTags } from '../hooks/useTags';
+import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
+import { shiftIso, todayIsoLocal } from '../utils/calendarDates';
 import styles from '../styles/CreateQueryModal.module.css';
+
+function defaultQueryDates() {
+  const checkIn = todayIsoLocal();
+  return { checkIn, checkOut: shiftIso(checkIn, 1) };
+}
 
 export default function CreateQueryModal({ 
   isOpen, 
@@ -10,12 +16,12 @@ export default function CreateQueryModal({
 }) {
   const navigate = useNavigate();
   const { tags } = useTags();
-  const [formData, setFormData] = useState({
-    checkIn: format(new Date(), 'yyyy-MM-dd'),
-    checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+  const [formData, setFormData] = useState(() => ({
+    ...defaultQueryDates(),
     requiredGuests: 1,
-    requiredTags: []
-  });
+    requiredTags: [],
+    source: ''
+  }));
 
   const [errors, setErrors] = useState({});
 
@@ -79,7 +85,8 @@ export default function CreateQueryModal({
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           requiredGuests: formData.requiredGuests,
-          requiredTags: formData.requiredTags
+          requiredTags: formData.requiredTags,
+          source: formData.source || null
         }
       }
     });
@@ -87,10 +94,10 @@ export default function CreateQueryModal({
 
   const handleClose = () => {
     setFormData({
-      checkIn: format(new Date(), 'yyyy-MM-dd'),
-      checkOut: format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      ...defaultQueryDates(),
       requiredGuests: 1,
-      requiredTags: []
+      requiredTags: [],
+      source: ''
     });
     setErrors({});
     onClose();
@@ -102,7 +109,7 @@ export default function CreateQueryModal({
     <div className={styles.modalOverlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2>Consulta</h2>
+          <h2> Consulta</h2>
           <button className={styles.closeButton} onClick={handleClose}>
             ×
           </button>
@@ -110,7 +117,7 @@ export default function CreateQueryModal({
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
-            <label htmlFor="checkIn">Fecha de Entrada *</label>
+            <label htmlFor="checkIn"> Fecha de Entrada *</label>
             <input
               type="date"
               id="checkIn"
@@ -122,7 +129,7 @@ export default function CreateQueryModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="checkOut">Fecha de Salida *</label>
+            <label htmlFor="checkOut"> Fecha de Salida *</label>
             <input
               type="date"
               id="checkOut"
@@ -134,7 +141,7 @@ export default function CreateQueryModal({
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="requiredGuests">Cantidad de Huéspedes *</label>
+            <label htmlFor="requiredGuests"> Cantidad de Huéspedes *</label>
             <input
               type="number"
               id="requiredGuests"
@@ -147,9 +154,26 @@ export default function CreateQueryModal({
             {errors.requiredGuests && <span className={styles.errorText}>{errors.requiredGuests}</span>}
           </div>
 
+          <div className={styles.formGroup}>
+            <label htmlFor="source">Reservado por:</label>
+              <select
+              id="source"
+              value={formData.source}
+              onChange={(e) => handleInputChange('source', e.target.value)}
+              aria-label="Reservado por"
+            >
+              <option value="">No especificado</option>
+              {RESERVATION_SOURCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Selección de Etiquetas */}
           <div className={styles.formGroup}>
-            <label>Etiquetas Requeridas (Opcional)</label>
+            <label> Etiquetas Requeridas (Opcional)</label>
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',

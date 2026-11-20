@@ -1,0 +1,100 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #ffffff;
+  font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #3a4250;
+}
+
+.panel {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 28px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.logo {
+  width: min(220px, 72%);
+  height: auto;
+  max-height: 96px;
+  object-fit: contain;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.846rem;
+  font-weight: 600;
+  color: #5a6f85;
+  margin-top: 6px;
+}
+
+.input {
+  height: 38px;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #3a4250;
+  background: #fff;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3f5f8a;
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.15);
+}
+
+.error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fdecec;
+  border: 1px solid #f5c2c2;
+  color: #e03131;
+  font-size: 0.846rem;
+}
+
+.submit {
+  margin-top: 14px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #3f5f8a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: #334d70;
+}
+
+.submit:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 22px 18px 18px;
+  }
+}
