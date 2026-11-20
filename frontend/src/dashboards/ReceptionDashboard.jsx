@@ -638,14 +638,14 @@ export default function ReceptionDashboard() {
           </div>
         </section>
 
-        <CajaWidget todayIso={todayIso} />
-
         <ComidasHub
           mealsDateIso={mealsDateIso}
           onMealsDateChange={setMealsDateIso}
           meals={meals}
           onOpenReservation={openReservation}
         />
+
+        <CajaWidget todayIso={todayIso} />
 
         <NotificationsPanel />
       </div>

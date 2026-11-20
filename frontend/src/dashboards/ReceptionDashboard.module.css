@@ -90,7 +90,7 @@
 }
 
 .tileMovements {
-  grid-column: span 12;
+  grid-column: span 8;
 }
 
 .tileCaja {
@@ -103,7 +103,7 @@
 }
 
 .tileNotifs {
-  grid-column: span 8;
+  grid-column: span 4;
 }
 
 .moduleHeader {
@@ -153,8 +153,8 @@
 }
 
 .movementsSplit {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   min-width: 0;
   flex: 1 1 auto;
@@ -479,12 +479,10 @@
   table-layout: auto;
 }
 
-.dataTableIn {
-  min-width: 720px;
-}
-
+.dataTableIn,
 .dataTableOut {
-  min-width: 640px;
+  min-width: 100%;
+  width: 100%;
 }
 
 .dataTable th,
@@ -981,10 +979,6 @@ a.actionBtnPrimary {
   .moduleWide {
     grid-column: span 12;
     grid-row: span 1;
-  }
-
-  .movementsSplit {
-    grid-template-columns: 1fr;
   }
 
   .cajaTableWrap {
