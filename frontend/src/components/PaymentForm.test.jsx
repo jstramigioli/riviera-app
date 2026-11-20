@@ -611,6 +611,27 @@ describe('PaymentForm facturación', () => {
     )
   })
 
+  it('devolución: sin origen sync 1:1 entre devolver y a saldar', async () => {
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('tab', { name: 'Nueva devolución' }))
+
+    fireEvent.change(screen.getByLabelText(/Monto a devolver/i), {
+      target: { value: '5000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(5000)
+    })
+
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '8000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(8000)
+    })
+  })
+
   it('devolución: monto a saldar calcula efectivo según descuento del origen', async () => {
     render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
@@ -708,6 +729,9 @@ describe('PaymentForm facturación', () => {
       'true'
     )
     expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(12500)
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(12500)
+    })
   })
 
   it('initialMode devolucion + initialMontoASaldar precarga monto a saldar', async () => {
@@ -722,6 +746,9 @@ describe('PaymentForm facturación', () => {
     )
 
     expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(100000)
+    })
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()

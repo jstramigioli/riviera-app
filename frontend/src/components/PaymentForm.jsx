@@ -382,10 +382,10 @@ const PaymentForm = ({
     calculateMontoARS();
   }, [formData.monto, formData.moneda, formData.tipoCambio]);
 
-  // Devolución: sincronizar monto a devolver ↔ monto a saldar según descuento del pago origen.
+  // Devolución: sync bidireccional como Nuevo pago.
+  // Sin origen / sin desc. → 1:1; con descuento del pago origen → proporción de reversión.
   useEffect(() => {
-    if (!isDevolucion || !selectedPagoOrigen) return;
-    if (!(origenPagoARS > 0)) return;
+    if (!isDevolucion) return;
 
     if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
       const r = computeRefundFromCredit({
@@ -413,7 +413,6 @@ const PaymentForm = ({
     }
   }, [
     isDevolucion,
-    selectedPagoOrigen,
     origenPagoARS,
     origenDescuentoARS,
     amountMode,
@@ -807,7 +806,7 @@ const PaymentForm = ({
   /** Monto de caja a registrar (ARS) según modo. En devolución = efectivo a devolver. */
   const tenderMontoARS = useMemo(() => {
     if (isDevolucion) {
-      if (amountMode === AMOUNT_MODE_SALDAR && selectedPagoOrigen && montoASaldarARS > 0) {
+      if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
         return computeRefundFromCredit({
           creditoARS: montoASaldarARS,
           originalPagoARS: origenPagoARS,
@@ -829,7 +828,6 @@ const PaymentForm = ({
     montoARS,
     montoASaldarARS,
     manualPromoPreview,
-    selectedPagoOrigen,
     origenPagoARS,
     origenDescuentoARS
   ]);
@@ -839,7 +837,7 @@ const PaymentForm = ({
     if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
       return montoASaldarARS;
     }
-    if (!(montoARS > 0) || !selectedPagoOrigen) return montoARS > 0 ? montoARS : 0;
+    if (!(montoARS > 0)) return 0;
     return computeRefundFromCash({
       cashARS: montoARS,
       originalPagoARS: origenPagoARS,
@@ -850,7 +848,6 @@ const PaymentForm = ({
     amountMode,
     montoASaldarARS,
     montoARS,
-    selectedPagoOrigen,
     origenPagoARS,
     origenDescuentoARS
   ]);
