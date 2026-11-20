@@ -7,15 +7,17 @@ const TEXT_MUTED = '#5a6f85';
 const SECTION_LABELS = {
   ENTRADA: 'Entrada',
   ENSALADA: 'Ensalada',
+  SOPA: 'Sopa',
   PRIMER_PLATO: 'Primer plato',
   SEGUNDO_PLATO: 'Segundo plato',
-  POSTRE: 'Postre',
+  POSTRE: 'Postres',
   BUFFET: 'Buffet'
 };
 
 const CONVENTIONAL_ORDER = [
   'ENTRADA',
   'ENSALADA',
+  'SOPA',
   'PRIMER_PLATO',
   'SEGUNDO_PLATO',
   'POSTRE'

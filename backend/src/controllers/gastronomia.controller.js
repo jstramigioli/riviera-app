@@ -12,6 +12,7 @@ const VALID_STATUSES = new Set(['DRAFT', 'PUBLISHED']);
 const VALID_SECTIONS = new Set([
   'ENTRADA',
   'ENSALADA',
+  'SOPA',
   'PRIMER_PLATO',
   'SEGUNDO_PLATO',
   'POSTRE',

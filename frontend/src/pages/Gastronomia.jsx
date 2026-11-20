@@ -35,10 +35,14 @@ import styles from './Gastronomia.module.css';
 const SECTIONS = [
   { id: 'ENTRADA', label: 'Entrada' },
   { id: 'ENSALADA', label: 'Ensalada' },
+  { id: 'SOPA', label: 'Sopa' },
   { id: 'PRIMER_PLATO', label: 'Primer plato' },
   { id: 'SEGUNDO_PLATO', label: 'Segundo plato' },
-  { id: 'POSTRE', label: 'Postre' }
+  { id: 'POSTRE', label: 'Postres' }
 ];
+
+/** Postres admiten varios platos; el resto del convencional es 1 por categoría. */
+const MULTI_ITEM_SECTIONS = new Set(['POSTRE']);
 
 const TABS = [
   { id: 'week', label: 'Menús diarios' },
@@ -72,12 +76,48 @@ function itemsFromMenu(menu) {
     if (menu?.kind === 'BUFFET') return [emptyItem('BUFFET')];
     return SECTIONS.map((s) => emptyItem(s.id));
   }
-  return menu.items.map((it, idx) => ({
+  if (menu.kind === 'BUFFET') {
+    return menu.items.map((it, idx) => ({
+      section: 'BUFFET',
+      name: it.nameSnapshot || '',
+      description: it.descriptionSnap || '',
+      sortOrder: it.sortOrder ?? idx
+    }));
+  }
+  // Convencional: 1 slot por sección fija; Postre conserva todos los ítems.
+  const mapped = menu.items.map((it, idx) => ({
     section: it.section,
     name: it.nameSnapshot || '',
     description: it.descriptionSnap || '',
     sortOrder: it.sortOrder ?? idx
   }));
+  const out = [];
+  for (const section of SECTIONS) {
+    const rows = mapped.filter((i) => i.section === section.id);
+    if (MULTI_ITEM_SECTIONS.has(section.id)) {
+      if (rows.length) out.push(...rows);
+      else out.push(emptyItem(section.id));
+    } else {
+      out.push(rows[0] || emptyItem(section.id));
+    }
+  }
+  return out;
+}
+
+function conventionalItemsFromPrevious(prevItems) {
+  const out = [];
+  for (const section of SECTIONS) {
+    const rows = (prevItems || []).filter(
+      (i) => i.section === section.id && String(i.name || '').trim()
+    );
+    if (MULTI_ITEM_SECTIONS.has(section.id)) {
+      if (rows.length) out.push(...rows.map((r) => ({ ...r, section: section.id })));
+      else out.push(emptyItem(section.id));
+    } else {
+      out.push(rows[0] ? { ...rows[0], section: section.id } : emptyItem(section.id));
+    }
+  }
+  return out;
 }
 
 function StatusBadge({ status }) {
@@ -279,12 +319,7 @@ export default function Gastronomia() {
           .map((i, idx) => ({ ...i, section: 'BUFFET', sortOrder: idx }));
         if (!items.length) items = [emptyItem('BUFFET')];
       } else {
-        items = SECTIONS.map((s) => {
-          const existing = prev.items.find(
-            (i) => i.section === s.id && i.name.trim()
-          );
-          return existing || emptyItem(s.id);
-        });
+        items = conventionalItemsFromPrevious(prev.items);
       }
       return { ...prev, kind, items, dirty: true };
     });
@@ -514,6 +549,7 @@ export default function Gastronomia() {
 
             {editor.kind === 'CONVENTIONAL'
               ? SECTIONS.map((section) => {
+                  const allowMulti = MULTI_ITEM_SECTIONS.has(section.id);
                   const rows = editor.items
                     .map((it, idx) => ({ ...it, idx }))
                     .filter((it) => it.section === section.id);
@@ -526,6 +562,7 @@ export default function Gastronomia() {
                           item={row}
                           index={row.idx}
                           buffet={false}
+                          allowRemove={allowMulti}
                           suggestFor={suggestFor}
                           suggestions={suggestions}
                           onNameChange={onNameChange}
@@ -539,6 +576,17 @@ export default function Gastronomia() {
                             });
                           }}
                           onRemove={() => {
+                            if (!allowMulti) {
+                              setEditor((prev) => {
+                                const items = prev.items.map((it, i) =>
+                                  i === row.idx
+                                    ? { ...it, name: '', description: '' }
+                                    : it
+                                );
+                                return { ...prev, items, dirty: true };
+                              });
+                              return;
+                            }
                             setEditor((prev) => {
                               const items = prev.items.filter((_, i) => i !== row.idx);
                               if (!items.some((i) => i.section === section.id)) {
@@ -549,19 +597,21 @@ export default function Gastronomia() {
                           }}
                         />
                       ))}
-                      <button
-                        type="button"
-                        className={styles.btnGhost}
-                        onClick={() =>
-                          setEditor((prev) => ({
-                            ...prev,
-                            items: [...prev.items, emptyItem(section.id)],
-                            dirty: true
-                          }))
-                        }
-                      >
-                        <FiPlus /> agregar en {section.label.toLowerCase()}
-                      </button>
+                      {allowMulti ? (
+                        <button
+                          type="button"
+                          className={styles.btnGhost}
+                          onClick={() =>
+                            setEditor((prev) => ({
+                              ...prev,
+                              items: [...prev.items, emptyItem(section.id)],
+                              dirty: true
+                            }))
+                          }
+                        >
+                          <FiPlus /> agregar postre
+                        </button>
+                      ) : null}
                     </div>
                   );
                 })
@@ -952,6 +1002,7 @@ function ItemRow({
   item,
   index,
   buffet,
+  allowRemove = true,
   suggestFor,
   suggestions,
   onNameChange,
@@ -1004,9 +1055,13 @@ function ItemRow({
         placeholder="Descripción opcional"
         aria-label="Descripción"
       />
-      <button type="button" className={styles.iconBtn} onClick={onRemove} aria-label="Quitar">
-        <FiX />
-      </button>
+      {allowRemove ? (
+        <button type="button" className={styles.iconBtn} onClick={onRemove} aria-label="Quitar">
+          <FiX />
+        </button>
+      ) : (
+        <span />
+      )}
     </div>
   );
 }
