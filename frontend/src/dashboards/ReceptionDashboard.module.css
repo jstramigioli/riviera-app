@@ -60,10 +60,10 @@
   font-size: 12px;
 }
 
-/* Grid irregular: columna principal (Movimientos/Caja) + lateral angosta (Comidas/Notifs) */
+/* Columna principal (Movimientos/Caja) + lateral fija angosta (Comidas/Notifs) */
 .masonry {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   grid-auto-rows: minmax(48px, auto);
   gap: 12px;
   align-items: start;
@@ -89,28 +89,26 @@
 }
 
 .tileMovements {
-  grid-column: 1 / span 9;
+  grid-column: 1;
   min-width: 0;
 }
 
 .tileCaja {
-  grid-column: 1 / span 9;
+  grid-column: 1;
   min-width: 0;
   min-height: 220px;
 }
 
 .tileComidas {
-  grid-column: 10 / span 3;
-  max-width: 320px;
+  grid-column: 2;
   width: 100%;
-  justify-self: end;
+  max-width: 300px;
 }
 
 .tileNotifs {
-  grid-column: 10 / span 3;
-  max-width: 320px;
+  grid-column: 2;
   width: 100%;
-  justify-self: end;
+  max-width: 300px;
 }
 
 .moduleHeader {
@@ -978,26 +976,7 @@ a.actionBtnPrimary {
   gap: 4px;
 }
 
-@media (max-width: 960px) {
-  .tileMovements,
-  .tileCaja,
-  .moduleWide {
-    grid-column: 1 / -1;
-  }
-
-  .tileComidas,
-  .tileNotifs {
-    grid-column: 1 / -1;
-    max-width: 420px;
-    justify-self: stretch;
-  }
-
-  .cajaTableWrap {
-    max-height: min(360px, 50vh);
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .page {
     padding: 12px 12px 88px;
   }
@@ -1010,10 +989,14 @@ a.actionBtnPrimary {
   .tileMovements,
   .tileCaja,
   .tileComidas,
-  .tileNotifs {
-    grid-column: auto;
+  .tileNotifs,
+  .moduleWide {
+    grid-column: 1;
     max-width: none;
-    justify-self: stretch;
+  }
+
+  .cajaTableWrap {
+    max-height: min(360px, 50vh);
   }
 
   .comidasTotals {
