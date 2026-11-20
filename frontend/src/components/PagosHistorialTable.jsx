@@ -8,7 +8,12 @@ import {
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import styles from '../pages/CobrosPagos.module.css';
+
+export function isDevolucionPago(pago) {
+  return String(pago?.motivo || '') === MOTIVO_DEVOLUCION;
+}
 
 export const ADJUNTO_FACTURA = 'FACTURA';
 export const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
@@ -117,6 +122,7 @@ export default function PagosHistorialTable({
   clientIdFilter = null,
   emptyMessage = 'No hay pagos con los filtros actuales',
   onClientClick,
+  onReservationClick,
   onEditPago,
   onDeletePago,
   testId = 'pagos-historial-table',
@@ -290,7 +296,14 @@ export default function PagosHistorialTable({
   };
 
   const handleToggleRetirado = async (pago) => {
-    if (!pago?.id || isTransferencia(pago.metodo) || togglingRetiradoId === pago.id) return;
+    if (
+      !pago?.id ||
+      isTransferencia(pago.metodo) ||
+      isDevolucionPago(pago) ||
+      togglingRetiradoId === pago.id
+    ) {
+      return;
+    }
     const next = !pago.retirado;
     setTogglingRetiradoId(pago.id);
     try {
@@ -503,9 +516,11 @@ export default function PagosHistorialTable({
                 const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
                 const comprobanteFiles = adjuntosOf(pago, ADJUNTO_COMPROBANTE);
                 const transfer = isTransferencia(pago.metodo);
+                const devolucion = isDevolucionPago(pago);
                 const busyUpload = uploadingPagoId === pago.id;
                 const codeLabel = paymentCodeLabel(pago);
                 const busyDeletePago = deletingPagoId === pago.id;
+                const reservaId = pago.reservaId || pago.reserva?.id || null;
 
                 return (
                   <tr key={pago.id} className={styles.row} data-testid={`pago-row-${pago.id}`}>
@@ -514,7 +529,21 @@ export default function PagosHistorialTable({
                       {formatDisplayDateTime(pago.fecha)}
                     </td>
                     <td className={styles.idCell}>
-                      #{pago.reservaId || pago.reserva?.id || '—'}
+                      {reservaId != null && onReservationClick ? (
+                        <button
+                          type="button"
+                          className={styles.linkButton}
+                          onClick={() => onReservationClick(reservaId, pago)}
+                          title="Ver reserva"
+                          data-testid={`pago-reserva-link-${pago.id}`}
+                        >
+                          #{reservaId}
+                        </button>
+                      ) : reservaId != null ? (
+                        `#${reservaId}`
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td>
                       {client?.id && onClientClick ? (
@@ -552,7 +581,15 @@ export default function PagosHistorialTable({
                       )}
                     </td>
                     <td className={styles.retiradoCell}>
-                      {transfer ? (
+                      {devolucion ? (
+                        <span
+                          className={styles.dashMuted}
+                          title="Las devoluciones no se retiran de caja"
+                          data-testid={`pago-retirado-na-${pago.id}`}
+                        >
+                          —
+                        </span>
+                      ) : transfer ? (
                         comprobanteFiles.length > 0 ? (
                           <div className={styles.fileList}>
                             {comprobanteFiles.map((file) =>
@@ -618,6 +655,7 @@ export default function PagosHistorialTable({
                               : 'No retirado (clic para marcar)'
                           }
                           disabled={togglingRetiradoId === pago.id}
+                          data-testid={`pago-retirado-toggle-${pago.id}`}
                           onClick={() => handleToggleRetirado(pago)}
                         >
                           {pago.retirado ? (

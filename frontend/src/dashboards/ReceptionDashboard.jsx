@@ -492,6 +492,7 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableIn}`}>
                     <thead>
                       <tr>
+                        <th className={styles.colReserva}>Nº reserva</th>
                         <th className={styles.colName}>Nombre</th>
                         <th className={styles.colGuests}>Huéspedes</th>
                         <th className={styles.colRoom}>Habitación</th>
@@ -509,6 +510,16 @@ export default function ReceptionDashboard() {
                         const canCheckIn = Boolean(item.pending);
                         return (
                           <tr key={`in-${item.reservationId}`}>
+                            <td className={styles.colReserva}>
+                              <button
+                                type="button"
+                                className={styles.listLink}
+                                onClick={() => openReservation(item.reservationId)}
+                                title="Ver reserva"
+                              >
+                                #{item.reservationId}
+                              </button>
+                            </td>
                             <td className={styles.colName}>
                               <button
                                 type="button"
@@ -609,6 +620,7 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
                     <thead>
                       <tr>
+                        <th className={styles.colReserva}>Nº reserva</th>
                         <th className={styles.colName}>Nombre</th>
                         <th className={styles.colGuests}>Huéspedes</th>
                         <th className={styles.colRoom}>Habitación</th>
@@ -623,6 +635,16 @@ export default function ReceptionDashboard() {
                     <tbody>
                       {checkoutRows.map((item) => (
                         <tr key={`out-${item.reservationId}`}>
+                          <td className={styles.colReserva}>
+                            <button
+                              type="button"
+                              className={styles.listLink}
+                              onClick={() => openReservation(item.reservationId)}
+                              title="Ver reserva"
+                            >
+                              #{item.reservationId}
+                            </button>
+                          </td>
                           <td className={styles.colName}>
                             <button
                               type="button"

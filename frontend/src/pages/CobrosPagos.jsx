@@ -1117,6 +1117,9 @@ const CobrosPagos = () => {
                 clientIdFilter={clientIdParam}
                 emptyMessage="No hay pagos con los filtros actuales"
                 onClientClick={handleClientClick}
+                onReservationClick={(reservaId) => {
+                  if (reservaId != null) navigate(`/reservations/${reservaId}`);
+                }}
                 onEditPago={handleEditPago}
                 onDeletePago={handleDeletePago}
                 testId="estado-cuentas-pagos-table"

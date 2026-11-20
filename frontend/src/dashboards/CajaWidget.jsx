@@ -183,6 +183,9 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
             onClientClick={(client) => {
               if (client?.id) navigate(`/clients/${client.id}`);
             }}
+            onReservationClick={(reservaId) => {
+              if (reservaId != null) navigate(`/reservations/${reservaId}`);
+            }}
             testId="caja-pagos-table"
           />
         </div>

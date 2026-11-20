@@ -515,6 +515,12 @@
   border-bottom: none;
 }
 
+.colReserva {
+  width: 88px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .colName {
   min-width: 140px;
 }
