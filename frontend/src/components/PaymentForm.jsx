@@ -2293,8 +2293,8 @@ const PaymentForm = ({
             ) : isSaldarMode ? (
               <>
                 <div className={styles.summaryRow}>
-                  <span>Monto a saldar:</span>
-                  <span className={styles.amount}>
+                  <span>Monto saldado:</span>
+                  <span className={styles.amount} data-testid="summary-monto-saldado">
                     {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
                   </span>
                 </div>
@@ -2319,7 +2319,7 @@ const PaymentForm = ({
                       : '—'}
                   </span>
                 </div>
-                {formData.moneda === 'USD' && (
+                {formData.moneda !== 'ARS' && (
                   <div className={styles.summaryRow}>
                     <span>Tipo de cambio:</span>
                     <span>
@@ -2329,10 +2329,18 @@ const PaymentForm = ({
                     </span>
                   </div>
                 )}
+                {formData.moneda !== 'ARS' && (
+                  <div className={styles.summaryRow}>
+                    <span>Equivalente en ARS:</span>
+                    <span className={styles.amountARS} data-testid="summary-equivalente-ars">
+                      {hasIngresadoAmount ? formatPrice(montoARS) : '—'}
+                    </span>
+                  </div>
+                )}
                 <div className={styles.summaryRow}>
-                  <span>Equivalente en ARS:</span>
-                  <span className={styles.amountARS}>
-                    {hasIngresadoAmount ? formatPrice(montoARS) : '—'}
+                  <span>Monto saldado:</span>
+                  <span className={styles.amount} data-testid="summary-monto-saldado">
+                    {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
                   </span>
                 </div>
               </>

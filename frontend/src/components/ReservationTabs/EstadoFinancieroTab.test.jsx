@@ -133,11 +133,54 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('financial-saldo')).toHaveTextContent('50.000')
     expect(screen.getByTestId('summary-total-cargos')).toHaveTextContent('100.000')
     expect(screen.getByTestId('summary-total-pagos')).toHaveTextContent('45.000')
+    expect(screen.getByTestId('summary-total-devoluciones')).toHaveTextContent('0')
     expect(screen.getByTestId('summary-total-descuentos')).toHaveTextContent('5.000')
     expect(screen.getByTestId('financial-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('summary-cargos-breakdown')).toHaveTextContent(/Alojamiento/)
     expect(screen.getByTestId('saldo-icon-pending')).toBeInTheDocument()
     expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/Pendiente/)
+  })
+
+  it('incluye devoluciones en el resumen financiero', () => {
+    const withRefund = {
+      ...summary,
+      resumen: {
+        ...summary.resumen,
+        totalPagos: 25000,
+        saldo: 70000
+      },
+      pagos: {
+        items: [
+          ...summary.pagos.items,
+          {
+            id: 11,
+            codigo: 'A011',
+            fecha: '2026-11-12T12:00:00.000Z',
+            monto: -20000,
+            montoARS: -20000,
+            moneda: 'ARS',
+            metodo: 'Efectivo',
+            motivo: 'Devolución',
+            notas: null
+          }
+        ]
+      }
+    }
+
+    render(
+      <EstadoFinancieroTab
+        reservation={{ id: 22, status: 'INGRESADA', checkOut: '2099-12-31' }}
+        financialSummary={withRefund}
+        loadingFinancial={false}
+        formatDate={(d) => String(d).slice(0, 10)}
+        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        onFinancialChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('summary-total-pagos')).toHaveTextContent('45.000')
+    expect(screen.getByTestId('summary-total-devoluciones')).toHaveTextContent('20.000')
+    expect(screen.getByTestId('financial-total-pagos')).toHaveTextContent('25.000')
   })
 
   it('muestra check verde si está pagado y alerta roja si vencido tras check-out', () => {

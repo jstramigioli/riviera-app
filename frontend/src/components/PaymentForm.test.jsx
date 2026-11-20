@@ -208,6 +208,55 @@ describe('PaymentForm facturación', () => {
     expect(efectivo.textContent).not.toMatch(/10%|−10%|-10%/)
   })
 
+  it('resumen en modo ingresado muestra monto saldado y equivalente ARS solo en otra moneda', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      if (payload.mode === 'received') {
+        return {
+          aplica: true,
+          dineroARS: 90000,
+          descuentoARS: 10000,
+          creditoARS: 100000,
+          porcentaje: 10,
+          appliedRules: [
+            {
+              promotionRuleId: 1,
+              label: 'Descuento Efectivo',
+              code: 'EF10',
+              montoARS: 10000,
+              porcentaje: 10,
+              modality: 'AUTO'
+            }
+          ]
+        }
+      }
+      return { aplica: false }
+    })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '90000' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
+    })
+    expect(screen.queryByTestId('summary-equivalente-ars')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Equivalente en ARS/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Moneda/i), { target: { value: 'USD' } })
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '90' }
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('summary-equivalente-ars')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Equivalente en ARS/i)).toBeInTheDocument()
+    expect(screen.getByTestId('summary-monto-saldado')).toBeInTheDocument()
+  })
+
   it('monto a saldar calcula abono en el resumen sticky (sin banner verde)', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       if (payload.mode === 'settle') {
@@ -250,6 +299,7 @@ describe('PaymentForm facturación', () => {
     })
     expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
     expect(screen.getByText(/Cliente abona/i)).toBeInTheDocument()
+    expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
     expect(screen.queryByText(/El cliente debe abonar/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))

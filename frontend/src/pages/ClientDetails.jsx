@@ -8,6 +8,7 @@ import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { todayAsLocalDate } from '../utils/calendarDates';
+import { MOTIVO_DEVOLUCION } from '../constants/billing';
 
 const ClientDetails = () => {
   const { clientId } = useParams();
@@ -227,6 +228,16 @@ const ClientDetails = () => {
     : totalBalance < 0
       ? 'Saldo a favor'
       : 'Cuenta al Día';
+
+  const pagosMovimientos = clientBalance?.pagos || [];
+  const isDevolucionMovimiento = (pago) =>
+    String(pago?.motivo || '') === MOTIVO_DEVOLUCION || Number(pago?.montoARS) < 0;
+  const totalDevolucionesCliente = pagosMovimientos
+    .filter(isDevolucionMovimiento)
+    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS) || 0), 0);
+  const totalPagosCliente = pagosMovimientos
+    .filter((pago) => !isDevolucionMovimiento(pago))
+    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS) || 0), 0);
 
   return (
     <div className={styles.newLayout}>
@@ -479,7 +490,15 @@ const ClientDetails = () => {
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total pagos:</span>
-                      <span className={styles.value}>{formatPrice(clientBalance?.totalPayments || 0)}</span>
+                      <span className={styles.value} data-testid="client-summary-total-pagos">
+                        {formatPrice(totalPagosCliente)}
+                      </span>
+                    </div>
+                    <div className={styles.balanceItem}>
+                      <span className={styles.label}>Total devoluciones:</span>
+                      <span className={styles.value} data-testid="client-summary-total-devoluciones">
+                        {formatPrice(totalDevolucionesCliente)}
+                      </span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}> Reservas Activas:</span>

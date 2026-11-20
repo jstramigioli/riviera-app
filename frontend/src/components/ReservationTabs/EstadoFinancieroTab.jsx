@@ -340,18 +340,36 @@ const EstadoFinancieroTab = ({
     onRequestConsumo
   ]);
 
-  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
+  const totalPagosNet =
+    Number(financialSummary?.resumen?.totalPagos) || 0;
   const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
   const totalDescuentos = Number(financialSummary?.resumen?.totalDescuentos) || 0;
+  const cargoItems = financialSummary?.cargos?.items || [];
+  const pagoItems = financialSummary?.pagos?.items || [];
+  const descuentoItems = financialSummary?.descuentos?.items || [];
+
+  const isDevolucionPago = (pago) =>
+    String(pago?.motivo || '') === 'Devolución' || Number(pago?.montoARS) < 0;
+
+  const totalDevoluciones = pagoItems
+    .filter(isDevolucionPago)
+    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS ?? pago.monto) || 0), 0);
+
+  const totalPagosBrutos = pagoItems
+    .filter((pago) => !isDevolucionPago(pago))
+    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS ?? pago.monto) || 0), 0);
+
+  /** Neto para saldo / accordion: API o brutos − devoluciones. */
+  const totalPagos =
+    financialSummary?.resumen?.totalPagos != null
+      ? totalPagosNet
+      : totalPagosBrutos - totalDevoluciones;
+
   const saldoDisplay =
     financialSummary?.resumen?.saldo != null
       ? Number(financialSummary.resumen.saldo)
       : totalCargos - totalPagos - totalDescuentos;
   const estadoPago = resolveSaldoVisualStatus(saldoDisplay, reservation);
-
-  const cargoItems = financialSummary?.cargos?.items || [];
-  const pagoItems = financialSummary?.pagos?.items || [];
-  const descuentoItems = financialSummary?.descuentos?.items || [];
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
   const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
   const tiposCargosOrdenados = [
@@ -679,7 +697,14 @@ const EstadoFinancieroTab = ({
             <div className={styles.summaryPanelRow}>
               <span>Total de pagos</span>
               <strong data-testid="summary-total-pagos">
-                {formatCurrency(totalPagos)}
+                {formatCurrency(totalPagosBrutos)}
+              </strong>
+            </div>
+
+            <div className={styles.summaryPanelRow}>
+              <span>Total de devoluciones</span>
+              <strong data-testid="summary-total-devoluciones">
+                {formatCurrency(totalDevoluciones)}
               </strong>
             </div>
 
