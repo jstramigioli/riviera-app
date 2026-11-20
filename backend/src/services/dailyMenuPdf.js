@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const PDFDocument = require('pdfkit');
 
 const RIVIERA_BLUE = '#3f5f8a';
@@ -27,6 +29,21 @@ const CONVENTIONAL_ORDER = [
   'POSTRE'
 ];
 
+/** Umbral: con 3+ postres se imprime en 2 columnas. */
+const POSTRE_TWO_COL_MIN = 3;
+
+const LOGO_CANDIDATES = [
+  path.join(__dirname, '../../assets/logo-hotel.png'),
+  path.join(__dirname, '../../../frontend/src/assets/logo-hotel.png')
+];
+
+function resolveLogoPath() {
+  for (const candidate of LOGO_CANDIDATES) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 function formatMenuDate(dateValue) {
   const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
   if (Number.isNaN(d.getTime())) return '';
@@ -52,8 +69,63 @@ function groupItems(items) {
   return map;
 }
 
+function drawCenteredItem(doc, item, nameSize, descSize, x, width) {
+  doc
+    .fillColor(TEXT_DARK)
+    .font('Helvetica-Bold')
+    .fontSize(nameSize)
+    .text(item.nameSnapshot, x, doc.y, { width, align: 'center' });
+  if (item.descriptionSnap) {
+    doc
+      .font('Helvetica')
+      .fontSize(descSize)
+      .fillColor(TEXT_MUTED)
+      .text(item.descriptionSnap, x, doc.y, { width, align: 'center' });
+  }
+}
+
+/**
+ * Postres en una o dos columnas. Con muchos (≥ POSTRE_TWO_COL_MIN) usa 2 cols.
+ */
+function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth) {
+  if (list.length < POSTRE_TWO_COL_MIN) {
+    for (const item of list) {
+      drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
+      doc.moveDown(0.35);
+    }
+    return;
+  }
+
+  const gap = 12;
+  const colWidth = (contentWidth - gap) / 2;
+  const mid = Math.ceil(list.length / 2);
+  const leftCol = list.slice(0, mid);
+  const rightCol = list.slice(mid);
+  const startY = doc.y;
+  const rightX = left + colWidth + gap;
+
+  let leftY = startY;
+  doc.y = leftY;
+  for (const item of leftCol) {
+    drawCenteredItem(doc, item, nameSize, descSize, left, colWidth);
+    doc.moveDown(0.35);
+    leftY = doc.y;
+  }
+
+  let rightY = startY;
+  doc.y = rightY;
+  for (const item of rightCol) {
+    drawCenteredItem(doc, item, nameSize, descSize, rightX, colWidth);
+    doc.moveDown(0.35);
+    rightY = doc.y;
+  }
+
+  doc.y = Math.max(leftY, rightY);
+}
+
 /**
  * Genera un Buffer PDF A5 (148×210 mm) del menú diario.
+ * Título: «Menú» + fecha. Sin textos «Menú convencional» / «media pensión».
  */
 function buildDailyMenuPdfBuffer(menu) {
   return new Promise((resolve, reject) => {
@@ -63,7 +135,7 @@ function buildDailyMenuPdfBuffer(menu) {
       info: {
         Title: `Menú · Hotel Riviera`,
         Author: 'Hotel Riviera',
-        Subject: 'Menú diario media pensión'
+        Subject: 'Menú diario'
       }
     });
     const chunks = [];
@@ -72,47 +144,54 @@ function buildDailyMenuPdfBuffer(menu) {
     doc.on('error', reject);
 
     const pageWidth = doc.page.width;
-    const contentWidth = pageWidth - doc.page.margins.left - doc.page.margins.right;
+    const left = doc.page.margins.left;
+    const contentWidth = pageWidth - left - doc.page.margins.right;
+    const logoPath = resolveLogoPath();
 
-    // Banda superior azul
+    // Banda superior azul + logo hotel
+    const bandHeight = logoPath ? 64 : 52;
     doc.save();
-    doc.rect(0, 0, pageWidth, 52).fill(RIVIERA_BLUE);
+    doc.rect(0, 0, pageWidth, bandHeight).fill(RIVIERA_BLUE);
     doc.restore();
 
+    if (logoPath) {
+      const logoW = 110;
+      const logoH = 36;
+      doc.image(logoPath, (pageWidth - logoW) / 2, (bandHeight - logoH) / 2, {
+        width: logoW,
+        height: logoH,
+        align: 'center'
+      });
+    } else {
+      doc
+        .fillColor('#ffffff')
+        .font('Helvetica-Bold')
+        .fontSize(14)
+        .text('Hotel Riviera', left, 18, {
+          width: contentWidth,
+          align: 'center'
+        });
+    }
+
+    // Título: «Menú» + fecha (sin «media pensión» / «Menú convencional»)
+    doc.y = bandHeight + 18;
     doc
-      .fillColor('#ffffff')
+      .fillColor(TEXT_DARK)
       .font('Helvetica-Bold')
-      .fontSize(14)
-      .text('Hotel Riviera', doc.page.margins.left, 18, {
-        width: contentWidth,
-        align: 'center'
-      });
+      .fontSize(16)
+      .text('Menú', left, doc.y, { width: contentWidth, align: 'center' });
     doc
+      .moveDown(0.25)
       .font('Helvetica')
-      .fontSize(9)
-      .text('Menú · media pensión', {
-        width: contentWidth,
-        align: 'center'
-      });
-
-    doc.moveDown(2.2);
-    doc.fillColor(TEXT_DARK);
-    doc.font('Helvetica-Bold').fontSize(12);
-    doc.text(formatMenuDate(menu.date), { align: 'center' });
-
-    const kindLabel = menu.kind === 'BUFFET' ? 'Buffet' : 'Menú convencional';
-    doc
-      .moveDown(0.3)
-      .font('Helvetica')
-      .fontSize(9)
-      .fillColor(TEXT_MUTED)
-      .text(kindLabel, { align: 'center' });
+      .fontSize(11)
+      .fillColor(TEXT_DARK)
+      .text(formatMenuDate(menu.date), { align: 'center' });
 
     doc
       .moveDown(0.6)
       .strokeColor(RIVIERA_BLUE)
       .lineWidth(1)
-      .moveTo(doc.page.margins.left + 20, doc.y)
+      .moveTo(left + 20, doc.y)
       .lineTo(pageWidth - doc.page.margins.right - 20, doc.y)
       .stroke();
 
@@ -131,18 +210,7 @@ function buildDailyMenuPdfBuffer(menu) {
         doc.text('Sin preparaciones.', { align: 'center' });
       } else {
         for (const item of list) {
-          doc
-            .fillColor(TEXT_DARK)
-            .font('Helvetica-Bold')
-            .fontSize(nameSize)
-            .text(item.nameSnapshot, { align: 'center' });
-          if (item.descriptionSnap) {
-            doc
-              .font('Helvetica')
-              .fontSize(descSize)
-              .fillColor(TEXT_MUTED)
-              .text(item.descriptionSnap, { align: 'center' });
-          }
+          drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
           doc.moveDown(0.45);
         }
       }
@@ -160,22 +228,18 @@ function buildDailyMenuPdfBuffer(menu) {
           .fillColor(RIVIERA_BLUE)
           .font('Helvetica-Bold')
           .fontSize(9)
-          .text(SECTION_LABELS[section].toUpperCase(), { align: 'center', characterSpacing: 1.2 });
+          .text(SECTION_LABELS[section].toUpperCase(), {
+            align: 'center',
+            characterSpacing: 1.2
+          });
         doc.moveDown(0.25);
-        for (const item of list) {
-          doc
-            .fillColor(TEXT_DARK)
-            .font('Helvetica-Bold')
-            .fontSize(nameSize)
-            .text(item.nameSnapshot, { align: 'center' });
-          if (item.descriptionSnap) {
-            doc
-              .font('Helvetica')
-              .fontSize(descSize)
-              .fillColor(TEXT_MUTED)
-              .text(item.descriptionSnap, { align: 'center' });
+        if (section === 'POSTRE') {
+          drawPostreItems(doc, list, nameSize, descSize, left, contentWidth);
+        } else {
+          for (const item of list) {
+            drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
+            doc.moveDown(0.35);
           }
-          doc.moveDown(0.35);
         }
         doc.moveDown(0.35);
       }
@@ -193,5 +257,6 @@ module.exports = {
   buildDailyMenuPdfBuffer,
   SECTION_LABELS,
   CONVENTIONAL_ORDER,
-  MESA_ENSALADAS
+  MESA_ENSALADAS,
+  POSTRE_TWO_COL_MIN
 };
