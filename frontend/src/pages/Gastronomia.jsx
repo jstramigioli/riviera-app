@@ -36,7 +36,7 @@ const MESA_ENSALADAS = 'mesa de ensaladas';
 
 const SECTIONS = [
   { id: 'ENTRADA', label: 'Entrada' },
-  { id: 'ENSALADA', label: 'Ensaladas', fixed: true },
+  { id: 'ENSALADA', label: 'mesa de ensaladas', fixed: true },
   { id: 'SOPA', label: 'Sopa' },
   { id: 'PRIMER_PLATO', label: 'Primer plato' },
   { id: 'SEGUNDO_PLATO', label: 'Segundo plato' },
@@ -607,8 +607,10 @@ export default function Gastronomia() {
                   if (FIXED_SECTIONS.has(section.id)) {
                     return (
                       <div key={section.id} className={styles.sectionBlock}>
-                        <h3 className={styles.sectionTitle}>{section.label}</h3>
-                        <p className={styles.fixedItem} data-testid="gastronomia-ensaladas-fijas">
+                        <p
+                          className={styles.mesaEnsaladasTitle}
+                          data-testid="gastronomia-ensaladas-fijas"
+                        >
                           {MESA_ENSALADAS}
                         </p>
                       </div>

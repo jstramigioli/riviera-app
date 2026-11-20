@@ -42,6 +42,7 @@ describe('dailyMenuPdf', () => {
     expect(buf.slice(0, 4).toString()).toBe('%PDF');
     expect(buf.length).toBeGreaterThan(500);
     // Metadatos / literales ASCII: no deben reaparecer los textos retirados.
+    // (El cuerpo del PDF va comprimido; no se buscan literales de platos aquí.)
     const asText = buf.toString('latin1');
     expect(asText).not.toMatch(/media pensi/i);
     expect(asText).not.toMatch(/Men.? convencional/i);

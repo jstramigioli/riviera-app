@@ -217,11 +217,21 @@ function buildDailyMenuPdfBuffer(menu) {
     } else {
       let printed = 0;
       for (const section of CONVENTIONAL_ORDER) {
-        let list = bySection.get(section) || [];
-        // Ensaladas: siempre «mesa de ensaladas» (no editable en el menú).
+        // Solo título tipográfico «mesa de ensaladas»; sin sección + contenido.
         if (section === 'ENSALADA') {
-          list = [{ nameSnapshot: MESA_ENSALADAS, descriptionSnap: null, sortOrder: 0 }];
+          printed += 1;
+          doc
+            .fillColor(TEXT_DARK)
+            .font('Helvetica-Oblique')
+            .fontSize(Math.max(nameSize, 11))
+            .text(MESA_ENSALADAS, left, doc.y, {
+              width: contentWidth,
+              align: 'center'
+            });
+          doc.moveDown(0.55);
+          continue;
         }
+        const list = bySection.get(section) || [];
         if (!list.length) continue;
         printed += 1;
         doc

@@ -115,7 +115,7 @@ function formatMenuDate(dateValue) {
 
 /**
  * Mini menú estilo PDF A5: secciones con título + todos los ítems (sin logo).
- * Convencional fuerza «mesa de ensaladas» como en el PDF.
+ * ENSALADA: solo tipografía «mesa de ensaladas» (sin sección + contenido).
  */
 function buildMenuPreviewSections(menu) {
   if (!menu) return [];
@@ -137,16 +137,24 @@ function buildMenuPreviewSections(menu) {
 
   const sections = [];
   for (const section of CONVENTIONAL_ORDER) {
-    let list = bySection.get(section) || [];
     if (section === 'ENSALADA') {
-      list = [{ nameSnapshot: MESA_ENSALADAS }];
+      // Solo título tipográfico; sin sección «Ensaladas» + ítems.
+      sections.push({
+        key: section,
+        title: MESA_ENSALADAS,
+        items: [],
+        titleOnly: true
+      });
+      continue;
     }
+    const list = bySection.get(section) || [];
     const names = list.map((it) => it.nameSnapshot).filter(Boolean);
     if (!names.length) continue;
     sections.push({
       key: section,
       title: SECTION_LABELS[section] || section,
-      items: names
+      items: names,
+      titleOnly: false
     });
   }
   return sections;
@@ -320,16 +328,24 @@ export default function ComidasHub({
                         className={styles.comidasMenuSection}
                         data-testid={`comidas-menu-section-${section.key}`}
                       >
-                        {section.title ? (
-                          <h4 className={styles.comidasMenuSectionTitle}>
+                        {section.titleOnly ? (
+                          <p className={styles.comidasMenuMesaEnsaladas}>
                             {section.title}
-                          </h4>
-                        ) : null}
-                        <ul className={styles.comidasMenuList}>
-                          {section.items.map((name) => (
-                            <li key={`${section.key}-${name}`}>{name}</li>
-                          ))}
-                        </ul>
+                          </p>
+                        ) : (
+                          <>
+                            {section.title ? (
+                              <h4 className={styles.comidasMenuSectionTitle}>
+                                {section.title}
+                              </h4>
+                            ) : null}
+                            <ul className={styles.comidasMenuList}>
+                              {section.items.map((name) => (
+                                <li key={`${section.key}-${name}`}>{name}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>

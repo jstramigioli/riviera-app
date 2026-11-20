@@ -86,6 +86,10 @@ describe('ComidasHub', () => {
     expect(preview).toHaveTextContent(/Empanadas/)
     expect(preview).toHaveTextContent(/mesa de ensaladas/)
     expect(preview).not.toHaveTextContent(/Convencional/i)
+    const ensalada = screen.getByTestId('comidas-menu-section-ENSALADA')
+    expect(ensalada).toHaveTextContent(/^mesa de ensaladas$/)
+    expect(ensalada.querySelector('ul')).toBeNull()
+    expect(ensalada.querySelector('h4')).toBeNull()
 
     const edit = screen.getByTestId('comidas-menu-edit-link')
     expect(edit).toHaveAttribute('href', '/gastronomia?tab=week&id=9')
