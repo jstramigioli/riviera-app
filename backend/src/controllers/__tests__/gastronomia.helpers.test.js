@@ -30,22 +30,31 @@ describe('gastronomia helpers', () => {
 
   it('normalizeIncomingItems convencional ignora sección BUFFET', () => {
     const rows = normalizeIncomingItems('CONVENTIONAL', [
-      { name: 'Sopa', section: 'ENTRADA' },
+      { name: 'Crema de zapallo', section: 'SOPA' },
       { name: 'Libre', section: 'BUFFET' }
     ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0].section).toBe('ENTRADA');
+    expect(rows[0].section).toBe('SOPA');
+  });
+
+  it('normalizeIncomingItems acepta SOPA', () => {
+    const rows = normalizeIncomingItems('CONVENTIONAL', [
+      { name: 'Sopa del día', section: 'SOPA' },
+      { name: 'Flan', section: 'POSTRE' },
+      { name: 'Helado', section: 'POSTRE' }
+    ]);
+    expect(rows.map((r) => r.section)).toEqual(['SOPA', 'POSTRE', 'POSTRE']);
   });
 
   it('previewFromItems resume contenido', () => {
     expect(
       previewFromItems(
         [
-          { section: 'ENTRADA', nameSnapshot: 'Sopa', sortOrder: 0 },
+          { section: 'SOPA', nameSnapshot: 'Crema de zapallo', sortOrder: 0 },
           { section: 'POSTRE', nameSnapshot: 'Flan', sortOrder: 1 }
         ],
         'CONVENTIONAL'
       )
-    ).toBe('Sopa · Flan');
+    ).toBe('Crema de zapallo · Flan');
   });
 });

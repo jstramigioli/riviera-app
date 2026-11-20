@@ -1184,6 +1184,7 @@ enum DailyMenuStatus {
 enum DailyMenuSection {
   ENTRADA
   ENSALADA
+  SOPA
   PRIMER_PLATO
   SEGUNDO_PLATO
   POSTRE

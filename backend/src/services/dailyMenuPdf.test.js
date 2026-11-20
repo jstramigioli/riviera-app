@@ -8,15 +8,27 @@ describe('dailyMenuPdf', () => {
       items: [
         {
           section: 'ENTRADA',
-          nameSnapshot: 'Sopa de zapallo',
+          nameSnapshot: 'Empanadas',
           descriptionSnap: null,
           sortOrder: 0
+        },
+        {
+          section: 'SOPA',
+          nameSnapshot: 'Crema de zapallo',
+          descriptionSnap: null,
+          sortOrder: 1
         },
         {
           section: 'POSTRE',
           nameSnapshot: 'Flan',
           descriptionSnap: 'Con dulce de leche',
-          sortOrder: 1
+          sortOrder: 2
+        },
+        {
+          section: 'POSTRE',
+          nameSnapshot: 'Helado',
+          descriptionSnap: null,
+          sortOrder: 3
         }
       ]
     });
