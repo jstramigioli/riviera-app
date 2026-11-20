@@ -850,34 +850,73 @@
   border-top: 1px solid #eef1f5;
 }
 
-.comidasMenuHeader {
+.comidasMenuMini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px 8px;
+  background: linear-gradient(180deg, #f7f9fc 0%, #ffffff 48%);
+  border: 1px solid #e4e9f0;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.comidasMenuMiniTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--dash-text-dark);
+}
+
+.comidasMenuMiniDate {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dash-text-dark);
+  text-transform: capitalize;
+}
+
+.comidasMenuMiniRule {
+  width: min(72%, 180px);
+  height: 1px;
+  margin: 4px 0 2px;
+  background: var(--dash-primary);
+}
+
+.comidasMenuMiniBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.comidasMenuSection {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.comidasMenuTitle {
+.comidasMenuSectionTitle {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--dash-text-dark);
-}
-
-.comidasMenuNote {
-  margin: 0;
-  font-size: 11px;
-  color: var(--dash-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dash-primary);
 }
 
 .comidasMenuList {
-  margin: 0 0 8px;
-  padding-left: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--dash-text-dark);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .comidasMenuList li {
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 a.actionBtnPrimary {

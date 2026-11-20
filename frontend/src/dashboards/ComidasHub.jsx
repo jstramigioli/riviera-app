@@ -43,14 +43,79 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function menuPreviewLines(menu) {
-  if (!menu?.items?.length) return [];
-  return menu.items
-    .slice()
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-    .slice(0, 6)
-    .map((it) => it.nameSnapshot)
-    .filter(Boolean);
+const MESA_ENSALADAS = 'mesa de ensaladas';
+
+const SECTION_LABELS = {
+  ENTRADA: 'Entrada',
+  ENSALADA: 'Ensaladas',
+  SOPA: 'Sopa',
+  PRIMER_PLATO: 'Primer plato',
+  SEGUNDO_PLATO: 'Segundo plato',
+  PLATO_INFANTIL: 'Plato infantil',
+  POSTRE: 'Postres',
+  BUFFET: 'Buffet'
+};
+
+const CONVENTIONAL_ORDER = [
+  'ENTRADA',
+  'ENSALADA',
+  'SOPA',
+  'PRIMER_PLATO',
+  'SEGUNDO_PLATO',
+  'PLATO_INFANTIL',
+  'POSTRE'
+];
+
+function formatMenuDate(dateValue) {
+  if (!dateValue) return '';
+  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return String(dateValue);
+  return new Intl.DateTimeFormat('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  }).format(d);
+}
+
+/**
+ * Mini menú estilo PDF A5: secciones con título + todos los ítems (sin logo).
+ * Convencional fuerza «mesa de ensaladas» como en el PDF.
+ */
+function buildMenuPreviewSections(menu) {
+  if (!menu) return [];
+  const bySection = new Map();
+  for (const item of menu.items || []) {
+    const key = item.section || 'BUFFET';
+    if (!bySection.has(key)) bySection.set(key, []);
+    bySection.get(key).push(item);
+  }
+  for (const list of bySection.values()) {
+    list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  if (menu.kind === 'BUFFET') {
+    const list = bySection.get('BUFFET') || [];
+    const names = list.map((it) => it.nameSnapshot).filter(Boolean);
+    return names.length ? [{ key: 'BUFFET', title: null, items: names }] : [];
+  }
+
+  const sections = [];
+  for (const section of CONVENTIONAL_ORDER) {
+    let list = bySection.get(section) || [];
+    if (section === 'ENSALADA') {
+      list = [{ nameSnapshot: MESA_ENSALADAS }];
+    }
+    const names = list.map((it) => it.nameSnapshot).filter(Boolean);
+    if (!names.length) continue;
+    sections.push({
+      key: section,
+      title: SECTION_LABELS[section] || section,
+      items: names
+    });
+  }
+  return sections;
 }
 
 /**
@@ -132,7 +197,11 @@ export default function ComidasHub({
   const selectedSet =
     detailMeal === 'breakfast' ? selectedBreakfast : selectedDinner;
   const detailTitle = detailMeal === 'breakfast' ? 'Desayuno' : 'Cena';
-  const preview = menuPreviewLines(dailyMenu);
+  const previewSections = useMemo(
+    () => buildMenuPreviewSections(dailyMenu),
+    [dailyMenu]
+  );
+  const menuDateLabel = formatMenuDate(dailyMenu?.date || mealsDateIso);
   const editPath = dailyMenu?.id
     ? `/gastronomia?tab=week&id=${dailyMenu.id}`
     : `/gastronomia?tab=week&date=${mealsDateIso}`;
@@ -193,29 +262,40 @@ export default function ComidasHub({
           </div>
 
           <div className={styles.comidasMenuBlock} data-testid="comidas-menu-block">
-            <div className={styles.comidasMenuHeader}>
-              <h3 className={styles.comidasMenuTitle}>Menú diario · media pensión</h3>
-              <p className={styles.comidasMenuNote}>
-                Gestionado en Gastronomía (no es el menú de minutas / snacks).
-              </p>
-            </div>
             {menuLoading ? (
               <p className={styles.empty}>Cargando menú…</p>
             ) : menuError ? (
               <p className={styles.empty}>{menuError}</p>
             ) : dailyMenu ? (
-              <div data-testid="comidas-menu-preview">
-                <p className={styles.comidasMenuNote}>
-                  {dailyMenu.kind === 'BUFFET' ? 'Buffet' : 'Convencional'}
-                  {' · '}
-                  {dailyMenu.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-                </p>
-                {preview.length ? (
-                  <ul className={styles.comidasMenuList}>
-                    {preview.map((line) => (
-                      <li key={line}>{line}</li>
+              <div
+                className={styles.comidasMenuMini}
+                data-testid="comidas-menu-preview"
+                aria-label="Vista previa del menú diario"
+              >
+                <p className={styles.comidasMenuMiniTitle}>Menú</p>
+                <p className={styles.comidasMenuMiniDate}>{menuDateLabel}</p>
+                <div className={styles.comidasMenuMiniRule} aria-hidden="true" />
+                {previewSections.length ? (
+                  <div className={styles.comidasMenuMiniBody}>
+                    {previewSections.map((section) => (
+                      <div
+                        key={section.key}
+                        className={styles.comidasMenuSection}
+                        data-testid={`comidas-menu-section-${section.key}`}
+                      >
+                        {section.title ? (
+                          <h4 className={styles.comidasMenuSectionTitle}>
+                            {section.title}
+                          </h4>
+                        ) : null}
+                        <ul className={styles.comidasMenuList}>
+                          {section.items.map((name) => (
+                            <li key={`${section.key}-${name}`}>{name}</li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className={styles.empty}>Sin platos cargados.</p>
                 )}
@@ -231,7 +311,7 @@ export default function ComidasHub({
                 className={styles.actionBtnPrimary}
                 data-testid="comidas-menu-edit-link"
               >
-                {dailyMenu ? 'Editar en Gastronomía' : 'Crear en Gastronomía'}
+                {dailyMenu ? 'Editar menú' : 'Crear menú'}
               </Link>
             </div>
           </div>
