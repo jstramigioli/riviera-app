@@ -4,12 +4,15 @@ const RIVIERA_BLUE = '#3f5f8a';
 const TEXT_DARK = '#1f2933';
 const TEXT_MUTED = '#5a6f85';
 
+const MESA_ENSALADAS = 'mesa de ensaladas';
+
 const SECTION_LABELS = {
   ENTRADA: 'Entrada',
-  ENSALADA: 'Ensalada',
+  ENSALADA: 'Ensaladas',
   SOPA: 'Sopa',
   PRIMER_PLATO: 'Primer plato',
   SEGUNDO_PLATO: 'Segundo plato',
+  PLATO_INFANTIL: 'Plato infantil',
   POSTRE: 'Postres',
   BUFFET: 'Buffet'
 };
@@ -20,6 +23,7 @@ const CONVENTIONAL_ORDER = [
   'SOPA',
   'PRIMER_PLATO',
   'SEGUNDO_PLATO',
+  'PLATO_INFANTIL',
   'POSTRE'
 ];
 
@@ -145,7 +149,11 @@ function buildDailyMenuPdfBuffer(menu) {
     } else {
       let printed = 0;
       for (const section of CONVENTIONAL_ORDER) {
-        const list = bySection.get(section) || [];
+        let list = bySection.get(section) || [];
+        // Ensaladas: siempre «mesa de ensaladas» (no editable en el menú).
+        if (section === 'ENSALADA') {
+          list = [{ nameSnapshot: MESA_ENSALADAS, descriptionSnap: null, sortOrder: 0 }];
+        }
         if (!list.length) continue;
         printed += 1;
         doc
@@ -184,5 +192,6 @@ function buildDailyMenuPdfBuffer(menu) {
 module.exports = {
   buildDailyMenuPdfBuffer,
   SECTION_LABELS,
-  CONVENTIONAL_ORDER
+  CONVENTIONAL_ORDER,
+  MESA_ENSALADAS
 };

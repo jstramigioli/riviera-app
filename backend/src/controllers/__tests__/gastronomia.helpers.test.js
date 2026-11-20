@@ -33,17 +33,36 @@ describe('gastronomia helpers', () => {
       { name: 'Crema de zapallo', section: 'SOPA' },
       { name: 'Libre', section: 'BUFFET' }
     ]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].section).toBe('SOPA');
+    expect(rows.map((r) => r.section)).toEqual(['ENSALADA', 'SOPA']);
+    expect(rows.find((r) => r.section === 'SOPA').name).toBe('Crema de zapallo');
   });
 
-  it('normalizeIncomingItems acepta SOPA', () => {
+  it('normalizeIncomingItems acepta SOPA y PLATO_INFANTIL', () => {
     const rows = normalizeIncomingItems('CONVENTIONAL', [
       { name: 'Sopa del día', section: 'SOPA' },
+      { name: 'Nuggets', section: 'PLATO_INFANTIL' },
       { name: 'Flan', section: 'POSTRE' },
       { name: 'Helado', section: 'POSTRE' }
     ]);
-    expect(rows.map((r) => r.section)).toEqual(['SOPA', 'POSTRE', 'POSTRE']);
+    expect(rows.map((r) => r.section)).toEqual([
+      'ENSALADA',
+      'SOPA',
+      'PLATO_INFANTIL',
+      'POSTRE',
+      'POSTRE'
+    ]);
+    expect(rows.find((r) => r.section === 'ENSALADA').name).toBe('mesa de ensaladas');
+  });
+
+  it('normalizeIncomingItems fuerza mesa de ensaladas e ignora ENSALADA editable', () => {
+    const rows = normalizeIncomingItems('CONVENTIONAL', [
+      { name: 'Caesar', section: 'ENSALADA' },
+      { name: 'Milanesa', section: 'PRIMER_PLATO' }
+    ]);
+    const ensaladas = rows.filter((r) => r.section === 'ENSALADA');
+    expect(ensaladas).toHaveLength(1);
+    expect(ensaladas[0].name).toBe('mesa de ensaladas');
+    expect(ensaladas[0].description).toBeNull();
   });
 
   it('previewFromItems resume contenido', () => {

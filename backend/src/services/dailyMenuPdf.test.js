@@ -19,16 +19,22 @@ describe('dailyMenuPdf', () => {
           sortOrder: 1
         },
         {
+          section: 'PLATO_INFANTIL',
+          nameSnapshot: 'Nuggets',
+          descriptionSnap: null,
+          sortOrder: 2
+        },
+        {
           section: 'POSTRE',
           nameSnapshot: 'Flan',
           descriptionSnap: 'Con dulce de leche',
-          sortOrder: 2
+          sortOrder: 3
         },
         {
           section: 'POSTRE',
           nameSnapshot: 'Helado',
           descriptionSnap: null,
-          sortOrder: 3
+          sortOrder: 4
         }
       ]
     });

@@ -283,6 +283,17 @@
   color: var(--g-primary-dark);
 }
 
+.fixedItem {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--g-text-dark);
+  background: #f7f8fa;
+  border: 1px solid var(--g-border);
+  border-radius: 6px;
+}
+
 .itemRow {
   display: grid;
   grid-template-columns: 28px 1fr 1.2fr 32px;

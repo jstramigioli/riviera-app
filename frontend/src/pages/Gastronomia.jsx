@@ -32,17 +32,23 @@ import {
 import { todayIsoLocal } from '../utils/calendarDates';
 import styles from './Gastronomia.module.css';
 
+const MESA_ENSALADAS = 'mesa de ensaladas';
+
 const SECTIONS = [
   { id: 'ENTRADA', label: 'Entrada' },
-  { id: 'ENSALADA', label: 'Ensalada' },
+  { id: 'ENSALADA', label: 'Ensaladas', fixed: true },
   { id: 'SOPA', label: 'Sopa' },
   { id: 'PRIMER_PLATO', label: 'Primer plato' },
   { id: 'SEGUNDO_PLATO', label: 'Segundo plato' },
+  { id: 'PLATO_INFANTIL', label: 'Plato infantil' },
   { id: 'POSTRE', label: 'Postres' }
 ];
 
 /** Postres admiten varios platos; el resto del convencional es 1 por categoría. */
 const MULTI_ITEM_SECTIONS = new Set(['POSTRE']);
+const FIXED_SECTIONS = new Set(
+  SECTIONS.filter((s) => s.fixed).map((s) => s.id)
+);
 
 const TABS = [
   { id: 'week', label: 'Menús diarios' },
@@ -68,6 +74,14 @@ function weekDays(fromIso) {
 }
 
 function emptyItem(section = 'BUFFET') {
+  if (section === 'ENSALADA') {
+    return {
+      section: 'ENSALADA',
+      name: MESA_ENSALADAS,
+      description: '',
+      sortOrder: 0
+    };
+  }
   return { section, name: '', description: '', sortOrder: 0 };
 }
 
@@ -93,6 +107,10 @@ function itemsFromMenu(menu) {
   }));
   const out = [];
   for (const section of SECTIONS) {
+    if (FIXED_SECTIONS.has(section.id)) {
+      out.push(emptyItem(section.id));
+      continue;
+    }
     const rows = mapped.filter((i) => i.section === section.id);
     if (MULTI_ITEM_SECTIONS.has(section.id)) {
       if (rows.length) out.push(...rows);
@@ -107,6 +125,10 @@ function itemsFromMenu(menu) {
 function conventionalItemsFromPrevious(prevItems) {
   const out = [];
   for (const section of SECTIONS) {
+    if (FIXED_SECTIONS.has(section.id)) {
+      out.push(emptyItem(section.id));
+      continue;
+    }
     const rows = (prevItems || []).filter(
       (i) => i.section === section.id && String(i.name || '').trim()
     );
@@ -549,6 +571,16 @@ export default function Gastronomia() {
 
             {editor.kind === 'CONVENTIONAL'
               ? SECTIONS.map((section) => {
+                  if (FIXED_SECTIONS.has(section.id)) {
+                    return (
+                      <div key={section.id} className={styles.sectionBlock}>
+                        <h3 className={styles.sectionTitle}>{section.label}</h3>
+                        <p className={styles.fixedItem} data-testid="gastronomia-ensaladas-fijas">
+                          {MESA_ENSALADAS}
+                        </p>
+                      </div>
+                    );
+                  }
                   const allowMulti = MULTI_ITEM_SECTIONS.has(section.id);
                   const rows = editor.items
                     .map((it, idx) => ({ ...it, idx }))

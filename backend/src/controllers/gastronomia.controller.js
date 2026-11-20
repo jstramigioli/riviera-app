@@ -2,7 +2,8 @@ const { PrismaClient } = require('@prisma/client');
 const { normalizeDishName } = require('../utils/dishNameNorm');
 const {
   buildDailyMenuPdfBuffer,
-  CONVENTIONAL_ORDER
+  CONVENTIONAL_ORDER,
+  MESA_ENSALADAS
 } = require('../services/dailyMenuPdf');
 
 const prisma = new PrismaClient();
@@ -15,6 +16,7 @@ const VALID_SECTIONS = new Set([
   'SOPA',
   'PRIMER_PLATO',
   'SEGUNDO_PLATO',
+  'PLATO_INFANTIL',
   'POSTRE',
   'BUFFET'
 ]);
@@ -132,12 +134,14 @@ function normalizeIncomingItems(kind, items) {
   const out = [];
   let order = 0;
   for (const raw of list) {
-    const name = String(raw?.name || raw?.nameSnapshot || '').trim();
-    if (!name) continue;
     let section = String(raw?.section || '').toUpperCase();
     if (kind === 'BUFFET') section = 'BUFFET';
     if (!VALID_SECTIONS.has(section)) continue;
     if (kind === 'CONVENTIONAL' && section === 'BUFFET') continue;
+    // Ensaladas: no editable; se fuerza siempre «mesa de ensaladas».
+    if (kind === 'CONVENTIONAL' && section === 'ENSALADA') continue;
+    const name = String(raw?.name || raw?.nameSnapshot || '').trim();
+    if (!name) continue;
     out.push({
       section,
       sortOrder:
@@ -147,7 +151,22 @@ function normalizeIncomingItems(kind, items) {
     });
     order += 1;
   }
-  out.sort((a, b) => a.sortOrder - b.sortOrder);
+  if (kind === 'CONVENTIONAL') {
+    out.push({
+      section: 'ENSALADA',
+      sortOrder: order,
+      name: MESA_ENSALADAS,
+      description: null
+    });
+  }
+  out.sort((a, b) => {
+    const ai = CONVENTIONAL_ORDER.indexOf(a.section);
+    const bi = CONVENTIONAL_ORDER.indexOf(b.section);
+    const ao = ai === -1 ? 999 : ai;
+    const bo = bi === -1 ? 999 : bi;
+    if (ao !== bo) return ao - bo;
+    return a.sortOrder - b.sortOrder;
+  });
   out.forEach((row, idx) => {
     row.sortOrder = idx;
   });
