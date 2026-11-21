@@ -789,7 +789,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
               <div className={styles.linesHeader}>
                 <span className={styles.colQty}>Cant.</span>
                 <span className={styles.colItem}>Ítem</span>
-                <span className={styles.colPrice}>Precio</span>
+                <span className={styles.colUnit}>Unitario</span>
+                <span className={styles.colPrice}>Importe</span>
                 <span className={styles.colRemove} aria-hidden="true" />
               </div>
 
@@ -916,6 +917,10 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                             )}
                           </ul>
                         ) : null}
+                      </div>
+
+                      <div className={styles.unitCell}>
+                        {line.menuItemId ? formatMoney(line.price) : '—'}
                       </div>
 
                       <div className={styles.priceCell}>
