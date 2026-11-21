@@ -716,6 +716,7 @@ function PromocionesTab() {
     setForm({
       ...EMPTY_FORM,
       kind,
+      // DESCUENTO (SETTLEMENT): siempre suma — sin UI de stacking.
       stacking: isPromo ? 'EXCLUSIVE' : 'STACKABLE',
       stackingGroup: '',
       conditions: []
@@ -738,8 +739,11 @@ function PromocionesTab() {
       kind,
       activo: row.activo !== false,
       modality: row.modality || 'AUTO',
-      stacking: row.stacking || (kind === 'PROMO' ? 'EXCLUSIVE' : 'STACKABLE'),
-      stackingGroup: row.stackingGroup || '',
+      stacking:
+        kind === 'DESCUENTO'
+          ? 'STACKABLE'
+          : row.stacking || 'EXCLUSIVE',
+      stackingGroup: kind === 'DESCUENTO' ? '' : row.stackingGroup || '',
       benefitType,
       benefitValue: String(row.benefitValue ?? 0),
       benefitValueManual: Boolean(row.benefitValueManual),
@@ -812,8 +816,13 @@ function PromocionesTab() {
     }
     const isFreeNights = isPromo && benefitType === 'FREE_NIGHTS';
     const isRateLayer = isPromo || isFreeNights;
-    const stacking = String(form.stacking || (isPromo ? 'EXCLUSIVE' : 'STACKABLE')).toUpperCase();
-    const stackingGroup = String(form.stackingGroup || '').trim() || null;
+    // DESCUENTO: siempre STACKABLE sin grupo (motor suma). PROMO: stacking de Config.
+    const stacking = isRateLayer
+      ? String(form.stacking || 'EXCLUSIVE').toUpperCase()
+      : 'STACKABLE';
+    const stackingGroup = isRateLayer
+      ? String(form.stackingGroup || '').trim() || null
+      : null;
     return {
       code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
@@ -1225,10 +1234,14 @@ function PromocionesTab() {
                   </td>
                   <td>
                     <span className={styles.meta}>{MODALITY_LABEL[row.modality] || row.modality}</span>
-                    <div className={styles.meta}>
-                      {STACKING_LABEL[row.stacking] || row.stacking || '—'}
-                      {row.stackingGroup ? ` · ${row.stackingGroup}` : ''}
-                    </div>
+                    {(row.kind || 'DESCUENTO') === 'PROMO' ? (
+                      <div className={styles.meta}>
+                        {STACKING_LABEL[row.stacking] || row.stacking || '—'}
+                        {row.stackingGroup ? ` · ${row.stackingGroup}` : ''}
+                      </div>
+                    ) : (
+                      <div className={styles.meta}>Se suman</div>
+                    )}
                   </td>
                   <td>
                     {(row.conditions || []).length === 0 ? (
@@ -1414,30 +1427,38 @@ function PromocionesTab() {
               aplicar, no en esta ficha.
             </p>
 
-            <div className={styles.formGrid}>
-              <label className={styles.field}>
-                Stacking
-                <select
-                  value={form.stacking}
-                  onChange={(e) => setField('stacking', e.target.value)}
-                >
-                  <option value="STACKABLE">Se suman</option>
-                  <option value="EXCLUSIVE">Exclusivo (uno solo)</option>
-                  <option value="BEST_OF">El mejor del grupo</option>
-                </select>
-              </label>
-              <label className={styles.field}>
-                Grupo de stacking
-                <input
-                  type="text"
-                  value={form.stackingGroup}
-                  onChange={(e) => setField('stackingGroup', e.target.value)}
-                  placeholder="Vacío = sin competencia"
-                  autoComplete="off"
-                />
-              </label>
-            </div>
-            <p className={styles.fieldHint}>{STACKING_HELP}</p>
+            {form.kind === 'PROMO' ? (
+              <>
+                <div className={styles.formGrid}>
+                  <label className={styles.field}>
+                    Stacking
+                    <select
+                      value={form.stacking}
+                      onChange={(e) => setField('stacking', e.target.value)}
+                    >
+                      <option value="STACKABLE">Se suman</option>
+                      <option value="EXCLUSIVE">Exclusivo (uno solo)</option>
+                      <option value="BEST_OF">El mejor del grupo</option>
+                    </select>
+                  </label>
+                  <label className={styles.field}>
+                    Grupo de stacking
+                    <input
+                      type="text"
+                      value={form.stackingGroup}
+                      onChange={(e) => setField('stackingGroup', e.target.value)}
+                      placeholder="Vacío = sin competencia"
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+                <p className={styles.fieldHint}>{STACKING_HELP}</p>
+              </>
+            ) : (
+              <p className={styles.fieldHint}>
+                Los descuentos de cobro siempre se suman (aditivo sobre la base; no compuesto).
+              </p>
+            )}
 
             <section className={styles.section}>
               <div className={styles.conditionsHeader}>

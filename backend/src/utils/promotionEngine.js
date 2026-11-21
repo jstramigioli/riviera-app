@@ -575,9 +575,9 @@ function selectByStacking(matchedRules, benefitFn) {
   for (const rule of matchedRules) {
     // Sin stackingGroup explícito:
     // - Opcionales (SUGERIDA/MANUAL) no compiten en EXCLUSIVE contra AUTO.
-    // - RATE / SETTLEMENT AUTO sin grupo: cada uno en su llave → no se comen
-    //   entre sí. Exclusión mutua = mismo stackingGroup + EXCLUSIVE/BEST_OF.
-    // - STACKABLE (default DESCUENTO en Config) suma aunque compartan grupo.
+    // - RATE AUTO sin grupo: cada uno en su llave → no se comen entre sí.
+    // - SETTLEMENT no usa esta función (siempre suma en evaluateSettlementRules).
+    // - Exclusión mutua (RATE) = mismo stackingGroup + EXCLUSIVE/BEST_OF.
     const isOptional =
       rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
     const layer = String(rule.layer || '').toUpperCase();
@@ -585,7 +585,6 @@ function selectByStacking(matchedRules, benefitFn) {
     if (!key) {
       if (isOptional && rule.id != null) key = `optional:${rule.id}`;
       else if (layer === 'RATE' && rule.id != null) key = `rate:${rule.id}`;
-      else if (layer === 'SETTLEMENT' && rule.id != null) key = `settlement:${rule.id}`;
       else key = '__global__';
     }
     if (!groups.has(key)) groups.set(key, []);
@@ -670,7 +669,9 @@ function evaluateSettlementRules(rules, ctx) {
       mode
     });
 
-  const selected = selectByStacking(matched, benefitFn);
+  // SETTLEMENT: siempre suman (aditivo sobre base; sin EXCLUSIVE/BEST_OF ni compuesto).
+  // stacking / stackingGroup se ignoran en esta capa.
+  const selected = sortByPriority(matched);
   if (!selected.length) {
     return {
       aplica: false,
@@ -685,7 +686,7 @@ function evaluateSettlementRules(rules, ctx) {
     };
   }
 
-  // Julián: los descuentos SETTLEMENT se SUMAN (AUTO + opcionales).
+  // % se suman (10+10=20 sobre base); fijos se suman en ARS.
   const percentRules = sortByPriority(
     selected.filter((r) => r.benefitType === 'PERCENT')
   );

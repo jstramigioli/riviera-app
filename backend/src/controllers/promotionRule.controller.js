@@ -174,10 +174,6 @@ exports.createPromotionRule = async (req, res) => {
     const benefitType = String(body.benefitType || 'PERCENT').toUpperCase();
     const modality = String(body.modality || 'AUTO').toUpperCase();
     const kind = String(body.kind || 'DESCUENTO').toUpperCase();
-    // DESCUENTO: default STACKABLE (se suman). PROMO: EXCLUSIVE.
-    const stacking = String(
-      body.stacking || (kind === 'PROMO' ? 'EXCLUSIVE' : 'STACKABLE')
-    ).toUpperCase();
     if (kind === 'DESCUENTO') {
       const benefitTypeError = assertSettlementBenefitType(benefitType);
       if (benefitTypeError) {
@@ -190,6 +186,18 @@ exports.createPromotionRule = async (req, res) => {
       layer: body.layer,
       benefitBase: body.benefitBase
     });
+    // SETTLEMENT/DESCUENTO: siempre suma — stacking fijo STACKABLE, sin grupo.
+    // PROMO (RATE): stacking configurable.
+    const stacking =
+      layer === 'SETTLEMENT'
+        ? 'STACKABLE'
+        : String(body.stacking || 'EXCLUSIVE').toUpperCase();
+    const stackingGroup =
+      layer === 'SETTLEMENT'
+        ? null
+        : body.stackingGroup
+          ? String(body.stackingGroup).trim()
+          : null;
     const rawConditions = Array.isArray(body.conditions) ? body.conditions : [];
     const conditions = normalizeConditions(rawConditions, {
       allowedTypes: layer === 'SETTLEMENT' ? SETTLEMENT_CONDITION_TYPES : null
@@ -220,7 +228,7 @@ exports.createPromotionRule = async (req, res) => {
         modality,
         layer,
         stacking,
-        stackingGroup: body.stackingGroup ? String(body.stackingGroup).trim() : null,
+        stackingGroup,
         vigenteDesde: body.vigenteDesde ? new Date(body.vigenteDesde) : null,
         vigenteHasta: body.vigenteHasta ? new Date(body.vigenteHasta) : null,
         aplicaEnSeña: body.aplicaEnSeña !== false,
@@ -284,9 +292,33 @@ exports.updatePromotionRule = async (req, res) => {
       data.prioridad = Number(body.prioridad);
     }
     if (body.modality != null) data.modality = String(body.modality).toUpperCase();
-    if (body.stacking != null) data.stacking = String(body.stacking).toUpperCase();
-    if (body.stackingGroup !== undefined) {
-      data.stackingGroup = body.stackingGroup ? String(body.stackingGroup).trim() : null;
+    // stacking solo aplica a PROMO/RATE; SETTLEMENT siempre STACKABLE sin grupo.
+    {
+      const nextKind =
+        data.kind != null ? data.kind : existing.kind;
+      const nextLayerHint =
+        body.layer != null ? body.layer : existing.layer;
+      const nextBenefitType =
+        body.benefitType != null
+          ? String(body.benefitType).toUpperCase()
+          : existing.benefitType;
+      const resolvedEarly = resolveLayerAndBenefitBase({
+        kind: nextKind,
+        benefitType: nextBenefitType,
+        layer: nextLayerHint,
+        benefitBase: body.benefitBase != null ? body.benefitBase : existing.benefitBase
+      });
+      if (resolvedEarly.layer === 'SETTLEMENT') {
+        data.stacking = 'STACKABLE';
+        data.stackingGroup = null;
+      } else {
+        if (body.stacking != null) data.stacking = String(body.stacking).toUpperCase();
+        if (body.stackingGroup !== undefined) {
+          data.stackingGroup = body.stackingGroup
+            ? String(body.stackingGroup).trim()
+            : null;
+        }
+      }
     }
     if (body.vigenteDesde !== undefined) {
       data.vigenteDesde = body.vigenteDesde ? new Date(body.vigenteDesde) : null;

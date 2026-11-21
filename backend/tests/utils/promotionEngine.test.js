@@ -412,7 +412,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(onTransfer.descuentoARS).toBe(1000);
   });
 
-  it('SETTLEMENT: EXCLUSIVE con mismo stackingGroup elige uno', () => {
+  it('SETTLEMENT: ignora EXCLUSIVE/stackingGroup y suma (aditivo, no compuesto)', () => {
     const a = {
       ...efectivoRule,
       id: 2,
@@ -440,9 +440,11 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
       mode: 'settle'
     });
     expect(r.aplica).toBe(true);
-    expect(r.appliedRules).toHaveLength(1);
-    expect(r.appliedRules[0].promotionRuleId).toBe(2);
-    expect(r.porcentaje).toBe(10);
+    expect(r.appliedRules).toHaveLength(2);
+    // 10% + 20% = 30% sobre base (no 10% luego 20% del resto)
+    expect(r.porcentaje).toBe(30);
+    expect(r.descuentoARS).toBe(3000);
+    expect(r.dineroARS).toBe(7000);
   });
 
   it('SETTLEMENT: applyAutomatics=false omite AUTO y deja opcionales', () => {
