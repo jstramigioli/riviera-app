@@ -26,6 +26,7 @@ export const EMPTY_PAY_FILTERS = {
   cliente: '',
   montoMin: '',
   montoMax: '',
+  moneda: '',
   metodo: '',
   motivo: '',
   referencia: '',
@@ -37,6 +38,7 @@ const PAY_COLUMN_KEYS = {
   reserva: ['reserva'],
   cliente: ['cliente'],
   monto: ['montoMin', 'montoMax'],
+  moneda: ['moneda'],
   metodo: ['metodo'],
   motivo: ['motivo'],
   referencia: ['referencia'],
@@ -48,10 +50,15 @@ const PAY_COLUMNS = [
   { key: 'reserva', label: 'Reserva' },
   { key: 'cliente', label: 'Cliente' },
   { key: 'monto', label: 'Monto' },
+  { key: 'moneda', label: 'Moneda' },
   { key: 'metodo', label: 'Método' },
   { key: 'motivo', label: 'Motivo' },
   { key: 'referencia', label: 'Referencia' },
 ];
+
+export function pagoMoneda(pago) {
+  return String(pago?.moneda || 'ARS').toUpperCase();
+}
 
 export function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
@@ -110,7 +117,7 @@ function endOfDay(isoDate) {
 
 /**
  * Tabla de historial de pagos (misma estructura que Estado de cuentas → Pagos).
- * Columnas: Código, Fecha, Reserva, Cliente, Monto, Método, Motivo, Referencia, Factura, Retirado.
+ * Columnas: Código, Fecha, Reserva, Cliente, Monto, Moneda, Método, Motivo, Referencia, Factura, Retirado.
  */
 export default function PagosHistorialTable({
   payments = [],
@@ -204,6 +211,15 @@ export default function PagosHistorialTable({
     return Array.from(methods).sort((a, b) => a.localeCompare(b, 'es'));
   }, [payments, payFilters.metodo]);
 
+  const paymentCurrencies = useMemo(() => {
+    const currencies = new Set();
+    for (const pago of payments || []) {
+      currencies.add(pagoMoneda(pago));
+    }
+    if (payFilters.moneda) currencies.add(String(payFilters.moneda).toUpperCase());
+    return Array.from(currencies).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [payments, payFilters.moneda]);
+
   const filteredPayments = useMemo(() => {
     const from = startOfDay(payFilters.fechaFrom);
     const to = endOfDay(payFilters.fechaTo);
@@ -216,6 +232,7 @@ export default function PagosHistorialTable({
     const referenciaNeedle = String(payFilters.referencia || '').trim();
     const metodoNeedle = payFilters.metodo;
     const motivoNeedle = payFilters.motivo;
+    const monedaNeedle = String(payFilters.moneda || '').trim().toUpperCase();
     const montoMin =
       payFilters.montoMin === '' || payFilters.montoMin == null
         ? null
@@ -266,6 +283,7 @@ export default function PagosHistorialTable({
           return false;
         }
 
+        if (monedaNeedle && pagoMoneda(pago) !== monedaNeedle) return false;
         if (metodoNeedle && pago.metodo !== metodoNeedle) return false;
         if (motivoNeedle && (pago.motivo || 'Pago') !== motivoNeedle) return false;
 
@@ -502,7 +520,7 @@ export default function PagosHistorialTable({
           <tbody>
             {filteredPayments.length === 0 ? (
               <tr>
-                <td colSpan={showRowActions ? 11 : 10} className={styles.emptyCell}>
+                <td colSpan={showRowActions ? 12 : 11} className={styles.emptyCell}>
                   {emptyMessage}
                 </td>
               </tr>
@@ -513,6 +531,7 @@ export default function PagosHistorialTable({
                   ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
                   : 'Sin cliente';
                 const amount = pago.montoARS != null ? pago.montoARS : pago.monto;
+                const moneda = pagoMoneda(pago);
                 const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
                 const comprobanteFiles = adjuntosOf(pago, ADJUNTO_COMPROBANTE);
                 const transfer = isTransferencia(pago.metodo);
@@ -560,6 +579,9 @@ export default function PagosHistorialTable({
                       )}
                     </td>
                     <td className={styles.amountCell}>{formatPrice(amount)}</td>
+                    <td className={styles.metaCell} data-testid={`pago-moneda-${pago.id}`}>
+                      {moneda}
+                    </td>
                     <td className={styles.metaCell}>{pago.metodo || '—'}</td>
                     <td className={styles.metaCell}>{pago.motivo || 'Pago'}</td>
                     <td className={styles.metaCell}>
@@ -791,6 +813,23 @@ export default function PagosHistorialTable({
                 onChange={(e) => setPayFilter('montoMax', e.target.value)}
               />
             </div>
+          )}
+          {openPayColumn === 'moneda' && (
+            <select
+              className={styles.columnFilter}
+              aria-label="Filtrar por moneda"
+              autoFocus
+              value={payFilters.moneda}
+              onChange={(e) => setPayFilter('moneda', e.target.value)}
+              data-testid="pay-filter-moneda"
+            >
+              <option value="">Todas</option>
+              {paymentCurrencies.map((moneda) => (
+                <option key={moneda} value={moneda}>
+                  {moneda}
+                </option>
+              ))}
+            </select>
           )}
           {openPayColumn === 'metodo' && (
             <select
