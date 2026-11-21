@@ -672,6 +672,11 @@ const ReservationDetails = () => {
                     <span>Habitación fijada: {room.name}</span>
                   </div>
                 ))}
+                {panelRequirements.flags.map((flag) => (
+                  <div key={flag.key} className={styles.requirementRow}>
+                    <span>{flag.label}</span>
+                  </div>
+                ))}
                 {panelRequirements.selectedTags.length > 0 && (
                   <div className={styles.requirementTags}>
                     {panelRequirements.selectedTags.map((tag) => (

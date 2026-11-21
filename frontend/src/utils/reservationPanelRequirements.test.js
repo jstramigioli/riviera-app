@@ -14,6 +14,20 @@ describe('collectReservationPanelRequirements', () => {
     expect(result.hasAny).toBe(false);
     expect(result.fixedRooms).toEqual([]);
     expect(result.selectedTags).toEqual([]);
+    expect(result.flags).toEqual([]);
+  });
+
+  it('incluye flags de cuna y estacionamiento', () => {
+    const result = collectReservationPanelRequirements({
+      requiereCuna: true,
+      requiereEstacionamiento: true,
+      segments: [{ roomId: 10, room: { name: '101' }, requiredTags: [] }]
+    }, tags);
+    expect(result.hasAny).toBe(true);
+    expect(result.flags).toEqual([
+      { key: 'cuna', label: 'Requiere cuna' },
+      { key: 'estacionamiento', label: 'Requiere estacionamiento' }
+    ]);
   });
 
   it('incluye habitación fijada por requiredRoomId', () => {

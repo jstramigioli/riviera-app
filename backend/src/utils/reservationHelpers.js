@@ -521,6 +521,8 @@ async function createReservationWithSegments(reservationData) {
     status = 'active',
     notes,
     source,
+    requiereCuna,
+    requiereEstacionamiento,
     isMultiRoom = false,
     parentReservationId = null,
     /// Por defecto el responsable se incorpora como huésped (removible después).
@@ -564,6 +566,8 @@ async function createReservationWithSegments(reservationData) {
       status,
       notes,
       source: normalizeReservationSource(source),
+      requiereCuna: Boolean(requiereCuna),
+      requiereEstacionamiento: Boolean(requiereEstacionamiento),
       isMultiRoom: logicalCount > 1 || isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null,
       createdWithManualRate: promoOpts.createdWithManualRate
@@ -783,6 +787,8 @@ async function updateReservationWithSegments(reservationId, updateData) {
     dietVegetariano,
     dietVegano,
     dietCeliaco,
+    requiereCuna,
+    requiereEstacionamiento,
     source,
     segments,
     mainClientId,
@@ -815,6 +821,12 @@ async function updateReservationWithSegments(reservationId, updateData) {
         : {}),
       ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
       ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
+      ...(requiereCuna !== undefined
+        ? { requiereCuna: Boolean(requiereCuna) }
+        : {}),
+      ...(requiereEstacionamiento !== undefined
+        ? { requiereEstacionamiento: Boolean(requiereEstacionamiento) }
+        : {}),
       ...(source !== undefined
         ? { source: normalizeReservationSource(source) }
         : {}),

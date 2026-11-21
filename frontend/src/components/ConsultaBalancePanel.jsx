@@ -38,6 +38,10 @@ export default function ConsultaBalancePanel({
   onNotesChange,
   source = '',
   onSourceChange,
+  requiereCuna = false,
+  onRequiereCunaChange,
+  requiereEstacionamiento = false,
+  onRequiereEstacionamientoChange,
   reservationStatus = 'PENDIENTE',
   onStatusChange,
   onPromoApplyChange,
@@ -822,6 +826,34 @@ export default function ConsultaBalancePanel({
               <option value="INGRESADA">Ingresada</option>
             </select>
           </div>
+
+          <fieldset
+            className={styles.requirementsFieldset}
+            data-testid="balance-requirements"
+            disabled={disabled || isSnapshot}
+          >
+            <legend className={styles.metaLabel}>Requerimientos</legend>
+            <label className={styles.requirementCheck}>
+              <input
+                type="checkbox"
+                checked={Boolean(requiereCuna)}
+                onChange={(e) => onRequiereCunaChange?.(e.target.checked)}
+                disabled={disabled || isSnapshot}
+                data-testid="balance-requiere-cuna"
+              />
+              Requiere cuna
+            </label>
+            <label className={styles.requirementCheck}>
+              <input
+                type="checkbox"
+                checked={Boolean(requiereEstacionamiento)}
+                onChange={(e) => onRequiereEstacionamientoChange?.(e.target.checked)}
+                disabled={disabled || isSnapshot}
+                data-testid="balance-requiere-estacionamiento"
+              />
+              Requiere estacionamiento
+            </label>
+          </fieldset>
         </section>
       ) : null}
       </div>
