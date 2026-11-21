@@ -1299,12 +1299,10 @@ const CobroForm = ({
         fecha: fechaIso,
         requiereFacturacion: billingEnabled,
         factura: isEditMode ? undefined : facturaPayload,
-        selectedRuleIds: isDevolucion || isEditMode ? undefined : manualPromoApply.selectedRuleIds,
-        deselectedRuleIds:
-          isDevolucion || isEditMode ? undefined : manualPromoApply.deselectedRuleIds,
-        benefitValueByRuleId:
-          isDevolucion || isEditMode ? undefined : manualPromoApply.benefitValueByRuleId,
-        applySuggestedDefaults: isDevolucion || isEditMode ? undefined : true
+        selectedRuleIds: isDevolucion ? undefined : manualPromoApply.selectedRuleIds,
+        deselectedRuleIds: isDevolucion ? undefined : manualPromoApply.deselectedRuleIds,
+        benefitValueByRuleId: isDevolucion ? undefined : manualPromoApply.benefitValueByRuleId,
+        applySuggestedDefaults: isDevolucion ? undefined : true
       };
 
       let nuevoCobro;
@@ -1314,11 +1312,16 @@ const CobroForm = ({
           moneda: pagoData.moneda,
           tipoCambio: pagoData.tipoCambio,
           metodo: pagoData.metodo,
+          paymentMethodConfigId: pagoData.paymentMethodConfigId,
           motivo: pagoData.motivo,
           numeroTarjeta: pagoData.numeroTarjeta ?? null,
           empresa: pagoData.empresa ?? null,
           notas: pagoData.notas,
-          fecha: pagoData.fecha
+          fecha: pagoData.fecha,
+          selectedRuleIds: pagoData.selectedRuleIds,
+          deselectedRuleIds: pagoData.deselectedRuleIds,
+          benefitValueByRuleId: pagoData.benefitValueByRuleId,
+          applySuggestedDefaults: pagoData.applySuggestedDefaults
         });
       } else if (isMultiAlloc) {
         nuevoCobro = await createClientMultiCobro(clientId, {
@@ -1379,7 +1382,6 @@ const CobroForm = ({
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
 
   const creditoACuentaARS =
-    !isEditMode &&
     !isDevolucion &&
     manualPromoPreview?.aplica &&
     !manualPromoPreview.probeOnly
@@ -1388,7 +1390,7 @@ const CobroForm = ({
         ? montoASaldarARS
         : Number(montoARS) || 0;
   const saldoProyectadoARS =
-    !isEditMode && !isDevolucion && saldoPendiente != null
+    !isDevolucion && saldoPendiente != null
       ? roundMoney(Number(saldoPendiente) - creditoACuentaARS)
       : null;
 
@@ -1950,7 +1952,7 @@ const CobroForm = ({
             </div>
           )}
 
-          {!isEditMode && !isDevolucion && manualPromoSuggestions.length > 0 && (
+          {!isDevolucion && manualPromoSuggestions.length > 0 && (
             <div
               className={styles.manualPromoBlock}
               data-testid="payment-manual-promos"
@@ -1983,8 +1985,7 @@ const CobroForm = ({
             </div>
           )}
 
-          {!isEditMode &&
-            !isDevolucion &&
+          {!isDevolucion &&
             manualPromoPreview?.aplica &&
             manualPromoPreview.appliedRules?.length > 0 && (
               <div
@@ -2029,7 +2030,7 @@ const CobroForm = ({
               </div>
             )}
 
-          {!isEditMode && !isDevolucion && (
+          {!isDevolucion && (
             <div className={styles.addPromoWrap} ref={addPromoRef}>
               <button
                 type="button"

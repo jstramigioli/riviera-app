@@ -442,7 +442,6 @@ function ruleToSettlementConfig(rule) {
       descuentoActivo: false,
       descuentoTipo: 'PERCENT',
       descuentoValor: 0,
-      aplicaEnParcial: true,
       aplicaEnSeña: true
     };
   }
@@ -452,7 +451,6 @@ function ruleToSettlementConfig(rule) {
       descuentoActivo: false,
       descuentoTipo: 'PERCENT',
       descuentoValor: 0,
-      aplicaEnParcial: true,
       aplicaEnSeña: true,
       benefitType,
       benefitBase: rule.benefitBase || 'RATE_NIGHT',
@@ -471,7 +469,6 @@ function ruleToSettlementConfig(rule) {
     descuentoActivo: true,
     descuentoTipo: benefitType === 'FIXED' || benefitType === 'FIXED_PER_NIGHT' ? 'FIXED' : 'PERCENT',
     descuentoValor: toNumber(rule.benefitValue),
-    aplicaEnParcial: rule.aplicaEnParcial !== false,
     aplicaEnSeña: rule.aplicaEnSeña !== false,
     benefitType,
     benefitBase: rule.benefitBase || 'DEBT_CANCELLED',
@@ -547,19 +544,6 @@ function computeSettlementBenefit({ rule, dineroARS, saldoPendiente, motivo, mod
   }
 
   const dinero = roundMoney(Math.abs(toNumber(dineroARS)));
-  if (config.aplicaEnParcial === false && saldoPendiente != null) {
-    const creditoTentativo = roundMoney(dinero + fixed);
-    if (creditoTentativo + 0.005 < toNumber(saldoPendiente)) {
-      return {
-        aplica: false,
-        dineroARS: dinero,
-        descuentoARS: 0,
-        creditoARS: dinero,
-        porcentaje: null,
-        motivoNoAplica: 'solo_pago_total'
-      };
-    }
-  }
   const descuento = fixed;
   const credito = roundMoney(dinero + descuento);
   return {
@@ -591,11 +575,9 @@ function selectByStacking(matchedRules, benefitFn) {
   for (const rule of matchedRules) {
     // Sin stackingGroup explícito:
     // - Opcionales (SUGERIDA/MANUAL) no compiten en EXCLUSIVE contra AUTO.
-    // - RATE AUTO tampoco comparten un __global__: si no, un FIXED $10.000
-    //   sin condiciones lo «come» otro AUTO % EXCLUSIVE (mismo default UI) y
-    //   desaparece del preview aunque kind/layer/modality sean correctos.
-    //   Exclusión mutua RATE = stackingGroup compartido.
-    // - SETTLEMENT: cada regla en su grupo → se SUMAN (regla de producto Julián).
+    // - RATE / SETTLEMENT AUTO sin grupo: cada uno en su llave → no se comen
+    //   entre sí. Exclusión mutua = mismo stackingGroup + EXCLUSIVE/BEST_OF.
+    // - STACKABLE (default DESCUENTO en Config) suma aunque compartan grupo.
     const isOptional =
       rule.modality === 'SUGERIDA' || rule.modality === 'MANUAL';
     const layer = String(rule.layer || '').toUpperCase();
@@ -612,13 +594,9 @@ function selectByStacking(matchedRules, benefitFn) {
 
   const selected = [];
   for (const [, groupRules] of groups) {
-    const layer = String(groupRules[0]?.layer || '').toUpperCase();
     const ordered = sortByPriority(groupRules);
-    // SETTLEMENT siempre suma (AUTO + opcionales), aunque el stacking sea EXCLUSIVE.
-    const policy =
-      layer === 'SETTLEMENT'
-        ? 'STACKABLE'
-        : ordered[0].stacking || 'EXCLUSIVE';
+    // Respeta stacking de Config (EXCLUSIVE / BEST_OF / STACKABLE).
+    const policy = ordered[0].stacking || 'EXCLUSIVE';
     if (policy === 'STACKABLE') {
       selected.push(...ordered);
       continue;

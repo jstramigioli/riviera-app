@@ -18,7 +18,6 @@ vi.mock('../services/api', () => ({
       requiereFacturacion: false,
       descuentoActivo: true,
       descuentoValor: 10,
-      aplicaEnParcial: true,
       aplicaEnSeña: true
     },
     {
@@ -28,7 +27,6 @@ vi.mock('../services/api', () => ({
       requiereFacturacion: true,
       descuentoActivo: false,
       descuentoValor: 0,
-      aplicaEnParcial: true,
       aplicaEnSeña: true
     },
     {
@@ -38,7 +36,6 @@ vi.mock('../services/api', () => ({
       requiereFacturacion: true,
       descuentoActivo: false,
       descuentoValor: 0,
-      aplicaEnParcial: true,
       aplicaEnSeña: true
     },
     {
@@ -48,7 +45,6 @@ vi.mock('../services/api', () => ({
       requiereFacturacion: true,
       descuentoActivo: false,
       descuentoValor: 0,
-      aplicaEnParcial: true,
       aplicaEnSeña: true
     }
   ]),

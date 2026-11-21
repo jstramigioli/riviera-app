@@ -22,9 +22,8 @@ const efectivoRule = {
   prioridad: 900,
   modality: 'AUTO',
   layer: 'SETTLEMENT',
-  stacking: 'EXCLUSIVE',
+  stacking: 'STACKABLE',
   stackingGroup: null,
-  aplicaEnParcial: true,
   aplicaEnSeña: true,
   benefitType: 'PERCENT',
   benefitValue: 10,
@@ -362,14 +361,14 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(deselected.descuentoARS).toBe(0);
   });
 
-  it('SETTLEMENT: % global + % de medio se SUMAN (no EXCLUSIVE)', () => {
+  it('SETTLEMENT: % global + % de medio se SUMAN (STACKABLE / sin grupo)', () => {
     const always = {
       ...efectivoRule,
       id: 2,
       code: 'ALWAYS_10',
       label: 'Siempre 10%',
       conditions: [],
-      stacking: 'EXCLUSIVE',
+      stacking: 'STACKABLE',
       stackingGroup: null,
       prioridad: 100
     };
@@ -380,7 +379,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
       label: '20% debito',
       benefitValue: 20,
       conditions: [{ type: 'PAYMENT_METHOD', params: { paymentMethodConfigId: 2 } }],
-      stacking: 'EXCLUSIVE',
+      stacking: 'STACKABLE',
       stackingGroup: null,
       prioridad: 100
     };
@@ -411,6 +410,39 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
     expect(onTransfer.appliedRules[0].promotionRuleId).toBe(2);
     expect(onTransfer.porcentaje).toBe(10);
     expect(onTransfer.descuentoARS).toBe(1000);
+  });
+
+  it('SETTLEMENT: EXCLUSIVE con mismo stackingGroup elige uno', () => {
+    const a = {
+      ...efectivoRule,
+      id: 2,
+      code: 'A_10',
+      benefitValue: 10,
+      conditions: [],
+      stacking: 'EXCLUSIVE',
+      stackingGroup: 'caja',
+      prioridad: 100
+    };
+    const b = {
+      ...efectivoRule,
+      id: 3,
+      code: 'B_20',
+      benefitValue: 20,
+      conditions: [],
+      stacking: 'EXCLUSIVE',
+      stackingGroup: 'caja',
+      prioridad: 50
+    };
+    const r = evaluateSettlementRules([a, b], {
+      layer: 'SETTLEMENT',
+      paymentMethodConfigId: 1,
+      saldoPendiente: 10000,
+      mode: 'settle'
+    });
+    expect(r.aplica).toBe(true);
+    expect(r.appliedRules).toHaveLength(1);
+    expect(r.appliedRules[0].promotionRuleId).toBe(2);
+    expect(r.porcentaje).toBe(10);
   });
 
   it('SETTLEMENT: applyAutomatics=false omite AUTO y deja opcionales', () => {
@@ -867,7 +899,6 @@ describe('promotionEngine rate + stacking', () => {
       benefitValue: 0,
       benefitValueManual: true,
       benefitBase: 'DEBT_CANCELLED',
-      aplicaEnParcial: true,
       aplicaEnSeña: true,
       conditions: []
     };

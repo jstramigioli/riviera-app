@@ -9,7 +9,6 @@ const efectivo10 = {
   descuentoActivo: true,
   descuentoTipo: 'PERCENT',
   descuentoValor: 10,
-  aplicaEnParcial: true,
   aplicaEnSeña: true
 };
 

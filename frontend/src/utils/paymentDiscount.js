@@ -55,18 +55,6 @@ export function computeDiscountFromReceived({
         porcentaje: null
       };
     }
-    if (config.aplicaEnParcial === false && saldoPendiente != null) {
-      if (roundMoney(dinero + fijo) + 0.005 < toNumber(saldoPendiente)) {
-        return {
-          aplica: false,
-          dineroARS: dinero,
-          descuentoARS: 0,
-          creditoARS: dinero,
-          porcentaje: null,
-          motivoNoAplica: 'solo_pago_total'
-        };
-      }
-    }
     return {
       aplica: true,
       dineroARS: dinero,
@@ -100,19 +88,6 @@ export function computeDiscountFromReceived({
   }
   const credito = roundMoney(dinero / (1 - rate));
   const descuento = roundMoney(credito - dinero);
-  if (config.aplicaEnParcial === false && saldoPendiente != null) {
-    const saldo = toNumber(saldoPendiente);
-    if (credito + 0.005 < saldo) {
-      return {
-        aplica: false,
-        dineroARS: dinero,
-        descuentoARS: 0,
-        creditoARS: dinero,
-        porcentaje,
-        motivoNoAplica: 'solo_pago_total'
-      };
-    }
-  }
   return {
     aplica: descuento > 0,
     dineroARS: dinero,

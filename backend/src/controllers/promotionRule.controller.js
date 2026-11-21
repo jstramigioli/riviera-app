@@ -93,6 +93,13 @@ function normalizeConditions(raw, { allowedTypes = null } = {}) {
     .filter(Boolean);
 }
 
+/** DESCUENTO / SETTLEMENT: solo % o monto fijo (no fijo/noche ni noches gratis). */
+function assertSettlementBenefitType(benefitType) {
+  const t = String(benefitType || 'PERCENT').toUpperCase();
+  if (t === 'PERCENT' || t === 'FIXED') return null;
+  return 'Los descuentos solo admiten beneficio porcentaje o monto fijo';
+}
+
 function assertSettlementConditions(conditions, rawCount) {
   if (!Array.isArray(conditions)) return null;
   if (rawCount != null && conditions.length < rawCount) {
@@ -166,8 +173,17 @@ exports.createPromotionRule = async (req, res) => {
 
     const benefitType = String(body.benefitType || 'PERCENT').toUpperCase();
     const modality = String(body.modality || 'AUTO').toUpperCase();
-    const stacking = String(body.stacking || 'EXCLUSIVE').toUpperCase();
     const kind = String(body.kind || 'DESCUENTO').toUpperCase();
+    // DESCUENTO: default STACKABLE (se suman). PROMO: EXCLUSIVE.
+    const stacking = String(
+      body.stacking || (kind === 'PROMO' ? 'EXCLUSIVE' : 'STACKABLE')
+    ).toUpperCase();
+    if (kind === 'DESCUENTO') {
+      const benefitTypeError = assertSettlementBenefitType(benefitType);
+      if (benefitTypeError) {
+        return res.status(400).json({ error: benefitTypeError });
+      }
+    }
     const { layer, benefitBase } = resolveLayerAndBenefitBase({
       kind,
       benefitType,
@@ -207,7 +223,6 @@ exports.createPromotionRule = async (req, res) => {
         stackingGroup: body.stackingGroup ? String(body.stackingGroup).trim() : null,
         vigenteDesde: body.vigenteDesde ? new Date(body.vigenteDesde) : null,
         vigenteHasta: body.vigenteHasta ? new Date(body.vigenteHasta) : null,
-        aplicaEnParcial: body.aplicaEnParcial !== false,
         aplicaEnSeña: body.aplicaEnSeña !== false,
         benefitType,
         benefitValue: new Decimal(benefitValueManual ? 0 : Number(body.benefitValue) || 0),
@@ -279,7 +294,6 @@ exports.updatePromotionRule = async (req, res) => {
     if (body.vigenteHasta !== undefined) {
       data.vigenteHasta = body.vigenteHasta ? new Date(body.vigenteHasta) : null;
     }
-    if (body.aplicaEnParcial != null) data.aplicaEnParcial = Boolean(body.aplicaEnParcial);
     if (body.aplicaEnSeña != null) data.aplicaEnSeña = Boolean(body.aplicaEnSeña);
     if (body.benefitType != null) data.benefitType = String(body.benefitType).toUpperCase();
     if (
@@ -296,6 +310,19 @@ exports.updatePromotionRule = async (req, res) => {
       });
       data.layer = resolved.layer;
       data.benefitBase = resolved.benefitBase;
+    }
+    {
+      const kindFinal = String(
+        data.kind != null ? data.kind : existing.kind || 'DESCUENTO'
+      ).toUpperCase();
+      const benefitTypeFinal =
+        data.benefitType != null ? data.benefitType : existing.benefitType;
+      if (kindFinal === 'DESCUENTO') {
+        const benefitTypeError = assertSettlementBenefitType(benefitTypeFinal);
+        if (benefitTypeError) {
+          return res.status(400).json({ error: benefitTypeError });
+        }
+      }
     }
     if (body.benefitValueManual != null) {
       data.benefitValueManual = Boolean(body.benefitValueManual);

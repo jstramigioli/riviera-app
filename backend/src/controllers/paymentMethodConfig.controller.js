@@ -72,7 +72,6 @@ exports.createPaymentMethodConfig = async (req, res) => {
         descuentoActivo: false,
         descuentoTipo: 'PERCENT',
         descuentoValor: new Decimal(0),
-        aplicaEnParcial: true,
         aplicaEnSeña: true,
         notas: body.notas != null ? String(body.notas).trim() || null : null
       }

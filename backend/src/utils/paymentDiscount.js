@@ -81,19 +81,6 @@ function computeDiscountFromReceived({
         motivoNoAplica: 'valor_cero'
       };
     }
-    if (config.aplicaEnParcial === false && saldoPendiente != null) {
-      const creditoTentativo = roundMoney(dinero + fijo);
-      if (creditoTentativo + 0.005 < toNumber(saldoPendiente)) {
-        return {
-          aplica: false,
-          dineroARS: dinero,
-          descuentoARS: 0,
-          creditoARS: dinero,
-          porcentaje: null,
-          motivoNoAplica: 'solo_pago_total'
-        };
-      }
-    }
     return {
       aplica: true,
       dineroARS: dinero,
@@ -130,21 +117,6 @@ function computeDiscountFromReceived({
 
   const credito = roundMoney(dinero / (1 - rate));
   const descuento = roundMoney(credito - dinero);
-
-  // Si aplicaEnParcial=false: solo cuando el crédito salda (o supera) el saldo pendiente.
-  if (config.aplicaEnParcial === false && saldoPendiente != null) {
-    const saldo = toNumber(saldoPendiente);
-    if (credito + 0.005 < saldo) {
-      return {
-        aplica: false,
-        dineroARS: dinero,
-        descuentoARS: 0,
-        creditoARS: dinero,
-        porcentaje,
-        motivoNoAplica: 'solo_pago_total'
-      };
-    }
-  }
 
   return {
     aplica: descuento > 0,

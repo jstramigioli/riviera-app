@@ -60,7 +60,6 @@ async function syncPaymentMethodMirrors(db, { paymentMethodConfigIds } = {}) {
           descuentoActivo: false,
           descuentoTipo: 'PERCENT',
           descuentoValor: new Decimal(0),
-          aplicaEnParcial: true,
           aplicaEnSeña: true
         }
       });
@@ -76,7 +75,6 @@ async function syncPaymentMethodMirrors(db, { paymentMethodConfigIds } = {}) {
         descuentoActivo: true,
         descuentoTipo: tipo,
         descuentoValor: new Decimal(toNumber(primary.benefitValue)),
-        aplicaEnParcial: primary.aplicaEnParcial !== false,
         aplicaEnSeña: primary.aplicaEnSeña !== false
       }
     });

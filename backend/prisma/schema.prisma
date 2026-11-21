@@ -379,7 +379,6 @@ model PaymentMethodConfig {
   descuentoTipo       PaymentDiscountTipo  @default(PERCENT)
   /// Legacy / mirror de regla PAYMENT_METHOD. No hardcodear lógica de negocio aquí.
   descuentoValor      Decimal              @default(0) @db.Decimal(10, 4)
-  aplicaEnParcial     Boolean              @default(true)
   aplicaEnSeña        Boolean              @default(true)
   notas               String?
   createdAt           DateTime             @default(now())
@@ -404,7 +403,6 @@ model PromotionRule {
   stackingGroup        String?
   vigenteDesde         DateTime?
   vigenteHasta         DateTime?
-  aplicaEnParcial      Boolean                @default(true)
   aplicaEnSeña         Boolean                @default(true)
   benefitType          PromotionBenefitType   @default(PERCENT)
   benefitValue         Decimal                @default(0) @db.Decimal(12, 4)

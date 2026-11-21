@@ -531,7 +531,7 @@ exports.createCobro = async (req, res) => {
   }
 };
 
-// Actualizar un cobro existente
+// Actualizar un cobro existente (recalcula DiscountApplication si cambian monto/método/etc.)
 exports.updateCobro = async (req, res) => {
   const { id } = req.params;
   const {
@@ -545,33 +545,50 @@ exports.updateCobro = async (req, res) => {
     notas,
     fecha,
     motivo,
-    retirado
+    retirado,
+    paymentMethodConfigId,
+    selectedRuleIds,
+    promotionRuleIds,
+    deselectedRuleIds,
+    benefitValueByRuleId,
+    applySuggestedDefaults,
+    applyAutomatics
   } = req.body;
 
   try {
-    // Obtener el cobro actual para validaciones
+    const cobroId = parseInt(id, 10);
     const pagoActual = await prisma.cobro.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: cobroId },
+      include: {
+        imputaciones: { orderBy: { ordenIndex: 'asc' } },
+        discountApplications: {
+          include: { reversiones: { select: { id: true } } }
+        }
+      }
     });
 
     if (!pagoActual) {
       return res.status(404).json({ error: 'Cobro no encontrado' });
     }
 
+    if (isDevolucionMotivo(pagoActual.motivo)) {
+      return res.status(400).json({
+        error: 'No se puede editar una devolución desde este flujo'
+      });
+    }
+
     const dataToUpdate = {};
-    
-    // Validar moneda si se proporciona
+
     if (moneda !== undefined) {
       const monedasValidas = ['ARS', 'USD'];
       if (!monedasValidas.includes(moneda)) {
-        return res.status(400).json({ 
-          error: `Moneda inválida. Debe ser una de: ${monedasValidas.join(', ')}` 
+        return res.status(400).json({
+          error: `Moneda inválida. Debe ser una de: ${monedasValidas.join(', ')}`
         });
       }
       dataToUpdate.moneda = moneda;
     }
 
-    // Validar tipo de cambio si se proporciona
     if (tipoCambio !== undefined) {
       if (tipoCambio <= 0) {
         return res.status(400).json({ error: 'El tipo de cambio debe ser mayor a 0' });
@@ -579,7 +596,6 @@ exports.updateCobro = async (req, res) => {
       dataToUpdate.tipoCambio = new Decimal(tipoCambio);
     }
 
-    // Validar monto si se proporciona
     if (monto !== undefined) {
       if (monto <= 0) {
         return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
@@ -587,7 +603,6 @@ exports.updateCobro = async (req, res) => {
       dataToUpdate.monto = new Decimal(monto);
     }
 
-    // Validar campos de tarjeta si se cambia el método a Tarjeta Debito o Credito
     if (metodo !== undefined && ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
       if (!numeroTarjeta) {
         return res.status(400).json({ error: 'El número de tarjeta es requerido para cobros con tarjeta' });
@@ -597,42 +612,57 @@ exports.updateCobro = async (req, res) => {
       }
     }
 
-    // Calcular monto en ARS si se cambió monto, moneda o tipo de cambio
     const monedaFinal = moneda !== undefined ? moneda : pagoActual.moneda;
     const montoFinal = monto !== undefined ? monto : parseFloat(pagoActual.monto);
-    const tipoCambioFinal = tipoCambio !== undefined ? tipoCambio : (pagoActual.tipoCambio ? parseFloat(pagoActual.tipoCambio) : null);
+    const tipoCambioFinal =
+      tipoCambio !== undefined
+        ? tipoCambio
+        : pagoActual.tipoCambio
+          ? parseFloat(pagoActual.tipoCambio)
+          : null;
 
     if (monedaFinal === 'USD' && !tipoCambioFinal) {
-      return res.status(400).json({ 
-        error: 'Para cobros en USD, el tipo de cambio es requerido' 
+      return res.status(400).json({
+        error: 'Para cobros en USD, el tipo de cambio es requerido'
       });
     }
 
+    let montoARSFinal = toNumber(pagoActual.montoARS);
     if (monto !== undefined || moneda !== undefined || tipoCambio !== undefined) {
       if (monedaFinal === 'USD') {
-        dataToUpdate.montoARS = new Decimal(montoFinal).mul(new Decimal(tipoCambioFinal));
+        montoARSFinal = roundMoney(Number(montoFinal) * Number(tipoCambioFinal));
+        dataToUpdate.montoARS = new Decimal(montoARSFinal);
       } else {
-        dataToUpdate.montoARS = new Decimal(montoFinal);
+        montoARSFinal = roundMoney(Number(montoFinal));
+        dataToUpdate.montoARS = new Decimal(montoARSFinal);
       }
     }
 
+    const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
     if (metodo !== undefined) dataToUpdate.metodo = metodo;
     if (numeroTarjeta !== undefined) dataToUpdate.numeroTarjeta = numeroTarjeta;
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
+
+    let motivoFinal = pagoActual.motivo;
     if (motivo !== undefined) {
-      const motivoNorm = normalizePagoMotivo(motivo);
+      const motivoNorm = normalizeCobroMotivo(motivo);
       if (!motivoNorm) {
         return res.status(400).json({
-          error: 'Motivo inválido. Debe ser Pago, Seña o Devolución'
+          error: 'Motivo inválido. Debe ser Cobro, Seña o Devolución'
         });
       }
+      if (isDevolucionMotivo(motivoNorm)) {
+        return res.status(400).json({
+          error: 'No se puede convertir un cobro en devolución desde la edición'
+        });
+      }
+      motivoFinal = motivoNorm;
       dataToUpdate.motivo = motivoNorm;
     }
 
     if (retirado !== undefined) {
-      const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
       if (isTransferencia(metodoFinal)) {
         return res.status(400).json({
           error: 'Retirado no aplica a cobros por Transferencia'
@@ -641,15 +671,181 @@ exports.updateCobro = async (req, res) => {
       dataToUpdate.retirado = Boolean(retirado);
     }
 
-    const pagoActualizado = await prisma.cobro.update({
-      where: { id: parseInt(id) },
-      data: dataToUpdate,
-      include: { factura: true, ...PAGO_ADJUNTO_INCLUDE }
+    const methodConfig = await resolvePaymentMethodConfig(prisma, {
+      paymentMethodConfigId:
+        paymentMethodConfigId !== undefined
+          ? paymentMethodConfigId
+          : pagoActual.paymentMethodConfigId,
+      metodo: metodoFinal
     });
+    if (methodConfig?.id != null) {
+      dataToUpdate.paymentMethodConfigId = methodConfig.id;
+    } else if (paymentMethodConfigId === null || metodo !== undefined) {
+      dataToUpdate.paymentMethodConfigId = null;
+    }
+
+    const forwardDas = (pagoActual.discountApplications || []).filter(
+      (d) => d.tipo !== 'REVERSAL' && toNumber(d.montoARS) > 0
+    );
+    if (forwardDas.some((d) => (d.reversiones || []).length > 0)) {
+      return res.status(400).json({
+        error:
+          'Este cobro tiene devoluciones que revirtieron el descuento; no se puede editar el monto/método sin anular esas devoluciones'
+      });
+    }
+
+    const bodySelected = []
+      .concat(selectedRuleIds || [])
+      .concat(promotionRuleIds || [])
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isFinite(n));
+    const acceptedDeselected = Array.isArray(deselectedRuleIds)
+      ? deselectedRuleIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n))
+      : [];
+    const acceptedBenefitValues =
+      benefitValueByRuleId && typeof benefitValueByRuleId === 'object'
+        ? benefitValueByRuleId
+        : {};
+    const acceptedApplySuggested =
+      applySuggestedDefaults == null ? true : Boolean(applySuggestedDefaults);
+    const acceptedApplyAutomatics =
+      applyAutomatics == null ? true : Boolean(applyAutomatics);
+
+    // Si el FE no manda selección, reusa las reglas del snapshot previo.
+    let acceptedRuleIds = bodySelected;
+    if (!acceptedRuleIds.length && forwardDas.length) {
+      const fromSnapshot = new Set();
+      for (const da of forwardDas) {
+        const snap = da.appliedRulesJson;
+        if (Array.isArray(snap)) {
+          for (const r of snap) {
+            const rid = r?.promotionRuleId ?? r?.id;
+            if (rid != null && Number.isFinite(Number(rid))) fromSnapshot.add(Number(rid));
+          }
+        } else if (da.promotionRuleId != null) {
+          fromSnapshot.add(Number(da.promotionRuleId));
+        }
+      }
+      acceptedRuleIds = Array.from(fromSnapshot);
+    }
+
+    const oldMontoARS = toNumber(pagoActual.montoARS);
+    const imputaciones = pagoActual.imputaciones || [];
+
+    const pagoActualizado = await prisma.$transaction(async (tx) => {
+      await tx.cobro.update({
+        where: { id: cobroId },
+        data: dataToUpdate
+      });
+
+      // Sincronizar montos de imputación al nuevo total (prorrateo si multi).
+      if (imputaciones.length === 1) {
+        await tx.cobroImputacion.update({
+          where: { id: imputaciones[0].id },
+          data: {
+            montoARS: new Decimal(montoARSFinal),
+            bonificacionARS: new Decimal(0)
+          }
+        });
+      } else if (imputaciones.length > 1 && oldMontoARS > 0) {
+        const factor = montoARSFinal / oldMontoARS;
+        let assigned = 0;
+        for (let i = 0; i < imputaciones.length; i += 1) {
+          const imp = imputaciones[i];
+          const next =
+            i === imputaciones.length - 1
+              ? roundMoney(montoARSFinal - assigned)
+              : roundMoney(toNumber(imp.montoARS) * factor);
+          assigned = roundMoney(assigned + next);
+          await tx.cobroImputacion.update({
+            where: { id: imp.id },
+            data: {
+              montoARS: new Decimal(next),
+              bonificacionARS: new Decimal(0)
+            }
+          });
+        }
+      } else if (imputaciones.length > 1) {
+        for (const imp of imputaciones) {
+          await tx.cobroImputacion.update({
+            where: { id: imp.id },
+            data: { bonificacionARS: new Decimal(0) }
+          });
+        }
+      }
+
+      if (forwardDas.length) {
+        await tx.discountApplication.deleteMany({
+          where: { id: { in: forwardDas.map((d) => d.id) } }
+        });
+      }
+
+      const refreshedImps = await tx.cobroImputacion.findMany({
+        where: { cobroId },
+        orderBy: { ordenIndex: 'asc' }
+      });
+
+      // Recalcular DA por imputación (mismo criterio que create).
+      for (const imp of refreshedImps) {
+        const dineroImp = Math.abs(toNumber(imp.montoARS));
+        if (dineroImp <= 0) continue;
+        const { balance: balanceAntes } = await loadAccountFinancialParts(tx, imp.accountId);
+        // El cobro ya está actualizado: restar este crédito de caja del saldo para
+        // no contar dos veces el dinero de esta fila al estimar deuda previa.
+        const saldoAntes = roundMoney(balanceAntes.saldo + dineroImp);
+        const da = await createForwardDiscount(tx, {
+          accountId: imp.accountId,
+          cobroId,
+          cobroImputacionId: imp.id,
+          config: methodConfig,
+          motivo: motivoFinal,
+          dineroARS: dineroImp,
+          monedaCobro: monedaFinal,
+          tipoCambio: tipoCambioFinal,
+          saldoPendienteAntes: saldoAntes,
+          selectedRuleIds: acceptedRuleIds,
+          deselectedRuleIds: acceptedDeselected,
+          benefitValueByRuleId: acceptedBenefitValues,
+          applySuggestedDefaults: acceptedApplySuggested,
+          applyAutomatics: acceptedApplyAutomatics
+        });
+        if (da) {
+          await tx.cobroImputacion.update({
+            where: { id: imp.id },
+            data: { bonificacionARS: da.montoARS }
+          });
+        }
+      }
+
+      const accountIds = [
+        ...new Set(refreshedImps.map((i) => i.accountId).filter(Boolean))
+      ];
+      if (pagoActual.accountId && !accountIds.includes(pagoActual.accountId)) {
+        accountIds.push(pagoActual.accountId);
+      }
+      for (const accountId of accountIds) {
+        const { balance } = await loadAccountFinancialParts(tx, accountId);
+        await syncAccountStatusFromBalance(tx, accountId, balance.saldo);
+      }
+
+      return tx.cobro.findUnique({
+        where: { id: cobroId },
+        include: {
+          factura: true,
+          discountApplications: true,
+          imputaciones: true,
+          ...PAGO_ADJUNTO_INCLUDE
+        }
+      });
+    });
+
     res.json(pagoActualizado);
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Cobro no encontrado' });
+    }
+    if (error.statusCode === 400) {
+      return res.status(400).json({ error: error.message });
     }
     console.error('Error actualizando cobro:', error);
     res.status(500).json({ error: 'Error al actualizar el cobro', details: error.message });

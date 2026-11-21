@@ -18,7 +18,8 @@ const EMPTY_FORM = {
   kind: 'DESCUENTO',
   activo: true,
   modality: 'AUTO',
-  aplicaEnParcial: true,
+  stacking: 'STACKABLE',
+  stackingGroup: '',
   benefitType: 'PERCENT',
   benefitValue: '10',
   benefitValueManual: false,
@@ -32,6 +33,15 @@ const MODALITY_LABEL = {
   MANUAL: 'Opcional (por defecto desactivado)',
   SUGERIDA: 'Opcional (por defecto activado)'
 };
+
+const STACKING_LABEL = {
+  STACKABLE: 'Se suman',
+  EXCLUSIVE: 'Exclusivo (uno solo)',
+  BEST_OF: 'El mejor del grupo'
+};
+
+const STACKING_HELP =
+  'Sin grupo, cada regla aplica por su lado. Para que EXCLUSIVE o «el mejor» compitan, poné el mismo grupo de stacking en ambas. STACKABLE suma aunque compartan grupo.';
 
 /** Condiciones de promociones (estadía / cotización). */
 const PROMO_CONDITION_VARS = [
@@ -702,7 +712,14 @@ function PromocionesTab() {
 
   const openCreate = (kind) => {
     setEditingId(null);
-    setForm({ ...EMPTY_FORM, kind, conditions: [] });
+    const isPromo = kind === 'PROMO';
+    setForm({
+      ...EMPTY_FORM,
+      kind,
+      stacking: isPromo ? 'EXCLUSIVE' : 'STACKABLE',
+      stackingGroup: '',
+      conditions: []
+    });
     setTouched({});
     setShowForm(true);
     setError(null);
@@ -710,13 +727,20 @@ function PromocionesTab() {
 
   const openEdit = (row) => {
     setEditingId(row.id);
+    const kind = row.kind || 'DESCUENTO';
+    let benefitType = row.benefitType || 'PERCENT';
+    // DESCUENTO solo admite % / fijo; coerción al editar reglas viejas.
+    if (kind === 'DESCUENTO' && benefitType !== 'PERCENT' && benefitType !== 'FIXED') {
+      benefitType = 'PERCENT';
+    }
     setForm({
       label: row.label || '',
-      kind: row.kind || 'DESCUENTO',
+      kind,
       activo: row.activo !== false,
       modality: row.modality || 'AUTO',
-      aplicaEnParcial: row.aplicaEnParcial !== false,
-      benefitType: row.benefitType || 'PERCENT',
+      stacking: row.stacking || (kind === 'PROMO' ? 'EXCLUSIVE' : 'STACKABLE'),
+      stackingGroup: row.stackingGroup || '',
+      benefitType,
       benefitValue: String(row.benefitValue ?? 0),
       benefitValueManual: Boolean(row.benefitValueManual),
       benefitCapARS: row.benefitCapARS != null ? String(row.benefitCapARS) : '',
@@ -779,10 +803,17 @@ function PromocionesTab() {
       type: c.type,
       params: paramsFromCondition(c)
     }));
-    const isFreeNights = form.benefitType === 'FREE_NIGHTS';
-    // PROMO (y FREE_NIGHTS) → RATE para que Consulta/cotización las vea.
-    // DESCUENTO → SETTLEMENT (caja / medios de pago).
-    const isRateLayer = isFreeNights || form.kind === 'PROMO';
+    const isPromo = form.kind === 'PROMO';
+    // DESCUENTO → solo PERCENT / FIXED en SETTLEMENT.
+    // PROMO (y FREE_NIGHTS) → RATE para Consulta/cotización.
+    let benefitType = form.benefitType;
+    if (!isPromo && benefitType !== 'PERCENT' && benefitType !== 'FIXED') {
+      benefitType = 'PERCENT';
+    }
+    const isFreeNights = isPromo && benefitType === 'FREE_NIGHTS';
+    const isRateLayer = isPromo || isFreeNights;
+    const stacking = String(form.stacking || (isPromo ? 'EXCLUSIVE' : 'STACKABLE')).toUpperCase();
+    const stackingGroup = String(form.stackingGroup || '').trim() || null;
     return {
       code: editingId ? undefined : slugCodeFromLabel(form.label),
       label: form.label,
@@ -792,13 +823,12 @@ function PromocionesTab() {
       prioridad: 100,
       modality: form.modality,
       layer: isRateLayer ? 'RATE' : 'SETTLEMENT',
-      stacking: 'EXCLUSIVE',
-      stackingGroup: null,
+      stacking,
+      stackingGroup,
       vigenteDesde: null,
       vigenteHasta: null,
-      aplicaEnParcial: Boolean(form.aplicaEnParcial),
       aplicaEnSeña: true,
-      benefitType: form.benefitType,
+      benefitType,
       benefitValue: form.benefitValueManual ? 0 : Number(form.benefitValue) || 0,
       benefitValueManual: Boolean(form.benefitValueManual),
       benefitBase: isRateLayer ? 'RATE_NIGHT' : 'DEBT_CANCELLED',
@@ -1195,6 +1225,10 @@ function PromocionesTab() {
                   </td>
                   <td>
                     <span className={styles.meta}>{MODALITY_LABEL[row.modality] || row.modality}</span>
+                    <div className={styles.meta}>
+                      {STACKING_LABEL[row.stacking] || row.stacking || '—'}
+                      {row.stackingGroup ? ` · ${row.stackingGroup}` : ''}
+                    </div>
                   </td>
                   <td>
                     {(row.conditions || []).length === 0 ? (
@@ -1373,6 +1407,37 @@ function PromocionesTab() {
                 />
               </label>
             </div>
+            <p className={styles.fieldHint}>
+              Automática se aplica sola. Opcional aparece en el cobro/consulta: «activado»
+              entra por defecto (se puede quitar); «desactivado» se elige con + descuento /
+              + promoción. «Valor manual» (abajo) es independiente: el % o monto se pide al
+              aplicar, no en esta ficha.
+            </p>
+
+            <div className={styles.formGrid}>
+              <label className={styles.field}>
+                Stacking
+                <select
+                  value={form.stacking}
+                  onChange={(e) => setField('stacking', e.target.value)}
+                >
+                  <option value="STACKABLE">Se suman</option>
+                  <option value="EXCLUSIVE">Exclusivo (uno solo)</option>
+                  <option value="BEST_OF">El mejor del grupo</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                Grupo de stacking
+                <input
+                  type="text"
+                  value={form.stackingGroup}
+                  onChange={(e) => setField('stackingGroup', e.target.value)}
+                  placeholder="Vacío = sin competencia"
+                  autoComplete="off"
+                />
+              </label>
+            </div>
+            <p className={styles.fieldHint}>{STACKING_HELP}</p>
 
             <section className={styles.section}>
               <div className={styles.conditionsHeader}>
@@ -1447,8 +1512,12 @@ function PromocionesTab() {
                   >
                     <option value="PERCENT">Porcentaje</option>
                     <option value="FIXED">Fijo ARS</option>
-                    <option value="FIXED_PER_NIGHT">Fijo / noche</option>
-                    <option value="FREE_NIGHTS">Noches sin cargo</option>
+                    {form.kind === 'PROMO' && (
+                      <>
+                        <option value="FIXED_PER_NIGHT">Fijo / noche</option>
+                        <option value="FREE_NIGHTS">Noches sin cargo</option>
+                      </>
+                    )}
                   </select>
                 </label>
                 <label
@@ -1515,23 +1584,12 @@ function PromocionesTab() {
                   <span className={styles.switchLabel}>Valor manual</span>
                 </button>
                 <span className={styles.manualValueHint}>
-                  Se define al aplicar la promoción
+                  {form.kind === 'DESCUENTO'
+                    ? 'El % o monto se pide al cobrar (no en esta ficha)'
+                    : 'El beneficio se pide al cotizar / reservar (no en esta ficha)'}
                 </span>
               </div>
             </div>
-
-            {form.kind === 'DESCUENTO' && (
-              <div className={styles.formFlags}>
-                <label className={styles.check}>
-                  <input
-                    type="checkbox"
-                    checked={form.aplicaEnParcial}
-                    onChange={(e) => setField('aplicaEnParcial', e.target.checked)}
-                  />
-                  Aplica en parcial
-                </label>
-              </div>
-            )}
 
             <div className={styles.formActions}>
               <button
