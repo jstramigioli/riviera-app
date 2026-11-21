@@ -399,15 +399,16 @@ describe('PaymentForm facturación', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('permite elegir USD y aclara Imputar a (sin label Cuenta redundante)', async () => {
+  it('permite elegir USD e Imputar a sin hint redundante', async () => {
     render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
 
     expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-imputa-label')).toHaveTextContent(/Imputar a/i)
-    expect(screen.getByTestId('payment-imputa-hint')).toHaveTextContent(
-      /reserva o cuenta externa/i
-    )
+    expect(screen.queryByTestId('payment-imputa-hint')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Elegí a qué reserva/i)
+    ).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-account-search')).toBeInTheDocument()
     fireEvent.focus(screen.getByTestId('payment-account-search'))
     expect(screen.getByTestId('payment-create-external')).toBeInTheDocument()
@@ -417,6 +418,41 @@ describe('PaymentForm facturación', () => {
     fireEvent.change(moneda, { target: { value: 'USD' } })
     expect(moneda).toHaveValue('USD')
     expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
+  })
+
+  it('USD↔ARS: saldar en ARS muestra ingresado en USD sin forzar moneda', async () => {
+    previewPromotion.mockResolvedValue({ aplica: false })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByTestId('payment-moneda'), { target: { value: 'USD' } })
+    expect(screen.getByTestId('payment-moneda')).toHaveValue('USD')
+
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '50000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(50)
+    })
+    expect(screen.getByTestId('payment-moneda')).toHaveValue('USD')
+    expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(50000)
+
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+      target: { value: '120' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(120000)
+    })
+    expect(screen.getByTestId('payment-moneda')).toHaveValue('USD')
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    await waitFor(() =>
+      expect(createPago).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({ monto: 120, moneda: 'USD', tipoCambio: 1000 })
+      )
+    )
   })
 
   it('tras elegir reserva muestra chip y permite agregar otra; externa vive en el combobox', async () => {

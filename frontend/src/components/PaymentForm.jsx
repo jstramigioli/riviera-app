@@ -66,6 +66,17 @@ const SYSTEM_CURRENCIES = [
   { code: 'USD', label: 'Dólares (USD)' }
 ];
 
+/** Convierte un monto ARS al valor de caja en la moneda del formulario. */
+function arsToFormMonto(ars, moneda, tipoCambio) {
+  const amount = Number(ars) || 0;
+  if (moneda === 'USD') {
+    const tc = parseFloat(tipoCambio) || 0;
+    if (!(tc > 0)) return '';
+    return String(roundMoney(amount / tc));
+  }
+  return String(roundMoney(amount));
+}
+
 function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
 }
@@ -393,12 +404,11 @@ const PaymentForm = ({
         originalPagoARS: origenPagoARS,
         originalDiscountARS: origenDescuentoARS
       });
-      const nextCash = String(roundMoney(r.cashARS));
-      setFormData((prev) =>
-        prev.monto === nextCash && prev.moneda === 'ARS'
-          ? prev
-          : { ...prev, monto: nextCash, moneda: 'ARS' }
-      );
+      setFormData((prev) => {
+        const nextCash = arsToFormMonto(r.cashARS, prev.moneda, prev.tipoCambio);
+        if (nextCash === '' || prev.monto === nextCash) return prev;
+        return { ...prev, monto: nextCash };
+      });
       return;
     }
 
@@ -417,7 +427,9 @@ const PaymentForm = ({
     origenDescuentoARS,
     amountMode,
     montoASaldarARS,
-    montoARS
+    montoARS,
+    formData.moneda,
+    formData.tipoCambio
   ]);
 
   useEffect(() => {
@@ -482,22 +494,23 @@ const PaymentForm = ({
             : null
         );
         setOptionalChoices(collectOptionalPromoChoices(preview, mapped?.appliedRules || []));
-        // Sync peer field: con descuento → preview; sin descuento / sin montos del motor → 1:1.
-        // Antes solo corría con mapped.aplica → sin SETTLEMENT los campos quedaban desfasados.
+        // Sync peer field: con descuento → preview; sin descuento → 1:1.
+        // Respeta la moneda elegida (USD↔ARS) sin forzar ARS.
         if (!probeOnly) {
           if (hasSaldar) {
-            const nextIngresado = String(
-              roundMoney(
-                mapped?.aplica && mapped.dineroARS != null
-                  ? mapped.dineroARS
-                  : montoASaldarARS
-              )
-            );
-            setFormData((prev) =>
-              prev.monto === nextIngresado && prev.moneda === 'ARS'
-                ? prev
-                : { ...prev, monto: nextIngresado, moneda: 'ARS' }
-            );
+            const peerArs =
+              mapped?.aplica && mapped.dineroARS != null
+                ? mapped.dineroARS
+                : montoASaldarARS;
+            setFormData((prev) => {
+              const nextIngresado = arsToFormMonto(
+                peerArs,
+                prev.moneda,
+                prev.tipoCambio
+              );
+              if (nextIngresado === '' || prev.monto === nextIngresado) return prev;
+              return { ...prev, monto: nextIngresado };
+            });
           } else if (hasIngresado) {
             const nextSaldar = String(
               roundMoney(
@@ -518,12 +531,15 @@ const PaymentForm = ({
           // Fallback 1:1 si el preview falló (misma regla que sin descuento).
           if (!probeOnly) {
             if (hasSaldar) {
-              const nextIngresado = String(roundMoney(montoASaldarARS));
-              setFormData((prev) =>
-                prev.monto === nextIngresado && prev.moneda === 'ARS'
-                  ? prev
-                  : { ...prev, monto: nextIngresado, moneda: 'ARS' }
-              );
+              setFormData((prev) => {
+                const nextIngresado = arsToFormMonto(
+                  montoASaldarARS,
+                  prev.moneda,
+                  prev.tipoCambio
+                );
+                if (nextIngresado === '' || prev.monto === nextIngresado) return prev;
+                return { ...prev, monto: nextIngresado };
+              });
             } else if (hasIngresado) {
               const nextSaldar = String(roundMoney(montoARS));
               setMontoASaldar((prev) => (prev === nextSaldar ? prev : nextSaldar));
@@ -543,6 +559,8 @@ const PaymentForm = ({
     montoARS,
     montoASaldarARS,
     formData.metodo,
+    formData.moneda,
+    formData.tipoCambio,
     selectedMethodConfig?.id,
     saldoPendiente,
     motivoActual,
@@ -807,10 +825,6 @@ const PaymentForm = ({
         setMontoASaldar('');
       }
     }
-    if (field === 'moneda' && value !== 'ARS') {
-      // Monto a saldar es ARS de cuenta; otra moneda usa modo ingresado/devuelto como fuente.
-      setAmountMode(AMOUNT_MODE_INGRESADO);
-    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -819,9 +833,7 @@ const PaymentForm = ({
     setAmountMode(AMOUNT_MODE_SALDAR);
     setMontoASaldar(value);
     if (!value || !(parseFloat(value) > 0)) {
-      setFormData((prev) => ({ ...prev, monto: '', moneda: 'ARS' }));
-    } else {
-      setFormData((prev) => (prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }));
+      setFormData((prev) => ({ ...prev, monto: '' }));
     }
   };
 
@@ -1198,11 +1210,17 @@ const PaymentForm = ({
         : undefined;
 
       // Devolución: monto positivo en UI (efectivo); el backend lo guarda negativo.
-      // Modo saldar: se registra el efectivo (pago = abono; devolución = a devolver).
+      // Modo saldar: se registra el efectivo en la moneda elegida (USD↔ARS).
+      const submitMoneda = formData.moneda;
       const submitMonto =
-        amountMode === AMOUNT_MODE_SALDAR ? tenderMontoARS : parseFloat(formData.monto);
-      const submitMoneda =
-        amountMode === AMOUNT_MODE_SALDAR ? 'ARS' : formData.moneda;
+        amountMode === AMOUNT_MODE_SALDAR
+          ? submitMoneda === 'USD'
+            ? (() => {
+                const tc = parseFloat(formData.tipoCambio) || 0;
+                return tc > 0 ? roundMoney(tenderMontoARS / tc) : tenderMontoARS;
+              })()
+            : tenderMontoARS
+          : parseFloat(formData.monto);
       const fechaIso =
         localDateInputToIso(formData.fecha) || todayAsLocalDate().toISOString();
       const pagoData = {
@@ -1372,10 +1390,6 @@ const PaymentForm = ({
                   >
                     Imputar a
                   </label>
-                  <p className={styles.allocationFieldHint} data-testid="payment-imputa-hint">
-                    Elegí a qué reserva o cuenta externa se aplica este pago. Podés repartirlo
-                    en más de una.
-                  </p>
                 </div>
                 <div className={styles.allocationsList} data-testid="payment-allocations">
                   {allocations.map((alloc) => {
@@ -1593,7 +1607,110 @@ const PaymentForm = ({
                 data-testid="payment-fecha"
               />
             </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="payment-metodo">
+                {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+              </label>
+              <select
+                id="payment-metodo"
+                value={formData.metodo}
+                onChange={(e) => handleInputChange('metodo', e.target.value)}
+                required
+                disabled={loading || methodConfigs.length === 0}
+              >
+                {methodConfigs.length === 0 ? (
+                  <option value="">Cargando medios…</option>
+                ) : (
+                  methodConfigs.map((m) => (
+                    <option key={m.id} value={m.label}>
+                      {m.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="payment-moneda">Moneda *</label>
+              <select
+                id="payment-moneda"
+                value={formData.moneda}
+                onChange={(e) => handleInputChange('moneda', e.target.value)}
+                required
+                disabled={loading}
+                data-testid="payment-moneda"
+              >
+                {SYSTEM_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {formData.moneda === 'USD' ? (
+              <div className={styles.formGroup}>
+                <label htmlFor="payment-tc">Tipo de cambio *</label>
+                <input
+                  id="payment-tc"
+                  type="number"
+                  value={formData.tipoCambio}
+                  onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                  placeholder="1000.00"
+                  step="0.01"
+                  min="0"
+                  required
+                />
+                {tipoCambioGlobal != null && (
+                  <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                )}
+              </div>
+            ) : !isDevolucion && canUseSena ? (
+              <div className={styles.formGroup}>
+                <span className={styles.fieldLabel} id="payment-sena-label">
+                  Seña
+                </span>
+                <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                  <input
+                    id="payment-sena-toggle"
+                    type="checkbox"
+                    checked={esSena}
+                    disabled={loading}
+                    aria-labelledby="payment-sena-label"
+                    onChange={(e) => setEsSena(e.target.checked)}
+                  />
+                  <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                </label>
+              </div>
+            ) : (
+              <div className={styles.formGroup} aria-hidden="true" />
+            )}
+          </div>
+
+          {formData.moneda === 'USD' && !isDevolucion && canUseSena ? (
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <span className={styles.fieldLabel} id="payment-sena-label">
+                  Seña
+                </span>
+                <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                  <input
+                    id="payment-sena-toggle"
+                    type="checkbox"
+                    checked={esSena}
+                    disabled={loading}
+                    aria-labelledby="payment-sena-label"
+                    onChange={(e) => setEsSena(e.target.checked)}
+                  />
+                  <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                </label>
+              </div>
+              <div className={styles.formGroup} aria-hidden="true" />
+            </div>
+          ) : null}
 
           <div
             className={`${styles.amountModes} ${styles.amountModesSameBox}`}
@@ -1633,12 +1750,7 @@ const PaymentForm = ({
                 type="number"
                 value={montoASaldar}
                 onChange={(e) => handleMontoASaldarChange(e.target.value)}
-                onFocus={() => {
-                  setAmountMode(AMOUNT_MODE_SALDAR);
-                  setFormData((prev) =>
-                    prev.moneda === 'ARS' ? prev : { ...prev, moneda: 'ARS' }
-                  );
-                }}
+                onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
                 placeholder={
                   isDevolucion && selectedPagoOrigen
                     ? formatArs(roundMoney(origenPagoARS + origenDescuentoARS))
@@ -1670,91 +1782,6 @@ const PaymentForm = ({
                 </span>
               ) : null}
             </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-moneda">Moneda *</label>
-              <select
-                id="payment-moneda"
-                value={formData.moneda}
-                onChange={(e) => handleInputChange('moneda', e.target.value)}
-                required
-                disabled={loading}
-                data-testid="payment-moneda"
-              >
-                {SYSTEM_CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {formData.moneda === 'USD' && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-tc">Tipo de cambio *</label>
-                <input
-                  id="payment-tc"
-                  type="number"
-                  value={formData.tipoCambio}
-                  onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                  placeholder="1000.00"
-                  step="0.01"
-                  min="0"
-                  required
-                />
-                {tipoCambioGlobal != null && (
-                  <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-metodo">
-                {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
-              </label>
-              <select
-                id="payment-metodo"
-                value={formData.metodo}
-                onChange={(e) => handleInputChange('metodo', e.target.value)}
-                required
-                disabled={loading || methodConfigs.length === 0}
-              >
-                {methodConfigs.length === 0 ? (
-                  <option value="">Cargando medios…</option>
-                ) : (
-                  methodConfigs.map((m) => (
-                    <option key={m.id} value={m.label}>
-                      {m.label}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            {!isDevolucion && canUseSena && (
-              <div className={styles.formGroup}>
-                <span className={styles.fieldLabel} id="payment-sena-label">
-                  Seña
-                </span>
-                <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                  <input
-                    id="payment-sena-toggle"
-                    type="checkbox"
-                    checked={esSena}
-                    disabled={loading}
-                    aria-labelledby="payment-sena-label"
-                    onChange={(e) => setEsSena(e.target.checked)}
-                  />
-                  <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                </label>
-              </div>
-            )}
           </div>
 
           {isDevolucion && (
