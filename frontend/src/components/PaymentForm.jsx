@@ -2471,8 +2471,8 @@ const PaymentForm = ({
               </>
             )}
             {saldoProyectadoARS != null && (
-              <div className={styles.summaryRow} data-testid="summary-saldo-proyectado">
-                <span>Saldo proyectado:</span>
+              <div className={styles.summaryRow} data-testid="summary-saldo">
+                <span>Saldo:</span>
                 <span className={styles.amount}>{formatMoneyArs(saldoProyectadoARS)}</span>
               </div>
             )}

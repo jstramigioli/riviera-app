@@ -687,7 +687,7 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByText(/Recibe \/ registra/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Crédito a cuenta/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Saldo restante/i)).not.toBeInTheDocument()
-    expect(screen.getByTestId('summary-saldo-proyectado')).toHaveTextContent(/Saldo proyectado/i)
+    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/^Saldo:/)
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
