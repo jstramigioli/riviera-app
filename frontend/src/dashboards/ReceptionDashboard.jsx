@@ -122,10 +122,12 @@ function NotesEditDialog({
 }) {
   const [draft, setDraft] = useState(initialNotes || '');
   const textareaRef = useRef(null);
+  const mouseDownOnOverlay = useRef(false);
 
   useEffect(() => {
     if (!open) return undefined;
     setDraft(initialNotes || '');
+    mouseDownOnOverlay.current = false;
     const t = window.setTimeout(() => textareaRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
   }, [open, initialNotes]);
@@ -139,22 +141,33 @@ function NotesEditDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, saving, onClose]);
 
+  const handleOverlayMouseDown = (e) => {
+    mouseDownOnOverlay.current = e.target === e.currentTarget;
+  };
+
+  const handleOverlayMouseUp = (e) => {
+    const shouldClose =
+      !saving &&
+      mouseDownOnOverlay.current &&
+      e.target === e.currentTarget;
+    mouseDownOnOverlay.current = false;
+    if (shouldClose) onClose();
+  };
+
   if (!open) return null;
 
   return (
     <div
       className={styles.notesOverlay}
       role="presentation"
-      onClick={() => {
-        if (!saving) onClose();
-      }}
+      onMouseDown={handleOverlayMouseDown}
+      onMouseUp={handleOverlayMouseUp}
     >
       <div
         className={styles.notesDialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dash-notes-title"
-        onClick={(e) => e.stopPropagation()}
       >
         <header className={styles.notesDialogHeader}>
           <h3 id="dash-notes-title" className={styles.notesDialogTitle}>
