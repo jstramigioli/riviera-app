@@ -46,7 +46,6 @@ import {
   roundMoney
 } from '../utils/paymentDiscount';
 import {
-  amountToArs,
   isEfectivo,
   readCashTenderFields,
   suggestVueltoARS
@@ -326,20 +325,14 @@ const CobroForm = ({
     const t = readCashTenderFields(initialCobro);
     return String(t.vueltoARS || 0);
   });
-  // Dirty solo si el cobro ya tenía tender distinto del default (recibido≠monto o vuelto>0).
+  // Dirty solo si el cobro ya tenía recibido distinto del default (recibido≠monto).
+  // Vuelto siempre = excedente máx (solo lectura; crédito vía monto ingresado).
   const dineroRecibidoDirtyRef = useRef(
     (() => {
       if (!isEditMode) return false;
       const t = readCashTenderFields(initialCobro);
       const montoAbs = roundMoney(Math.abs(Number(initialCobro?.monto) || 0));
       return Math.abs(t.dineroRecibido - montoAbs) > 0.009;
-    })()
-  );
-  const vueltoDirtyRef = useRef(
-    (() => {
-      if (!isEditMode) return false;
-      const t = readCashTenderFields(initialCobro);
-      return t.vueltoARS > 0.009;
     })()
   );
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
@@ -456,7 +449,8 @@ const CobroForm = ({
     calculateMontoARS();
   }, [formData.monto, formData.moneda, formData.tipoCambio]);
 
-  // Sync dinero recibido / vuelto (independiente de ingresado↔saldado; respeta dirty).
+  // Sync dinero recibido / vuelto (independiente de ingresado↔saldado; recibido respeta dirty).
+  // Vuelto siempre = excedente máx (solo lectura).
   useEffect(() => {
     if (!showCashTender) return;
     const ingresado = parseFloat(formData.monto) || 0;
@@ -466,15 +460,13 @@ const CobroForm = ({
     const recibidoNum = dineroRecibidoDirtyRef.current
       ? parseFloat(dineroRecibido) || 0
       : ingresado;
-    if (!vueltoDirtyRef.current) {
-      const suggested = suggestVueltoARS({
-        dineroRecibido: recibidoNum,
-        moneda: formData.moneda,
-        tipoCambio: formData.tipoCambio,
-        montoIngresadoARS: montoARS
-      });
-      setVueltoARS(String(suggested));
-    }
+    const suggested = suggestVueltoARS({
+      dineroRecibido: recibidoNum,
+      moneda: formData.moneda,
+      tipoCambio: formData.tipoCambio,
+      montoIngresadoARS: montoARS
+    });
+    setVueltoARS(String(suggested));
   }, [
     showCashTender,
     formData.monto,
@@ -912,7 +904,6 @@ const CobroForm = ({
       if (!isTransferencia(value)) setComprobanteFiles([]);
       if (!isEfectivo(value)) {
         dineroRecibidoDirtyRef.current = false;
-        vueltoDirtyRef.current = false;
         setDineroRecibido('');
         setVueltoARS('0');
       }
@@ -1374,7 +1365,6 @@ const CobroForm = ({
       let submitVueltoARS = 0;
       if (showCashTender) {
         const recibidoNum = roundMoney(parseFloat(dineroRecibido) || 0);
-        submitVueltoARS = roundMoney(parseFloat(vueltoARS) || 0);
         if (!(recibidoNum > 0)) {
           setError('Indicá el dinero recibido en efectivo');
           setLoading(false);
@@ -1382,27 +1372,14 @@ const CobroForm = ({
         }
         const ingresadoARSForTender =
           amountMode === AMOUNT_MODE_SALDAR ? tenderMontoARS : montoARS;
-        const maxVuelto = suggestVueltoARS({
+        // Vuelto solo lectura = excedente máx; crédito vía monto ingresado.
+        submitVueltoARS = suggestVueltoARS({
           dineroRecibido: recibidoNum,
           moneda: submitMoneda,
           tipoCambio: formData.tipoCambio,
           montoIngresadoARS: ingresadoARSForTender
         });
-        if (submitVueltoARS - maxVuelto > 0.009) {
-          setError(`El vuelto no puede superar ${formatMoneyArs(maxVuelto)}`);
-          setLoading(false);
-          return;
-        }
         submitDineroRecibido = recibidoNum;
-        // Caso C/E: vuelto 0 + excedente → acreditación = recibido (misma lógica BE).
-        const recibidoARS = amountToArs(
-          recibidoNum,
-          submitMoneda,
-          formData.tipoCambio
-        );
-        if (submitVueltoARS <= 0.009 && recibidoARS - ingresadoARSForTender > 0.009) {
-          submitMonto = recibidoNum;
-        }
       }
 
       const fechaIso =
@@ -2064,15 +2041,13 @@ const CobroForm = ({
                     onChange={(e) => {
                       dineroRecibidoDirtyRef.current = true;
                       setDineroRecibido(e.target.value);
-                      if (!vueltoDirtyRef.current) {
-                        const next = suggestVueltoARS({
-                          dineroRecibido: parseFloat(e.target.value) || 0,
-                          moneda: formData.moneda,
-                          tipoCambio: formData.tipoCambio,
-                          montoIngresadoARS: montoARS
-                        });
-                        setVueltoARS(String(next));
-                      }
+                      const next = suggestVueltoARS({
+                        dineroRecibido: parseFloat(e.target.value) || 0,
+                        moneda: formData.moneda,
+                        tipoCambio: formData.tipoCambio,
+                        montoIngresadoARS: montoARS
+                      });
+                      setVueltoARS(String(next));
                     }}
                     placeholder="0"
                     step="0.01"
@@ -2082,31 +2057,23 @@ const CobroForm = ({
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                  <label htmlFor="payment-vuelto-ars">Vuelto entregado (ARS)</label>
                   <input
                     id="payment-vuelto-ars"
                     type="number"
                     value={vueltoARS}
-                    onChange={(e) => {
-                      vueltoDirtyRef.current = true;
-                      setVueltoARS(e.target.value);
-                    }}
+                    readOnly
+                    tabIndex={-1}
                     placeholder="0"
                     step="0.01"
                     min="0"
                     disabled={loading}
                     data-testid="payment-vuelto-ars"
+                    aria-readonly="true"
                   />
                   <span className={styles.helpText}>
-                    Máx.{' '}
-                    {formatMoneyArs(
-                      suggestVueltoARS({
-                        dineroRecibido: parseFloat(dineroRecibido) || 0,
-                        moneda: formData.moneda,
-                        tipoCambio: formData.tipoCambio,
-                        montoIngresadoARS: montoARS
-                      })
-                    )}
+                    Sugerido = excedente máx. Para acreditar excedente, subí el monto
+                    ingresado
                     {foreignCurrency ? ' · mismo TC del cobro' : ''}
                   </span>
                 </div>

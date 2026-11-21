@@ -398,7 +398,7 @@ exports.createCobro = async (req, res) => {
       return res.status(400).json({ error: tender.error });
     }
 
-    // Acreditación (puede subir si excedente a crédito con vuelto 0).
+    // Acreditación = monto ingresado (crédito vía subir ingresado, no vía vuelto 0).
     const montoSignedFinal = isDev ? -tender.montoAbs : tender.montoAbs;
     const montoARS = new Decimal(isDev ? -tender.montoARSAbs : tender.montoARSAbs);
     const fechaCobro = parseFechaInput(fecha, req);
@@ -2021,19 +2021,8 @@ exports.createClientMultiCobro = async (req, res) => {
     });
     const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
 
-    // Caso C/E multi: si el excedente a crédito subió el total, sumar la diferencia a la 1ª imputación.
+    // Crédito = monto ingresado ya incluye el excedente; no hay bump por vuelto 0.
     let rowsForBono = resolvedRows;
-    if (tender.excedenteACredito && resolvedRows.length) {
-      const sumImps = roundMoney(
-        resolvedRows.reduce((s, r) => s + Math.abs(toNumber(r.montoARS)), 0)
-      );
-      const extra = roundMoney(montoARSAbs - sumImps);
-      if (extra > 0.009) {
-        rowsForBono = resolvedRows.map((r, i) =>
-          i === 0 ? { ...r, montoARS: roundMoney(toNumber(r.montoARS) + extra) } : r
-        );
-      }
-    }
 
     let withBono = rowsForBono;
     const hasManualBono = rowsForBono.some((r) => r.bonificacionARS != null && r.bonificacionARS !== '');

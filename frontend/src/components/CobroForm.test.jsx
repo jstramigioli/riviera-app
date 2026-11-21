@@ -964,9 +964,18 @@ describe('CobroForm facturación', () => {
       expect(screen.getByTestId('payment-dinero-recibido')).toHaveValue(100000)
       expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(0)
     })
+    expect(screen.getByTestId('payment-vuelto-ars')).toHaveAttribute('readonly')
 
     fireEvent.change(screen.getByTestId('payment-dinero-recibido'), {
       target: { value: '120000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(20000)
+    })
+
+    // Intentar editar vuelto no cambia el valor sugerido (solo lectura).
+    fireEvent.change(screen.getByTestId('payment-vuelto-ars'), {
+      target: { value: '0' }
     })
     await waitFor(() => {
       expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(20000)

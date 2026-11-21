@@ -58,21 +58,32 @@ describe('cashTender — casos A–H', () => {
     expect(r.cajaVueltoARS).toBe(20000);
   });
 
-  test('C — ARS excedente a crédito (vuelto 0)', () => {
-    const r = resolveCashTender({
+  test('C — ARS crédito vía monto ingresado (vuelto forzado al máx)', () => {
+    // Crédito = subir monto ingresado; vuelto manual 0 se ignora → máx.
+    const conVuelto = resolveCashTender({
       metodo: 'Efectivo',
       monto: 100000,
       moneda: 'ARS',
       dineroRecibido: 120000,
       vueltoARS: 0
     });
-    expect(r.ok).toBe(true);
-    expect(r.excedenteACredito).toBe(true);
-    expect(r.montoAbs).toBe(120000);
-    expect(r.montoARSAbs).toBe(120000);
-    expect(r.vueltoARS).toBe(0);
-    expect(r.cajaIngreso.monto).toBe(120000);
-    expect(r.cajaVueltoARS).toBe(0);
+    expect(conVuelto.ok).toBe(true);
+    expect(conVuelto.vueltoARS).toBe(20000);
+    expect(conVuelto.montoAbs).toBe(100000);
+    expect(conVuelto.excedenteACredito).toBe(false);
+
+    const credito = resolveCashTender({
+      metodo: 'Efectivo',
+      monto: 120000,
+      moneda: 'ARS',
+      dineroRecibido: 120000,
+      vueltoARS: 999
+    });
+    expect(credito.ok).toBe(true);
+    expect(credito.vueltoARS).toBe(0);
+    expect(credito.montoAbs).toBe(120000);
+    expect(credito.montoARSAbs).toBe(120000);
+    expect(credito.excedenteACredito).toBe(false);
   });
 
   test('D — USD con vuelto ARS; caja +USD / −ARS; acreditación ingresado', () => {
@@ -105,21 +116,34 @@ describe('cashTender — casos A–H', () => {
     expect(r.excedenteACredito).toBe(false);
   });
 
-  test('E — USD sin vuelto: excedente a crédito', () => {
-    const r = resolveCashTender({
+  test('E — USD crédito vía monto ingresado (vuelto forzado al máx)', () => {
+    const montoUsd = 100000 / 1200;
+    const conVuelto = resolveCashTender({
       metodo: 'Efectivo',
-      monto: 100000 / 1200,
+      monto: montoUsd,
       moneda: 'USD',
       tipoCambio: 1200,
       dineroRecibido: 100,
       vueltoARS: 0
     });
-    expect(r.ok).toBe(true);
-    expect(r.excedenteACredito).toBe(true);
-    expect(r.montoAbs).toBe(100);
-    expect(r.montoARSAbs).toBe(120000);
-    expect(r.vueltoARS).toBe(0);
-    expect(r.cajaIngreso).toEqual({ moneda: 'USD', monto: 100 });
+    expect(conVuelto.ok).toBe(true);
+    expect(conVuelto.vueltoARS).toBe(20000);
+    expect(conVuelto.montoARSAbs).toBe(100000);
+    expect(conVuelto.excedenteACredito).toBe(false);
+
+    const credito = resolveCashTender({
+      metodo: 'Efectivo',
+      monto: 100,
+      moneda: 'USD',
+      tipoCambio: 1200,
+      dineroRecibido: 100,
+      vueltoARS: 0
+    });
+    expect(credito.ok).toBe(true);
+    expect(credito.vueltoARS).toBe(0);
+    expect(credito.montoAbs).toBe(100);
+    expect(credito.montoARSAbs).toBe(120000);
+    expect(credito.excedenteACredito).toBe(false);
   });
 
   test('F — Transferencia: sin vuelto; defaults = monto', () => {
@@ -171,7 +195,7 @@ describe('cashTender — casos A–H', () => {
     ).toBe(20000);
   });
 
-  test('rechaza vuelto por encima del máximo', () => {
+  test('ignora vuelto manual por encima del máximo (fuerza máx)', () => {
     const r = resolveCashTender({
       metodo: 'Efectivo',
       monto: 100000,
@@ -179,7 +203,8 @@ describe('cashTender — casos A–H', () => {
       dineroRecibido: 110000,
       vueltoARS: 20000
     });
-    expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/máximo/i);
+    expect(r.ok).toBe(true);
+    expect(r.vueltoARS).toBe(10000);
+    expect(r.montoAbs).toBe(100000);
   });
 });

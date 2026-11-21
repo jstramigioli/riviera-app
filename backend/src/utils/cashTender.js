@@ -48,7 +48,8 @@ function suggestVueltoARS(params) {
 /**
  * Resuelve tender de efectivo para persistir en Cobro.
  * - No efectivo / devolución: dineroRecibido = |monto|, vueltoARS = 0; monto intacto.
- * - Efectivo: valida vuelto ≤ máximo; si vuelto=0 y recibido > ingresado → crédito = recibido (caso C/E).
+ * - Efectivo: vuelto siempre = excedente máx (ignora vuelto manual del body).
+ *   Crédito = subir monto ingresado (no poner vuelto en 0).
  *
  * @returns {{ ok: true, dineroRecibido: number, vueltoARS: number, montoAbs: number, montoARSAbs: number, cajaIngreso: { moneda: string, monto: number }, cajaVueltoARS: number } | { ok: false, error: string }}
  */
@@ -58,7 +59,8 @@ function resolveCashTender({
   moneda = 'ARS',
   tipoCambio = null,
   dineroRecibido: dineroRecibidoInput,
-  vueltoARS: vueltoInput,
+  // vuelto manual ignorado: siempre se fuerza el máximo (solo lectura en UI).
+  vueltoARS: _vueltoInput,
   isDevolucion = false
 } = {}) {
   const monedaFinal = String(moneda || 'ARS').toUpperCase();
@@ -99,46 +101,22 @@ function resolveCashTender({
     return { ok: false, error: 'El dinero recibido debe ser mayor a 0' };
   }
 
-  const recibidoARS = amountToArs(dineroRecibido, monedaFinal, tipoCambio);
-  const maxVuelto = maxVueltoARS({
+  const vueltoARS = maxVueltoARS({
     dineroRecibido,
     moneda: monedaFinal,
     tipoCambio,
     montoIngresadoARS: ingresadoARS
   });
 
-  const hasExplicitVuelto = vueltoInput != null && String(vueltoInput).trim() !== '';
-  let vueltoARS = hasExplicitVuelto ? roundMoney(toNumber(vueltoInput)) : 0;
-  if (Number.isNaN(vueltoARS) || vueltoARS < 0) {
-    return { ok: false, error: 'El vuelto no puede ser negativo' };
-  }
-  if (vueltoARS - maxVuelto > 0.009) {
-    return {
-      ok: false,
-      error: `El vuelto supera el máximo permitido (${maxVuelto.toFixed(2)} ARS)`
-    };
-  }
-  vueltoARS = roundMoney(Math.min(vueltoARS, maxVuelto));
-
-  // Caso C/E: vuelto 0 + excedente → acreditación = recibido (crédito vía monto).
-  let montoAbs = montoAbsIngresado;
-  let montoARSAbs = ingresadoARS;
-  let excedenteACredito = false;
-  if (vueltoARS <= 0.009 && recibidoARS - ingresadoARS > 0.009) {
-    montoAbs = dineroRecibido;
-    montoARSAbs = recibidoARS;
-    excedenteACredito = true;
-  }
-
   return {
     ok: true,
     dineroRecibido,
     vueltoARS,
-    montoAbs,
-    montoARSAbs,
+    montoAbs: montoAbsIngresado,
+    montoARSAbs: ingresadoARS,
     cajaIngreso: { moneda: monedaFinal, monto: dineroRecibido },
     cajaVueltoARS: vueltoARS,
-    excedenteACredito
+    excedenteACredito: false
   };
 }
 
