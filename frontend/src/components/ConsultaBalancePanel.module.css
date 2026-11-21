@@ -470,6 +470,46 @@
   font-weight: 600;
 }
 
+.requirementsFieldset {
+  margin: 0 0 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.requirementsFieldset .metaLabel {
+  margin-bottom: 2px;
+  padding: 0;
+}
+
+.requirementCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-dark);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.requirementCheck input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.requirementsFieldset:disabled .requirementCheck,
+.requirementCheck:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .notesField {
   display: flex;
   flex-direction: column;

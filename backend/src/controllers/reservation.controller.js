@@ -59,6 +59,8 @@ exports.createReservation = async (req, res) => {
     status, 
     notes,
     source,
+    requiereCuna,
+    requiereEstacionamiento,
     isMultiRoom = false,
     includeHolderAsGuest = true
   } = req.body;
@@ -75,6 +77,8 @@ exports.createReservation = async (req, res) => {
       status: status || 'active',
       notes,
       source,
+      requiereCuna,
+      requiereEstacionamiento,
       isMultiRoom,
       includeHolderAsGuest
     };
@@ -105,6 +109,8 @@ exports.createMultiSegmentReservation = async (req, res) => {
     status, 
     notes,
     source,
+    requiereCuna,
+    requiereEstacionamiento,
     isMultiRoom = false,
     includeHolderAsGuest = true,
     selectedRuleIds,
@@ -126,6 +132,8 @@ exports.createMultiSegmentReservation = async (req, res) => {
       status: status || 'active',
       notes,
       source,
+      requiereCuna,
+      requiereEstacionamiento,
       isMultiRoom,
       includeHolderAsGuest,
       selectedRuleIds,

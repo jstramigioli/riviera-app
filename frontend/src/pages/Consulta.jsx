@@ -340,6 +340,8 @@ export default function Consulta() {
   const [notes, setNotes] = useState('');
   /** Reservado por: WHATSAPP | MAIL | WEBSITE | BOOKING | MOSTRADOR */
   const [source, setSource] = useState('');
+  const [requiereCuna, setRequiereCuna] = useState(false);
+  const [requiereEstacionamiento, setRequiereEstacionamiento] = useState(false);
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
@@ -1267,6 +1269,8 @@ export default function Consulta() {
 
         setNotes(full.notes || '');
         setSource(full.source || '');
+        setRequiereCuna(Boolean(full.requiereCuna));
+        setRequiereEstacionamiento(Boolean(full.requiereEstacionamiento));
         setActiveBlockIndex(0);
         setEditPrefillReady(true);
 
@@ -1404,6 +1408,8 @@ export default function Consulta() {
               // Cargar notas globales y medio
               setNotes(fullQueryData.notes || '');
               setSource(fullQueryData.source || '');
+              setRequiereCuna(false);
+              setRequiereEstacionamiento(false);
               
               // Establecer el primer segmento como activo
               setActiveBlockIndex(0);
@@ -1465,6 +1471,8 @@ export default function Consulta() {
               
               setNotes(fullQueryData.notes || '');
               setSource(fullQueryData.source || '');
+              setRequiereCuna(false);
+              setRequiereEstacionamiento(false);
             }
             
             setCurrentQueryId(fullQueryData.id);
@@ -2456,6 +2464,8 @@ export default function Consulta() {
       // Cargar notas globales y medio
       setNotes(query.notes || '');
       setSource(query.source || '');
+      setRequiereCuna(false);
+      setRequiereEstacionamiento(false);
       
       // Establecer el primer segmento como activo
       setActiveBlockIndex(0);
@@ -2489,6 +2499,8 @@ export default function Consulta() {
       
       setNotes(query.notes || '');
       setSource(query.source || '');
+      setRequiereCuna(false);
+      setRequiereEstacionamiento(false);
     }
 
     setCurrentQueryId(query.id);
@@ -3009,12 +3021,15 @@ export default function Consulta() {
       }
 
       // Requerimientos especiales
-      const hasRequirements = segments.some(seg => 
+      const hasSegmentRequirements = segments.some(seg => 
         (seg.requiredTags && seg.requiredTags.length > 0) || seg.requiredRoomId
       );
+      const hasOperationalRequirements = requiereCuna || requiereEstacionamiento;
 
-      if (hasRequirements) {
+      if (hasSegmentRequirements || hasOperationalRequirements) {
         texto += 'REQUERIMIENTOS ESPECIALES\n';
+        if (requiereCuna) texto += 'Requiere cuna\n';
+        if (requiereEstacionamiento) texto += 'Requiere estacionamiento\n';
         segments.forEach((segment, index) => {
           if (segment.requiredTags && segment.requiredTags.length > 0) {
             const tagNames = segment.requiredTags
@@ -3274,6 +3289,8 @@ export default function Consulta() {
         status: status,
         notes: notes,
         source: source || null,
+        requiereCuna: Boolean(requiereCuna),
+        requiereEstacionamiento: Boolean(requiereEstacionamiento),
         isMultiRoom: false,
         selectedRuleIds: useManualRate ? [] : promoApply.selectedRuleIds,
         deselectedRuleIds: useManualRate ? [] : promoApply.deselectedRuleIds,
@@ -3345,6 +3362,8 @@ export default function Consulta() {
           status: status || editingReservationStatus || 'PENDIENTE',
           notes: notes,
           source: source || null,
+          requiereCuna: Boolean(requiereCuna),
+          requiereEstacionamiento: Boolean(requiereEstacionamiento),
           segments: reservationData.segments,
           applyRateChanges,
           createdWithManualRate: useManualRate,
@@ -3468,6 +3487,8 @@ export default function Consulta() {
     setCurrentQueryId(null);
     setNotes('');
     setSource('');
+    setRequiereCuna(false);
+    setRequiereEstacionamiento(false);
     setActiveBlockIndex(0);
     // Limpiar el ref de valores previos
     previousSegmentsRef.current = {};
@@ -4176,6 +4197,10 @@ export default function Consulta() {
                       onNotesChange={setNotes}
                       source={source}
                       onSourceChange={setSource}
+                      requiereCuna={requiereCuna}
+                      onRequiereCunaChange={setRequiereCuna}
+                      requiereEstacionamiento={requiereEstacionamiento}
+                      onRequiereEstacionamientoChange={setRequiereEstacionamiento}
                       reservationStatus={reservationStatus}
                       onStatusChange={setReservationStatus}
                       onPromoApplyChange={handlePromoApplyChange}
@@ -4234,6 +4259,10 @@ export default function Consulta() {
                   onNotesChange={setNotes}
                   source={source}
                   onSourceChange={setSource}
+                  requiereCuna={requiereCuna}
+                  onRequiereCunaChange={setRequiereCuna}
+                  requiereEstacionamiento={requiereEstacionamiento}
+                  onRequiereEstacionamientoChange={setRequiereEstacionamiento}
                   reservationStatus={reservationStatus}
                   onStatusChange={setReservationStatus}
                   onPromoApplyChange={handlePromoApplyChange}

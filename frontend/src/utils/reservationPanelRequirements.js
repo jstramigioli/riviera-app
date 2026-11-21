@@ -1,6 +1,7 @@
 /**
  * Requisitos visibles en el panel azul de la página de reserva:
- * habitación fijada (requiredRoomId / fixed) + tags seleccionados.
+ * habitación fijada (requiredRoomId / fixed) + tags seleccionados +
+ * flags operativos (cuna / estacionamiento).
  * Solo de segmentos activos (o todos si no hay activos).
  */
 
@@ -25,7 +26,12 @@ const activeSegments = (reservation) => {
 /**
  * @param {object} reservation
  * @param {Array<{id:number|string, name:string, color?:string}>} [tagsCatalog]
- * @returns {{ fixedRooms: Array<{key:string, name:string}>, selectedTags: Array<{id:number|string, name:string, color?:string}>, hasAny: boolean }}
+ * @returns {{
+ *   fixedRooms: Array<{key:string, name:string}>,
+ *   selectedTags: Array<{id:number|string, name:string, color?:string}>,
+ *   flags: Array<{key:string, label:string}>,
+ *   hasAny: boolean
+ * }}
  */
 export function collectReservationPanelRequirements(reservation, tagsCatalog = []) {
   const segments = activeSegments(reservation);
@@ -66,9 +72,19 @@ export function collectReservationPanelRequirements(reservation, tagsCatalog = [
     return { id, name: String(id) };
   });
 
+  const flags = [];
+  if (reservation?.requiereCuna) {
+    flags.push({ key: 'cuna', label: 'Requiere cuna' });
+  }
+  if (reservation?.requiereEstacionamiento) {
+    flags.push({ key: 'estacionamiento', label: 'Requiere estacionamiento' });
+  }
+
   return {
     fixedRooms,
     selectedTags,
-    hasAny: fixedRooms.length > 0 || selectedTags.length > 0
+    flags,
+    hasAny:
+      fixedRooms.length > 0 || selectedTags.length > 0 || flags.length > 0
   };
 }
