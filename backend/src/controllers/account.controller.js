@@ -30,6 +30,7 @@ const {
   sumDevolucionesOnOrigen
 } = require('../utils/paymentMethodService');
 const { toNumber, roundMoney } = require('../utils/paymentDiscount');
+const { resolveCashTender } = require('../utils/cashTender');
 
 function canSeeFacturacion(user) {
   return roleHasPermission(user?.role, 'facturacion');
@@ -622,7 +623,9 @@ exports.createAccountCobro = async (req, res) => {
     benefitValueByRuleId,
     applySuggestedDefaults,
     applyAutomatics,
-    fecha
+    fecha,
+    dineroRecibido,
+    vueltoARS
   } = req.body || {};
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
@@ -731,11 +734,22 @@ exports.createAccountCobro = async (req, res) => {
       }
     }
 
-    const montoARS =
-      monedaFinal === 'USD'
-        ? new Decimal(montoSigned).mul(new Decimal(tipoCambioFinal))
-        : new Decimal(montoSigned);
-    const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
+    const tender = resolveCashTender({
+      metodo: metodoFinal,
+      monto: montoAbs,
+      moneda: monedaFinal,
+      tipoCambio: tipoCambioFinal,
+      dineroRecibido,
+      vueltoARS,
+      isDevolucion: isDev
+    });
+    if (!tender.ok) {
+      return res.status(400).json({ error: tender.error });
+    }
+
+    const montoSignedFinal = isDev ? -tender.montoAbs : tender.montoAbs;
+    const montoARS = new Decimal(isDev ? -tender.montoARSAbs : tender.montoARSAbs);
+    const montoARSAbs = tender.montoARSAbs;
 
     const refs =
       account.kind === ACCOUNT_KIND.RESERVATION
@@ -777,10 +791,12 @@ exports.createAccountCobro = async (req, res) => {
           ...refs,
           paymentMethodConfigId: methodConfig?.id ?? null,
           cobroOrigenId: cobroOrigen?.id ?? null,
-          monto: new Decimal(montoSigned),
+          monto: new Decimal(montoSignedFinal),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
           montoARS,
+          dineroRecibido: new Decimal(tender.dineroRecibido),
+          vueltoARS: new Decimal(tender.vueltoARS),
           metodo: metodoFinal,
           numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
             ? numeroTarjeta

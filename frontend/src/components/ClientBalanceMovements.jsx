@@ -457,6 +457,41 @@ const ClientBalanceMovements = ({
               <dt>Método</dt>
               <dd>{selectedCobro.metodo || '—'}</dd>
             </div>
+            {String(selectedCobro.metodo || '')
+              .trim()
+              .toLowerCase() === 'efectivo' ? (
+              <>
+                <div>
+                  <dt>Dinero recibido</dt>
+                  <dd>
+                    {selectedCobro.dineroRecibido != null
+                      ? formatPrice(selectedCobro.dineroRecibido)
+                      : formatPrice(Math.abs(Number(selectedCobro.monto) || 0))}
+                    {selectedCobro.moneda && selectedCobro.moneda !== 'ARS'
+                      ? ` ${selectedCobro.moneda}`
+                      : ''}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Vuelto</dt>
+                  <dd>
+                    {formatPrice(
+                      selectedCobro.vueltoARS != null ? selectedCobro.vueltoARS : 0
+                    )}{' '}
+                    ARS
+                  </dd>
+                </div>
+                <div>
+                  <dt>Monto ingresado</dt>
+                  <dd>
+                    {formatPrice(Math.abs(Number(selectedCobro.monto) || 0))}
+                    {selectedCobro.moneda && selectedCobro.moneda !== 'ARS'
+                      ? ` ${selectedCobro.moneda}`
+                      : ''}
+                  </dd>
+                </div>
+              </>
+            ) : null}
             <div>
               <dt>Motivo</dt>
               <dd>{selectedCobro.motivo || 'Cobro'}</dd>

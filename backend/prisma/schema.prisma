@@ -847,6 +847,10 @@ model Cobro {
   moneda                  String                @default("ARS") // ARS o USD
   tipoCambio              Decimal?              @db.Decimal(10, 4) // Tipo de cambio usado (solo para USD)
   montoARS                Decimal               @db.Decimal(10, 2) // Monto equivalente en pesos argentinos (caja, una vez)
+  /// Efectivo: dinero físico recibido (misma moneda del cobro). Null en legacy → tratar como |monto|.
+  dineroRecibido          Decimal?              @db.Decimal(10, 2)
+  /// Efectivo: vuelto entregado siempre en ARS (0 si no aplica). No es devolución.
+  vueltoARS               Decimal               @default(0) @db.Decimal(10, 2)
   metodo                  String                // Efectivo, Tarjeta Debito, Tarjeta Credito, Transferencia, etc.
   numeroTarjeta           String?               // Número de tarjeta (solo para métodos de tarjeta)
   empresa                 String?               // Empresa de la tarjeta (solo para métodos de tarjeta)

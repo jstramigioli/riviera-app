@@ -935,4 +935,55 @@ describe('CobroForm facturación', () => {
       expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)
     })
   })
+
+  it('efectivo: sección movimiento + sync recibido/vuelto (A/B); transferencia la oculta (F)', async () => {
+    const { createCobro } = await import('../services/api')
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
+      target: { value: '100000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-dinero-recibido')).toHaveValue(100000)
+      expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(0)
+    })
+
+    fireEvent.change(screen.getByTestId('payment-dinero-recibido'), {
+      target: { value: '120000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(20000)
+    })
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+    expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Efectivo' }
+    })
+    await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('payment-dinero-recibido'), {
+      target: { value: '120000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-vuelto-ars')).toHaveValue(20000)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
+    await waitFor(() =>
+      expect(createCobro).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          monto: 100000,
+          dineroRecibido: 120000,
+          vueltoARS: 20000,
+          metodo: 'Efectivo'
+        })
+      )
+    )
+  })
 })

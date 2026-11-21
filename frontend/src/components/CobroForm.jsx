@@ -43,6 +43,12 @@ import {
   formatArs,
   roundMoney
 } from '../utils/paymentDiscount';
+import {
+  amountToArs,
+  isEfectivo,
+  readCashTenderFields,
+  suggestVueltoARS
+} from '../utils/cashTender';
 import { formatMoney, formatMoneyArs, formatMoneyUsd } from '../utils/formatMoney';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './CobroForm.module.css';
@@ -307,6 +313,33 @@ const CobroForm = ({
   /** Draft del equivalente ARS mientras se edita (evita pelear con redondeo monto↔ARS). */
   const [equivArsDraft, setEquivArsDraft] = useState('');
   const equivArsFocusedRef = useRef(false);
+  /** Movimiento de efectivo: sync independiente de ingresado↔saldado. */
+  const [dineroRecibido, setDineroRecibido] = useState(() => {
+    if (!isEditMode) return '';
+    const t = readCashTenderFields(initialCobro);
+    return t.dineroRecibido > 0 ? String(t.dineroRecibido) : '';
+  });
+  const [vueltoARS, setVueltoARS] = useState(() => {
+    if (!isEditMode) return '0';
+    const t = readCashTenderFields(initialCobro);
+    return String(t.vueltoARS || 0);
+  });
+  // Dirty solo si el cobro ya tenía tender distinto del default (recibido≠monto o vuelto>0).
+  const dineroRecibidoDirtyRef = useRef(
+    (() => {
+      if (!isEditMode) return false;
+      const t = readCashTenderFields(initialCobro);
+      const montoAbs = roundMoney(Math.abs(Number(initialCobro?.monto) || 0));
+      return Math.abs(t.dineroRecibido - montoAbs) > 0.009;
+    })()
+  );
+  const vueltoDirtyRef = useRef(
+    (() => {
+      if (!isEditMode) return false;
+      const t = readCashTenderFields(initialCobro);
+      return t.vueltoARS > 0.009;
+    })()
+  );
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
   const [manualPromoValues, setManualPromoValues] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
@@ -316,6 +349,7 @@ const CobroForm = ({
   const [addPromoOpen, setAddPromoOpen] = useState(false);
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
+  const showCashTender = isEfectivo(formData.metodo) && !isDevolucion;
   const isSaldarMode = amountMode === AMOUNT_MODE_SALDAR;
   const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
@@ -414,6 +448,34 @@ const CobroForm = ({
   useEffect(() => {
     calculateMontoARS();
   }, [formData.monto, formData.moneda, formData.tipoCambio]);
+
+  // Sync dinero recibido / vuelto (independiente de ingresado↔saldado; respeta dirty).
+  useEffect(() => {
+    if (!showCashTender) return;
+    const ingresado = parseFloat(formData.monto) || 0;
+    if (!dineroRecibidoDirtyRef.current) {
+      setDineroRecibido(ingresado > 0 ? String(roundMoney(ingresado)) : '');
+    }
+    const recibidoNum = dineroRecibidoDirtyRef.current
+      ? parseFloat(dineroRecibido) || 0
+      : ingresado;
+    if (!vueltoDirtyRef.current) {
+      const suggested = suggestVueltoARS({
+        dineroRecibido: recibidoNum,
+        moneda: formData.moneda,
+        tipoCambio: formData.tipoCambio,
+        montoIngresadoARS: montoARS
+      });
+      setVueltoARS(String(suggested));
+    }
+  }, [
+    showCashTender,
+    formData.monto,
+    formData.moneda,
+    formData.tipoCambio,
+    montoARS,
+    dineroRecibido
+  ]);
 
   // Sync draft del equivalente ARS desde monto×TC, salvo mientras el usuario escribe.
   useEffect(() => {
@@ -841,6 +903,12 @@ const CobroForm = ({
     setError(null);
     if (field === 'metodo') {
       if (!isTransferencia(value)) setComprobanteFiles([]);
+      if (!isEfectivo(value)) {
+        dineroRecibidoDirtyRef.current = false;
+        vueltoDirtyRef.current = false;
+        setDineroRecibido('');
+        setVueltoARS('0');
+      }
       if (!isCardMethod(value)) {
         setFormData((prev) => ({
           ...prev,
@@ -1272,7 +1340,7 @@ const CobroForm = ({
       // Devolución: monto positivo en UI (efectivo); el backend lo guarda negativo.
       // Modo saldar: se registra el efectivo en la moneda elegida (USD↔ARS).
       const submitMoneda = formData.moneda;
-      const submitMonto =
+      let submitMonto =
         amountMode === AMOUNT_MODE_SALDAR
           ? isForeignCurrency(submitMoneda)
             ? (() => {
@@ -1281,6 +1349,42 @@ const CobroForm = ({
               })()
             : tenderMontoARS
           : parseFloat(formData.monto);
+
+      let submitDineroRecibido;
+      let submitVueltoARS = 0;
+      if (showCashTender) {
+        const recibidoNum = roundMoney(parseFloat(dineroRecibido) || 0);
+        submitVueltoARS = roundMoney(parseFloat(vueltoARS) || 0);
+        if (!(recibidoNum > 0)) {
+          setError('Indicá el dinero recibido en efectivo');
+          setLoading(false);
+          return;
+        }
+        const ingresadoARSForTender =
+          amountMode === AMOUNT_MODE_SALDAR ? tenderMontoARS : montoARS;
+        const maxVuelto = suggestVueltoARS({
+          dineroRecibido: recibidoNum,
+          moneda: submitMoneda,
+          tipoCambio: formData.tipoCambio,
+          montoIngresadoARS: ingresadoARSForTender
+        });
+        if (submitVueltoARS - maxVuelto > 0.009) {
+          setError(`El vuelto no puede superar ${formatMoneyArs(maxVuelto)}`);
+          setLoading(false);
+          return;
+        }
+        submitDineroRecibido = recibidoNum;
+        // Caso C/E: vuelto 0 + excedente → acreditación = recibido (misma lógica BE).
+        const recibidoARS = amountToArs(
+          recibidoNum,
+          submitMoneda,
+          formData.tipoCambio
+        );
+        if (submitVueltoARS <= 0.009 && recibidoARS - ingresadoARSForTender > 0.009) {
+          submitMonto = recibidoNum;
+        }
+      }
+
       const fechaIso =
         localDateInputToIso(formData.fecha) || todayAsLocalDate().toISOString();
       const pagoData = {
@@ -1302,7 +1406,10 @@ const CobroForm = ({
         selectedRuleIds: isDevolucion ? undefined : manualPromoApply.selectedRuleIds,
         deselectedRuleIds: isDevolucion ? undefined : manualPromoApply.deselectedRuleIds,
         benefitValueByRuleId: isDevolucion ? undefined : manualPromoApply.benefitValueByRuleId,
-        applySuggestedDefaults: isDevolucion ? undefined : true
+        applySuggestedDefaults: isDevolucion ? undefined : true,
+        ...(showCashTender
+          ? { dineroRecibido: submitDineroRecibido, vueltoARS: submitVueltoARS }
+          : {})
       };
 
       let nuevoCobro;
@@ -1321,7 +1428,9 @@ const CobroForm = ({
           selectedRuleIds: pagoData.selectedRuleIds,
           deselectedRuleIds: pagoData.deselectedRuleIds,
           benefitValueByRuleId: pagoData.benefitValueByRuleId,
-          applySuggestedDefaults: pagoData.applySuggestedDefaults
+          applySuggestedDefaults: pagoData.applySuggestedDefaults,
+          dineroRecibido: pagoData.dineroRecibido,
+          vueltoARS: pagoData.vueltoARS
         });
       } else if (isMultiAlloc) {
         nuevoCobro = await createClientMultiCobro(clientId, {
@@ -1913,6 +2022,77 @@ const CobroForm = ({
               ) : null}
             </div>
           </div>
+
+          {showCashTender ? (
+            <section
+              className={styles.cashTenderSection}
+              data-testid="payment-cash-tender"
+              aria-labelledby="payment-cash-tender-title"
+            >
+              <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
+                Movimiento de efectivo
+              </h3>
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-dinero-recibido">
+                    Dinero recibido ({formData.moneda || 'ARS'})
+                  </label>
+                  <input
+                    id="payment-dinero-recibido"
+                    type="number"
+                    value={dineroRecibido}
+                    onChange={(e) => {
+                      dineroRecibidoDirtyRef.current = true;
+                      setDineroRecibido(e.target.value);
+                      if (!vueltoDirtyRef.current) {
+                        const next = suggestVueltoARS({
+                          dineroRecibido: parseFloat(e.target.value) || 0,
+                          moneda: formData.moneda,
+                          tipoCambio: formData.tipoCambio,
+                          montoIngresadoARS: montoARS
+                        });
+                        setVueltoARS(String(next));
+                      }
+                    }}
+                    placeholder="0"
+                    step="0.01"
+                    min="0"
+                    disabled={loading}
+                    data-testid="payment-dinero-recibido"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                  <input
+                    id="payment-vuelto-ars"
+                    type="number"
+                    value={vueltoARS}
+                    onChange={(e) => {
+                      vueltoDirtyRef.current = true;
+                      setVueltoARS(e.target.value);
+                    }}
+                    placeholder="0"
+                    step="0.01"
+                    min="0"
+                    disabled={loading}
+                    data-testid="payment-vuelto-ars"
+                  />
+                  <span className={styles.helpText}>
+                    Máx.{' '}
+                    {formatMoneyArs(
+                      suggestVueltoARS({
+                        dineroRecibido: parseFloat(dineroRecibido) || 0,
+                        moneda: formData.moneda,
+                        tipoCambio: formData.tipoCambio,
+                        montoIngresadoARS: montoARS
+                      })
+                    )}
+                    {foreignCurrency ? ' · mismo TC del cobro' : ''}
+                  </span>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           {isDevolucion && (
             <div className={styles.formRow}>

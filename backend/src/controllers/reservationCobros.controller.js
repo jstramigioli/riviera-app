@@ -28,6 +28,7 @@ const {
   sumDevolucionesOnOrigen
 } = require('../utils/paymentMethodService');
 const { toNumber, roundMoney } = require('../utils/paymentDiscount');
+const { resolveCashTender } = require('../utils/cashTender');
 const {
   validateImputaciones,
   autoDistributeOldestFirst,
@@ -256,7 +257,9 @@ exports.createCobro = async (req, res) => {
     benefitValueByRuleId,
     applySuggestedDefaults,
     applyAutomatics,
-    fecha
+    fecha,
+    dineroRecibido,
+    vueltoARS
   } = req.body;
   const acceptedRuleIds = []
     .concat(selectedRuleIds || [])
@@ -365,16 +368,24 @@ exports.createCobro = async (req, res) => {
   }
 
   try {
-    // Calcular monto en ARS (negativo si es devolución)
-    let montoARS;
-    if (monedaFinal === 'USD') {
-      montoARS = new Decimal(montoSigned).mul(new Decimal(tipoCambioFinal));
-    } else {
-      montoARS = new Decimal(montoSigned);
+    const tender = resolveCashTender({
+      metodo: metodoFinal,
+      monto: montoAbs,
+      moneda: monedaFinal,
+      tipoCambio: tipoCambioFinal,
+      dineroRecibido,
+      vueltoARS,
+      isDevolucion: isDev
+    });
+    if (!tender.ok) {
+      return res.status(400).json({ error: tender.error });
     }
 
+    // Acreditación (puede subir si excedente a crédito con vuelto 0).
+    const montoSignedFinal = isDev ? -tender.montoAbs : tender.montoAbs;
+    const montoARS = new Decimal(isDev ? -tender.montoARSAbs : tender.montoARSAbs);
     const fechaCobro = parseFechaInput(fecha, req);
-    const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
+    const montoARSAbs = tender.montoARSAbs;
 
     const nuevoCobro = await prisma.$transaction(async (tx) => {
       const account = await ensureReservationAccount(tx, reservaId);
@@ -414,10 +425,12 @@ exports.createCobro = async (req, res) => {
           ...financialRefs,
           paymentMethodConfigId: methodConfig?.id ?? null,
           cobroOrigenId: cobroOrigen?.id ?? null,
-          monto: new Decimal(montoSigned),
+          monto: new Decimal(montoSignedFinal),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
           montoARS: montoARS,
+          dineroRecibido: new Decimal(tender.dineroRecibido),
+          vueltoARS: new Decimal(tender.vueltoARS),
           metodo: metodoFinal,
           numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
             ? numeroTarjeta
@@ -552,7 +565,9 @@ exports.updateCobro = async (req, res) => {
     deselectedRuleIds,
     benefitValueByRuleId,
     applySuggestedDefaults,
-    applyAutomatics
+    applyAutomatics,
+    dineroRecibido,
+    vueltoARS
   } = req.body;
 
   try {
@@ -627,18 +642,50 @@ exports.updateCobro = async (req, res) => {
       });
     }
 
-    let montoARSFinal = toNumber(pagoActual.montoARS);
-    if (monto !== undefined || moneda !== undefined || tipoCambio !== undefined) {
-      if (monedaFinal === 'USD') {
-        montoARSFinal = roundMoney(Number(montoFinal) * Number(tipoCambioFinal));
-        dataToUpdate.montoARS = new Decimal(montoARSFinal);
-      } else {
-        montoARSFinal = roundMoney(Number(montoFinal));
-        dataToUpdate.montoARS = new Decimal(montoARSFinal);
-      }
+    const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
+    const tenderEdit = resolveCashTender({
+      metodo: metodoFinal,
+      monto: Math.abs(Number(montoFinal)),
+      moneda: monedaFinal,
+      tipoCambio: tipoCambioFinal,
+      dineroRecibido:
+        dineroRecibido !== undefined
+          ? dineroRecibido
+          : pagoActual.dineroRecibido != null
+            ? toNumber(pagoActual.dineroRecibido)
+            : undefined,
+      vueltoARS:
+        vueltoARS !== undefined
+          ? vueltoARS
+          : pagoActual.vueltoARS != null
+            ? toNumber(pagoActual.vueltoARS)
+            : 0,
+      isDevolucion: false
+    });
+    if (!tenderEdit.ok) {
+      return res.status(400).json({ error: tenderEdit.error });
     }
 
-    const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
+    let montoARSFinal = toNumber(pagoActual.montoARS);
+    const tenderTouched =
+      monto !== undefined ||
+      moneda !== undefined ||
+      tipoCambio !== undefined ||
+      metodo !== undefined ||
+      dineroRecibido !== undefined ||
+      vueltoARS !== undefined;
+    if (tenderTouched) {
+      dataToUpdate.monto = new Decimal(tenderEdit.montoAbs);
+      montoARSFinal = tenderEdit.montoARSAbs;
+      dataToUpdate.montoARS = new Decimal(montoARSFinal);
+      dataToUpdate.dineroRecibido = new Decimal(tenderEdit.dineroRecibido);
+      dataToUpdate.vueltoARS = new Decimal(tenderEdit.vueltoARS);
+      if (monedaFinal === 'USD') {
+        dataToUpdate.tipoCambio = new Decimal(tipoCambioFinal);
+      } else if (moneda !== undefined) {
+        dataToUpdate.tipoCambio = null;
+      }
+    }
     if (metodo !== undefined) dataToUpdate.metodo = metodo;
     if (numeroTarjeta !== undefined) dataToUpdate.numeroTarjeta = numeroTarjeta;
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
@@ -1745,7 +1792,9 @@ exports.createClientMultiCobro = async (req, res) => {
     benefitValueByRuleId,
     applySuggestedDefaults,
     imputaciones: imputacionesBody,
-    autoDistribuir
+    autoDistribuir,
+    dineroRecibido,
+    vueltoARS
   } = req.body || {};
 
   const acceptedRuleIds = []
@@ -1832,11 +1881,22 @@ exports.createClientMultiCobro = async (req, res) => {
       }
     }
 
-    const montoARS =
-      monedaFinal === 'USD'
-        ? new Decimal(montoAbs).mul(new Decimal(tipoCambioFinal))
-        : new Decimal(montoAbs);
-    const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
+    const tender = resolveCashTender({
+      metodo: metodoFinal,
+      monto: montoAbs,
+      moneda: monedaFinal,
+      tipoCambio: tipoCambioFinal,
+      dineroRecibido,
+      vueltoARS,
+      isDevolucion: false
+    });
+    if (!tender.ok) {
+      return res.status(400).json({ error: tender.error });
+    }
+
+    const montoAbsFinal = tender.montoAbs;
+    const montoARS = new Decimal(tender.montoARSAbs);
+    const montoARSAbs = tender.montoARSAbs;
     const fechaCobro = parseFechaInput(fecha, req);
 
     const clientAccounts = await prisma.account.findMany({
@@ -1944,10 +2004,24 @@ exports.createClientMultiCobro = async (req, res) => {
     });
     const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
 
-    let withBono = resolvedRows;
-    const hasManualBono = resolvedRows.some((r) => r.bonificacionARS != null && r.bonificacionARS !== '');
+    // Caso C/E multi: si el excedente a crédito subió el total, sumar la diferencia a la 1ª imputación.
+    let rowsForBono = resolvedRows;
+    if (tender.excedenteACredito && resolvedRows.length) {
+      const sumImps = roundMoney(
+        resolvedRows.reduce((s, r) => s + Math.abs(toNumber(r.montoARS)), 0)
+      );
+      const extra = roundMoney(montoARSAbs - sumImps);
+      if (extra > 0.009) {
+        rowsForBono = resolvedRows.map((r, i) =>
+          i === 0 ? { ...r, montoARS: roundMoney(toNumber(r.montoARS) + extra) } : r
+        );
+      }
+    }
+
+    let withBono = rowsForBono;
+    const hasManualBono = rowsForBono.some((r) => r.bonificacionARS != null && r.bonificacionARS !== '');
     if (!hasManualBono && bonoTotal > 0) {
-      withBono = distributeBonificacion(resolvedRows, bonoTotal);
+      withBono = distributeBonificacion(rowsForBono, bonoTotal);
     }
 
     const normalized = validateImputaciones(withBono, montoARSAbs, {
@@ -1963,10 +2037,12 @@ exports.createClientMultiCobro = async (req, res) => {
           accountId: anchor ? anchor.accountId : null,
           reservaId: anchor ? anchor.reservaId : null,
           paymentMethodConfigId: methodConfig?.id ?? null,
-          monto: new Decimal(montoAbs),
+          monto: new Decimal(montoAbsFinal),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
           montoARS,
+          dineroRecibido: new Decimal(tender.dineroRecibido),
+          vueltoARS: new Decimal(tender.vueltoARS),
           metodo: metodoFinal,
           numeroTarjeta: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
             ? req.body.numeroTarjeta
