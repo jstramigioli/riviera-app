@@ -2991,7 +2991,7 @@ export default function Consulta() {
         texto += `Servicio: ${getServiceTypeName(segments[0].serviceType)}\n`;
         const total = getTotalAmount(0);
         if (total > 0) {
-          texto += `Tarifa: $${total.toLocaleString('es-AR')}\n`;
+          texto += `Tarifa: ${formatConfirmationMoney(total)}\n`;
         }
       } else {
         // Múltiples segmentos
@@ -3002,7 +3002,7 @@ export default function Consulta() {
           texto += ` Servicio: ${getServiceTypeName(segment.serviceType)}\n`;
           const total = getTotalAmount(index);
           if (total > 0) {
-            texto += ` Tarifa: $${total.toLocaleString('es-AR')}\n`;
+            texto += ` Tarifa: ${formatConfirmationMoney(total)}\n`;
           }
           texto += '\n';
         });
@@ -3042,7 +3042,7 @@ export default function Consulta() {
 
       if (totalGeneral > 0) {
         texto += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-        texto += `TOTAL: $${totalGeneral.toLocaleString('es-AR')}\n`;
+        texto += `TOTAL: ${formatConfirmationMoney(totalGeneral)}\n`;
       }
 
       // Copiar al portapapeles
@@ -3979,8 +3979,7 @@ export default function Consulta() {
                       const promo = room.promoPreview;
                       const hasPromo = Boolean(promo?.hasPromo);
                       const displayPrice = hasPromo ? promo.finalARS : (room.price || 0);
-                      const moneyFmt = (n) =>
-                        `$${new Intl.NumberFormat('es-AR').format(Math.round(n || 0))}`;
+                      const moneyFmt = (n) => formatConfirmationMoney(Math.round(n || 0));
 
                       return (
                         <div key={room.id} className={styles.roomListItem}>

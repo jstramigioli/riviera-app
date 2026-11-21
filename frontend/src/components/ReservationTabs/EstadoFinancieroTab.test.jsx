@@ -121,7 +121,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={summary}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
@@ -173,7 +173,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={withRefund}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
       />
     )
@@ -194,7 +194,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={paid}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
       />
     )
@@ -207,7 +207,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={summary}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
       />
     )
@@ -222,7 +222,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={summary}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
@@ -256,7 +256,7 @@ describe('EstadoFinancieroTab', () => {
         financialSummary={withoutSaldo}
         loadingFinancial={false}
         formatDate={(d) => String(d).slice(0, 10)}
-        formatCurrency={(n) => `$${Number(n).toLocaleString('es-AR')}`}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
         onFinancialChange={vi.fn()}
       />
     )

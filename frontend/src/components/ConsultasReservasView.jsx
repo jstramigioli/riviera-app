@@ -21,6 +21,7 @@ import SidePanel from './SidePanel';
 import EditPanel from './EditPanel';
 import ConfirmationModal from './ConfirmationModal';
 import ErrorDisplay from './ErrorDisplay';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ConsultasReservasView.module.css';
 
 function ConsultasReservasView() {
@@ -398,7 +399,7 @@ function ConsultasReservasView() {
                   style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', fontWeight: 'bold' }}
                   title="Ver detalles de cobros y pagos"
                 >
-                  ${selectedReservation.totalAmount?.toLocaleString('es-AR')}
+                  {formatMoneyArs(selectedReservation.totalAmount || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </a>
               )}
             </div>
@@ -661,7 +662,7 @@ function ConsultasReservasView() {
                       onClick={() => handleReservationClick(reservation)}
                       >
                         <div style={{ fontWeight: 'bold' }}>
-                          Habitación {reservation.room?.name} - ${reservation.totalAmount?.toLocaleString('es-AR')}
+                          Habitación {reservation.room?.name} - {formatMoneyArs(reservation.totalAmount || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#666' }}>
                           {format(new Date(reservation.checkIn), 'dd/MM/yyyy')} - {format(new Date(reservation.checkOut), 'dd/MM/yyyy')}
@@ -701,7 +702,7 @@ function ConsultasReservasView() {
                     fontSize: '1.2rem',
                     color: clientBalance?.balance > 0 ? '#dc3545' : clientBalance?.balance < 0 ? '#28a745' : '#6c757d'
                   }}>
-                    ${clientBalance?.balance ? Math.abs(clientBalance.balance).toLocaleString('es-AR') : '0'}
+                    {formatMoneyArs(clientBalance?.balance ? Math.abs(clientBalance.balance) : 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     {clientBalance?.balance > 0 ? ' (Debe)' : clientBalance?.balance < 0 ? ' (A favor)' : ' (Saldo)'}
                   </span>
                 </div>

@@ -3,6 +3,8 @@
  * Arma shape de timeline + desglose de tarifas + preview de promos RATE.
  */
 
+import { formatMoney } from './formatMoney';
+
 const money = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
@@ -258,10 +260,8 @@ export function summarizeConfirmationQuote(segmentQuotes = []) {
 }
 
 export function formatConfirmationMoney(amount) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
+  return formatMoney(money(amount), 'ARS', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
-  }).format(money(amount));
+  });
 }

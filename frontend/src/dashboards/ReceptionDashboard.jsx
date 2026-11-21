@@ -24,6 +24,7 @@ import PaymentForm from '../components/PaymentForm';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ReceptionDashboard.module.css';
 
 const NOTES_PLACEHOLDER = 'Agregar notas…';
@@ -37,12 +38,10 @@ const RANGE_OPTIONS = [
 function formatSaldo(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n)) return '—';
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
+  return formatMoneyArs(n, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(n);
+  });
 }
 
 function isSettledBalance(row) {

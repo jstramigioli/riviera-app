@@ -417,20 +417,27 @@ describe('PaymentForm facturación', () => {
 
     const moneda = screen.getByTestId('payment-moneda')
     expect(moneda).not.toBeDisabled()
+    expect(screen.queryByTestId('payment-tc')).not.toBeInTheDocument()
     fireEvent.change(moneda, { target: { value: 'USD' } })
     expect(moneda).toHaveValue('USD')
-    expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-moneda-tc')).toBeInTheDocument()
     expect(screen.getByTestId('payment-tc')).toBeInTheDocument()
     expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
+    // TC junto a moneda, no dentro de Monto ingresado
+    expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-fx-sync').querySelector('#payment-tc')).toBeNull()
+    expect(screen.getByTestId('payment-moneda-tc').querySelector('#payment-tc')).not.toBeNull()
   })
 
-  it('USD: 3 campos sync (TC, monto USD, equiv ARS) bajo ingresado y con saldar', async () => {
+  it('USD: TC junto a moneda; monto USD + equiv ARS bajo ingresado sync con saldar', async () => {
     previewPromotion.mockResolvedValue({ aplica: false })
 
     render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('payment-moneda'), { target: { value: 'USD' } })
+    expect(screen.getByTestId('payment-moneda-tc').querySelector('#payment-tc')).not.toBeNull()
+    expect(screen.getByTestId('payment-fx-sync').querySelector('#payment-tc')).toBeNull()
     expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
     expect(screen.getByTestId('payment-saldar-currency-hint')).toHaveTextContent(/Siempre en ARS/i)
 
@@ -672,8 +679,8 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByTestId('payment-automatics-toggle')).not.toBeInTheDocument()
     expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
     expect(screen.getByText(/Promo caja fija/i)).toBeInTheDocument()
-    expect(screen.getByText(/−\$ 1\.000,00/)).toBeInTheDocument()
-    expect(screen.getByText(/−\$ 500,00/)).toBeInTheDocument()
+    expect(screen.getByText(/−1\.000,00 ARS/)).toBeInTheDocument()
+    expect(screen.getByText(/−500,00 ARS/)).toBeInTheDocument()
     expect(screen.queryByTestId('payment-promo-remove-1')).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-promo-remove-2')).toBeInTheDocument()
     expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()

@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { todayAsLocalDate } from '../../utils/calendarDates';
+import { formatMoney, formatMoneyArs } from '../../utils/formatMoney';
 import styles from './LiquidacionPrint.module.css';
 
 const civilNights = (checkIn, checkOut) => {
@@ -24,7 +25,7 @@ const pagoDetalle = (pago) => {
     const original = Number(pago.monto);
     const tc = Number(pago.tipoCambio);
     const originalLabel = Number.isFinite(original)
-      ? `${pago.moneda} ${original.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ? formatMoney(original, pago.moneda)
       : pago.moneda;
     parts.push(originalLabel);
     if (Number.isFinite(tc) && tc > 0) parts.push(`TC ${tc}`);
@@ -34,7 +35,7 @@ const pagoDetalle = (pago) => {
 };
 
 const LiquidacionPrint = forwardRef(function LiquidacionPrint(
-  { reservation, financialSummary, formatDate, formatCurrency, hotelName = 'Hotel Riviera' },
+  { reservation, financialSummary, formatDate, formatCurrency = formatMoneyArs, hotelName = 'Hotel Riviera' },
   ref
 ) {
   if (!reservation || !financialSummary) return null;

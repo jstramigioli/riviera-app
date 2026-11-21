@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { formatMoneyArs } from '../../utils/formatMoney';
 
 const CargosTab = ({ 
   cargos,
   financialSummary,
   loadingFinancial,
   formatDate,
-  formatCurrency,
+  formatCurrency = formatMoneyArs,
   onAddCargo,
   onUpdateCargo,
   onDeleteCargo

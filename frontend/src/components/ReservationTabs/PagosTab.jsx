@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import PaymentForm from '../PaymentForm';
+import { formatMoneyArs, formatMoneyUsd } from '../../utils/formatMoney';
 import styles from './ReservationTabs.module.css';
 
 const PagosTab = ({ 
@@ -9,7 +10,7 @@ const PagosTab = ({
   financialSummary,
   loadingFinancial,
   formatDate,
-  formatCurrency,
+  formatCurrency = formatMoneyArs,
   onAddPago,
   onDeletePago
 }) => {
@@ -76,7 +77,7 @@ const PagosTab = ({
                       <td>{formatDate(pago.fecha)}</td>
                       <td className={styles.montoCell}>
                         {pago.moneda === 'USD' 
-                          ? `$${parseFloat(pago.monto).toFixed(2)} USD`
+                          ? formatMoneyUsd(pago.monto)
                           : formatCurrency(parseFloat(pago.monto))
                         }
                         {pago.moneda === 'USD' && pago.montoARS && (

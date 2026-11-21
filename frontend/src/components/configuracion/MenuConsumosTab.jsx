@@ -12,6 +12,7 @@ import {
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
 import MenuTaxonomyPanel from './MenuTaxonomyPanel';
+import { formatMoneyArs } from '../../utils/formatMoney';
 import styles from './MenuConsumosTab.module.css';
 
 const FALLBACK_CATEGORIES = [
@@ -39,9 +40,7 @@ function subgroupLabel(value) {
 }
 
 function formatMoney(value) {
-  return Number(value || 0).toLocaleString('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
+  return formatMoneyArs(value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { formatMoneyArs } from '../../utils/formatMoney';
 
 export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -263,7 +264,7 @@ export default function OpenDaysPanel({ hotelId = "default-hotel" }) {
                 )}
                 {openDay.fixedPrice && (
                   <span style={{ color: '#17a2b8', fontWeight: '500' }}>
-                    ${openDay.fixedPrice.toLocaleString()}
+                    {formatMoneyArs(openDay.fixedPrice, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </span>
                 )}
               </div>

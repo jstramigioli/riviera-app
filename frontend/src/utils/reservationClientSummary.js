@@ -1,5 +1,6 @@
 import { buildReservationStayTimeline, civilNights } from './reservationStayTimeline';
 import { getDisplaySegments } from './virtualRoomReservation';
+import { formatMoney } from './formatMoney';
 
 const dateKey = (value) => {
   if (!value) return '';
@@ -13,13 +14,6 @@ export const formatClientDate = (value) => {
   const [y, m, d] = key.split('-');
   return `${d}/${m}/${y}`;
 };
-
-const formatMoney = (amount) =>
-  new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2
-  }).format(Number(amount) || 0);
 
 /** Solo tipo de habitación (el nombre/número puede cambiar). */
 const roomTypeLine = (card) => {

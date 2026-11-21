@@ -27,7 +27,7 @@ describe('promoManualBenefit', () => {
       formatOptionalBenefitValue({ benefitType: 'FREE_NIGHTS', benefitValue: 2 })
     ).toBe('−2 noches');
     expect(formatOptionalBenefitValue({ benefitType: 'FIXED', benefitValue: 5000 })).toBe(
-      '−$5.000'
+      '−5.000 ARS'
     );
     expect(
       formatOptionalBenefitValue({

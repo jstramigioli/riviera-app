@@ -18,7 +18,7 @@ export function benefitUnitLabel(benefitType) {
 }
 
 /**
- * Valor legible para el menú «+ promoción»: −10%, −1 noche, −$1.200.
+ * Valor legible para el menú «+ promoción»: −10%, −1 noche, −5.000 ARS.
  * Sin valor fijo (manual / vacío) → null.
  */
 export function formatOptionalBenefitValue(choice) {
@@ -39,8 +39,8 @@ export function formatOptionalBenefitValue(choice) {
   const money = new Intl.NumberFormat('es-AR', {
     maximumFractionDigits: n % 1 === 0 ? 0 : 2
   }).format(n);
-  if (type === 'FIXED_PER_NIGHT') return `−$${money}/noche`;
-  return `−$${money}`;
+  if (type === 'FIXED_PER_NIGHT') return `−${money} ARS/noche`;
+  return `−${money} ARS`;
 }
 
 function normalizeSuggestion(s) {

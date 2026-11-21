@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from '../styles/ReservationsTable.module.css';
 
 export default function ReservationsTable({ 
@@ -343,7 +344,7 @@ export default function ReservationsTable({
                   </td>
                   <td className={styles.cell}>
                     <span className={styles.amount}>
-                      ${reservation.totalAmount?.toLocaleString('es-AR')}
+                      {formatMoneyArs(reservation.totalAmount || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                   </td>
                   <td className={styles.cell}>

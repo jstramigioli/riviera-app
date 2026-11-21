@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { createClientMultiPago } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { formatMoneyArs } from '../utils/formatMoney';
 
 /**
  * Flujo B: cobro desde ficha cliente con distribución a N reservas.
@@ -9,9 +10,7 @@ import { useAppNotice } from '../hooks/useAppNotice';
 function MultiPagoClientPanel({
   clientId,
   reservationsBalance = [],
-  onCreated,
-  formatPrice = (n) =>
-    Number(n || 0).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
+  onCreated
 }) {
   const { notify, noticeDialog } = useAppNotice();
   const candidates = useMemo(
@@ -215,7 +214,7 @@ function MultiPagoClientPanel({
                   {c.label}
                   <span style={{ color: 'var(--color-text-muted)', marginLeft: 6 }}>({c.status})</span>
                 </td>
-                <td style={{ padding: 8 }}>{formatPrice(c.saldo)}</td>
+                <td style={{ padding: 8 }}>{formatMoneyArs(c.saldo)}</td>
                 <td style={{ padding: 8 }}>
                   <input
                     type="number"
@@ -255,10 +254,10 @@ function MultiPagoClientPanel({
         }}
       >
         <span>
-          Distribuido: <strong>{formatPrice(sumDist)}</strong>
+          Distribuido: <strong>{formatMoneyArs(sumDist)}</strong>
         </span>
         <span>
-          Pendiente: <strong>{formatPrice(pendiente)}</strong>
+          Pendiente: <strong>{formatMoneyArs(pendiente)}</strong>
         </span>
         <button
           type="button"

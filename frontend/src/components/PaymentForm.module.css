@@ -154,6 +154,18 @@
   flex-direction: column;
 }
 
+/* Moneda + TC lado a lado cuando moneda ≠ ARS */
+.monedaTcPair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.monedaTcPair .formGroup {
+  min-width: 0;
+}
+
 .formGroup label {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-main);

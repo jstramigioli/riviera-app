@@ -5,6 +5,7 @@ import ConfirmationModal from '../ConfirmationModal';
 import styles from './TariffManagement.module.css';
 import { FiPlus, FiSettings, FiCalendar, FiDollarSign, FiTrendingUp, FiGrid, FiChevronDown } from 'react-icons/fi';
 import { todayAsLocalDate, todayIsoLocal } from '../../utils/calendarDates';
+import { formatMoneyArs } from '../../utils/formatMoney';
 
 export default function TariffManagement({ hotelId = 'default-hotel' }) {
   const [loading, setLoading] = useState(true);
@@ -495,18 +496,18 @@ export default function TariffManagement({ hotelId = 'default-hotel' }) {
                               <td className={styles.roomTypeCell}>
                                 <strong>{room.roomType.name}</strong>
                                 <br />
-                                <small> Base: ${room.basePrice.toLocaleString()}</small>
+                                <small> Base: {formatMoneyArs(room.basePrice, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</small>
                               </td>
                               {room.services.map(service => (
                                 <td key={service.serviceType.id} className={styles.priceCell}>
                                   <div className={styles.finalPrice}>
-                                    ${service.finalPrice.toLocaleString()}
+                                    {formatMoneyArs(service.finalPrice, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                   </div>
                                   {service.hasAdjustment && (
                                     <div className={styles.adjustmentInfo}>
                                       <small>
                                         {service.adjustmentMode === 'FIXED' 
-                                          ? `+$${service.adjustmentValue.toLocaleString()}`
+                                          ? `+${formatMoneyArs(service.adjustmentValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                                           : `+${service.adjustmentValue}%`
                                         }
                                       </small>

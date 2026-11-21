@@ -1376,7 +1376,9 @@ function PromocionesTab() {
                           ? Number(form.benefitValue) === 1
                             ? 'noche'
                             : 'noches'
-                          : '$'}
+                          : form.benefitType === 'FIXED_PER_NIGHT'
+                            ? 'ARS/noche'
+                            : 'ARS'}
                     </span>
                   </span>
                 </label>

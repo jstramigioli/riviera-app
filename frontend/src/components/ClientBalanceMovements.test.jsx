@@ -36,7 +36,7 @@ vi.mock('../hooks/useConfirmDialog', () => ({
   })
 }))
 
-const formatPrice = (n) => `$${n}`
+const formatPrice = (n) => `${n} ARS`
 
 describe('ClientBalanceMovements', () => {
   const cargos = [

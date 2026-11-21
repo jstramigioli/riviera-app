@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiEdit, FiTrash2, FiCopy, FiCalendar, FiChevronDown, FiChevronRight, FiSave, FiX } from 'react-icons/fi';
 import { useSeasonBlock } from '../../hooks/useSeasonBlock';
+import { formatMoneyArs } from '../../utils/formatMoney';
 import styles from './SeasonBlockBar.module.css';
 
 export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotelId }) {
@@ -31,14 +32,11 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'ARS',
+  const formatCurrency = (amount) =>
+    formatMoneyArs(amount, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
+    });
 
   const handleToggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -301,7 +299,7 @@ export default function SeasonBlockBar({ block, onEdit, onDelete, onSaved, hotel
                                           )}
                                         >
                                           <option value="PERCENTAGE">%</option>
-                                          <option value="FIXED">$</option>
+                                          <option value="FIXED">ARS</option>
                                         </select>
                                         <input
                                           type="number"

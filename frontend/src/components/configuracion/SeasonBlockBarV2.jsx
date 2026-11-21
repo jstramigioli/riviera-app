@@ -5,6 +5,7 @@ import { useSeasonBlockV2 } from '../../hooks/useSeasonBlockV2';
 import BlockServiceSelectionManager from './BlockServiceSelectionManager';
 import ConfirmationModal from '../ConfirmationModal';
 import { hasActiveSeasonOverlap, toCivilDate } from '../../utils/seasonBlockOverlap';
+import { formatMoneyArs } from '../../utils/formatMoney';
 import styles from './SeasonBlockBarV2.module.css';
 
 const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBlock, hotelId = 'default-hotel', autoOpenEdit = false, onEditOpened, seasonBlocks = [] }) => {
@@ -236,14 +237,11 @@ const SeasonBlockBarV2 = ({ block, onDeleted, onSaved, onBlockUpdated, onResetBl
     return `${year}-${month}-${day}`;
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
+  const formatCurrency = (amount) =>
+    formatMoneyArs(amount || 0, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
+    });
 
 
   const showNotification = (message, type = 'success') => {

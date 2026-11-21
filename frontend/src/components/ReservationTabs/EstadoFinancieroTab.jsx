@@ -17,6 +17,7 @@ import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
 import { todayIsoLocal } from '../../utils/calendarDates';
+import { formatMoneyArs, formatMoneyUsd } from '../../utils/formatMoney';
 
 function civilIsoToday() {
   return todayIsoLocal();
@@ -87,7 +88,7 @@ const EstadoFinancieroTab = ({
   financialSummary,
   loadingFinancial,
   formatDate,
-  formatCurrency,
+  formatCurrency = formatMoneyArs,
   onFinancialChange,
   onAddCargo,
   onUpdateCargo,
@@ -608,7 +609,7 @@ const EstadoFinancieroTab = ({
                                     <td>{formatDate(pago.fecha)}</td>
                                     <td className={styles.montoCell}>
                                       {pago.moneda === 'USD'
-                                        ? `$${Number(pago.monto).toFixed(2)} USD`
+                                        ? formatMoneyUsd(pago.monto)
                                         : formatCurrency(pago.montoARS ?? pago.monto)}
                                       {pago.moneda === 'USD' && pago.montoARS != null ? (
                                         <div className={styles.arsEquivalent}>

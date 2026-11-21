@@ -9,6 +9,7 @@ import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { todayAsLocalDate } from '../utils/calendarDates';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
+import { formatMoneyArs } from '../utils/formatMoney';
 
 const ClientDetails = () => {
   const { clientId } = useParams();
@@ -85,13 +86,6 @@ const ClientDetails = () => {
     } else {
       notify({ title: 'Sin teléfono', message: 'Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.', type: 'warning' });
     }
-  };
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS'
-    }).format(price);
   };
 
   const formatDate = (dateString) => {
@@ -382,7 +376,7 @@ const ClientDetails = () => {
                         <span className={styles.label}>
                           {totalBalance < 0 ? 'Saldo a favor:' : 'Saldo:'}
                         </span>
-                        <span className={styles.value}>{formatPrice(Math.abs(totalBalance))}</span>
+                        <span className={styles.value}>{formatMoneyArs(Math.abs(totalBalance))}</span>
                       </div>
                       <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
                         <span className={styles.label}> Reservas Activas:</span>
@@ -446,7 +440,7 @@ const ClientDetails = () => {
                           <td className={styles.totalAmount}>
                             {saldo == null
                               ? '—'
-                              : `${formatPrice(Math.abs(saldo))}${saldo > 0 ? ' (debe)' : saldo < 0 ? ' (a favor)' : ''}`}
+                              : `${formatMoneyArs(Math.abs(saldo))}${saldo > 0 ? ' (debe)' : saldo < 0 ? ' (a favor)' : ''}`}
                           </td>
                           <td>
                             <button 
@@ -481,23 +475,23 @@ const ClientDetails = () => {
                         {totalBalance < 0 ? 'Saldo a favor:' : totalBalance > 0 ? 'Saldo deudor:' : 'Saldo:'}
                       </span>
                       <span className={`${styles.value} ${totalBalance > 0 ? styles.negative : styles.positive}`}>
-                        {formatPrice(Math.abs(totalBalance))}
+                        {formatMoneyArs(Math.abs(totalBalance))}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total cargos:</span>
-                      <span className={styles.value}>{formatPrice(clientBalance?.totalCharges || 0)}</span>
+                      <span className={styles.value}>{formatMoneyArs(clientBalance?.totalCharges || 0)}</span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total pagos:</span>
                       <span className={styles.value} data-testid="client-summary-total-pagos">
-                        {formatPrice(totalPagosCliente)}
+                        {formatMoneyArs(totalPagosCliente)}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total devoluciones:</span>
                       <span className={styles.value} data-testid="client-summary-total-devoluciones">
-                        {formatPrice(totalDevolucionesCliente)}
+                        {formatMoneyArs(totalDevolucionesCliente)}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
@@ -547,14 +541,12 @@ const ClientDetails = () => {
               <ClientBalanceMovements
                 cargos={clientBalance?.cargos || []}
                 pagos={clientBalance?.pagos || []}
-                formatPrice={formatPrice}
                 onChanged={() => loadClientData()}
               />
 
               <MultiPagoClientPanel
                 clientId={parseInt(clientId, 10)}
                 reservationsBalance={clientBalance?.reservations || []}
-                formatPrice={formatPrice}
                 onCreated={() => loadClientData()}
               />
             </div>

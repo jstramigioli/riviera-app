@@ -12,14 +12,10 @@ import { copyReservationClientSummary } from '../utils/reservationClientSummary'
 import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
 import { sourceLabel } from '../constants/reservationSource';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ReservationDetailsPanel.module.css';
 
-const formatCurrency = (amount) =>
-  new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2
-  }).format(amount);
+const formatCurrency = formatMoneyArs;
 
 const ReservationDetailsPanel = ({
   reservation,

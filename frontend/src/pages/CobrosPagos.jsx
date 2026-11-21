@@ -20,6 +20,7 @@ import PagosHistorialTable, {
   adjuntosOf,
   paymentCodeLabel,
 } from '../components/PagosHistorialTable';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './CobrosPagos.module.css';
 
 const SECTIONS = {
@@ -58,18 +59,11 @@ function montoSinIvaFromPago(pago) {
   return Math.abs(total) / 1.21;
 }
 
-function formatCurrencyARS(price) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-  }).format(Number(price) || 0);
-}
-
 function facturaCellValue(pago, key) {
   if (key === 'codigo') return paymentCodeLabel(pago);
   // Solo día (sin hora): fecha de facturación, que puede diferir de la del pago.
   if (key === 'fecha') return formatDisplayDate(pago?.factura?.fecha || pago?.fecha);
-  if (key === 'montoSinIva') return formatCurrencyARS(montoSinIvaFromPago(pago));
+  if (key === 'montoSinIva') return formatMoneyArs(montoSinIvaFromPago(pago));
   const raw = pago?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
@@ -410,12 +404,6 @@ const CobrosPagos = () => {
       </div>
     </div>
   );
-
-  const formatPrice = (price) =>
-    new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-    }).format(Number(price) || 0);
 
   const toggleStatus = (status) => {
     setStatusFilters((prev) => ({ ...prev, [status]: !prev[status] }));
@@ -1014,10 +1002,10 @@ const CobrosPagos = () => {
                                 <div className={styles.meta}>{client.email}</div>
                               )}
                             </td>
-                            <td>{formatPrice(reservation.totalCargos)}</td>
-                            <td>{formatPrice(reservation.totalPagos)}</td>
+                            <td>{formatMoneyArs(reservation.totalCargos)}</td>
+                            <td>{formatMoneyArs(reservation.totalPagos)}</td>
                             <td className={styles.amountCell} style={{ color: statusColor }}>
-                              {formatPrice(reservation.saldo)}
+                              {formatMoneyArs(reservation.saldo)}
                             </td>
                             <td>
                               <span

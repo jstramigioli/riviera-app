@@ -1,5 +1,6 @@
 import React from 'react';
 import { FiEdit, FiTrash2, FiCalendar, FiDollarSign, FiSettings } from 'react-icons/fi';
+import { formatMoneyArs } from '../../utils/formatMoney';
 import styles from './SeasonBlockCard.module.css';
 
 export default function SeasonBlockCard({ block, onEdit, onDelete }) {
@@ -11,14 +12,11 @@ export default function SeasonBlockCard({ block, onEdit, onDelete }) {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'ARS',
+  const formatCurrency = (amount) =>
+    formatMoneyArs(amount, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
+    });
 
   const getServiceAdjustmentSummary = () => {
     const adjustmentsByService = {};

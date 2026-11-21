@@ -4,6 +4,7 @@ import { useBlockServiceTypes } from '../../hooks/useBlockServiceTypes';
 import styles from './BlockServiceTypeManager.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { formatMoneyArs } from '../../utils/formatMoney';
 
 export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -200,7 +201,7 @@ export const BlockServiceTypeManager = ({ seasonBlockId, isEditing }) => {
                   <span className={styles.adjustmentInfo}>
                     {serviceType.adjustmentMode === 'PERCENTAGE' 
                       ? `${serviceType.adjustmentValue}% del precio base`
-                      : `+$${serviceType.adjustmentValue}`
+                      : `+${formatMoneyArs(serviceType.adjustmentValue, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
                     }
                   </span>
                 </div>

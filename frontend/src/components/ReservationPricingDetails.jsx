@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getReservationPricingDetails } from '../services/api';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ReservationPricingDetails.module.css';
 
 const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
@@ -27,12 +28,7 @@ const ReservationPricingDetails = ({ reservationId, onClose, isExpanded }) => {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS'
-    }).format(price);
-  };
+  const formatPrice = formatMoneyArs;
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {

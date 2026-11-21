@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiDollarSign, FiSave, FiRefreshCw, FiInfo } from 'react-icons/fi';
 import { getTipoCambioUSD, setTipoCambioUSD } from '../services/api';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './TipoCambioConfig.module.css';
 
 const TipoCambioConfig = () => {
@@ -72,13 +73,6 @@ const TipoCambioConfig = () => {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS'
-    }).format(price);
-  };
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -101,7 +95,7 @@ const TipoCambioConfig = () => {
               <div className={styles.configRow}>
                 <span className={styles.label}> Tipo de cambio:</span>
                 <span className={styles.value}>
-                  {formatPrice(currentConfig.tipoCambio)} por USD
+                  {formatMoneyArs(currentConfig.tipoCambio)} por USD
                 </span>
               </div>
               <div className={styles.configRow}>

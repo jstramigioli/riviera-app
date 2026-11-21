@@ -9,6 +9,7 @@ import {
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from '../pages/CobrosPagos.module.css';
 
 export function isDevolucionPago(pago) {
@@ -94,13 +95,6 @@ export function formatDisplayDateTime(value) {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
-
-function formatPrice(price) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-  }).format(Number(price) || 0);
 }
 
 function startOfDay(isoDate) {
@@ -578,7 +572,7 @@ export default function PagosHistorialTable({
                         <span>{clientName || 'Sin cliente'}</span>
                       )}
                     </td>
-                    <td className={styles.amountCell}>{formatPrice(amount)}</td>
+                    <td className={styles.amountCell}>{formatMoneyArs(amount)}</td>
                     <td className={styles.metaCell} data-testid={`pago-moneda-${pago.id}`}>
                       {moneda}
                     </td>

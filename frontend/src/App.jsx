@@ -24,6 +24,7 @@ import { useSidePanel } from './hooks/useSidePanel.js';
 import { updateReservationOnServer, updateClientOnServer, updateReservationStatusOnServer } from './utils/apiUtils.js';
 import { validateReservationConflict, validateReservationDates, showConflictNotification } from './utils/reservationUtils.js';
 import { buildConsultaEditPath, buildConsultaEditState } from './utils/consultaNavigation.js';
+import { formatMoneyArs } from './utils/formatMoney';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
@@ -476,7 +477,7 @@ function ReservationsView() {
                         onClick={() => handleReservationClick(reservation)}
                         >
                           <div style={{ fontWeight: 'bold' }}>
-                            Habitación {reservation.room?.name} - ${reservation.totalAmount?.toLocaleString('es-AR')}
+                            Habitación {reservation.room?.name} - {formatMoneyArs(reservation.totalAmount || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </div>
                           <div style={{ fontSize: '0.9rem', color: '#666' }}>
                             {format(new Date(reservation.checkIn), 'dd/MM/yyyy')} - {format(new Date(reservation.checkOut), 'dd/MM/yyyy')}
@@ -517,7 +518,7 @@ function ReservationsView() {
                     fontSize: '1.2rem',
                     color: clientBalance?.balance > 0 ? '#dc3545' : clientBalance?.balance < 0 ? '#28a745' : '#6c757d'
                   }}>
-                    ${clientBalance?.balance ? Math.abs(clientBalance.balance).toLocaleString('es-AR') : '0'}
+                    {formatMoneyArs(clientBalance?.balance ? Math.abs(clientBalance.balance) : 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     {clientBalance?.balance > 0 ? ' (Debe)' : clientBalance?.balance < 0 ? ' (A favor)' : ' (Saldo)'}
                   </span>
                 </div>

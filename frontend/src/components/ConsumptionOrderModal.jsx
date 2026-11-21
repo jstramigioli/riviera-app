@@ -10,6 +10,7 @@ import {
   deleteCargo
 } from '../services/api';
 import { todayIsoLocal } from '../utils/calendarDates';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from '../styles/ConsumptionOrderModal.module.css';
 
 const FALLBACK_CATEGORY_ORDER = ['BEBIDAS', 'MINUTAS', 'CAFETERIA'];
@@ -22,10 +23,7 @@ const FALLBACK_CATEGORY_LABELS = {
 const TOAST_MS = 5000;
 
 function formatMoney(value) {
-  const n = Number(value) || 0;
-  return n.toLocaleString('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
+  return formatMoneyArs(value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   });

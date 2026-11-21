@@ -4,6 +4,7 @@ import PaymentForm from './PaymentForm';
 import { deleteCargo, deletePago, updateCargo } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ClientBalanceMovements.module.css';
 
 function formatDate(dateString) {
@@ -22,7 +23,7 @@ function formatDate(dateString) {
 const ClientBalanceMovements = ({
   cargos = [],
   pagos = [],
-  formatPrice,
+  formatPrice = formatMoneyArs,
   onChanged
 }) => {
   const { notify, noticeDialog } = useAppNotice();

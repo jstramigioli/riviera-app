@@ -43,6 +43,7 @@ import {
   formatArs,
   roundMoney
 } from '../utils/paymentDiscount';
+import { formatMoney, formatMoneyArs, formatMoneyUsd } from '../utils/formatMoney';
 import styles from './PaymentForm.module.css';
 
 function pagoFechaToInput(value) {
@@ -1372,12 +1373,6 @@ const PaymentForm = ({
   const foreignCurrency = isForeignCurrency(formData.moneda);
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
 
-  const formatPrice = (price) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(price);
-
-  const formatPriceUSD = (price) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
-
   return (
     <div className={styles.overlay}>
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
@@ -1691,22 +1686,54 @@ const PaymentForm = ({
           </div>
 
           <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-moneda">Moneda *</label>
-              <select
-                id="payment-moneda"
-                value={formData.moneda}
-                onChange={(e) => handleInputChange('moneda', e.target.value)}
-                required
-                disabled={loading}
-                data-testid="payment-moneda"
-              >
-                {SYSTEM_CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+            <div
+              className={
+                foreignCurrency ? styles.monedaTcPair : styles.formGroup
+              }
+              data-testid="payment-moneda-tc"
+            >
+              <div className={styles.formGroup}>
+                <label htmlFor="payment-moneda">Moneda *</label>
+                <select
+                  id="payment-moneda"
+                  value={formData.moneda}
+                  onChange={(e) => handleInputChange('moneda', e.target.value)}
+                  required
+                  disabled={loading}
+                  data-testid="payment-moneda"
+                >
+                  {SYSTEM_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {foreignCurrency ? (
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-tc">Tipo de cambio *</label>
+                  <input
+                    id="payment-tc"
+                    type="number"
+                    value={formData.tipoCambio}
+                    onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                    onFocus={() => {
+                      if (amountMode !== AMOUNT_MODE_SALDAR) {
+                        setAmountMode(AMOUNT_MODE_INGRESADO);
+                      }
+                    }}
+                    placeholder="1000.00"
+                    step="0.01"
+                    min="0"
+                    required
+                    disabled={loading}
+                    data-testid="payment-tc"
+                  />
+                  {tipoCambioGlobal != null && (
+                    <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             {!isDevolucion && canUseSena ? (
@@ -1750,28 +1777,6 @@ const PaymentForm = ({
                   aria-labelledby="payment-monto-ingresado-label"
                   data-testid="payment-fx-sync"
                 >
-                  <label htmlFor="payment-tc">Tipo de cambio *</label>
-                  <input
-                    id="payment-tc"
-                    type="number"
-                    value={formData.tipoCambio}
-                    onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                    onFocus={() => {
-                      if (amountMode !== AMOUNT_MODE_SALDAR) {
-                        setAmountMode(AMOUNT_MODE_INGRESADO);
-                      }
-                    }}
-                    placeholder="1000.00"
-                    step="0.01"
-                    min="0"
-                    required
-                    disabled={loading}
-                    data-testid="payment-tc"
-                  />
-                  {tipoCambioGlobal != null && (
-                    <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                  )}
-
                   <label htmlFor="payment-monto">Monto en {monedaCode}</label>
                   <input
                     id="payment-monto"
@@ -1879,12 +1884,12 @@ const PaymentForm = ({
                   onClick={useSaldoPendienteAsSaldar}
                   data-testid="payment-use-saldo"
                 >
-                  Usar saldo pendiente ($ {formatArs(saldoPendiente)})
+                  Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
                 </button>
               ) : null}
               {isDevolucion && selectedPagoOrigen && origenDescuentoARS > 0 ? (
                 <span className={styles.helpText} data-testid="payment-refund-discount-hint">
-                  Origen con desc. $ {formatArs(origenDescuentoARS)}: al saldar se calcula
+                  Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
                   cuánto devolver.
                 </span>
               ) : null}
@@ -1911,12 +1916,13 @@ const PaymentForm = ({
                     const disc = p.discountApplication?.montoARS;
                     const discLabel =
                       disc != null && Number(disc) > 0
-                        ? ` · desc. ${formatArs(disc)}`
+                        ? ` · desc. ${formatMoneyArs(disc)}`
                         : '';
                     return (
                       <option key={p.id} value={p.id}>
                         {p.codigo || `#${p.id}`} — {p.metodo || 'Pago'} —{' '}
-                        {formatArs(p.montoARS)} ARS{discLabel}
+                        {formatMoneyArs(p.montoARS)}
+                        {discLabel}
                       </option>
                     );
                   })}
@@ -1985,7 +1991,7 @@ const PaymentForm = ({
                         <span className={styles.promoValue}>
                           {manualPromoPreview.probeOnly && promo.porcentaje != null
                             ? `−${promo.porcentaje}%`
-                            : `−$ ${formatArs(promo.montoARS)}`}
+                            : `−${formatMoneyArs(promo.montoARS)}`}
                         </span>
                       </div>
                       {removable ? (
@@ -2057,18 +2063,17 @@ const PaymentForm = ({
                 <ul className={styles.discountList}>
                   <li>
                     Recibe / registra:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.dineroARS || 0)}</strong>
+                    <strong>{formatMoneyArs(manualPromoPreview.dineroARS || 0)}</strong>
                   </li>
                   <li>
                     Crédito a cuenta:{' '}
-                    <strong>$ {formatArs(manualPromoPreview.creditoARS || 0)}</strong>
+                    <strong>{formatMoneyArs(manualPromoPreview.creditoARS || 0)}</strong>
                   </li>
                   {saldoPendiente != null && (
                     <li>
                       Saldo restante proyectado:{' '}
                       <strong>
-                        ${' '}
-                        {formatArs(
+                        {formatMoneyArs(
                           roundMoney(
                             saldoPendiente - (manualPromoPreview.creditoARS || 0)
                           )
@@ -2404,20 +2409,20 @@ const PaymentForm = ({
                 <div className={styles.summaryRow}>
                   <span>Monto a saldar:</span>
                   <span className={styles.amount}>
-                    {refundCreditoARS > 0 ? formatPrice(refundCreditoARS) : '—'}
+                    {refundCreditoARS > 0 ? formatMoneyArs(refundCreditoARS) : '—'}
                   </span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span>Devolver al cliente:</span>
                   <span className={styles.amountARS}>
-                    {tenderMontoARS > 0 ? `−${formatPrice(tenderMontoARS)}` : '—'}
+                    {tenderMontoARS > 0 ? `−${formatMoneyArs(tenderMontoARS)}` : '—'}
                   </span>
                 </div>
                 {selectedPagoOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0 ? (
                   <div className={styles.summaryRow}>
                     <span>Desc. revertido:</span>
                     <span>
-                      {formatPrice(
+                      {formatMoneyArs(
                         roundMoney(Math.max(0, refundCreditoARS - tenderMontoARS))
                       )}
                     </span>
@@ -2429,14 +2434,14 @@ const PaymentForm = ({
                 <div className={styles.summaryRow}>
                   <span>Monto saldado:</span>
                   <span className={styles.amount} data-testid="summary-monto-saldado">
-                    {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
+                    {montoASaldarARS > 0 ? formatMoneyArs(montoASaldarARS) : '—'}
                   </span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span>Cliente abona:</span>
                   <span className={styles.amountARS}>
                     {montoASaldarARS > 0 && tenderMontoARS > 0
-                      ? formatPrice(tenderMontoARS)
+                      ? formatMoneyArs(tenderMontoARS)
                       : '—'}
                   </span>
                 </div>
@@ -2448,10 +2453,10 @@ const PaymentForm = ({
                   <span className={styles.amount}>
                     {hasIngresadoAmount
                       ? foreignCurrency && monedaCode === 'USD'
-                        ? formatPriceUSD(parseFloat(formData.monto) || 0)
+                        ? formatMoneyUsd(parseFloat(formData.monto) || 0)
                         : foreignCurrency
-                          ? `${parseFloat(formData.monto) || 0} ${monedaCode}`
-                          : formatPrice(parseFloat(formData.monto) || 0)
+                          ? formatMoney(parseFloat(formData.monto) || 0, monedaCode)
+                          : formatMoneyArs(parseFloat(formData.monto) || 0)
                       : '—'}
                   </span>
                 </div>
@@ -2469,14 +2474,14 @@ const PaymentForm = ({
                   <div className={styles.summaryRow}>
                     <span>Equivalente en ARS:</span>
                     <span className={styles.amountARS} data-testid="summary-equivalente-ars">
-                      {hasIngresadoAmount ? formatPrice(montoARS) : '—'}
+                      {hasIngresadoAmount ? formatMoneyArs(montoARS) : '—'}
                     </span>
                   </div>
                 )}
                 <div className={styles.summaryRow}>
                   <span>Monto saldado:</span>
                   <span className={styles.amount} data-testid="summary-monto-saldado">
-                    {montoASaldarARS > 0 ? formatPrice(montoASaldarARS) : '—'}
+                    {montoASaldarARS > 0 ? formatMoneyArs(montoASaldarARS) : '—'}
                   </span>
                 </div>
               </>

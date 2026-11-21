@@ -19,6 +19,7 @@ import { validateReservationDates, validateReservationConflict, showConflictNoti
 import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
 import { sourceLabel } from '../constants/reservationSource';
 import { copyReservationClientSummary } from '../utils/reservationClientSummary';
+import { formatMoneyArs } from '../utils/formatMoney';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
@@ -372,14 +373,6 @@ const ReservationDetails = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
-
   const getServiceTypeLabel = (serviceTypeId) => {
     if (!serviceTypeId) return 'No especificado';
     const serviceType = serviceTypes.find(st => st.id === serviceTypeId);
@@ -514,7 +507,7 @@ const ReservationDetails = () => {
             financialSummary={financialSummary}
             loadingFinancial={loadingFinancial}
             formatDate={formatDate}
-            formatCurrency={formatCurrency}
+            formatCurrency={formatMoneyArs}
             onFinancialChange={loadFinancialData}
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
@@ -764,7 +757,7 @@ const ReservationDetails = () => {
           <ReservationStayTimeline
             reservation={reservation}
             getServiceTypeLabel={getServiceTypeLabel}
-            formatCurrency={formatCurrency}
+            formatCurrency={formatMoneyArs}
             onClientClick={handleClientClick}
           />
           {renderTabContent()}

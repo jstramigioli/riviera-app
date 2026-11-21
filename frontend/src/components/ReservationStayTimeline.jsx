@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
+import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ReservationStayTimeline.module.css';
 
 const NARROW_MQ = '(max-width: 720px)';
@@ -14,12 +15,7 @@ const circleClass = (kind) => {
   return styles.circle;
 };
 
-const defaultFormatCurrency = (amount) =>
-  new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2
-  }).format(amount);
+const defaultFormatCurrency = formatMoneyArs;
 
 const useIsNarrow = (enabled) => {
   const [matches, setMatches] = useState(() => {

@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { FaTimes, FaSave, FaDollarSign, FaCalculator, FaEdit } from 'react-icons/fa';
 import SidePanel from './SidePanel';
+import { formatMoneyUsd } from '../utils/formatMoney';
 import styles from '../styles/DayEditPanel.module.css';
 
 export default function DayEditPanel({ 
@@ -220,7 +221,7 @@ export default function DayEditPanel({
                     Precio base (USD)
                   </label>
                   <div className={styles.priceInput}>
-                    <span className={styles.currencySymbol}>$</span>
+                    <span className={styles.currencySymbol}>USD</span>
                     <input
                       type="number"
                       value={formData.fixedPrice || ''}
@@ -272,17 +273,21 @@ export default function DayEditPanel({
                     </div>
                     <div className={styles.cell}>
                       <span className={styles.basePrice}>
-                        ${(formData.priceType === 'fixed' && formData.fixedPrice ? formData.fixedPrice : calculateBasePrice()).toFixed(2)}
+                        {formatMoneyUsd(
+                          formData.priceType === 'fixed' && formData.fixedPrice
+                            ? formData.fixedPrice
+                            : calculateBasePrice()
+                        )}
                       </span>
                     </div>
                     <div className={styles.cell}>
                       <span className={styles.finalPrice}>
-                        ${calculateRoomTypePrice(roomType).toFixed(2)}
+                        {formatMoneyUsd(calculateRoomTypePrice(roomType))}
                       </span>
                     </div>
                     <div className={styles.cell}>
                       <div className={styles.fixedPriceInput}>
-                        <span className={styles.currencySymbol}>$</span>
+                        <span className={styles.currencySymbol}>USD</span>
                         <input
                           type="number"
                           value={roomType.fixedPrice || ''}
