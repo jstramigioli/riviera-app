@@ -246,13 +246,15 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByText(/Equivalente en ARS/i)).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(/Moneda/i), { target: { value: 'USD' } })
-    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
       target: { value: '90' }
     })
 
     await waitFor(() => {
       expect(screen.getByTestId('summary-equivalente-ars')).toBeInTheDocument()
     })
+    expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-equiv-ars')).toBeInTheDocument()
     expect(screen.getByText(/Equivalente en ARS/i)).toBeInTheDocument()
     expect(screen.getByTestId('summary-monto-saldado')).toBeInTheDocument()
   })
@@ -417,7 +419,63 @@ describe('PaymentForm facturación', () => {
     expect(moneda).not.toBeDisabled()
     fireEvent.change(moneda, { target: { value: 'USD' } })
     expect(moneda).toHaveValue('USD')
+    expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-tc')).toBeInTheDocument()
     expect(screen.getByLabelText(/Tipo de cambio/i)).toBeInTheDocument()
+  })
+
+  it('USD: 3 campos sync (TC, monto USD, equiv ARS) bajo ingresado y con saldar', async () => {
+    previewPromotion.mockResolvedValue({ aplica: false })
+
+    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByTestId('payment-moneda'), { target: { value: 'USD' } })
+    expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-saldar-currency-hint')).toHaveTextContent(/Siempre en ARS/i)
+
+    // Monto USD → equiv ARS + saldar
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
+      target: { value: '100' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-equiv-ars')).toHaveValue(100000)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(100000)
+    })
+
+    // Equiv ARS → monto USD + saldar
+    fireEvent.change(screen.getByTestId('payment-equiv-ars'), {
+      target: { value: '50000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(50)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(50000)
+    })
+
+    // TC → mantiene monto USD, recalcula ARS/saldar
+    fireEvent.change(screen.getByTestId('payment-tc'), { target: { value: '1200' } })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-equiv-ars')).toHaveValue(60000)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(60000)
+    })
+    expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(50)
+
+    // Saldar ARS → monto USD + equiv
+    fireEvent.change(screen.getByTestId('payment-monto-saldar'), {
+      target: { value: '24000' }
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(20)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-equiv-ars')).toHaveValue(24000)
+    })
   })
 
   it('USD↔ARS: saldar en ARS muestra ingresado en USD sin forzar moneda', async () => {
@@ -437,8 +495,11 @@ describe('PaymentForm facturación', () => {
     })
     expect(screen.getByTestId('payment-moneda')).toHaveValue('USD')
     expect(screen.getByTestId('payment-monto-saldar')).toHaveValue(50000)
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-equiv-ars')).toHaveValue(50000)
+    })
 
-    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
       target: { value: '120' }
     })
     await waitFor(() => {
