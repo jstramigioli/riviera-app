@@ -765,56 +765,83 @@ const Cobros = () => {
 
               <div className={styles.filters} aria-label="Filtros de cuentas">
                 <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Origen</span>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="origen"
-                      checked={origenFilter === 'todas'}
-                      onChange={() => setOrigenFilter('todas')}
-                    />
-                    Todas
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="origen"
-                      checked={origenFilter === 'reserva'}
-                      onChange={() => setOrigenFilter('reserva')}
-                    />
-                    Reserva
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="origen"
-                      checked={origenFilter === 'externa'}
-                      onChange={() => setOrigenFilter('externa')}
-                    />
-                    Externa
-                  </label>
+                  <span className={styles.filterLabel} id="cuentas-origen-label">Origen</span>
+                  <div
+                    className={styles.segmented}
+                    role="radiogroup"
+                    aria-labelledby="cuentas-origen-label"
+                  >
+                    <label
+                      className={`${styles.segment} ${origenFilter === 'todas' ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="origen"
+                        className={styles.segmentInput}
+                        checked={origenFilter === 'todas'}
+                        onChange={() => setOrigenFilter('todas')}
+                      />
+                      Todas
+                    </label>
+                    <label
+                      className={`${styles.segment} ${origenFilter === 'reserva' ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="origen"
+                        className={styles.segmentInput}
+                        checked={origenFilter === 'reserva'}
+                        onChange={() => setOrigenFilter('reserva')}
+                      />
+                      Reserva
+                    </label>
+                    <label
+                      className={`${styles.segment} ${origenFilter === 'externa' ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="origen"
+                        className={styles.segmentInput}
+                        checked={origenFilter === 'externa'}
+                        onChange={() => setOrigenFilter('externa')}
+                      />
+                      Externa
+                    </label>
+                  </div>
                 </div>
 
                 <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Alcance</span>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="scope"
-                      checked={scopeFilter === 'alojadas'}
-                      onChange={() => setScopeFilter('alojadas')}
-                    />
-                    Alojadas ahora
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="scope"
-                      checked={scopeFilter === 'todas'}
-                      onChange={() => setScopeFilter('todas')}
-                    />
-                    Todas
-                  </label>
+                  <span className={styles.filterLabel} id="cuentas-alcance-label">Alcance</span>
+                  <div
+                    className={styles.segmented}
+                    role="radiogroup"
+                    aria-labelledby="cuentas-alcance-label"
+                  >
+                    <label
+                      className={`${styles.segment} ${scopeFilter === 'alojadas' ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="scope"
+                        className={styles.segmentInput}
+                        checked={scopeFilter === 'alojadas'}
+                        onChange={() => setScopeFilter('alojadas')}
+                      />
+                      Alojadas ahora
+                    </label>
+                    <label
+                      className={`${styles.segment} ${scopeFilter === 'todas' ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="scope"
+                        className={styles.segmentInput}
+                        checked={scopeFilter === 'todas'}
+                        onChange={() => setScopeFilter('todas')}
+                      />
+                      Todas
+                    </label>
+                  </div>
                 </div>
 
                 <div className={styles.filterGroup}>

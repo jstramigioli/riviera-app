@@ -211,6 +211,61 @@
   accent-color: var(--color-primary, #3f5f8a);
 }
 
+.segmented {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-bg-white, #fff);
+}
+
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 5px 12px;
+  border-right: 1px solid var(--color-border, #d8dde6);
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  font-size: var(--font-size-base, 13px);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.segment:last-child {
+  border-right: none;
+}
+
+.segment:hover:not(.segmentActive) {
+  background: var(--color-bg, #f5f6f8);
+  color: var(--color-text-dark, #3a4250);
+}
+
+.segmentActive {
+  background: var(--color-primary, #3f5f8a);
+  color: var(--color-text-light, #fff);
+}
+
+.segmentInput {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment:has(.segmentInput:focus-visible) {
+  outline: 2px solid var(--color-primary, #3f5f8a);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
 .dateField {
   display: inline-flex;
   align-items: center;
