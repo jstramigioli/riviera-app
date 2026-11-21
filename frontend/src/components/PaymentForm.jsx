@@ -2039,13 +2039,13 @@ const PaymentForm = ({
                 data-testid="payment-add-optional-promo"
               >
                 <FiPlus aria-hidden="true" />
-                promoción
+                descuento
               </button>
               {addPromoOpen && optionalChoices.length > 0 ? (
                 <ul
                   className={styles.addPromoMenu}
                   role="listbox"
-                  aria-label="Promociones opcionales"
+                  aria-label="Descuentos opcionales"
                 >
                   {optionalChoices.map((choice) => {
                     const valueLabel = formatOptionalBenefitValue(choice);

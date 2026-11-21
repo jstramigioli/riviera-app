@@ -609,7 +609,7 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByText(/Descuento Efectivo/i)).toBeInTheDocument()
   })
 
-  it('lista promos como Consulta: nombre+monto, Quitar solo opcionales, + promoción', async () => {
+  it('lista promos como Consulta: nombre+monto, Quitar solo opcionales, + descuento', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       expect(payload.applySuggestedDefaults).toBe(true)
       expect(payload.applyAutomatics).toBeUndefined()
@@ -684,6 +684,7 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByTestId('payment-promo-remove-1')).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-promo-remove-2')).toBeInTheDocument()
     expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()
+    expect(screen.getByTestId('payment-add-optional-promo')).toHaveTextContent(/descuento/i)
     expect(screen.queryByText(/Recibe \/ registra/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Crédito a cuenta/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Saldo restante/i)).not.toBeInTheDocument()
