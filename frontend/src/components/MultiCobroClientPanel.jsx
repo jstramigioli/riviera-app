@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { createClientMultiPago } from '../services/api';
+import { createClientMultiCobro } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { formatMoneyArs } from '../utils/formatMoney';
 
 /**
  * Flujo B: cobro desde ficha cliente con distribución a N reservas.
- * Flujo A (PaymentForm con reservaId) no se modifica.
+ * Flujo A (CobroForm con reservaId) no se modifica.
  */
-function MultiPagoClientPanel({
+function MultiCobroClientPanel({
   clientId,
   reservationsBalance = [],
   onCreated
@@ -111,26 +111,26 @@ function MultiPagoClientPanel({
 
     try {
       setSaving(true);
-      const pago = await createClientMultiPago(clientId, {
+      const cobro = await createClientMultiCobro(clientId, {
         monto: recibido,
         moneda: 'ARS',
         metodo,
-        motivo: 'Pago',
+        motivo: 'Cobro',
         imputaciones
       });
       notify({
-        title: 'Pago registrado',
-        message: `Código ${pago.codigo || ''} · ${imputaciones.length} imputación(es)`,
+        title: 'Cobro registrado',
+        message: `Código ${cobro.codigo || ''} · ${imputaciones.length} imputación(es)`,
         type: 'success'
       });
       setMonto('');
       setDistribucion({});
       setSelected(new Set());
-      onCreated?.(pago);
+      onCreated?.(cobro);
     } catch (error) {
       notify({
         title: 'Error',
-        message: error.message || 'No se pudo registrar el pago',
+        message: error.message || 'No se pudo registrar el cobro',
         type: 'error'
       });
     } finally {
@@ -285,7 +285,7 @@ function MultiPagoClientPanel({
             cursor: saving ? 'not-allowed' : 'pointer'
           }}
         >
-          {saving ? 'Guardando…' : 'Registrar pago'}
+          {saving ? 'Guardando…' : 'Registrar cobro'}
         </button>
       </div>
       {noticeDialog}
@@ -293,4 +293,4 @@ function MultiPagoClientPanel({
   );
 }
 
-export default MultiPagoClientPanel;
+export default MultiCobroClientPanel;

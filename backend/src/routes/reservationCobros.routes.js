@@ -1,9 +1,9 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const controller = require('../controllers/reservationPayments.controller');
+const controller = require('../controllers/reservationCobros.controller');
 const { requirePermission } = require('../middlewares/auth');
-const { ADJUNTO_TIPOS } = require('../utils/pagoAdjuntos');
+const { ADJUNTO_TIPOS } = require('../utils/cobroAdjuntos');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,48 +26,48 @@ function requireFacturaUploadIfNeeded(req, res, next) {
 // Obtener todas las reservas con sus saldos (alias Account RESERVATION)
 router.get('/reservas-saldos', controller.getReservasConSaldos);
 
-// Opciones Select del modal Nuevo pago (activas, no solo ocupación de hoy)
-router.get('/reservas-para-pago', controller.getReservasParaPago);
+// Opciones Select del modal Nuevo cobro (activas, no solo ocupación de hoy)
+router.get('/reservas-para-cobro', controller.getReservasParaCobro);
 
 // Alias Account: listado unificado y opciones de cobro
 const accountController = require('../controllers/account.controller');
 router.get('/accounts-saldos', accountController.getAccountsConSaldos);
-router.get('/cuentas-para-pago', accountController.getCuentasParaPago);
+router.get('/cuentas-para-cobro', accountController.getCuentasParaCobro);
 
 // Obtener resumen financiero de una reserva específica
 router.get('/reservas/:reservaId/resumen', controller.getResumenFinanciero);
 
-// Obtener el tipo de cambio actual para nuevos pagos
+// Obtener el tipo de cambio actual para nuevos cobros
 router.get('/tipo-cambio-actual', controller.getTipoCambioActual);
 
 // ============================================
-// RUTAS DE PAGOS
+// RUTAS DE COBROS
 // ============================================
 
-// Historial global de pagos
-router.get('/pagos', controller.getAllPagos);
+// Historial global de cobros
+router.get('/cobros', controller.getAllCobros);
 
-// Obtener todos los pagos de una reserva
-router.get('/reservas/:reservaId/pagos', controller.getPagosByReserva);
+// Obtener todos los cobros de una reserva
+router.get('/reservas/:reservaId/cobros', controller.getCobrosByReserva);
 
-// Crear un nuevo pago para una reserva
-router.post('/reservas/:reservaId/pagos', controller.createPago);
+// Crear un nuevo cobro para una reserva
+router.post('/reservas/:reservaId/cobros', controller.createCobro);
 
-// Actualizar un pago existente
-router.put('/pagos/:id', controller.updatePago);
+// Actualizar un cobro existente
+router.put('/cobros/:id', controller.updateCobro);
 
-// Eliminar un pago
-router.delete('/pagos/:id', controller.deletePago);
+// Eliminar un cobro
+router.delete('/cobros/:id', controller.deleteCobro);
 
 // Adjuntos factura (PDF, admin) / comprobante transferencia (JPG/PNG/PDF)
 router.post(
-  '/pagos/:id/adjuntos/:tipo',
+  '/cobros/:id/adjuntos/:tipo',
   requireFacturaUploadIfNeeded,
   upload.array('files', 20),
-  controller.uploadPagoAdjuntos
+  controller.uploadCobroAdjuntos
 );
-router.get('/pagos/:id/adjuntos/:adjuntoId/download', controller.downloadPagoAdjunto);
-router.delete('/pagos/:id/adjuntos/:adjuntoId', controller.deletePagoAdjunto);
+router.get('/cobros/:id/adjuntos/:adjuntoId/download', controller.downloadCobroAdjunto);
+router.delete('/cobros/:id/adjuntos/:adjuntoId', controller.deleteCobroAdjunto);
 
 // ============================================
 // RUTAS DE CARGOS

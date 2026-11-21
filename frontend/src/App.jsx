@@ -12,7 +12,7 @@ import LocationSelector from './components/LocationSelector';
 import ConfiguracionView from './pages/Configuracion';
 import EstadisticasView from './pages/Estadisticas';
 import ConsultasReservasView from './components/ConsultasReservasView';
-import CobrosPagos from './pages/CobrosPagos';
+import Cobros from './pages/Cobros';
 import Consulta from './pages/Consulta';
 import ErrorDisplay from './components/ErrorDisplay';
 import { TagsProvider } from './contexts/TagsContext';
@@ -29,7 +29,7 @@ import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
 import ConsumptionOrderModal from './components/ConsumptionOrderModal';
-import PaymentForm from './components/PaymentForm';
+import CobroForm from './components/CobroForm';
 import NotificationModal from './components/NotificationModal';
 import ClientDetails from './pages/ClientDetails';
 import ReservationDetails from './pages/ReservationDetails';
@@ -184,7 +184,7 @@ function ReservationsView() {
         if (err?.requiresConfirm && !wipe) {
           setDeleteFinancialWarning(
             err.message ||
-              'La reserva tiene pagos o cargos. Al eliminar se borrará la cuenta y esos movimientos.'
+              'La reserva tiene cobros o cargos. Al eliminar se borrará la cuenta y esos movimientos.'
           );
           setShowDeleteModal(true);
           return;
@@ -270,7 +270,7 @@ function ReservationsView() {
         onSaved={() => setCalendarRefreshToken((n) => n + 1)}
       />
       {paymentOpen && (
-        <PaymentForm
+        <CobroForm
           reservaId={null}
           onClose={closePaymentModal}
           onSuccess={() => setCalendarRefreshToken((n) => n + 1)}
@@ -564,8 +564,8 @@ function ConsultasReservasViewWrapper() {
   return <ConsultasReservasView />;
 }
 
-function CobrosPagosView() {
-  return <CobrosPagos />;
+function CobrosView() {
+  return <Cobros />;
 }
 
 function AppShell({ children }) {
@@ -685,9 +685,13 @@ function App() {
               path="/estado-de-cuentas"
               element={(
                 <ProtectedRoute permission="finanzas">
-                  <AppShell><CobrosPagosView /></AppShell>
+                  <AppShell><CobrosView /></AppShell>
                 </ProtectedRoute>
               )}
+            />
+            <Route
+              path="/cobros"
+              element={<Navigate to="/estado-de-cuentas" replace />}
             />
             <Route
               path="/cobros-pagos"

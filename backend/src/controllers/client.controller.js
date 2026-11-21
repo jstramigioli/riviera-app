@@ -250,7 +250,7 @@ exports.getClientBalance = async (req, res) => {
         reservations: {
           include: {
             cargos: true,
-            pagos: true,
+            cobros: true,
           },
         },
         accounts: {
@@ -282,7 +282,7 @@ exports.getClientBalance = async (req, res) => {
                 reservaId: true,
                 accountId: true,
                 ordenIndex: true,
-                pago: {
+                cobro: {
                   select: {
                     id: true,
                     codigo: true,
@@ -315,11 +315,11 @@ exports.getClientBalance = async (req, res) => {
     }
 
     // Preferir Accounts; fallback legacy a reservations si aún no hay folio.
-    // Saldo por folio usa imputaciones (no Pago directo).
+    // Saldo por folio usa imputaciones (no Cobro directo).
     const accounts = (client.accounts || []).map((account) => ({
       ...account,
       reservationId: account.reservationId || account.reservation?.id || null,
-      pagos: account.imputaciones || [],
+      cobros: account.imputaciones || [],
     }));
 
     const byAccount = aggregateAccountsBalance(accounts);
@@ -329,7 +329,7 @@ exports.getClientBalance = async (req, res) => {
     const toNumber = (v) => (v == null ? 0 : Number(v));
 
     let cargos = [];
-    let pagos = [];
+    let cobros = [];
 
     if (useAccounts) {
       for (const account of accounts) {
@@ -354,26 +354,26 @@ exports.getClientBalance = async (req, res) => {
           });
         }
         for (const imp of account.imputaciones || []) {
-          const pago = imp.pago || {};
-          const imputacionesCount = pago._count?.imputaciones || 1;
-          pagos.push({
-            id: pago.id,
+          const cobro = imp.cobro || {};
+          const imputacionesCount = cobro._count?.imputaciones || 1;
+          cobros.push({
+            id: cobro.id,
             imputacionId: imp.id,
-            codigo: pago.codigo || null,
-            fecha: pago.fecha,
-            monto: toNumber(pago.monto),
-            moneda: pago.moneda || 'ARS',
-            tipoCambio: pago.tipoCambio != null ? toNumber(pago.tipoCambio) : null,
+            codigo: cobro.codigo || null,
+            fecha: cobro.fecha,
+            monto: toNumber(cobro.monto),
+            moneda: cobro.moneda || 'ARS',
+            tipoCambio: cobro.tipoCambio != null ? toNumber(cobro.tipoCambio) : null,
             montoARS: toNumber(imp.montoARS),
-            pagoTotalARS: toNumber(pago.montoARS),
+            pagoTotalARS: toNumber(cobro.montoARS),
             bonificacionARS: toNumber(imp.bonificacionARS),
-            metodo: pago.metodo || null,
-            motivo: pago.motivo || 'Pago',
-            notas: pago.notas || null,
-            referencia: pago.referencia || null,
-            numeroTarjeta: pago.numeroTarjeta || null,
-            empresa: pago.empresa || null,
-            requiereFacturacion: Boolean(pago.requiereFacturacion),
+            metodo: cobro.metodo || null,
+            motivo: cobro.motivo || 'Cobro',
+            notas: cobro.notas || null,
+            referencia: cobro.referencia || null,
+            numeroTarjeta: cobro.numeroTarjeta || null,
+            empresa: cobro.empresa || null,
+            requiereFacturacion: Boolean(cobro.requiereFacturacion),
             reservaId: imp.reservaId || account.reservationId || null,
             accountId: imp.accountId || account.id,
             accountKind: account.kind || null,
@@ -403,27 +403,27 @@ exports.getClientBalance = async (req, res) => {
             editable: Boolean(cargo.subcategoriaCargoId)
           });
         }
-        for (const pago of reservation.pagos || []) {
-          pagos.push({
-            id: pago.id,
+        for (const cobro of reservation.cobros || []) {
+          cobros.push({
+            id: cobro.id,
             imputacionId: null,
-            codigo: pago.codigo || null,
-            fecha: pago.fecha,
-            monto: toNumber(pago.monto),
-            moneda: pago.moneda || 'ARS',
-            tipoCambio: pago.tipoCambio != null ? toNumber(pago.tipoCambio) : null,
-            montoARS: toNumber(pago.montoARS),
-            pagoTotalARS: toNumber(pago.montoARS),
+            codigo: cobro.codigo || null,
+            fecha: cobro.fecha,
+            monto: toNumber(cobro.monto),
+            moneda: cobro.moneda || 'ARS',
+            tipoCambio: cobro.tipoCambio != null ? toNumber(cobro.tipoCambio) : null,
+            montoARS: toNumber(cobro.montoARS),
+            pagoTotalARS: toNumber(cobro.montoARS),
             bonificacionARS: 0,
-            metodo: pago.metodo || null,
-            motivo: pago.motivo || 'Pago',
-            notas: pago.notas || null,
-            referencia: pago.referencia || null,
-            numeroTarjeta: pago.numeroTarjeta || null,
-            empresa: pago.empresa || null,
-            requiereFacturacion: Boolean(pago.requiereFacturacion),
-            reservaId: pago.reservaId || reservation.id,
-            accountId: pago.accountId || null,
+            metodo: cobro.metodo || null,
+            motivo: cobro.motivo || 'Cobro',
+            notas: cobro.notas || null,
+            referencia: cobro.referencia || null,
+            numeroTarjeta: cobro.numeroTarjeta || null,
+            empresa: cobro.empresa || null,
+            requiereFacturacion: Boolean(cobro.requiereFacturacion),
+            reservaId: cobro.reservaId || reservation.id,
+            accountId: cobro.accountId || null,
             accountKind: 'RESERVATION',
             accountLabel,
             esImputacionParcial: false,
@@ -434,13 +434,13 @@ exports.getClientBalance = async (req, res) => {
     }
 
     cargos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    pagos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    cobros.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     res.json({
       clientId: client.id,
       clientName: `${client.firstName} ${client.lastName}`,
       totalCharges: useAccounts ? byAccount.totalCharges : byReservation.totalCharges,
-      totalPayments: useAccounts ? byAccount.totalPayments : byReservation.totalPayments,
+      totalCobros: useAccounts ? byAccount.totalCobros : byReservation.totalCobros,
       balance: useAccounts ? byAccount.balance : byReservation.balance,
       isDebtor: (useAccounts ? byAccount.balance : byReservation.balance) > 0,
       reservationCount: useAccounts ? byAccount.reservationCount : byReservation.reservationCount,
@@ -448,7 +448,7 @@ exports.getClientBalance = async (req, res) => {
       accounts: useAccounts ? byAccount.accounts : [],
       reservations: useAccounts ? byAccount.reservations : byReservation.reservations,
       cargos,
-      pagos
+      cobros
     });
   } catch (error) {
     console.error('Error calculating client balance:', error);

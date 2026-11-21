@@ -13,7 +13,7 @@ async function main() {
     reservationAccounts,
     orphanCounts,
     mismatchCargos,
-    mismatchPagos,
+    mismatchCobros,
     externalWithReserva
   ] = await Promise.all([
     prisma.reservation.count(),
@@ -21,7 +21,7 @@ async function main() {
     prisma.$queryRawUnsafe(`
       SELECT
         (SELECT COUNT(*)::int FROM "Cargo" WHERE "accountId" IS NULL) AS orphan_cargos,
-        (SELECT COUNT(*)::int FROM "Pago" WHERE "accountId" IS NULL) AS orphan_pagos
+        (SELECT COUNT(*)::int FROM "Cobro" WHERE "accountId" IS NULL) AS orphan_cobros
     `),
     prisma.$queryRawUnsafe(`
       SELECT COUNT(*)::int AS c
@@ -32,7 +32,7 @@ async function main() {
     `),
     prisma.$queryRawUnsafe(`
       SELECT COUNT(*)::int AS c
-      FROM "Pago" p
+      FROM "Cobro" p
       JOIN "Account" a ON a.id = p."accountId"
       WHERE a.kind = 'RESERVATION'
         AND (p."reservaId" IS NULL OR p."reservaId" <> a."reservationId")
@@ -48,9 +48,9 @@ async function main() {
     reservations,
     reservationAccounts,
     orphanCargos: orphanCounts[0]?.orphan_cargos ?? 0,
-    orphanPagos: orphanCounts[0]?.orphan_pagos ?? 0,
+    orphanCobros: orphanCounts[0]?.orphan_cobros ?? 0,
     mismatchCargos: mismatchCargos[0]?.c ?? mismatchCargos[0]?.C ?? 0,
-    mismatchPagos: mismatchPagos[0]?.c ?? mismatchPagos[0]?.C ?? 0,
+    mismatchCobros: mismatchCobros[0]?.c ?? mismatchCobros[0]?.C ?? 0,
     externalWithReserva:
       externalWithReserva[0]?.c ?? externalWithReserva[0]?.C ?? 0
   };
@@ -60,9 +60,9 @@ async function main() {
   const ok =
     report.reservations === report.reservationAccounts &&
     report.orphanCargos === 0 &&
-    report.orphanPagos === 0 &&
+    report.orphanCobros === 0 &&
     report.mismatchCargos === 0 &&
-    report.mismatchPagos === 0 &&
+    report.mismatchCobros === 0 &&
     report.externalWithReserva === 0;
 
   if (!ok) {

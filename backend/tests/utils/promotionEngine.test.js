@@ -253,7 +253,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
       paymentMethodConfigId: 1,
       dineroARS: 45000,
       saldoPendiente: 100000,
-      motivo: 'Pago',
+      motivo: 'Cobro',
       mode: 'received'
     });
     expect(r.aplica).toBe(true);
@@ -268,7 +268,7 @@ describe('promotionEngine settlement Efectivo 10% paridad', () => {
       layer: 'SETTLEMENT',
       paymentMethodConfigId: 1,
       saldoPendiente: 100000,
-      motivo: 'Pago',
+      motivo: 'Cobro',
       mode: 'settle'
     });
     expect(r.aplica).toBe(true);
@@ -880,7 +880,7 @@ describe('promotionEngine rate + stacking', () => {
       layer: 'SETTLEMENT',
       selectedRuleIds: [40],
       dineroARS: 10000,
-      motivo: 'Pago',
+      motivo: 'Cobro',
       mode: 'received'
     });
     expect(pending.aplica).toBe(false);
@@ -892,7 +892,7 @@ describe('promotionEngine rate + stacking', () => {
       benefitValueByRuleId: { 40: 10 },
       dineroARS: 9000,
       saldoPendiente: 100000,
-      motivo: 'Pago',
+      motivo: 'Cobro',
       mode: 'received'
     });
     expect(applied.aplica).toBe(true);

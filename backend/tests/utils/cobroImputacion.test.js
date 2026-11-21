@@ -2,9 +2,9 @@ const {
   validateImputaciones,
   autoDistributeOldestFirst,
   distributeBonificacion
-} = require('../../src/utils/pagoImputacion');
+} = require('../../src/utils/cobroImputacion');
 
-describe('pagoImputacion', () => {
+describe('cobroImputacion', () => {
   test('validateImputaciones acepta suma exacta 1:1', () => {
     const rows = validateImputaciones(
       [{ accountId: 1, reservaId: 10, montoARS: 1000 }],

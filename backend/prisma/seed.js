@@ -185,7 +185,7 @@ async function main() {
 
   console.log('Huéspedes creados:', guests.length);
 
-  // Crear algunos cargos y pagos de ejemplo usando el nuevo sistema
+  // Crear algunos cargos y cobros de ejemplo usando el nuevo sistema
   const cargos = await Promise.all([
     prisma.cargo.create({
       data: {
@@ -207,8 +207,8 @@ async function main() {
     })
   ]);
 
-  const pagos = await Promise.all([
-    prisma.pago.create({
+  const cobros = await Promise.all([
+    prisma.cobro.create({
       data: {
         reservaId: reservations[0].id,
         monto: 20000,
@@ -218,7 +218,7 @@ async function main() {
         fecha: new Date('2025-10-26')
       }
     }),
-    prisma.pago.create({
+    prisma.cobro.create({
       data: {
         reservaId: reservations[1].id,
         monto: 100,
@@ -232,7 +232,7 @@ async function main() {
   ]);
 
   console.log('Cargos creados:', cargos.length);
-  console.log('Pagos creados:', pagos.length);
+  console.log('Cobros creados:', cobros.length);
 
   console.log('Seed completado exitosamente!');
 }

@@ -185,7 +185,7 @@ async function createBackup() {
     console.log(`✅ Huéspedes respaldados: ${guests.length} registros`);
 
     // 12. Backup de PAGOS
-    console.log('💳 Respaldando pagos...');
+    console.log('💳 Respaldando cobros...');
     const payments = await prisma.payment.findMany({
       include: {
         guest: true
@@ -196,7 +196,7 @@ async function createBackup() {
       path.join(backupDir, 'payments.json'),
       JSON.stringify(payments, null, 2)
     );
-    console.log(`✅ Pagos respaldados: ${payments.length} registros`);
+    console.log(`✅ Cobros respaldados: ${payments.length} registros`);
 
     // 13. Backup de HUÉSPEDES DE CONSULTA
     console.log('👥 Respaldando huéspedes de consultas...');
@@ -214,7 +214,7 @@ async function createBackup() {
     console.log(`✅ Huéspedes de consultas respaldados: ${queryGuests.length} registros`);
 
     // 14. Backup de PAGOS DE CONSULTA
-    console.log('💰 Respaldando pagos de consultas...');
+    console.log('💰 Respaldando cobros de consultas...');
     const queryPayments = await prisma.queryPayment.findMany({
       include: {
         queryGuest: true
@@ -225,7 +225,7 @@ async function createBackup() {
       path.join(backupDir, 'queryPayments.json'),
       JSON.stringify(queryPayments, null, 2)
     );
-    console.log(`✅ Pagos de consultas respaldados: ${queryPayments.length} registros`);
+    console.log(`✅ Cobros de consultas respaldados: ${queryPayments.length} registros`);
 
     // 15. Backup de TARIFAS NOCTURNAS DE CONSULTA
     console.log('🌙 Respaldando tarifas nocturnas de consultas...');
@@ -496,7 +496,7 @@ async function createBackup() {
     console.log('═══════════════════════════════════════════════');
     console.log(`   👥 Clientes: ${clients.length}`);
     console.log(`   👤 Huéspedes: ${guests.length}`);
-    console.log(`   💳 Pagos: ${payments.length}`);
+    console.log(`   💳 Cobros: ${payments.length}`);
     console.log(`   🏨 Habitaciones: ${rooms.length}`);
     console.log(`   🏠 Tipos de habitación: ${roomTypes.length}`);
     console.log(`   🏷️ Etiquetas: ${tags.length}`);
@@ -504,7 +504,7 @@ async function createBackup() {
     console.log(`   📏 Segmentos de reserva: ${reservationSegments.length}`);
     console.log(`   ❓ Consultas: ${queries.length}`);
     console.log(`   👥 Huéspedes de consultas: ${queryGuests.length}`);
-    console.log(`   💰 Pagos de consultas: ${queryPayments.length}`);
+    console.log(`   💰 Cobros de consultas: ${queryPayments.length}`);
     console.log(`   🌙 Tarifas nocturnas de consultas: ${queryNightRates.length}`);
     console.log(`   🏢 Hotel: ${hotel.length}`);
     console.log(`   🏨 Hoteles completos: ${hotels.length}`);

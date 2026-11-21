@@ -58,8 +58,8 @@ export default function FloatingActionButton({
       onSelect: onCreateConsumption
     },
     {
-      key: 'pago',
-      label: '+ Pago',
+      key: 'cobro',
+      label: '+ Cobro',
       onSelect: onCreatePayment
     }
   ];

@@ -346,15 +346,15 @@ exports.createConsumptionOrder = async (req, res) => {
         });
       }
 
-      const [allCargos, allPagos, allDiscounts] = await Promise.all([
+      const [allCargos, allCobros, allDiscounts] = await Promise.all([
         tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
-        tx.pago.findMany({ where: { accountId: account.id }, select: { montoARS: true } }),
+        tx.cobro.findMany({ where: { accountId: account.id }, select: { montoARS: true } }),
         tx.discountApplication.findMany({
           where: { accountId: account.id },
           select: { montoARS: true }
         })
       ]);
-      const { saldo } = calculateAccountBalance(allCargos, allPagos, allDiscounts);
+      const { saldo } = calculateAccountBalance(allCargos, allCobros, allDiscounts);
       await syncAccountStatusFromBalance(tx, account.id, saldo);
 
       return cargos;

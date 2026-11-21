@@ -109,9 +109,9 @@ async function createFullBackup() {
         fs.mkdirSync(jsonBackupDir, { recursive: true });
       }
 
-      // Backup crítico: Pagos y Cargos (nueva funcionalidad)
-      console.log('💰 Respaldando pagos...');
-      const pagos = await prisma.pago.findMany({
+      // Backup crítico: Cobros y Cargos (nueva funcionalidad)
+      console.log('💰 Respaldando cobros...');
+      const cobros = await prisma.cobro.findMany({
         include: {
           reserva: {
             include: {
@@ -122,10 +122,10 @@ async function createFullBackup() {
       });
       
       fs.writeFileSync(
-        path.join(jsonBackupDir, 'pagos.json'),
-        JSON.stringify(pagos, null, 2)
+        path.join(jsonBackupDir, 'cobros.json'),
+        JSON.stringify(cobros, null, 2)
       );
-      console.log(`✅ Pagos respaldados: ${pagos.length} registros`);
+      console.log(`✅ Cobros respaldados: ${cobros.length} registros`);
 
       console.log('🧾 Respaldando cargos...');
       const cargos = await prisma.cargo.findMany({
@@ -240,7 +240,7 @@ fi
 - **Directorio**: \`${path.basename(jsonBackupDir)}/\`
 - **Descripción**: Datos en formato JSON para referencia y backup selectivo
 - **Archivos incluidos**:
-  - \`pagos.json\` - Todos los pagos registrados
+  - \`cobros.json\` - Todos los cobros registrados
   - \`cargos.json\` - Todos los cargos registrados
   - \`configuraciones.json\` - Configuraciones del sistema
 

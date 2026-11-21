@@ -22,9 +22,9 @@ router.delete('/:id', clientController.deleteClient);
 // Calcular balance de un cliente
 router.get('/:id/balance', clientController.getClientBalance);
 
-// Pago con imputaciones múltiples a reservas del cliente
-const reservationPaymentsController = require('../controllers/reservationPayments.controller');
-router.post('/:id/pagos', reservationPaymentsController.createClientMultiPago);
+// Cobro con imputaciones múltiples a reservas del cliente
+const reservationCobrosController = require('../controllers/reservationCobros.controller');
+router.post('/:id/cobros', reservationCobrosController.createClientMultiCobro);
 
 // Datos de facturación (aparte del perfil del cliente)
 router.get('/:id/billing-profile', clientController.getClientBillingProfile);

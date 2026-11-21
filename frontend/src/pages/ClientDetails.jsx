@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchClients, fetchReservations, getClientBalance } from '../services/api';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
-import MultiPagoClientPanel from '../components/MultiPagoClientPanel';
+import MultiCobroClientPanel from '../components/MultiCobroClientPanel';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
@@ -223,15 +223,15 @@ const ClientDetails = () => {
       ? 'Saldo a favor'
       : 'Cuenta al Día';
 
-  const pagosMovimientos = clientBalance?.pagos || [];
-  const isDevolucionMovimiento = (pago) =>
-    String(pago?.motivo || '') === MOTIVO_DEVOLUCION || Number(pago?.montoARS) < 0;
-  const totalDevolucionesCliente = pagosMovimientos
+  const cobrosMovimientos = clientBalance?.cobros || [];
+  const isDevolucionMovimiento = (cobro) =>
+    String(cobro?.motivo || '') === MOTIVO_DEVOLUCION || Number(cobro?.montoARS) < 0;
+  const totalDevolucionesCliente = cobrosMovimientos
     .filter(isDevolucionMovimiento)
-    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS) || 0), 0);
-  const totalPagosCliente = pagosMovimientos
-    .filter((pago) => !isDevolucionMovimiento(pago))
-    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS) || 0), 0);
+    .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS) || 0), 0);
+  const totalCobrosCliente = cobrosMovimientos
+    .filter((cobro) => !isDevolucionMovimiento(cobro))
+    .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS) || 0), 0);
 
   return (
     <div className={styles.newLayout}>
@@ -301,7 +301,7 @@ const ClientDetails = () => {
               className={`${styles.sectionButton} ${activeSection === 'balance' ? styles.active : ''}`}
               onClick={() => setActiveSection('balance')}
             >
-              Balance de Pagos
+              Balance de Cobros
             </button>
             <button 
               className={`${styles.sectionButton} ${activeSection === 'documents' ? styles.active : ''}`}
@@ -462,10 +462,10 @@ const ClientDetails = () => {
             </div>
           )}
 
-          {/* Sección de Balance de Pagos */}
+          {/* Sección de Balance de Cobros */}
           {activeSection === 'balance' && (
             <div className={styles.section}>
-              <h2> Balance de Pagos</h2>
+              <h2> Balance de Cobros</h2>
               <div className={styles.balanceGrid}>
                 <div className={styles.balanceCard}>
                   <h3> Resumen Financiero</h3>
@@ -483,9 +483,9 @@ const ClientDetails = () => {
                       <span className={styles.value}>{formatMoneyArs(clientBalance?.totalCharges || 0)}</span>
                     </div>
                     <div className={styles.balanceItem}>
-                      <span className={styles.label}>Total pagos:</span>
-                      <span className={styles.value} data-testid="client-summary-total-pagos">
-                        {formatMoneyArs(totalPagosCliente)}
+                      <span className={styles.label}>Total cobros:</span>
+                      <span className={styles.value} data-testid="client-summary-total-cobros">
+                        {formatMoneyArs(totalCobrosCliente)}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
@@ -540,11 +540,11 @@ const ClientDetails = () => {
 
               <ClientBalanceMovements
                 cargos={clientBalance?.cargos || []}
-                pagos={clientBalance?.pagos || []}
+                cobros={clientBalance?.cobros || []}
                 onChanged={() => loadClientData()}
               />
 
-              <MultiPagoClientPanel
+              <MultiCobroClientPanel
                 clientId={parseInt(clientId, 10)}
                 reservationsBalance={clientBalance?.reservations || []}
                 onCreated={() => loadClientData()}
@@ -578,8 +578,8 @@ const ClientDetails = () => {
                   <div className={styles.documentCard}>
                     <div className={styles.documentIcon} aria-hidden="true">$</div>
                     <div className={styles.documentInfo}>
-                      <h3> Comprobantes de Pago</h3>
-                      <p> Recibos y comprobantes de pago</p>
+                      <h3> Comprobantes de Cobro</h3>
+                      <p> Recibos y comprobantes de cobro</p>
                       <div className={styles.documentActions}>
                         <button className={styles.uploadButton}>
                           Subir Comprobante

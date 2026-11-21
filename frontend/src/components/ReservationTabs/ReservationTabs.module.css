@@ -299,7 +299,7 @@
   border-color: #2196f3;
 }
 
-.estadoPagoTag {
+.estadoCobroTag {
   text-align: center;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.15);
@@ -537,7 +537,7 @@
   opacity: 0.85;
 }
 
-.pagosTableScroll {
+.cobrosTableScroll {
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
@@ -547,17 +547,17 @@
   box-shadow: none;
 }
 
-.pagosTable {
+.cobrosTable {
   min-width: 760px;
   width: 100%;
 }
 
-.pagosTable th,
-.pagosTable td {
+.cobrosTable th,
+.cobrosTable td {
   white-space: nowrap;
 }
 
-.pagosTable .notasCell {
+.cobrosTable .notasCell {
   max-width: 180px;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -671,7 +671,7 @@
   color: #047857;
 }
 
-.financialSummaryPanel .estadoPagoTag {
+.financialSummaryPanel .estadoCobroTag {
   margin-top: 8px;
   color: #4b5563;
   font-size: 0.8125rem;
@@ -1562,7 +1562,7 @@
   font-size: var(--font-size-medium);
 }
 
-/* Estilos para pagos multimoneda */
+/* Estilos para cobros multimoneda */
 .arsEquivalent {
   font-size: 0.8rem;
   color: #666;
@@ -1583,7 +1583,7 @@
   font-size: 0.8rem;
 }
 
-/* Estilos para la sección de agregar pago */
+/* Estilos para la sección de agregar cobro */
 .addPaymentSection {
   margin-top: 24px;
   text-align: center;

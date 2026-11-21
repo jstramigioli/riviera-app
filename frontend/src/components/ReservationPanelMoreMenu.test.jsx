@@ -29,7 +29,7 @@ describe('ReservationPanelMoreMenu', () => {
 
     expect(screen.getByText('Agregar consumo')).toBeInTheDocument();
     expect(screen.getByText('Imprimir liquidación')).toBeInTheDocument();
-    expect(screen.getByText('Agregar pago')).toBeInTheDocument();
+    expect(screen.getByText('Agregar cobro')).toBeInTheDocument();
   });
 
   it('navega a la página financiera con la acción elegida', async () => {
@@ -37,12 +37,12 @@ describe('ReservationPanelMoreMenu', () => {
     render(<ReservationPanelMoreMenu reservation={{ id: 42 }} />);
 
     await user.click(screen.getByTestId('reservation-panel-more-menu'));
-    await user.click(screen.getByTestId(`panel-action-${FINANCIAL_ACTIONS.ADD_PAGO}`));
+    await user.click(screen.getByTestId(`panel-action-${FINANCIAL_ACTIONS.ADD_COBRO}`));
 
     expect(navigateMock).toHaveBeenCalledWith('/reservations/42', {
       state: {
         activeTab: 'financiero',
-        financialAction: FINANCIAL_ACTIONS.ADD_PAGO
+        financialAction: FINANCIAL_ACTIONS.ADD_COBRO
       }
     });
   });

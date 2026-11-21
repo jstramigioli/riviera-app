@@ -4,12 +4,12 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { MOTIVO_DEVOLUCION } from '../constants/billing'
 
 vi.mock('../services/api', () => ({
-  getAllPagos: vi.fn(),
-  updatePago: vi.fn(),
-  deletePago: vi.fn(),
-  uploadPagoAdjuntos: vi.fn(),
-  deletePagoAdjunto: vi.fn(),
-  downloadPagoAdjunto: vi.fn(),
+  getAllCobros: vi.fn(),
+  updateCobro: vi.fn(),
+  deleteCobro: vi.fn(),
+  uploadCobroAdjuntos: vi.fn(),
+  deleteCobroAdjunto: vi.fn(),
+  downloadCobroAdjunto: vi.fn(),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -30,10 +30,10 @@ vi.mock('../hooks/useConfirmDialog', () => ({
   }),
 }))
 
-vi.mock('../components/PaymentForm', () => ({
-  default: ({ initialPago, onClose }) => (
+vi.mock('../components/CobroForm', () => ({
+  default: ({ initialCobro, onClose }) => (
     <div data-testid="payment-form">
-      {initialPago?.id ? `edit-${initialPago.id}` : 'create'}
+      {initialCobro?.id ? `edit-${initialCobro.id}` : 'create'}
       <button type="button" onClick={onClose}>
         cerrar
       </button>
@@ -41,12 +41,12 @@ vi.mock('../components/PaymentForm', () => ({
   ),
 }))
 
-import { getAllPagos } from '../services/api'
+import { getAllCobros } from '../services/api'
 import CajaWidget, { pagoInHorizon } from './CajaWidget'
 
 const TODAY = '2026-11-20'
 
-function makePago({ id, fecha, codigo, motivo = 'Pago', metodo = 'Efectivo', reservaId = 10 }) {
+function makeCobro({ id, fecha, codigo, motivo = 'Cobro', metodo = 'Efectivo', reservaId = 10 }) {
   return {
     id,
     codigo: codigo || `P-${id}`,
@@ -71,14 +71,14 @@ function LocationProbe() {
 describe('CajaWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    getAllPagos.mockResolvedValue([
-      makePago({ id: 1, fecha: '2026-11-20T10:00:00' }),
-      makePago({ id: 2, fecha: '2026-11-18T10:00:00' }),
-      makePago({ id: 3, fecha: '2026-11-10T10:00:00' }),
+    getAllCobros.mockResolvedValue([
+      makeCobro({ id: 1, fecha: '2026-11-20T10:00:00' }),
+      makeCobro({ id: 2, fecha: '2026-11-18T10:00:00' }),
+      makeCobro({ id: 3, fecha: '2026-11-10T10:00:00' }),
     ])
   })
 
-  it('muestra pagos de hoy por defecto y permite cambiar a 3 días', async () => {
+  it('muestra cobros de hoy por defecto y permite cambiar a 3 días', async () => {
     render(
       <MemoryRouter>
         <CajaWidget todayIso={TODAY} />
@@ -86,23 +86,23 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('caja-pagos-table')).toBeInTheDocument()
+      expect(screen.getByTestId('caja-cobros-table')).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
-    expect(screen.queryByTestId('pago-row-2')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('pago-row-3')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-2')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-3')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '3 días' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
-      expect(screen.getByTestId('pago-row-2')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-row-2')).toBeInTheDocument()
     })
-    expect(screen.queryByTestId('pago-row-3')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-3')).not.toBeInTheDocument()
   })
 
-  it('abre crear pago y no ofrece editar ni eliminar en el listado', async () => {
+  it('abre crear cobro y no ofrece editar ni eliminar en el listado', async () => {
     render(
       <MemoryRouter>
         <CajaWidget todayIso={TODAY} />
@@ -110,14 +110,14 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
     })
 
-    expect(screen.queryByTestId('pago-edit-1')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('pago-delete-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-edit-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-delete-1')).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('caja-nuevo-pago'))
+    fireEvent.click(screen.getByTestId('caja-nuevo-cobro'))
     expect(screen.getByTestId('payment-form')).toHaveTextContent('create')
   })
 
@@ -133,7 +133,7 @@ describe('CajaWidget', () => {
     ).toBe(true)
   })
 
-  it('vuelve a pedir pagos cuando cambia refreshToken', async () => {
+  it('vuelve a pedir cobros cuando cambia refreshToken', async () => {
     const { rerender } = render(
       <MemoryRouter>
         <CajaWidget todayIso={TODAY} refreshToken={0} />
@@ -141,11 +141,11 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(getAllPagos).toHaveBeenCalledTimes(1)
+      expect(getAllCobros).toHaveBeenCalledTimes(1)
     })
 
-    getAllPagos.mockResolvedValue([
-      makePago({ id: 99, fecha: '2026-11-20T15:00:00.000Z', codigo: 'A099' }),
+    getAllCobros.mockResolvedValue([
+      makeCobro({ id: 99, fecha: '2026-11-20T15:00:00.000Z', codigo: 'A099' }),
     ])
 
     rerender(
@@ -155,8 +155,8 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(getAllPagos).toHaveBeenCalledTimes(2)
-      expect(screen.getByTestId('pago-row-99')).toBeInTheDocument()
+      expect(getAllCobros).toHaveBeenCalledTimes(2)
+      expect(screen.getByTestId('cobro-row-99')).toBeInTheDocument()
     })
   })
 
@@ -179,10 +179,10 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('pago-reserva-link-1')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-reserva-link-1')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTestId('pago-reserva-link-1'))
+    fireEvent.click(screen.getByTestId('cobro-reserva-link-1'))
 
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/reservations/10')
@@ -190,17 +190,17 @@ describe('CajaWidget', () => {
   })
 
   it('devoluciones no muestran toggle Retirado', async () => {
-    getAllPagos.mockResolvedValue([
-      makePago({
+    getAllCobros.mockResolvedValue([
+      makeCobro({
         id: 7,
         fecha: '2026-11-20T10:00:00',
         motivo: MOTIVO_DEVOLUCION,
         metodo: 'Efectivo',
       }),
-      makePago({
+      makeCobro({
         id: 8,
         fecha: '2026-11-20T11:00:00',
-        motivo: 'Pago',
+        motivo: 'Cobro',
         metodo: 'Efectivo',
       }),
     ])
@@ -212,12 +212,12 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('pago-row-7')).toBeInTheDocument()
-      expect(screen.getByTestId('pago-row-8')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-row-7')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-row-8')).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId('pago-retirado-na-7')).toBeInTheDocument()
-    expect(screen.queryByTestId('pago-retirado-toggle-7')).not.toBeInTheDocument()
-    expect(screen.getByTestId('pago-retirado-toggle-8')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-retirado-na-7')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-retirado-toggle-7')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cobro-retirado-toggle-8')).toBeInTheDocument()
   })
 })

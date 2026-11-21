@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ClientBalanceMovements from './ClientBalanceMovements'
-import { deleteCargo, deletePago, updateCargo } from '../services/api'
+import { deleteCargo, deleteCobro, updateCargo } from '../services/api'
 
-vi.mock('./PaymentForm', () => ({
+vi.mock('./CobroForm', () => ({
   default: ({ onClose }) => (
     <div data-testid="payment-form-mock">
       <button type="button" onClick={onClose}>
@@ -16,7 +16,7 @@ vi.mock('./PaymentForm', () => ({
 vi.mock('../services/api', () => ({
   updateCargo: vi.fn(),
   deleteCargo: vi.fn(),
-  deletePago: vi.fn()
+  deleteCobro: vi.fn()
 }))
 
 const notify = vi.fn()
@@ -60,7 +60,7 @@ describe('ClientBalanceMovements', () => {
       editable: false
     }
   ]
-  const pagos = [
+  const cobros = [
     {
       id: 20,
       imputacionId: 200,
@@ -70,7 +70,7 @@ describe('ClientBalanceMovements', () => {
       pagoTotalARS: 5000,
       moneda: 'ARS',
       metodo: 'Efectivo',
-      motivo: 'Pago',
+      motivo: 'Cobro',
       accountLabel: 'Reserva #9',
       esImputacionParcial: false,
       reservaId: 9,
@@ -82,72 +82,72 @@ describe('ClientBalanceMovements', () => {
     vi.clearAllMocks()
     confirm.mockResolvedValue(true)
     deleteCargo.mockResolvedValue({})
-    deletePago.mockResolvedValue({})
+    deleteCobro.mockResolvedValue({})
     updateCargo.mockResolvedValue({})
   })
 
-  it('muestra tablas de cargos y pagos y detalle al seleccionar', () => {
+  it('muestra tablas de cargos y cobros y detalle al seleccionar', () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={vi.fn()}
       />
     )
 
     expect(screen.getByTestId('client-cargos-table')).toBeInTheDocument()
-    expect(screen.getByTestId('client-pagos-table')).toBeInTheDocument()
+    expect(screen.getByTestId('client-cobros-table')).toBeInTheDocument()
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(
-      /Seleccioná un cargo o un pago/i
+      /Seleccioná un cargo o un cobro/i
     )
 
     fireEvent.click(screen.getByTestId('client-cargo-row-10'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Minibar/)
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Agua/)
 
-    fireEvent.click(screen.getByTestId('client-pago-row-20-200'))
+    fireEvent.click(screen.getByTestId('client-cobro-row-20-200'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/A010/)
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Efectivo/)
   })
 
-  it('abre PaymentForm al editar un pago', () => {
+  it('abre CobroForm al editar un cobro', () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={vi.fn()}
       />
     )
 
-    fireEvent.click(screen.getByTestId('client-pago-edit-20'))
+    fireEvent.click(screen.getByTestId('client-cobro-edit-20'))
     expect(screen.getByTestId('payment-form-mock')).toBeInTheDocument()
   })
 
-  it('elimina un pago tras confirmar en modal in-app', async () => {
+  it('elimina un cobro tras confirmar en modal in-app', async () => {
     const onChanged = vi.fn()
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={onChanged}
       />
     )
 
-    fireEvent.click(screen.getByTestId('client-pago-delete-20'))
+    fireEvent.click(screen.getByTestId('client-cobro-delete-20'))
 
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Eliminar pago',
+          title: 'Eliminar cobro',
           confirmText: 'Eliminar'
         })
       )
     })
     await waitFor(() => {
-      expect(deletePago).toHaveBeenCalledWith(20)
+      expect(deleteCobro).toHaveBeenCalledWith(20)
     })
     expect(onChanged).toHaveBeenCalled()
   })
@@ -157,7 +157,7 @@ describe('ClientBalanceMovements', () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={onChanged}
       />
@@ -183,7 +183,7 @@ describe('ClientBalanceMovements', () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={vi.fn()}
       />
@@ -208,17 +208,17 @@ describe('ClientBalanceMovements', () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
-        pagos={pagos}
+        cobros={cobros}
         formatPrice={formatPrice}
         onChanged={vi.fn()}
       />
     )
 
-    fireEvent.click(screen.getByTestId('client-pago-delete-20'))
+    fireEvent.click(screen.getByTestId('client-cobro-delete-20'))
 
     await waitFor(() => {
       expect(confirm).toHaveBeenCalled()
     })
-    expect(deletePago).not.toHaveBeenCalled()
+    expect(deleteCobro).not.toHaveBeenCalled()
   })
 })

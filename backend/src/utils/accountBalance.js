@@ -1,19 +1,19 @@
 /**
- * Saldo de Account: Σ cargos − Σ pagos.montoARS − Σ DiscountApplication.montoARS.
+ * Saldo de Account: Σ cargos − Σ cobros.montoARS − Σ DiscountApplication.montoARS.
  */
 
 const {
   calculateReservationBalance,
   sumCargos,
-  sumPagos,
+  sumCobros,
   sumDescuentos,
   EXCLUDED_RESERVATION_STATUSES,
   isReservationIncludedInClientBalance
 } = require('./reservationBalance');
 
 /** Alias semántico: balance de un folio Account. */
-function calculateAccountBalance(cargos = [], pagos = [], discounts = []) {
-  return calculateReservationBalance(cargos, pagos, discounts);
+function calculateAccountBalance(cargos = [], cobros = [], discounts = []) {
+  return calculateReservationBalance(cargos, cobros, discounts);
 }
 
 /**
@@ -31,14 +31,14 @@ function aggregateAccountsBalance(accounts = []) {
         }
       }
 
-      const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
+      const { totalCargos, totalCobros, totalDescuentos, saldo, estadoCobro } = calculateAccountBalance(
         account.cargos || [],
-        account.pagos || [],
+        account.cobros || [],
         account.discountApplications || account.descuentos || []
       );
 
       acc.totalCharges += totalCargos;
-      acc.totalPayments += totalPagos;
+      acc.totalCobros += totalCobros;
       acc.totalDiscounts += totalDescuentos;
       acc.balance += saldo;
       acc.accountCount += 1;
@@ -52,10 +52,10 @@ function aggregateAccountsBalance(accounts = []) {
         status: account.status,
         label: account.label || null,
         totalCargos,
-        totalPagos,
+        totalCobros,
         totalDescuentos,
         saldo,
-        estadoPago
+        estadoCobro
       });
       // Compat: filas tipo reserva para UI existente
       if (account.kind === 'RESERVATION' && (account.reservationId || account.reservation?.id)) {
@@ -63,7 +63,7 @@ function aggregateAccountsBalance(accounts = []) {
           reservationId: account.reservationId || account.reservation.id,
           status: account.reservation?.status || account.reservationStatus,
           totalCargos,
-          totalPagos,
+          totalCobros,
           totalDescuentos,
           saldo
         });
@@ -72,7 +72,7 @@ function aggregateAccountsBalance(accounts = []) {
     },
     {
       totalCharges: 0,
-      totalPayments: 0,
+      totalCobros: 0,
       totalDiscounts: 0,
       balance: 0,
       accountCount: 0,
@@ -87,7 +87,7 @@ module.exports = {
   calculateAccountBalance,
   aggregateAccountsBalance,
   sumCargos,
-  sumPagos,
+  sumCobros,
   sumDescuentos,
   EXCLUDED_RESERVATION_STATUSES,
   isReservationIncludedInClientBalance

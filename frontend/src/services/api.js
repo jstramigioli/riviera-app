@@ -217,7 +217,7 @@ export async function deleteReservation(id, { confirmFinancialWipe = false } = {
     body = null;
   }
   if (res.status === 409 && body?.code === 'ACCOUNT_HAS_FINANCIALS') {
-    const err = new Error(body.warning || body.error || 'La cuenta tiene pagos o cargos');
+    const err = new Error(body.warning || body.error || 'La cuenta tiene cobros o cargos');
     err.code = body.code;
     err.financial = body.financial;
     err.requiresConfirm = true;
@@ -844,19 +844,19 @@ export async function convertQueryToReservation(id) {
 }
 
 // ============================================
-// API para Pagos y Cargos de Reservas
+// API para Cobros y Cargos de Reservas
 // ============================================
 
 // Obtener resumen financiero de una reserva
 export async function getReservationFinancialSummary(reservaId) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/resumen`);
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas/${reservaId}/resumen`);
   if (!res.ok) throw new Error('Error fetching financial summary');
   return res.json();
 }
 
 // Obtener todas las reservas con saldos (alias Account RESERVATION)
 export async function getReservationsWithBalances() {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas-saldos`, {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas-saldos`, {
     credentials: 'include'
   });
   if (!res.ok) {
@@ -892,26 +892,26 @@ export async function getAccountsWithBalances(kind = 'ALL') {
   return res.json();
 }
 
-/** Reservas activas para el Select del modal Nuevo pago (incluye futuras / señas). */
-export async function fetchReservasParaPago() {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas-para-pago`, {
+/** Reservas activas para el Select del modal Nuevo cobro (incluye futuras / señas). */
+export async function fetchReservasParaCobro() {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas-para-cobro`, {
     credentials: 'include'
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error al listar reservas para pago');
+    throw new Error(error.error || 'Error al listar reservas para cobro');
   }
   return res.json();
 }
 
 /** Cuentas para cobro: reservas activas + externas OPEN. */
-export async function fetchCuentasParaPago() {
-  const res = await apiFetch(`${API_URL}/accounts/para-pago`, {
+export async function fetchCuentasParaCobro() {
+  const res = await apiFetch(`${API_URL}/accounts/para-cobro`, {
     credentials: 'include'
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error al listar cuentas para pago');
+    throw new Error(error.error || 'Error al listar cuentas para cobro');
   }
   return res.json();
 }
@@ -930,8 +930,8 @@ export async function createExternalAccount(data) {
   return res.json();
 }
 
-export async function createAccountPago(accountId, data) {
-  const res = await apiFetch(`${API_URL}/accounts/${accountId}/pagos`, {
+export async function createAccountCobro(accountId, data) {
+  const res = await apiFetch(`${API_URL}/accounts/${accountId}/cobros`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -939,7 +939,7 @@ export async function createAccountPago(accountId, data) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error creating pago');
+    throw new Error(error.error || 'Error creating cobro');
   }
   return res.json();
 }
@@ -1089,36 +1089,36 @@ export async function fetchAccountResumen(accountId) {
   return res.json();
 }
 
-export async function fetchAccountPagos(accountId) {
-  const res = await apiFetch(`${API_URL}/accounts/${accountId}/pagos`, {
+export async function fetchAccountCobros(accountId) {
+  const res = await apiFetch(`${API_URL}/accounts/${accountId}/cobros`, {
     credentials: 'include'
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error cargando pagos de la cuenta');
+    throw new Error(error.error || 'Error cargando cobros de la cuenta');
   }
   return res.json();
 }
 
-// Historial global de pagos
-export async function getAllPagos() {
-  const res = await apiFetch(`${API_URL}/reservation-payments/pagos`, {
+// Historial global de cobros
+export async function getAllCobros() {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/cobros`, {
     credentials: 'include'
   });
   if (!res.ok) throw new Error('Error fetching payment history');
   return res.json();
 }
 
-// Pagos - Obtener todos los pagos de una reserva
-export async function getPagosByReserva(reservaId) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`);
-  if (!res.ok) throw new Error('Error fetching pagos');
+// Cobros - Obtener todos los cobros de una reserva
+export async function getCobrosByReserva(reservaId) {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas/${reservaId}/cobros`);
+  if (!res.ok) throw new Error('Error fetching cobros');
   return res.json();
 }
 
-// Pagos - Crear un nuevo pago (con soporte multimoneda)
-export async function createPago(reservaId, data) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/pagos`, {
+// Cobros - Crear un nuevo cobro (con soporte multimoneda)
+export async function createCobro(reservaId, data) {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas/${reservaId}/cobros`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -1126,14 +1126,14 @@ export async function createPago(reservaId, data) {
   });
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.error || 'Error creating pago');
+    throw new Error(error.error || 'Error creating cobro');
   }
   return res.json();
 }
 
-/** Flujo B: pago cliente con N imputaciones a reservas. */
-export async function createClientMultiPago(clientId, data) {
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/pagos`, {
+/** Flujo B: cobro cliente con N imputaciones a reservas. */
+export async function createClientMultiCobro(clientId, data) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/cobros`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -1141,14 +1141,14 @@ export async function createClientMultiPago(clientId, data) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error creating multi pago');
+    throw new Error(error.error || 'Error creating multi cobro');
   }
   return res.json();
 }
 
-// Pagos - Actualizar un pago
-export async function updatePago(pagoId, data) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+// Cobros - Actualizar un cobro
+export async function updateCobro(cobroId, data) {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/cobros/${cobroId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -1156,31 +1156,31 @@ export async function updatePago(pagoId, data) {
   });
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.error || 'Error updating pago');
+    throw new Error(error.error || 'Error updating cobro');
   }
   return res.json();
 }
 
-// Pagos - Eliminar un pago
-export async function deletePago(pagoId) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/pagos/${pagoId}`, {
+// Cobros - Eliminar un cobro
+export async function deleteCobro(cobroId) {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/cobros/${cobroId}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(error.error || 'Error deleting pago');
+    throw new Error(error.error || 'Error deleting cobro');
   }
   return res.json();
 }
 
-/** Sube adjuntos FACTURA (PDF) o COMPROBANTE (JPG/PNG/PDF) a un pago. */
-export async function uploadPagoAdjuntos(pagoId, tipo, files) {
+/** Sube adjuntos FACTURA (PDF) o COMPROBANTE (JPG/PNG/PDF) a un cobro. */
+export async function uploadCobroAdjuntos(cobroId, tipo, files) {
   const form = new FormData();
   for (const file of files) {
     form.append('files', file);
   }
   const res = await apiFetch(
-    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${encodeURIComponent(tipo)}`,
+    `${API_URL}/reservation-cobros/cobros/${cobroId}/adjuntos/${encodeURIComponent(tipo)}`,
     {
       method: 'POST',
       credentials: 'include',
@@ -1200,13 +1200,13 @@ export async function uploadPagoAdjuntos(pagoId, tipo, files) {
   return res.json();
 }
 
-export function getPagoAdjuntoDownloadUrl(pagoId, adjuntoId) {
-  return `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}/download`;
+export function getCobroAdjuntoDownloadUrl(cobroId, adjuntoId) {
+  return `${API_URL}/reservation-cobros/cobros/${cobroId}/adjuntos/${adjuntoId}/download`;
 }
 
-export async function deletePagoAdjunto(pagoId, adjuntoId) {
+export async function deleteCobroAdjunto(cobroId, adjuntoId) {
   const res = await apiFetch(
-    `${API_URL}/reservation-payments/pagos/${pagoId}/adjuntos/${adjuntoId}`,
+    `${API_URL}/reservation-cobros/cobros/${cobroId}/adjuntos/${adjuntoId}`,
     {
       method: 'DELETE',
       credentials: 'include'
@@ -1225,8 +1225,8 @@ export async function deletePagoAdjunto(pagoId, adjuntoId) {
   return res.json();
 }
 
-export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
-  const res = await apiFetch(getPagoAdjuntoDownloadUrl(pagoId, adjuntoId), {
+export async function downloadCobroAdjunto(cobroId, adjuntoId, filename) {
+  const res = await apiFetch(getCobroAdjuntoDownloadUrl(cobroId, adjuntoId), {
     credentials: 'include'
   });
   if (!res.ok) {
@@ -1245,14 +1245,14 @@ export async function downloadPagoAdjunto(pagoId, adjuntoId, filename) {
 
 // Cargos - Obtener todos los cargos de una reserva
 export async function getCargosByReserva(reservaId) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`);
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas/${reservaId}/cargos`);
   if (!res.ok) throw new Error('Error fetching cargos');
   return res.json();
 }
 
 // Cargos - Crear un nuevo cargo
 export async function createCargo(reservaId, data) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/reservas/${reservaId}/cargos`, {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/reservas/${reservaId}/cargos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -1266,7 +1266,7 @@ export async function createCargo(reservaId, data) {
 
 // Cargos - Actualizar un cargo
 export async function updateCargo(cargoId, data) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/cargos/${cargoId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -1280,7 +1280,7 @@ export async function updateCargo(cargoId, data) {
 
 // Cargos - Eliminar un cargo
 export async function deleteCargo(cargoId) {
-  const res = await apiFetch(`${API_URL}/reservation-payments/cargos/${cargoId}`, {
+  const res = await apiFetch(`${API_URL}/reservation-cobros/cargos/${cargoId}`, {
     method: 'DELETE'
   });
   if (!res.ok) {
@@ -1615,9 +1615,9 @@ export async function setTipoCambioUSD(tipoCambio, descripcion) {
   return res.json();
 }
 
-// Obtener el tipo de cambio actual para nuevos pagos
+// Obtener el tipo de cambio actual para nuevos cobros
 export async function getTipoCambioActual() {
-  const res = await apiFetch(`${API_URL}/reservation-payments/tipo-cambio-actual`);
+  const res = await apiFetch(`${API_URL}/reservation-cobros/tipo-cambio-actual`);
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.error || 'Error fetching tipo de cambio actual');
@@ -1744,16 +1744,16 @@ export default {
   convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
-  getAllPagos,
-  getPagosByReserva,
-  createPago,
-  createClientMultiPago,
-  updatePago,
-  deletePago,
-  uploadPagoAdjuntos,
-  deletePagoAdjunto,
-  getPagoAdjuntoDownloadUrl,
-  downloadPagoAdjunto,
+  getAllCobros,
+  getCobrosByReserva,
+  createCobro,
+  createClientMultiCobro,
+  updateCobro,
+  deleteCobro,
+  uploadCobroAdjuntos,
+  deleteCobroAdjunto,
+  getCobroAdjuntoDownloadUrl,
+  downloadCobroAdjunto,
   getCargosByReserva,
   createCargo,
   updateCargo,

@@ -3,8 +3,8 @@ const {
   isCardMethod,
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
-  normalizePagoMotivo,
-  DEFAULT_PAGO_MOTIVO
+  normalizeCobroMotivo,
+  DEFAULT_COBRO_MOTIVO
 } = require('../../src/utils/billingConstants');
 
 describe('billingConstants', () => {
@@ -25,14 +25,14 @@ describe('billingConstants', () => {
     expect(DEFAULT_IVA_CONDITION).toBe('Responsable Inscripto');
   });
 
-  test('normalizePagoMotivo solo Pago|Seña|Devolución', () => {
-    expect(normalizePagoMotivo(undefined)).toBe(DEFAULT_PAGO_MOTIVO);
-    expect(normalizePagoMotivo('')).toBe(DEFAULT_PAGO_MOTIVO);
-    expect(normalizePagoMotivo('Pago')).toBe('Pago');
-    expect(normalizePagoMotivo('Seña')).toBe('Seña');
-    expect(normalizePagoMotivo('Sena')).toBe('Seña');
-    expect(normalizePagoMotivo('Devolución')).toBe('Devolución');
-    expect(normalizePagoMotivo('devolucion')).toBe('Devolución');
-    expect(normalizePagoMotivo('otro')).toBeNull();
+  test('normalizeCobroMotivo solo Cobro|Seña|Devolución', () => {
+    expect(normalizeCobroMotivo(undefined)).toBe(DEFAULT_COBRO_MOTIVO);
+    expect(normalizeCobroMotivo('')).toBe(DEFAULT_COBRO_MOTIVO);
+    expect(normalizeCobroMotivo('Cobro')).toBe('Cobro');
+    expect(normalizeCobroMotivo('Seña')).toBe('Seña');
+    expect(normalizeCobroMotivo('Sena')).toBe('Seña');
+    expect(normalizeCobroMotivo('Devolución')).toBe('Devolución');
+    expect(normalizeCobroMotivo('devolucion')).toBe('Devolución');
+    expect(normalizeCobroMotivo('otro')).toBeNull();
   });
 });

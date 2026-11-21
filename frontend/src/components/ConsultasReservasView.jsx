@@ -397,7 +397,7 @@ function ConsultasReservasView() {
                   href={`/estado-de-cuentas?clientId=${selectedReservation.mainClientId}`}
                   onClick={(e) => { e.preventDefault(); window.location.href = `/estado-de-cuentas?clientId=${selectedReservation.mainClientId}`; }}
                   style={{ cursor: 'pointer', color: '#3b82f6', textDecoration: 'underline', fontWeight: 'bold' }}
-                  title="Ver detalles de cobros y pagos"
+                  title="Ver detalles de cobros y cobros"
                 >
                   {formatMoneyArs(selectedReservation.totalAmount || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </a>

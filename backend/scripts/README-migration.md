@@ -152,7 +152,7 @@ Después de la migración, puedes:
 
 1. **Revisar los datos** en tu aplicación
 2. **Crear reservas** para los huéspedes migrados
-3. **Agregar pagos** si tienes esa información
+3. **Agregar cobros** si tienes esa información
 4. **Limpiar datos** duplicados o incorrectos
 
 ¡La migración está lista! 🎉 

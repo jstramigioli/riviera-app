@@ -20,7 +20,7 @@ import {
 } from '../utils/apiUtils';
 import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
-import PaymentForm from '../components/PaymentForm';
+import CobroForm from '../components/CobroForm';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
@@ -47,7 +47,7 @@ function formatSaldo(amount) {
 
 function isSettledBalance(row) {
   if (!row) return null;
-  if (row.estadoPago === 'PAGADO' || row.estadoPago === 'A_FAVOR') return true;
+  if (row.estadoCobro === 'PAGADO' || row.estadoCobro === 'A_FAVOR') return true;
   const saldo = Number(row.saldo);
   if (Number.isFinite(saldo)) return saldo <= 0;
   return null;
@@ -409,7 +409,7 @@ export default function ReceptionDashboard() {
           type="button"
           className={styles.saldoBtn}
           onClick={() => openPaymentForSaldo(reservationId, pending)}
-          title="Registrar pago del saldo pendiente"
+          title="Registrar cobro del saldo pendiente"
         >
           {formatSaldo(pending)}
         </button>
@@ -743,7 +743,7 @@ export default function ReceptionDashboard() {
         }}
       />
       {paymentOpen ? (
-        <PaymentForm
+        <CobroForm
           reservaId={paymentReservaId}
           initialMontoASaldar={paymentMontoASaldar}
           initialMode={paymentInitialMode}

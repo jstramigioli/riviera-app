@@ -30,7 +30,7 @@ function rateFromPercent(percent) {
 function computeDiscountFromReceived({
   dineroARS,
   config,
-  motivo = 'Pago',
+  motivo = 'Cobro',
   saldoPendiente = null
 } = {}) {
   const dinero = roundMoney(Math.abs(toNumber(dineroARS)));
@@ -161,7 +161,7 @@ function computeDiscountFromReceived({
 function computeCashToSettle({
   saldoPendiente,
   config,
-  motivo = 'Pago'
+  motivo = 'Cobro'
 } = {}) {
   const saldo = roundMoney(toNumber(saldoPendiente));
   if (saldo <= 0) {
@@ -266,15 +266,15 @@ function computeCashToSettle({
 }
 
 /**
- * Reversión proporcional del descuento original al devolver parte/todo del pago.
+ * Reversión proporcional del descuento original al devolver parte/todo del cobro.
  */
 function computeDiscountReversal({
   originalDiscountARS,
-  originalPagoARS,
+  originalCobroARS,
   devolucionARS
 } = {}) {
   const originalD = Math.abs(toNumber(originalDiscountARS));
-  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalP = Math.abs(toNumber(originalCobroARS));
   const dev = Math.abs(toNumber(devolucionARS));
   if (originalD <= 0 || originalP <= 0 || dev <= 0) {
     return { descuentoRevertidoARS: 0 };

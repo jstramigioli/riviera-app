@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FaEdit, FaTrash } from 'react-icons/fa';
-import PaymentForm from './PaymentForm';
-import { deleteCargo, deletePago, updateCargo } from '../services/api';
+import CobroForm from './CobroForm';
+import { deleteCargo, deleteCobro, updateCargo } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
@@ -18,19 +18,19 @@ function formatDate(dateString) {
 }
 
 /**
- * Tablas de cargos y pagos del perfil cliente (balance).
- * Filas seleccionables → panel de detalle; edición vía modal/PaymentForm.
+ * Tablas de cargos y cobros del perfil cliente (balance).
+ * Filas seleccionables → panel de detalle; edición vía modal/CobroForm.
  */
 const ClientBalanceMovements = ({
   cargos = [],
-  pagos = [],
+  cobros = [],
   formatPrice = formatMoneyArs,
   onChanged
 }) => {
   const { notify, noticeDialog } = useAppNotice();
   const { confirm, confirmDialog } = useConfirmDialog();
-  const [selected, setSelected] = useState(null); // { type: 'cargo'|'pago', id, imputacionId? }
-  const [editingPago, setEditingPago] = useState(null);
+  const [selected, setSelected] = useState(null); // { type: 'cargo'|'cobro', id, imputacionId? }
+  const [editingCobro, setEditingCobro] = useState(null);
   const [editingCargo, setEditingCargo] = useState(null);
   const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '', notas: '' });
   const [savingCargo, setSavingCargo] = useState(false);
@@ -45,26 +45,26 @@ const ClientBalanceMovements = ({
     return cargos.find((c) => c.id === selected.id) || null;
   }, [selected, cargos]);
 
-  const selectedPago = useMemo(() => {
-    if (!selected || selected.type !== 'pago') return null;
+  const selectedCobro = useMemo(() => {
+    if (!selected || selected.type !== 'cobro') return null;
     return (
-      pagos.find(
+      cobros.find(
         (p) =>
           p.id === selected.id &&
           (selected.imputacionId == null || p.imputacionId === selected.imputacionId)
       ) || null
     );
-  }, [selected, pagos]);
+  }, [selected, cobros]);
 
   const selectCargo = (cargo) => {
     setSelected({ type: 'cargo', id: cargo.id });
   };
 
-  const selectPago = (pago) => {
+  const selectCobro = (cobro) => {
     setSelected({
-      type: 'pago',
-      id: pago.id,
-      imputacionId: pago.imputacionId ?? null
+      type: 'cobro',
+      id: cobro.id,
+      imputacionId: cobro.imputacionId ?? null
     });
   };
 
@@ -86,8 +86,8 @@ const ClientBalanceMovements = ({
     });
   };
 
-  const openEditPago = (pago) => {
-    setEditingPago(pago);
+  const openEditCobro = (cobro) => {
+    setEditingCobro(cobro);
   };
 
   const clearSelectionIf = (predicate) => {
@@ -130,27 +130,27 @@ const ClientBalanceMovements = ({
     }
   };
 
-  const handleDeletePago = async (pago) => {
-    if (!pago?.id || deletingId === `pago-${pago.id}`) return;
-    const codigo = pago.codigo || `#${pago.id}`;
+  const handleDeleteCobro = async (cobro) => {
+    if (!cobro?.id || deletingId === `cobro-${cobro.id}`) return;
+    const codigo = cobro.codigo || `#${cobro.id}`;
     const ok = await confirm({
-      title: 'Eliminar pago',
-      message: `¿Eliminar el pago ${codigo}? Esta acción no se puede deshacer.`,
+      title: 'Eliminar cobro',
+      message: `¿Eliminar el cobro ${codigo}? Esta acción no se puede deshacer.`,
       confirmText: 'Eliminar'
     });
     if (!ok) return;
 
-    setDeletingId(`pago-${pago.id}`);
+    setDeletingId(`cobro-${cobro.id}`);
     try {
-      await deletePago(pago.id);
-      clearSelectionIf((s) => s.type === 'pago' && s.id === pago.id);
-      if (editingPago?.id === pago.id) setEditingPago(null);
-      notify({ title: 'Pago eliminado', message: 'El pago se eliminó correctamente.', type: 'success' });
+      await deleteCobro(cobro.id);
+      clearSelectionIf((s) => s.type === 'cobro' && s.id === cobro.id);
+      if (editingCobro?.id === cobro.id) setEditingCobro(null);
+      notify({ title: 'Cobro eliminado', message: 'El cobro se eliminó correctamente.', type: 'success' });
       if (onChanged) await onChanged();
     } catch (err) {
       notify({
         title: 'No se pudo eliminar',
-        message: err?.message || 'Error al eliminar el pago',
+        message: err?.message || 'Error al eliminar el cobro',
         type: 'error'
       });
     } finally {
@@ -191,7 +191,7 @@ const ClientBalanceMovements = ({
     }
   };
 
-  const detail = selectedCargo || selectedPago;
+  const detail = selectedCargo || selectedCobro;
 
   return (
     <div className={styles.wrap} data-testid="client-balance-movements">
@@ -273,16 +273,16 @@ const ClientBalanceMovements = ({
           )}
         </section>
 
-        <section className={styles.tableCard} aria-labelledby="client-pagos-heading">
+        <section className={styles.tableCard} aria-labelledby="client-cobros-heading">
           <div className={styles.tableHeader}>
-            <h3 id="client-pagos-heading">Pagos</h3>
-            <span className={styles.count}>{pagos.length}</span>
+            <h3 id="client-cobros-heading">Cobros</h3>
+            <span className={styles.count}>{cobros.length}</span>
           </div>
-          {pagos.length === 0 ? (
-            <p className={styles.empty}>Sin pagos registrados.</p>
+          {cobros.length === 0 ? (
+            <p className={styles.empty}>Sin cobros registrados.</p>
           ) : (
             <div className={styles.tableScroll}>
-              <table className={styles.dataTable} data-testid="client-pagos-table">
+              <table className={styles.dataTable} data-testid="client-cobros-table">
                 <thead>
                   <tr>
                     <th>Código</th>
@@ -293,40 +293,40 @@ const ClientBalanceMovements = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {pagos.map((pago) => {
-                    const rowKey = `${pago.id}-${pago.imputacionId ?? 'full'}`;
+                  {cobros.map((cobro) => {
+                    const rowKey = `${cobro.id}-${cobro.imputacionId ?? 'full'}`;
                     const isSelected =
-                      selected?.type === 'pago' &&
-                      selected.id === pago.id &&
-                      (selected.imputacionId ?? null) === (pago.imputacionId ?? null);
-                    const codigo = pago.codigo || `#${pago.id}`;
+                      selected?.type === 'cobro' &&
+                      selected.id === cobro.id &&
+                      (selected.imputacionId ?? null) === (cobro.imputacionId ?? null);
+                    const codigo = cobro.codigo || `#${cobro.id}`;
                     return (
                       <tr
                         key={rowKey}
                         className={isSelected ? styles.rowSelected : undefined}
-                        onClick={() => selectPago(pago)}
-                        data-testid={`client-pago-row-${rowKey}`}
+                        onClick={() => selectCobro(cobro)}
+                        data-testid={`client-cobro-row-${rowKey}`}
                         aria-selected={isSelected}
                       >
                         <td>
                           {codigo}
-                          {pago.esImputacionParcial ? ' · parcial' : ''}
+                          {cobro.esImputacionParcial ? ' · parcial' : ''}
                         </td>
-                        <td>{formatDate(pago.fecha)}</td>
-                        <td>{pago.accountLabel || '—'}</td>
-                        <td className={styles.montoCell}>{formatPrice(pago.montoARS)}</td>
+                        <td>{formatDate(cobro.fecha)}</td>
+                        <td>{cobro.accountLabel || '—'}</td>
+                        <td className={styles.montoCell}>{formatPrice(cobro.montoARS)}</td>
                         <td>
                           <div className={styles.rowActions}>
                             <button
                               type="button"
                               className={styles.iconBtn}
-                              title="Editar pago"
-                              aria-label="Editar pago"
-                              data-testid={`client-pago-edit-${pago.id}`}
+                              title="Editar cobro"
+                              aria-label="Editar cobro"
+                              data-testid={`client-cobro-edit-${cobro.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                selectPago(pago);
-                                openEditPago(pago);
+                                selectCobro(cobro);
+                                openEditCobro(cobro);
                               }}
                             >
                               <FaEdit aria-hidden="true" />
@@ -334,14 +334,14 @@ const ClientBalanceMovements = ({
                             <button
                               type="button"
                               className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                              title="Eliminar pago"
-                              aria-label="Eliminar pago"
-                              data-testid={`client-pago-delete-${pago.id}`}
-                              disabled={deletingId === `pago-${pago.id}`}
+                              title="Eliminar cobro"
+                              aria-label="Eliminar cobro"
+                              data-testid={`client-cobro-delete-${cobro.id}`}
+                              disabled={deletingId === `cobro-${cobro.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                selectPago(pago);
-                                handleDeletePago(pago);
+                                selectCobro(cobro);
+                                handleDeleteCobro(cobro);
                               }}
                             >
                               <FaTrash aria-hidden="true" />
@@ -365,7 +365,7 @@ const ClientBalanceMovements = ({
       >
         <h3>Detalle</h3>
         {!detail ? (
-          <p className={styles.empty}>Seleccioná un cargo o un pago para ver el detalle.</p>
+          <p className={styles.empty}>Seleccioná un cargo o un cobro para ver el detalle.</p>
         ) : selectedCargo ? (
           <dl className={styles.detailList}>
             <div>
@@ -424,86 +424,86 @@ const ClientBalanceMovements = ({
           <dl className={styles.detailList}>
             <div>
               <dt>Tipo</dt>
-              <dd>Pago</dd>
+              <dd>Cobro</dd>
             </div>
             <div>
               <dt>Código</dt>
-              <dd>{selectedPago.codigo || `#${selectedPago.id}`}</dd>
+              <dd>{selectedCobro.codigo || `#${selectedCobro.id}`}</dd>
             </div>
             <div>
               <dt>Fecha</dt>
-              <dd>{formatDate(selectedPago.fecha)}</dd>
+              <dd>{formatDate(selectedCobro.fecha)}</dd>
             </div>
             <div>
               <dt>Monto imputado</dt>
-              <dd>{formatPrice(selectedPago.montoARS)}</dd>
+              <dd>{formatPrice(selectedCobro.montoARS)}</dd>
             </div>
-            {selectedPago.esImputacionParcial ? (
+            {selectedCobro.esImputacionParcial ? (
               <div>
-                <dt>Total del pago</dt>
-                <dd>{formatPrice(selectedPago.pagoTotalARS)}</dd>
+                <dt>Total del cobro</dt>
+                <dd>{formatPrice(selectedCobro.pagoTotalARS)}</dd>
               </div>
             ) : null}
             <div>
               <dt>Moneda</dt>
               <dd>
-                {selectedPago.moneda || 'ARS'}
-                {selectedPago.moneda === 'USD' && selectedPago.tipoCambio
-                  ? ` · TC ${selectedPago.tipoCambio}`
+                {selectedCobro.moneda || 'ARS'}
+                {selectedCobro.moneda === 'USD' && selectedCobro.tipoCambio
+                  ? ` · TC ${selectedCobro.tipoCambio}`
                   : ''}
               </dd>
             </div>
             <div>
               <dt>Método</dt>
-              <dd>{selectedPago.metodo || '—'}</dd>
+              <dd>{selectedCobro.metodo || '—'}</dd>
             </div>
             <div>
               <dt>Motivo</dt>
-              <dd>{selectedPago.motivo || 'Pago'}</dd>
+              <dd>{selectedCobro.motivo || 'Cobro'}</dd>
             </div>
             <div>
               <dt>Cuenta</dt>
-              <dd>{selectedPago.accountLabel || '—'}</dd>
+              <dd>{selectedCobro.accountLabel || '—'}</dd>
             </div>
             <div>
               <dt>Referencia</dt>
-              <dd>{selectedPago.referencia || '—'}</dd>
+              <dd>{selectedCobro.referencia || '—'}</dd>
             </div>
             <div>
               <dt>Notas</dt>
-              <dd>{selectedPago.notas || '—'}</dd>
+              <dd>{selectedCobro.notas || '—'}</dd>
             </div>
             <div className={styles.detailActions}>
               <button
                 type="button"
                 className={styles.editBtn}
-                onClick={() => openEditPago(selectedPago)}
-                data-testid="client-pago-detail-edit"
+                onClick={() => openEditCobro(selectedCobro)}
+                data-testid="client-cobro-detail-edit"
               >
-                <FaEdit aria-hidden="true" /> Editar pago
+                <FaEdit aria-hidden="true" /> Editar cobro
               </button>
               <button
                 type="button"
                 className={styles.deleteBtn}
-                onClick={() => handleDeletePago(selectedPago)}
-                data-testid="client-pago-detail-delete"
-                disabled={deletingId === `pago-${selectedPago.id}`}
+                onClick={() => handleDeleteCobro(selectedCobro)}
+                data-testid="client-cobro-detail-delete"
+                disabled={deletingId === `cobro-${selectedCobro.id}`}
               >
-                <FaTrash aria-hidden="true" /> Eliminar pago
+                <FaTrash aria-hidden="true" /> Eliminar cobro
               </button>
             </div>
           </dl>
         )}
       </aside>
 
-      {editingPago ? (
-        <PaymentForm
-          reservaId={editingPago.reservaId || null}
-          accountId={editingPago.accountId || null}
-          initialPago={editingPago}
-          onClose={() => setEditingPago(null)}
+      {editingCobro ? (
+        <CobroForm
+          reservaId={editingCobro.reservaId || null}
+          accountId={editingCobro.accountId || null}
+          initialCobro={editingCobro}
+          onClose={() => setEditingCobro(null)}
           onSuccess={async () => {
-            setEditingPago(null);
+            setEditingCobro(null);
             if (onChanged) await onChanged();
           }}
         />

@@ -49,7 +49,7 @@ function req(method, path, body, cookie) {
   const clients = JSON.parse((await req('GET', '/api/clients', null, cookie)).body);
   const client = clients[0];
   const rbody = JSON.parse(
-    (await req('GET', '/api/reservation-payments/reservas-saldos', null, cookie)).body
+    (await req('GET', '/api/reservation-cobros/reservas-saldos', null, cookie)).body
   );
   const rows = Array.isArray(rbody) ? rbody : [];
   const rid = rows[0]?.id || rows[0]?.reservaId;
@@ -57,7 +57,7 @@ function req(method, path, body, cookie) {
 
   const pagoB = await req(
     'POST',
-    `/api/reservation-payments/reservas/${rid}/pagos`,
+    `/api/reservation-cobros/reservas/${rid}/cobros`,
     {
       monto: 150,
       moneda: 'ARS',
@@ -92,7 +92,7 @@ function req(method, path, body, cookie) {
 
   const pagoA = await req(
     'POST',
-    `/api/reservation-payments/reservas/${rid}/pagos`,
+    `/api/reservation-cobros/reservas/${rid}/cobros`,
     {
       monto: 200,
       moneda: 'ARS',

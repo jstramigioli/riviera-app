@@ -16,11 +16,11 @@ vi.mock('../../hooks/useAppNotice', () => ({
   })
 }))
 
-vi.mock('../PaymentForm', () => ({
-  default: ({ initialPago, onClose }) => (
+vi.mock('../CobroForm', () => ({
+  default: ({ initialCobro, onClose }) => (
     <div data-testid="payment-form-modal">
       <span data-testid="payment-form-mode">
-        {initialPago?.id ? `edit-${initialPago.id}` : 'create'}
+        {initialCobro?.id ? `edit-${initialCobro.id}` : 'create'}
       </span>
       <button type="button" onClick={onClose}>
         cerrar
@@ -36,10 +36,10 @@ vi.mock('./LiquidacionPrint', () => ({
 const summary = {
   resumen: {
     totalCargos: 100000,
-    totalPagos: 45000,
+    totalCobros: 45000,
     totalDescuentos: 5000,
     saldo: 50000,
-    estadoPago: 'PENDIENTE'
+    estadoCobro: 'PENDIENTE'
   },
   cargos: {
     items: [
@@ -70,7 +70,7 @@ const summary = {
       }
     }
   },
-  pagos: {
+  cobros: {
     items: [
       {
         id: 10,
@@ -80,7 +80,7 @@ const summary = {
         montoARS: 45000,
         moneda: 'ARS',
         metodo: 'Efectivo',
-        motivo: 'Pago',
+        motivo: 'Cobro',
         notas: null,
         discountApplication: {
           id: 3,
@@ -126,13 +126,13 @@ describe('EstadoFinancieroTab', () => {
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
         onDeleteCargo={vi.fn()}
-        onDeletePago={vi.fn()}
+        onDeleteCobro={vi.fn()}
       />
     )
 
     expect(screen.getByTestId('financial-saldo')).toHaveTextContent('50.000')
     expect(screen.getByTestId('summary-total-cargos')).toHaveTextContent('100.000')
-    expect(screen.getByTestId('summary-total-pagos')).toHaveTextContent('45.000')
+    expect(screen.getByTestId('summary-total-cobros')).toHaveTextContent('45.000')
     expect(screen.getByTestId('summary-total-devoluciones')).toHaveTextContent('0')
     expect(screen.getByTestId('summary-total-descuentos')).toHaveTextContent('5.000')
     expect(screen.getByTestId('financial-summary-panel')).toBeInTheDocument()
@@ -146,12 +146,12 @@ describe('EstadoFinancieroTab', () => {
       ...summary,
       resumen: {
         ...summary.resumen,
-        totalPagos: 25000,
+        totalCobros: 25000,
         saldo: 70000
       },
-      pagos: {
+      cobros: {
         items: [
-          ...summary.pagos.items,
+          ...summary.cobros.items,
           {
             id: 11,
             codigo: 'A011',
@@ -178,15 +178,15 @@ describe('EstadoFinancieroTab', () => {
       />
     )
 
-    expect(screen.getByTestId('summary-total-pagos')).toHaveTextContent('45.000')
+    expect(screen.getByTestId('summary-total-cobros')).toHaveTextContent('45.000')
     expect(screen.getByTestId('summary-total-devoluciones')).toHaveTextContent('20.000')
-    expect(screen.getByTestId('financial-total-pagos')).toHaveTextContent('25.000')
+    expect(screen.getByTestId('financial-total-cobros')).toHaveTextContent('25.000')
   })
 
   it('muestra check verde si está pagado y alerta roja si vencido tras check-out', () => {
     const paid = {
       ...summary,
-      resumen: { ...summary.resumen, totalPagos: 100000, totalDescuentos: 0, saldo: 0 }
+      resumen: { ...summary.resumen, totalCobros: 100000, totalDescuentos: 0, saldo: 0 }
     }
     const { rerender } = render(
       <EstadoFinancieroTab
@@ -234,7 +234,7 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.queryByText(/Categoría/i)).not.toBeInTheDocument()
   })
 
-  it('abre el modal Nuevo pago prefilled al editar un pago (no inline)', () => {
+  it('abre el modal Nuevo cobro prefilled al editar un cobro (no inline)', () => {
     render(
       <EstadoFinancieroTab
         reservation={{ id: 22 }}
@@ -246,26 +246,26 @@ describe('EstadoFinancieroTab', () => {
         onAddCargo={vi.fn()}
         onUpdateCargo={vi.fn()}
         onDeleteCargo={vi.fn()}
-        onDeletePago={vi.fn()}
+        onDeleteCobro={vi.fn()}
       />
     )
 
-    fireEvent.click(screen.getByTestId('financial-row-pagos'))
-    expect(screen.getByTestId('financial-pagos-table')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('financial-row-cobros'))
+    expect(screen.getByTestId('financial-cobros-table')).toBeInTheDocument()
     expect(screen.getByText('A010')).toBeInTheDocument()
-    expect(screen.queryByTestId('pago-edit-monto-10')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-edit-monto-10')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('pago-edit-10'))
+    fireEvent.click(screen.getByTestId('cobro-edit-10'))
     expect(screen.getByTestId('payment-form-modal')).toBeInTheDocument()
     expect(screen.getByTestId('payment-form-mode')).toHaveTextContent('edit-10')
   })
 
-  it('si el resumen no trae saldo, usa cargos − pagos − descuentos', () => {
+  it('si el resumen no trae saldo, usa cargos − cobros − descuentos', () => {
     const withoutSaldo = {
       ...summary,
       resumen: {
         totalCargos: 100000,
-        totalPagos: 45000,
+        totalCobros: 45000,
         totalDescuentos: 5000
       }
     }

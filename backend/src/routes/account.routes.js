@@ -4,7 +4,7 @@ const controller = require('../controllers/account.controller');
 
 // Listados
 router.get('/saldos', controller.getAccountsConSaldos);
-router.get('/para-pago', controller.getCuentasParaPago);
+router.get('/para-cobro', controller.getCuentasParaCobro);
 
 // Alta externa
 router.post('/external', controller.createExternalAccountHandler);
@@ -13,8 +13,8 @@ router.post('/external', controller.createExternalAccountHandler);
 router.get('/:id', controller.getAccountById);
 router.get('/:id/resumen', controller.getAccountResumen);
 router.get('/:id/cargos', controller.getAccountCargos);
-router.get('/:id/pagos', controller.getAccountPagos);
+router.get('/:id/cobros', controller.getAccountCobros);
 router.post('/:id/cargos', controller.createAccountCargo);
-router.post('/:id/pagos', controller.createAccountPago);
+router.post('/:id/cobros', controller.createAccountCobro);
 
 module.exports = router;

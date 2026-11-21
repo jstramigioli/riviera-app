@@ -1,5 +1,5 @@
 /**
- * Distribución de un Pago (caja) en N PagoImputacion (crédito de folio).
+ * Distribución de un Cobro (caja) en N CobroImputacion (crédito de folio).
  */
 
 const { roundMoney, toNumber } = require('./paymentDiscount');
@@ -54,7 +54,7 @@ function validateImputaciones(rows, pagoMontoARS, { bonificacionTotalARS = 0 } =
       err.statusCode = 400;
       throw err;
     }
-    // Forzar signo del pago (devolución → negativos)
+    // Forzar signo del cobro (devolución → negativos)
     if (sign < 0 && monto > 0) monto = -monto;
     if (sign > 0 && monto < 0) {
       const err = new Error(`imputaciones[${index}].montoARS no puede ser negativo en un cobro`);
@@ -189,10 +189,10 @@ function distributeBonificacion(rows, bonificacionTotalARS) {
 }
 
 /**
- * Include Prisma común: imputación con pago padre (para historial de reserva).
+ * Include Prisma común: imputación con cobro padre (para historial de reserva).
  */
 const IMPUTACION_LIST_INCLUDE = {
-  pago: {
+  cobro: {
     include: {
       paymentMethodConfig: true,
       factura: true,
@@ -205,21 +205,21 @@ const IMPUTACION_LIST_INCLUDE = {
 };
 
 /**
- * Adapta una imputación al shape “pago de folio” que espera la UI actual.
+ * Adapta una imputación al shape “cobro de folio” que espera la UI actual.
  */
-function imputationToFolioPagoView(imp) {
-  const pago = imp.pago || {};
-  const allImps = pago.imputaciones || [];
+function imputationToFolioCobroView(imp) {
+  const cobro = imp.cobro || {};
+  const allImps = cobro.imputaciones || [];
   const isMulti = allImps.length > 1;
   const da =
     (imp.discountApplications && imp.discountApplications[0]) ||
-    (pago.discountApplications || []).find((d) => d.pagoImputacionId === imp.id) ||
-    (pago.discountApplications || [])[0] ||
+    (cobro.discountApplications || []).find((d) => d.cobroImputacionId === imp.id) ||
+    (cobro.discountApplications || [])[0] ||
     null;
 
   return {
-    ...pago,
-    id: pago.id,
+    ...cobro,
+    id: cobro.id,
     // Crédito de este folio (no el total de caja si multi)
     montoARS: imp.montoARS,
     imputacionId: imp.id,
@@ -228,10 +228,10 @@ function imputationToFolioPagoView(imp) {
     accountId: imp.accountId,
     reservaId: imp.reservaId,
     discountApplication: da,
-    discountApplications: imp.discountApplications || pago.discountApplications || [],
+    discountApplications: imp.discountApplications || cobro.discountApplications || [],
     esImputacionParcial: isMulti,
-    pagoTotalARS: pago.montoARS,
-    pagoCodigo: pago.codigo,
+    pagoTotalARS: cobro.montoARS,
+    cobroCodigo: cobro.codigo,
     imputacionesCount: allImps.length
   };
 }
@@ -243,5 +243,5 @@ module.exports = {
   autoDistributeOldestFirst,
   distributeBonificacion,
   IMPUTACION_LIST_INCLUDE,
-  imputationToFolioPagoView
+  imputationToFolioCobroView
 };

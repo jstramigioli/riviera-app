@@ -177,7 +177,7 @@
 }
 
 .cargosBlock,
-.pagosBlock {
+.cobrosBlock {
   break-inside: auto;
   page-break-inside: auto;
 }
@@ -244,12 +244,12 @@
   }
 
   .cargosBlock,
-  .pagosBlock {
+  .cobrosBlock {
     break-inside: auto !important;
     page-break-inside: auto !important;
   }
 
-  .pagosBlock table {
+  .cobrosBlock table {
     break-inside: auto !important;
     page-break-inside: auto !important;
   }

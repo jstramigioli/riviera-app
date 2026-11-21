@@ -18,7 +18,7 @@ describe('paymentDiscount', () => {
     const r = computeDiscountFromReceived({
       dineroARS: 45000,
       config: efectivo10,
-      motivo: 'Pago',
+      motivo: 'Cobro',
       saldoPendiente: 100000
     });
     expect(r.aplica).toBe(true);
@@ -59,7 +59,7 @@ describe('paymentDiscount', () => {
   it('reversión proporcional', () => {
     const r = computeDiscountReversal({
       originalDiscountARS: 10000,
-      originalPagoARS: 90000,
+      originalCobroARS: 90000,
       devolucionARS: 45000
     });
     expect(r.descuentoRevertidoARS).toBe(5000);
@@ -67,7 +67,7 @@ describe('paymentDiscount', () => {
 });
 
 describe('reservationBalance con descuentos', () => {
-  it('saldo = cargos − pagos − descuentos', () => {
+  it('saldo = cargos − cobros − descuentos', () => {
     const r = calculateReservationBalance(
       [{ monto: 100000 }],
       [{ montoARS: 90000 }],
@@ -75,7 +75,7 @@ describe('reservationBalance con descuentos', () => {
     );
     expect(r.totalDescuentos).toBe(10000);
     expect(r.saldo).toBe(0);
-    expect(r.estadoPago).toBe('PAGADO');
+    expect(r.estadoCobro).toBe('PAGADO');
   });
 
   it('sin descuentos equivale al comportamiento previo', () => {

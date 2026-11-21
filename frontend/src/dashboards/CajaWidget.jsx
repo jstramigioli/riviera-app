@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
-import { getAllPagos } from '../services/api';
+import { getAllCobros } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import PaymentForm from '../components/PaymentForm';
-import PagosHistorialTable, {
+import CobroForm from '../components/CobroForm';
+import CobrosHistorialTable, {
   EMPTY_PAY_FILTERS,
-} from '../components/PagosHistorialTable';
+} from '../components/CobrosHistorialTable';
 import styles from './ReceptionDashboard.module.css';
 
 const RANGE_OPTIONS = [
@@ -36,8 +36,8 @@ function toLocalIsoDate(value) {
   return `${yy}-${mm}-${dd}`;
 }
 
-export function pagoInHorizon(pago, todayIso, days) {
-  const fechaIso = toLocalIsoDate(pago?.fecha);
+export function pagoInHorizon(cobro, todayIso, days) {
+  const fechaIso = toLocalIsoDate(cobro?.fecha);
   if (!fechaIso || !todayIso) return false;
   const fromIso = addDaysIso(todayIso, -(Math.max(1, days) - 1));
   return fechaIso >= fromIso && fechaIso <= todayIso;
@@ -64,10 +64,10 @@ function RangeFilter({ value, onChange, labelledBy }) {
 }
 
 /**
- * Widget Caja del dashboard: historial de pagos (misma tabla que Estado de cuentas)
- * con rango Hoy | 3 días | 7 días y alta de pago. Sin editar/eliminar aquí
+ * Widget Caja del dashboard: historial de cobros (misma tabla que Estado de cuentas)
+ * con rango Hoy | 3 días | 7 días y alta de cobro. Sin editar/eliminar aquí
  * (esas acciones viven en Estado de cuentas, perfil y reserva).
- * `refreshToken`: el padre lo incrementa tras crear/editar pago fuera del widget (FAB).
+ * `refreshToken`: el padre lo incrementa tras crear/editar cobro fuera del widget (FAB).
  */
 export default function CajaWidget({ todayIso, refreshToken = 0, className = '' }) {
   const navigate = useNavigate();
@@ -86,10 +86,10 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
       setError(null);
     }
     try {
-      const data = await getAllPagos();
+      const data = await getAllCobros();
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err?.message || 'Error al cargar pagos');
+      setError(err?.message || 'Error al cargar cobros');
     } finally {
       if (!quiet) setLoading(false);
     }
@@ -97,14 +97,14 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
 
   useEffect(() => {
     load({ quiet: refreshToken > 0 });
-    // refreshToken: recarga tras pago creado/editado desde el FAB del dashboard
+    // refreshToken: recarga tras cobro creado/editado desde el FAB del dashboard
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load es estable en la práctica
   }, [refreshToken]);
 
   const horizonPayments = useMemo(
     () =>
-      (payments || []).filter((pago) =>
-        pagoInHorizon(pago, todayIso, horizonDays)
+      (payments || []).filter((cobro) =>
+        pagoInHorizon(cobro, todayIso, horizonDays)
       ),
     [payments, todayIso, horizonDays]
   );
@@ -152,17 +152,17 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
             type="button"
             className={styles.actionBtnPrimary}
             onClick={openNew}
-            title="Crear nuevo pago"
-            data-testid="caja-nuevo-pago"
+            title="Crear nuevo cobro"
+            data-testid="caja-nuevo-cobro"
           >
             <FiPlus aria-hidden="true" />
-            Pago
+            Cobro
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className={styles.empty}>Cargando pagos…</p>
+        <p className={styles.empty}>Cargando cobros…</p>
       ) : error ? (
         <div className={styles.errorBox}>
           <p>{error}</p>
@@ -172,27 +172,27 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
         </div>
       ) : (
         <div className={styles.cajaTableWrap}>
-          <PagosHistorialTable
+          <CobrosHistorialTable
             payments={horizonPayments}
             onPaymentsChange={setPayments}
             payFilters={payFilters}
             onPayFiltersChange={setPayFilters}
             enableColumnFilters
             canDeleteFactura={canFacturacion}
-            emptyMessage="Sin pagos en el rango seleccionado"
+            emptyMessage="Sin cobros en el rango seleccionado"
             onClientClick={(client) => {
               if (client?.id) navigate(`/clients/${client.id}`);
             }}
             onReservationClick={(reservaId) => {
               if (reservaId != null) navigate(`/reservations/${reservaId}`);
             }}
-            testId="caja-pagos-table"
+            testId="caja-cobros-table"
           />
         </div>
       )}
 
       {paymentOpen ? (
-        <PaymentForm
+        <CobroForm
           onClose={closeForm}
           onSuccess={() => {
             closeForm();

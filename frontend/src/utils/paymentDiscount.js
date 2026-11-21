@@ -19,7 +19,7 @@ function rateFromPercent(percent) {
 export function computeDiscountFromReceived({
   dineroARS,
   config,
-  motivo = 'Pago',
+  motivo = 'Cobro',
   saldoPendiente = null
 } = {}) {
   const dinero = roundMoney(Math.abs(toNumber(dineroARS)));
@@ -122,7 +122,7 @@ export function computeDiscountFromReceived({
   };
 }
 
-export function computeCashToSettle({ saldoPendiente, config, motivo = 'Pago' } = {}) {
+export function computeCashToSettle({ saldoPendiente, config, motivo = 'Cobro' } = {}) {
   const saldo = roundMoney(toNumber(saldoPendiente));
   if (saldo <= 0 || !config?.descuentoActivo) {
     return {
@@ -185,15 +185,15 @@ export function computeCashToSettle({ saldoPendiente, config, motivo = 'Pago' } 
 }
 
 /**
- * Reversión proporcional del descuento del pago origen (misma fórmula que backend).
+ * Reversión proporcional del descuento del cobro origen (misma fórmula que backend).
  */
 export function computeDiscountReversal({
   originalDiscountARS,
-  originalPagoARS,
+  originalCobroARS,
   devolucionARS
 } = {}) {
   const originalD = Math.abs(toNumber(originalDiscountARS));
-  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalP = Math.abs(toNumber(originalCobroARS));
   const dev = Math.abs(toNumber(devolucionARS));
   if (originalD <= 0 || originalP <= 0 || dev <= 0) {
     return { descuentoRevertidoARS: 0 };
@@ -205,18 +205,18 @@ export function computeDiscountReversal({
 /** Desde el efectivo a devolver → crédito a revertir en la cuenta. */
 export function computeRefundFromCash({
   cashARS,
-  originalPagoARS,
+  originalCobroARS,
   originalDiscountARS
 } = {}) {
   const cash = roundMoney(Math.abs(toNumber(cashARS)));
-  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalP = Math.abs(toNumber(originalCobroARS));
   const originalD = Math.abs(toNumber(originalDiscountARS));
   if (!(cash > 0)) {
     return { cashARS: 0, descuentoRevertidoARS: 0, creditoARS: 0 };
   }
   const { descuentoRevertidoARS } = computeDiscountReversal({
     originalDiscountARS: originalD,
-    originalPagoARS: originalP,
+    originalCobroARS: originalP,
     devolucionARS: cash
   });
   return {
@@ -229,11 +229,11 @@ export function computeRefundFromCash({
 /** Desde el crédito a saldar → cuánto efectivo devolver al cliente. */
 export function computeRefundFromCredit({
   creditoARS,
-  originalPagoARS,
+  originalCobroARS,
   originalDiscountARS
 } = {}) {
   const credito = roundMoney(Math.abs(toNumber(creditoARS)));
-  const originalP = Math.abs(toNumber(originalPagoARS));
+  const originalP = Math.abs(toNumber(originalCobroARS));
   const originalD = Math.abs(toNumber(originalDiscountARS));
   const originalCredito = roundMoney(originalP + originalD);
   if (!(credito > 0)) {

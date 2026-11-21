@@ -23,7 +23,7 @@ const CONDITION_TYPES = new Set([
   'ROOM_TYPE',
   'SERVICE_TYPE',
   'PAYMENT_METHOD',
-  'CURRENCY', // moneda del pago (ARS / USD)
+  'CURRENCY', // moneda del cobro (ARS / USD)
   'AMOUNT_TO_SETTLE', // monto a saldar (saldo pendiente ARS)
   'OCCUPANCY_HOTEL',
   'OCCUPANCY_HOTEL_MAX',
@@ -463,11 +463,11 @@ exports.previewPromotion = async (req, res) => {
         body.benefitValueByRuleId && typeof body.benefitValueByRuleId === 'object'
           ? body.benefitValueByRuleId
           : {},
-      motivo: body.motivo || 'Pago',
+      motivo: body.motivo || 'Cobro',
       dineroARS: body.dineroARS,
       saldoPendiente: body.saldoPendiente,
-      moneda: body.moneda || body.currency || body.monedaPago || null,
-      currency: body.moneda || body.currency || body.monedaPago || null,
+      moneda: body.moneda || body.currency || body.monedaCobro || null,
+      currency: body.moneda || body.currency || body.monedaCobro || null,
       mode: body.mode || 'received',
       nightPrice: body.nightPrice,
       nightPrices: Array.isArray(body.nightPrices) ? body.nightPrices : undefined

@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiCheck, FiEdit2, FiFilter, FiSquare, FiTrash2, FiX } from 'react-icons/fi';
 import {
-  updatePago,
-  uploadPagoAdjuntos,
-  deletePagoAdjunto,
-  downloadPagoAdjunto,
+  updateCobro,
+  uploadCobroAdjuntos,
+  deleteCobroAdjunto,
+  downloadCobroAdjunto,
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
-import styles from '../pages/CobrosPagos.module.css';
+import styles from '../pages/Cobros.module.css';
 
-export function isDevolucionPago(pago) {
-  return String(pago?.motivo || '') === MOTIVO_DEVOLUCION;
+export function isDevolucionCobro(cobro) {
+  return String(cobro?.motivo || '') === MOTIVO_DEVOLUCION;
 }
 
 export const ADJUNTO_FACTURA = 'FACTURA';
@@ -57,20 +57,20 @@ const PAY_COLUMNS = [
   { key: 'referencia', label: 'Referencia' },
 ];
 
-export function pagoMoneda(pago) {
-  return String(pago?.moneda || 'ARS').toUpperCase();
+export function pagoMoneda(cobro) {
+  return String(cobro?.moneda || 'ARS').toUpperCase();
 }
 
 export function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
 }
 
-export function adjuntosOf(pago, tipo) {
-  return (pago?.adjuntos || []).filter((a) => a.tipo === tipo);
+export function adjuntosOf(cobro, tipo) {
+  return (cobro?.adjuntos || []).filter((a) => a.tipo === tipo);
 }
 
-export function paymentCodeLabel(pago) {
-  return pago?.codigo || (pago?.id != null ? `Nº ${pago.id}` : '—');
+export function paymentCodeLabel(cobro) {
+  return cobro?.codigo || (cobro?.id != null ? `Nº ${cobro.id}` : '—');
 }
 
 function foldAccents(value) {
@@ -110,10 +110,10 @@ function endOfDay(isoDate) {
 }
 
 /**
- * Tabla de historial de pagos (misma estructura que Estado de cuentas → Pagos).
+ * Tabla de historial de cobros (misma estructura que Estado de cuentas → Cobros).
  * Columnas: Código, Fecha, Reserva, Cliente, Monto, Moneda, Método, Motivo, Referencia, Factura, Retirado.
  */
-export default function PagosHistorialTable({
+export default function CobrosHistorialTable({
   payments = [],
   onPaymentsChange,
   payFilters: controlledFilters,
@@ -121,28 +121,28 @@ export default function PagosHistorialTable({
   enableColumnFilters = true,
   canDeleteFactura = false,
   clientIdFilter = null,
-  emptyMessage = 'No hay pagos con los filtros actuales',
+  emptyMessage = 'No hay cobros con los filtros actuales',
   onClientClick,
   onReservationClick,
-  onEditPago,
-  onDeletePago,
-  testId = 'pagos-historial-table',
+  onEditCobro,
+  onDeleteCobro,
+  testId = 'cobros-historial-table',
 }) {
   const { notify, noticeDialog } = useAppNotice();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [internalFilters, setInternalFilters] = useState(EMPTY_PAY_FILTERS);
   const payFilters = controlledFilters ?? internalFilters;
   const setPayFilters = onPayFiltersChange ?? setInternalFilters;
-  const showRowActions = Boolean(onEditPago || onDeletePago);
+  const showRowActions = Boolean(onEditCobro || onDeleteCobro);
 
   const [openPayColumn, setOpenPayColumn] = useState(null);
   const [payFilterMenuPos, setPayFilterMenuPos] = useState({ top: 0, left: 0 });
   const payFilterMenuRef = useRef(null);
   const payFilterBtnRefs = useRef({});
-  const [uploadingPagoId, setUploadingPagoId] = useState(null);
+  const [uploadingCobroId, setUploadingCobroId] = useState(null);
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
   const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
-  const [deletingPagoId, setDeletingPagoId] = useState(null);
+  const [deletingCobroId, setDeletingCobroId] = useState(null);
 
   const setPayFilter = (key, value) => {
     setPayFilters((prev) => ({ ...prev, [key]: value }));
@@ -198,8 +198,8 @@ export default function PagosHistorialTable({
 
   const paymentMethods = useMemo(() => {
     const methods = new Set();
-    for (const pago of payments || []) {
-      if (pago?.metodo) methods.add(pago.metodo);
+    for (const cobro of payments || []) {
+      if (cobro?.metodo) methods.add(cobro.metodo);
     }
     if (payFilters.metodo) methods.add(payFilters.metodo);
     return Array.from(methods).sort((a, b) => a.localeCompare(b, 'es'));
@@ -207,14 +207,14 @@ export default function PagosHistorialTable({
 
   const paymentCurrencies = useMemo(() => {
     const currencies = new Set();
-    for (const pago of payments || []) {
-      currencies.add(pagoMoneda(pago));
+    for (const cobro of payments || []) {
+      currencies.add(pagoMoneda(cobro));
     }
     if (payFilters.moneda) currencies.add(String(payFilters.moneda).toUpperCase());
     return Array.from(currencies).sort((a, b) => a.localeCompare(b, 'es'));
   }, [payments, payFilters.moneda]);
 
-  const filteredPayments = useMemo(() => {
+  const filteredCobros = useMemo(() => {
     const from = startOfDay(payFilters.fechaFrom);
     const to = endOfDay(payFilters.fechaTo);
     const clientId = clientIdFilter != null ? Number(clientIdFilter) : null;
@@ -237,39 +237,39 @@ export default function PagosHistorialTable({
         : Number(payFilters.montoMax);
 
     return (payments || [])
-      .filter((pago) => {
+      .filter((cobro) => {
         if (clientId != null && !Number.isNaN(clientId)) {
           const matchesClient =
-            pago.reserva?.mainClient?.id === clientId ||
-            Number(pago.reserva?.mainClientId) === clientId;
+            cobro.reserva?.mainClient?.id === clientId ||
+            Number(cobro.reserva?.mainClientId) === clientId;
           if (!matchesClient) return false;
         }
 
-        if (codigoNeedle && !includesNormalized(paymentCodeLabel(pago), codigoNeedle)) {
+        if (codigoNeedle && !includesNormalized(paymentCodeLabel(cobro), codigoNeedle)) {
           return false;
         }
 
         if (from || to) {
-          const refDate = pago.fecha ? new Date(pago.fecha) : null;
+          const refDate = cobro.fecha ? new Date(cobro.fecha) : null;
           if (!refDate || Number.isNaN(refDate.getTime())) return false;
           if (from && refDate < from) return false;
           if (to && refDate > to) return false;
         }
 
         if (reservaNeedle) {
-          const reservaId = String(pago.reservaId || pago.reserva?.id || '');
+          const reservaId = String(cobro.reservaId || cobro.reserva?.id || '');
           if (!includesNormalized(reservaId, reservaNeedle)) return false;
         }
 
         if (clienteNeedle) {
-          const client = pago.reserva?.mainClient;
+          const client = cobro.reserva?.mainClient;
           const clientName = client
             ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
             : 'Sin cliente';
           if (!includesNormalized(clientName, clienteNeedle)) return false;
         }
 
-        const amount = Number(pago.montoARS != null ? pago.montoARS : pago.monto) || 0;
+        const amount = Number(cobro.montoARS != null ? cobro.montoARS : cobro.monto) || 0;
         if (montoMin != null && !Number.isNaN(montoMin) && amount < montoMin) {
           return false;
         }
@@ -277,12 +277,12 @@ export default function PagosHistorialTable({
           return false;
         }
 
-        if (monedaNeedle && pagoMoneda(pago) !== monedaNeedle) return false;
-        if (metodoNeedle && pago.metodo !== metodoNeedle) return false;
-        if (motivoNeedle && (pago.motivo || 'Pago') !== motivoNeedle) return false;
+        if (monedaNeedle && pagoMoneda(cobro) !== monedaNeedle) return false;
+        if (metodoNeedle && cobro.metodo !== metodoNeedle) return false;
+        if (motivoNeedle && (cobro.motivo || 'Cobro') !== motivoNeedle) return false;
 
         if (referenciaNeedle) {
-          const refText = `${pago.referencia || ''} ${pago.empresa || ''}`.trim();
+          const refText = `${cobro.referencia || ''} ${cobro.empresa || ''}`.trim();
           if (!includesNormalized(refText, referenciaNeedle)) return false;
         }
 
@@ -297,32 +297,32 @@ export default function PagosHistorialTable({
       });
   }, [payments, payFilters, clientIdFilter]);
 
-  const patchPago = (pagoId, updater) => {
+  const patchCobro = (cobroId, updater) => {
     if (!onPaymentsChange) return;
     onPaymentsChange((prev) =>
-      (prev || []).map((pago) => {
-        if (pago.id !== pagoId) return pago;
-        return typeof updater === 'function' ? updater(pago) : { ...pago, ...updater };
+      (prev || []).map((cobro) => {
+        if (cobro.id !== cobroId) return cobro;
+        return typeof updater === 'function' ? updater(cobro) : { ...cobro, ...updater };
       })
     );
   };
 
-  const handleToggleRetirado = async (pago) => {
+  const handleToggleRetirado = async (cobro) => {
     if (
-      !pago?.id ||
-      isTransferencia(pago.metodo) ||
-      isDevolucionPago(pago) ||
-      togglingRetiradoId === pago.id
+      !cobro?.id ||
+      isTransferencia(cobro.metodo) ||
+      isDevolucionCobro(cobro) ||
+      togglingRetiradoId === cobro.id
     ) {
       return;
     }
-    const next = !pago.retirado;
-    setTogglingRetiradoId(pago.id);
+    const next = !cobro.retirado;
+    setTogglingRetiradoId(cobro.id);
     try {
-      const updated = await updatePago(pago.id, { retirado: next });
-      patchPago(pago.id, {
+      const updated = await updateCobro(cobro.id, { retirado: next });
+      patchCobro(cobro.id, {
         retirado: updated?.retirado ?? next,
-        adjuntos: updated?.adjuntos ?? pago.adjuntos,
+        adjuntos: updated?.adjuntos ?? cobro.adjuntos,
       });
     } catch (err) {
       notify({
@@ -335,8 +335,8 @@ export default function PagosHistorialTable({
     }
   };
 
-  const handleUploadAdjuntos = async (pago, tipo, fileList) => {
-    if (!pago?.id || !fileList?.length) return;
+  const handleUploadAdjuntos = async (cobro, tipo, fileList) => {
+    if (!cobro?.id || !fileList?.length) return;
     const files = Array.from(fileList);
     const acceptPdfOnly = tipo === ADJUNTO_FACTURA;
     const invalid = files.filter((file) => {
@@ -354,11 +354,11 @@ export default function PagosHistorialTable({
       });
       return;
     }
-    setUploadingPagoId(pago.id);
+    setUploadingCobroId(cobro.id);
     try {
-      const created = await uploadPagoAdjuntos(pago.id, tipo, files);
+      const created = await uploadCobroAdjuntos(cobro.id, tipo, files);
       const list = Array.isArray(created) ? created : [created];
-      patchPago(pago.id, (row) => ({
+      patchCobro(cobro.id, (row) => ({
         ...row,
         adjuntos: [...(Array.isArray(row.adjuntos) ? row.adjuntos : []), ...list],
       }));
@@ -369,13 +369,13 @@ export default function PagosHistorialTable({
         type: 'error',
       });
     } finally {
-      setUploadingPagoId(null);
+      setUploadingCobroId(null);
     }
   };
 
-  const handleDownloadAdjunto = async (pago, adjunto) => {
+  const handleDownloadAdjunto = async (cobro, adjunto) => {
     try {
-      await downloadPagoAdjunto(pago.id, adjunto.id, adjunto.originalName);
+      await downloadCobroAdjunto(cobro.id, adjunto.id, adjunto.originalName);
     } catch (err) {
       notify({
         title: 'No se pudo descargar',
@@ -385,8 +385,8 @@ export default function PagosHistorialTable({
     }
   };
 
-  const handleDeleteAdjunto = async (pago, adjunto) => {
-    if (!pago?.id || !adjunto?.id) return;
+  const handleDeleteAdjunto = async (cobro, adjunto) => {
+    if (!cobro?.id || !adjunto?.id) return;
     if (adjunto.tipo === ADJUNTO_FACTURA && !canDeleteFactura) {
       notify({
         title: 'Sin permiso',
@@ -405,8 +405,8 @@ export default function PagosHistorialTable({
 
     setDeletingAdjuntoId(adjunto.id);
     try {
-      await deletePagoAdjunto(pago.id, adjunto.id);
-      patchPago(pago.id, (row) => ({
+      await deleteCobroAdjunto(cobro.id, adjunto.id);
+      patchCobro(cobro.id, (row) => ({
         ...row,
         adjuntos: (row.adjuntos || []).filter((a) => a.id !== adjunto.id),
       }));
@@ -421,38 +421,38 @@ export default function PagosHistorialTable({
     }
   };
 
-  const handleDeletePagoClick = async (pago) => {
-    if (!onDeletePago || !pago?.id || deletingPagoId === pago.id) return;
+  const handleDeleteCobroClick = async (cobro) => {
+    if (!onDeleteCobro || !cobro?.id || deletingCobroId === cobro.id) return;
     const ok = await confirm({
-      title: 'Eliminar pago',
-      message: `¿Eliminar el pago ${paymentCodeLabel(pago)}?`,
+      title: 'Eliminar cobro',
+      message: `¿Eliminar el cobro ${paymentCodeLabel(cobro)}?`,
       confirmText: 'Eliminar',
       danger: true,
     });
     if (!ok) return;
 
-    setDeletingPagoId(pago.id);
+    setDeletingCobroId(cobro.id);
     try {
-      await onDeletePago(pago);
+      await onDeleteCobro(cobro);
     } catch (err) {
       notify({
         title: 'No se pudo eliminar',
-        message: err?.message || 'Error al eliminar el pago',
+        message: err?.message || 'Error al eliminar el cobro',
         type: 'error',
       });
     } finally {
-      setDeletingPagoId(null);
+      setDeletingCobroId(null);
     }
   };
 
-  const renderAdjuntoFileRow = (pago, file, { canDelete = false } = {}) => {
+  const renderAdjuntoFileRow = (cobro, file, { canDelete = false } = {}) => {
     const busyDelete = deletingAdjuntoId === file.id;
     return (
       <div key={file.id} className={styles.fileRow}>
         <button
           type="button"
           className={styles.fileLink}
-          onClick={() => handleDownloadAdjunto(pago, file)}
+          onClick={() => handleDownloadAdjunto(cobro, file)}
           title="Descargar"
         >
           {file.originalName || `Archivo ${file.id}`}
@@ -464,7 +464,7 @@ export default function PagosHistorialTable({
             aria-label="Eliminar comprobante"
             title="Eliminar"
             disabled={busyDelete}
-            onClick={() => handleDeleteAdjunto(pago, file)}
+            onClick={() => handleDeleteAdjunto(cobro, file)}
           >
             <FiX aria-hidden="true" />
           </button>
@@ -512,43 +512,43 @@ export default function PagosHistorialTable({
             </tr>
           </thead>
           <tbody>
-            {filteredPayments.length === 0 ? (
+            {filteredCobros.length === 0 ? (
               <tr>
                 <td colSpan={showRowActions ? 12 : 11} className={styles.emptyCell}>
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              filteredPayments.map((pago) => {
-                const client = pago.reserva?.mainClient;
+              filteredCobros.map((cobro) => {
+                const client = cobro.reserva?.mainClient;
                 const clientName = client
                   ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
                   : 'Sin cliente';
-                const amount = pago.montoARS != null ? pago.montoARS : pago.monto;
-                const moneda = pagoMoneda(pago);
-                const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
-                const comprobanteFiles = adjuntosOf(pago, ADJUNTO_COMPROBANTE);
-                const transfer = isTransferencia(pago.metodo);
-                const devolucion = isDevolucionPago(pago);
-                const busyUpload = uploadingPagoId === pago.id;
-                const codeLabel = paymentCodeLabel(pago);
-                const busyDeletePago = deletingPagoId === pago.id;
-                const reservaId = pago.reservaId || pago.reserva?.id || null;
+                const amount = cobro.montoARS != null ? cobro.montoARS : cobro.monto;
+                const moneda = pagoMoneda(cobro);
+                const facturaFiles = adjuntosOf(cobro, ADJUNTO_FACTURA);
+                const comprobanteFiles = adjuntosOf(cobro, ADJUNTO_COMPROBANTE);
+                const transfer = isTransferencia(cobro.metodo);
+                const devolucion = isDevolucionCobro(cobro);
+                const busyUpload = uploadingCobroId === cobro.id;
+                const codeLabel = paymentCodeLabel(cobro);
+                const busyDeleteCobro = deletingCobroId === cobro.id;
+                const reservaId = cobro.reservaId || cobro.reserva?.id || null;
 
                 return (
-                  <tr key={pago.id} className={styles.row} data-testid={`pago-row-${pago.id}`}>
+                  <tr key={cobro.id} className={styles.row} data-testid={`cobro-row-${cobro.id}`}>
                     <td className={styles.idCell}>{codeLabel}</td>
                     <td className={styles.metaCell}>
-                      {formatDisplayDateTime(pago.fecha)}
+                      {formatDisplayDateTime(cobro.fecha)}
                     </td>
                     <td className={styles.idCell}>
                       {reservaId != null && onReservationClick ? (
                         <button
                           type="button"
                           className={styles.linkButton}
-                          onClick={() => onReservationClick(reservaId, pago)}
+                          onClick={() => onReservationClick(reservaId, cobro)}
                           title="Ver reserva"
-                          data-testid={`pago-reserva-link-${pago.id}`}
+                          data-testid={`cobro-reserva-link-${cobro.id}`}
                         >
                           #{reservaId}
                         </button>
@@ -573,21 +573,21 @@ export default function PagosHistorialTable({
                       )}
                     </td>
                     <td className={styles.amountCell}>{formatMoneyArs(amount)}</td>
-                    <td className={styles.metaCell} data-testid={`pago-moneda-${pago.id}`}>
+                    <td className={styles.metaCell} data-testid={`cobro-moneda-${cobro.id}`}>
                       {moneda}
                     </td>
-                    <td className={styles.metaCell}>{pago.metodo || '—'}</td>
-                    <td className={styles.metaCell}>{pago.motivo || 'Pago'}</td>
+                    <td className={styles.metaCell}>{cobro.metodo || '—'}</td>
+                    <td className={styles.metaCell}>{cobro.motivo || 'Cobro'}</td>
                     <td className={styles.metaCell}>
-                      {pago.referencia || pago.empresa || '—'}
+                      {cobro.referencia || cobro.empresa || '—'}
                     </td>
                     <td className={styles.facturaCell}>
-                      {!pago.requiereFacturacion ? (
+                      {!cobro.requiereFacturacion ? (
                         <span className={styles.dashMuted}>—</span>
                       ) : facturaFiles.length > 0 ? (
                         <div className={styles.fileList}>
                           {facturaFiles.map((file) =>
-                            renderAdjuntoFileRow(pago, file, {
+                            renderAdjuntoFileRow(cobro, file, {
                               canDelete: canDeleteFactura,
                             })
                           )}
@@ -601,7 +601,7 @@ export default function PagosHistorialTable({
                         <span
                           className={styles.dashMuted}
                           title="Las devoluciones no se retiran de caja"
-                          data-testid={`pago-retirado-na-${pago.id}`}
+                          data-testid={`cobro-retirado-na-${cobro.id}`}
                         >
                           —
                         </span>
@@ -609,7 +609,7 @@ export default function PagosHistorialTable({
                         comprobanteFiles.length > 0 ? (
                           <div className={styles.fileList}>
                             {comprobanteFiles.map((file) =>
-                              renderAdjuntoFileRow(pago, file, { canDelete: true })
+                              renderAdjuntoFileRow(cobro, file, { canDelete: true })
                             )}
                             <label className={`${styles.dropzone} ${styles.dropzoneCompact}`}>
                               <input
@@ -619,7 +619,7 @@ export default function PagosHistorialTable({
                                 disabled={busyUpload}
                                 onChange={(e) => {
                                   handleUploadAdjuntos(
-                                    pago,
+                                    cobro,
                                     ADJUNTO_COMPROBANTE,
                                     e.target.files
                                   );
@@ -636,7 +636,7 @@ export default function PagosHistorialTable({
                             onDrop={(e) => {
                               e.preventDefault();
                               handleUploadAdjuntos(
-                                pago,
+                                cobro,
                                 ADJUNTO_COMPROBANTE,
                                 e.dataTransfer.files
                               );
@@ -649,7 +649,7 @@ export default function PagosHistorialTable({
                               disabled={busyUpload}
                               onChange={(e) => {
                                 handleUploadAdjuntos(
-                                  pago,
+                                  cobro,
                                   ADJUNTO_COMPROBANTE,
                                   e.target.files
                                 );
@@ -662,19 +662,19 @@ export default function PagosHistorialTable({
                       ) : (
                         <button
                           type="button"
-                          className={`${styles.retiradoToggle} ${pago.retirado ? styles.retiradoOn : styles.retiradoOff}`}
-                          aria-pressed={Boolean(pago.retirado)}
-                          aria-label={pago.retirado ? 'Marcado como retirado' : 'No retirado'}
+                          className={`${styles.retiradoToggle} ${cobro.retirado ? styles.retiradoOn : styles.retiradoOff}`}
+                          aria-pressed={Boolean(cobro.retirado)}
+                          aria-label={cobro.retirado ? 'Marcado como retirado' : 'No retirado'}
                           title={
-                            pago.retirado
+                            cobro.retirado
                               ? 'Retirado (clic para desmarcar)'
                               : 'No retirado (clic para marcar)'
                           }
-                          disabled={togglingRetiradoId === pago.id}
-                          data-testid={`pago-retirado-toggle-${pago.id}`}
-                          onClick={() => handleToggleRetirado(pago)}
+                          disabled={togglingRetiradoId === cobro.id}
+                          data-testid={`cobro-retirado-toggle-${cobro.id}`}
+                          onClick={() => handleToggleRetirado(cobro)}
                         >
-                          {pago.retirado ? (
+                          {cobro.retirado ? (
                             <FiCheck aria-hidden="true" />
                           ) : (
                             <FiSquare aria-hidden="true" />
@@ -685,27 +685,27 @@ export default function PagosHistorialTable({
                     {showRowActions ? (
                       <td className={styles.pagoActionsCell}>
                         <div className={styles.pagoRowActions}>
-                          {onEditPago ? (
+                          {onEditCobro ? (
                             <button
                               type="button"
                               className={styles.pagoIconBtn}
-                              onClick={() => onEditPago(pago)}
+                              onClick={() => onEditCobro(cobro)}
                               title="Editar"
-                              aria-label="Editar pago"
-                              data-testid={`pago-edit-${pago.id}`}
+                              aria-label="Editar cobro"
+                              data-testid={`cobro-edit-${cobro.id}`}
                             >
                               <FiEdit2 aria-hidden="true" />
                             </button>
                           ) : null}
-                          {onDeletePago ? (
+                          {onDeleteCobro ? (
                             <button
                               type="button"
                               className={`${styles.pagoIconBtn} ${styles.pagoIconBtnDanger}`}
-                              onClick={() => handleDeletePagoClick(pago)}
+                              onClick={() => handleDeleteCobroClick(cobro)}
                               title="Eliminar"
-                              aria-label="Eliminar pago"
-                              data-testid={`pago-delete-${pago.id}`}
-                              disabled={busyDeletePago}
+                              aria-label="Eliminar cobro"
+                              data-testid={`cobro-delete-${cobro.id}`}
+                              disabled={busyDeleteCobro}
                             >
                               <FiTrash2 aria-hidden="true" />
                             </button>
@@ -850,7 +850,7 @@ export default function PagosHistorialTable({
               onChange={(e) => setPayFilter('motivo', e.target.value)}
             >
               <option value="">Todos</option>
-              <option value="Pago">Pago</option>
+              <option value="Cobro">Cobro</option>
               <option value="Seña">Seña</option>
               <option value="Devolución">Devolución</option>
             </select>

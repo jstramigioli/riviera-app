@@ -2,7 +2,7 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { calculateAccountBalance } = require('../utils/accountBalance');
-const { allocateNextPagoCodigo } = require('../utils/pagoCodigo');
+const { allocateNextCobroCodigo } = require('../utils/cobroCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
@@ -14,11 +14,11 @@ const {
 const {
   INVOICE_TYPES,
   DEFAULT_IVA_CONDITION,
-  DEFAULT_PAGO_MOTIVO,
+  DEFAULT_COBRO_MOTIVO,
   methodRequiresBilling,
   isCardMethod,
   isDevolucionMotivo,
-  normalizePagoMotivo
+  normalizeCobroMotivo
 } = require('../utils/billingConstants');
 const {
   resolvePaymentMethodConfig,
@@ -33,8 +33,8 @@ const {
   autoDistributeOldestFirst,
   distributeBonificacion,
   IMPUTACION_LIST_INCLUDE,
-  imputationToFolioPagoView
-} = require('../utils/pagoImputacion');
+  imputationToFolioCobroView
+} = require('../utils/cobroImputacion');
 const {
   ADJUNTO_TIPOS,
   assertAdjuntoTipo,
@@ -43,17 +43,17 @@ const {
   absolutePath,
   deleteStoredFile,
   toPublicAdjunto
-} = require('../utils/pagoAdjuntos');
+} = require('../utils/cobroAdjuntos');
 
 
 function canSeeFacturacion(user) {
   return roleHasPermission(user?.role, 'facturacion');
 }
 
-/** Datos de PagoFactura solo para admin; el resto recibe factura: null. */
-function redactFacturaIfNeeded(pagos, user) {
-  if (canSeeFacturacion(user)) return pagos;
-  return (pagos || []).map((pago) => ({ ...pago, factura: null }));
+/** Datos de CobroFactura solo para admin; el resto recibe factura: null. */
+function redactFacturaIfNeeded(cobros, user) {
+  if (canSeeFacturacion(user)) return cobros;
+  return (cobros || []).map((cobro) => ({ ...cobro, factura: null }));
 }
 
 const PAGO_ADJUNTO_INCLUDE = {
@@ -72,7 +72,7 @@ function normalizeOptionalString(value) {
   return trimmed || null;
 }
 
-function buildFacturaData(facturaInput, metodo, numeroTarjetaPago, req) {
+function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
   if (!facturaInput || typeof facturaInput !== 'object') {
     return { error: 'Datos de facturación requeridos' };
   }
@@ -88,7 +88,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaPago, req) {
   }
 
   const cardFromPayment = isCardMethod(metodo)
-    ? normalizeOptionalString(numeroTarjetaPago)
+    ? normalizeOptionalString(numeroTarjetaCobro)
     : null;
   const cardNumber =
     cardFromPayment ||
@@ -184,10 +184,10 @@ function buildBillingProfileUpsert(clientId, facturaData) {
 // CONTROLADORES DE PAGOS
 // ============================================
 
-// Obtener historial global de pagos (con reserva y cliente)
-exports.getAllPagos = async (req, res) => {
+// Obtener historial global de cobros (con reserva y cliente)
+exports.getAllCobros = async (req, res) => {
   try {
-    const pagos = await prisma.pago.findMany({
+    const cobros = await prisma.cobro.findMany({
       include: {
         factura: true,
         ...PAGO_ADJUNTO_INCLUDE,
@@ -208,33 +208,33 @@ exports.getAllPagos = async (req, res) => {
       },
       orderBy: { fecha: 'desc' },
     });
-    res.json(redactFacturaIfNeeded(pagos, req.user));
+    res.json(redactFacturaIfNeeded(cobros, req.user));
   } catch (error) {
-    console.error('Error obteniendo historial de pagos:', error);
-    res.status(500).json({ error: 'Error al obtener el historial de pagos', details: error.message });
+    console.error('Error obteniendo historial de cobros:', error);
+    res.status(500).json({ error: 'Error al obtener el historial de cobros', details: error.message });
   }
 };
 
-// Obtener pagos/imputaciones de una reserva (crédito de folio, no caja completa si multi)
-exports.getPagosByReserva = async (req, res) => {
+// Obtener cobros/imputaciones de una reserva (crédito de folio, no caja completa si multi)
+exports.getCobrosByReserva = async (req, res) => {
   const { reservaId } = req.params;
   try {
     const account = await ensureReservationAccount(prisma, reservaId);
-    const imputaciones = await prisma.pagoImputacion.findMany({
+    const imputaciones = await prisma.cobroImputacion.findMany({
       where: { accountId: account.id },
       include: IMPUTACION_LIST_INCLUDE,
-      orderBy: [{ pago: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
+      orderBy: [{ cobro: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
     });
-    const views = imputaciones.map(imputationToFolioPagoView);
+    const views = imputaciones.map(imputationToFolioCobroView);
     res.json(redactFacturaIfNeeded(views, req.user));
   } catch (error) {
-    console.error('Error obteniendo pagos:', error);
-    res.status(500).json({ error: 'Error al obtener los pagos', details: error.message });
+    console.error('Error obteniendo cobros:', error);
+    res.status(500).json({ error: 'Error al obtener los cobros', details: error.message });
   }
 };
 
-// Crear un nuevo pago para una reserva
-exports.createPago = async (req, res) => {
+// Crear un nuevo cobro para una reserva
+exports.createCobro = async (req, res) => {
   const { reservaId } = req.params;
   const {
     monto,
@@ -242,7 +242,7 @@ exports.createPago = async (req, res) => {
     tipoCambio,
     metodo,
     paymentMethodConfigId,
-    pagoOrigenId,
+    cobroOrigenId,
     tipoTarjeta,
     numeroTarjeta,
     empresa,
@@ -279,9 +279,9 @@ exports.createPago = async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
   }
 
-  const motivoPago = normalizePagoMotivo(motivo ?? DEFAULT_PAGO_MOTIVO);
-  if (!motivoPago) {
-    return res.status(400).json({ error: 'Motivo inválido. Debe ser Pago, Seña o Devolución' });
+  const motivoCobro = normalizeCobroMotivo(motivo ?? DEFAULT_COBRO_MOTIVO);
+  if (!motivoCobro) {
+    return res.status(400).json({ error: 'Motivo inválido. Debe ser Cobro, Seña o Devolución' });
   }
 
   const montoAbs = Math.abs(Number(monto));
@@ -289,22 +289,22 @@ exports.createPago = async (req, res) => {
     return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
   }
   // Devolución reduce el saldo pagado de la reserva (monto/montoARS negativos).
-  const isDev = isDevolucionMotivo(motivoPago);
+  const isDev = isDevolucionMotivo(motivoCobro);
   const montoSigned = isDev ? -montoAbs : montoAbs;
 
-  if (isDev && (pagoOrigenId == null || pagoOrigenId === '')) {
+  if (isDev && (cobroOrigenId == null || cobroOrigenId === '')) {
     return res.status(400).json({
-      error: 'La devolución requiere seleccionar el pago de origen (pagoOrigenId)'
+      error: 'La devolución requiere seleccionar el cobro de origen (cobroOrigenId)'
     });
   }
 
   // Validar campos de tarjeta si el método es Tarjeta Debito o Credito
   if (['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
     if (!numeroTarjeta) {
-      return res.status(400).json({ error: 'El número de tarjeta es requerido para pagos con tarjeta' });
+      return res.status(400).json({ error: 'El número de tarjeta es requerido para cobros con tarjeta' });
     }
     if (!empresa) {
-      return res.status(400).json({ error: 'La empresa de la tarjeta es requerida para pagos con tarjeta' });
+      return res.status(400).json({ error: 'La empresa de la tarjeta es requerida para cobros con tarjeta' });
     }
   }
 
@@ -329,7 +329,7 @@ exports.createPago = async (req, res) => {
   let facturaParsed = null;
   if (wantsBilling) {
     facturaParsed = buildFacturaData(
-      { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
+      { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoCobro },
       metodoFinal,
       numeroTarjeta,
       req
@@ -353,12 +353,12 @@ exports.createPago = async (req, res) => {
           tipoCambioFinal = parseFloat(configuracion.valor);
         } else {
           return res.status(400).json({ 
-            error: 'Para pagos en USD, el tipo de cambio es requerido. No se encontró un tipo de cambio global configurado.' 
+            error: 'Para cobros en USD, el tipo de cambio es requerido. No se encontró un tipo de cambio global configurado.' 
           });
         }
       } catch (error) {
         return res.status(400).json({ 
-          error: 'Para pagos en USD, el tipo de cambio es requerido y debe ser mayor a 0' 
+          error: 'Para cobros en USD, el tipo de cambio es requerido y debe ser mayor a 0' 
         });
       }
     }
@@ -373,33 +373,33 @@ exports.createPago = async (req, res) => {
       montoARS = new Decimal(montoSigned);
     }
 
-    const fechaPago = parseFechaInput(fecha, req);
+    const fechaCobro = parseFechaInput(fecha, req);
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
 
-    const nuevoPago = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await prisma.$transaction(async (tx) => {
       const account = await ensureReservationAccount(tx, reservaId);
       const financialRefs = dualWriteReservationRefs(account, reservaId);
 
-      let pagoOrigen = null;
+      let cobroOrigen = null;
       if (isDev) {
-        const origenId = parseInt(pagoOrigenId, 10);
-        pagoOrigen = await tx.pago.findUnique({ where: { id: origenId } });
-        if (!pagoOrigen || pagoOrigen.accountId !== account.id) {
-          throw Object.assign(new Error('Pago de origen no encontrado en esta cuenta'), {
+        const origenId = parseInt(cobroOrigenId, 10);
+        cobroOrigen = await tx.cobro.findUnique({ where: { id: origenId } });
+        if (!cobroOrigen || cobroOrigen.accountId !== account.id) {
+          throw Object.assign(new Error('Cobro de origen no encontrado en esta cuenta'), {
             statusCode: 400
           });
         }
-        if (isDevolucionMotivo(pagoOrigen.motivo) || toNumber(pagoOrigen.montoARS) <= 0) {
-          throw Object.assign(new Error('El pago de origen debe ser un cobro positivo'), {
+        if (isDevolucionMotivo(cobroOrigen.motivo) || toNumber(cobroOrigen.montoARS) <= 0) {
+          throw Object.assign(new Error('El cobro de origen debe ser un cobro positivo'), {
             statusCode: 400
           });
         }
-        const yaDevuelto = await sumDevolucionesOnOrigen(tx, pagoOrigen.id);
-        const disponible = roundMoney(toNumber(pagoOrigen.montoARS) - yaDevuelto);
+        const yaDevuelto = await sumDevolucionesOnOrigen(tx, cobroOrigen.id);
+        const disponible = roundMoney(toNumber(cobroOrigen.montoARS) - yaDevuelto);
         if (montoARSAbs - disponible > 0.009) {
           throw Object.assign(
             new Error(
-              `La devolución supera el saldo disponible del pago origen (máx ${disponible.toFixed(2)} ARS)`
+              `La devolución supera el saldo disponible del cobro origen (máx ${disponible.toFixed(2)} ARS)`
             ),
             { statusCode: 400 }
           );
@@ -407,13 +407,13 @@ exports.createPago = async (req, res) => {
       }
 
       const { balance: balanceAntes } = await loadAccountFinancialParts(tx, account.id);
-      const codigo = await allocateNextPagoCodigo(tx);
-      const pago = await tx.pago.create({
+      const codigo = await allocateNextCobroCodigo(tx);
+      const cobro = await tx.cobro.create({
         data: {
           codigo,
           ...financialRefs,
           paymentMethodConfigId: methodConfig?.id ?? null,
-          pagoOrigenId: pagoOrigen?.id ?? null,
+          cobroOrigenId: cobroOrigen?.id ?? null,
           monto: new Decimal(montoSigned),
           moneda: monedaFinal,
           tipoCambio: monedaFinal === 'USD' ? new Decimal(tipoCambioFinal) : null,
@@ -424,8 +424,8 @@ exports.createPago = async (req, res) => {
             : null,
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
           notas: notas || null,
-          motivo: motivoPago,
-          fecha: fechaPago,
+          motivo: motivoCobro,
+          fecha: fechaCobro,
           requiereFacturacion: wantsBilling,
           ...(wantsBilling
             ? {
@@ -442,9 +442,9 @@ exports.createPago = async (req, res) => {
       });
 
       // Flujo A: 100 % a esta reserva
-      const imputacion = await tx.pagoImputacion.create({
+      const imputacion = await tx.cobroImputacion.create({
         data: {
-          pagoId: pago.id,
+          cobroId: cobro.id,
           accountId: account.id,
           reservaId: Number(reservaId),
           montoARS: montoARS,
@@ -454,28 +454,28 @@ exports.createPago = async (req, res) => {
       });
 
       let da = null;
-      if (isDev && pagoOrigen) {
-        const origenImp = await tx.pagoImputacion.findFirst({
-          where: { pagoId: pagoOrigen.id, accountId: account.id },
+      if (isDev && cobroOrigen) {
+        const origenImp = await tx.cobroImputacion.findFirst({
+          where: { cobroId: cobroOrigen.id, accountId: account.id },
           orderBy: { id: 'asc' }
         });
         da = await createReversalDiscount(tx, {
           accountId: account.id,
-          devolucionPagoId: pago.id,
+          devolucionCobroId: cobro.id,
           devolucionImputacionId: imputacion.id,
-          pagoOrigen,
-          pagoOrigenImputacionId: origenImp?.id ?? null,
+          cobroOrigen,
+          cobroOrigenImputacionId: origenImp?.id ?? null,
           devolucionMontoARSAbs: montoARSAbs
         });
       } else if (!isDev) {
         da = await createForwardDiscount(tx, {
           accountId: account.id,
-          pagoId: pago.id,
-          pagoImputacionId: imputacion.id,
+          cobroId: cobro.id,
+          cobroImputacionId: imputacion.id,
           config: methodConfig,
-          motivo: motivoPago,
+          motivo: motivoCobro,
           dineroARS: montoARSAbs,
-          monedaPago: monedaFinal,
+          monedaCobro: monedaFinal,
           tipoCambio: tipoCambioFinal,
           saldoPendienteAntes: balanceAntes.saldo,
           selectedRuleIds: acceptedRuleIds,
@@ -485,7 +485,7 @@ exports.createPago = async (req, res) => {
           applyAutomatics: acceptedApplyAutomatics
         });
         if (da) {
-          await tx.pagoImputacion.update({
+          await tx.cobroImputacion.update({
             where: { id: imputacion.id },
             data: { bonificacionARS: da.montoARS }
           });
@@ -507,8 +507,8 @@ exports.createPago = async (req, res) => {
       const { balance } = await loadAccountFinancialParts(tx, account.id);
       await syncAccountStatusFromBalance(tx, account.id, balance.saldo);
 
-      const full = await tx.pago.findUnique({
-        where: { id: pago.id },
+      const full = await tx.cobro.findUnique({
+        where: { id: cobro.id },
         include: {
           factura: true,
           discountApplications: true,
@@ -521,18 +521,18 @@ exports.createPago = async (req, res) => {
         discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
       };
     });
-    res.status(201).json(nuevoPago);
+    res.status(201).json(nuevoCobro);
   } catch (error) {
     if (error.statusCode === 400) {
       return res.status(400).json({ error: error.message });
     }
-    console.error('Error creando pago:', error);
-    res.status(500).json({ error: 'Error al crear el pago', details: error.message });
+    console.error('Error creando cobro:', error);
+    res.status(500).json({ error: 'Error al crear el cobro', details: error.message });
   }
 };
 
-// Actualizar un pago existente
-exports.updatePago = async (req, res) => {
+// Actualizar un cobro existente
+exports.updateCobro = async (req, res) => {
   const { id } = req.params;
   const {
     monto,
@@ -549,13 +549,13 @@ exports.updatePago = async (req, res) => {
   } = req.body;
 
   try {
-    // Obtener el pago actual para validaciones
-    const pagoActual = await prisma.pago.findUnique({
+    // Obtener el cobro actual para validaciones
+    const pagoActual = await prisma.cobro.findUnique({
       where: { id: parseInt(id) }
     });
 
     if (!pagoActual) {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: 'Cobro no encontrado' });
     }
 
     const dataToUpdate = {};
@@ -590,10 +590,10 @@ exports.updatePago = async (req, res) => {
     // Validar campos de tarjeta si se cambia el método a Tarjeta Debito o Credito
     if (metodo !== undefined && ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodo)) {
       if (!numeroTarjeta) {
-        return res.status(400).json({ error: 'El número de tarjeta es requerido para pagos con tarjeta' });
+        return res.status(400).json({ error: 'El número de tarjeta es requerido para cobros con tarjeta' });
       }
       if (!empresa) {
-        return res.status(400).json({ error: 'La empresa de la tarjeta es requerida para pagos con tarjeta' });
+        return res.status(400).json({ error: 'La empresa de la tarjeta es requerida para cobros con tarjeta' });
       }
     }
 
@@ -604,7 +604,7 @@ exports.updatePago = async (req, res) => {
 
     if (monedaFinal === 'USD' && !tipoCambioFinal) {
       return res.status(400).json({ 
-        error: 'Para pagos en USD, el tipo de cambio es requerido' 
+        error: 'Para cobros en USD, el tipo de cambio es requerido' 
       });
     }
 
@@ -635,13 +635,13 @@ exports.updatePago = async (req, res) => {
       const metodoFinal = metodo !== undefined ? metodo : pagoActual.metodo;
       if (isTransferencia(metodoFinal)) {
         return res.status(400).json({
-          error: 'Retirado no aplica a pagos por Transferencia'
+          error: 'Retirado no aplica a cobros por Transferencia'
         });
       }
       dataToUpdate.retirado = Boolean(retirado);
     }
 
-    const pagoActualizado = await prisma.pago.update({
+    const pagoActualizado = await prisma.cobro.update({
       where: { id: parseInt(id) },
       data: dataToUpdate,
       include: { factura: true, ...PAGO_ADJUNTO_INCLUDE }
@@ -649,20 +649,20 @@ exports.updatePago = async (req, res) => {
     res.json(pagoActualizado);
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: 'Cobro no encontrado' });
     }
-    console.error('Error actualizando pago:', error);
-    res.status(500).json({ error: 'Error al actualizar el pago', details: error.message });
+    console.error('Error actualizando cobro:', error);
+    res.status(500).json({ error: 'Error al actualizar el cobro', details: error.message });
   }
 };
 
-// Eliminar un pago (transaccional: cascade imputaciones + DA; sync todos los folios)
-exports.deletePago = async (req, res) => {
+// Eliminar un cobro (transaccional: cascade imputaciones + DA; sync todos los folios)
+exports.deleteCobro = async (req, res) => {
   const { id } = req.params;
   try {
-    const pagoId = parseInt(id, 10);
-    const existing = await prisma.pago.findUnique({
-      where: { id: pagoId },
+    const cobroId = parseInt(id, 10);
+    const existing = await prisma.cobro.findUnique({
+      where: { id: cobroId },
       select: {
         id: true,
         accountId: true,
@@ -670,7 +670,7 @@ exports.deletePago = async (req, res) => {
       }
     });
     if (!existing) {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: 'Cobro no encontrado' });
     }
 
     const accountIds = [
@@ -682,25 +682,25 @@ exports.deletePago = async (req, res) => {
       )
     ];
 
-    await prisma.pago.delete({ where: { id: pagoId } });
+    await prisma.cobro.delete({ where: { id: cobroId } });
 
     for (const accountId of accountIds) {
       const { balance } = await loadAccountFinancialParts(prisma, accountId);
       await syncAccountStatusFromBalance(prisma, accountId, balance.saldo);
     }
 
-    res.json({ message: 'Pago eliminado exitosamente' });
+    res.json({ message: 'Cobro eliminado exitosamente' });
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+      return res.status(404).json({ error: 'Cobro no encontrado' });
     }
     if (error.code === 'P2003') {
       return res.status(400).json({
-        error: 'No se puede eliminar: hay devoluciones vinculadas a este pago'
+        error: 'No se puede eliminar: hay devoluciones vinculadas a este cobro'
       });
     }
-    console.error('Error eliminando pago:', error);
-    res.status(500).json({ error: 'Error al eliminar el pago', details: error.message });
+    console.error('Error eliminando cobro:', error);
+    res.status(500).json({ error: 'Error al eliminar el cobro', details: error.message });
   }
 };
 
@@ -708,8 +708,8 @@ exports.deletePago = async (req, res) => {
 // ADJUNTOS DE FACTURA / COMPROBANTE
 // ============================================
 
-exports.uploadPagoAdjuntos = async (req, res) => {
-  const pagoId = parseInt(req.params.id, 10);
+exports.uploadCobroAdjuntos = async (req, res) => {
+  const cobroId = parseInt(req.params.id, 10);
   const tipoResult = assertAdjuntoTipo(req.params.tipo || req.body?.tipo);
   if (tipoResult.error) {
     return res.status(400).json({ error: tipoResult.error });
@@ -717,17 +717,17 @@ exports.uploadPagoAdjuntos = async (req, res) => {
   const tipo = tipoResult.tipo;
 
   try {
-    const pago = await prisma.pago.findUnique({ where: { id: pagoId } });
-    if (!pago) {
-      return res.status(404).json({ error: 'Pago no encontrado' });
+    const cobro = await prisma.cobro.findUnique({ where: { id: cobroId } });
+    if (!cobro) {
+      return res.status(404).json({ error: 'Cobro no encontrado' });
     }
 
-    if (tipo === ADJUNTO_TIPOS.FACTURA && !pago.requiereFacturacion) {
+    if (tipo === ADJUNTO_TIPOS.FACTURA && !cobro.requiereFacturacion) {
       return res.status(400).json({
-        error: 'Este pago no requiere facturación'
+        error: 'Este cobro no requiere facturación'
       });
     }
-    if (tipo === ADJUNTO_TIPOS.COMPROBANTE && !isTransferencia(pago.metodo)) {
+    if (tipo === ADJUNTO_TIPOS.COMPROBANTE && !isTransferencia(cobro.metodo)) {
       return res.status(400).json({
         error: 'Los comprobantes solo aplican a Transferencia'
       });
@@ -743,14 +743,14 @@ exports.uploadPagoAdjuntos = async (req, res) => {
       const mimeCheck = assertMimeForTipo(tipo, file.mimetype);
       if (mimeCheck.error) {
         for (const row of created) {
-          deleteStoredFile(pagoId, row.storedName);
+          deleteStoredFile(cobroId, row.storedName);
         }
         return res.status(400).json({ error: mimeCheck.error });
       }
-      const saved = saveUploadedFile(pagoId, file, tipo);
-      const row = await prisma.pagoAdjunto.create({
+      const saved = saveUploadedFile(cobroId, file, tipo);
+      const row = await prisma.cobroAdjunto.create({
         data: {
-          pagoId,
+          cobroId,
           tipo: saved.tipo,
           originalName: saved.originalName,
           storedName: saved.storedName,
@@ -763,24 +763,24 @@ exports.uploadPagoAdjuntos = async (req, res) => {
 
     res.status(201).json(created.map(toPublicAdjunto));
   } catch (error) {
-    console.error('Error subiendo adjuntos de pago:', error);
+    console.error('Error subiendo adjuntos de cobro:', error);
     res.status(500).json({ error: 'Error al subir adjuntos', details: error.message });
   }
 };
 
-exports.downloadPagoAdjunto = async (req, res) => {
-  const pagoId = parseInt(req.params.id, 10);
+exports.downloadCobroAdjunto = async (req, res) => {
+  const cobroId = parseInt(req.params.id, 10);
   const adjuntoId = parseInt(req.params.adjuntoId, 10);
 
   try {
-    const adjunto = await prisma.pagoAdjunto.findFirst({
-      where: { id: adjuntoId, pagoId }
+    const adjunto = await prisma.cobroAdjunto.findFirst({
+      where: { id: adjuntoId, cobroId }
     });
     if (!adjunto) {
       return res.status(404).json({ error: 'Adjunto no encontrado' });
     }
 
-    const filePath = absolutePath(pagoId, adjunto.storedName);
+    const filePath = absolutePath(cobroId, adjunto.storedName);
     res.download(filePath, adjunto.originalName, (err) => {
       if (err && !res.headersSent) {
         console.error('Error descargando adjunto:', err);
@@ -788,18 +788,18 @@ exports.downloadPagoAdjunto = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error descargando adjunto de pago:', error);
+    console.error('Error descargando adjunto de cobro:', error);
     res.status(500).json({ error: 'Error al descargar adjunto', details: error.message });
   }
 };
 
-exports.deletePagoAdjunto = async (req, res) => {
-  const pagoId = parseInt(req.params.id, 10);
+exports.deleteCobroAdjunto = async (req, res) => {
+  const cobroId = parseInt(req.params.id, 10);
   const adjuntoId = parseInt(req.params.adjuntoId, 10);
 
   try {
-    const adjunto = await prisma.pagoAdjunto.findFirst({
-      where: { id: adjuntoId, pagoId }
+    const adjunto = await prisma.cobroAdjunto.findFirst({
+      where: { id: adjuntoId, cobroId }
     });
     if (!adjunto) {
       return res.status(404).json({ error: 'Adjunto no encontrado' });
@@ -809,12 +809,12 @@ exports.deletePagoAdjunto = async (req, res) => {
       return res.status(403).json({ error: 'No autorizado a eliminar comprobantes de facturación' });
     }
 
-    await prisma.pagoAdjunto.delete({ where: { id: adjunto.id } });
-    deleteStoredFile(pagoId, adjunto.storedName);
+    await prisma.cobroAdjunto.delete({ where: { id: adjunto.id } });
+    deleteStoredFile(cobroId, adjunto.storedName);
 
     res.json({ ok: true, id: adjunto.id });
   } catch (error) {
-    console.error('Error eliminando adjunto de pago:', error);
+    console.error('Error eliminando adjunto de cobro:', error);
     res.status(500).json({ error: 'Error al eliminar adjunto', details: error.message });
   }
 };
@@ -1153,17 +1153,17 @@ exports.deleteCargo = async (req, res) => {
 // RESUMEN FINANCIERO
 // ============================================
 
-// Obtener resumen financiero de una reserva (total cargos, total pagos, saldo)
+// Obtener resumen financiero de una reserva (total cargos, total cobros, saldo)
 exports.getResumenFinanciero = async (req, res) => {
   const { reservaId } = req.params;
   
   try {
     const account = await ensureReservationAccount(prisma, reservaId);
     const [imputaciones, cargos, discounts, reserva] = await Promise.all([
-      prisma.pagoImputacion.findMany({
+      prisma.cobroImputacion.findMany({
         where: { accountId: account.id },
         include: IMPUTACION_LIST_INCLUDE,
-        orderBy: [{ pago: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
+        orderBy: [{ cobro: { fecha: 'desc' } }, { ordenIndex: 'asc' }]
       }),
       prisma.cargo.findMany({
         where: { accountId: account.id },
@@ -1198,13 +1198,13 @@ exports.getResumenFinanciero = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // Folio view: imputaciones → shape “pago” que espera Estado financiero / liquidación
-    const pagos = redactFacturaIfNeeded(
-      imputaciones.map(imputationToFolioPagoView),
+    // Folio view: imputaciones → shape “cobro” que espera Estado financiero / liquidación
+    const cobros = redactFacturaIfNeeded(
+      imputaciones.map(imputationToFolioCobroView),
       req.user
     );
 
-    const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } = calculateAccountBalance(
+    const { totalCargos, totalCobros, totalDescuentos, saldo, estadoCobro } = calculateAccountBalance(
       cargos,
       imputaciones,
       discounts
@@ -1269,9 +1269,9 @@ exports.getResumenFinanciero = async (req, res) => {
       return acc;
     }, {});
 
-    // Agrupar pagos por método
-    const pagosPorMetodo = pagos.reduce((acc, pago) => {
-      const metodo = pago.metodo;
+    // Agrupar cobros por método
+    const cobrosPorMetodo = cobros.reduce((acc, cobro) => {
+      const metodo = cobro.metodo;
       if (!acc[metodo]) {
         acc[metodo] = {
           cantidad: 0,
@@ -1280,8 +1280,8 @@ exports.getResumenFinanciero = async (req, res) => {
         };
       }
       acc[metodo].cantidad++;
-      acc[metodo].total += parseFloat(pago.montoARS);
-      acc[metodo].items.push(pago);
+      acc[metodo].total += parseFloat(cobro.montoARS);
+      acc[metodo].items.push(cobro);
       return acc;
     }, {});
 
@@ -1302,10 +1302,10 @@ exports.getResumenFinanciero = async (req, res) => {
       },
       resumen: {
         totalCargos,
-        totalPagos,
+        totalCobros,
         totalDescuentos,
         saldo,
-        estadoPago
+        estadoCobro
       },
       cargos: {
         total: totalCargos,
@@ -1313,11 +1313,11 @@ exports.getResumenFinanciero = async (req, res) => {
         porTipo: cargosPorTipo,
         items: cargos
       },
-      pagos: {
-        total: totalPagos,
-        cantidad: pagos.length,
-        porMetodo: pagosPorMetodo,
-        items: pagos
+      cobros: {
+        total: totalCobros,
+        cantidad: cobros.length,
+        porMetodo: cobrosPorMetodo,
+        items: cobros
       },
       descuentos: {
         total: totalDescuentos,
@@ -1331,7 +1331,7 @@ exports.getResumenFinanciero = async (req, res) => {
   }
 };
 
-// Obtener el tipo de cambio actual para nuevos pagos
+// Obtener el tipo de cambio actual para nuevos cobros
 exports.getTipoCambioActual = async (req, res) => {
   try {
     const configuracion = await prisma.configuracion.findUnique({
@@ -1357,11 +1357,11 @@ exports.getTipoCambioActual = async (req, res) => {
 };
 
 /**
- * Opciones para el Select del modal Nuevo pago / devolución.
+ * Opciones para el Select del modal Nuevo cobro / devolución.
  * Incluye reservas activas (no canceladas / no-show), con o sin estadía hoy —
  * p.ej. señas sobre reservas futuras. No reusa occupied-rooms (solo día civil).
  */
-exports.getReservasParaPago = async (req, res) => {
+exports.getReservasParaCobro = async (req, res) => {
   try {
     const reservas = await prisma.reservation.findMany({
       where: {
@@ -1421,10 +1421,10 @@ exports.getReservasParaPago = async (req, res) => {
 
     res.json({ success: true, data, count: data.length });
   } catch (error) {
-    console.error('Error listando reservas para pago:', error);
+    console.error('Error listando reservas para cobro:', error);
     res.status(500).json({
       success: false,
-      error: 'Error al listar reservas para pago',
+      error: 'Error al listar reservas para cobro',
       details: error.message
     });
   }
@@ -1433,7 +1433,7 @@ exports.getReservasParaPago = async (req, res) => {
 // Obtener listado de todas las reservas con sus saldos.
 // Solo pedimos campos necesarios para el cálculo/UI: un include anidado
 // (subcategoria/roomType/serviceType/guests) hacía fallar toda la página
-// ante desfase schema↔DB (p.ej. columnas nuevas en Pago/Cargo).
+// ante desfase schema↔DB (p.ej. columnas nuevas en Cobro/Cargo).
 exports.getReservasConSaldos = async (req, res) => {
   try {
     // Compat alias: lista Accounts RESERVATION con forma histórica de “reservas-saldos”.
@@ -1470,7 +1470,7 @@ exports.getReservasConSaldos = async (req, res) => {
           select: {
             id: true,
             montoARS: true,
-            pago: { select: { id: true, codigo: true, fecha: true } }
+            cobro: { select: { id: true, codigo: true, fecha: true } }
           }
         },
         discountApplications: { select: { montoARS: true } }
@@ -1482,7 +1482,7 @@ exports.getReservasConSaldos = async (req, res) => {
       .filter((account) => account.reservation)
       .map((account) => {
         const reserva = account.reservation;
-        const { totalCargos, totalPagos, totalDescuentos, saldo, estadoPago } =
+        const { totalCargos, totalCobros, totalDescuentos, saldo, estadoCobro } =
           calculateAccountBalance(
             account.cargos,
             account.imputaciones,
@@ -1500,16 +1500,16 @@ exports.getReservasConSaldos = async (req, res) => {
           mainClient: reserva.mainClient,
           cantidadHuespedes: reserva._count?.guests ?? 0,
           totalCargos,
-          totalPagos,
+          totalCobros,
           totalDescuentos,
           saldo,
-          estadoPago,
-          pagos: (account.imputaciones || [])
+          estadoCobro,
+          cobros: (account.imputaciones || [])
             .map((imp) => ({
-              id: imp.pago?.id,
-              codigo: imp.pago?.codigo,
+              id: imp.cobro?.id,
+              codigo: imp.cobro?.codigo,
               montoARS: imp.montoARS,
-              fecha: imp.pago?.fecha,
+              fecha: imp.cobro?.fecha,
               imputacionId: imp.id
             }))
             .sort((a, b) => (a.id || 0) - (b.id || 0)),
@@ -1526,11 +1526,11 @@ exports.getReservasConSaldos = async (req, res) => {
 };
 
 /**
- * Flujo B: pago desde ficha cliente con N imputaciones a reservas del titular.
+ * Flujo B: cobro desde ficha cliente con N imputaciones a reservas del titular.
  * Body: monto, metodo, imputaciones[{reservaId|accountId, montoARS, bonificacionARS?}],
  *       autoDistribuir?: bool (reparte a saldos más antiguos; FE debería reenviar montos editados).
  */
-exports.createClientMultiPago = async (req, res) => {
+exports.createClientMultiCobro = async (req, res) => {
   const clientId = parseInt(req.params.clientId || req.params.id, 10);
   const {
     monto,
@@ -1572,10 +1572,10 @@ exports.createClientMultiPago = async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos requeridos: monto y metodo' });
   }
 
-  const motivoPago = normalizePagoMotivo(motivo ?? DEFAULT_PAGO_MOTIVO);
-  if (!motivoPago || isDevolucionMotivo(motivoPago)) {
+  const motivoCobro = normalizeCobroMotivo(motivo ?? DEFAULT_COBRO_MOTIVO);
+  if (!motivoCobro || isDevolucionMotivo(motivoCobro)) {
     return res.status(400).json({
-      error: 'Desde cliente solo se admiten cobros (Pago/Seña). Use devolución por reserva.'
+      error: 'Desde cliente solo se admiten cobros (Cobro/Seña). Use devolución por reserva.'
     });
   }
 
@@ -1609,7 +1609,7 @@ exports.createClientMultiPago = async (req, res) => {
     let facturaParsed = null;
     if (wantsBilling) {
       facturaParsed = buildFacturaData(
-        { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoPago },
+        { ...(factura && typeof factura === 'object' ? factura : {}), motivo: motivoCobro },
         metodoFinal,
         req.body.numeroTarjeta,
         req
@@ -1630,7 +1630,7 @@ exports.createClientMultiPago = async (req, res) => {
         } else {
           return res.status(400).json({
             error:
-              'Para pagos en USD, el tipo de cambio es requerido. No se encontró un tipo de cambio global configurado.'
+              'Para cobros en USD, el tipo de cambio es requerido. No se encontró un tipo de cambio global configurado.'
           });
         }
       }
@@ -1641,7 +1641,7 @@ exports.createClientMultiPago = async (req, res) => {
         ? new Decimal(montoAbs).mul(new Decimal(tipoCambioFinal))
         : new Decimal(montoAbs);
     const montoARSAbs = roundMoney(Math.abs(toNumber(montoARS)));
-    const fechaPago = parseFechaInput(fecha, req);
+    const fechaCobro = parseFechaInput(fecha, req);
 
     const clientAccounts = await prisma.account.findMany({
       where: {
@@ -1734,7 +1734,7 @@ exports.createClientMultiPago = async (req, res) => {
       : { balance: { saldo: 0 } };
     const preview = await previewSettlementDiscount(prisma, {
       config: methodConfig,
-      motivo: motivoPago,
+      motivo: motivoCobro,
       dineroARS: montoARSAbs,
       saldoPendienteAntes: balancePrimero.saldo,
       accountId: firstAccountId,
@@ -1743,7 +1743,7 @@ exports.createClientMultiPago = async (req, res) => {
       benefitValueByRuleId: acceptedBenefitValues,
       applySuggestedDefaults: acceptedApplySuggested,
       mode: 'received',
-      asOfDate: fechaPago,
+      asOfDate: fechaCobro,
       moneda: monedaFinal
     });
     const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
@@ -1758,10 +1758,10 @@ exports.createClientMultiPago = async (req, res) => {
       bonificacionTotalARS: bonoTotal
     });
 
-    const nuevoPago = await prisma.$transaction(async (tx) => {
-      const codigo = await allocateNextPagoCodigo(tx);
+    const nuevoCobro = await prisma.$transaction(async (tx) => {
+      const codigo = await allocateNextCobroCodigo(tx);
       const anchor = normalized.length === 1 ? normalized[0] : null;
-      const pago = await tx.pago.create({
+      const cobro = await tx.cobro.create({
         data: {
           codigo,
           accountId: anchor ? anchor.accountId : null,
@@ -1779,8 +1779,8 @@ exports.createClientMultiPago = async (req, res) => {
             ? req.body.empresa
             : null,
           notas: notas || null,
-          motivo: motivoPago,
-          fecha: fechaPago,
+          motivo: motivoCobro,
+          fecha: fechaCobro,
           requiereFacturacion: wantsBilling,
           ...(wantsBilling ? { factura: { create: facturaParsed.data } } : {})
         }
@@ -1789,9 +1789,9 @@ exports.createClientMultiPago = async (req, res) => {
       const createdImps = [];
       for (const row of normalized) {
         const { balance: balAntes } = await loadAccountFinancialParts(tx, row.accountId);
-        const imp = await tx.pagoImputacion.create({
+        const imp = await tx.cobroImputacion.create({
           data: {
-            pagoId: pago.id,
+            cobroId: cobro.id,
             accountId: row.accountId,
             reservaId: row.reservaId,
             montoARS: new Decimal(row.montoARS),
@@ -1804,12 +1804,12 @@ exports.createClientMultiPago = async (req, res) => {
         if ((row.bonificacionARS || 0) > 0) {
           da = await createForwardDiscount(tx, {
             accountId: row.accountId,
-            pagoId: pago.id,
-            pagoImputacionId: imp.id,
+            cobroId: cobro.id,
+            cobroImputacionId: imp.id,
             config: methodConfig,
-            motivo: motivoPago,
+            motivo: motivoCobro,
             dineroARS: Math.abs(row.montoARS),
-            monedaPago: monedaFinal,
+            monedaCobro: monedaFinal,
             tipoCambio: tipoCambioFinal,
             saldoPendienteAntes: balAntes.saldo,
             selectedRuleIds: acceptedRuleIds,
@@ -1831,8 +1831,8 @@ exports.createClientMultiPago = async (req, res) => {
         );
       }
 
-      return tx.pago.findUnique({
-        where: { id: pago.id },
+      return tx.cobro.findUnique({
+        where: { id: cobro.id },
         include: {
           factura: true,
           discountApplications: true,
@@ -1843,16 +1843,16 @@ exports.createClientMultiPago = async (req, res) => {
     });
 
     res.status(201).json({
-      ...nuevoPago,
+      ...nuevoCobro,
       discountApplication:
-        (nuevoPago.discountApplications && nuevoPago.discountApplications[0]) || null
+        (nuevoCobro.discountApplications && nuevoCobro.discountApplications[0]) || null
     });
   } catch (error) {
     if (error.statusCode === 400) {
       return res.status(400).json({ error: error.message });
     }
-    console.error('Error creando pago multi-cliente:', error);
-    res.status(500).json({ error: 'Error al crear el pago', details: error.message });
+    console.error('Error creando cobro multi-cliente:', error);
+    res.status(500).json({ error: 'Error al crear el cobro', details: error.message });
   }
 };
 
