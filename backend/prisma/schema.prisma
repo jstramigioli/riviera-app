@@ -79,9 +79,28 @@ model Room {
   roomType              RoomType               @relation(fields: [roomTypeId], references: [id])
   gapPromotions         RoomGapPromotion[]
   inventory             RoomInventory[]
+  statusPeriods         RoomStatusPeriod[]
   virtualRoomComponents VirtualRoomComponent[] @relation("VirtualRoomComponents")
   tags                  Tag[]                  @relation("RoomToTag")
   virtualRooms          VirtualRoom[]          @relation("VirtualRoomRooms")
+}
+
+/// Estado operativo manual por rango (startDate inclusivo, endDate exclusivo, como segmentos).
+/// status: available | maintenance | unavailable. Solo se persisten maintenance/unavailable;
+/// «available» limpia el rango.
+model RoomStatusPeriod {
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  startDate DateTime
+  endDate   DateTime
+  status    String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, startDate, endDate])
+  @@index([startDate, endDate])
 }
 
 model VirtualRoom {

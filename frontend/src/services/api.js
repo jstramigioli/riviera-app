@@ -387,6 +387,51 @@ export async function updateRoomOnServer(id, data) {
   return res.json();
 }
 
+export async function fetchRoomStatusPeriods(roomId, { from, to } = {}) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`${API_URL}/rooms/${roomId}/status-periods${qs}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error cargando estados de habitación');
+  }
+  return res.json();
+}
+
+/**
+ * Setea estado operativo por rango inclusive (desde/hasta).
+ * status: available | maintenance | unavailable
+ */
+export async function setRoomStatusPeriod(roomId, { status, desde, hasta, note }) {
+  const res = await apiFetch(`${API_URL}/rooms/${roomId}/status-periods`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, desde, hasta, note, inclusive: true })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'Error seteando estado de habitación');
+    err.status = res.status;
+    err.code = data.code;
+    err.conflicts = data.conflicts || [];
+    throw err;
+  }
+  return data;
+}
+
+export async function deleteRoomStatusPeriod(roomId, periodId) {
+  const res = await apiFetch(`${API_URL}/rooms/${roomId}/status-periods/${periodId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Error eliminando período de estado');
+  }
+  return true;
+}
+
 export async function createRoom(data) {
   const res = await apiFetch(`${API_URL}/rooms`, {
     method: 'POST',
@@ -1714,6 +1759,9 @@ export default {
   suggestDynamicPrice,
   createClient,
   updateRoomOnServer,
+  fetchRoomStatusPeriods,
+  setRoomStatusPeriod,
+  deleteRoomStatusPeriod,
   createRoom,
   deleteRoom,
   createRoomType,

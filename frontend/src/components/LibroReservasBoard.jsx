@@ -710,6 +710,27 @@ export default function LibroReservasBoard({
                       );
                     })}
                   </div>
+                  {(room.statusBlocks || []).map((sb) => {
+                    const style = blockStyle(sb.startOffset, sb.span);
+                    const label =
+                      style.width >= 72
+                        ? sb.label || 'Bloqueo'
+                        : style.width >= 40
+                          ? (sb.label || 'Bloqueo').slice(0, 4)
+                          : '·';
+                    return (
+                      <div
+                        key={`status-${sb.periodId}-${sb.startOffset}`}
+                        className={`${styles.bar} ${styles.barStatus}`}
+                        style={style}
+                        title={`${sb.label || 'Estado'}${
+                          sb.note ? ` · ${sb.note}` : ''
+                        } · ${formatDateUi(sb.startDate)} → ${formatDateUi(sb.endDate)}`}
+                      >
+                        <span className={styles.barText}>{label}</span>
+                      </div>
+                    );
+                  })}
                   {(room.blocks || []).map((b) => {
                     const style = blockStyle(b.startOffset, b.span);
                     const label = truncateBarLabel(

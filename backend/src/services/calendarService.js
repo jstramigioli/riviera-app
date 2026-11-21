@@ -8,6 +8,10 @@ const {
 } = require('../utils/calendarDates');
 const { sortRooms } = require('../utils/roomSort');
 const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
+const {
+  loadStatusPeriodsForWindow,
+  statusLabel
+} = require('../utils/roomStatusPeriods');
 
 const prisma = new PrismaClient();
 
@@ -60,7 +64,7 @@ async function loadCalendar(startIso, days) {
 
   const openPeriods = await loadOpenPeriods();
 
-  const [roomsRaw, segments] = await Promise.all([
+  const [roomsRaw, segments, statusPeriods] = await Promise.all([
     prisma.room.findMany({
       orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
       select: {
@@ -92,12 +96,44 @@ async function loadCalendar(startIso, days) {
         }
       },
       orderBy: { startDate: 'asc' }
-    })
+    }),
+    loadStatusPeriodsForWindow(startIso, endIso)
   ]);
 
   const rooms = typeof sortRooms === 'function' ? sortRooms(roomsRaw) : roomsRaw;
   const blocksByRoom = new Map();
-  for (const room of rooms) blocksByRoom.set(room.id, []);
+  const statusBlocksByRoom = new Map();
+  for (const room of rooms) {
+    blocksByRoom.set(room.id, []);
+    statusBlocksByRoom.set(room.id, []);
+  }
+
+  for (const period of statusPeriods) {
+    const periodStartIso = civilFromDb(period.startDate);
+    const periodEndIso = civilFromDb(period.endDate);
+    if (!periodStartIso || !periodEndIso) continue;
+
+    const clippedStart = periodStartIso < startIso ? startIso : periodStartIso;
+    const clippedEnd = periodEndIso > endIso ? endIso : periodEndIso;
+    if (clippedStart >= clippedEnd) continue;
+
+    const startOffset = daysBetweenCivil(startIso, clippedStart);
+    const span = Math.max(1, daysBetweenCivil(clippedStart, clippedEnd));
+    if (startOffset >= dayCount) continue;
+
+    statusBlocksByRoom.get(period.roomId)?.push({
+      kind: 'status',
+      periodId: period.id,
+      roomId: period.roomId,
+      status: period.status,
+      label: statusLabel(period.status),
+      note: period.note || null,
+      startDate: periodStartIso,
+      endDate: periodEndIso,
+      startOffset,
+      span
+    });
+  }
 
   for (const seg of segments) {
     const segStartIso = civilFromDb(seg.startDate);
@@ -159,7 +195,8 @@ async function loadCalendar(startIso, days) {
       roomType: r.roomType
         ? { id: r.roomType.id, name: r.roomType.name, maxPeople: r.roomType.maxPeople }
         : null,
-      blocks: blocksByRoom.get(r.id) || []
+      blocks: blocksByRoom.get(r.id) || [],
+      statusBlocks: statusBlocksByRoom.get(r.id) || []
     }))
   };
 }

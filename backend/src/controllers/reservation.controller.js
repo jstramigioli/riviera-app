@@ -560,10 +560,19 @@ exports.findAvailableRooms = async (req, res) => {
 
     const occupiedRoomIds = occupiedRooms.map(r => r.roomId);
 
+    // Habitaciones en mantenimiento / no disponible en el rango
+    const {
+      findBlockedRoomIds
+    } = require('../utils/roomStatusPeriods');
+    const blockedRoomIds = await findBlockedRoomIds(checkIn, checkOut);
+    const unavailableRoomIds = [
+      ...new Set([...occupiedRoomIds, ...blockedRoomIds])
+    ];
+
     // Obtener TODAS las habitaciones disponibles (para combinaciones)
     const allAvailableRooms = await prisma.room.findMany({
       where: {
-        id: { notIn: occupiedRoomIds },
+        id: { notIn: unavailableRoomIds },
         status: 'available',
         ...(requiredRoomId && { id: parseInt(requiredRoomId) })
       },
@@ -576,6 +585,7 @@ exports.findAvailableRooms = async (req, res) => {
 
     console.log('🏨 Habitaciones físicas encontradas:', allAvailableRooms.length);
     console.log('🏨 Habitaciones ocupadas:', occupiedRoomIds.length);
+    console.log('🏨 Habitaciones bloqueadas (estado):', blockedRoomIds.length);
     console.log('🏨 IDs de habitaciones ocupadas:', occupiedRoomIds);
 
     // Habitaciones virtuales: no se listan si hay habitación específica;
@@ -602,7 +612,7 @@ exports.findAvailableRooms = async (req, res) => {
 
       const availableVirtualRooms = virtualRooms.filter(virtualRoom => {
         const componentRoomIds = virtualRoom.components.map(comp => comp.roomId);
-        return !componentRoomIds.some(roomId => occupiedRoomIds.includes(roomId));
+        return !componentRoomIds.some(roomId => unavailableRoomIds.includes(roomId));
       });
 
       virtualRoomsFormatted = availableVirtualRooms.map(formatVirtualRoomForAvailability);

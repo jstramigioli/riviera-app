@@ -13,6 +13,9 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../services/api', () => ({
   fetchRooms: vi.fn(),
   fetchReservations: vi.fn(),
+  fetchRoomStatusPeriods: vi.fn().mockResolvedValue([]),
+  setRoomStatusPeriod: vi.fn(),
+  deleteRoomStatusPeriod: vi.fn(),
 }))
 
 describe('RoomDetails', () => {
@@ -21,7 +24,9 @@ describe('RoomDetails', () => {
   })
 
   it('shows profile tabs without cleaning status', async () => {
-    const { fetchRooms, fetchReservations } = await import('../services/api')
+    const { fetchRooms, fetchReservations, fetchRoomStatusPeriods } = await import(
+      '../services/api'
+    )
     fetchRooms.mockResolvedValue([
       {
         id: 3,
@@ -40,6 +45,7 @@ describe('RoomDetails', () => {
         segments: [{ roomId: 3, startDate: '2026-12-01', endDate: '2026-12-05' }],
       },
     ])
+    fetchRoomStatusPeriods.mockResolvedValue([])
 
     render(<RoomDetails />)
 
@@ -53,6 +59,7 @@ describe('RoomDetails', () => {
     expect(
       screen.getByRole('button', { name: 'Notificaciones / observaciones' })
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Setear estado' })).toBeInTheDocument()
     expect(screen.queryByText(/Estado de [Ll]impieza/i)).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Historial reservas' }))

@@ -10,6 +10,11 @@ router.get('/', roomController.getAllRooms);
 // GET /api/rooms/:id - Obtener una habitación específica
 router.get('/:id', roomController.getRoomById);
 
+// Estado operativo por rango de fechas
+router.get('/:id/status-periods', roomController.getRoomStatusPeriods);
+router.post('/:id/status-periods', roomController.setRoomStatusPeriod);
+router.delete('/:id/status-periods/:periodId', roomController.deleteRoomStatusPeriod);
+
 // POST /api/rooms - Crear una nueva habitación
 router.post('/', validateRoom, roomController.createRoom);
 

@@ -4,6 +4,15 @@ const {
   sanitizeBedsPayload,
   normalizeBedType
 } = require('../utils/bedConfig');
+const {
+  applyStatusRange,
+  listStatusPeriods,
+  deleteStatusPeriod,
+  parseInclusiveRange,
+  parseExclusiveRange,
+  serializePeriod,
+  normalizeStatus
+} = require('../utils/roomStatusPeriods');
 
 const roomInclude = {
   roomType: true,
@@ -214,5 +223,110 @@ exports.deleteRoom = async (req, res) => {
     res.status(204).send();
   } catch (error) {
     res.status(404).json({ error: 'Room not found' });
+  }
+};
+
+/** GET /api/rooms/:id/status-periods */
+exports.getRoomStatusPeriods = async (req, res) => {
+  const { id } = req.params;
+  const { from, to } = req.query;
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: Number(id) },
+      select: { id: true }
+    });
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    const periods = await listStatusPeriods(id, { from, to });
+    res.json(periods.map(serializePeriod));
+  } catch (error) {
+    console.error('Error listing room status periods:', error);
+    res.status(500).json({ error: 'Error listing room status periods' });
+  }
+};
+
+/**
+ * POST /api/rooms/:id/status-periods
+ * Body: { status, desde?, hasta? } inclusive UI dates,
+ * or { status, startDate, endDate } with exclusive endDate.
+ * Optional note.
+ */
+exports.setRoomStatusPeriod = async (req, res) => {
+  const { id } = req.params;
+  const { status, desde, hasta, startDate, endDate, note, inclusive } = req.body || {};
+
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: Number(id) },
+      select: { id: true, name: true }
+    });
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    if (!normalizeStatus(status)) {
+      return res.status(400).json({
+        error: 'Estado inválido. Usar: available, maintenance, unavailable'
+      });
+    }
+
+    let range;
+    if (desde || hasta || inclusive === true) {
+      range = parseInclusiveRange(desde || startDate, hasta || endDate);
+    } else if (startDate && endDate) {
+      range = parseExclusiveRange(startDate, endDate);
+    } else {
+      range = parseInclusiveRange(desde || startDate, hasta || endDate);
+    }
+    if (range.error) {
+      return res.status(400).json({ error: range.error });
+    }
+
+    const result = await applyStatusRange({
+      roomId: Number(id),
+      startDate: range.startDate,
+      endDate: range.endDate,
+      status,
+      note
+    });
+
+    res.status(201).json({
+      roomId: Number(id),
+      status: result.status,
+      cleared: result.cleared,
+      period: serializePeriod(result.period),
+      range: {
+        startDate: range.startIso,
+        endDate: range.endIso,
+        endInclusive: range.endInclusiveIso || undefined
+      }
+    });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    if (statusCode === 409) {
+      return res.status(409).json({
+        error: error.message,
+        code: error.code || 'RESERVATIONS_IN_RANGE',
+        conflicts: error.conflicts || []
+      });
+    }
+    if (statusCode === 400) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error('Error setting room status period:', error);
+    res.status(500).json({ error: 'Error setting room status period' });
+  }
+};
+
+/** DELETE /api/rooms/:id/status-periods/:periodId */
+exports.deleteRoomStatusPeriod = async (req, res) => {
+  const { id, periodId } = req.params;
+  try {
+    const deleted = await deleteStatusPeriod(id, periodId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Período no encontrado' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting room status period:', error);
+    res.status(500).json({ error: 'Error deleting room status period' });
   }
 };

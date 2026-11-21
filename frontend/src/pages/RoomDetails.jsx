@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { fetchReservations, fetchRooms } from '../services/api';
+import RoomStatusPeriodModal from '../components/RoomStatusPeriodModal';
+import {
+  deleteRoomStatusPeriod,
+  fetchReservations,
+  fetchRooms,
+  fetchRoomStatusPeriods,
+} from '../services/api';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import {
   INACTIVE_ROOM_STATUSES,
@@ -8,7 +14,7 @@ import {
   reservationTouchesRoom,
   stayBoundsForRoom,
 } from '../utils/roomOccupancy';
-import { todayAsLocalDate } from '../utils/calendarDates';
+import { todayAsLocalDate, todayIsoLocal } from '../utils/calendarDates';
 import styles from './RoomDetails.module.css';
 
 const TABS = [
@@ -34,18 +40,21 @@ function RoomDetails() {
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [statusPeriods, setStatusPeriods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
 
   const loadRoomData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [roomsData, reservationsData] = await Promise.all([
+      const [roomsData, reservationsData, periodsData] = await Promise.all([
         fetchRooms(),
         fetchReservations(),
+        fetchRoomStatusPeriods(roomId).catch(() => []),
       ]);
 
       const foundRoom = (roomsData || []).find((item) => item.id === parseInt(roomId, 10));
@@ -59,6 +68,7 @@ function RoomDetails() {
 
       setRoom(foundRoom);
       setReservations(roomReservations);
+      setStatusPeriods(Array.isArray(periodsData) ? periodsData : []);
     } catch (err) {
       console.error('Error cargando datos de la habitación:', err);
       setError(err.message === 'Habitación no encontrada'
@@ -106,6 +116,31 @@ function RoomDetails() {
     () => (room ? occupancyLabel(room.id, reservations) : '—'),
     [room, reservations]
   );
+
+  const operationalStatus = useMemo(() => {
+    const today = todayIsoLocal();
+    const active = statusPeriods.find(
+      (period) => period.startDate <= today && period.endDate > today
+    );
+    return active ? active.label || active.status : 'Disponible';
+  }, [statusPeriods]);
+
+  const upcomingStatusPeriods = useMemo(() => {
+    const today = todayIsoLocal();
+    return [...statusPeriods]
+      .filter((period) => period.endDate > today)
+      .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
+  }, [statusPeriods]);
+
+  const handleDeletePeriod = async (periodId) => {
+    try {
+      await deleteRoomStatusPeriod(roomId, periodId);
+      await loadRoomData();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'No se pudo eliminar el período');
+    }
+  };
 
   if (loading) {
     return <div className={styles.loading}>Cargando datos de la habitación...</div>;
@@ -217,6 +252,10 @@ function RoomDetails() {
                         <dd>{currentStatus}</dd>
                       </div>
                       <div className={styles.infoItem}>
+                        <dt>Estado operativo</dt>
+                        <dd>{operationalStatus}</dd>
+                      </div>
+                      <div className={styles.infoItem}>
                         <dt>Huésped actual</dt>
                         <dd>
                           {currentGuest
@@ -235,6 +274,49 @@ function RoomDetails() {
                     </dl>
                   </div>
                 </div>
+
+                <div className={styles.statusPeriodBlock}>
+                  <div className={styles.statusPeriodHeader}>
+                    <h3>Estado por fechas</h3>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={() => setStatusModalOpen(true)}
+                    >
+                      Setear estado
+                    </button>
+                  </div>
+                  {upcomingStatusPeriods.length === 0 ? (
+                    <div className={styles.emptyStateInline}>
+                      Sin bloqueos de mantenimiento ni no disponible
+                    </div>
+                  ) : (
+                    <ul className={styles.statusPeriodList}>
+                      {upcomingStatusPeriods.map((period) => (
+                        <li key={period.id} className={styles.statusPeriodItem}>
+                          <div>
+                            <strong>{period.label || period.status}</strong>
+                            <span className={styles.statusPeriodDates}>
+                              {formatDate(period.startDate)} —{' '}
+                              {formatDate(period.endInclusive || period.endDate)}
+                            </span>
+                            {period.note ? (
+                              <span className={styles.statusPeriodNote}>{period.note}</span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={() => handleDeletePeriod(period.id)}
+                          >
+                            Quitar
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 {room.description ? (
                   <div className={styles.descriptionBlock}>
                     <h3>Descripción</h3>
@@ -357,6 +439,14 @@ function RoomDetails() {
           )}
         </div>
       </div>
+
+      <RoomStatusPeriodModal
+        isOpen={statusModalOpen}
+        onClose={() => setStatusModalOpen(false)}
+        roomId={room.id}
+        roomName={room.name}
+        onSaved={() => loadRoomData()}
+      />
     </div>
   );
 }

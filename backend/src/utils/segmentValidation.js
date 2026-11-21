@@ -6,6 +6,10 @@ const {
   isVirtualBlockingSegment,
   isVirtualRoomRef
 } = require('./virtualRoomSegments');
+const {
+  roomHasBlockingStatus,
+  statusLabel
+} = require('./roomStatusPeriods');
 const prisma = new PrismaClient();
 
 /**
@@ -148,12 +152,22 @@ async function validateRoomAvailability(segments, excludeReservationId = null) {
       segment.endDate,
       excludeReservationId
     );
+    const blocked = await roomHasBlockingStatus(
+      segment.roomId,
+      segment.startDate,
+      segment.endDate
+    );
     
     availabilityChecks.push({
       roomId: segment.roomId,
       startDate: segment.startDate,
       endDate: segment.endDate,
-      available: !hasOverlap
+      available: !hasOverlap && !blocked,
+      reason: blocked
+        ? `estado ${statusLabel(blocked.status)}`
+        : hasOverlap
+          ? 'reservada'
+          : null
     });
   }
   

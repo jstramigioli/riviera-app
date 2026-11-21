@@ -991,6 +991,7 @@ async function lodgingNeedsSync(reservationId, previousSegments, nextSegments) {
  */
 async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservationId = null) {
   const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
+  const { roomHasBlockingStatus, statusLabel } = require('./roomStatusPeriods');
   const conflictingSegments = await prisma.reservationSegment.findMany({
     where: {
       roomId: parseInt(roomId),
@@ -1029,9 +1030,19 @@ async function checkRoomAvailability(roomId, checkIn, checkOut, excludeReservati
     }
   });
 
+  const blocked = await roomHasBlockingStatus(roomId, checkIn, checkOut);
+
   return {
-    available: conflictingSegments.length === 0,
-    conflicts: conflictingSegments
+    available: conflictingSegments.length === 0 && !blocked,
+    conflicts: conflictingSegments,
+    blockedStatus: blocked
+      ? {
+          status: blocked.status,
+          label: statusLabel(blocked.status),
+          startDate: blocked.startDate,
+          endDate: blocked.endDate
+        }
+      : null
   };
 }
 
