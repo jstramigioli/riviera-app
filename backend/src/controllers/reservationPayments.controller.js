@@ -622,9 +622,11 @@ exports.updatePago = async (req, res) => {
     if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
     if (motivo !== undefined) {
-      const motivoNorm = String(motivo || '').trim();
+      const motivoNorm = normalizePagoMotivo(motivo);
       if (!motivoNorm) {
-        return res.status(400).json({ error: 'El motivo no puede estar vacío' });
+        return res.status(400).json({
+          error: 'Motivo inválido. Debe ser Pago, Seña o Devolución'
+        });
       }
       dataToUpdate.motivo = motivoNorm;
     }
