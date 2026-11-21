@@ -184,12 +184,14 @@ model ClientBillingProfile {
   id                Int      @id @default(autoincrement())
   clientId          Int      @unique
   client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  /// Último tipo usado: A | B
+  /// Último tipo usado: A | B | T
   lastInvoiceType   String?
   firstName         String?
   lastName          String?
   documentType      String?
   documentNumber    String?
+  /// País emisor del pasaporte (ISO-ish code; solo Factura T)
+  passportCountry   String?
   address           String?
   email             String?
   businessName      String?
@@ -934,12 +936,12 @@ model CobroAdjunto {
   @@index([cobroId, tipo])
 }
 
-/// Snapshot de facturación asociado a un cobro (Factura A o B).
+/// Snapshot de facturación asociado a un cobro (Factura A, B o T).
 model CobroFactura {
   id                Int      @id @default(autoincrement())
   cobroId            Int      @unique
   cobro              Cobro     @relation(fields: [cobroId], references: [id], onDelete: Cascade)
-  /// A | B
+  /// A | B | T
   tipo              String
   /// Fecha de facturación (día; puede diferir de Cobro.fecha)
   fecha             DateTime @default(now())
@@ -948,6 +950,8 @@ model CobroFactura {
   lastName          String?
   documentType      String?
   documentNumber    String?
+  /// País emisor del pasaporte extranjero (Factura T)
+  passportCountry   String?
   address           String?
   email             String?
   businessName      String?

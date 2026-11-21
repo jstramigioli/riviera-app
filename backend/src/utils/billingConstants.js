@@ -1,7 +1,12 @@
 /** Métodos de pago que exigen facturación (toggle fijo activado). */
 const BILLING_REQUIRED_METHODS = ['Transferencia', 'Tarjeta Credito', 'Tarjeta Debito'];
 
-const INVOICE_TYPES = ['A', 'B'];
+const INVOICE_TYPES = ['A', 'B', 'T'];
+
+/** Factura B (consumidor) o T (turista extranjero): datos de persona física. */
+function isPersonInvoiceType(tipo) {
+  return tipo === 'B' || tipo === 'T';
+}
 
 const DOCUMENT_TYPES_AR = [
   'DNI',
@@ -63,6 +68,7 @@ module.exports = {
   MOTIVO_DEVOLUCION,
   methodRequiresBilling,
   isCardMethod,
+  isPersonInvoiceType,
   isDevolucionMotivo,
   normalizeCobroMotivo
 };

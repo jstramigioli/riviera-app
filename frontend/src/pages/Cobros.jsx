@@ -21,6 +21,7 @@ import CobrosHistorialTable, {
   paymentCodeLabel,
 } from '../components/CobrosHistorialTable';
 import { formatMoneyArs } from '../utils/formatMoney';
+import { countryName } from '../constants/countries';
 import styles from './Cobros.module.css';
 
 const SECTIONS = {
@@ -36,6 +37,19 @@ const FACTURA_B_COLUMNS = [
   { key: 'lastName', label: 'Apellido' },
   { key: 'documentType', label: 'Tipo doc.' },
   { key: 'documentNumber', label: 'N° documento' },
+  { key: 'address', label: 'Domicilio' },
+  { key: 'email', label: 'Email' },
+  { key: 'cardNumber', label: 'Tarjeta / N°' },
+];
+
+const FACTURA_T_COLUMNS = [
+  { key: 'codigo', label: 'Código' },
+  { key: 'fecha', label: 'Fecha' },
+  { key: 'firstName', label: 'Nombre' },
+  { key: 'lastName', label: 'Apellido' },
+  { key: 'documentType', label: 'Tipo doc.' },
+  { key: 'documentNumber', label: 'N° documento' },
+  { key: 'passportCountry', label: 'País pasaporte' },
   { key: 'address', label: 'Domicilio' },
   { key: 'email', label: 'Email' },
   { key: 'cardNumber', label: 'Tarjeta / N°' },
@@ -64,6 +78,11 @@ function facturaCellValue(cobro, key) {
   // Solo día (sin hora): fecha de facturación, que puede diferir de la del cobro.
   if (key === 'fecha') return formatDisplayDate(cobro?.factura?.fecha || cobro?.fecha);
   if (key === 'montoSinIva') return formatMoneyArs(montoSinIvaFromCobro(cobro));
+  if (key === 'passportCountry') {
+    const code = cobro?.factura?.passportCountry;
+    if (code == null || String(code).trim() === '') return '';
+    return countryName(code) || String(code);
+  }
   const raw = cobro?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
@@ -238,6 +257,20 @@ const Cobros = () => {
     () =>
       (payments || [])
         .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'B')
+        .filter(isFacturacionRowVisible)
+        .slice()
+        .sort((a, b) => {
+          const diff = facturacionSortMs(b) - facturacionSortMs(a);
+          if (diff !== 0) return diff;
+          return Number(b.id) - Number(a.id);
+        }),
+    [payments, isFacturacionRowVisible]
+  );
+
+  const facturacionCobrosT = useMemo(
+    () =>
+      (payments || [])
+        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'T')
         .filter(isFacturacionRowVisible)
         .slice()
         .sort((a, b) => {
@@ -1149,6 +1182,7 @@ const Cobros = () => {
               </div>
               {renderFacturacionTable('A', FACTURA_A_COLUMNS, facturacionCobrosA)}
               {renderFacturacionTable('B', FACTURA_B_COLUMNS, facturacionCobrosB)}
+              {renderFacturacionTable('T', FACTURA_T_COLUMNS, facturacionCobrosT)}
             </section>
           )}
         </div>

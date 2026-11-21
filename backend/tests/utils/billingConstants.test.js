@@ -2,6 +2,7 @@ const {
   methodRequiresBilling,
   isCardMethod,
   INVOICE_TYPES,
+  isPersonInvoiceType,
   DEFAULT_IVA_CONDITION,
   normalizeCobroMotivo,
   DEFAULT_COBRO_MOTIVO
@@ -21,7 +22,10 @@ describe('billingConstants', () => {
   });
 
   test('tipos de factura y IVA default', () => {
-    expect(INVOICE_TYPES).toEqual(['A', 'B']);
+    expect(INVOICE_TYPES).toEqual(['A', 'B', 'T']);
+    expect(isPersonInvoiceType('B')).toBe(true);
+    expect(isPersonInvoiceType('T')).toBe(true);
+    expect(isPersonInvoiceType('A')).toBe(false);
     expect(DEFAULT_IVA_CONDITION).toBe('Responsable Inscripto');
   });
 

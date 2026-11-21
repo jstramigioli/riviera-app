@@ -19,6 +19,7 @@ const {
   DEFAULT_COBRO_MOTIVO,
   methodRequiresBilling,
   isCardMethod,
+  isPersonInvoiceType,
   isDevolucionMotivo,
   normalizeCobroMotivo
 } = require('../utils/billingConstants');
@@ -54,7 +55,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
 
   const tipo = String(facturaInput.tipo || '').toUpperCase();
   if (!INVOICE_TYPES.includes(tipo)) {
-    return { error: 'Tipo de factura inválido. Debe ser A o B' };
+    return { error: 'Tipo de factura inválido. Debe ser A, B o T' };
   }
 
   const fecha = parseFechaInput(facturaInput.fecha, req);
@@ -77,7 +78,15 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
     email: normalizeOptionalString(facturaInput.email)
   };
 
-  if (tipo === 'B') {
+  if (isPersonInvoiceType(tipo)) {
+    const passportCountry = normalizeOptionalString(
+      facturaInput.passportCountry ||
+        facturaInput.paisEmisorPasaporte ||
+        facturaInput.paisPasaporte
+    );
+    if (tipo === 'T' && !passportCountry) {
+      return { error: 'El país emisor del pasaporte es requerido para Factura T' };
+    }
     return {
       data: {
         ...base,
@@ -85,10 +94,11 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
         lastName: normalizeOptionalString(facturaInput.lastName || facturaInput.apellido),
         documentType:
           normalizeOptionalString(facturaInput.documentType || facturaInput.tipoDocumento) ||
-          'DNI',
+          (tipo === 'T' ? 'Pasaporte' : 'DNI'),
         documentNumber: normalizeOptionalString(
           facturaInput.documentNumber || facturaInput.numeroDocumento
         ),
+        passportCountry: tipo === 'T' ? passportCountry : null,
         address: normalizeOptionalString(facturaInput.address || facturaInput.domicilio),
         businessName: null,
         cuit: null,
@@ -105,6 +115,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
       lastName: null,
       documentType: null,
       documentNumber: null,
+      passportCountry: null,
       address: null,
       businessName: normalizeOptionalString(facturaInput.businessName || facturaInput.razonSocial),
       cuit: normalizeOptionalString(facturaInput.cuit),
@@ -119,36 +130,38 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
 }
 
 function buildBillingProfileUpsert(clientId, facturaData) {
-  const isB = facturaData.tipo === 'B';
+  const isPerson = isPersonInvoiceType(facturaData.tipo);
   return {
     where: { clientId },
     create: {
       clientId,
       lastInvoiceType: facturaData.tipo,
-      firstName: isB ? facturaData.firstName : undefined,
-      lastName: isB ? facturaData.lastName : undefined,
-      documentType: isB ? facturaData.documentType : undefined,
-      documentNumber: isB ? facturaData.documentNumber : undefined,
-      address: isB ? facturaData.address : undefined,
+      firstName: isPerson ? facturaData.firstName : undefined,
+      lastName: isPerson ? facturaData.lastName : undefined,
+      documentType: isPerson ? facturaData.documentType : undefined,
+      documentNumber: isPerson ? facturaData.documentNumber : undefined,
+      passportCountry: isPerson ? facturaData.passportCountry : undefined,
+      address: isPerson ? facturaData.address : undefined,
       email: facturaData.email,
-      businessName: !isB ? facturaData.businessName : undefined,
-      cuit: !isB ? facturaData.cuit : undefined,
-      commercialAddress: !isB ? facturaData.commercialAddress : undefined,
-      ivaCondition: !isB ? facturaData.ivaCondition : undefined,
+      businessName: !isPerson ? facturaData.businessName : undefined,
+      cuit: !isPerson ? facturaData.cuit : undefined,
+      commercialAddress: !isPerson ? facturaData.commercialAddress : undefined,
+      ivaCondition: !isPerson ? facturaData.ivaCondition : undefined,
       cardNumber: facturaData.cardNumber
     },
     update: {
       lastInvoiceType: facturaData.tipo,
-      firstName: isB ? facturaData.firstName : undefined,
-      lastName: isB ? facturaData.lastName : undefined,
-      documentType: isB ? facturaData.documentType : undefined,
-      documentNumber: isB ? facturaData.documentNumber : undefined,
-      address: isB ? facturaData.address : undefined,
+      firstName: isPerson ? facturaData.firstName : undefined,
+      lastName: isPerson ? facturaData.lastName : undefined,
+      documentType: isPerson ? facturaData.documentType : undefined,
+      documentNumber: isPerson ? facturaData.documentNumber : undefined,
+      passportCountry: isPerson ? facturaData.passportCountry : undefined,
+      address: isPerson ? facturaData.address : undefined,
       email: facturaData.email,
-      businessName: !isB ? facturaData.businessName : undefined,
-      cuit: !isB ? facturaData.cuit : undefined,
-      commercialAddress: !isB ? facturaData.commercialAddress : undefined,
-      ivaCondition: !isB ? facturaData.ivaCondition : undefined,
+      businessName: !isPerson ? facturaData.businessName : undefined,
+      cuit: !isPerson ? facturaData.cuit : undefined,
+      commercialAddress: !isPerson ? facturaData.commercialAddress : undefined,
+      ivaCondition: !isPerson ? facturaData.ivaCondition : undefined,
       cardNumber: facturaData.cardNumber
     }
   };

@@ -18,6 +18,13 @@ export const DOCUMENT_TYPES_AR = [
   'Otro'
 ];
 
+export const INVOICE_TYPES = ['A', 'B', 'T'];
+
+/** Factura B (consumidor) o T (turista extranjero). */
+export function isPersonInvoiceType(tipo) {
+  return tipo === 'B' || tipo === 'T';
+}
+
 export const IVA_CONDITIONS = [
   'Responsable Inscripto',
   'Monotributo',
@@ -82,6 +89,7 @@ export function emptyBillingForm(overrides = {}) {
     lastName: '',
     documentType: 'DNI',
     documentNumber: '',
+    passportCountry: '',
     address: '',
     email: '',
     businessName: '',

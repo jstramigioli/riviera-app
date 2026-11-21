@@ -725,6 +725,21 @@ describe('CobroForm facturación', () => {
     )
   })
 
+  it('muestra Factura T con mismos campos que B más país emisor del pasaporte', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByLabelText(/Requiere facturación/i))
+    fireEvent.click(screen.getByRole('button', { name: 'Factura T' }))
+
+    expect(screen.getByLabelText(/^Nombre/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Apellido/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Tipo documento/i)).toHaveValue('Pasaporte')
+    expect(screen.getByLabelText(/País emisor del pasaporte/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Razón social/i)).not.toBeInTheDocument()
+  })
+
   it('tabs Nuevo cobro / Nueva devolución y toggle Seña sin desplegable Motivo', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 

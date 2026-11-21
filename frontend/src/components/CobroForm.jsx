@@ -32,10 +32,12 @@ import {
   MOTIVO_DEVOLUCION,
   emptyBillingForm,
   isCardMethod,
+  isPersonInvoiceType,
   localDateInputToIso,
   methodRequiresBilling,
   todayLocalDateInputValue
 } from '../constants/billing';
+import { COUNTRIES } from '../constants/countries';
 import { todayAsLocalDate } from '../utils/calendarDates';
 import {
   computeRefundFromCash,
@@ -396,15 +398,20 @@ const CobroForm = ({
     if (!cid) return;
     try {
       const profile = await getClientBillingProfile(cid);
+      const savedTipo = ['A', 'B', 'T'].includes(profile.lastInvoiceType)
+        ? profile.lastInvoiceType
+        : 'B';
       setBilling((prev) =>
         emptyBillingForm({
           ...prev,
-          tipo: profile.lastInvoiceType === 'A' ? 'A' : 'B',
+          tipo: savedTipo,
           fecha: todayLocalDateInputValue(),
           firstName: profile.firstName || '',
           lastName: profile.lastName || '',
-          documentType: profile.documentType || 'DNI',
+          documentType:
+            profile.documentType || (savedTipo === 'T' ? 'Pasaporte' : 'DNI'),
           documentNumber: profile.documentNumber || '',
+          passportCountry: profile.passportCountry || '',
           address: profile.address || '',
           email: profile.email || '',
           businessName: profile.businessName || '',
@@ -1023,7 +1030,13 @@ const CobroForm = ({
   };
 
   const handleBillingChange = (field, value) => {
-    setBilling((prev) => ({ ...prev, [field]: value }));
+    setBilling((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'tipo' && value === 'T' && prev.documentType === 'DNI') {
+        next.documentType = 'Pasaporte';
+      }
+      return next;
+    });
     setError(null);
   };
 
@@ -1289,21 +1302,26 @@ const CobroForm = ({
     }
 
     if (!isEditMode && billingEnabled) {
-      if (!billing.tipo || !['A', 'B'].includes(billing.tipo)) {
-        setError('Seleccioná Factura A o Factura B');
+      if (!billing.tipo || !['A', 'B', 'T'].includes(billing.tipo)) {
+        setError('Seleccioná Factura A, Factura B o Factura T');
         return;
       }
       if (!billing.fecha || !localDateInputToIso(billing.fecha)) {
         setError('La fecha de facturación es requerida');
         return;
       }
-      if (billing.tipo === 'B') {
+      if (isPersonInvoiceType(billing.tipo)) {
+        const label = billing.tipo === 'T' ? 'Factura T' : 'Factura B';
         if (!billing.firstName || !billing.lastName) {
-          setError('Nombre y apellido son requeridos para Factura B');
+          setError(`Nombre y apellido son requeridos para ${label}`);
           return;
         }
         if (!billing.documentNumber) {
-          setError('El número de documento es requerido para Factura B');
+          setError(`El número de documento es requerido para ${label}`);
+          return;
+        }
+        if (billing.tipo === 'T' && !billing.passportCountry) {
+          setError('El país emisor del pasaporte es requerido para Factura T');
           return;
         }
       } else if (!billing.businessName || !billing.cuit) {
@@ -1325,6 +1343,8 @@ const CobroForm = ({
             lastName: billing.lastName || null,
             documentType: billing.documentType || null,
             documentNumber: billing.documentNumber || null,
+            passportCountry:
+              billing.tipo === 'T' ? billing.passportCountry || null : null,
             address: billing.address || null,
             email: billing.email || null,
             businessName: billing.businessName || null,
@@ -2384,6 +2404,14 @@ const CobroForm = ({
                 </button>
                 <button
                   type="button"
+                  className={`${styles.invoiceTypeButton} ${billing.tipo === 'T' ? styles.invoiceTypeActive : ''}`}
+                  onClick={() => handleBillingChange('tipo', 'T')}
+                  disabled={loading}
+                >
+                  Factura T
+                </button>
+                <button
+                  type="button"
                   className={`${styles.invoiceTypeButton} ${billing.tipo === 'A' ? styles.invoiceTypeActive : ''}`}
                   onClick={() => handleBillingChange('tipo', 'A')}
                   disabled={loading}
@@ -2405,7 +2433,7 @@ const CobroForm = ({
                 </div>
               </div>
 
-              {billing.tipo === 'B' ? (
+              {isPersonInvoiceType(billing.tipo) ? (
                 <>
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
@@ -2455,6 +2483,30 @@ const CobroForm = ({
                       />
                     </div>
                   </div>
+                  {billing.tipo === 'T' ? (
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-passport-country">
+                          País emisor del pasaporte *
+                        </label>
+                        <select
+                          id="billing-passport-country"
+                          value={billing.passportCountry}
+                          onChange={(e) =>
+                            handleBillingChange('passportCountry', e.target.value)
+                          }
+                          required
+                        >
+                          <option value="">Seleccionar país…</option>
+                          {COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                       <label htmlFor="billing-domicilio">Domicilio</label>

@@ -179,6 +179,7 @@ exports.getClientBillingProfile = async (req, res) => {
       lastName: profile?.lastName || client.lastName || '',
       documentType: profile?.documentType || client.documentType || 'DNI',
       documentNumber: profile?.documentNumber || client.documentNumber || '',
+      passportCountry: profile?.passportCountry || client.country || '',
       address: profile?.address || addressFallback || '',
       email: profile?.email || client.email || '',
       businessName: profile?.businessName || '',
@@ -213,6 +214,9 @@ exports.upsertClientBillingProfile = async (req, res) => {
       lastName: normalizeBillingString(body.lastName || body.apellido),
       documentType: normalizeBillingString(body.documentType || body.tipoDocumento),
       documentNumber: normalizeBillingString(body.documentNumber || body.numeroDocumento),
+      passportCountry: normalizeBillingString(
+        body.passportCountry || body.paisEmisorPasaporte || body.paisPasaporte
+      ),
       address: normalizeBillingString(body.address || body.domicilio),
       email: normalizeBillingString(body.email),
       businessName: normalizeBillingString(body.businessName || body.razonSocial),

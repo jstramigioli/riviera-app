@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   methodRequiresBilling,
   isCardMethod,
+  isPersonInvoiceType,
   emptyBillingForm,
   localDateInputToIso,
-  DEFAULT_IVA_CONDITION
+  DEFAULT_IVA_CONDITION,
+  INVOICE_TYPES
 } from './billing'
 
 describe('billing constants', () => {
@@ -25,8 +27,13 @@ describe('billing constants', () => {
   it('emptyBillingForm usa Factura B, IVA default y fecha solo día', () => {
     const form = emptyBillingForm()
     expect(form.tipo).toBe('B')
+    expect(form.passportCountry).toBe('')
     expect(form.ivaCondition).toBe(DEFAULT_IVA_CONDITION)
     expect(form.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(INVOICE_TYPES).toEqual(['A', 'B', 'T'])
+    expect(isPersonInvoiceType('B')).toBe(true)
+    expect(isPersonInvoiceType('T')).toBe(true)
+    expect(isPersonInvoiceType('A')).toBe(false)
   })
 
   it('localDateInputToIso interpreta YYYY-MM-DD en zona local', () => {
