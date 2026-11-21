@@ -1376,6 +1376,20 @@ const PaymentForm = ({
   const foreignCurrency = isForeignCurrency(formData.moneda);
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
 
+  const creditoACuentaARS =
+    !isEditMode &&
+    !isDevolucion &&
+    manualPromoPreview?.aplica &&
+    !manualPromoPreview.probeOnly
+      ? Number(manualPromoPreview.creditoARS) || 0
+      : isSaldarMode
+        ? montoASaldarARS
+        : Number(montoARS) || 0;
+  const saldoProyectadoARS =
+    !isEditMode && !isDevolucion && saldoPendiente != null
+      ? roundMoney(Number(saldoPendiente) - creditoACuentaARS)
+      : null;
+
   return (
     <div className={styles.overlay} {...overlayDismiss}>
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
@@ -2055,36 +2069,6 @@ const PaymentForm = ({
             </div>
           )}
 
-          {!isEditMode &&
-            !isDevolucion &&
-            manualPromoPreview?.aplica &&
-            !manualPromoPreview.probeOnly && (
-              <div className={styles.discountPreview} role="status">
-                <ul className={styles.discountList}>
-                  <li>
-                    Recibe / registra:{' '}
-                    <strong>{formatMoneyArs(manualPromoPreview.dineroARS || 0)}</strong>
-                  </li>
-                  <li>
-                    Crédito a cuenta:{' '}
-                    <strong>{formatMoneyArs(manualPromoPreview.creditoARS || 0)}</strong>
-                  </li>
-                  {saldoPendiente != null && (
-                    <li>
-                      Saldo restante proyectado:{' '}
-                      <strong>
-                        {formatMoneyArs(
-                          roundMoney(
-                            saldoPendiente - (manualPromoPreview.creditoARS || 0)
-                          )
-                        )}
-                      </strong>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
-
           {showComprobanteField && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
@@ -2485,6 +2469,12 @@ const PaymentForm = ({
                   </span>
                 </div>
               </>
+            )}
+            {saldoProyectadoARS != null && (
+              <div className={styles.summaryRow} data-testid="summary-saldo-proyectado">
+                <span>Saldo proyectado:</span>
+                <span className={styles.amount}>{formatMoneyArs(saldoProyectadoARS)}</span>
+              </div>
             )}
           </div>
 

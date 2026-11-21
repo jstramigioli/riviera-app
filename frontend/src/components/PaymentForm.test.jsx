@@ -684,8 +684,10 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByTestId('payment-promo-remove-1')).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-promo-remove-2')).toBeInTheDocument()
     expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()
-    expect(screen.getByText(/Recibe \/ registra/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Crédito a cuenta/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Recibe \/ registra/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Crédito a cuenta/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Saldo restante/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('summary-saldo-proyectado')).toHaveTextContent(/Saldo proyectado/i)
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
