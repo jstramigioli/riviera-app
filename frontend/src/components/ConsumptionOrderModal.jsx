@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { FiMinus, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
 import {
   fetchOccupiedRoomsToday,
-  fetchCuentasParaPago,
+  fetchCuentasParaCobro,
   fetchMenuItems,
   fetchMenuCategories,
   createConsumptionOrder,
@@ -264,7 +264,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     try {
       const [roomsRes, cuentasRes] = await Promise.all([
         fetchOccupiedRoomsToday(dateCivil),
-        fetchCuentasParaPago().catch(() => ({ data: [] }))
+        fetchCuentasParaCobro().catch(() => ({ data: [] }))
       ]);
       const occupied = roomsRes.data || roomsRes || [];
       const cuentas = cuentasRes.data || cuentasRes || [];

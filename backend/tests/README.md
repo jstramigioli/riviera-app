@@ -49,7 +49,7 @@
 
 ### ⚠️ Tests con Problemas Menores (4 suites, 9 tests)
 
-#### 1. **Controlador de Pagos** (`payment.controller.test.js`)
+#### 1. **Controlador de Cobros** (`payment.controller.test.js`)
 - ⚠️ POST /api/payments - Validación de campos
 - ⚠️ PUT /api/payments/:id - Manejo de 404
 - ⚠️ DELETE /api/payments/:id - Manejo de 404
@@ -72,7 +72,7 @@
 - ✅ CRUD completo para tipos de habitación
 - ✅ CRUD completo para clientes
 - ✅ CRUD básico para reservas
-- ✅ Operaciones básicas para pagos
+- ✅ Operaciones básicas para cobros
 - ✅ Operaciones básicas para huéspedes
 - ✅ Operaciones básicas para etiquetas
 - ✅ Validaciones de entrada
@@ -129,7 +129,7 @@ npm test -- --coverage
 
 1. **Arreglar problemas menores**:
    - Ajustar manejo de errores 404 en controladores
-   - Corregir validaciones de pagos
+   - Corregir validaciones de cobros
    - Eliminar tests duplicados
 
 2. **Agregar tests faltantes**:

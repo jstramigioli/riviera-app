@@ -1,5 +1,5 @@
 /**
- * Reconciliación: saldo_legacy (cargos−pagos) − totalDescuentos === saldo_nuevo
+ * Reconciliación: saldo_legacy (cargos−cobros) − totalDescuentos === saldo_nuevo
  * Uso: node scripts/reconcile-payment-discounts.js
  */
 const { PrismaClient } = require('@prisma/client');
@@ -19,7 +19,7 @@ async function main() {
       kind: true,
       reservationId: true,
       cargos: { select: { monto: true } },
-      pagos: { select: { montoARS: true } },
+      cobros: { select: { montoARS: true } },
       discountApplications: { select: { montoARS: true } }
     }
   });
@@ -28,10 +28,10 @@ async function main() {
   let mismatch = 0;
   for (const a of accounts) {
     const cargos = a.cargos.reduce((s, c) => s + toN(c.monto), 0);
-    const pagos = a.pagos.reduce((s, p) => s + toN(p.montoARS), 0);
+    const cobros = a.cobros.reduce((s, p) => s + toN(p.montoARS), 0);
     const desc = a.discountApplications.reduce((s, d) => s + toN(d.montoARS), 0);
-    const legacy = cargos - pagos;
-    const neu = calculateAccountBalance(a.cargos, a.pagos, a.discountApplications).saldo;
+    const legacy = cargos - cobros;
+    const neu = calculateAccountBalance(a.cargos, a.cobros, a.discountApplications).saldo;
     const expected = legacy - desc;
     if (Math.abs(neu - expected) > 0.009) {
       mismatch += 1;

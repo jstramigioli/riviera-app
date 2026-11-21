@@ -18,14 +18,14 @@ const EXT_BY_MIME = Object.freeze({
   'image/png': '.png'
 });
 
-const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads', 'pago-adjuntos');
+const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads', 'cobro-adjuntos');
 
 function ensureUploadsRoot() {
   fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
 }
 
-function pagoDir(pagoId) {
-  return path.join(UPLOADS_ROOT, String(pagoId));
+function pagoDir(cobroId) {
+  return path.join(UPLOADS_ROOT, String(cobroId));
 }
 
 function assertAdjuntoTipo(tipo) {
@@ -54,16 +54,16 @@ function buildStoredName(mimeType) {
   return `${crypto.randomUUID()}${ext}`;
 }
 
-function absolutePath(pagoId, storedName) {
-  return path.join(pagoDir(pagoId), storedName);
+function absolutePath(cobroId, storedName) {
+  return path.join(pagoDir(cobroId), storedName);
 }
 
-function saveUploadedFile(pagoId, file, tipo) {
+function saveUploadedFile(cobroId, file, tipo) {
   ensureUploadsRoot();
-  const dir = pagoDir(pagoId);
+  const dir = pagoDir(cobroId);
   fs.mkdirSync(dir, { recursive: true });
   const storedName = buildStoredName(file.mimetype);
-  const dest = absolutePath(pagoId, storedName);
+  const dest = absolutePath(cobroId, storedName);
   fs.writeFileSync(dest, file.buffer);
   return {
     tipo,
@@ -74,9 +74,9 @@ function saveUploadedFile(pagoId, file, tipo) {
   };
 }
 
-function deleteStoredFile(pagoId, storedName) {
+function deleteStoredFile(cobroId, storedName) {
   try {
-    fs.unlinkSync(absolutePath(pagoId, storedName));
+    fs.unlinkSync(absolutePath(cobroId, storedName));
   } catch (err) {
     if (err.code !== 'ENOENT') throw err;
   }
@@ -85,7 +85,7 @@ function deleteStoredFile(pagoId, storedName) {
 function toPublicAdjunto(row) {
   return {
     id: row.id,
-    pagoId: row.pagoId,
+    cobroId: row.cobroId,
     tipo: row.tipo,
     originalName: row.originalName,
     mimeType: row.mimeType,

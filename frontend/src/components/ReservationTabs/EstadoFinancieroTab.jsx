@@ -10,7 +10,7 @@ import {
   FaTrash
 } from 'react-icons/fa';
 import { FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
-import PaymentForm from '../PaymentForm';
+import CobroForm from '../CobroForm';
 import LiquidacionPrint from './LiquidacionPrint';
 import { RESERVATION_STATUSES } from '../../utils/reservationStatusUtils';
 import styles from './ReservationTabs.module.css';
@@ -94,7 +94,7 @@ const EstadoFinancieroTab = ({
   onAddCargo,
   onUpdateCargo,
   onDeleteCargo,
-  onDeletePago,
+  onDeleteCobro,
   pendingAction = null,
   onPendingActionHandled,
   onRequestConsumo
@@ -102,8 +102,8 @@ const EstadoFinancieroTab = ({
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
   const [expandedFinancialRow, setExpandedFinancialRow] = useState('cargos');
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [editingPago, setEditingPago] = useState(null);
+  const [showCobroForm, setShowCobroForm] = useState(false);
+  const [editingCobro, setEditingCobro] = useState(null);
   const [showCargoModal, setShowCargoModal] = useState(false);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
@@ -236,37 +236,37 @@ const EstadoFinancieroTab = ({
     await onDeleteCargo(cargo.id);
   };
 
-  const openNewPaymentForm = () => {
-    setEditingPago(null);
-    setShowPaymentForm(true);
+  const openNewCobroForm = () => {
+    setEditingCobro(null);
+    setShowCobroForm(true);
   };
 
-  const openEditPaymentForm = (pago) => {
-    setEditingPago(pago);
-    setShowPaymentForm(true);
-    setExpandedFinancialRow('pagos');
+  const openEditCobroForm = (cobro) => {
+    setEditingCobro(cobro);
+    setShowCobroForm(true);
+    setExpandedFinancialRow('cobros');
   };
 
-  const closePaymentForm = () => {
-    setShowPaymentForm(false);
-    setEditingPago(null);
+  const closeCobroForm = () => {
+    setShowCobroForm(false);
+    setEditingCobro(null);
   };
 
   const handlePaymentSuccess = async () => {
-    closePaymentForm();
+    closeCobroForm();
     if (onFinancialChange) await onFinancialChange();
   };
 
-  const handleDeletePago = async (pago) => {
-    if (!onDeletePago) return;
+  const handleDeleteCobro = async (cobro) => {
+    if (!onDeleteCobro) return;
     const ok = await confirm({
-      title: 'Eliminar pago',
-      message: `¿Eliminar el pago ${pago.codigo || `#${pago.id}`}?`,
+      title: 'Eliminar cobro',
+      message: `¿Eliminar el cobro ${cobro.codigo || `#${cobro.id}`}?`,
       confirmText: 'Eliminar'
     });
     if (!ok) return;
-    await onDeletePago(pago.id);
-    if (editingPago?.id === pago.id) closePaymentForm();
+    await onDeleteCobro(cobro.id);
+    if (editingCobro?.id === cobro.id) closeCobroForm();
   };
 
   const handlePrintLiquidacion = () => {
@@ -329,9 +329,9 @@ const EstadoFinancieroTab = ({
       return;
     }
 
-    if (pendingAction === 'add-pago') {
+    if (pendingAction === 'add-cobro') {
       pendingHandledRef.current = pendingAction;
-      openNewPaymentForm();
+      openNewCobroForm();
       onPendingActionHandled?.();
       return;
     }
@@ -354,36 +354,36 @@ const EstadoFinancieroTab = ({
     onRequestConsumo
   ]);
 
-  const totalPagosNet =
-    Number(financialSummary?.resumen?.totalPagos) || 0;
+  const totalCobrosNet =
+    Number(financialSummary?.resumen?.totalCobros) || 0;
   const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
   const totalDescuentos = Number(financialSummary?.resumen?.totalDescuentos) || 0;
   const cargoItems = financialSummary?.cargos?.items || [];
-  const pagoItems = financialSummary?.pagos?.items || [];
+  const cobroItems = financialSummary?.cobros?.items || [];
   const descuentoItems = financialSummary?.descuentos?.items || [];
 
-  const isDevolucionPago = (pago) =>
-    String(pago?.motivo || '') === 'Devolución' || Number(pago?.montoARS) < 0;
+  const isDevolucionCobro = (cobro) =>
+    String(cobro?.motivo || '') === 'Devolución' || Number(cobro?.montoARS) < 0;
 
-  const totalDevoluciones = pagoItems
-    .filter(isDevolucionPago)
-    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS ?? pago.monto) || 0), 0);
+  const totalDevoluciones = cobroItems
+    .filter(isDevolucionCobro)
+    .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS ?? cobro.monto) || 0), 0);
 
-  const totalPagosBrutos = pagoItems
-    .filter((pago) => !isDevolucionPago(pago))
-    .reduce((sum, pago) => sum + Math.abs(Number(pago.montoARS ?? pago.monto) || 0), 0);
+  const totalCobrosBrutos = cobroItems
+    .filter((cobro) => !isDevolucionCobro(cobro))
+    .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS ?? cobro.monto) || 0), 0);
 
   /** Neto para saldo / accordion: API o brutos − devoluciones. */
-  const totalPagos =
-    financialSummary?.resumen?.totalPagos != null
-      ? totalPagosNet
-      : totalPagosBrutos - totalDevoluciones;
+  const totalCobros =
+    financialSummary?.resumen?.totalCobros != null
+      ? totalCobrosNet
+      : totalCobrosBrutos - totalDevoluciones;
 
   const saldoDisplay =
     financialSummary?.resumen?.saldo != null
       ? Number(financialSummary.resumen.saldo)
-      : totalCargos - totalPagos - totalDescuentos;
-  const estadoPago = resolveSaldoVisualStatus(saldoDisplay, reservation);
+      : totalCargos - totalCobros - totalDescuentos;
+  const estadoCobro = resolveSaldoVisualStatus(saldoDisplay, reservation);
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
   const tipoCargoOrder = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
   const tiposCargosOrdenados = [
@@ -458,10 +458,10 @@ const EstadoFinancieroTab = ({
           <button
             type="button"
             className={styles.addButton}
-            onClick={openNewPaymentForm}
-            data-testid="btn-add-pago"
+            onClick={openNewCobroForm}
+            data-testid="btn-add-cobro"
           >
-            <FaPlus /> pago
+            <FaPlus /> cobro
           </button>
           {typeof onRequestConsumo === 'function' && (
             <button
@@ -561,44 +561,44 @@ const EstadoFinancieroTab = ({
                   <button
                     type="button"
                     className={styles.financialRowToggle}
-                    onClick={() => toggleFinancialRow('pagos')}
-                    aria-expanded={expandedFinancialRow === 'pagos'}
-                    data-testid="financial-row-pagos"
+                    onClick={() => toggleFinancialRow('cobros')}
+                    aria-expanded={expandedFinancialRow === 'cobros'}
+                    data-testid="financial-row-cobros"
                   >
                     <span className={styles.financialRowLabel}>
                       <span className={styles.financialRowChevron} aria-hidden="true">
-                        {expandedFinancialRow === 'pagos' ? (
+                        {expandedFinancialRow === 'cobros' ? (
                           <FaChevronDown />
                         ) : (
                           <FaChevronRight />
                         )}
                       </span>
-                      Pagos
+                      Cobros
                       <span
                         className={styles.financialRowMeta}
-                        data-testid="financial-pagos-count"
+                        data-testid="financial-cobros-count"
                       >
-                        {pagoItems.length} registro{pagoItems.length === 1 ? '' : 's'}
+                        {cobroItems.length} registro{cobroItems.length === 1 ? '' : 's'}
                       </span>
                     </span>
-                    <strong data-testid="financial-total-pagos">
-                      {formatCurrency(totalPagos)}
+                    <strong data-testid="financial-total-cobros">
+                      {formatCurrency(totalCobros)}
                     </strong>
                   </button>
-                  {expandedFinancialRow === 'pagos' && (
+                  {expandedFinancialRow === 'cobros' && (
                     <div
                       className={styles.financialRowDetail}
-                      data-testid="financial-detail-pagos"
+                      data-testid="financial-detail-cobros"
                     >
-                      {pagoItems.length === 0 ? (
-                        <p className={styles.breakdownEmpty}>Sin pagos registrados.</p>
+                      {cobroItems.length === 0 ? (
+                        <p className={styles.breakdownEmpty}>Sin cobros registrados.</p>
                       ) : (
                         <div
-                          className={`${styles.tableContainer} ${styles.pagosTableScroll}`}
+                          className={`${styles.tableContainer} ${styles.cobrosTableScroll}`}
                         >
                           <table
-                            className={`${styles.dataTable} ${styles.pagosTable}`}
-                            data-testid="financial-pagos-table"
+                            className={`${styles.dataTable} ${styles.cobrosTable}`}
+                            data-testid="financial-cobros-table"
                           >
                             <thead>
                               <tr>
@@ -614,35 +614,35 @@ const EstadoFinancieroTab = ({
                               </tr>
                             </thead>
                             <tbody>
-                              {pagoItems.map((pago) => {
-                                const disc = pago.discountApplication;
+                              {cobroItems.map((cobro) => {
+                                const disc = cobro.discountApplication;
                                 const codigo =
-                                  pago.pagoCodigo || pago.codigo || `#${pago.id}`;
+                                  cobro.cobroCodigo || cobro.codigo || `#${cobro.id}`;
                                 return (
                                   <tr
-                                    key={pago.imputacionId || pago.id}
-                                    data-testid={`financial-pago-row-${pago.imputacionId || pago.id}`}
+                                    key={cobro.imputacionId || cobro.id}
+                                    data-testid={`financial-cobro-row-${cobro.imputacionId || cobro.id}`}
                                   >
                                     <td>
                                       {codigo}
-                                      {pago.esImputacionParcial
-                                        ? ` · parte de ${formatCurrency(pago.pagoTotalARS)}`
+                                      {cobro.esImputacionParcial
+                                        ? ` · parte de ${formatCurrency(cobro.pagoTotalARS)}`
                                         : ''}
                                     </td>
-                                    <td>{formatDate(pago.fecha)}</td>
+                                    <td>{formatDate(cobro.fecha)}</td>
                                     <td className={styles.montoCell}>
-                                      {pago.moneda === 'USD'
-                                        ? formatMoneyUsd(pago.monto)
-                                        : formatCurrency(pago.montoARS ?? pago.monto)}
-                                      {pago.moneda === 'USD' && pago.montoARS != null ? (
+                                      {cobro.moneda === 'USD'
+                                        ? formatMoneyUsd(cobro.monto)
+                                        : formatCurrency(cobro.montoARS ?? cobro.monto)}
+                                      {cobro.moneda === 'USD' && cobro.montoARS != null ? (
                                         <div className={styles.arsEquivalent}>
-                                          ≈ {formatCurrency(pago.montoARS)}
+                                          ≈ {formatCurrency(cobro.montoARS)}
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td>{pago.moneda || 'ARS'}</td>
-                                    <td>{pago.metodo || '—'}</td>
-                                    <td>{pago.motivo || 'Pago'}</td>
+                                    <td>{cobro.moneda || 'ARS'}</td>
+                                    <td>{cobro.metodo || '—'}</td>
+                                    <td>{cobro.motivo || 'Cobro'}</td>
                                     <td>
                                       {disc && Number(disc.montoARS) !== 0
                                         ? formatCurrency(disc.montoARS)
@@ -653,25 +653,25 @@ const EstadoFinancieroTab = ({
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td className={styles.notasCell}>{pago.notas || '—'}</td>
+                                    <td className={styles.notasCell}>{cobro.notas || '—'}</td>
                                     <td>
                                       <span className={styles.breakdownActions}>
                                         <button
                                           type="button"
                                           className={styles.editIconButton}
-                                          onClick={() => openEditPaymentForm(pago)}
-                                          title="Editar pago"
-                                          data-testid={`pago-edit-${pago.id}`}
+                                          onClick={() => openEditCobroForm(cobro)}
+                                          title="Editar cobro"
+                                          data-testid={`cobro-edit-${cobro.id}`}
                                         >
                                           <FaEdit />
                                         </button>
                                         <button
                                           type="button"
                                           className={styles.deleteIconButton}
-                                          onClick={() => handleDeletePago(pago)}
-                                          title="Eliminar pago"
-                                          data-testid={`pago-delete-${pago.id}`}
-                                          disabled={!onDeletePago}
+                                          onClick={() => handleDeleteCobro(cobro)}
+                                          title="Eliminar cobro"
+                                          data-testid={`cobro-delete-${cobro.id}`}
+                                          disabled={!onDeleteCobro}
                                         >
                                           <FaTrash />
                                         </button>
@@ -719,9 +719,9 @@ const EstadoFinancieroTab = ({
             </p>
 
             <div className={styles.summaryPanelRow}>
-              <span>Total de pagos</span>
-              <strong data-testid="summary-total-pagos">
-                {formatCurrency(totalPagosBrutos)}
+              <span>Total de cobros</span>
+              <strong data-testid="summary-total-cobros">
+                {formatCurrency(totalCobrosBrutos)}
               </strong>
             </div>
 
@@ -752,26 +752,26 @@ const EstadoFinancieroTab = ({
             )}
 
             <div
-              className={`${styles.summaryPanelSaldo} ${styles[estadoPago]}`}
+              className={`${styles.summaryPanelSaldo} ${styles[estadoCobro]}`}
               data-testid="financial-saldo-block"
-              data-status={estadoPago}
+              data-status={estadoCobro}
             >
               <span className={styles.summarySaldoLabel}>
-                {estadoPago === 'PAGADO' || estadoPago === 'A_FAVOR' ? (
+                {estadoCobro === 'PAGADO' || estadoCobro === 'A_FAVOR' ? (
                   <FiCheckCircle
                     className={`${styles.summaryStatusIcon} ${styles.summaryStatusPaid}`}
                     aria-hidden="true"
                     data-testid="saldo-icon-paid"
                   />
                 ) : null}
-                {estadoPago === 'PENDIENTE' ? (
+                {estadoCobro === 'PENDIENTE' ? (
                   <FiAlertTriangle
                     className={`${styles.summaryStatusIcon} ${styles.summaryStatusPending}`}
                     aria-hidden="true"
                     data-testid="saldo-icon-pending"
                   />
                 ) : null}
-                {estadoPago === 'VENCIDO' ? (
+                {estadoCobro === 'VENCIDO' ? (
                   <FiAlertTriangle
                     className={`${styles.summaryStatusIcon} ${styles.summaryStatusOverdue}`}
                     aria-hidden="true"
@@ -782,11 +782,11 @@ const EstadoFinancieroTab = ({
               </span>
               <strong data-testid="financial-saldo">{formatCurrency(saldoDisplay)}</strong>
             </div>
-            <div className={styles.estadoPagoTag} data-testid="financial-saldo-estado">
-              {estadoPago === 'PENDIENTE' && 'Pendiente de pago'}
-              {estadoPago === 'VENCIDO' && 'Saldo vencido (huésped retirado)'}
-              {estadoPago === 'PAGADO' && 'Pagado completamente'}
-              {estadoPago === 'A_FAVOR' && 'Saldo a favor'}
+            <div className={styles.estadoCobroTag} data-testid="financial-saldo-estado">
+              {estadoCobro === 'PENDIENTE' && 'Pendiente de cobro'}
+              {estadoCobro === 'VENCIDO' && 'Saldo vencido (huésped retirado)'}
+              {estadoCobro === 'PAGADO' && 'Pagado completamente'}
+              {estadoCobro === 'A_FAVOR' && 'Saldo a favor'}
             </div>
           </aside>
         </div>
@@ -806,11 +806,11 @@ const EstadoFinancieroTab = ({
         />
       </div>
 
-      {showPaymentForm && (
-        <PaymentForm
+      {showCobroForm && (
+        <CobroForm
           reservaId={reservation.id}
-          initialPago={editingPago}
-          onClose={closePaymentForm}
+          initialCobro={editingCobro}
+          onClose={closeCobroForm}
           onSuccess={handlePaymentSuccess}
         />
       )}

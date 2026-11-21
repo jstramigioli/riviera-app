@@ -26,8 +26,8 @@ const IVA_CONDITIONS = [
 const DEFAULT_IVA_CONDITION = 'Responsable Inscripto';
 
 /** Concepto del cobro (no texto libre). */
-const PAGO_MOTIVOS = ['Pago', 'Seña', 'Devolución'];
-const DEFAULT_PAGO_MOTIVO = 'Pago';
+const COBRO_MOTIVOS = ['Cobro', 'Seña', 'Devolución'];
+const DEFAULT_COBRO_MOTIVO = 'Cobro';
 const MOTIVO_DEVOLUCION = 'Devolución';
 
 function methodRequiresBilling(metodo) {
@@ -42,12 +42,12 @@ function isDevolucionMotivo(motivo) {
   return motivo === MOTIVO_DEVOLUCION;
 }
 
-function normalizePagoMotivo(value) {
+function normalizeCobroMotivo(value) {
   const raw = String(value || '').trim();
-  if (!raw) return DEFAULT_PAGO_MOTIVO;
+  if (!raw) return DEFAULT_COBRO_MOTIVO;
   const folded = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (folded === 'sena') return 'Seña';
-  if (folded === 'pago') return 'Pago';
+  if (folded === 'cobro' || folded === 'pago') return 'Cobro';
   if (folded === 'devolucion') return MOTIVO_DEVOLUCION;
   return null;
 }
@@ -58,11 +58,11 @@ module.exports = {
   DOCUMENT_TYPES_AR,
   IVA_CONDITIONS,
   DEFAULT_IVA_CONDITION,
-  PAGO_MOTIVOS,
-  DEFAULT_PAGO_MOTIVO,
+  COBRO_MOTIVOS,
+  DEFAULT_COBRO_MOTIVO,
   MOTIVO_DEVOLUCION,
   methodRequiresBilling,
   isCardMethod,
   isDevolucionMotivo,
-  normalizePagoMotivo
+  normalizeCobroMotivo
 };

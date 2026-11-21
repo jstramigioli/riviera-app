@@ -1,5 +1,5 @@
 /**
- * Reconcile Account saldo vs cargos − pagos − DiscountApplication.
+ * Reconcile Account saldo vs cargos − cobros − DiscountApplication.
  * No reescribe históricos.
  */
 const { PrismaClient } = require('@prisma/client');
@@ -14,15 +14,15 @@ async function main() {
   let ok = 0;
   let mismatch = 0;
   for (const acc of accounts) {
-    const [cargos, pagos, discounts] = await Promise.all([
+    const [cargos, cobros, discounts] = await Promise.all([
       prisma.cargo.findMany({ where: { accountId: acc.id }, select: { monto: true } }),
-      prisma.pago.findMany({ where: { accountId: acc.id }, select: { montoARS: true } }),
+      prisma.cobro.findMany({ where: { accountId: acc.id }, select: { montoARS: true } }),
       prisma.discountApplication.findMany({
         where: { accountId: acc.id },
         select: { montoARS: true }
       })
     ]);
-    const bal = calculateAccountBalance(cargos, pagos, discounts);
+    const bal = calculateAccountBalance(cargos, cobros, discounts);
     // Solo valida que el cálculo no explote; no hay campo saldo cacheado obligatorio.
     if (!Number.isFinite(bal.saldo)) {
       mismatch += 1;

@@ -71,7 +71,7 @@ async function resolveAccountForReservation(db, reservationId) {
 }
 
 /**
- * Payload dual-write para Cargo/Pago de una reserva.
+ * Payload dual-write para Cargo/Cobro de una reserva.
  */
 function dualWriteReservationRefs(account, reservationId) {
   return {
@@ -81,7 +81,7 @@ function dualWriteReservationRefs(account, reservationId) {
 }
 
 /**
- * Payload para Cargo/Pago de cuenta externa (sin reserva).
+ * Payload para Cargo/Cobro de cuenta externa (sin reserva).
  */
 function dualWriteExternalRefs(account) {
   return {
@@ -129,11 +129,11 @@ async function syncAccountStatusFromBalance(db, accountId, saldo) {
  */
 async function getAccountFinancialCounts(db, accountId) {
   const id = parseInt(accountId, 10);
-  const [cargos, pagos] = await Promise.all([
+  const [cargos, cobros] = await Promise.all([
     db.cargo.count({ where: { accountId: id } }),
-    db.pago.count({ where: { accountId: id } })
+    db.cobro.count({ where: { accountId: id } })
   ]);
-  return { cargos, pagos, hasFinancials: cargos > 0 || pagos > 0 };
+  return { cargos, cobros, hasFinancials: cargos > 0 || cobros > 0 };
 }
 
 module.exports = {

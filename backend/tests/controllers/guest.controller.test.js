@@ -106,7 +106,7 @@ describe('Controlador de Huéspedes', () => {
 
       expect(response.body).toHaveProperty('balance');
       expect(response.body).toHaveProperty('totalCharges');
-      expect(response.body).toHaveProperty('totalPayments');
+      expect(response.body).toHaveProperty('totalCobros');
     });
 
     it('debería devolver 404 para huésped inexistente', async () => {

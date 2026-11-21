@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
-import PaymentForm from '../PaymentForm';
+import CobroForm from '../CobroForm';
 import { formatMoneyArs, formatMoneyUsd } from '../../utils/formatMoney';
 import styles from './ReservationTabs.module.css';
 
-const PagosTab = ({ 
+const CobrosTab = ({ 
   reservation,
-  pagos,
+  cobros,
   financialSummary,
   loadingFinancial,
   formatDate,
   formatCurrency = formatMoneyArs,
-  onAddPago,
-  onDeletePago
+  onAddCobro,
+  onDeleteCobro
 }) => {
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showCobroForm, setShowCobroForm] = useState(false);
 
   const handlePaymentSuccess = () => {
-    setShowPaymentForm(false);
+    setShowCobroForm(false);
     // Recargar datos financieros
     window.location.reload(); // Simple reload para actualizar los datos
   };
@@ -25,24 +25,24 @@ const PagosTab = ({
   return (
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}> Pagos</h3>
+        <h3 className={styles.sectionTitle}> Cobros</h3>
         <button 
           className={styles.addButton}
-          onClick={() => setShowPaymentForm(true)}
+          onClick={() => setShowCobroForm(true)}
         >
-          <FaPlus /> Agregar Pago
+          <FaPlus /> Agregar Cobro
         </button>
       </div>
 
       {loadingFinancial ? (
-        <div className={styles.loading}> Cargando pagos...</div>
+        <div className={styles.loading}> Cargando cobros...</div>
       ) : (
         <>
           <div className={styles.summaryCards}>
             <div className={styles.summaryCard}>
               <div className={styles.summaryLabel}> Total Abonado</div>
               <div className={styles.summaryValue}>
-                {formatCurrency(financialSummary?.resumen.totalPagos || 0)}
+                {formatCurrency(financialSummary?.resumen.totalCobros || 0)}
               </div>
             </div>
             <div className={styles.summaryCard}>
@@ -53,9 +53,9 @@ const PagosTab = ({
             </div>
           </div>
 
-          {pagos.length === 0 ? (
+          {cobros.length === 0 ? (
             <div className={styles.emptyState}>
-              <p> No hay pagos registrados</p>
+              <p> No hay cobros registrados</p>
             </div>
           ) : (
             <div className={styles.tableContainer}>
@@ -72,42 +72,42 @@ const PagosTab = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {pagos.map(pago => (
-                    <tr key={pago.id}>
-                      <td>{formatDate(pago.fecha)}</td>
+                  {cobros.map(cobro => (
+                    <tr key={cobro.id}>
+                      <td>{formatDate(cobro.fecha)}</td>
                       <td className={styles.montoCell}>
-                        {pago.moneda === 'USD' 
-                          ? formatMoneyUsd(pago.monto)
-                          : formatCurrency(parseFloat(pago.monto))
+                        {cobro.moneda === 'USD' 
+                          ? formatMoneyUsd(cobro.monto)
+                          : formatCurrency(parseFloat(cobro.monto))
                         }
-                        {pago.moneda === 'USD' && pago.montoARS && (
+                        {cobro.moneda === 'USD' && cobro.montoARS && (
                           <div className={styles.arsEquivalent}>
-                            ≈ {formatCurrency(parseFloat(pago.montoARS))}
+                            ≈ {formatCurrency(parseFloat(cobro.montoARS))}
                           </div>
                         )}
                       </td>
-                      <td>{pago.moneda || 'ARS'}</td>
-                      <td>{pago.metodo}</td>
+                      <td>{cobro.moneda || 'ARS'}</td>
+                      <td>{cobro.metodo}</td>
                       <td>
-                        {['Tarjeta Debito', 'Tarjeta Credito'].includes(pago.metodo) && (
+                        {['Tarjeta Debito', 'Tarjeta Credito'].includes(cobro.metodo) && (
                           <div className={styles.cardDetails}>
-                            <div>{pago.metodo}</div>
-                            <div>{pago.empresa}</div>
-                            {pago.numeroTarjeta && (
+                            <div>{cobro.metodo}</div>
+                            <div>{cobro.empresa}</div>
+                            {cobro.numeroTarjeta && (
                               <div className={styles.cardNumber}>
-                                ****{pago.numeroTarjeta.slice(-4)}
+                                ****{cobro.numeroTarjeta.slice(-4)}
                               </div>
                             )}
                           </div>
                         )}
-                        {!['Tarjeta Debito', 'Tarjeta Credito'].includes(pago.metodo) && '-'}
+                        {!['Tarjeta Debito', 'Tarjeta Credito'].includes(cobro.metodo) && '-'}
                       </td>
-                      <td className={styles.notasCell}>{pago.notas || '-'}</td>
+                      <td className={styles.notasCell}>{cobro.notas || '-'}</td>
                       <td>
                         <button
                           className={styles.deleteIconButton}
-                          onClick={() => onDeletePago(pago.id)}
-                          title="Eliminar pago"
+                          onClick={() => onDeleteCobro(cobro.id)}
+                          title="Eliminar cobro"
                         >
                           <FaTrash />
                         </button>
@@ -119,23 +119,23 @@ const PagosTab = ({
             </div>
           )}
 
-          {/* Botón para agregar pago - siempre visible */}
+          {/* Botón para agregar cobro - siempre visible */}
           <div className={styles.addPaymentSection}>
             <button 
               className={styles.addPaymentButton}
-              onClick={() => setShowPaymentForm(true)}
+              onClick={() => setShowCobroForm(true)}
             >
-              <FaPlus /> Agregar Pago
+              <FaPlus /> Agregar Cobro
             </button>
           </div>
         </>
       )}
 
-      {/* Modal de formulario de pagos mejorado */}
-      {showPaymentForm && (
-        <PaymentForm
+      {/* Modal de formulario de cobros mejorado */}
+      {showCobroForm && (
+        <CobroForm
           reservaId={reservation.id}
-          onClose={() => setShowPaymentForm(false)}
+          onClose={() => setShowCobroForm(false)}
           onSuccess={handlePaymentSuccess}
         />
       )}
@@ -143,6 +143,6 @@ const PagosTab = ({
   );
 };
 
-export default PagosTab;
+export default CobrosTab;
 
 

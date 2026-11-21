@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FiPlus, FiSave, FiX } from 'react-icons/fi';
 import {
-  createPago,
-  createAccountPago,
-  createClientMultiPago,
+  createCobro,
+  createAccountCobro,
+  createClientMultiCobro,
   createExternalAccount,
-  updatePago,
+  updateCobro,
   fetchReservation,
-  fetchCuentasParaPago,
+  fetchCuentasParaCobro,
   fetchPaymentMethodConfigs,
   fetchAccountResumen,
-  fetchAccountPagos,
+  fetchAccountCobros,
   getReservationFinancialSummary,
   getClientBillingProfile,
   getTipoCambioActual,
-  uploadPagoAdjuntos,
+  uploadCobroAdjuntos,
   previewPromotion
 } from '../services/api';
 import {
@@ -26,7 +26,7 @@ import {
   isRemovableOptionalPromo
 } from '../utils/promoManualBenefit';
 import {
-  DEFAULT_PAGO_MOTIVO,
+  DEFAULT_COBRO_MOTIVO,
   DOCUMENT_TYPES_AR,
   IVA_CONDITIONS,
   MOTIVO_DEVOLUCION,
@@ -45,7 +45,7 @@ import {
 } from '../utils/paymentDiscount';
 import { formatMoney, formatMoneyArs, formatMoneyUsd } from '../utils/formatMoney';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
-import styles from './PaymentForm.module.css';
+import styles from './CobroForm.module.css';
 
 function pagoFechaToInput(value) {
   if (!value) return todayLocalDateInputValue();
@@ -56,7 +56,7 @@ function pagoFechaToInput(value) {
   return todayLocalDateInputValue(d);
 }
 
-const MODE_PAGO = 'pago';
+const MODE_PAGO = 'cobro';
 const MODE_DEVOLUCION = 'devolucion';
 const AMOUNT_MODE_INGRESADO = 'ingresado';
 const AMOUNT_MODE_SALDAR = 'saldar';
@@ -68,7 +68,7 @@ const SYSTEM_CURRENCIES = [
   { code: 'USD', label: 'Dólares (USD)' }
 ];
 
-/** True si la moneda del pago no es ARS (caja en divisa + TC). */
+/** True si la moneda del cobro no es ARS (caja en divisa + TC). */
 function isForeignCurrency(moneda) {
   return Boolean(moneda) && String(moneda).toUpperCase() !== 'ARS';
 }
@@ -131,7 +131,7 @@ function newAllocRow(partial = {}) {
   };
 }
 
-/** Normaliza respuesta SETTLEMENT del motor de promociones para la UI de Nuevo pago. */
+/** Normaliza respuesta SETTLEMENT del motor de promociones para la UI de Nuevo cobro. */
 function mapSettlementPreview(preview, saldoPendiente = null) {
   const appliedRules = Array.isArray(preview?.appliedRules)
     ? preview.appliedRules
@@ -160,17 +160,17 @@ function mapSettlementPreview(preview, saldoPendiente = null) {
   };
 }
 
-const PaymentForm = ({
+const CobroForm = ({
   reservaId: reservaIdProp = null,
   accountId: accountIdProp = null,
-  initialPago = null,
+  initialCobro = null,
   initialMontoASaldar = null,
   initialMode = null,
   initialMonto = null,
   onClose,
   onSuccess
 }) => {
-  const isEditMode = initialPago != null && initialPago.id != null;
+  const isEditMode = initialCobro != null && initialCobro.id != null;
   const showAllocationUi = !isEditMode;
   const [reservationOptions, setReservationOptions] = useState([]);
   const [allocations, setAllocations] = useState(() => [newAllocRow()]);
@@ -183,7 +183,7 @@ const PaymentForm = ({
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [mode, setMode] = useState(() => {
-    if (isEditMode && String(initialPago.motivo || '') === MOTIVO_DEVOLUCION) {
+    if (isEditMode && String(initialCobro.motivo || '') === MOTIVO_DEVOLUCION) {
       return MODE_DEVOLUCION;
     }
     if (!isEditMode && initialMode === MODE_DEVOLUCION) {
@@ -192,7 +192,7 @@ const PaymentForm = ({
     return MODE_PAGO;
   });
   const [esSena, setEsSena] = useState(
-    () => isEditMode && String(initialPago.motivo || '') === 'Seña'
+    () => isEditMode && String(initialCobro.motivo || '') === 'Seña'
   );
 
   const optionByKey = useMemo(() => {
@@ -251,7 +251,7 @@ const PaymentForm = ({
     ? MOTIVO_DEVOLUCION
     : esSena && canUseSena
       ? 'Seña'
-      : DEFAULT_PAGO_MOTIVO;
+      : DEFAULT_COBRO_MOTIVO;
 
   const [formData, setFormData] = useState(() => {
     if (!isEditMode) {
@@ -271,15 +271,15 @@ const PaymentForm = ({
       };
     }
     return {
-      monto: String(Math.abs(Number(initialPago.monto) || 0) || ''),
-      moneda: initialPago.moneda || 'ARS',
+      monto: String(Math.abs(Number(initialCobro.monto) || 0) || ''),
+      moneda: initialCobro.moneda || 'ARS',
       tipoCambio:
-        initialPago.tipoCambio != null ? String(initialPago.tipoCambio) : '',
-      metodo: initialPago.metodo || 'Efectivo',
-      numeroTarjeta: initialPago.numeroTarjeta || '',
-      empresa: initialPago.empresa || '',
-      notas: initialPago.notas || '',
-      fecha: pagoFechaToInput(initialPago.fecha)
+        initialCobro.tipoCambio != null ? String(initialCobro.tipoCambio) : '',
+      metodo: initialCobro.metodo || 'Efectivo',
+      numeroTarjeta: initialCobro.numeroTarjeta || '',
+      empresa: initialCobro.empresa || '',
+      notas: initialCobro.notas || '',
+      fecha: pagoFechaToInput(initialCobro.fecha)
     };
   });
 
@@ -294,8 +294,8 @@ const PaymentForm = ({
   const [error, setError] = useState(null);
   const [methodConfigs, setMethodConfigs] = useState([]);
   const [saldoPendiente, setSaldoPendiente] = useState(null);
-  const [pagosOrigen, setPagosOrigen] = useState([]);
-  const [pagoOrigenId, setPagoOrigenId] = useState('');
+  const [cobrosOrigen, setCobrosOrigen] = useState([]);
+  const [cobroOrigenId, setCobroOrigenId] = useState('');
   const [amountMode, setAmountMode] = useState(() => {
     const n = Number(initialMontoASaldar);
     return Number.isFinite(n) && n > 0 ? AMOUNT_MODE_SALDAR : AMOUNT_MODE_INGRESADO;
@@ -319,17 +319,17 @@ const PaymentForm = ({
   const isSaldarMode = amountMode === AMOUNT_MODE_SALDAR;
   const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
-  const selectedPagoOrigen = useMemo(() => {
-    if (!pagoOrigenId) return null;
-    return pagosOrigen.find((p) => String(p.id) === String(pagoOrigenId)) || null;
-  }, [pagosOrigen, pagoOrigenId]);
+  const selectedCobroOrigen = useMemo(() => {
+    if (!cobroOrigenId) return null;
+    return cobrosOrigen.find((p) => String(p.id) === String(cobroOrigenId)) || null;
+  }, [cobrosOrigen, cobroOrigenId]);
 
-  const origenPagoARS = selectedPagoOrigen
-    ? roundMoney(Math.abs(Number(selectedPagoOrigen.montoARS) || 0))
+  const origenCobroARS = selectedCobroOrigen
+    ? roundMoney(Math.abs(Number(selectedCobroOrigen.montoARS) || 0))
     : 0;
-  const origenDescuentoARS = selectedPagoOrigen
+  const origenDescuentoARS = selectedCobroOrigen
     ? roundMoney(
-        Math.abs(Number(selectedPagoOrigen.discountApplication?.montoARS) || 0)
+        Math.abs(Number(selectedCobroOrigen.discountApplication?.montoARS) || 0)
       )
     : 0;
 
@@ -432,15 +432,15 @@ const PaymentForm = ({
     setEquivArsDraft((prev) => (prev === next ? prev : next));
   }, [formData.monto, formData.moneda, formData.tipoCambio, montoARS]);
 
-  // Devolución: sync bidireccional como Nuevo pago.
-  // Sin origen / sin desc. → 1:1; con descuento del pago origen → proporción de reversión.
+  // Devolución: sync bidireccional como Nuevo cobro.
+  // Sin origen / sin desc. → 1:1; con descuento del cobro origen → proporción de reversión.
   useEffect(() => {
     if (!isDevolucion) return;
 
     if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
       const r = computeRefundFromCredit({
         creditoARS: montoASaldarARS,
-        originalPagoARS: origenPagoARS,
+        originalCobroARS: origenCobroARS,
         originalDiscountARS: origenDescuentoARS
       });
       setFormData((prev) => {
@@ -454,7 +454,7 @@ const PaymentForm = ({
     if (amountMode === AMOUNT_MODE_INGRESADO && Number(montoARS) > 0) {
       const r = computeRefundFromCash({
         cashARS: montoARS,
-        originalPagoARS: origenPagoARS,
+        originalCobroARS: origenCobroARS,
         originalDiscountARS: origenDescuentoARS
       });
       const nextSaldar = String(roundMoney(r.creditoARS));
@@ -462,7 +462,7 @@ const PaymentForm = ({
     }
   }, [
     isDevolucion,
-    origenPagoARS,
+    origenCobroARS,
     origenDescuentoARS,
     amountMode,
     montoASaldarARS,
@@ -668,42 +668,44 @@ const PaymentForm = ({
       const resolvedReservaId = reservaId;
       if (!resolvedAccountId && !resolvedReservaId) {
         setSaldoPendiente(null);
-        setPagosOrigen([]);
-        setPagoOrigenId('');
+        setCobrosOrigen([]);
+        setCobroOrigenId('');
         return;
       }
       try {
         let saldo = null;
-        let pagos = [];
+        let cobros = [];
         // Preferir resumen de reserva (vista de folio con imputaciones) cuando hay reservationId.
         if (resolvedReservaId) {
           const summary = await getReservationFinancialSummary(resolvedReservaId);
           saldo = summary?.resumen?.saldo;
-          pagos = Array.isArray(summary?.pagos?.items) ? summary.pagos.items : [];
+          cobros = Array.isArray(summary?.cobros?.items) ? summary.cobros.items : [];
         } else if (resolvedAccountId) {
-          const [resumenRes, pagosRes] = await Promise.all([
+          const [resumenRes, cobrosRes] = await Promise.all([
             fetchAccountResumen(resolvedAccountId),
-            fetchAccountPagos(resolvedAccountId)
+            fetchAccountCobros(resolvedAccountId)
           ]);
           saldo = resumenRes?.resumen?.saldo;
-          pagos = Array.isArray(pagosRes) ? pagosRes : [];
+          cobros = Array.isArray(cobrosRes) ? cobrosRes : [];
         }
         if (cancelled) return;
         setSaldoPendiente(saldo != null ? Number(saldo) : null);
-        const cobros = (pagos || []).filter(
+        const cobrosElegibles = (cobros || []).filter(
           (p) =>
-            String(p.motivo || 'Pago') !== MOTIVO_DEVOLUCION &&
+            String(p.motivo || 'Cobro') !== MOTIVO_DEVOLUCION &&
             Number(p.montoARS) > 0
         );
-        setPagosOrigen(cobros);
-        setPagoOrigenId((prev) =>
-          prev && cobros.some((p) => String(p.id) === String(prev)) ? prev : ''
+        setCobrosOrigen(cobrosElegibles);
+        setCobroOrigenId((prev) =>
+          prev && cobrosElegibles.some((p) => String(p.id) === String(prev))
+            ? prev
+            : ''
         );
       } catch (err) {
         if (!cancelled) {
-          console.error('Error cargando saldo/pagos del folio:', err);
+          console.error('Error cargando saldo/cobros del folio:', err);
           setSaldoPendiente(null);
-          setPagosOrigen([]);
+          setCobrosOrigen([]);
         }
       }
     }
@@ -727,7 +729,7 @@ const PaymentForm = ({
               if (cid) await applyBillingPrefill(cid);
             }
           } catch (err) {
-            if (!cancelled) setError(err.message || 'Error cargando datos del pago');
+            if (!cancelled) setError(err.message || 'Error cargando datos del cobro');
           } finally {
             if (!cancelled) setLoadingMeta(false);
           }
@@ -738,7 +740,7 @@ const PaymentForm = ({
       setLoadingMeta(true);
       setError(null);
       try {
-        const optionsRes = await fetchCuentasParaPago();
+        const optionsRes = await fetchCuentasParaCobro();
         const list = Array.isArray(optionsRes.data)
           ? optionsRes.data
           : Array.isArray(optionsRes)
@@ -798,7 +800,7 @@ const PaymentForm = ({
           setActiveAllocId(null);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Error cargando datos del pago');
+        if (!cancelled) setError(err.message || 'Error cargando datos del cobro');
       } finally {
         if (!cancelled) setLoadingMeta(false);
       }
@@ -903,7 +905,7 @@ const PaymentForm = ({
       if (amountMode === AMOUNT_MODE_SALDAR && montoASaldarARS > 0) {
         return computeRefundFromCredit({
           creditoARS: montoASaldarARS,
-          originalPagoARS: origenPagoARS,
+          originalCobroARS: origenCobroARS,
           originalDiscountARS: origenDescuentoARS
         }).cashARS;
       }
@@ -922,7 +924,7 @@ const PaymentForm = ({
     montoARS,
     montoASaldarARS,
     manualPromoPreview,
-    origenPagoARS,
+    origenCobroARS,
     origenDescuentoARS
   ]);
 
@@ -934,7 +936,7 @@ const PaymentForm = ({
     if (!(montoARS > 0)) return 0;
     return computeRefundFromCash({
       cashARS: montoARS,
-      originalPagoARS: origenPagoARS,
+      originalCobroARS: origenCobroARS,
       originalDiscountARS: origenDescuentoARS
     }).creditoARS;
   }, [
@@ -942,7 +944,7 @@ const PaymentForm = ({
     amountMode,
     montoASaldarARS,
     montoARS,
-    origenPagoARS,
+    origenCobroARS,
     origenDescuentoARS
   ]);
 
@@ -1029,7 +1031,7 @@ const PaymentForm = ({
 
   const reloadAccountOptions = useCallback(async () => {
     if (isEditMode) return [];
-    const optionsRes = await fetchCuentasParaPago();
+    const optionsRes = await fetchCuentasParaCobro();
     const list = Array.isArray(optionsRes.data)
       ? optionsRes.data
       : Array.isArray(optionsRes)
@@ -1170,8 +1172,8 @@ const PaymentForm = ({
       }
     }
 
-    if (isDevolucion && !pagoOrigenId) {
-      setError('Seleccioná el pago de origen a devolver');
+    if (isDevolucion && !cobroOrigenId) {
+      setError('Seleccioná el cobro de origen a devolver');
       return;
     }
 
@@ -1203,7 +1205,7 @@ const PaymentForm = ({
       isForeignCurrency(formData.moneda) &&
       (!formData.tipoCambio || parseFloat(formData.tipoCambio) <= 0)
     ) {
-      setError(`Para pagos en ${formData.moneda}, el tipo de cambio es requerido`);
+      setError(`Para cobros en ${formData.moneda}, el tipo de cambio es requerido`);
       return;
     }
 
@@ -1289,7 +1291,7 @@ const PaymentForm = ({
           : undefined,
         metodo: formData.metodo,
         paymentMethodConfigId: selectedMethodConfig?.id ?? undefined,
-        pagoOrigenId: isDevolucion ? Number(pagoOrigenId) : undefined,
+        cobroOrigenId: isDevolucion ? Number(cobroOrigenId) : undefined,
         motivo: motivoActual,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
@@ -1305,9 +1307,9 @@ const PaymentForm = ({
         applySuggestedDefaults: isDevolucion || isEditMode ? undefined : true
       };
 
-      let nuevoPago;
+      let nuevoCobro;
       if (isEditMode) {
-        nuevoPago = await updatePago(initialPago.id, {
+        nuevoCobro = await updateCobro(initialCobro.id, {
           monto: pagoData.monto,
           moneda: pagoData.moneda,
           tipoCambio: pagoData.tipoCambio,
@@ -1319,7 +1321,7 @@ const PaymentForm = ({
           fecha: pagoData.fecha
         });
       } else if (isMultiAlloc) {
-        nuevoPago = await createClientMultiPago(clientId, {
+        nuevoCobro = await createClientMultiCobro(clientId, {
           ...pagoData,
           imputaciones: assignedAllocations.map((a, index) => ({
             accountId: a.row.accountId != null ? Number(a.row.accountId) : undefined,
@@ -1329,43 +1331,43 @@ const PaymentForm = ({
           }))
         });
       } else if (isExternalAccount || (accountId && !reservaId)) {
-        nuevoPago = await createAccountPago(accountId, pagoData);
+        nuevoCobro = await createAccountCobro(accountId, pagoData);
       } else {
-        nuevoPago = await createPago(reservaId, pagoData);
+        nuevoCobro = await createCobro(reservaId, pagoData);
       }
 
       if (
         showComprobanteField &&
         comprobanteFiles.length > 0 &&
-        nuevoPago?.id != null
+        nuevoCobro?.id != null
       ) {
         try {
-          const adjuntos = await uploadPagoAdjuntos(
-            nuevoPago.id,
+          const adjuntos = await uploadCobroAdjuntos(
+            nuevoCobro.id,
             ADJUNTO_COMPROBANTE,
             comprobanteFiles
           );
-          nuevoPago = {
-            ...nuevoPago,
-            adjuntos: [...(nuevoPago.adjuntos || []), ...(adjuntos || [])]
+          nuevoCobro = {
+            ...nuevoCobro,
+            adjuntos: [...(nuevoCobro.adjuntos || []), ...(adjuntos || [])]
           };
         } catch (uploadErr) {
-          // El pago ya quedó creado; el comprobante se puede adjuntar luego en Pagos.
+          // El cobro ya quedó creado; el comprobante se puede adjuntar luego en Cobros.
           setError(
             uploadErr.message
-              ? `Pago guardado, pero falló el comprobante: ${uploadErr.message}. Podés adjuntarlo luego en Pagos.`
-              : 'Pago guardado, pero falló el comprobante. Podés adjuntarlo luego en Pagos.'
+              ? `Cobro guardado, pero falló el comprobante: ${uploadErr.message}. Podés adjuntarlo luego en Cobros.`
+              : 'Cobro guardado, pero falló el comprobante. Podés adjuntarlo luego en Cobros.'
           );
-          onSuccess?.(nuevoPago);
+          onSuccess?.(nuevoCobro);
           setLoading(false);
           return;
         }
       }
 
-      onSuccess?.(nuevoPago);
+      onSuccess?.(nuevoCobro);
       onClose();
     } catch (err) {
-      setError(err.message || 'Error al crear el pago');
+      setError(err.message || 'Error al crear el cobro');
       console.error('Error creating payment:', err);
     } finally {
       setLoading(false);
@@ -1398,10 +1400,10 @@ const PaymentForm = ({
             {isEditMode
               ? isDevolucion
                 ? 'Editar devolución'
-                : 'Editar pago'
+                : 'Editar cobro'
               : isDevolucion
                 ? 'Nueva devolución'
-                : 'Nuevo pago'}
+                : 'Nuevo cobro'}
           </h2>
           <button
             type="button"
@@ -1419,13 +1421,13 @@ const PaymentForm = ({
             <button
               type="button"
               role="tab"
-              id="tab-nuevo-pago"
+              id="tab-nuevo-cobro"
               aria-selected={!isDevolucion}
               className={`${styles.modeTab} ${!isDevolucion ? styles.modeTabActive : ''}`}
               onClick={() => setMode(MODE_PAGO)}
               disabled={loading}
             >
-              Nuevo pago
+              Nuevo cobro
             </button>
             <button
               type="button"
@@ -1531,7 +1533,7 @@ const PaymentForm = ({
                           aria-controls={`payment-account-listbox-${alloc.localId}`}
                           aria-autocomplete="list"
                           aria-labelledby="payment-imputa-label"
-                          aria-label="Elegir reserva o cuenta externa a la que se imputa el pago"
+                          aria-label="Elegir reserva o cuenta externa a la que se imputa el cobro"
                           placeholder={
                             loadingMeta
                               ? 'Cargando…'
@@ -1657,7 +1659,7 @@ const PaymentForm = ({
                 {isMultiAlloc && !isDevolucion ? (
                   <p className={styles.allocationHint} data-testid="payment-alloc-hint">
                     Indicá cuánto de lo recibido va a cada reserva/cuenta. La suma debe
-                    coincidir con el monto del pago.
+                    coincidir con el monto del cobro.
                   </p>
                 ) : null}
               </div>
@@ -1878,8 +1880,8 @@ const PaymentForm = ({
                 onChange={(e) => handleMontoASaldarChange(e.target.value)}
                 onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
                 placeholder={
-                  isDevolucion && selectedPagoOrigen
-                    ? formatArs(roundMoney(origenPagoARS + origenDescuentoARS))
+                  isDevolucion && selectedCobroOrigen
+                    ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
                     : saldoPendiente != null && Number(saldoPendiente) > 0
                       ? formatArs(saldoPendiente)
                       : '0'
@@ -1901,7 +1903,7 @@ const PaymentForm = ({
                   Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
                 </button>
               ) : null}
-              {isDevolucion && selectedPagoOrigen && origenDescuentoARS > 0 ? (
+              {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
                 <span className={styles.helpText} data-testid="payment-refund-discount-hint">
                   Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
                   cuánto devolver.
@@ -1913,20 +1915,20 @@ const PaymentForm = ({
           {isDevolucion && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label htmlFor="payment-origen">Pago de origen *</label>
+                <label htmlFor="payment-origen">Cobro de origen *</label>
                 <select
                   id="payment-origen"
-                  value={pagoOrigenId}
-                  onChange={(e) => setPagoOrigenId(e.target.value)}
+                  value={cobroOrigenId}
+                  onChange={(e) => setCobroOrigenId(e.target.value)}
                   required
-                  disabled={loading || pagosOrigen.length === 0}
+                  disabled={loading || cobrosOrigen.length === 0}
                 >
                   <option value="">
-                    {pagosOrigen.length === 0
+                    {cobrosOrigen.length === 0
                       ? 'No hay cobros disponibles'
                       : 'Seleccionar cobro…'}
                   </option>
-                  {pagosOrigen.map((p) => {
+                  {cobrosOrigen.map((p) => {
                     const disc = p.discountApplication?.montoARS;
                     const discLabel =
                       disc != null && Number(disc) > 0
@@ -1934,7 +1936,7 @@ const PaymentForm = ({
                         : '';
                     return (
                       <option key={p.id} value={p.id}>
-                        {p.codigo || `#${p.id}`} — {p.metodo || 'Pago'} —{' '}
+                        {p.codigo || `#${p.id}`} — {p.metodo || 'Cobro'} —{' '}
                         {formatMoneyArs(p.montoARS)}
                         {discLabel}
                       </option>
@@ -2090,7 +2092,7 @@ const PaymentForm = ({
                   />
                   {comprobanteFiles.length > 0
                     ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
-                    : 'Adjuntar JPG, PNG o PDF (también se puede después en Pagos)'}
+                    : 'Adjuntar JPG, PNG o PDF (también se puede después en Cobros)'}
                 </label>
                 {comprobanteFiles.length > 0 && (
                   <button
@@ -2383,7 +2385,7 @@ const PaymentForm = ({
 
           <div className={styles.stickyFooter}>
           <div className={styles.paymentSummary} data-testid="payment-summary">
-            <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del pago'}</h3>
+            <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del cobro'}</h3>
             <div className={styles.summaryRow}>
               <span>Motivo:</span>
               <span>{motivoActual}</span>
@@ -2402,7 +2404,7 @@ const PaymentForm = ({
                     {tenderMontoARS > 0 ? `−${formatMoneyArs(tenderMontoARS)}` : '—'}
                   </span>
                 </div>
-                {selectedPagoOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0 ? (
+                {selectedCobroOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0 ? (
                   <div className={styles.summaryRow}>
                     <span>Desc. revertido:</span>
                     <span>
@@ -2497,7 +2499,7 @@ const PaymentForm = ({
                   ? 'Guardar cambios'
                   : isDevolucion
                     ? 'Guardar devolución'
-                    : 'Guardar pago'}
+                    : 'Guardar cobro'}
             </button>
           </div>
           </div>
@@ -2507,4 +2509,4 @@ const PaymentForm = ({
   );
 };
 
-export default PaymentForm;
+export default CobroForm;

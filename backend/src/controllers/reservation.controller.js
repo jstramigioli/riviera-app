@@ -354,7 +354,7 @@ exports.updateReservationStatus = async (req, res) => {
   }
 };
 
-// Eliminar una reserva (cascade Account → cargos/pagos). Warning si hay folio financiero.
+// Eliminar una reserva (cascade Account → cargos/cobros). Warning si hay folio financiero.
 exports.deleteReservation = async (req, res) => {
   const { id } = req.params;
   const reservationId = parseInt(id, 10);
@@ -370,27 +370,27 @@ exports.deleteReservation = async (req, res) => {
       select: { id: true }
     });
 
-    let financial = { cargos: 0, pagos: 0, hasFinancials: false };
+    let financial = { cargos: 0, cobros: 0, hasFinancials: false };
     if (account) {
-      const [cargos, pagos] = await Promise.all([
+      const [cargos, cobros] = await Promise.all([
         prisma.cargo.count({ where: { accountId: account.id } }),
-        prisma.pago.count({ where: { accountId: account.id } })
+        prisma.cobro.count({ where: { accountId: account.id } })
       ]);
-      financial = { cargos, pagos, hasFinancials: cargos > 0 || pagos > 0 };
+      financial = { cargos, cobros, hasFinancials: cargos > 0 || cobros > 0 };
     } else {
-      const [cargos, pagos] = await Promise.all([
+      const [cargos, cobros] = await Promise.all([
         prisma.cargo.count({ where: { reservaId: reservationId } }),
-        prisma.pago.count({ where: { reservaId: reservationId } })
+        prisma.cobro.count({ where: { reservaId: reservationId } })
       ]);
-      financial = { cargos, pagos, hasFinancials: cargos > 0 || pagos > 0 };
+      financial = { cargos, cobros, hasFinancials: cargos > 0 || cobros > 0 };
     }
 
     if (financial.hasFinancials && !confirmFinancialWipe) {
       return res.status(409).json({
-        error: 'La reserva tiene pagos o cargos en su cuenta',
+        error: 'La reserva tiene cobros o cargos en su cuenta',
         code: 'ACCOUNT_HAS_FINANCIALS',
         warning:
-          `Al eliminar se borrará la cuenta y ${financial.cargos} cargo(s) / ${financial.pagos} pago(s).`,
+          `Al eliminar se borrará la cuenta y ${financial.cargos} cargo(s) / ${financial.cobros} cobro(s).`,
         financial,
         accountId: account?.id || null,
         requiresConfirm: true
@@ -407,7 +407,7 @@ exports.deleteReservation = async (req, res) => {
       where: { reservationId }
     });
 
-    // Cascade: Reservation → Account → Cargo/Pago
+    // Cascade: Reservation → Account → Cargo/Cobro
     await prisma.reservation.delete({
       where: { id: reservationId }
     });

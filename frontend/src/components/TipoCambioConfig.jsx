@@ -82,7 +82,7 @@ const TipoCambioConfig = () => {
         </h2>
         <p className={styles.description}>
           Establece el tipo de cambio del dólar estadounidense que se usará por defecto 
-          en los nuevos pagos en USD.
+          en los nuevos cobros en USD.
         </p>
       </div>
 
@@ -189,19 +189,19 @@ const TipoCambioConfig = () => {
             <div className={styles.infoItem}>
               <FiInfo />
               <span>
-                El tipo de cambio se aplicará automáticamente a los nuevos pagos en USD
+                El tipo de cambio se aplicará automáticamente a los nuevos cobros en USD
               </span>
             </div>
             <div className={styles.infoItem}>
               <FiInfo />
               <span>
-                Los usuarios pueden sobrescribir este valor al crear un pago específico
+                Los usuarios pueden sobrescribir este valor al crear un cobro específico
               </span>
             </div>
             <div className={styles.infoItem}>
               <FiInfo />
               <span>
-                Una vez guardado un pago, el tipo de cambio queda congelado y no se recalcula
+                Una vez guardado un cobro, el tipo de cambio queda congelado y no se recalcula
               </span>
             </div>
             <div className={styles.infoItem}>

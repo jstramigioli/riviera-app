@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import PaymentForm from './PaymentForm'
+import CobroForm from './CobroForm'
 
 vi.mock('../services/api', () => ({
-  createPago: vi.fn(),
-  createAccountPago: vi.fn(),
-  createClientMultiPago: vi.fn(),
-  updatePago: vi.fn(),
-  uploadPagoAdjuntos: vi.fn(),
+  createCobro: vi.fn(),
+  createAccountCobro: vi.fn(),
+  createClientMultiCobro: vi.fn(),
+  updateCobro: vi.fn(),
+  uploadCobroAdjuntos: vi.fn(),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
   previewPromotion: vi.fn().mockResolvedValue({ aplica: false }),
   fetchPaymentMethodConfigs: vi.fn().mockResolvedValue([
@@ -53,16 +53,16 @@ vi.mock('../services/api', () => ({
     }
   ]),
   fetchAccountResumen: vi.fn().mockResolvedValue({ resumen: { saldo: 100000 } }),
-  fetchAccountPagos: vi.fn().mockResolvedValue([]),
+  fetchAccountCobros: vi.fn().mockResolvedValue([]),
   getReservationFinancialSummary: vi.fn().mockResolvedValue({
-    resumen: { saldo: 100000, totalCargos: 100000, totalPagos: 0, totalDescuentos: 0 },
-    pagos: {
+    resumen: { saldo: 100000, totalCargos: 100000, totalCobros: 0, totalDescuentos: 0 },
+    cobros: {
       items: [
         {
           id: 77,
           codigo: 'A010',
           metodo: 'Efectivo',
-          motivo: 'Pago',
+          motivo: 'Cobro',
           montoARS: 90000,
           discountApplication: { id: 1, montoARS: 10000, activo: true }
         }
@@ -70,7 +70,7 @@ vi.mock('../services/api', () => ({
     },
     descuentos: { items: [] }
   }),
-  fetchCuentasParaPago: vi.fn().mockResolvedValue({
+  fetchCuentasParaCobro: vi.fn().mockResolvedValue({
     data: [
       {
         reservationId: 11,
@@ -129,44 +129,44 @@ vi.mock('../services/api', () => ({
 }))
 
 import {
-  createPago,
-  createClientMultiPago,
+  createCobro,
+  createClientMultiCobro,
   createExternalAccount,
-  updatePago,
-  fetchCuentasParaPago,
+  updateCobro,
+  fetchCuentasParaCobro,
   getClientBillingProfile,
   previewPromotion,
-  uploadPagoAdjuntos
+  uploadCobroAdjuntos
 } from '../services/api'
 import { todayLocalDateInputValue } from '../constants/billing'
 
-describe('PaymentForm facturación', () => {
+describe('CobroForm facturación', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    createPago.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
-    createClientMultiPago.mockResolvedValue({ id: 2, codigo: 'A002', adjuntos: [] })
-    updatePago.mockResolvedValue({ id: 10, codigo: 'A010' })
-    uploadPagoAdjuntos.mockResolvedValue([])
+    createCobro.mockResolvedValue({ id: 1, codigo: 'A001', adjuntos: [] })
+    createClientMultiCobro.mockResolvedValue({ id: 2, codigo: 'A002', adjuntos: [] })
+    updateCobro.mockResolvedValue({ id: 10, codigo: 'A010' })
+    uploadCobroAdjuntos.mockResolvedValue([])
     previewPromotion.mockResolvedValue({ aplica: false })
   })
 
-  it('fecha del pago defaultea a hoy', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+  it('fecha del cobro defaultea a hoy', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
     expect(screen.getByTestId('payment-fecha')).toHaveValue(todayLocalDateInputValue())
   })
 
-  it('en modo edición prefills y llama updatePago', async () => {
+  it('en modo edición prefills y llama updateCobro', async () => {
     const onSuccess = vi.fn()
     render(
-      <PaymentForm
+      <CobroForm
         reservaId={22}
-        initialPago={{
+        initialCobro={{
           id: 10,
           monto: 45000,
           moneda: 'ARS',
           metodo: 'Efectivo',
-          motivo: 'Pago',
+          motivo: 'Cobro',
           notas: 'Seña parcial',
           fecha: '2026-11-11T15:00:00.000Z'
         }}
@@ -175,7 +175,7 @@ describe('PaymentForm facturación', () => {
       />
     )
 
-    expect(screen.getByRole('heading', { name: /Editar pago/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Editar cobro/i })).toBeInTheDocument()
     expect(screen.getByTestId('payment-fecha')).toHaveValue('2026-11-11')
     expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(45000)
 
@@ -185,17 +185,17 @@ describe('PaymentForm facturación', () => {
     fireEvent.click(screen.getByRole('button', { name: /Guardar cambios/i }))
 
     await waitFor(() =>
-      expect(updatePago).toHaveBeenCalledWith(
+      expect(updateCobro).toHaveBeenCalledWith(
         10,
         expect.objectContaining({ monto: 40000, metodo: 'Efectivo', fecha: expect.any(String) })
       )
     )
-    expect(createPago).not.toHaveBeenCalled()
+    expect(createCobro).not.toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalled()
   })
 
   it('muestra medios del backend sin porcentaje hardcodeado en el label', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
@@ -232,7 +232,7 @@ describe('PaymentForm facturación', () => {
       return { aplica: false }
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
@@ -283,7 +283,7 @@ describe('PaymentForm facturación', () => {
       return { aplica: false }
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     expect(screen.queryByTestId('payment-tender-banner')).not.toBeInTheDocument()
@@ -304,11 +304,11 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
     expect(screen.queryByText(/El cliente debe abonar/i)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
     await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
+      expect(createCobro).toHaveBeenCalledWith(
         22,
-        expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Pago' })
+        expect.objectContaining({ monto: 90000, moneda: 'ARS', motivo: 'Cobro' })
       )
     )
   })
@@ -337,7 +337,7 @@ describe('PaymentForm facturación', () => {
       return { aplica: false }
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/Monto ingresado/i), {
@@ -353,7 +353,7 @@ describe('PaymentForm facturación', () => {
   it('sin descuento sync 1:1 entre monto ingresado y a saldar', async () => {
     previewPromotion.mockResolvedValue({ aplica: false })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
@@ -392,7 +392,7 @@ describe('PaymentForm facturación', () => {
       ]
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument())
 
@@ -402,8 +402,8 @@ describe('PaymentForm facturación', () => {
   })
 
   it('permite elegir USD e Imputar a sin hint redundante', async () => {
-    render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
-    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+    render(<CobroForm onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaCobro).toHaveBeenCalled())
 
     expect(screen.queryByText(/^Cuenta \*$/)).not.toBeInTheDocument()
     expect(screen.getByTestId('payment-imputa-label')).toHaveTextContent(/Imputar a/i)
@@ -432,7 +432,7 @@ describe('PaymentForm facturación', () => {
   it('USD: TC junto a moneda; monto USD + equiv ARS bajo ingresado sync con saldar', async () => {
     previewPromotion.mockResolvedValue({ aplica: false })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('payment-moneda'), { target: { value: 'USD' } })
@@ -488,7 +488,7 @@ describe('PaymentForm facturación', () => {
   it('USD↔ARS: saldar en ARS muestra ingresado en USD sin forzar moneda', async () => {
     previewPromotion.mockResolvedValue({ aplica: false })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByTestId('payment-moneda'), { target: { value: 'USD' } })
@@ -514,9 +514,9 @@ describe('PaymentForm facturación', () => {
     })
     expect(screen.getByTestId('payment-moneda')).toHaveValue('USD')
 
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
     await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
+      expect(createCobro).toHaveBeenCalledWith(
         22,
         expect.objectContaining({ monto: 120, moneda: 'USD', tipoCambio: 1000 })
       )
@@ -524,8 +524,8 @@ describe('PaymentForm facturación', () => {
   })
 
   it('tras elegir reserva muestra chip y permite agregar otra; externa vive en el combobox', async () => {
-    render(<PaymentForm onClose={vi.fn()} onSuccess={vi.fn()} />)
-    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+    render(<CobroForm onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaCobro).toHaveBeenCalled())
 
     const search = screen.getByTestId('payment-account-search')
     fireEvent.focus(search)
@@ -554,10 +554,10 @@ describe('PaymentForm facturación', () => {
     const montoInputs = screen.getAllByLabelText(/Monto imputado/i)
     fireEvent.change(montoInputs[0], { target: { value: '600' } })
     fireEvent.change(montoInputs[1], { target: { value: '400' } })
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
     await waitFor(() =>
-      expect(createClientMultiPago).toHaveBeenCalledWith(
+      expect(createClientMultiCobro).toHaveBeenCalledWith(
         5,
         expect.objectContaining({
           monto: 1000,
@@ -571,8 +571,8 @@ describe('PaymentForm facturación', () => {
   })
 
   it('desde reserva también ofrece agregar otra imputación', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
-    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(fetchCuentasParaCobro).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('payment-add-allocation')).toBeInTheDocument())
     expect(screen.getByText(/202 - Pérez/i)).toBeInTheDocument()
   })
@@ -596,7 +596,7 @@ describe('PaymentForm facturación', () => {
       ]
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     await waitFor(() => expect(previewPromotion).toHaveBeenCalled())
@@ -668,7 +668,7 @@ describe('PaymentForm facturación', () => {
       }
     })
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '9000' } })
@@ -692,7 +692,7 @@ describe('PaymentForm facturación', () => {
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
@@ -714,7 +714,7 @@ describe('PaymentForm facturación', () => {
   })
 
   it('permite toggle manual en Efectivo y campos de Factura A', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
@@ -729,12 +729,12 @@ describe('PaymentForm facturación', () => {
     )
   })
 
-  it('tabs Nuevo pago / Nueva devolución y toggle Seña sin desplegable Motivo', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+  it('tabs Nuevo cobro / Nueva devolución y toggle Seña sin desplegable Motivo', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
-    expect(screen.getByRole('tab', { name: 'Nuevo pago' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Nuevo cobro' })).toHaveAttribute(
       'aria-selected',
       'true'
     )
@@ -744,7 +744,7 @@ describe('PaymentForm facturación', () => {
     )
     expect(screen.queryByLabelText(/^Motivo/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/^Referencia/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Nuevo pago' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Nuevo cobro' })).toBeInTheDocument()
 
     const sena = screen.getByLabelText(/^Seña$/i)
     expect(sena).not.toBeChecked()
@@ -752,19 +752,19 @@ describe('PaymentForm facturación', () => {
     expect(sena).toBeChecked()
 
     fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '1500' } })
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
     await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
+      expect(createCobro).toHaveBeenCalledWith(
         22,
         expect.objectContaining({ monto: 1500, motivo: 'Seña' })
       )
     )
-    expect(createPago.mock.calls[0][1]).not.toHaveProperty('referencia')
+    expect(createCobro.mock.calls[0][1]).not.toHaveProperty('referencia')
   })
 
   it('Nueva devolución envía motivo Devolución', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
@@ -773,26 +773,26 @@ describe('PaymentForm facturación', () => {
     expect(screen.queryByLabelText(/^Seña$/i)).not.toBeInTheDocument()
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Cobro de origen/i)).toBeInTheDocument()
     })
-    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
+    fireEvent.change(screen.getByLabelText(/Cobro de origen/i), { target: { value: '77' } })
     fireEvent.change(screen.getByLabelText(/Monto a devolver/i), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
 
     await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
+      expect(createCobro).toHaveBeenCalledWith(
         22,
         expect.objectContaining({
           monto: 500,
           motivo: 'Devolución',
-          pagoOrigenId: 77
+          cobroOrigenId: 77
         })
       )
     )
   })
 
   it('devolución: sin origen sync 1:1 entre devolver y a saldar', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('tab', { name: 'Nueva devolución' }))
@@ -813,15 +813,15 @@ describe('PaymentForm facturación', () => {
   })
 
   it('devolución: monto a saldar calcula efectivo según descuento del origen', async () => {
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('tab', { name: 'Nueva devolución' }))
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Cobro de origen/i)).toBeInTheDocument()
     })
-    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
+    fireEvent.change(screen.getByLabelText(/Cobro de origen/i), { target: { value: '77' } })
     fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
       target: { value: '100000' }
     })
@@ -834,21 +834,21 @@ describe('PaymentForm facturación', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar devolución/i }))
     await waitFor(() =>
-      expect(createPago).toHaveBeenCalledWith(
+      expect(createCobro).toHaveBeenCalledWith(
         22,
         expect.objectContaining({
           monto: 90000,
           motivo: 'Devolución',
-          pagoOrigenId: 77
+          cobroOrigenId: 77
         })
       )
     )
   })
 
   it('sin reservaId busca cuentas y permite filtrar por texto', async () => {
-    render(<PaymentForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={null} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
-    await waitFor(() => expect(fetchCuentasParaPago).toHaveBeenCalled())
+    await waitFor(() => expect(fetchCuentasParaCobro).toHaveBeenCalled())
 
     const search = screen.getByTestId('payment-account-search')
     fireEvent.focus(search)
@@ -863,11 +863,11 @@ describe('PaymentForm facturación', () => {
 
   it('Transferencia muestra comprobante opcional y lo sube tras crear', async () => {
     const file = new File(['pdf'], 'comp.pdf', { type: 'application/pdf' })
-    uploadPagoAdjuntos.mockResolvedValue([
+    uploadCobroAdjuntos.mockResolvedValue([
       { id: 9, tipo: 'COMPROBANTE', originalName: 'comp.pdf' }
     ])
 
-    render(<PaymentForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
     fireEvent.change(screen.getByLabelText(/Método de pago/i), {
@@ -882,17 +882,17 @@ describe('PaymentForm facturación', () => {
     fireEvent.change(screen.getByLabelText(/Fecha de facturación/i), {
       target: { value: '2026-11-13' }
     })
-    fireEvent.click(screen.getByRole('button', { name: /Guardar pago/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
-    await waitFor(() => expect(createPago).toHaveBeenCalled())
+    await waitFor(() => expect(createCobro).toHaveBeenCalled())
     await waitFor(() =>
-      expect(uploadPagoAdjuntos).toHaveBeenCalledWith(1, 'COMPROBANTE', [file])
+      expect(uploadCobroAdjuntos).toHaveBeenCalledWith(1, 'COMPROBANTE', [file])
     )
   })
 
   it('initialMode devolucion abre Nueva devolución con monto precargado', async () => {
     render(
-      <PaymentForm
+      <CobroForm
         reservaId={22}
         initialMode="devolucion"
         initialMonto={12500}
@@ -916,7 +916,7 @@ describe('PaymentForm facturación', () => {
 
   it('initialMode devolucion + initialMontoASaldar precarga monto a saldar', async () => {
     render(
-      <PaymentForm
+      <CobroForm
         reservaId={22}
         initialMode="devolucion"
         initialMontoASaldar={100000}
@@ -931,9 +931,9 @@ describe('PaymentForm facturación', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Pago de origen/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Cobro de origen/i)).toBeInTheDocument()
     })
-    fireEvent.change(screen.getByLabelText(/Pago de origen/i), { target: { value: '77' } })
+    fireEvent.change(screen.getByLabelText(/Cobro de origen/i), { target: { value: '77' } })
 
     await waitFor(() => {
       expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(90000)

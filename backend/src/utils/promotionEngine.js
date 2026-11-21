@@ -298,7 +298,7 @@ function evaluateCondition(condition, ctx) {
     case 'CURRENCY': {
       const expected = String(params.currency || params.moneda || '').toUpperCase();
       if (!expected) return true;
-      const actual = String(ctx.moneda || ctx.currency || ctx.monedaPago || '').toUpperCase();
+      const actual = String(ctx.moneda || ctx.currency || ctx.monedaCobro || '').toUpperCase();
       if (!actual) return false;
       return applyEqualityOp(actual === expected, params.op);
     }
@@ -357,7 +357,7 @@ function modalityAllowsApply(rule, ctx) {
   if (Number.isFinite(id) && deselected.has(id)) return false;
 
   if (modality === 'AUTO') {
-    // Nuevo pago: master toggle de automáticos (default ON).
+    // Nuevo cobro: master toggle de automáticos (default ON).
     if (ctx.applyAutomatics === false) return false;
     return true;
   }
@@ -688,7 +688,7 @@ function evaluateSettlementRules(rules, ctx) {
       rule: { ...rule, _ctxNights: ctx.nights },
       dineroARS: ctx.dineroARS,
       saldoPendiente: ctx.saldoPendiente,
-      motivo: ctx.motivo || 'Pago',
+      motivo: ctx.motivo || 'Cobro',
       mode
     });
 

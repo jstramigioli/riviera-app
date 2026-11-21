@@ -16,21 +16,21 @@ const civilNights = (checkIn, checkOut) => {
 
 const TIPO_ORDER = ['ALOJAMIENTO', 'CONSUMO', 'SERVICIO', 'OTRO'];
 
-const pagoDetalle = (pago) => {
+const pagoDetalle = (cobro) => {
   const parts = [];
-  if (pago.empresa) parts.push(pago.empresa);
-  if (pago.tipoTarjeta) parts.push(pago.tipoTarjeta);
-  if (pago.numeroTarjeta) parts.push(`****${String(pago.numeroTarjeta).slice(-4)}`);
-  if (pago.moneda && pago.moneda !== 'ARS') {
-    const original = Number(pago.monto);
-    const tc = Number(pago.tipoCambio);
+  if (cobro.empresa) parts.push(cobro.empresa);
+  if (cobro.tipoTarjeta) parts.push(cobro.tipoTarjeta);
+  if (cobro.numeroTarjeta) parts.push(`****${String(cobro.numeroTarjeta).slice(-4)}`);
+  if (cobro.moneda && cobro.moneda !== 'ARS') {
+    const original = Number(cobro.monto);
+    const tc = Number(cobro.tipoCambio);
     const originalLabel = Number.isFinite(original)
-      ? formatMoney(original, pago.moneda)
-      : pago.moneda;
+      ? formatMoney(original, cobro.moneda)
+      : cobro.moneda;
     parts.push(originalLabel);
     if (Number.isFinite(tc) && tc > 0) parts.push(`TC ${tc}`);
   }
-  if (pago.notas) parts.push(pago.notas);
+  if (cobro.notas) parts.push(cobro.notas);
   return parts.join(' · ') || '—';
 };
 
@@ -56,16 +56,16 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
     || '—';
 
   const cargoItems = financialSummary?.cargos?.items || [];
-  const pagoItems = financialSummary?.pagos?.items || [];
+  const pagoItems = financialSummary?.cobros?.items || [];
   const cargosPorTipo = financialSummary?.cargos?.porTipo || {};
   const totalCargos = Number(financialSummary?.resumen?.totalCargos) || 0;
-  const totalPagos = Number(financialSummary?.resumen?.totalPagos) || 0;
+  const totalCobros = Number(financialSummary?.resumen?.totalCobros) || 0;
   const totalDescuentos = Number(financialSummary?.resumen?.totalDescuentos) || 0;
   const descuentoItems = financialSummary?.descuentos?.items || [];
   const saldo =
     financialSummary?.resumen?.saldo != null
       ? Number(financialSummary.resumen.saldo)
-      : totalCargos - totalPagos - totalDescuentos;
+      : totalCargos - totalCobros - totalDescuentos;
   const emittedAt = todayAsLocalDate();
 
   const tiposOrdenados = [
@@ -232,8 +232,8 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
         )}
       </section>
 
-      <section className={`${styles.block} ${styles.pagosBlock}`}>
-        <h2>Pagos</h2>
+      <section className={`${styles.block} ${styles.cobrosBlock}`}>
+        <h2>Cobros</h2>
         {pagoItems.length > 0 ? (
           <table className={styles.table}>
             <thead>
@@ -245,27 +245,27 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
               </tr>
             </thead>
             <tbody>
-              {pagoItems.map((pago) => (
-                <tr key={pago.id}>
-                  <td>{formatDate(pago.fecha)}</td>
-                  <td>{pago.metodo || 'Pago'}</td>
-                  <td className={styles.pagoDetalle}>{pagoDetalle(pago)}</td>
-                  <td className={styles.num}>{formatCurrency(pago.montoARS ?? pago.monto)}</td>
+              {pagoItems.map((cobro) => (
+                <tr key={cobro.id}>
+                  <td>{formatDate(cobro.fecha)}</td>
+                  <td>{cobro.metodo || 'Cobro'}</td>
+                  <td className={styles.pagoDetalle}>{pagoDetalle(cobro)}</td>
+                  <td className={styles.num}>{formatCurrency(cobro.montoARS ?? cobro.monto)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className={styles.empty}>Sin pagos registrados.</p>
+          <p className={styles.empty}>Sin cobros registrados.</p>
         )}
         <div className={styles.subtotal}>
-          <span>Total pagos</span>
-          <strong>{formatCurrency(totalPagos)}</strong>
+          <span>Total cobros</span>
+          <strong>{formatCurrency(totalCobros)}</strong>
         </div>
       </section>
 
       {(totalDescuentos !== 0 || descuentoItems.length > 0) && (
-        <section className={`${styles.block} ${styles.pagosBlock}`}>
+        <section className={`${styles.block} ${styles.cobrosBlock}`}>
           <h2>Descuentos por medio de pago</h2>
           {descuentoItems.length > 0 ? (
             <table className={styles.table}>
@@ -306,7 +306,7 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
             <strong>{formatCurrency(saldo)}</strong>
           </div>
           <p className={styles.saldoState}>
-            {saldo > 0 && 'Pendiente de pago'}
+            {saldo > 0 && 'Pendiente de cobro'}
             {saldo === 0 && 'Pagado completamente'}
             {saldo < 0 && 'Saldo a favor'}
           </p>

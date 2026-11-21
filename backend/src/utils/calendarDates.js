@@ -86,7 +86,7 @@ function todayIsoLocal(req) {
 
 /**
  * “Ahora” en el día civil del hotel. Con simulación, conserva H:M:S del reloj
- * real sobre el día simulado (útil para timestamps de pago/caja).
+ * real sobre el día simulado (útil para timestamps de cobro/caja).
  * @param {import('express').Request|null|undefined} req
  * @returns {Date}
  */

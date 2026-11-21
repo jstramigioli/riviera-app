@@ -28,16 +28,16 @@ describe('FloatingActionButton hub', () => {
     const consulta = screen.getByRole('menuitem', { name: '+ Consulta' })
     const reserva = screen.getByRole('menuitem', { name: '+ Reserva' })
     const consumo = screen.getByRole('menuitem', { name: '+ Consumo' })
-    const pago = screen.getByRole('menuitem', { name: '+ Pago' })
+    const cobro = screen.getByRole('menuitem', { name: '+ Cobro' })
 
     expect(consulta).toHaveTextContent('+ Consulta')
     expect(reserva).toHaveTextContent('+ Reserva')
     expect(consumo).toHaveTextContent('+ Consumo')
-    expect(pago).toHaveTextContent('+ Pago')
+    expect(cobro).toHaveTextContent('+ Cobro')
     expect(consulta.querySelector('svg')).toBeNull()
     expect(reserva.querySelector('svg')).toBeNull()
     expect(consumo.querySelector('svg')).toBeNull()
-    expect(pago.querySelector('svg')).toBeNull()
+    expect(cobro.querySelector('svg')).toBeNull()
 
     fireEvent.click(consulta)
     expect(onCreateQuery).toHaveBeenCalledTimes(1)
@@ -51,7 +51,7 @@ describe('FloatingActionButton hub', () => {
     expect(onCreateConsumption).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '+ Pago' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ Cobro' }))
     expect(onCreatePayment).toHaveBeenCalledTimes(1)
 
     expect(screen.queryByRole('button', { name: 'Buscar en el Libro' })).toBeNull()

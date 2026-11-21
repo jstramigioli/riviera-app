@@ -1,7 +1,7 @@
 import { deleteReservation } from '../services/api';
 
 /**
- * Borra reserva; si hay pagos/cargos pide confirmación extra (modal in-app).
+ * Borra reserva; si hay cobros/cargos pide confirmación extra (modal in-app).
  * @param {number|string} id
  * @param {(opts: {title?: string, message: string, confirmText?: string}) => Promise<boolean>} confirmFn
  */
@@ -16,7 +16,7 @@ export async function deleteReservationWithWarning(id, confirmFn) {
       title: 'Eliminar cuenta con movimientos',
       message:
         err.message ||
-        `La reserva tiene ${financial.cargos || 0} cargo(s) y ${financial.pagos || 0} pago(s). Al eliminar se borrará la cuenta y esos movimientos.`,
+        `La reserva tiene ${financial.cargos || 0} cargo(s) y ${financial.cobros || 0} cobro(s). Al eliminar se borrará la cuenta y esos movimientos.`,
       confirmText: 'Eliminar igual'
     });
     if (!ok) return false;

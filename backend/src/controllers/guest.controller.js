@@ -322,7 +322,7 @@ exports.getGuestBalance = async (req, res) => {
         reservation: {
           include: {
             cargos: true,
-            pagos: true
+            cobros: true
           }
         }
       }
@@ -337,16 +337,16 @@ exports.getGuestBalance = async (req, res) => {
         guestId: guest.id,
         guestName: `${guest.firstName} ${guest.lastName}`,
         totalCharges: 0,
-        totalPayments: 0,
+        totalCobros: 0,
         balance: 0,
         isDebtor: false,
         message: 'Guest has no associated reservation'
       });
     }
 
-    const { totalCargos, totalPagos, saldo } = calculateReservationBalance(
+    const { totalCargos, totalCobros, saldo } = calculateReservationBalance(
       guest.reservation.cargos,
-      guest.reservation.pagos
+      guest.reservation.cobros
     );
 
     res.json({
@@ -354,7 +354,7 @@ exports.getGuestBalance = async (req, res) => {
       guestName: `${guest.firstName} ${guest.lastName}`,
       reservationId: guest.reservation.id,
       totalCharges: totalCargos,
-      totalPayments: totalPagos,
+      totalCobros: totalCobros,
       balance: saldo,
       isDebtor: saldo > 0
     });

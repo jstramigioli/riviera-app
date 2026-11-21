@@ -219,7 +219,7 @@ describe('Controlador de Clientes', () => {
   });
 
   describe('GET /api/clients/:id/balance', () => {
-    it('debería calcular balance desde cargos y pagos de las reservas', async () => {
+    it('debería calcular balance desde cargos y cobros de las reservas', async () => {
       global.mockPrisma.client.findUnique.mockResolvedValue({
         id: 1212,
         firstName: 'Julián',
@@ -242,7 +242,7 @@ describe('Controlador de Clientes', () => {
                 serviceTypeId: null
               }
             ],
-            pagos: [
+            cobros: [
               {
                 id: 2,
                 codigo: 'A001',
@@ -252,7 +252,7 @@ describe('Controlador de Clientes', () => {
                 tipoCambio: null,
                 montoARS: 424000,
                 metodo: 'Efectivo',
-                motivo: 'Pago',
+                motivo: 'Cobro',
                 notas: null,
                 referencia: null,
                 numeroTarjeta: null,
@@ -271,16 +271,16 @@ describe('Controlador de Clientes', () => {
         .expect(200);
 
       expect(response.body.totalCharges).toBe(414000);
-      expect(response.body.totalPayments).toBe(424000);
+      expect(response.body.totalCobros).toBe(424000);
       expect(response.body.balance).toBe(-10000);
       expect(response.body.isDebtor).toBe(false);
       expect(response.body.reservations).toHaveLength(1);
       expect(response.body.cargos).toHaveLength(1);
-      expect(response.body.pagos).toHaveLength(1);
+      expect(response.body.cobros).toHaveLength(1);
       expect(response.body.cargos[0]).toEqual(
         expect.objectContaining({ id: 1, descripcion: 'Alojamiento', monto: 414000 })
       );
-      expect(response.body.pagos[0]).toEqual(
+      expect(response.body.cobros[0]).toEqual(
         expect.objectContaining({ id: 2, codigo: 'A001', montoARS: 424000 })
       );
     });

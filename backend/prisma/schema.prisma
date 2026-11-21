@@ -153,7 +153,7 @@ model Client {
   accounts        Account[]
   /// Apariciones como huésped de una reserva (opcional; el titular usa mainClientId).
   guestStays      Guest[]
-  /// Datos de facturación aparte del perfil (reutilizables en próximos pagos).
+  /// Datos de facturación aparte del perfil (reutilizables en próximos cobros).
   billingProfile  ClientBillingProfile?
 
   @@index([createdAt])
@@ -241,8 +241,8 @@ model Reservation {
   childReservations   Reservation[]          @relation("MultiRoomReservations")
   nightRates          ReservationNightRate[]
   segments            ReservationSegment[]
-  pagos               Pago[]
-  imputaciones        PagoImputacion[]
+  cobros               Cobro[]
+  imputaciones        CobroImputacion[]
   cargos              Cargo[]
   onlineCheckIns      OnlineCheckIn[]
   /// Folio financiero 1:1 (Account kind=RESERVATION).
@@ -280,8 +280,8 @@ model Account {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   cargos                Cargo[]
-  pagos                 Pago[]
-  imputaciones          PagoImputacion[]
+  cobros                 Cobro[]
+  imputaciones          CobroImputacion[]
   discountApplications  DiscountApplication[]
 
   @@index([kind, status])
@@ -378,7 +378,7 @@ model PaymentMethodConfig {
   notas               String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-  pagos               Pago[]
+  cobros               Cobro[]
   discountApplications DiscountApplication[]
 
   @@index([activo, ordenIndex])
@@ -434,29 +434,29 @@ model PromotionCondition {
 }
 
 /// Crédito de folio por descuento/promo (o su reversión). Snapshot; no recalcular live.
-/// Post-imputaciones: DA por PagoImputacion; pagoId ya no es unique.
+/// Post-imputaciones: DA por CobroImputacion; cobroId ya no es unique.
 model DiscountApplication {
   id                     Int                     @id @default(autoincrement())
   accountId              Int
   account                Account                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  /// Pago de caja que originó (o revierte) el descuento. No unique: multi-imputación.
-  pagoId                 Int
-  pago                   Pago                    @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  /// Cobro de caja que originó (o revierte) el descuento. No unique: multi-imputación.
+  cobroId                 Int
+  cobro                   Cobro                    @relation(fields: [cobroId], references: [id], onDelete: Cascade)
   /// Imputación de folio a la que aplica el crédito (backfill 1:1 en migrate).
-  pagoImputacionId       Int?
-  pagoImputacion         PagoImputacion?         @relation(fields: [pagoImputacionId], references: [id], onDelete: Cascade)
+  cobroImputacionId       Int?
+  cobroImputacion         CobroImputacion?         @relation(fields: [cobroImputacionId], references: [id], onDelete: Cascade)
   paymentMethodConfigId  Int?
   paymentMethodConfig    PaymentMethodConfig?    @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
   promotionRuleId        Int?
   promotionRule          PromotionRule?          @relation(fields: [promotionRuleId], references: [id], onDelete: SetNull)
   tipo                   DiscountApplicationTipo @default(PAYMENT_METHOD)
-  /// Monto del pago (ARS, abs) sobre el que se calculó / snapshot.
+  /// Monto del cobro (ARS, abs) sobre el que se calculó / snapshot.
   baseCalculoARS         Decimal                 @db.Decimal(10, 2)
   porcentaje             Decimal?                @db.Decimal(10, 4)
   valorFijo              Decimal?                @db.Decimal(10, 2)
   /// Crédito positivo que baja el saldo; reversión = negativo.
   montoARS               Decimal                 @db.Decimal(10, 2)
-  monedaPago             String?
+  monedaCobro             String?
   tipoCambio             Decimal?                @db.Decimal(10, 4)
   /// Snapshot de reglas aplicadas (ids/codes/montos) para trazabilidad / stacking.
   appliedRulesJson       Json?
@@ -470,8 +470,8 @@ model DiscountApplication {
   updatedAt              DateTime                @updatedAt
 
   @@index([accountId])
-  @@index([pagoId])
-  @@index([pagoImputacionId])
+  @@index([cobroId])
+  @@index([cobroImputacionId])
   @@index([paymentMethodConfigId])
   @@index([promotionRuleId])
   @@index([reversoDeId])
@@ -821,11 +821,11 @@ model ReservationSegment {
   virtualRoom          VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
 }
 
-/// Ingreso de caja. El crédito de folio vive en PagoImputacion (1..N).
-model Pago {
+/// Ingreso de caja. El crédito de folio vive en CobroImputacion (1..N).
+model Cobro {
   id                      Int                   @id @default(autoincrement())
   codigo                  String                @unique // A000…A999, B000… (papelitos / Estado de cuentas)
-  /// Ancla opcional (flujo 1 reserva / EXTERNAL). Null cuando el pago se reparte a N folios.
+  /// Ancla opcional (flujo 1 reserva / EXTERNAL). Null cuando el cobro se reparte a N folios.
   accountId               Int?
   account                 Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
   /// Dual-write legado; null en EXTERNAL o multi-imputación.
@@ -834,10 +834,10 @@ model Pago {
   /// FK al catálogo de medios (MVP). `metodo` sigue siendo label para listados.
   paymentMethodConfigId   Int?
   paymentMethodConfig     PaymentMethodConfig?  @relation(fields: [paymentMethodConfigId], references: [id], onDelete: SetNull)
-  /// Devolución: pago original obligatorio (bloquea devolución libre).
-  pagoOrigenId            Int?
-  pagoOrigen              Pago?                 @relation("PagoDevolucion", fields: [pagoOrigenId], references: [id], onDelete: Restrict)
-  devoluciones            Pago[]                @relation("PagoDevolucion")
+  /// Devolución: cobro original obligatorio (bloquea devolución libre).
+  cobroOrigenId            Int?
+  cobroOrigen              Cobro?                 @relation("CobroDevolucion", fields: [cobroOrigenId], references: [id], onDelete: Restrict)
+  devoluciones            Cobro[]                @relation("CobroDevolucion")
   fecha                   DateTime              @default(now())
   monto                   Decimal               @db.Decimal(10, 2)
   moneda                  String                @default("ARS") // ARS o USD
@@ -848,14 +848,14 @@ model Pago {
   empresa                 String?               // Empresa de la tarjeta (solo para métodos de tarjeta)
   referencia              String?               // Número de comprobante, referencia bancaria, etc.
   notas                   String?
-  /// Seña | Pago (concepto del cobro; distinto de la fecha de facturación). Solo en Account de reserva.
-  motivo                  String                @default("Pago")
+  /// Seña | Cobro (concepto del cobro; distinto de la fecha de facturación). Solo en Account de reserva.
+  motivo                  String                @default("Cobro")
   requiereFacturacion     Boolean               @default(false)
   /// Dinero/papel físico retirado (no aplica a Transferencia)
   retirado                Boolean               @default(false)
-  factura                 PagoFactura?
-  adjuntos                PagoAdjunto[]
-  imputaciones            PagoImputacion[]
+  factura                 CobroFactura?
+  adjuntos                CobroAdjunto[]
+  imputaciones            CobroImputacion[]
   discountApplications    DiscountApplication[]
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
@@ -863,14 +863,14 @@ model Pago {
   @@index([accountId])
   @@index([reservaId])
   @@index([paymentMethodConfigId])
-  @@index([pagoOrigenId])
+  @@index([cobroOrigenId])
 }
 
-/// Crédito de folio: parte de un Pago imputada a un Account/reserva.
-model PagoImputacion {
+/// Crédito de folio: parte de un Cobro imputada a un Account/reserva.
+model CobroImputacion {
   id               Int      @id @default(autoincrement())
-  pagoId           Int
-  pago             Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  cobroId           Int
+  cobro             Cobro     @relation(fields: [cobroId], references: [id], onDelete: Cascade)
   accountId        Int
   account          Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
   /// Dual-write; null en EXTERNAL.
@@ -885,17 +885,17 @@ model PagoImputacion {
   updatedAt        DateTime @updatedAt
   discountApplications DiscountApplication[]
 
-  @@unique([pagoId, accountId])
+  @@unique([cobroId, accountId])
   @@index([accountId])
   @@index([reservaId])
-  @@index([pagoId])
+  @@index([cobroId])
 }
 
 /// Archivos de factura PDF o comprobante de transferencia (JPG/PNG/PDF).
-model PagoAdjunto {
+model CobroAdjunto {
   id           Int      @id @default(autoincrement())
-  pagoId       Int
-  pago         Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  cobroId       Int
+  cobro         Cobro     @relation(fields: [cobroId], references: [id], onDelete: Cascade)
   /// FACTURA | COMPROBANTE
   tipo         String
   originalName String
@@ -904,17 +904,17 @@ model PagoAdjunto {
   sizeBytes    Int
   createdAt    DateTime @default(now())
 
-  @@index([pagoId, tipo])
+  @@index([cobroId, tipo])
 }
 
-/// Snapshot de facturación asociado a un pago (Factura A o B).
-model PagoFactura {
+/// Snapshot de facturación asociado a un cobro (Factura A o B).
+model CobroFactura {
   id                Int      @id @default(autoincrement())
-  pagoId            Int      @unique
-  pago              Pago     @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  cobroId            Int      @unique
+  cobro              Cobro     @relation(fields: [cobroId], references: [id], onDelete: Cascade)
   /// A | B
   tipo              String
-  /// Fecha de facturación (día; puede diferir de Pago.fecha)
+  /// Fecha de facturación (día; puede diferir de Cobro.fecha)
   fecha             DateTime @default(now())
   motivo            String?
   firstName         String?

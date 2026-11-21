@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 
 vi.mock('../services/api', () => ({
-  updatePago: vi.fn(),
-  uploadPagoAdjuntos: vi.fn(),
-  deletePagoAdjunto: vi.fn(),
-  downloadPagoAdjunto: vi.fn(),
+  updateCobro: vi.fn(),
+  uploadCobroAdjuntos: vi.fn(),
+  deleteCobroAdjunto: vi.fn(),
+  downloadCobroAdjunto: vi.fn(),
 }))
 
 vi.mock('../hooks/useAppNotice', () => ({
@@ -22,9 +22,9 @@ vi.mock('../hooks/useConfirmDialog', () => ({
   }),
 }))
 
-import PagosHistorialTable from './PagosHistorialTable'
+import CobrosHistorialTable from './CobrosHistorialTable'
 
-function makePago({ id, moneda = 'ARS', metodo = 'Efectivo' }) {
+function makeCobro({ id, moneda = 'ARS', metodo = 'Efectivo' }) {
   return {
     id,
     codigo: `P-${id}`,
@@ -33,7 +33,7 @@ function makePago({ id, moneda = 'ARS', metodo = 'Efectivo' }) {
     montoARS: 1000,
     moneda,
     metodo,
-    motivo: 'Pago',
+    motivo: 'Cobro',
     reservaId: 10,
     reserva: {
       id: 10,
@@ -43,36 +43,36 @@ function makePago({ id, moneda = 'ARS', metodo = 'Efectivo' }) {
   }
 }
 
-describe('PagosHistorialTable — moneda', () => {
+describe('CobrosHistorialTable — moneda', () => {
   it('muestra columna Moneda y filtra por ARS/USD', () => {
     render(
-      <PagosHistorialTable
+      <CobrosHistorialTable
         payments={[
-          makePago({ id: 1, moneda: 'ARS' }),
-          makePago({ id: 2, moneda: 'USD' }),
-          makePago({ id: 3 }),
+          makeCobro({ id: 1, moneda: 'ARS' }),
+          makeCobro({ id: 2, moneda: 'USD' }),
+          makeCobro({ id: 3 }),
         ]}
-        testId="pagos-moneda-table"
+        testId="cobros-moneda-table"
       />
     )
 
     expect(screen.getByRole('columnheader', { name: /Moneda/i })).toBeInTheDocument()
-    expect(screen.getByTestId('pago-moneda-1')).toHaveTextContent('ARS')
-    expect(screen.getByTestId('pago-moneda-2')).toHaveTextContent('USD')
-    expect(screen.getByTestId('pago-moneda-3')).toHaveTextContent('ARS')
+    expect(screen.getByTestId('cobro-moneda-1')).toHaveTextContent('ARS')
+    expect(screen.getByTestId('cobro-moneda-2')).toHaveTextContent('USD')
+    expect(screen.getByTestId('cobro-moneda-3')).toHaveTextContent('ARS')
 
     fireEvent.click(screen.getByRole('button', { name: 'Filtrar Moneda' }))
     const filtro = screen.getByTestId('pay-filter-moneda')
     fireEvent.change(filtro, { target: { value: 'USD' } })
 
-    expect(screen.getByTestId('pago-row-2')).toBeInTheDocument()
-    expect(screen.queryByTestId('pago-row-1')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('pago-row-3')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-3')).not.toBeInTheDocument()
 
     fireEvent.change(filtro, { target: { value: 'ARS' } })
-    expect(screen.getByTestId('pago-row-1')).toBeInTheDocument()
-    expect(screen.getByTestId('pago-row-3')).toBeInTheDocument()
-    expect(screen.queryByTestId('pago-row-2')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-3')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-2')).not.toBeInTheDocument()
 
     const options = within(filtro)
       .getAllByRole('option')

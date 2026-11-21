@@ -10,8 +10,8 @@ import {
   createCargo,
   updateCargo,
   deleteCargo,
-  updatePago,
-  deletePago,
+  updateCobro,
+  deleteCobro,
   getReservationCheckIn,
   sendReservationCheckIn
 } from '../services/api.js';
@@ -322,25 +322,25 @@ const ReservationDetails = () => {
     }
   };
 
-  const handleUpdatePago = async (pagoId, pagoData) => {
+  const handleUpdateCobro = async (cobroId, pagoData) => {
     try {
-      await updatePago(pagoId, pagoData);
+      await updateCobro(cobroId, pagoData);
       await loadFinancialData();
-      notify({ title: 'Pago actualizado', message: 'El pago se actualizó correctamente.', type: 'success' });
+      notify({ title: 'Cobro actualizado', message: 'El cobro se actualizó correctamente.', type: 'success' });
     } catch (error) {
-      console.error('Error actualizando pago:', error);
+      console.error('Error actualizando cobro:', error);
       notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
   };
 
-  const handleDeletePago = async (pagoId) => {
+  const handleDeleteCobro = async (cobroId) => {
     try {
-      await deletePago(pagoId);
+      await deleteCobro(cobroId);
       await loadFinancialData();
-      notify({ title: 'Pago eliminado', message: 'El pago se eliminó correctamente.', type: 'success' });
+      notify({ title: 'Cobro eliminado', message: 'El cobro se eliminó correctamente.', type: 'success' });
     } catch (error) {
-      console.error('Error eliminando pago:', error);
+      console.error('Error eliminando cobro:', error);
       notify({ title: 'Error', message: error.message, type: 'error' });
       throw error;
     }
@@ -512,8 +512,8 @@ const ReservationDetails = () => {
             onAddCargo={handleAddCargo}
             onUpdateCargo={handleUpdateCargo}
             onDeleteCargo={handleDeleteCargo}
-            onUpdatePago={handleUpdatePago}
-            onDeletePago={handleDeletePago}
+            onUpdateCobro={handleUpdateCobro}
+            onDeleteCobro={handleDeleteCobro}
             pendingAction={pendingFinancialAction}
             onPendingActionHandled={() => setPendingFinancialAction(null)}
             onRequestConsumo={() => setConsumptionOpen(true)}

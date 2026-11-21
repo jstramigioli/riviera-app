@@ -1,4 +1,4 @@
-/* Smoke: login → GET /reservation-payments/reservas-para-pago tiene opciones */
+/* Smoke: login → GET /reservation-cobros/reservas-para-cobro tiene opciones */
 const http = require('http');
 
 function req(method, path, body, cookie) {
@@ -56,9 +56,9 @@ function req(method, path, body, cookie) {
     occupiedBody.count ?? occupiedBody.data?.length
   );
 
-  const picker = await req('GET', '/api/reservation-payments/reservas-para-pago', null, cookie);
+  const picker = await req('GET', '/api/reservation-cobros/reservas-para-cobro', null, cookie);
   const pickerBody = JSON.parse(picker.body);
-  console.log('reservas-para-pago', picker.status, 'count=', pickerBody.count);
+  console.log('reservas-para-cobro', picker.status, 'count=', pickerBody.count);
   if (picker.status !== 200) {
     throw new Error(`picker failed: ${picker.status} ${picker.body}`);
   }

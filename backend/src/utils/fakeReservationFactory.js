@@ -7,7 +7,7 @@ const {
   dualWriteReservationRefs,
   syncAccountStatusFromBalance
 } = require('./accountHelpers');
-const { allocateNextPagoCodigo } = require('./pagoCodigo');
+const { allocateNextCobroCodigo } = require('./cobroCodigo');
 const { parseFechaInput } = require('./calendarDates');
 
 const DEBUG_NOTES_PREFIX = 'DEBUG batch=';
@@ -360,10 +360,10 @@ async function addFullPayment({ reservationId, account, amount, batchId, today }
   const monto = Number(amount);
   if (!(monto > 0)) return null;
   const method = await resolveEfectivoMethod();
-  const codigo = await allocateNextPagoCodigo(prisma);
+  const codigo = await allocateNextCobroCodigo(prisma);
   const montoDec = new Prisma.Decimal(monto);
 
-  const pago = await prisma.pago.create({
+  const cobro = await prisma.cobro.create({
     data: {
       ...dualWriteReservationRefs(account, reservationId),
       codigo,
@@ -372,16 +372,16 @@ async function addFullPayment({ reservationId, account, amount, batchId, today }
       montoARS: montoDec,
       moneda: 'ARS',
       metodo: method?.label || 'Efectivo',
-      motivo: 'Pago',
+      motivo: 'Cobro',
       notas: batchNotes(batchId),
       fecha: businessDateFromToday(today)
     }
   });
 
-  // Crédito de folio: sin PagoImputacion el Estado financiero / saldo no ve el cobro.
-  await prisma.pagoImputacion.create({
+  // Crédito de folio: sin CobroImputacion el Estado financiero / saldo no ve el cobro.
+  await prisma.cobroImputacion.create({
     data: {
-      pagoId: pago.id,
+      cobroId: cobro.id,
       accountId: account.id,
       reservaId: Number(reservationId),
       montoARS: montoDec,
@@ -391,7 +391,7 @@ async function addFullPayment({ reservationId, account, amount, batchId, today }
   });
 
   await syncAccountStatusFromBalance(prisma, account.id, 0);
-  return pago;
+  return cobro;
 }
 
 function expandScenarioList({ scenarios, pack, roomsCount }) {
@@ -650,40 +650,40 @@ async function deleteReservationCascade(reservationId) {
   });
 
   if (account) {
-    // PagoImputacion.account / .reserva son Restrict: hay que limpiar folio antes.
-    const imputaciones = await prisma.pagoImputacion.findMany({
+    // CobroImputacion.account / .reserva son Restrict: hay que limpiar folio antes.
+    const imputaciones = await prisma.cobroImputacion.findMany({
       where: { OR: [{ accountId: account.id }, { reservaId: id }] },
-      select: { id: true, pagoId: true }
+      select: { id: true, cobroId: true }
     });
-    const pagoIds = [...new Set(imputaciones.map((i) => i.pagoId))];
+    const cobroIds = [...new Set(imputaciones.map((i) => i.cobroId))];
 
     await prisma.discountApplication.deleteMany({
       where: {
         OR: [
           { accountId: account.id },
-          ...(pagoIds.length ? [{ pagoId: { in: pagoIds } }] : [])
+          ...(cobroIds.length ? [{ cobroId: { in: cobroIds } }] : [])
         ]
       }
     });
 
     if (imputaciones.length) {
-      await prisma.pagoImputacion.deleteMany({
+      await prisma.cobroImputacion.deleteMany({
         where: { id: { in: imputaciones.map((i) => i.id) } }
       });
     }
 
-    if (pagoIds.length) {
-      // Borrar solo pagos que ya no tienen otras imputaciones (p.ej. multi-folio).
-      for (const pagoId of pagoIds) {
-        const left = await prisma.pagoImputacion.count({ where: { pagoId } });
+    if (cobroIds.length) {
+      // Borrar solo cobros que ya no tienen otras imputaciones (p.ej. multi-folio).
+      for (const cobroId of cobroIds) {
+        const left = await prisma.cobroImputacion.count({ where: { cobroId } });
         if (left > 0) continue;
-        await prisma.pagoAdjunto.deleteMany({ where: { pagoId } }).catch(() => {});
-        await prisma.pagoFactura.deleteMany({ where: { pagoId } }).catch(() => {});
-        await prisma.pago.delete({ where: { id: pagoId } }).catch(() => {});
+        await prisma.cobroAdjunto.deleteMany({ where: { cobroId } }).catch(() => {});
+        await prisma.cobroFactura.deleteMany({ where: { cobroId } }).catch(() => {});
+        await prisma.cobro.delete({ where: { id: cobroId } }).catch(() => {});
       }
     }
 
-    await prisma.pago.deleteMany({
+    await prisma.cobro.deleteMany({
       where: { OR: [{ accountId: account.id }, { reservaId: id }] }
     });
     await prisma.cargo.deleteMany({
@@ -691,8 +691,8 @@ async function deleteReservationCascade(reservationId) {
     });
     await prisma.account.delete({ where: { id: account.id } }).catch(() => {});
   } else {
-    await prisma.pagoImputacion.deleteMany({ where: { reservaId: id } }).catch(() => {});
-    await prisma.pago.deleteMany({ where: { reservaId: id } }).catch(() => {});
+    await prisma.cobroImputacion.deleteMany({ where: { reservaId: id } }).catch(() => {});
+    await prisma.cobro.deleteMany({ where: { reservaId: id } }).catch(() => {});
     await prisma.cargo.deleteMany({ where: { reservaId: id } }).catch(() => {});
   }
 

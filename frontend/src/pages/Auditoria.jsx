@@ -149,7 +149,7 @@ function Auditoria() {
             ))}
             {!entities.includes('Reservation') ? <option value="Reservation">Reservation</option> : null}
             {!entities.includes('Client') ? <option value="Client">Client</option> : null}
-            {!entities.includes('Pago') ? <option value="Pago">Pago</option> : null}
+            {!entities.includes('Cobro') ? <option value="Cobro">Cobro</option> : null}
             {!entities.includes('Cargo') ? <option value="Cargo">Cargo</option> : null}
             {!entities.includes('SeasonBlock') ? <option value="SeasonBlock">SeasonBlock</option> : null}
             {!entities.includes('Configuracion') ? <option value="Configuracion">Configuracion</option> : null}

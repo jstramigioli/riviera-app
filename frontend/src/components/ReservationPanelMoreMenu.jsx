@@ -6,13 +6,13 @@ import styles from './ReservationPanelMoreMenu.module.css';
 export const FINANCIAL_ACTIONS = {
   ADD_CONSUMO: 'add-consumo',
   PRINT_LIQUIDACION: 'print-liquidacion',
-  ADD_PAGO: 'add-pago'
+  ADD_COBRO: 'add-cobro'
 };
 
 const MENU_ITEMS = [
   { id: FINANCIAL_ACTIONS.ADD_CONSUMO, label: 'Agregar consumo' },
   { id: FINANCIAL_ACTIONS.PRINT_LIQUIDACION, label: 'Imprimir liquidación' },
-  { id: FINANCIAL_ACTIONS.ADD_PAGO, label: 'Agregar pago' }
+  { id: FINANCIAL_ACTIONS.ADD_COBRO, label: 'Agregar cobro' }
 ];
 
 /**

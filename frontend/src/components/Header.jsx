@@ -90,7 +90,7 @@ function Header() {
           {can('finanzas') ? (
             <Link
               to="/estado-de-cuentas"
-              className={`${styles.navLink} ${location.pathname === '/estado-de-cuentas' || location.pathname === '/cobros-pagos' ? styles.active : ''}`}
+              className={`${styles.navLink} ${location.pathname === '/estado-de-cuentas' || location.pathname === '/cobros' ? styles.active : ''}`}
             >
               Estado de cuentas
             </Link>

@@ -846,7 +846,7 @@ function PromocionesTab() {
     if (!next) {
       const ok = await confirm({
         title: 'Desactivar',
-        message: `¿Desactivar “${row.label}”? Deja de aplicarse a pagos futuros; se puede reactivar desde el mismo control.`,
+        message: `¿Desactivar “${row.label}”? Deja de aplicarse a cobros futuros; se puede reactivar desde el mismo control.`,
         confirmText: 'Desactivar',
         type: 'danger'
       });

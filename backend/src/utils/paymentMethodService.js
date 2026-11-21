@@ -50,12 +50,12 @@ async function resolvePaymentMethodConfig(db, { paymentMethodConfigId, metodo } 
 async function loadAccountFinancialParts(db, accountId) {
   const [cargos, imputaciones, discounts] = await Promise.all([
     db.cargo.findMany({ where: { accountId }, select: { monto: true } }),
-    // Crédito de folio = imputaciones (no Pago.montoARS directo; evita doble conteo multi).
-    db.pagoImputacion.findMany({ where: { accountId }, select: { montoARS: true } }),
+    // Crédito de folio = imputaciones (no Cobro.montoARS directo; evita doble conteo multi).
+    db.cobroImputacion.findMany({ where: { accountId }, select: { montoARS: true } }),
     db.discountApplication.findMany({ where: { accountId }, select: { montoARS: true } })
   ]);
-  const pagos = imputaciones;
-  return { cargos, pagos, discounts, balance: calculateAccountBalance(cargos, pagos, discounts) };
+  const cobros = imputaciones;
+  return { cargos, cobros, discounts, balance: calculateAccountBalance(cargos, cobros, discounts) };
 }
 
 async function buildSettlementContext(db, {
@@ -135,12 +135,12 @@ async function buildSettlementContext(db, {
   return {
     layer: 'SETTLEMENT',
     asOfDate: asOfSafe,
-    motivo: motivo || 'Pago',
+    motivo: motivo || 'Cobro',
     dineroARS,
     saldoPendiente: saldoPendienteAntes,
     moneda: monedaNorm,
     currency: monedaNorm,
-    monedaPago: monedaNorm,
+    monedaCobro: monedaNorm,
     paymentMethodConfigId: config?.id ?? null,
     paymentMethodCode: config?.code ?? null,
     nights,
@@ -252,12 +252,12 @@ async function resolveSettlementDiscount(db, {
  */
 async function createForwardDiscount(db, {
   accountId,
-  pagoId,
-  pagoImputacionId = null,
+  cobroId,
+  cobroImputacionId = null,
   config,
   motivo,
   dineroARS,
-  monedaPago,
+  monedaCobro,
   tipoCambio,
   saldoPendienteAntes,
   selectedRuleIds,
@@ -294,7 +294,7 @@ async function createForwardDiscount(db, {
       applySuggestedDefaults,
       applyAutomatics,
       mode: 'received',
-      moneda: monedaPago
+      moneda: monedaCobro
     });
 
     if (!resolved.aplica || resolved.descuentoARS <= 0) {
@@ -317,8 +317,8 @@ async function createForwardDiscount(db, {
   return db.discountApplication.create({
     data: {
       accountId,
-      pagoId,
-      pagoImputacionId: pagoImputacionId != null ? Number(pagoImputacionId) : null,
+      cobroId,
+      cobroImputacionId: cobroImputacionId != null ? Number(cobroImputacionId) : null,
       paymentMethodConfigId: config?.id ?? null,
       promotionRuleId,
       tipo,
@@ -326,7 +326,7 @@ async function createForwardDiscount(db, {
       porcentaje: porcentaje != null ? new Decimal(porcentaje) : null,
       valorFijo: valorFijo != null ? new Decimal(valorFijo) : null,
       montoARS: new Decimal(descuentoARS),
-      monedaPago: monedaPago || 'ARS',
+      monedaCobro: monedaCobro || 'ARS',
       tipoCambio:
         tipoCambio != null && Number(tipoCambio) > 0 ? new Decimal(tipoCambio) : null,
       appliedRulesJson: appliedRules,
@@ -337,24 +337,24 @@ async function createForwardDiscount(db, {
 }
 
 /**
- * Valida y prepara reversión de descuento para una devolución ligada a pago origen.
+ * Valida y prepara reversión de descuento para una devolución ligada a cobro origen.
  */
 async function createReversalDiscount(db, {
   accountId,
-  devolucionPagoId,
+  devolucionCobroId,
   devolucionImputacionId = null,
-  pagoOrigen,
+  cobroOrigen,
   devolucionMontoARSAbs,
-  /** Imputación origen (multi); si null, toma DA forward del account o del pago. */
-  pagoOrigenImputacionId = null
+  /** Imputación origen (multi); si null, toma DA forward del account o del cobro. */
+  cobroOrigenImputacionId = null
 }) {
   const original = await db.discountApplication.findFirst({
     where: {
-      pagoId: pagoOrigen.id,
+      cobroId: cobroOrigen.id,
       tipo: { not: 'REVERSAL' },
       montoARS: { gt: 0 },
-      ...(pagoOrigenImputacionId != null
-        ? { pagoImputacionId: Number(pagoOrigenImputacionId) }
+      ...(cobroOrigenImputacionId != null
+        ? { cobroImputacionId: Number(cobroOrigenImputacionId) }
         : { accountId: Number(accountId) })
     },
     orderBy: { id: 'asc' }
@@ -377,18 +377,18 @@ async function createReversalDiscount(db, {
   }
 
   const origenMonto =
-    pagoOrigenImputacionId != null
+    cobroOrigenImputacionId != null
       ? (
-          await db.pagoImputacion.findUnique({
-            where: { id: Number(pagoOrigenImputacionId) },
+          await db.cobroImputacion.findUnique({
+            where: { id: Number(cobroOrigenImputacionId) },
             select: { montoARS: true }
           })
-        )?.montoARS ?? pagoOrigen.montoARS
-      : pagoOrigen.montoARS;
+        )?.montoARS ?? cobroOrigen.montoARS
+      : cobroOrigen.montoARS;
 
   const { descuentoRevertidoARS } = computeDiscountReversal({
     originalDiscountARS: toNumber(original.montoARS),
-    originalPagoARS: origenMonto,
+    originalCobroARS: origenMonto,
     devolucionARS: devolucionMontoARSAbs
   });
 
@@ -398,8 +398,8 @@ async function createReversalDiscount(db, {
   const reversal = await db.discountApplication.create({
     data: {
       accountId,
-      pagoId: devolucionPagoId,
-      pagoImputacionId:
+      cobroId: devolucionCobroId,
+      cobroImputacionId:
         devolucionImputacionId != null ? Number(devolucionImputacionId) : null,
       paymentMethodConfigId: original.paymentMethodConfigId,
       promotionRuleId: original.promotionRuleId,
@@ -408,7 +408,7 @@ async function createReversalDiscount(db, {
       porcentaje: original.porcentaje,
       valorFijo: original.valorFijo,
       montoARS: new Decimal(-revertAmount),
-      monedaPago: original.monedaPago,
+      monedaCobro: original.monedaCobro,
       tipoCambio: original.tipoCambio,
       appliedRulesJson: original.appliedRulesJson || null,
       reversoDeId: original.id,
@@ -429,18 +429,18 @@ async function createReversalDiscount(db, {
 }
 
 /**
- * Suma de montos (abs) ya devueltos sobre un pago origen.
+ * Suma de montos (abs) ya devueltos sobre un cobro origen.
  */
-async function sumDevolucionesOnOrigen(db, pagoOrigenId) {
-  const rows = await db.pago.findMany({
-    where: { pagoOrigenId, motivo: 'Devolución' },
+async function sumDevolucionesOnOrigen(db, cobroOrigenId) {
+  const rows = await db.cobro.findMany({
+    where: { cobroOrigenId, motivo: 'Devolución' },
     select: { montoARS: true }
   });
   return roundMoney(rows.reduce((s, r) => s + Math.abs(toNumber(r.montoARS)), 0));
 }
 
 /**
- * Preview público (API / PaymentForm enrichment).
+ * Preview público (API / CobroForm enrichment).
  */
 async function previewSettlementDiscount(db, params) {
   return resolveSettlementDiscount(db, params);

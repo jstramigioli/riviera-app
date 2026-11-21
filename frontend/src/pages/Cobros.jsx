@@ -3,29 +3,29 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
 import {
   getAccountsWithBalances,
-  getAllPagos,
-  deletePago,
-  uploadPagoAdjuntos,
-  deletePagoAdjunto,
-  downloadPagoAdjunto,
+  getAllCobros,
+  deleteCobro,
+  uploadCobroAdjuntos,
+  deleteCobroAdjunto,
+  downloadCobroAdjunto,
   createExternalAccount,
 } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
-import PaymentForm from '../components/PaymentForm';
-import PagosHistorialTable, {
+import CobroForm from '../components/CobroForm';
+import CobrosHistorialTable, {
   EMPTY_PAY_FILTERS,
   ADJUNTO_FACTURA,
   adjuntosOf,
   paymentCodeLabel,
-} from '../components/PagosHistorialTable';
+} from '../components/CobrosHistorialTable';
 import { formatMoneyArs } from '../utils/formatMoney';
-import styles from './CobrosPagos.module.css';
+import styles from './Cobros.module.css';
 
 const SECTIONS = {
   cuentas: 'cuentas',
-  pagos: 'pagos',
+  cobros: 'cobros',
   facturacion: 'facturacion',
 };
 
@@ -54,17 +54,17 @@ const FACTURA_A_COLUMNS = [
 ];
 
 /** Neto: total con IVA / 1.21 (solo Factura A). */
-function montoSinIvaFromPago(pago) {
-  const total = Number(pago?.montoARS != null ? pago.montoARS : pago?.monto) || 0;
+function montoSinIvaFromCobro(cobro) {
+  const total = Number(cobro?.montoARS != null ? cobro.montoARS : cobro?.monto) || 0;
   return Math.abs(total) / 1.21;
 }
 
-function facturaCellValue(pago, key) {
-  if (key === 'codigo') return paymentCodeLabel(pago);
-  // Solo día (sin hora): fecha de facturación, que puede diferir de la del pago.
-  if (key === 'fecha') return formatDisplayDate(pago?.factura?.fecha || pago?.fecha);
-  if (key === 'montoSinIva') return formatMoneyArs(montoSinIvaFromPago(pago));
-  const raw = pago?.factura?.[key];
+function facturaCellValue(cobro, key) {
+  if (key === 'codigo') return paymentCodeLabel(cobro);
+  // Solo día (sin hora): fecha de facturación, que puede diferir de la del cobro.
+  if (key === 'fecha') return formatDisplayDate(cobro?.factura?.fecha || cobro?.fecha);
+  if (key === 'montoSinIva') return formatMoneyArs(montoSinIvaFromCobro(cobro));
+  const raw = cobro?.factura?.[key];
   if (raw == null || String(raw).trim() === '') return '';
   return String(raw);
 }
@@ -112,7 +112,7 @@ function endOfDay(isoDate) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-const CobrosPagos = () => {
+const Cobros = () => {
   const navigate = useNavigate();
   const { can } = useAuth();
   const canFacturacion = can('facturacion');
@@ -134,13 +134,13 @@ const CobrosPagos = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [uploadingPagoId, setUploadingPagoId] = useState(null);
+  const [uploadingCobroId, setUploadingCobroId] = useState(null);
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
-  /** Pagos con comprobante subido en esta visita a Facturación (se ocultan al salir/recargar). */
+  /** Cobros con comprobante subido en esta visita a Facturación (se ocultan al salir/recargar). */
   const [facturacionSessionDone, setFacturacionSessionDone] = useState(() => new Set());
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showCobroForm, setShowCobroForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
-  const [editingPago, setEditingPago] = useState(null);
+  const [editingCobro, setEditingCobro] = useState(null);
 
   const [statusFilters, setStatusFilters] = useState(DEFAULT_STATUS_FILTERS);
   const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
@@ -176,7 +176,7 @@ const CobrosPagos = () => {
       setError(null);
       const [balancesData, paymentsData] = await Promise.all([
         getAccountsWithBalances('ALL'),
-        getAllPagos().catch(() => []),
+        getAllCobros().catch(() => []),
       ]);
       setReservationsWithBalances(balancesData || []);
       setPayments(Array.isArray(paymentsData) ? paymentsData : []);
@@ -200,16 +200,16 @@ const CobrosPagos = () => {
     setSearchParams(next, { replace: true });
   };
 
-  const facturacionSortMs = (pago) => {
-    const raw = pago?.factura?.fecha || pago?.fecha;
+  const facturacionSortMs = (cobro) => {
+    const raw = cobro?.factura?.fecha || cobro?.fecha;
     return raw ? new Date(raw).getTime() : 0;
   };
 
   const isFacturacionRowVisible = useCallback(
-    (pago) => {
-      const hasComprobante = adjuntosOf(pago, ADJUNTO_FACTURA).length > 0;
+    (cobro) => {
+      const hasComprobante = adjuntosOf(cobro, ADJUNTO_FACTURA).length > 0;
       if (!hasComprobante) return true;
-      return facturacionSessionDone.has(pago.id);
+      return facturacionSessionDone.has(cobro.id);
     },
     [facturacionSessionDone]
   );
@@ -220,10 +220,10 @@ const CobrosPagos = () => {
     }
   }, [activeSection]);
 
-  const facturacionPagosA = useMemo(
+  const facturacionCobrosA = useMemo(
     () =>
       (payments || [])
-        .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'A')
+        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'A')
         .filter(isFacturacionRowVisible)
         .slice()
         .sort((a, b) => {
@@ -234,10 +234,10 @@ const CobrosPagos = () => {
     [payments, isFacturacionRowVisible]
   );
 
-  const facturacionPagosB = useMemo(
+  const facturacionCobrosB = useMemo(
     () =>
       (payments || [])
-        .filter((pago) => pago?.requiereFacturacion && pago?.factura?.tipo === 'B')
+        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'B')
         .filter(isFacturacionRowVisible)
         .slice()
         .sort((a, b) => {
@@ -287,14 +287,14 @@ const CobrosPagos = () => {
     );
   };
 
-  const renderAdjuntoFileRow = (pago, file, { showCheck = false, canDelete = false } = {}) => {
+  const renderAdjuntoFileRow = (cobro, file, { showCheck = false, canDelete = false } = {}) => {
     const busyDelete = deletingAdjuntoId === file.id;
     return (
       <div key={file.id} className={styles.fileRow}>
         <button
           type="button"
           className={styles.fileLink}
-          onClick={() => handleDownloadAdjunto(pago, file)}
+          onClick={() => handleDownloadAdjunto(cobro, file)}
           title="Descargar"
         >
           {file.originalName || `Archivo ${file.id}`}
@@ -311,7 +311,7 @@ const CobrosPagos = () => {
             aria-label="Eliminar comprobante"
             title="Eliminar"
             disabled={busyDelete}
-            onClick={() => handleDeleteAdjunto(pago, file)}
+            onClick={() => handleDeleteAdjunto(cobro, file)}
           >
             <FiX aria-hidden="true" />
           </button>
@@ -320,14 +320,14 @@ const CobrosPagos = () => {
     );
   };
 
-  const renderFacturaPdfCell = (pago) => {
-    const facturaFiles = adjuntosOf(pago, ADJUNTO_FACTURA);
-    const busyUpload = uploadingPagoId === pago.id;
+  const renderFacturaPdfCell = (cobro) => {
+    const facturaFiles = adjuntosOf(cobro, ADJUNTO_FACTURA);
+    const busyUpload = uploadingCobroId === cobro.id;
     if (facturaFiles.length > 0) {
       return (
         <div className={styles.fileList}>
           {facturaFiles.map((file) =>
-            renderAdjuntoFileRow(pago, file, { showCheck: true, canDelete: true })
+            renderAdjuntoFileRow(cobro, file, { showCheck: true, canDelete: true })
           )}
         </div>
       );
@@ -338,7 +338,7 @@ const CobrosPagos = () => {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.dataTransfer.files);
+          handleUploadAdjuntos(cobro, ADJUNTO_FACTURA, e.dataTransfer.files);
         }}
       >
         <input
@@ -347,7 +347,7 @@ const CobrosPagos = () => {
           multiple
           disabled={busyUpload}
           onChange={(e) => {
-            handleUploadAdjuntos(pago, ADJUNTO_FACTURA, e.target.files);
+            handleUploadAdjuntos(cobro, ADJUNTO_FACTURA, e.target.files);
             e.target.value = '';
           }}
         />
@@ -375,12 +375,12 @@ const CobrosPagos = () => {
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + 1} className={styles.emptyCell}>
-                  No hay pagos pendientes de Factura {tipo}
+                  No hay cobros pendientes de Factura {tipo}
                 </td>
               </tr>
             ) : (
-              rows.map((pago) => (
-                <tr key={pago.id} className={styles.row}>
+              rows.map((cobro) => (
+                <tr key={cobro.id} className={styles.row}>
                   {columns.map((col) => (
                     <td
                       key={col.key}
@@ -392,10 +392,10 @@ const CobrosPagos = () => {
                             : styles.metaCell
                       }
                     >
-                      {renderCopyCell(facturaCellValue(pago, col.key))}
+                      {renderCopyCell(facturaCellValue(cobro, col.key))}
                     </td>
                   ))}
-                  <td className={styles.facturaCell}>{renderFacturaPdfCell(pago)}</td>
+                  <td className={styles.facturaCell}>{renderFacturaPdfCell(cobro)}</td>
                 </tr>
               ))
             )}
@@ -415,7 +415,7 @@ const CobrosPagos = () => {
     const clientId = clientIdParam ? Number(clientIdParam) : null;
 
     return (reservationsWithBalances || []).filter((reservation) => {
-      const payStatus = reservation.estadoPago || 'PENDIENTE';
+      const payStatus = reservation.estadoCobro || 'PENDIENTE';
       if (!statusFilters[payStatus]) return false;
 
       const origen = reservation.origen || reservation.accountKind || 'RESERVA';
@@ -439,8 +439,8 @@ const CobrosPagos = () => {
       }
 
       if (from || to) {
-        const paymentDates = (reservation.pagos || [])
-          .map((pago) => (pago.fecha ? new Date(pago.fecha) : null))
+        const paymentDates = (reservation.cobros || [])
+          .map((cobro) => (cobro.fecha ? new Date(cobro.fecha) : null))
           .filter((d) => d && !Number.isNaN(d.getTime()));
         const refDate =
           paymentDates.length > 0
@@ -471,28 +471,28 @@ const CobrosPagos = () => {
     [payFilters, clientIdParam]
   );
 
-  const mergePagoAdjuntos = (pagoId, nuevos) => {
+  const mergeCobroAdjuntos = (cobroId, nuevos) => {
     setPayments((prev) =>
-      prev.map((pago) => {
-        if (pago.id !== pagoId) return pago;
-        const existing = Array.isArray(pago.adjuntos) ? pago.adjuntos : [];
-        return { ...pago, adjuntos: [...existing, ...nuevos] };
+      prev.map((cobro) => {
+        if (cobro.id !== cobroId) return cobro;
+        const existing = Array.isArray(cobro.adjuntos) ? cobro.adjuntos : [];
+        return { ...cobro, adjuntos: [...existing, ...nuevos] };
       })
     );
   };
 
-  const removePagoAdjuntoLocal = (pagoId, adjuntoId) => {
+  const removeCobroAdjuntoLocal = (cobroId, adjuntoId) => {
     setPayments((prev) =>
-      prev.map((pago) => {
-        if (pago.id !== pagoId) return pago;
-        const existing = Array.isArray(pago.adjuntos) ? pago.adjuntos : [];
-        return { ...pago, adjuntos: existing.filter((a) => a.id !== adjuntoId) };
+      prev.map((cobro) => {
+        if (cobro.id !== cobroId) return cobro;
+        const existing = Array.isArray(cobro.adjuntos) ? cobro.adjuntos : [];
+        return { ...cobro, adjuntos: existing.filter((a) => a.id !== adjuntoId) };
       })
     );
   };
 
-  const handleUploadAdjuntos = async (pago, tipo, fileList) => {
-    if (!pago?.id || !fileList?.length) return;
+  const handleUploadAdjuntos = async (cobro, tipo, fileList) => {
+    if (!cobro?.id || !fileList?.length) return;
     const files = Array.from(fileList);
     const acceptPdfOnly = tipo === ADJUNTO_FACTURA;
     const invalid = files.filter((file) => {
@@ -510,15 +510,15 @@ const CobrosPagos = () => {
       });
       return;
     }
-    setUploadingPagoId(pago.id);
+    setUploadingCobroId(cobro.id);
     try {
-      const created = await uploadPagoAdjuntos(pago.id, tipo, files);
+      const created = await uploadCobroAdjuntos(cobro.id, tipo, files);
       const list = Array.isArray(created) ? created : [created];
-      mergePagoAdjuntos(pago.id, list);
+      mergeCobroAdjuntos(cobro.id, list);
       if (tipo === ADJUNTO_FACTURA) {
         setFacturacionSessionDone((prev) => {
           const next = new Set(prev);
-          next.add(pago.id);
+          next.add(cobro.id);
           return next;
         });
       }
@@ -529,13 +529,13 @@ const CobrosPagos = () => {
         type: 'error',
       });
     } finally {
-      setUploadingPagoId(null);
+      setUploadingCobroId(null);
     }
   };
 
-  const handleDownloadAdjunto = async (pago, adjunto) => {
+  const handleDownloadAdjunto = async (cobro, adjunto) => {
     try {
-      await downloadPagoAdjunto(pago.id, adjunto.id, adjunto.originalName);
+      await downloadCobroAdjunto(cobro.id, adjunto.id, adjunto.originalName);
     } catch (err) {
       notify({
         title: 'No se pudo descargar',
@@ -545,8 +545,8 @@ const CobrosPagos = () => {
     }
   };
 
-  const handleDeleteAdjunto = async (pago, adjunto) => {
-    if (!pago?.id || !adjunto?.id) return;
+  const handleDeleteAdjunto = async (cobro, adjunto) => {
+    if (!cobro?.id || !adjunto?.id) return;
     if (adjunto.tipo === ADJUNTO_FACTURA && !canFacturacion) {
       notify({
         title: 'Sin permiso',
@@ -564,20 +564,20 @@ const CobrosPagos = () => {
 
     setDeletingAdjuntoId(adjunto.id);
     try {
-      await deletePagoAdjunto(pago.id, adjunto.id);
-      removePagoAdjuntoLocal(pago.id, adjunto.id);
+      await deleteCobroAdjunto(cobro.id, adjunto.id);
+      removeCobroAdjuntoLocal(cobro.id, adjunto.id);
       if (adjunto.tipo === ADJUNTO_FACTURA) {
         const remaining = adjuntosOf(
           {
-            ...pago,
-            adjuntos: (pago.adjuntos || []).filter((a) => a.id !== adjunto.id),
+            ...cobro,
+            adjuntos: (cobro.adjuntos || []).filter((a) => a.id !== adjunto.id),
           },
           ADJUNTO_FACTURA
         );
         if (remaining.length === 0) {
           setFacturacionSessionDone((prev) => {
             const next = new Set(prev);
-            next.delete(pago.id);
+            next.delete(cobro.id);
             return next;
           });
         }
@@ -599,37 +599,37 @@ const CobrosPagos = () => {
   };
 
   const handleAddPayment = (reservation) => {
-    setEditingPago(null);
+    setEditingCobro(null);
     setSelectedReservation(reservation || null);
-    setShowPaymentForm(true);
+    setShowCobroForm(true);
   };
 
   const handleNewPayment = () => {
-    setEditingPago(null);
+    setEditingCobro(null);
     setSelectedReservation(null);
-    setShowPaymentForm(true);
+    setShowCobroForm(true);
   };
 
-  const handleEditPago = (pago) => {
+  const handleEditCobro = (cobro) => {
     setSelectedReservation(null);
-    setEditingPago(pago);
-    setShowPaymentForm(true);
+    setEditingCobro(cobro);
+    setShowCobroForm(true);
   };
 
-  const handleClosePaymentForm = () => {
-    setShowPaymentForm(false);
+  const handleCloseCobroForm = () => {
+    setShowCobroForm(false);
     setSelectedReservation(null);
-    setEditingPago(null);
+    setEditingCobro(null);
   };
 
-  const handleDeletePago = async (pago) => {
-    if (!pago?.id) return;
-    await deletePago(pago.id);
-    setPayments((prev) => (prev || []).filter((row) => row.id !== pago.id));
-    if (editingPago?.id === pago.id) handleClosePaymentForm();
+  const handleDeleteCobro = async (cobro) => {
+    if (!cobro?.id) return;
+    await deleteCobro(cobro.id);
+    setPayments((prev) => (prev || []).filter((row) => row.id !== cobro.id));
+    if (editingCobro?.id === cobro.id) handleCloseCobroForm();
     notify({
-      title: 'Pago eliminado',
-      message: `Se eliminó ${paymentCodeLabel(pago)}.`,
+      title: 'Cobro eliminado',
+      message: `Se eliminó ${paymentCodeLabel(cobro)}.`,
       type: 'success',
       autoDismiss: true,
     });
@@ -659,11 +659,11 @@ const CobrosPagos = () => {
     }
   };
 
-  const handlePaymentSuccess = (nuevoPago) => {
-    if (nuevoPago?.id != null) {
+  const handlePaymentSuccess = (nuevoCobro) => {
+    if (nuevoCobro?.id != null) {
       notify({
-        title: 'Pago registrado',
-        message: `Nº ${nuevoPago.id} — anotalo en el papelito. Reserva #${nuevoPago.reservaId || selectedReservation?.id || '—'}.`,
+        title: 'Cobro registrado',
+        message: `Nº ${nuevoCobro.id} — anotalo en el papelito. Reserva #${nuevoCobro.reservaId || selectedReservation?.id || '—'}.`,
         type: 'success',
       });
     }
@@ -701,10 +701,10 @@ const CobrosPagos = () => {
           </button>
           <button
             type="button"
-            className={`${styles.sectionButton} ${activeSection === SECTIONS.pagos ? styles.active : ''}`}
-            onClick={() => selectSection(SECTIONS.pagos)}
+            className={`${styles.sectionButton} ${activeSection === SECTIONS.cobros ? styles.active : ''}`}
+            onClick={() => selectSection(SECTIONS.cobros)}
           >
-            Pagos
+            Cobros
           </button>
           {canFacturacion ? (
             <button
@@ -937,14 +937,14 @@ const CobrosPagos = () => {
                             ? reservation.accountLabel || 'Cuenta externa'
                             : 'Sin cliente';
                         const statusColor =
-                          STATUS_COLORS[reservation.estadoPago] || '#6b7280';
-                        const paymentList = (reservation.pagos || [])
+                          STATUS_COLORS[reservation.estadoCobro] || '#6b7280';
+                        const paymentList = (reservation.cobros || [])
                           .slice()
                           .sort((a, b) => Number(a.id) - Number(b.id));
                         const lastPaymentDate =
                           paymentList.length > 0
-                            ? paymentList.reduce((latest, pago) => {
-                                const d = pago.fecha ? new Date(pago.fecha) : null;
+                            ? paymentList.reduce((latest, cobro) => {
+                                const d = cobro.fecha ? new Date(cobro.fecha) : null;
                                 if (!d || Number.isNaN(d.getTime())) return latest;
                                 if (!latest || d > latest) return d;
                                 return latest;
@@ -977,16 +977,16 @@ const CobrosPagos = () => {
                               {paymentList.length > 0 ? (
                                 <div
                                   className={styles.paymentIdList}
-                                  title="Códigos de pago para papelitos"
+                                  title="Códigos de cobro para papelitos"
                                 >
-                                  {paymentList.map((pago) => (
-                                    <span key={pago.id} className={styles.paymentId}>
-                                      {paymentCodeLabel(pago)}
+                                  {paymentList.map((cobro) => (
+                                    <span key={cobro.id} className={styles.paymentId}>
+                                      {paymentCodeLabel(cobro)}
                                     </span>
                                   ))}
                                 </div>
                               ) : (
-                                <span className={styles.meta}>Sin pagos</span>
+                                <span className={styles.meta}>Sin cobros</span>
                               )}
                             </td>
                             <td>
@@ -1003,7 +1003,7 @@ const CobrosPagos = () => {
                               )}
                             </td>
                             <td>{formatMoneyArs(reservation.totalCargos)}</td>
-                            <td>{formatMoneyArs(reservation.totalPagos)}</td>
+                            <td>{formatMoneyArs(reservation.totalCobros)}</td>
                             <td className={styles.amountCell} style={{ color: statusColor }}>
                               {formatMoneyArs(reservation.saldo)}
                             </td>
@@ -1012,7 +1012,7 @@ const CobrosPagos = () => {
                                 className={styles.statusBadge}
                                 style={{ backgroundColor: statusColor }}
                               >
-                                {reservation.estadoPago}
+                                {reservation.estadoCobro}
                               </span>
                             </td>
                             <td className={styles.metaCell}>
@@ -1026,10 +1026,10 @@ const CobrosPagos = () => {
                                   type="button"
                                   className={styles.paymentButton}
                                   onClick={() => handleAddPayment(reservation)}
-                                  title="Agregar pago"
+                                  title="Agregar cobro"
                                 >
                                   <FiPlus aria-hidden="true" />
-                                  Agregar pago
+                                  Agregar cobro
                                 </button>
                               </div>
                             </td>
@@ -1043,10 +1043,10 @@ const CobrosPagos = () => {
             </section>
           )}
 
-          {activeSection === SECTIONS.pagos && (
+          {activeSection === SECTIONS.cobros && (
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2>Pagos</h2>
+                <h2>Cobros</h2>
                 <div className={styles.sectionActions}>
                   {hasActivePayFilters && (
                     <button
@@ -1068,10 +1068,10 @@ const CobrosPagos = () => {
                     type="button"
                     className={styles.createButton}
                     onClick={handleNewPayment}
-                    title="Crear nuevo pago"
+                    title="Crear nuevo cobro"
                   >
                     <FiPlus aria-hidden="true" />
-                    Pago
+                    Cobro
                   </button>
                 </div>
               </div>
@@ -1095,7 +1095,7 @@ const CobrosPagos = () => {
                 </div>
               )}
 
-              <PagosHistorialTable
+              <CobrosHistorialTable
                 payments={payments}
                 onPaymentsChange={setPayments}
                 payFilters={payFilters}
@@ -1103,14 +1103,14 @@ const CobrosPagos = () => {
                 enableColumnFilters
                 canDeleteFactura={canFacturacion}
                 clientIdFilter={clientIdParam}
-                emptyMessage="No hay pagos con los filtros actuales"
+                emptyMessage="No hay cobros con los filtros actuales"
                 onClientClick={handleClientClick}
                 onReservationClick={(reservaId) => {
                   if (reservaId != null) navigate(`/reservations/${reservaId}`);
                 }}
-                onEditPago={handleEditPago}
-                onDeletePago={handleDeletePago}
-                testId="estado-cuentas-pagos-table"
+                onEditCobro={handleEditCobro}
+                onDeleteCobro={handleDeleteCobro}
+                testId="estado-cuentas-cobros-table"
               />
             </section>
           )}
@@ -1120,18 +1120,18 @@ const CobrosPagos = () => {
               <div className={styles.sectionHeader}>
                 <h2>Facturación</h2>
               </div>
-              {renderFacturacionTable('A', FACTURA_A_COLUMNS, facturacionPagosA)}
-              {renderFacturacionTable('B', FACTURA_B_COLUMNS, facturacionPagosB)}
+              {renderFacturacionTable('A', FACTURA_A_COLUMNS, facturacionCobrosA)}
+              {renderFacturacionTable('B', FACTURA_B_COLUMNS, facturacionCobrosB)}
             </section>
           )}
         </div>
       </div>
 
-      {showPaymentForm && (
-        <PaymentForm
+      {showCobroForm && (
+        <CobroForm
           reservaId={
-            editingPago
-              ? editingPago.reservaId || editingPago.reserva?.id || null
+            editingCobro
+              ? editingCobro.reservaId || editingCobro.reserva?.id || null
               : selectedReservation &&
                   selectedReservation.origen !== 'EXTERNA' &&
                   selectedReservation.accountKind !== 'EXTERNAL'
@@ -1139,16 +1139,16 @@ const CobrosPagos = () => {
                 : null
           }
           accountId={
-            editingPago
-              ? editingPago.accountId || null
+            editingCobro
+              ? editingCobro.accountId || null
               : selectedReservation &&
                   (selectedReservation.origen === 'EXTERNA' ||
                     selectedReservation.accountKind === 'EXTERNAL')
                 ? selectedReservation.accountId
                 : null
           }
-          initialPago={editingPago}
-          onClose={handleClosePaymentForm}
+          initialCobro={editingCobro}
+          onClose={handleCloseCobroForm}
           onSuccess={handlePaymentSuccess}
         />
       )}
@@ -1159,4 +1159,4 @@ const CobrosPagos = () => {
   );
 };
 
-export default CobrosPagos;
+export default Cobros;
