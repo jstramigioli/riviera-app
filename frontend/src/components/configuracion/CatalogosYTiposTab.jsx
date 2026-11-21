@@ -3,6 +3,7 @@ import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff, FaPa
 import styles from './CatalogosYTiposTab.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 
 const CatalogosYTiposTab = () => {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -11,6 +12,7 @@ const CatalogosYTiposTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const addOverlayDismiss = useOverlayDismiss(() => setShowAddModal(false));
   const [editingTipo, setEditingTipo] = useState(null);
   const [formData, setFormData] = useState({
     codigo: '',
@@ -299,7 +301,7 @@ const CatalogosYTiposTab = () => {
 
       {/* Modal para agregar/editar tipo */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+        <div className={styles.modalOverlay} {...addOverlayDismiss}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>{editingTipo ? 'Editar Tipo de Cargo' : 'Nuevo Tipo de Cargo'}</h3>

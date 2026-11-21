@@ -11,6 +11,7 @@ import {
 } from '../services/api';
 import { todayIsoLocal } from '../utils/calendarDates';
 import { formatMoneyArs } from '../utils/formatMoney';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from '../styles/ConsumptionOrderModal.module.css';
 
 const FALLBACK_CATEGORY_ORDER = ['BEBIDAS', 'MINUTAS', 'CAFETERIA'];
@@ -198,6 +199,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+  const overlayDismiss = useOverlayDismiss(onClose, { enabled: !submitting });
 
   useEffect(() => {
     presetRef.current = preset;
@@ -709,7 +711,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
   return (
     <>
-      <div className={styles.overlay} role="presentation">
+      <div className={styles.overlay} role="presentation" {...overlayDismiss}>
         <div
           className={styles.modal}
           role="dialog"

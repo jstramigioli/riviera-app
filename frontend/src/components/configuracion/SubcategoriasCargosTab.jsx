@@ -3,6 +3,7 @@ import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes, FaToggleOn, FaToggleOff } fro
 import styles from './SubcategoriasCargosTab.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 
 const SubcategoriasCargosTab = ({ tipo }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -11,6 +12,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const addOverlayDismiss = useOverlayDismiss(() => setShowAddModal(false));
   const [editingSubcategoria, setEditingSubcategoria] = useState(null);
   const [formData, setFormData] = useState({
     codigo: '',
@@ -305,7 +307,7 @@ const SubcategoriasCargosTab = ({ tipo }) => {
 
       {/* Modal para agregar/editar */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+        <div className={styles.modalOverlay} {...addOverlayDismiss}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>

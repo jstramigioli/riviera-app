@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './DeleteSegmentsModal.module.css';
 
 const DeleteSegmentsModal = ({ 
@@ -7,13 +8,15 @@ const DeleteSegmentsModal = ({
   onConfirm, 
   onCancel 
 }) => {
+  const overlayDismiss = useOverlayDismiss(onCancel);
+
   if (!isOpen) return null;
 
   const segmentCount = segmentsToDelete.length;
   const segmentWord = segmentCount === 1 ? 'segmento' : 'segmentos';
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} {...overlayDismiss}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <h3> Eliminar {segmentWord}</h3>

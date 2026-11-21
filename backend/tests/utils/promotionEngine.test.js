@@ -47,6 +47,33 @@ describe('promotionEngine conditions AND', () => {
     ).toBe(false);
   });
 
+  it('CURRENCY y AMOUNT_TO_SETTLE', () => {
+    expect(
+      evaluateCondition(
+        { type: 'CURRENCY', params: { currency: 'USD', op: 'eq' } },
+        { moneda: 'USD' }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'CURRENCY', params: { currency: 'USD', op: 'eq' } },
+        { moneda: 'ARS' }
+      )
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { type: 'AMOUNT_TO_SETTLE', params: { op: 'gte', value: 10000 } },
+        { saldoPendiente: 15000 }
+      )
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { type: 'AMOUNT_TO_SETTLE', params: { op: 'gte', value: 10000 } },
+        { saldoPendiente: 5000 }
+      )
+    ).toBe(false);
+  });
+
   it('MIN_NIGHTS + ROOM_TYPE AND', () => {
     const rule = {
       conditions: [

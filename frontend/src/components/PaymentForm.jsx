@@ -44,6 +44,7 @@ import {
   roundMoney
 } from '../utils/paymentDiscount';
 import { formatMoney, formatMoneyArs, formatMoneyUsd } from '../utils/formatMoney';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './PaymentForm.module.css';
 
 function pagoFechaToInput(value) {
@@ -289,6 +290,7 @@ const PaymentForm = ({
   const [tipoCambioGlobal, setTipoCambioGlobal] = useState(null);
   const [montoARS, setMontoARS] = useState(0);
   const [loading, setLoading] = useState(false);
+  const overlayDismiss = useOverlayDismiss(onClose, { enabled: !loading });
   const [error, setError] = useState(null);
   const [methodConfigs, setMethodConfigs] = useState([]);
   const [saldoPendiente, setSaldoPendiente] = useState(null);
@@ -510,6 +512,7 @@ const PaymentForm = ({
           paymentMethodConfigId: selectedMethodConfig?.id,
           dineroARS,
           saldoPendiente: saldoForPreview,
+          moneda: formData.moneda,
           motivo: motivoActual,
           mode: previewMode,
           selectedRuleIds,
@@ -1374,7 +1377,7 @@ const PaymentForm = ({
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} {...overlayDismiss}>
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
         <div className={styles.header}>
           <h2 id="payment-form-title">
@@ -1873,9 +1876,6 @@ const PaymentForm = ({
                 disabled={loading || isEditMode}
                 data-testid="payment-monto-saldar"
               />
-              <span className={styles.helpText} data-testid="payment-saldar-currency-hint">
-                Siempre en ARS
-              </span>
               {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
                 <button
                   type="button"

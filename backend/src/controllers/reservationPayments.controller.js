@@ -1741,7 +1741,8 @@ exports.createClientMultiPago = async (req, res) => {
       benefitValueByRuleId: acceptedBenefitValues,
       applySuggestedDefaults: acceptedApplySuggested,
       mode: 'received',
-      asOfDate: fechaPago
+      asOfDate: fechaPago,
+      moneda: monedaFinal
     });
     const bonoTotal = preview?.aplica ? roundMoney(preview.descuentoARS || 0) : 0;
 

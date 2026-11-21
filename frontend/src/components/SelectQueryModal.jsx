@@ -2,9 +2,12 @@ import { FiX } from 'react-icons/fi';
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './SelectQueryModal.module.css';
 
 function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery, onCreateNew }) {
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!isOpen) return null;
 
   const formatDate = (date) => {
@@ -13,8 +16,8 @@ function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery,
   };
 
   return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.modalBackdrop} {...overlayDismiss}>
+      <div className={styles.modalContent}>
         <div className={styles.modalHeader}>
           <h2> Consultas recientes de {clientName}</h2>
           <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar"><FiX /></button>

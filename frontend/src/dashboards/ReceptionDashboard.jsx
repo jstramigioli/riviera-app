@@ -25,6 +25,7 @@ import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
 import { formatMoneyArs } from '../utils/formatMoney';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './ReceptionDashboard.module.css';
 
 const NOTES_PLACEHOLDER = 'Agregar notas…';
@@ -121,12 +122,11 @@ function NotesEditDialog({
 }) {
   const [draft, setDraft] = useState(initialNotes || '');
   const textareaRef = useRef(null);
-  const mouseDownOnOverlay = useRef(false);
+  const overlayDismiss = useOverlayDismiss(onClose, { enabled: !saving });
 
   useEffect(() => {
     if (!open) return undefined;
     setDraft(initialNotes || '');
-    mouseDownOnOverlay.current = false;
     const t = window.setTimeout(() => textareaRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
   }, [open, initialNotes]);
@@ -140,27 +140,13 @@ function NotesEditDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, saving, onClose]);
 
-  const handleOverlayMouseDown = (e) => {
-    mouseDownOnOverlay.current = e.target === e.currentTarget;
-  };
-
-  const handleOverlayMouseUp = (e) => {
-    const shouldClose =
-      !saving &&
-      mouseDownOnOverlay.current &&
-      e.target === e.currentTarget;
-    mouseDownOnOverlay.current = false;
-    if (shouldClose) onClose();
-  };
-
   if (!open) return null;
 
   return (
     <div
       className={styles.notesOverlay}
       role="presentation"
-      onMouseDown={handleOverlayMouseDown}
-      onMouseUp={handleOverlayMouseUp}
+      {...overlayDismiss}
     >
       <div
         className={styles.notesDialog}

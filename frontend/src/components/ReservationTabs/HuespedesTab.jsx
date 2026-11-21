@@ -4,6 +4,7 @@ import { API_URL } from '../../services/api';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { getDisplaySegments } from '../../utils/virtualRoomReservation';
 
 const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
@@ -12,6 +13,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const guestOverlayDismiss = useOverlayDismiss(() => setShowModal(false));
   const [editingGuest, setEditingGuest] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -357,7 +359,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
       </div>
 
       {showModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+        <div className={styles.modalOverlay} {...guestOverlayDismiss}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>{editingGuest === null ? 'Agregar' : 'Editar'} huésped</h3>

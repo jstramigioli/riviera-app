@@ -16,6 +16,7 @@ import { RESERVATION_STATUSES } from '../../utils/reservationStatusUtils';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { todayIsoLocal } from '../../utils/calendarDates';
 import { formatMoneyArs, formatMoneyUsd } from '../../utils/formatMoney';
 
@@ -142,10 +143,12 @@ const EstadoFinancieroTab = ({
       }
 
       setSubcategorias(todasSubcategorias);
-      if (todasSubcategorias.length > 0) {
+      const defaultSub =
+        todasSubcategorias.find((s) => s.tipo === 'OTRO') || todasSubcategorias[0];
+      if (defaultSub) {
         setNewCargo((prev) => ({
           ...prev,
-          subcategoriaCargoId: todasSubcategorias[0].id
+          subcategoriaCargoId: defaultSub.id
         }));
       }
     } catch (error) {
@@ -155,15 +158,28 @@ const EstadoFinancieroTab = ({
     }
   };
 
+  const defaultSubcategoriaId = () => {
+    const preferred =
+      subcategorias.find((s) => s.tipo === 'OTRO') || subcategorias[0];
+    return preferred?.id ?? null;
+  };
+
   const resetCargoForm = () => {
     setNewCargo({
       descripcion: '',
       monto: '',
-      subcategoriaCargoId: subcategorias.length > 0 ? subcategorias[0].id : null,
+      subcategoriaCargoId: defaultSubcategoriaId(),
       notas: ''
     });
     setEditingCargo(null);
   };
+
+  const closeCargoModal = () => {
+    resetCargoForm();
+    setShowCargoModal(false);
+  };
+
+  const cargoOverlayDismiss = useOverlayDismiss(closeCargoModal);
 
   const openCreateCargo = () => {
     resetCargoForm();
@@ -181,31 +197,28 @@ const EstadoFinancieroTab = ({
     setShowCargoModal(true);
   };
 
+  const buildCargoPayload = () => {
+    const base = {
+      descripcion: newCargo.descripcion,
+      monto: parseFloat(newCargo.monto),
+      notas: newCargo.notas || null
+    };
+    const subId = newCargo.subcategoriaCargoId || defaultSubcategoriaId();
+    if (subId) {
+      return { ...base, subcategoriaCargoId: parseInt(subId, 10) };
+    }
+    // BE exige subcategoría o tipo; OTRO es el default sensato sin UI de categoría
+    return { ...base, tipo: 'OTRO' };
+  };
+
   const handleCargoSubmit = async (e) => {
     e.preventDefault();
 
+    const payload = buildCargoPayload();
     if (editingCargo) {
-      if (!newCargo.subcategoriaCargoId) {
-        notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
-        return;
-      }
-      await onUpdateCargo(editingCargo.id, {
-        descripcion: newCargo.descripcion,
-        monto: parseFloat(newCargo.monto),
-        notas: newCargo.notas || null,
-        subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId, 10)
-      });
+      await onUpdateCargo(editingCargo.id, payload);
     } else {
-      if (!newCargo.subcategoriaCargoId) {
-        notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
-        return;
-      }
-      await onAddCargo({
-        descripcion: newCargo.descripcion,
-        monto: parseFloat(newCargo.monto),
-        notas: newCargo.notas || null,
-        subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId, 10)
-      });
+      await onAddCargo(payload);
     }
 
     resetCargoForm();
@@ -450,6 +463,16 @@ const EstadoFinancieroTab = ({
           >
             <FaPlus /> pago
           </button>
+          {typeof onRequestConsumo === 'function' && (
+            <button
+              type="button"
+              className={styles.addButton}
+              onClick={onRequestConsumo}
+              data-testid="btn-add-consumo"
+            >
+              <FaPlus /> Consumo
+            </button>
+          )}
           <button
             type="button"
             className={styles.addButton}
@@ -793,23 +816,14 @@ const EstadoFinancieroTab = ({
       )}
 
       {showCargoModal && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => {
-            resetCargoForm();
-            setShowCargoModal(false);
-          }}
-        >
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalOverlay} {...cargoOverlayDismiss}>
+          <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h3>{editingCargo ? 'Editar cargo' : 'Agregar cargo'}</h3>
               <button
                 type="button"
                 className={styles.closeButton}
-                onClick={() => {
-                  resetCargoForm();
-                  setShowCargoModal(false);
-                }}
+                onClick={closeCargoModal}
               >
                 <FaTimes />
               </button>
@@ -838,37 +852,6 @@ const EstadoFinancieroTab = ({
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Categoría *</label>
-                <select
-                  value={newCargo.subcategoriaCargoId || ''}
-                  onChange={(e) =>
-                    setNewCargo({
-                      ...newCargo,
-                      subcategoriaCargoId: e.target.value ? parseInt(e.target.value, 10) : null
-                    })
-                  }
-                  required
-                >
-                  <option value="">Seleccionar categoría</option>
-                  {['SERVICIO', 'CONSUMO', 'OTRO'].map((tipoPrincipal) => {
-                    const subcatsDelTipo = subcategorias.filter((sub) => sub.tipo === tipoPrincipal);
-                    if (subcatsDelTipo.length === 0) return null;
-                    return (
-                      <optgroup key={tipoPrincipal} label={subcatsDelTipo[0].tipoNombre}>
-                        {subcatsDelTipo.map((subcat) => (
-                          <option key={subcat.id} value={subcat.id}>
-                            {subcat.nombre}
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-                {loadingCategorias && (
-                  <small style={{ color: '#6c757d' }}>Cargando opciones...</small>
-                )}
-              </div>
-              <div className={styles.formGroup}>
                 <label>Notas</label>
                 <textarea
                   value={newCargo.notas}
@@ -881,10 +864,7 @@ const EstadoFinancieroTab = ({
                 <button
                   type="button"
                   className={styles.cancelButton}
-                  onClick={() => {
-                    resetCargoForm();
-                    setShowCargoModal(false);
-                  }}
+                  onClick={closeCargoModal}
                 >
                   Cancelar
                 </button>

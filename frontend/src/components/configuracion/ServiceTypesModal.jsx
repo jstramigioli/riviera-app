@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiEdit2, FiTrash2, FiSave } from 'react-icons/fi';
 import styles from './ServiceTypesModal.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 
 export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceTypes, hotelId }) {
+  const overlayDismiss = useOverlayDismiss(onClose);
   const { confirm, confirmDialog } = useConfirmDialog();
   const [localServiceTypes, setLocalServiceTypes] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -175,7 +177,7 @@ export default function ServiceTypesModal({ isOpen, onClose, onSave, serviceType
   console.log('🔍 ServiceTypesModal render - Servicios:', localServiceTypes.map(st => st.name));
 
   return (
-    <div className={styles.modalOverlay}>
+    <div className={styles.modalOverlay} {...overlayDismiss}>
       <div className={styles.modalContent}>
         {/* Header */}
         <div className={styles.modalHeader}>

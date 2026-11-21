@@ -1,5 +1,6 @@
 import { FiAlertTriangle } from 'react-icons/fi';
 import React from 'react';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './LoadExistingQueryModal.module.css';
 
 const LoadExistingQueryModal = ({ 
@@ -9,6 +10,8 @@ const LoadExistingQueryModal = ({
   onContinueWithoutLoading,
   existingQuery 
 }) => {
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!isOpen) return null;
 
   const formatDate = (dateString) => {
@@ -34,7 +37,7 @@ const LoadExistingQueryModal = ({
   };
 
   return (
-    <div className={styles.overlay}>
+    <div className={styles.overlay} {...overlayDismiss}>
       <div className={styles.modal}>
         <div className={styles.header}>
           <h3> Consulta Preexistente</h3>

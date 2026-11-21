@@ -70,7 +70,8 @@ async function buildSettlementContext(db, {
   applySuggestedDefaults,
   applyAutomatics,
   mode,
-  asOfDate
+  asOfDate,
+  moneda = null
 }) {
   let nights = null;
   let checkIn = null;
@@ -129,12 +130,17 @@ async function buildSettlementContext(db, {
     occupancyPercent = null;
   }
 
+  const monedaNorm = moneda != null && moneda !== '' ? String(moneda).toUpperCase() : null;
+
   return {
     layer: 'SETTLEMENT',
     asOfDate: asOfSafe,
     motivo: motivo || 'Pago',
     dineroARS,
     saldoPendiente: saldoPendienteAntes,
+    moneda: monedaNorm,
+    currency: monedaNorm,
+    monedaPago: monedaNorm,
     paymentMethodConfigId: config?.id ?? null,
     paymentMethodCode: config?.code ?? null,
     nights,
@@ -171,7 +177,8 @@ async function resolveSettlementDiscount(db, {
   benefitValueByRuleId,
   applySuggestedDefaults,
   applyAutomatics,
-  mode = 'received'
+  mode = 'received',
+  moneda = null
 }) {
   let rules = [];
   try {
@@ -195,7 +202,8 @@ async function resolveSettlementDiscount(db, {
       benefitValueByRuleId,
       applySuggestedDefaults,
       applyAutomatics,
-      mode
+      mode,
+      moneda
     });
     const evaluated = evaluateSettlementRules(rules, ctx);
     if (evaluated.aplica || evaluated.selectedRules?.length) {
@@ -285,7 +293,8 @@ async function createForwardDiscount(db, {
       benefitValueByRuleId,
       applySuggestedDefaults,
       applyAutomatics,
-      mode: 'received'
+      mode: 'received',
+      moneda: monedaPago
     });
 
     if (!resolved.aplica || resolved.descuentoARS <= 0) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash, FaTimes, FaCheck, FaChevronDown, FaChevronRight, FaEdit } from 'react-icons/fa';
 import styles from './ReservationTabs.module.css';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { formatMoneyArs } from '../../utils/formatMoney';
 
 const CargosTab = ({ 
@@ -59,12 +60,12 @@ const CargosTab = ({
       }
       
       setSubcategorias(todasSubcategorias);
-      
-      // Establecer default si hay subcategorías disponibles
-      if (todasSubcategorias.length > 0) {
-        setNewCargo(prev => ({ 
-          ...prev, 
-          subcategoriaCargoId: todasSubcategorias[0].id 
+      const defaultSub =
+        todasSubcategorias.find((s) => s.tipo === 'OTRO') || todasSubcategorias[0];
+      if (defaultSub) {
+        setNewCargo((prev) => ({
+          ...prev,
+          subcategoriaCargoId: defaultSub.id
         }));
       }
     } catch (error) {
@@ -154,51 +155,54 @@ const CargosTab = ({
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!newCargo.subcategoriaCargoId) {
-      notify({ title: 'Validación', message: 'Debe seleccionar una subcategoría', type: 'warning' });
-      return;
-    }
-    
-    let cargoData = {
+  const defaultSubcategoriaId = () => {
+    const preferred =
+      subcategorias.find((s) => s.tipo === 'OTRO') || subcategorias[0];
+    return preferred?.id ?? null;
+  };
+
+  const buildCargoPayload = () => {
+    const base = {
       descripcion: newCargo.descripcion,
       monto: parseFloat(newCargo.monto),
-      notas: newCargo.notas || null,
-      subcategoriaCargoId: parseInt(newCargo.subcategoriaCargoId)
+      notas: newCargo.notas || null
     };
-    
-    // Determinar si es crear o editar
+    const subId = newCargo.subcategoriaCargoId || defaultSubcategoriaId();
+    if (subId) {
+      return { ...base, subcategoriaCargoId: parseInt(subId, 10) };
+    }
+    return { ...base, tipo: 'OTRO' };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const cargoData = buildCargoPayload();
+
     if (editingCargo) {
-      // Es edición
       await onUpdateCargo(editingCargo.id, cargoData);
       resetForm();
     } else {
-      // Es creación nueva
       await onAddCargo(cargoData);
-      
-      // Reset form pero mantener la subcategoría seleccionada para facilitar múltiples entradas
-      const subcategoriaActual = newCargo.subcategoriaCargoId;
-      
-      setNewCargo({ 
-        descripcion: '', 
-        monto: '', 
+      const subcategoriaActual = cargoData.subcategoriaCargoId || defaultSubcategoriaId();
+      setNewCargo({
+        descripcion: '',
+        monto: '',
         subcategoriaCargoId: subcategoriaActual,
-        notas: '' 
+        notas: ''
       });
     }
-    
+
     setShowAddModal(false);
   };
 
   // Función para resetear el formulario
   const resetForm = () => {
-    setNewCargo({ 
-      descripcion: '', 
-      monto: '', 
-      subcategoriaCargoId: subcategorias.length > 0 ? subcategorias[0].id : null,
-      notas: '' 
+    setNewCargo({
+      descripcion: '',
+      monto: '',
+      subcategoriaCargoId: defaultSubcategoriaId(),
+      notas: ''
     });
     setEditingCargo(null);
   };
@@ -228,6 +232,8 @@ const CargosTab = ({
     resetForm();
     setShowAddModal(false);
   };
+
+  const cargoOverlayDismiss = useOverlayDismiss(handleCancelEdit);
 
   return (
     <div className={styles.tabContent}>
@@ -386,8 +392,8 @@ const CargosTab = ({
 
       {/* Modal Agregar/Editar Cargo */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={handleCancelEdit}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalOverlay} {...cargoOverlayDismiss}>
+          <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h3>{editingCargo ? 'Editar Cargo' : 'Agregar Cargo'}</h3>
               <button 
@@ -418,42 +424,6 @@ const CargosTab = ({
                   onChange={(e) => setNewCargo({ ...newCargo, monto: e.target.value })}
                   placeholder="0.00"
                 />
-              </div>
-              {/* Selector de categoría de cargo */}
-              <div className={styles.formGroup}>
-                <label> Categoría *</label>
-                <select
-                  value={newCargo.subcategoriaCargoId || ''}
-                  onChange={(e) => setNewCargo({ 
-                    ...newCargo, 
-                    subcategoriaCargoId: e.target.value ? parseInt(e.target.value) : null
-                  })}
-                  required
-                >
-                  <option value=""> Seleccionar categoría</option>
-                  {['SERVICIO', 'CONSUMO', 'OTRO'].map(tipoPrincipal => {
-                    const subcatsDelTipo = subcategorias.filter(sub => sub.tipo === tipoPrincipal);
-                    if (subcatsDelTipo.length === 0) return null;
-                    
-                    return (
-                      <optgroup key={tipoPrincipal} label={subcatsDelTipo[0].tipoNombre}>
-                        {subcatsDelTipo.map(subcat => (
-                          <option key={subcat.id} value={subcat.id}>
-                            {subcat.nombre}
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-
-                {loadingCategorias && (
-                  <small style={{ color: '#6c757d' }}> Cargando opciones...</small>
-                )}
-                
-                <small style={{ color: '#6c757d', marginTop: '4px', display: 'block' }}>
-                  Los cargos de alojamiento se generan automáticamente con las reservas
-                </small>
               </div>
               <div className={styles.formGroup}>
                 <label> Notas</label>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
 import api from '../services/api';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './FieldEditor.module.css';
 
 const FieldEditor = ({ 
@@ -21,6 +22,7 @@ const FieldEditor = ({
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const overlayDismiss = useOverlayDismiss(onCancel, { enabled: !loading });
 
   useEffect(() => {
     if (fieldName === 'document') {
@@ -236,7 +238,7 @@ const FieldEditor = ({
   };
 
   return (
-    <div className={styles.modalOverlay}>
+    <div className={styles.modalOverlay} {...overlayDismiss}>
       <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <h3> Editar {getFieldLabel()}</h3>

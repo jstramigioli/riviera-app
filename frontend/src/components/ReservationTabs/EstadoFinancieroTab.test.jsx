@@ -215,6 +215,25 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/vencido/i)
   })
 
+  it('muestra + Consumo y llama onRequestConsumo', () => {
+    const onRequestConsumo = vi.fn()
+    render(
+      <EstadoFinancieroTab
+        reservation={{ id: 22, status: 'INGRESADA', checkOut: '2099-12-31' }}
+        financialSummary={summary}
+        loadingFinancial={false}
+        formatDate={(d) => String(d).slice(0, 10)}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
+        onFinancialChange={vi.fn()}
+        onRequestConsumo={onRequestConsumo}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('btn-add-consumo'))
+    expect(onRequestConsumo).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/Categoría/i)).not.toBeInTheDocument()
+  })
+
   it('abre el modal Nuevo pago prefilled al editar un pago (no inline)', () => {
     render(
       <EstadoFinancieroTab

@@ -439,7 +439,7 @@ describe('PaymentForm facturación', () => {
     expect(screen.getByTestId('payment-moneda-tc').querySelector('#payment-tc')).not.toBeNull()
     expect(screen.getByTestId('payment-fx-sync').querySelector('#payment-tc')).toBeNull()
     expect(screen.getByTestId('payment-fx-sync')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-saldar-currency-hint')).toHaveTextContent(/Siempre en ARS/i)
+    expect(screen.queryByTestId('payment-saldar-currency-hint')).not.toBeInTheDocument()
 
     // Monto USD → equiv ARS + saldar
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {

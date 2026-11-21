@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiEdit2, FiPlus, FiTrash2, FiX, FiCheck } from 'react-icons/fi';
 import {
   fetchPromotionRules,
@@ -10,6 +10,7 @@ import {
   fetchServiceTypes
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import styles from './PromocionesTab.module.css';
 
 const EMPTY_FORM = {
@@ -32,16 +33,31 @@ const MODALITY_LABEL = {
   SUGERIDA: 'Opcional (por defecto activado)'
 };
 
-/** Variables del editor (Variable | Operador | Valor). */
-const CONDITION_VARS = [
+/** Condiciones de promociones (estadía / cotización). */
+const PROMO_CONDITION_VARS = [
   { value: 'NIGHTS', label: 'Cantidad de noches' },
   { value: 'ROOM_TYPE', label: 'Tipo habitación' },
   { value: 'SERVICE_TYPE', label: 'Servicio' },
-  { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
   { value: 'OCCUPANCY_HOTEL', label: '% de ocupación' },
   { value: 'DATE_RANGE', label: 'Fecha creación reserva' },
   { value: 'STAY_DATE', label: 'Fecha estadía' },
   { value: 'DAYS_OF_WEEK', label: 'Días de la semana' }
+];
+
+/** Condiciones de descuentos (caja / settlement): solo estas tres. */
+const DISCOUNT_CONDITION_VARS = [
+  { value: 'PAYMENT_METHOD', label: 'Medio de pago' },
+  { value: 'CURRENCY', label: 'Moneda' },
+  { value: 'AMOUNT_TO_SETTLE', label: 'Monto a saldar' }
+];
+
+const CONDITION_VARS = [...PROMO_CONDITION_VARS, ...DISCOUNT_CONDITION_VARS];
+
+const DISCOUNT_CONDITION_TYPES = new Set(DISCOUNT_CONDITION_VARS.map((v) => v.value));
+
+const CURRENCY_OPTIONS = [
+  { value: 'ARS', label: 'ARS' },
+  { value: 'USD', label: 'USD' }
 ];
 
 const CONDITION_TYPE_LABEL = Object.fromEntries(CONDITION_VARS.map((v) => [v.value, v.label]));
@@ -49,6 +65,10 @@ CONDITION_TYPE_LABEL.MIN_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.MAX_NIGHTS = 'Cantidad de noches';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MAX = '% de ocupación';
 CONDITION_TYPE_LABEL.OCCUPANCY_HOTEL_MIN = '% de ocupación';
+
+function conditionVarsForKind(kind) {
+  return (kind || 'DESCUENTO') === 'PROMO' ? PROMO_CONDITION_VARS : DISCOUNT_CONDITION_VARS;
+}
 
 /** Operadores en palabras (nunca símbolos). */
 const OP_NUMERIC = [
@@ -113,7 +133,7 @@ function slugCodeFromLabel(label) {
 }
 
 function defaultOpForType(type) {
-  if (type === 'NIGHTS') return 'gte';
+  if (type === 'NIGHTS' || type === 'AMOUNT_TO_SETTLE') return 'gte';
   if (type === 'OCCUPANCY_HOTEL') return 'lte';
   if (type === 'DATE_RANGE' || type === 'STAY_DATE') return 'between';
   if (type === 'DAYS_OF_WEEK') return 'includes';
@@ -125,6 +145,8 @@ function emptyCondition(type = 'PAYMENT_METHOD') {
     type,
     op: defaultOpForType(type),
     paymentMethodConfigId: '',
+    currency: 'ARS',
+    amount: '',
     roomTypeId: '',
     serviceTypeId: '',
     nights: '',
@@ -209,6 +231,18 @@ function conditionFromApi(c) {
         ...base,
         op: normalizeOp(p.op, 'eq'),
         paymentMethodConfigId: String(p.paymentMethodConfigId ?? '')
+      };
+    case 'CURRENCY':
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'eq'),
+        currency: String(p.currency || p.moneda || 'ARS').toUpperCase()
+      };
+    case 'AMOUNT_TO_SETTLE':
+      return {
+        ...base,
+        op: normalizeOp(p.op, 'gte'),
+        amount: String(p.value ?? p.amount ?? p.monto ?? '')
       };
     case 'ROOM_TYPE':
       return {
@@ -300,6 +334,18 @@ function paramsFromCondition(c) {
       if (!id) throw new Error('Elegí un medio de pago');
       return { paymentMethodConfigId: id, op };
     }
+    case 'CURRENCY': {
+      const currency = String(c.currency || '').toUpperCase();
+      if (!currency) throw new Error('Elegí una moneda');
+      return { currency, op };
+    }
+    case 'AMOUNT_TO_SETTLE': {
+      const n = Number(c.amount);
+      if (c.amount === '' || Number.isNaN(n) || n < 0) {
+        throw new Error('Indicá el monto a saldar (≥ 0)');
+      }
+      return { op, value: n };
+    }
     case 'ROOM_TYPE': {
       const id = Number(c.roomTypeId);
       if (!id) throw new Error('Elegí un tipo de habitación');
@@ -379,6 +425,10 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
       const label = m ? m.label : p.paymentMethodCode || `#${p.paymentMethodConfigId}`;
       return `${op} ${label}`;
     }
+    case 'CURRENCY':
+      return `${op} ${ui.currency || p.currency || p.moneda || '—'}`;
+    case 'AMOUNT_TO_SETTLE':
+      return `${op} ${ui.amount || p.value || p.amount || '—'} ARS`;
     case 'NIGHTS':
       return `${op} ${ui.nights} noches`;
     case 'DATE_RANGE':
@@ -416,7 +466,7 @@ function conditionSummary(c, { methodsById, roomTypesById, serviceTypesById }) {
 
 function operatorsForType(type) {
   if (type === 'OCCUPANCY_HOTEL') return OP_OCCUPANCY;
-  if (type === 'NIGHTS') return OP_NUMERIC;
+  if (type === 'NIGHTS' || type === 'AMOUNT_TO_SETTLE') return OP_NUMERIC;
   if (type === 'DATE_RANGE') return [{ value: 'between', label: 'entre' }];
   if (type === 'STAY_DATE') return OP_STAY_DATE;
   if (type === 'DAYS_OF_WEEK') return OP_WEEKDAY;
@@ -430,6 +480,16 @@ function validateConditionFields(c) {
     case 'PAYMENT_METHOD':
       if (!Number(c.paymentMethodConfigId)) errors.value = 'Elegí un medio de pago';
       break;
+    case 'CURRENCY':
+      if (!String(c.currency || '').trim()) errors.value = 'Elegí una moneda';
+      break;
+    case 'AMOUNT_TO_SETTLE': {
+      const n = Number(c.amount);
+      if (c.amount === '' || Number.isNaN(n) || n < 0) {
+        errors.value = 'Indicá un monto a saldar válido (≥ 0)';
+      }
+      break;
+    }
     case 'ROOM_TYPE':
       if (!Number(c.roomTypeId)) errors.value = 'Elegí un tipo de habitación';
       break;
@@ -506,6 +566,13 @@ function validatePromoForm(form) {
   }
   (form.conditions || []).forEach((c, index) => {
     const ce = validateConditionFields(c);
+    if ((form.kind || 'DESCUENTO') === 'DESCUENTO' && !DISCOUNT_CONDITION_TYPES.has(c.type)) {
+      ce.value =
+        'Los descuentos solo admiten medio de pago, moneda o monto a saldar';
+    }
+    if ((form.kind || 'DESCUENTO') === 'PROMO' && DISCOUNT_CONDITION_TYPES.has(c.type)) {
+      ce.value = 'Esa condición es solo para descuentos de caja';
+    }
     if (Object.keys(ce).length) errors.conditions[index] = ce;
   });
   const hasConditionErrors = Object.keys(errors.conditions).length > 0;
@@ -524,7 +591,6 @@ function networkErrorMessage(err, fallback) {
 
 function PromocionesTab() {
   const { confirm, confirmDialog } = useConfirmDialog();
-  const mouseDownOnOverlay = useRef(false);
   const [rows, setRows] = useState([]);
   const [methods, setMethods] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
@@ -630,19 +696,9 @@ function PromocionesTab() {
     setShowForm(false);
     setEditingId(null);
     setTouched({});
-    mouseDownOnOverlay.current = false;
   };
 
-  const handleOverlayMouseDown = (e) => {
-    mouseDownOnOverlay.current = e.target === e.currentTarget;
-  };
-
-  const handleOverlayMouseUp = (e) => {
-    if (mouseDownOnOverlay.current && e.target === e.currentTarget) {
-      closeForm();
-    }
-    mouseDownOnOverlay.current = false;
-  };
+  const formOverlayDismiss = useOverlayDismiss(closeForm);
 
   const openCreate = (kind) => {
     setEditingId(null);
@@ -677,10 +733,14 @@ function PromocionesTab() {
   };
 
   const addCondition = () => {
-    setForm((prev) => ({
-      ...prev,
-      conditions: [...prev.conditions, emptyCondition()]
-    }));
+    setForm((prev) => {
+      const defaultType =
+        (prev.kind || 'DESCUENTO') === 'PROMO' ? 'NIGHTS' : 'PAYMENT_METHOD';
+      return {
+        ...prev,
+        conditions: [...prev.conditions, emptyCondition(defaultType)]
+      };
+    });
   };
 
   const updateCondition = (index, patch) => {
@@ -870,6 +930,45 @@ function PromocionesTab() {
               </option>
             ))}
           </select>
+        );
+      case 'CURRENCY':
+        return (
+          <select
+            value={c.currency || 'ARS'}
+            onChange={(e) => updateCondition(index, { currency: e.target.value })}
+            onBlur={markCondTouched}
+            aria-label="Valor moneda"
+            aria-invalid={invalid || undefined}
+            className={invalidClass}
+            title={invalid ? condMsg : undefined}
+          >
+            {CURRENCY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        );
+      case 'AMOUNT_TO_SETTLE':
+        return (
+          <span className={styles.valueWithSuffix}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={c.amount}
+              onChange={(e) => updateCondition(index, { amount: e.target.value })}
+              onBlur={markCondTouched}
+              placeholder="Monto ARS"
+              aria-label="Monto a saldar"
+              aria-invalid={invalid || undefined}
+              className={invalidClass}
+              title={invalid ? condMsg : undefined}
+            />
+            <span className={styles.valueSuffix} aria-hidden="true">
+              ARS
+            </span>
+          </span>
         );
       case 'ROOM_TYPE':
         return (
@@ -1193,7 +1292,7 @@ function PromocionesTab() {
           </button>
         </div>
         <p className={styles.sectionLead}>
-          Rebajas al cobrar: por medio de pago u otras condiciones en el momento del pago.
+          Rebajas al cobrar: por medio de pago, moneda o monto a saldar.
         </p>
         {renderTable(discountRows, 'No hay descuentos')}
       </section>
@@ -1202,8 +1301,7 @@ function PromocionesTab() {
         <div
           className={styles.formOverlay}
           role="presentation"
-          onMouseDown={handleOverlayMouseDown}
-          onMouseUp={handleOverlayMouseUp}
+          {...formOverlayDismiss}
         >
           <div
             className={styles.form}
@@ -1299,11 +1397,17 @@ function PromocionesTab() {
                           onChange={(e) => changeConditionType(index, e.target.value)}
                           aria-label="Variable"
                         >
-                          {CONDITION_VARS.map((v) => (
+                          {conditionVarsForKind(form.kind).map((v) => (
                             <option key={v.value} value={v.value}>
                               {v.label}
                             </option>
                           ))}
+                          {!conditionVarsForKind(form.kind).some((v) => v.value === c.type) &&
+                            CONDITION_TYPE_LABEL[c.type] && (
+                              <option value={c.type}>
+                                {CONDITION_TYPE_LABEL[c.type]} (no disponible)
+                              </option>
+                            )}
                         </select>
                         {renderOperator(c, index)}
                         {renderValue(c, index)}

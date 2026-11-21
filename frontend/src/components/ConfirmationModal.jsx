@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from '../styles/ConfirmationModal.module.css';
 
 const ConfirmationModal = ({
@@ -13,6 +14,8 @@ const ConfirmationModal = ({
   confirmButtonClass = 'confirm',
   type = 'danger',
 }) => {
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -32,12 +35,6 @@ const ConfirmationModal = ({
 
   if (!isOpen) return null;
 
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   const toneClass =
     styles[confirmButtonClass] ||
     styles[type] ||
@@ -47,7 +44,7 @@ const ConfirmationModal = ({
   return (
     <div
       className={styles.modalBackdrop}
-      onClick={handleBackdropClick}
+      {...overlayDismiss}
       role="presentation"
     >
       <div

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiSave, FiTrash2, FiCopy, FiCalendar, FiDollarSign, FiSettings, FiPercent , FiAlertTriangle } from 'react-icons/fi';
 import { useSeasonBlock } from '../../hooks/useSeasonBlock';
 import ConfirmationModal from '../ConfirmationModal';
+import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import styles from './SeasonBlockModal.module.css';
 
 const SeasonBlockModal = ({ 
@@ -14,7 +15,6 @@ const SeasonBlockModal = ({
 }) => {
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
-  const mouseDownOnOverlay = useRef(false);
   
   // Estados locales
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -48,6 +48,8 @@ const SeasonBlockModal = ({
     getSeasonPrice,
     getServiceAdjustment
   } = useSeasonBlock(blockId, hotelId);
+
+  const overlayDismiss = useOverlayDismiss(onClose, { enabled: !saving });
 
   // Focus management y accesibilidad
   useEffect(() => {
@@ -117,18 +119,6 @@ const SeasonBlockModal = ({
   const handleClose = () => {
     if (saving) return;
     onClose();
-  };
-
-  // Manejo correcto de eventos del overlay para evitar cierre accidental
-  const handleOverlayMouseDown = (e) => {
-    mouseDownOnOverlay.current = e.target === e.currentTarget;
-  };
-
-  const handleOverlayMouseUp = (e) => {
-    if (mouseDownOnOverlay.current && e.target === e.currentTarget) {
-      handleClose();
-    }
-    mouseDownOnOverlay.current = false;
   };
 
   const handleSave = async (force = false) => {
@@ -222,7 +212,7 @@ const SeasonBlockModal = ({
 
   return (
     <>
-              <div className={styles.modalOverlay} onMouseDown={handleOverlayMouseDown} onMouseUp={handleOverlayMouseUp}>
+              <div className={styles.modalOverlay} {...overlayDismiss}>
         <div 
           className={styles.modalContent}
           ref={modalRef}

@@ -1,8 +1,11 @@
 import React, { useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './NotificationModal.module.css';
 
 const NotificationModal = ({ isOpen, onClose, title, message, type = 'success' }) => {
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -22,14 +25,8 @@ const NotificationModal = ({ isOpen, onClose, title, message, type = 'success' }
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   return (
-    <div className={styles.overlay} onClick={handleOverlayClick} role="presentation">
+    <div className={styles.overlay} {...overlayDismiss} role="presentation">
       <div
         className={`${styles.modal} ${styles[type] || styles.info}`}
         role="dialog"

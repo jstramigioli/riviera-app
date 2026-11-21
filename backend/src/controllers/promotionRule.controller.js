@@ -23,10 +23,19 @@ const CONDITION_TYPES = new Set([
   'ROOM_TYPE',
   'SERVICE_TYPE',
   'PAYMENT_METHOD',
+  'CURRENCY', // moneda del pago (ARS / USD)
+  'AMOUNT_TO_SETTLE', // monto a saldar (saldo pendiente ARS)
   'OCCUPANCY_HOTEL',
   'OCCUPANCY_HOTEL_MAX',
   'OCCUPANCY_HOTEL_MIN',
   'DAYS_OF_WEEK' // días semana L M X J V S D; incluye / no incluye (independiente de fechas)
+]);
+
+/** Condiciones permitidas en reglas SETTLEMENT / descuentos de caja. */
+const SETTLEMENT_CONDITION_TYPES = new Set([
+  'PAYMENT_METHOD',
+  'CURRENCY',
+  'AMOUNT_TO_SETTLE'
 ]);
 
 function serializeRule(row) {
@@ -69,18 +78,31 @@ function validateBenefitValue({ benefitValueManual, benefitValue, benefitType })
   return null;
 }
 
-function normalizeConditions(raw) {
+function normalizeConditions(raw, { allowedTypes = null } = {}) {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((c) => {
       const type = String(c.type || '').toUpperCase();
       if (!CONDITION_TYPES.has(type)) return null;
+      if (allowedTypes && !allowedTypes.has(type)) return null;
       return {
         type,
         params: c.params && typeof c.params === 'object' ? c.params : {}
       };
     })
     .filter(Boolean);
+}
+
+function assertSettlementConditions(conditions, rawCount) {
+  if (!Array.isArray(conditions)) return null;
+  if (rawCount != null && conditions.length < rawCount) {
+    return 'Los descuentos solo admiten condiciones de medio de pago, moneda o monto a saldar';
+  }
+  const invalid = conditions.find((c) => !SETTLEMENT_CONDITION_TYPES.has(c.type));
+  if (invalid) {
+    return 'Los descuentos solo admiten condiciones de medio de pago, moneda o monto a saldar';
+  }
+  return null;
 }
 
 function touchedMethodIds(rule) {
@@ -142,7 +164,6 @@ exports.createPromotionRule = async (req, res) => {
       return res.status(400).json({ error: 'code y label son requeridos' });
     }
 
-    const conditions = normalizeConditions(body.conditions);
     const benefitType = String(body.benefitType || 'PERCENT').toUpperCase();
     const modality = String(body.modality || 'AUTO').toUpperCase();
     const stacking = String(body.stacking || 'EXCLUSIVE').toUpperCase();
@@ -153,6 +174,16 @@ exports.createPromotionRule = async (req, res) => {
       layer: body.layer,
       benefitBase: body.benefitBase
     });
+    const rawConditions = Array.isArray(body.conditions) ? body.conditions : [];
+    const conditions = normalizeConditions(rawConditions, {
+      allowedTypes: layer === 'SETTLEMENT' ? SETTLEMENT_CONDITION_TYPES : null
+    });
+    if (layer === 'SETTLEMENT') {
+      const settlementError = assertSettlementConditions(conditions, rawConditions.length);
+      if (settlementError) {
+        return res.status(400).json({ error: settlementError });
+      }
+    }
     const benefitValueManual = Boolean(body.benefitValueManual);
     const benefitValueError = validateBenefitValue({
       benefitValueManual,
@@ -307,10 +338,27 @@ exports.updatePromotionRule = async (req, res) => {
         body.notas != null ? String(body.notas).trim() || null : null;
     }
 
+    const nextLayer =
+      data.layer != null ? data.layer : existing.layer || 'SETTLEMENT';
+    if (Array.isArray(body.conditions) && nextLayer === 'SETTLEMENT') {
+      const normalizedPreview = normalizeConditions(body.conditions, {
+        allowedTypes: SETTLEMENT_CONDITION_TYPES
+      });
+      const settlementError = assertSettlementConditions(
+        normalizedPreview,
+        body.conditions.length
+      );
+      if (settlementError) {
+        return res.status(400).json({ error: settlementError });
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       if (Array.isArray(body.conditions)) {
         await tx.promotionCondition.deleteMany({ where: { ruleId: id } });
-        const conditions = normalizeConditions(body.conditions);
+        const conditions = normalizeConditions(body.conditions, {
+          allowedTypes: nextLayer === 'SETTLEMENT' ? SETTLEMENT_CONDITION_TYPES : null
+        });
         if (conditions.length) {
           await tx.promotionCondition.createMany({
             data: conditions.map((c) => ({
@@ -418,6 +466,8 @@ exports.previewPromotion = async (req, res) => {
       motivo: body.motivo || 'Pago',
       dineroARS: body.dineroARS,
       saldoPendiente: body.saldoPendiente,
+      moneda: body.moneda || body.currency || body.monedaPago || null,
+      currency: body.moneda || body.currency || body.monedaPago || null,
       mode: body.mode || 'received',
       nightPrice: body.nightPrice,
       nightPrices: Array.isArray(body.nightPrices) ? body.nightPrices : undefined

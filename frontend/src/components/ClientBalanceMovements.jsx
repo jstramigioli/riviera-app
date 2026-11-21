@@ -4,6 +4,7 @@ import PaymentForm from './PaymentForm';
 import { deleteCargo, deletePago, updateCargo } from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ClientBalanceMovements.module.css';
 
@@ -34,6 +35,10 @@ const ClientBalanceMovements = ({
   const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '', notas: '' });
   const [savingCargo, setSavingCargo] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const cargoEditOverlayDismiss = useOverlayDismiss(
+    () => setEditingCargo(null),
+    { enabled: !savingCargo }
+  );
 
   const selectedCargo = useMemo(() => {
     if (!selected || selected.type !== 'cargo') return null;
@@ -507,10 +512,10 @@ const ClientBalanceMovements = ({
       {editingCargo ? (
         <div
           className={styles.modalOverlay}
-          onClick={() => !savingCargo && setEditingCargo(null)}
+          {...cargoEditOverlayDismiss}
           data-testid="client-cargo-edit-modal"
         >
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h3>Editar cargo</h3>
               <button

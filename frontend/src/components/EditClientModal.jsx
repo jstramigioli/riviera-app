@@ -12,9 +12,11 @@ import {
   stripAddressFromNotes
 } from '../utils/clientAddressNotes';
 import api from '../services/api';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './EditClientModal.module.css';
 
 const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
+  const overlayDismiss = useOverlayDismiss(onClose);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -105,7 +107,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
   if (!isOpen) return null;
 
   return (
-    <div className={styles.modalOverlay}>
+    <div className={styles.modalOverlay} {...overlayDismiss}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h2> Editar Cliente</h2>

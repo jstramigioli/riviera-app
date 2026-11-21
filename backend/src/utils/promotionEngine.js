@@ -295,6 +295,27 @@ function evaluateCondition(condition, ctx) {
       if (matched == null) return false;
       return applyEqualityOp(matched, params.op);
     }
+    case 'CURRENCY': {
+      const expected = String(params.currency || params.moneda || '').toUpperCase();
+      if (!expected) return true;
+      const actual = String(ctx.moneda || ctx.currency || ctx.monedaPago || '').toUpperCase();
+      if (!actual) return false;
+      return applyEqualityOp(actual === expected, params.op);
+    }
+    case 'AMOUNT_TO_SETTLE': {
+      const amount =
+        ctx.saldoPendiente != null
+          ? Number(ctx.saldoPendiente)
+          : ctx.amountToSettle != null
+            ? Number(ctx.amountToSettle)
+            : null;
+      if (amount == null || Number.isNaN(amount)) return false;
+      return compareNumber(
+        amount,
+        params.op || 'gte',
+        params.value ?? params.amount ?? params.monto ?? 0
+      );
+    }
     case 'OCCUPANCY_HOTEL': {
       if (ctx.occupancyPercent == null) return false;
       return compareNumber(

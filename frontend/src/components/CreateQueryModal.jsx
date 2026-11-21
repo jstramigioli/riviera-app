@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTags } from '../hooks/useTags';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import { RESERVATION_SOURCE_OPTIONS } from '../constants/reservationSource';
 import { shiftIso, todayIsoLocal } from '../utils/calendarDates';
 import styles from '../styles/CreateQueryModal.module.css';
@@ -16,6 +17,7 @@ export default function CreateQueryModal({
 }) {
   const navigate = useNavigate();
   const { tags } = useTags();
+  const overlayDismiss = useOverlayDismiss(onClose);
   const [formData, setFormData] = useState(() => ({
     ...defaultQueryDates(),
     requiredGuests: 1,
@@ -106,8 +108,8 @@ export default function CreateQueryModal({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.modalOverlay} onClick={handleClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.modalOverlay} {...overlayDismiss}>
+      <div className={styles.modal}>
         <div className={styles.modalHeader}>
           <h2> Consulta</h2>
           <button className={styles.closeButton} onClick={handleClose}>
