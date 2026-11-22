@@ -606,6 +606,62 @@
   padding-bottom: 8px;
 }
 
+.dniPhotoHint {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dniPhotoMeta {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.dniPhotoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dniPhotoInput {
+  display: none;
+}
+
+.uploadButton,
+.deletePhotoButton {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  background: white;
+  color: #495057;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.deletePhotoButton:hover:not(:disabled) {
+  background: #fef3f2;
+  color: #b42318;
+  border-color: #fecdca;
+}
+
+.uploadButton:disabled,
+.deletePhotoButton:disabled,
+.viewButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .infoList {
   display: flex;
   flex-direction: row;

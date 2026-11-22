@@ -286,6 +286,70 @@ export async function getClientBalance(clientId) {
   return res.json();
 }
 
+/** Meta de foto de DNI/documento del cliente. null si no hay. */
+export async function getClientDocumentPhoto(clientId) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+    credentials: 'include'
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Error obteniendo foto de documento');
+  return res.json();
+}
+
+export async function uploadClientDocumentPhoto(clientId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Error subiendo foto de documento');
+  }
+  return res.json();
+}
+
+export async function downloadClientDocumentPhoto(clientId, filename) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo/file`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error descargando foto de documento');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename || `documento-cliente-${clientId}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function openClientDocumentPhoto(clientId) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo/file`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error abriendo foto de documento');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function deleteClientDocumentPhoto(clientId) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Error eliminando foto de documento');
+  }
+  return res.json();
+}
+
 export async function getClientBillingProfile(clientId) {
   const res = await apiFetch(`${API_URL}/clients/${clientId}/billing-profile`, {
     credentials: 'include'
@@ -1750,6 +1814,11 @@ export default {
   createPayment,
   createConsumptionCharge,
   getClientBalance,
+  getClientDocumentPhoto,
+  uploadClientDocumentPhoto,
+  downloadClientDocumentPhoto,
+  openClientDocumentPhoto,
+  deleteClientDocumentPhoto,
   getClientBillingProfile,
   upsertClientBillingProfile,
   getRates,

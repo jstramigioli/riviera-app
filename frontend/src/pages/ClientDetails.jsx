@@ -1,27 +1,57 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchClients, fetchReservations, getClientBalance } from '../services/api';
+import {
+  fetchClients,
+  fetchReservations,
+  getClientBalance,
+  getClientDocumentPhoto,
+  uploadClientDocumentPhoto,
+  openClientDocumentPhoto,
+  downloadClientDocumentPhoto,
+  deleteClientDocumentPhoto
+} from '../services/api';
 import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
 import MultiCobroClientPanel from '../components/MultiCobroClientPanel';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { todayAsLocalDate } from '../utils/calendarDates';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
+
+const DNI_PHOTO_ACCEPT = 'image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf';
 
 const ClientDetails = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { notify, noticeDialog } = useAppNotice();
+  const { confirm, confirmDialog } = useConfirmDialog();
+  const dniPhotoInputRef = useRef(null);
   const [client, setClient] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [clientBalance, setClientBalance] = useState(null);
+  const [documentPhoto, setDocumentPhoto] = useState(null);
+  const [documentPhotoBusy, setDocumentPhotoBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('personal');
   const [editingField, setEditingField] = useState(null);
+
+  const loadDocumentPhoto = useCallback(async () => {
+    if (!clientId) {
+      setDocumentPhoto(null);
+      return;
+    }
+    try {
+      const meta = await getClientDocumentPhoto(clientId);
+      setDocumentPhoto(meta);
+    } catch (err) {
+      console.error('Error cargando foto de documento:', err);
+      setDocumentPhoto(null);
+    }
+  }, [clientId]);
 
   const loadClientData = useCallback(async () => {
     try {
@@ -45,13 +75,14 @@ const ClientDetails = () => {
       setClient(foundClient);
       setReservations(clientReservations);
       setClientBalance(balanceData);
+      await loadDocumentPhoto();
     } catch (err) {
       console.error('Error cargando datos del cliente:', err);
       setError('Error al cargar los datos del cliente');
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, loadDocumentPhoto]);
 
   useEffect(() => {
     if (clientId) {
@@ -85,6 +116,71 @@ const ClientDetails = () => {
       notify({ title: 'Próximamente', message: `Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`, type: 'info' });
     } else {
       notify({ title: 'Sin teléfono', message: 'Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.', type: 'warning' });
+    }
+  };
+
+  const handleDniPhotoUpload = async (fileList) => {
+    const file = fileList?.[0];
+    if (!file || !client?.id || documentPhotoBusy) return;
+    setDocumentPhotoBusy(true);
+    try {
+      const meta = await uploadClientDocumentPhoto(client.id, file);
+      setDocumentPhoto(meta);
+      notify({ title: 'Foto guardada', message: 'La foto del documento se subió correctamente.', type: 'success' });
+    } catch (err) {
+      notify({
+        title: 'Error',
+        message: err?.message || 'No se pudo subir la foto del documento',
+        type: 'error'
+      });
+    } finally {
+      setDocumentPhotoBusy(false);
+      if (dniPhotoInputRef.current) dniPhotoInputRef.current.value = '';
+    }
+  };
+
+  const handleViewDniPhoto = async () => {
+    if (!client?.id || !documentPhoto || documentPhotoBusy) return;
+    setDocumentPhotoBusy(true);
+    try {
+      await openClientDocumentPhoto(client.id);
+    } catch (err) {
+      try {
+        await downloadClientDocumentPhoto(client.id, documentPhoto.originalName);
+      } catch (downloadErr) {
+        notify({
+          title: 'Error',
+          message: downloadErr?.message || err?.message || 'No se pudo abrir la foto del documento',
+          type: 'error'
+        });
+      }
+    } finally {
+      setDocumentPhotoBusy(false);
+    }
+  };
+
+  const handleDeleteDniPhoto = async () => {
+    if (!client?.id || !documentPhoto || documentPhotoBusy) return;
+    const ok = await confirm({
+      title: 'Eliminar foto',
+      message: '¿Eliminar la foto del documento de identidad?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar'
+    });
+    if (!ok) return;
+    setDocumentPhotoBusy(true);
+    try {
+      await deleteClientDocumentPhoto(client.id);
+      setDocumentPhoto(null);
+      notify({ title: 'Foto eliminada', message: 'Se eliminó la foto del documento.', type: 'success' });
+    } catch (err) {
+      notify({
+        title: 'Error',
+        message: err?.message || 'No se pudo eliminar la foto del documento',
+        type: 'error'
+      });
+    } finally {
+      setDocumentPhotoBusy(false);
     }
   };
 
@@ -338,13 +434,65 @@ const ClientDetails = () => {
                         <span className={styles.value}>{client.phone || 'Sin teléfono'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('document')}>
-                        <span className={styles.label}>DNI / Documento:</span>
+                        <span className={styles.label}>Documento:</span>
                         <span className={styles.value}>
                           {client.documentType && client.documentNumber
                             ? `${client.documentType} ${client.documentNumber}`
                             : 'Sin documento'}
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.personalInfoCard} data-testid="client-dni-photo-card">
+                    <h3>Foto del DNI</h3>
+                    <p className={styles.dniPhotoHint}>
+                      Foto del DNI o documento de identidad del cliente
+                    </p>
+                    <div className={styles.dniPhotoMeta}>
+                      {documentPhoto
+                        ? documentPhoto.originalName || 'Foto cargada'
+                        : 'Sin foto cargada'}
+                    </div>
+                    <div className={styles.dniPhotoActions}>
+                      <input
+                        ref={dniPhotoInputRef}
+                        id="client-dni-photo-input"
+                        type="file"
+                        accept={DNI_PHOTO_ACCEPT}
+                        className={styles.dniPhotoInput}
+                        disabled={documentPhotoBusy}
+                        onChange={(e) => handleDniPhotoUpload(e.target.files)}
+                      />
+                      <button
+                        type="button"
+                        className={styles.uploadButton}
+                        disabled={documentPhotoBusy}
+                        onClick={() => dniPhotoInputRef.current?.click()}
+                        data-testid="client-dni-photo-upload"
+                      >
+                        {documentPhotoBusy ? 'Procesando…' : documentPhoto ? 'Reemplazar foto' : 'Subir foto'}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.viewButton}
+                        disabled={documentPhotoBusy || !documentPhoto}
+                        onClick={handleViewDniPhoto}
+                        data-testid="client-dni-photo-view"
+                      >
+                        Ver documento
+                      </button>
+                      {documentPhoto ? (
+                        <button
+                          type="button"
+                          className={styles.deletePhotoButton}
+                          disabled={documentPhotoBusy}
+                          onClick={handleDeleteDniPhoto}
+                          data-testid="client-dni-photo-delete"
+                        >
+                          Eliminar
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   
@@ -567,6 +715,7 @@ const ClientDetails = () => {
         />
       )}
       {noticeDialog}
+      {confirmDialog}
     </div>
   );
 };
