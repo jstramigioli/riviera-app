@@ -303,6 +303,46 @@
   color: var(--color-text-muted, #6b7280);
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 10px 20px 16px;
+}
+
+.pagerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 6px;
+  background: var(--color-bg-white, #fff);
+  color: var(--color-text-dark, #3a4250);
+  font-size: var(--font-size-small, 0.846rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pagerBtn:hover:not(:disabled) {
+  background: var(--color-bg, #f5f6f8);
+  border-color: var(--color-primary, #3f5f8a);
+  color: var(--color-primary-dark, #334d70);
+}
+
+.pagerBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagerStatus {
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 600;
+}
+
 .tableContainer {
   overflow-x: auto;
   padding: 8px;

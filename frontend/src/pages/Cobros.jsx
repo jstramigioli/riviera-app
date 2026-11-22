@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiCheck, FiFilter, FiPlus, FiX } from 'react-icons/fi';
+import { FiCheck, FiChevronLeft, FiChevronRight, FiFilter, FiPlus, FiX } from 'react-icons/fi';
 import {
   getAccountsWithBalances,
   getAllCobros,
@@ -138,6 +138,8 @@ const ACCOUNT_COLUMNS = [
   { key: 'saldoEstado', label: 'Saldo estado' },
   { key: 'ultimo', label: 'Último mov.' },
 ];
+
+const ACCOUNTS_PAGE_SIZE = 20;
 
 const SALDO_ESTADO_OPTIONS = [
   { value: 'PENDIENTE', label: 'Pendiente' },
@@ -290,6 +292,7 @@ const Cobros = () => {
   const [summaryCobro, setSummaryCobro] = useState(null);
 
   const [accountFilters, setAccountFilters] = useState(EMPTY_ACCOUNT_FILTERS);
+  const [accountsPage, setAccountsPage] = useState(1);
   const [openAccountColumn, setOpenAccountColumn] = useState(null);
   const [accountFilterMenuPos, setAccountFilterMenuPos] = useState({ top: 0, left: 0 });
   const accountFilterMenuRef = useRef(null);
@@ -717,6 +720,37 @@ const Cobros = () => {
     });
   }, [reservationsWithBalances, accountFilters, clientIdParam]);
 
+  useEffect(() => {
+    setAccountsPage(1);
+  }, [accountFilters, clientIdParam]);
+
+  const accountsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAccounts.length / ACCOUNTS_PAGE_SIZE)
+  );
+
+  useEffect(() => {
+    if (accountsPage > accountsTotalPages) {
+      setAccountsPage(accountsTotalPages);
+    }
+  }, [accountsPage, accountsTotalPages]);
+
+  const pagedAccounts = useMemo(() => {
+    const page = Math.min(Math.max(accountsPage, 1), accountsTotalPages);
+    const start = (page - 1) * ACCOUNTS_PAGE_SIZE;
+    return filteredAccounts.slice(start, start + ACCOUNTS_PAGE_SIZE);
+  }, [filteredAccounts, accountsPage, accountsTotalPages]);
+
+  const accountsPageRange = useMemo(() => {
+    if (filteredAccounts.length === 0) {
+      return { from: 0, to: 0 };
+    }
+    const page = Math.min(Math.max(accountsPage, 1), accountsTotalPages);
+    const from = (page - 1) * ACCOUNTS_PAGE_SIZE + 1;
+    const to = Math.min(page * ACCOUNTS_PAGE_SIZE, filteredAccounts.length);
+    return { from, to };
+  }, [filteredAccounts.length, accountsPage, accountsTotalPages]);
+
   const hasActivePayFilters = useMemo(
     () =>
       Object.values(payFilters).some((value) => String(value || '').trim() !== '') ||
@@ -1070,8 +1104,9 @@ const Cobros = () => {
 
               <div className={styles.panelHeader}>
                 <h3>
-                  {filteredAccounts.length} resultado
-                  {filteredAccounts.length === 1 ? '' : 's'}
+                  {filteredAccounts.length === 0
+                    ? '0 resultados'
+                    : `${accountsPageRange.from}–${accountsPageRange.to} de ${filteredAccounts.length} resultado${filteredAccounts.length === 1 ? '' : 's'}`}
                 </h3>
               </div>
 
@@ -1107,14 +1142,14 @@ const Cobros = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAccounts.length === 0 ? (
+                    {pagedAccounts.length === 0 ? (
                       <tr>
                         <td colSpan={11} className={styles.emptyCell}>
                           No hay cuentas con los filtros actuales
                         </td>
                       </tr>
                     ) : (
-                      filteredAccounts.map((reservation) => {
+                      pagedAccounts.map((reservation) => {
                         const client = reservation.mainClient;
                         const isExterna = isExternalAccount(reservation);
                         const clientName = accountClientName(reservation);
@@ -1219,6 +1254,36 @@ const Cobros = () => {
                   </tbody>
                 </table>
               </div>
+
+              {filteredAccounts.length > ACCOUNTS_PAGE_SIZE ? (
+                <div className={styles.pager} role="navigation" aria-label="Paginación de cuentas">
+                  <button
+                    type="button"
+                    className={styles.pagerBtn}
+                    aria-label="Página anterior"
+                    disabled={accountsPage <= 1}
+                    onClick={() => setAccountsPage((p) => Math.max(1, p - 1))}
+                  >
+                    <FiChevronLeft aria-hidden="true" />
+                    Anterior
+                  </button>
+                  <span className={styles.pagerStatus}>
+                    Página {Math.min(accountsPage, accountsTotalPages)} de {accountsTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.pagerBtn}
+                    aria-label="Página siguiente"
+                    disabled={accountsPage >= accountsTotalPages}
+                    onClick={() =>
+                      setAccountsPage((p) => Math.min(accountsTotalPages, p + 1))
+                    }
+                  >
+                    Siguiente
+                    <FiChevronRight aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
 
               {openAccountColumn ? (
                 <div
