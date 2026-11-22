@@ -38,9 +38,18 @@ import {
   sourceLabel,
   resolveReservationBarColors
 } from '../constants/reservationSource';
+import {
+  FALLBACK_STATUS_OPTIONS,
+  getStatusLabel
+} from '../utils/reservationStatusUtils';
 import styles from '../styles/LibroReservasBoard.module.css';
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+/** Estados que aparecen como barras en el Libro (ocupan habitación). */
+const LIBRO_STATUS_VALUES = FALLBACK_STATUS_OPTIONS.filter(
+  (o) => o.value !== 'CANCELADA' && o.value !== 'NO_PRESENTADA'
+).map((o) => o.value);
 
 function monthSpansFor(days) {
   const spans = [];
@@ -94,6 +103,8 @@ export default function LibroReservasBoard({
   const [booting, setBooting] = useState(true);
   /** null = todos los tipos; Set<number> = solo esos roomTypeId */
   const [roomTypeFilter, setRoomTypeFilter] = useState(null);
+  /** null = todos los estados; Set<string> = solo esos status */
+  const [statusFilter, setStatusFilter] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterMenuPos, setFilterMenuPos] = useState({ top: 0, left: 0 });
   const [sourceColors, setSourceColors] = useState(() => loadSourceColors());
@@ -151,7 +162,8 @@ export default function LibroReservasBoard({
     [sourceColors]
   );
 
-  const filterActive = roomTypeFilter != null || colorsCustomized;
+  const filterActive =
+    roomTypeFilter != null || statusFilter != null || colorsCustomized;
 
   function setSourceColor(sourceKey, color) {
     setSourceColors((prev) => {
@@ -216,6 +228,16 @@ export default function LibroReservasBoard({
       if (next.has(typeId)) next.delete(typeId);
       else next.add(typeId);
       if (next.size === allIds.length) return null;
+      return next;
+    });
+  }
+
+  function toggleStatusFilter(status) {
+    setStatusFilter((prev) => {
+      const next = new Set(prev == null ? LIBRO_STATUS_VALUES : prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      if (next.size === LIBRO_STATUS_VALUES.length) return null;
       return next;
     });
   }
@@ -561,10 +583,10 @@ export default function LibroReservasBoard({
                       ]
                         .filter(Boolean)
                         .join(' ')}
-                      aria-label="Filtro del Libro: tipos y colores por medio"
+                      aria-label="Filtro del Libro: tipos, estado y colores por medio"
                       aria-expanded={filterOpen}
                       aria-haspopup="menu"
-                      title="Filtro: tipos y colores por medio"
+                      title="Filtro: tipos, estado y colores por medio"
                       onClick={openFilterMenu}
                     >
                       <FiFilter size={13} aria-hidden="true" />
@@ -610,6 +632,38 @@ export default function LibroReservasBoard({
                               onClick={() => setRoomTypeFilter(null)}
                             >
                               Mostrar todas
+                            </button>
+                          </div>
+                        ) : null}
+
+                        <div className={styles.filterMenuTitle}>Estado de reserva</div>
+                        {LIBRO_STATUS_VALUES.map((status) => {
+                          const checked =
+                            statusFilter == null || statusFilter.has(status);
+                          return (
+                            <label
+                              key={status}
+                              className={styles.filterOption}
+                              role="menuitemcheckbox"
+                              aria-checked={checked}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleStatusFilter(status)}
+                              />
+                              <span>{getStatusLabel(status)}</span>
+                            </label>
+                          );
+                        })}
+                        {statusFilter != null ? (
+                          <div className={styles.filterMenuFooter}>
+                            <button
+                              type="button"
+                              className={styles.filterClear}
+                              onClick={() => setStatusFilter(null)}
+                            >
+                              Mostrar todos
                             </button>
                           </div>
                         ) : null}
@@ -731,7 +785,11 @@ export default function LibroReservasBoard({
                       </div>
                     );
                   })}
-                  {(room.blocks || []).map((b) => {
+                  {(room.blocks || [])
+                    .filter(
+                      (b) => statusFilter == null || statusFilter.has(b.status)
+                    )
+                    .map((b) => {
                     const style = blockStyle(b.startOffset, b.span);
                     const label = truncateBarLabel(
                       b.guestFirstName,

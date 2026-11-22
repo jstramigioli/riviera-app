@@ -120,7 +120,7 @@
   z-index: 80;
   min-width: 200px;
   max-width: 280px;
-  max-height: min(420px, calc(100vh - 80px));
+  max-height: min(520px, calc(100vh - 80px));
   overflow: auto;
   padding: 0.4rem 0;
   background: var(--color-bg-white);
