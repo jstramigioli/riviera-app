@@ -71,6 +71,9 @@ const ReservationDetails = () => {
   const [activeTab, setActiveTab] = useState(
     resolveInitialTab(location.state?.activeTab)
   );
+  const [openGuestForm, setOpenGuestForm] = useState(
+    Boolean(location.state?.openGuestForm)
+  );
   const [pendingFinancialAction, setPendingFinancialAction] = useState(
     location.state?.financialAction || null
   );
@@ -254,8 +257,20 @@ const ReservationDetails = () => {
       }
       // Limpiar state para no re-disparar al volver con el historial
       navigate(location.pathname, { replace: true, state: {} });
+      return;
     }
-  }, [location.state?.activeTab, location.state?.financialAction, location.pathname, navigate]);
+    if (location.state?.activeTab === 'huespedes' || location.state?.openGuestForm) {
+      setActiveTab('huespedes');
+      if (location.state?.openGuestForm) setOpenGuestForm(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state?.activeTab,
+    location.state?.financialAction,
+    location.state?.openGuestForm,
+    location.pathname,
+    navigate
+  ]);
 
   // Cargar datos financieros en la pestaña Estado financiero
   useEffect(() => {
@@ -524,6 +539,8 @@ const ReservationDetails = () => {
             reservation={reservation}
             onClientClick={handleClientClick}
             checkInGuests={checkInInfo?.guests || []}
+            openGuestFormOnMount={openGuestForm}
+            onOpenGuestFormConsumed={() => setOpenGuestForm(false)}
             onGuestUpdate={() => {
               loadReservationData();
               refreshCheckInInfo();

@@ -36,7 +36,14 @@ function checkInStatusLabel(displayStatus) {
   }
 }
 
-const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests = [] }) => {
+const HuespedesTab = ({
+  reservation,
+  onClientClick,
+  onGuestUpdate,
+  checkInGuests = [],
+  openGuestFormOnMount = false,
+  onOpenGuestFormConsumed
+}) => {
   const checkInByGuestId = useMemo(() => {
     const map = new Map();
     (checkInGuests || []).forEach((g) => {
@@ -68,6 +75,25 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
       setGuests(reservation.guests);
     }
   }, [reservation]);
+
+  useEffect(() => {
+    if (!openGuestFormOnMount) return undefined;
+    // Abrir form interno (agregar) desde dashboard / tabla reservas.
+    setEditingGuest(null);
+    setEditingClientId(null);
+    setFormData({ ...EMPTY_GUEST_PERSONAL_FIELDS });
+    setPhotos({
+      front: { uploaded: false, name: null },
+      back: { uploaded: false, name: null }
+    });
+    setClientSearch('');
+    setClientSuggestions([]);
+    setShowModal(true);
+    if (typeof onOpenGuestFormConsumed === 'function') {
+      onOpenGuestFormConsumed();
+    }
+    return undefined;
+  }, [openGuestFormOnMount, onOpenGuestFormConsumed]);
 
   const displaySegments = useMemo(
     () => getDisplaySegments(reservation?.segments || []),

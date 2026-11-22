@@ -550,7 +550,12 @@
 }
 
 .colStatus {
-  width: 88px;
+  width: 110px;
+  white-space: nowrap;
+}
+
+.colGuestCheckIn {
+  width: 96px;
   white-space: nowrap;
 }
 

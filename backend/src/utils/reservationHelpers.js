@@ -396,7 +396,11 @@ function getReservationData(reservation) {
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
-    
+    checkInToken: reservation.checkInToken || null,
+    checkInTokenSentAt: reservation.checkInTokenSentAt || null,
+    checkInTokenExpiresAt: reservation.checkInTokenExpiresAt || null,
+    vehiclePlate: reservation.vehiclePlate || null,
+
     // Datos del primer segmento (como referencia)
     roomId: virtualRoom ? `virtual_${virtualRoom.id}` : firstSegment.roomId,
     virtualRoomId: firstSegment.virtualRoomId || virtualRoom?.id || null,
@@ -410,6 +414,7 @@ function getReservationData(reservation) {
     // Relaciones — incluir inactivos si no hay activos (historial canceladas)
     mainClient: reservation.mainClient,
     guests: reservation.guests,
+    onlineCheckIns: reservation.onlineCheckIns || [],
     segments: displaySegments,
     childReservations: reservation.childReservations,
     virtualRoom,
@@ -429,6 +434,7 @@ async function getReservationWithData(reservationId) {
       guests: {
         include: { client: true }
       },
+      onlineCheckIns: true,
       // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
         include: {
@@ -478,6 +484,7 @@ async function getAllReservationsWithData() {
     include: {
       mainClient: true,
       guests: true,
+      onlineCheckIns: true,
       segments: {
         include: {
           room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },

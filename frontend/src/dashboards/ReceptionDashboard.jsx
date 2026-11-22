@@ -22,6 +22,8 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import CobroForm from '../components/CobroForm';
 import ReservationIdChip from '../components/ReservationIdChip';
+import ReservationStatusPlain from '../components/ReservationStatusPlain';
+import GuestCheckInStatusCell from '../components/GuestCheckInStatusCell';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
@@ -66,15 +68,6 @@ export function creditSaldoAmount(row) {
   const saldo = Number(row.saldo);
   if (!Number.isFinite(saldo) || saldo >= 0) return null;
   return Math.abs(saldo);
-}
-
-function statusLabel(status) {
-  if (!status) return '—';
-  if (status === 'INGRESADA') return 'Ingresada';
-  if (status === 'PENDIENTE') return 'Prerreserva';
-  if (status === 'CONFIRMADA') return 'Confirmada';
-  if (status === 'FINALIZADA') return 'Finalizada';
-  return status;
 }
 
 function civilLocalDate(dayIso) {
@@ -303,6 +296,21 @@ export default function ReceptionDashboard() {
     navigate(`/reservations/${reservationId}`);
   };
 
+  const openInternalGuestCheckIn = (reservationId) => {
+    if (reservationId == null) return;
+    navigate(`/reservations/${reservationId}`, {
+      state: { activeTab: 'huespedes', openGuestForm: true }
+    });
+  };
+
+  const reservationById = useMemo(() => {
+    const map = new Map();
+    for (const r of reservations || []) {
+      if (r?.id != null) map.set(Number(r.id), r);
+    }
+    return map;
+  }, [reservations]);
+
   const openClient = (clientId) => {
     if (clientId == null) return;
     navigate(`/clients/${clientId}`);
@@ -526,14 +534,21 @@ export default function ReceptionDashboard() {
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>
+                        <th className={styles.colGuestCheckIn}>Check-in</th>
                         <th className={styles.checkCol}>
-                          <span className={styles.srOnly}>Check-in</span>
+                          <span className={styles.srOnly}>Marcar ingreso</span>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {checkInRows.map((item) => {
                         const canCheckIn = Boolean(item.pending);
+                        const reservation =
+                          reservationById.get(Number(item.reservationId)) || {
+                            id: item.reservationId,
+                            guests: [],
+                            onlineCheckIns: []
+                          };
                         return (
                           <tr key={`in-${item.reservationId}`}>
                             <td className={styles.colReserva}>
@@ -593,17 +608,15 @@ export default function ReceptionDashboard() {
                               {renderSaldoCell(item.reservationId)}
                             </td>
                             <td className={styles.colStatus}>
-                              <span
-                                className={
-                                  item.pending
-                                    ? styles.statusPending
-                                    : item.status === 'INGRESADA'
-                                      ? styles.statusDone
-                                      : styles.statusMuted
+                              <ReservationStatusPlain status={item.status} />
+                            </td>
+                            <td className={styles.colGuestCheckIn}>
+                              <GuestCheckInStatusCell
+                                reservation={reservation}
+                                onOpenInternalForm={() =>
+                                  openInternalGuestCheckIn(item.reservationId)
                                 }
-                              >
-                                {statusLabel(item.status)}
-                              </span>
+                              />
                             </td>
                             <td className={styles.checkCol}>
                               {canCheckIn ? (
@@ -723,9 +736,7 @@ export default function ReceptionDashboard() {
                             {renderSaldoCell(item.reservationId)}
                           </td>
                           <td className={styles.colStatus}>
-                            <span className={styles.statusMuted}>
-                              {statusLabel(item.status)}
-                            </span>
+                            <ReservationStatusPlain status={item.status} />
                           </td>
                           <td className={styles.colActions}>
                             <button

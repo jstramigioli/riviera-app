@@ -13,6 +13,7 @@ const {
   buildIdentityKey,
   resolveClientIdentity
 } = require('../services/resolveClientIdentity');
+const { syncGuestOnlineCheckInCompleted } = require('../utils/syncGuestOnlineCheckIn');
 
 /** Campos de Guest (tabla) vs perfil Client. */
 function guestTableFields(body = {}) {
@@ -181,6 +182,13 @@ exports.createGuest = async (req, res) => {
         }
       }
     });
+    if (newGuest.reservationId) {
+      try {
+        await syncGuestOnlineCheckInCompleted(prisma, newGuest, body, resolveMeta);
+      } catch (syncErr) {
+        console.warn('syncGuestOnlineCheckInCompleted (create)', syncErr.message);
+      }
+    }
     res.status(201).json({
       ...newGuest,
       needsManualReview: Boolean(resolveMeta?.needsManualReview),
@@ -360,6 +368,13 @@ exports.updateGuest = async (req, res) => {
       },
       include: { client: true }
     });
+    if (updatedGuest.reservationId) {
+      try {
+        await syncGuestOnlineCheckInCompleted(prisma, updatedGuest, data, resolveMeta);
+      } catch (syncErr) {
+        console.warn('syncGuestOnlineCheckInCompleted (update)', syncErr.message);
+      }
+    }
     res.json({
       ...updatedGuest,
       needsManualReview: Boolean(resolveMeta?.needsManualReview),
