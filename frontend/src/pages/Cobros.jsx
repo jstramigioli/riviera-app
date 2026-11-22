@@ -20,6 +20,7 @@ import CobrosHistorialTable, {
   adjuntosOf,
   paymentCodeLabel,
 } from '../components/CobrosHistorialTable';
+import ReservationIdChip from '../components/ReservationIdChip';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { countryName } from '../constants/countries';
 import styles from './Cobros.module.css';
@@ -1018,16 +1019,26 @@ const Cobros = () => {
                               ? new Date(reservation.createdAt)
                               : null);
                         const rowKey = reservation.accountId || `r-${reservation.id}`;
-                        const cuentaLabel = isExterna
-                          ? reservation.accountLabel || `Externa #${reservation.accountId}`
-                          : `#${reservation.reservationId || reservation.id}`;
+                        const reservaNum =
+                          reservation.reservationId || reservation.id;
 
                         return (
                           <tr key={rowKey} className={styles.row}>
                             <td className={styles.metaCell}>
                               {isExterna ? 'Externa' : 'Reserva'}
                             </td>
-                            <td className={styles.idCell}>{cuentaLabel}</td>
+                            <td className={styles.idCell}>
+                              {isExterna ? (
+                                reservation.accountLabel ||
+                                `Externa #${reservation.accountId}`
+                              ) : (
+                                <ReservationIdChip
+                                  id={reservaNum}
+                                  source={reservation.source}
+                                  status={reservation.status}
+                                />
+                              )}
+                            </td>
                             <td className={styles.metaCell}>
                               {isExterna
                                 ? reservation.accountStatus || reservation.status || '—'

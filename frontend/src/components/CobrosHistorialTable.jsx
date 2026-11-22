@@ -10,6 +10,7 @@ import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
+import ReservationIdChip from './ReservationIdChip';
 import styles from '../pages/Cobros.module.css';
 
 export function isDevolucionCobro(cobro) {
@@ -542,18 +543,19 @@ export default function CobrosHistorialTable({
                       {formatDisplayDateTime(cobro.fecha)}
                     </td>
                     <td className={styles.idCell}>
-                      {reservaId != null && onReservationClick ? (
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={() => onReservationClick(reservaId, cobro)}
+                      {reservaId != null ? (
+                        <ReservationIdChip
+                          id={reservaId}
+                          source={cobro.reserva?.source}
+                          status={cobro.reserva?.status}
+                          onClick={
+                            onReservationClick
+                              ? () => onReservationClick(reservaId, cobro)
+                              : null
+                          }
                           title="Ver reserva"
                           data-testid={`cobro-reserva-link-${cobro.id}`}
-                        >
-                          #{reservaId}
-                        </button>
-                      ) : reservaId != null ? (
-                        `#${reservaId}`
+                        />
                       ) : (
                         '—'
                       )}

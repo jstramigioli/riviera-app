@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_SOURCE_COLORS,
-  contrastTextColor
+  DEFAULT_RESERVATION_BAR_COLOR,
+  FINISHED_RESERVATION_BAR_STYLE,
+  contrastTextColor,
+  resolveReservationBarColors
 } from './reservationSource'
 
 describe('contrastTextColor', () => {
@@ -26,5 +29,27 @@ describe('contrastTextColor', () => {
     expect(contrastTextColor('#fff')).toBe('#1a1a1a')
     expect(contrastTextColor('nope')).toBe('#1a1a1a')
     expect(contrastTextColor(null)).toBe('#1a1a1a')
+  })
+})
+
+describe('resolveReservationBarColors', () => {
+  it('FINALIZADA → gris del Libro', () => {
+    const style = resolveReservationBarColors('WHATSAPP', 'FINALIZADA', DEFAULT_SOURCE_COLORS)
+    expect(style).toMatchObject(FINISHED_RESERVATION_BAR_STYLE)
+    expect(style.finished).toBe(true)
+  })
+
+  it('medio conocido → color del medio', () => {
+    const style = resolveReservationBarColors('BOOKING', 'INGRESADA', DEFAULT_SOURCE_COLORS)
+    expect(style.backgroundColor).toBe(DEFAULT_SOURCE_COLORS.BOOKING)
+    expect(style.borderColor).toBe(DEFAULT_SOURCE_COLORS.BOOKING)
+    expect(style.color).toBe('#ffffff')
+    expect(style.finished).toBe(false)
+  })
+
+  it('sin medio → celeste por defecto del Libro', () => {
+    const style = resolveReservationBarColors(null, 'CONFIRMADA', DEFAULT_SOURCE_COLORS)
+    expect(style.backgroundColor).toBe(DEFAULT_RESERVATION_BAR_COLOR)
+    expect(style.finished).toBe(false)
   })
 })

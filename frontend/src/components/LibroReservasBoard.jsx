@@ -36,7 +36,7 @@ import {
   loadSourceColors,
   saveSourceColors,
   sourceLabel,
-  contrastTextColor
+  resolveReservationBarColors
 } from '../constants/reservationSource';
 import styles from '../styles/LibroReservasBoard.module.css';
 
@@ -740,24 +740,19 @@ export default function LibroReservasBoard({
                     );
                     const hovered = hoveredReservationId === b.reservationId;
                     const finished = b.status === 'FINALIZADA';
-                    const sourceColor =
-                      !finished && b.source && sourceColors[b.source]
-                        ? sourceColors[b.source]
-                        : null;
-                    // Finalizadas: gris claro (menos énfasis que el color del medio)
-                    const finishedStyle = {
-                      backgroundColor: '#e5e7eb',
-                      borderColor: '#d1d5db',
-                      color: '#6b7280'
-                    };
-                    const barStyle = finished
-                      ? { ...style, ...finishedStyle }
-                      : sourceColor
+                    const barColors = resolveReservationBarColors(
+                      b.source,
+                      b.status,
+                      sourceColors
+                    );
+                    // Sin medio: hereda CSS .bar; con medio/finalizada: inline como el Libro.
+                    const barStyle =
+                      finished || (b.source && sourceColors[b.source])
                         ? {
                             ...style,
-                            backgroundColor: sourceColor,
-                            borderColor: sourceColor,
-                            color: contrastTextColor(sourceColor)
+                            backgroundColor: barColors.backgroundColor,
+                            borderColor: barColors.borderColor,
+                            color: barColors.color
                           }
                         : style;
                     const medio = sourceLabel(b.source);

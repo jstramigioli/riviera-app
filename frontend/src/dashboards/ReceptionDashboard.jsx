@@ -21,6 +21,7 @@ import {
 import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import CobroForm from '../components/CobroForm';
+import ReservationIdChip from '../components/ReservationIdChip';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
@@ -516,14 +517,13 @@ export default function ReceptionDashboard() {
                         return (
                           <tr key={`in-${item.reservationId}`}>
                             <td className={styles.colReserva}>
-                              <button
-                                type="button"
-                                className={styles.listLink}
+                              <ReservationIdChip
+                                id={item.reservationId}
+                                source={item.source}
+                                status={item.status}
                                 onClick={() => openReservation(item.reservationId)}
                                 title="Ver reserva"
-                              >
-                                #{item.reservationId}
-                              </button>
+                              />
                             </td>
                             <td className={styles.colName}>
                               <button
@@ -650,14 +650,13 @@ export default function ReceptionDashboard() {
                       {checkoutRows.map((item) => (
                         <tr key={`out-${item.reservationId}`}>
                           <td className={styles.colReserva}>
-                            <button
-                              type="button"
-                              className={styles.listLink}
+                            <ReservationIdChip
+                              id={item.reservationId}
+                              source={item.source}
+                              status={item.status}
                               onClick={() => openReservation(item.reservationId)}
                               title="Ver reserva"
-                            >
-                              #{item.reservationId}
-                            </button>
+                            />
                           </td>
                           <td className={styles.colName}>
                             <button

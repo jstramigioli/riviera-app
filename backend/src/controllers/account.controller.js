@@ -218,6 +218,7 @@ function mapAccountSaldoRow(account) {
     origen,
     reservationId: account.reservationId || null,
     status: reservation?.status || account.status,
+    source: reservation?.source || null,
     mainClient: client,
     cantidadHuespedes: reservation?._count?.guests ?? 0,
     totalCargos,
@@ -259,6 +260,7 @@ exports.getAccountsConSaldos = async (req, res) => {
           select: {
             id: true,
             status: true,
+            source: true,
             mainClient: {
               select: { id: true, firstName: true, lastName: true, email: true, phone: true }
             },

@@ -15,6 +15,7 @@ import {
 import FieldEditor from '../components/FieldEditor';
 import EditClientModal from '../components/EditClientModal';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
+import ReservationIdChip from '../components/ReservationIdChip';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -534,7 +535,13 @@ const ClientDetails = () => {
                             className={styles.reservationRow}
                             onClick={() => navigate(`/reservations/${reservation.id}`)}
                           >
-                            <td>#{reservation.id}</td>
+                            <td>
+                              <ReservationIdChip
+                                id={reservation.id}
+                                source={reservation.source}
+                                status={reservation.status}
+                              />
+                            </td>
                             <td>{reservation.room?.name || 'Sin asignar'}</td>
                             <td>{formatDate(reservation.checkIn)}</td>
                             <td>{formatDate(reservation.checkOut)}</td>

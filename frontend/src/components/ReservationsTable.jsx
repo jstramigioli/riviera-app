@@ -4,6 +4,7 @@ import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatMoneyArs } from '../utils/formatMoney';
+import ReservationIdChip from './ReservationIdChip';
 import styles from '../styles/ReservationsTable.module.css';
 
 export default function ReservationsTable({ 
@@ -304,15 +305,16 @@ export default function ReservationsTable({
                   onClick={() => onReservationClick(reservation)}
                 >
                   <td className={styles.cell}>
-                    <span 
-                      className={styles.reservationId}
+                    <ReservationIdChip
+                      id={reservation.id}
+                      source={reservation.source}
+                      status={reservation.status}
                       onClick={(e) => {
-                        e.stopPropagation(); // Evitar que se active el clic de la fila
+                        e.stopPropagation();
                         navigate(`/reservations/${reservation.id}`);
                       }}
-                    >
-                      #{reservation.id}
-                    </span>
+                      title="Ver reserva"
+                    />
                   </td>
                   <td className={styles.cell}>
                     <span 

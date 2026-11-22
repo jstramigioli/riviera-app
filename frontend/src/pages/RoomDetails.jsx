@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RoomStatusPeriodModal from '../components/RoomStatusPeriodModal';
+import ReservationIdChip from '../components/ReservationIdChip';
 import {
   deleteRoomStatusPeriod,
   fetchReservations,
@@ -391,7 +392,13 @@ function RoomDetails() {
                         const { start, end } = stayBoundsForRoom(reservation, roomId);
                         return (
                           <tr key={reservation.id}>
-                            <td>#{reservation.id}</td>
+                            <td>
+                              <ReservationIdChip
+                                id={reservation.id}
+                                source={reservation.source}
+                                status={reservation.status}
+                              />
+                            </td>
                             <td>
                               {reservation.mainClient?.firstName}{' '}
                               {reservation.mainClient?.lastName}

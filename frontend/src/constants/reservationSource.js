@@ -98,3 +98,45 @@ export function contrastTextColor(backgroundHex, {
 
   return luminance < 0.45 ? light : dark;
 }
+
+/** Color por defecto de barra del Libro (--color-reservation). */
+export const DEFAULT_RESERVATION_BAR_COLOR = '#b8d4e3';
+export const DEFAULT_RESERVATION_BAR_BORDER = 'rgba(184, 212, 227, 0.5)';
+
+/** Finalizadas en el Libro: gris claro. */
+export const FINISHED_RESERVATION_BAR_STYLE = Object.freeze({
+  backgroundColor: '#e5e7eb',
+  borderColor: '#d1d5db',
+  color: '#6b7280'
+});
+
+/**
+ * Colores de barra/chip de reserva (misma regla que el Libro):
+ * FINALIZADA → gris; con medio → color del medio (localStorage/default); sin medio → celeste Libro.
+ */
+export function resolveReservationBarColors(
+  source,
+  status,
+  sourceColors = null
+) {
+  if (status === 'FINALIZADA') {
+    return { ...FINISHED_RESERVATION_BAR_STYLE, finished: true };
+  }
+  const colors = sourceColors || loadSourceColors();
+  const sourceColor =
+    source && colors[source] ? colors[source] : null;
+  if (sourceColor) {
+    return {
+      backgroundColor: sourceColor,
+      borderColor: sourceColor,
+      color: contrastTextColor(sourceColor),
+      finished: false
+    };
+  }
+  return {
+    backgroundColor: DEFAULT_RESERVATION_BAR_COLOR,
+    borderColor: DEFAULT_RESERVATION_BAR_BORDER,
+    color: contrastTextColor(DEFAULT_RESERVATION_BAR_COLOR),
+    finished: false
+  };
+}

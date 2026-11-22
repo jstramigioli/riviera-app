@@ -213,6 +213,7 @@ exports.getAllCobros = async (req, res) => {
           select: {
             id: true,
             status: true,
+            source: true,
             mainClient: {
               select: {
                 id: true,
@@ -1711,6 +1712,7 @@ exports.getReservasConSaldos = async (req, res) => {
           select: {
             id: true,
             status: true,
+            source: true,
             createdAt: true,
             updatedAt: true,
             mainClient: {
@@ -1757,6 +1759,7 @@ exports.getReservasConSaldos = async (req, res) => {
           accountLabel: account.label,
           origen: 'RESERVA',
           status: reserva.status,
+          source: reserva.source || null,
           mainClient: reserva.mainClient,
           cantidadHuespedes: reserva._count?.guests ?? 0,
           totalCargos,
