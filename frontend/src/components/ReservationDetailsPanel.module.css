@@ -102,6 +102,16 @@
   min-width: 0;
 }
 
+/* Título del panel: chip Libro más grande con «Reserva #N» */
+.titleChip {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  padding: 0.4rem 0.75rem;
+  border-radius: 5px;
+  letter-spacing: -0.01em;
+}
+
 .reservationStatus {
   margin-top: 6px;
   font-size: 0.9rem;

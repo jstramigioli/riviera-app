@@ -126,6 +126,8 @@ const ReservationDetailsPanel = ({
               id={reservation.id}
               source={reservation.source}
               status={reservation.status}
+              prefix="Reserva #"
+              className={styles.titleChip}
               onClick={() => navigate(`/reservations/${reservation.id}`)}
               title={`Ver detalles de la Reserva #${reservation.id}`}
               data-testid="panel-reservation-id-chip"
