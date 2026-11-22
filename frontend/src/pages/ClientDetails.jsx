@@ -18,7 +18,6 @@ import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
-import { todayAsLocalDate } from '../utils/calendarDates';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
@@ -268,54 +267,6 @@ const ClientDetails = () => {
     return reservations.filter((r) => ['FINALIZADA', 'checked_out'].includes(r.status));
   };
 
-  const getCurrentStatus = () => {
-    const activeReservations = getActiveReservations();
-    if (activeReservations.length === 0) {
-      return 'Sin reservas';
-    }
-
-    const now = todayAsLocalDate();
-    const currentReservation = activeReservations.find((r) => {
-      const checkIn = new Date(r.checkIn);
-      const checkOut = new Date(r.checkOut);
-      return now >= checkIn && now <= checkOut;
-    });
-
-    if (currentReservation) {
-      return 'Alojado';
-    }
-
-    const futureReservations = activeReservations.filter((r) => new Date(r.checkIn) > now);
-    if (futureReservations.length > 0) {
-      const nextReservation = futureReservations.sort(
-        (a, b) => new Date(a.checkIn) - new Date(b.checkIn)
-      )[0];
-      const daysUntilArrival = Math.ceil(
-        (new Date(nextReservation.checkIn) - now) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysUntilArrival >= 30) {
-        const months = Math.floor(daysUntilArrival / 30);
-        const remainingDays = daysUntilArrival % 30;
-        if (remainingDays === 0) {
-          return `Llega en ${months} mes${months > 1 ? 'es' : ''}`;
-        }
-        return `Llega en ${months} mes${months > 1 ? 'es' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
-      }
-      if (daysUntilArrival >= 7) {
-        const weeks = Math.floor(daysUntilArrival / 7);
-        const remainingDays = daysUntilArrival % 7;
-        if (remainingDays === 0) {
-          return `Llega en ${weeks} semana${weeks > 1 ? 's' : ''}`;
-        }
-        return `Llega en ${weeks} semana${weeks > 1 ? 's' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
-      }
-      return `Llega en ${daysUntilArrival} día${daysUntilArrival > 1 ? 's' : ''}`;
-    }
-
-    return 'Sin reservas';
-  };
-
   if (loading) {
     return (
       <div className={styles.newLayout}>
@@ -359,9 +310,6 @@ const ClientDetails = () => {
   const totalBalance = clientBalance?.balance ?? 0;
   const activeReservations = getActiveReservations();
   const completedReservations = getCompletedReservations();
-  const currentStatus = getCurrentStatus();
-  const accountLabel =
-    totalBalance > 0 ? 'Cuenta Pendiente' : totalBalance < 0 ? 'Saldo a favor' : 'Cuenta al Día';
 
   const cobrosMovimientos = clientBalance?.cobros || [];
   const isDevolucionMovimiento = (cobro) =>
@@ -419,12 +367,6 @@ const ClientDetails = () => {
             </button>
             <div className={styles.guestDates}>
               Cliente desde {new Date(client.createdAt).getFullYear()}
-            </div>
-            <div className={styles.guestStatus}>
-              <span className={styles.statusValue}>{currentStatus}</span>
-            </div>
-            <div className={styles.guestStatus}>
-              <span className={styles.statusValue}>{accountLabel}</span>
             </div>
           </div>
         </div>
