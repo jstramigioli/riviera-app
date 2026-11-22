@@ -2352,9 +2352,6 @@ const CobroForm = ({
                   data-testid="payment-manual-promos"
                 >
                   <p className={styles.discountTitle}>Valor al aplicar</p>
-                  <p className={styles.helpText}>
-                    Promos/descuentos sin valor fijo: completá el beneficio para aplicarlos.
-                  </p>
                   {manualPromoSuggestions.map((s) => (
                     <label key={s.id} className={styles.manualPromoRow}>
                       <span className={styles.manualPromoLabel}>{s.label}</span>
