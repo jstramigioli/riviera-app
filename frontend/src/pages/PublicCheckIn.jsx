@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiCheck, FiChevronLeft, FiUser } from 'react-icons/fi';
-import LocationSelector from '../components/LocationSelector';
-import DocumentPhotoSlot from '../components/DocumentPhotoSlot';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
+import GuestPersonalFormFields, {
+  EMPTY_GUEST_PERSONAL_FIELDS
+} from '../components/GuestPersonalFormFields';
 import {
-  BIRTH_DATE_LABEL_REQUIRED,
-  CLIENT_DOCUMENT_TYPES,
   VEHICLE_PLATE_HINT,
   VEHICLE_PLATE_LABEL,
   birthDateInputToPayload,
@@ -16,21 +15,6 @@ import styles from './PublicCheckIn.module.css';
 
 // Preferir same-origin /api (proxy Vite) para evitar CORS / 127 vs localhost en local.
 const CHECKIN_API_BASE = import.meta.env.VITE_API_URL || '/api';
-
-const EMPTY = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  documentType: 'DNI',
-  documentNumber: '',
-  birthDate: '',
-  country: 'AR',
-  province: '',
-  city: '',
-  address: '',
-  wantsPromotions: false
-};
 
 function statusLabel(displayStatus) {
   switch (displayStatus) {
@@ -58,7 +42,7 @@ export default function PublicCheckIn() {
   const [selectedGuestId, setSelectedGuestId] = useState(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
   const [vehiclePlateDraft, setVehiclePlateDraft] = useState('');
-  const [fields, setFields] = useState(EMPTY);
+  const [fields, setFields] = useState({ ...EMPTY_GUEST_PERSONAL_FIELDS });
   // Fotos siempre nuevas: no prefill de archivos previos del cliente.
   const [photos, setPhotos] = useState({
     front: { uploaded: false, name: null },
@@ -71,7 +55,7 @@ export default function PublicCheckIn() {
     setEditingVehicle(false);
     setSelectedGuestId(guest.guestId);
     setFields({
-      ...EMPTY,
+      ...EMPTY_GUEST_PERSONAL_FIELDS,
       ...(guest.fields || {}),
       country: guest.fields?.country || 'AR',
       documentType: guest.fields?.documentType || 'DNI',
@@ -453,124 +437,21 @@ export default function PublicCheckIn() {
               <FiChevronLeft aria-hidden /> Volver a huéspedes
             </button>
 
-            <form className={styles.form} onSubmit={handleSubmit}>
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Información personal</h2>
-                <div className={styles.grid}>
-                  <label className={styles.field}>
-                    <span>Nombre *</span>
-                    <input name="firstName" value={fields.firstName} onChange={handleChange} required autoComplete="given-name" />
-                  </label>
-                  <label className={styles.field}>
-                    <span>Apellido *</span>
-                    <input name="lastName" value={fields.lastName} onChange={handleChange} required autoComplete="family-name" />
-                  </label>
-                  <label className={styles.field}>
-                    <span>Email</span>
-                    <input type="email" name="email" value={fields.email} onChange={handleChange} autoComplete="email" />
-                  </label>
-                  <label className={styles.field}>
-                    <span>Teléfono</span>
-                    <input type="tel" name="phone" value={fields.phone} onChange={handleChange} autoComplete="tel" />
-                  </label>
-                  <label className={styles.field}>
-                    <span>{BIRTH_DATE_LABEL_REQUIRED}</span>
-                    <input
-                      type="date"
-                      name="birthDate"
-                      value={fields.birthDate}
-                      onChange={handleChange}
-                      required
-                      autoComplete="bday"
-                    />
-                  </label>
-                </div>
-              </section>
-
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Documentación</h2>
-                <div className={styles.grid}>
-                  <label className={styles.field}>
-                    <span>Tipo de documento</span>
-                    <select name="documentType" value={fields.documentType || 'DNI'} onChange={handleChange}>
-                      {CLIENT_DOCUMENT_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className={styles.field}>
-                    <span>Número de documento</span>
-                    <input name="documentNumber" value={fields.documentNumber} onChange={handleChange} />
-                  </label>
-                </div>
-                <p className={styles.hint}>
-                  Las fotos del documento son siempre nuevas para este check-in (frente y dorso).
-                </p>
-                <div className={styles.photoSlots}>
-                  <DocumentPhotoSlot
-                    label="Frente del documento"
-                    slot="front"
-                    meta={photos.front.uploaded ? { originalName: photos.front.name, exists: true } : null}
-                    busy={photoBusy}
-                    required
-                    onSelect={handlePhotoSelect}
-                    showDelete={false}
-                    testIdPrefix="checkin-doc"
-                  />
-                  <DocumentPhotoSlot
-                    label="Dorso del documento"
-                    slot="back"
-                    meta={photos.back.uploaded ? { originalName: photos.back.name, exists: true } : null}
-                    busy={photoBusy}
-                    required
-                    onSelect={handlePhotoSelect}
-                    showDelete={false}
-                    testIdPrefix="checkin-doc"
-                  />
-                </div>
-              </section>
-
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Ubicación</h2>
-                <div className={styles.locationBlock}>
-                  <LocationSelector
-                    country={fields.country}
-                    province={fields.province}
-                    city={fields.city}
-                    onCountryChange={(value) => handleLocationChange('country', value)}
-                    onProvinceChange={(value) => handleLocationChange('province', value)}
-                    onCityChange={(value) => handleLocationChange('city', value)}
-                  />
-                </div>
-              </section>
-
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Domicilio</h2>
-                <label className={`${styles.field} ${styles.fieldWide}`}>
-                  <span>Dirección</span>
-                  <textarea
-                    name="address"
-                    value={fields.address}
-                    onChange={handleChange}
-                    placeholder="Ingresa la dirección completa"
-                    rows={3}
-                    autoComplete="street-address"
-                  />
-                </label>
-              </section>
-
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Preferencias</h2>
-                <label className={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="wantsPromotions"
-                    checked={Boolean(fields.wantsPromotions)}
-                    onChange={handleChange}
-                  />
-                  Deseo recibir información de promociones
-                </label>
-              </section>
+            <form onSubmit={handleSubmit}>
+              <GuestPersonalFormFields
+                fields={fields}
+                onChange={handleChange}
+                onLocationChange={handleLocationChange}
+                disabled={saving || photoBusy}
+                birthDateRequired
+                showPhotos
+                photos={photos}
+                onPhotoSelect={handlePhotoSelect}
+                photoBusy={photoBusy}
+                photosRequired
+                photosHint="Las fotos del documento son siempre nuevas para este check-in (frente y dorso)."
+                photoTestIdPrefix="checkin-doc"
+              />
 
               <div className={styles.actions}>
                 <button type="submit" className={styles.submit} disabled={saving || photoBusy}>

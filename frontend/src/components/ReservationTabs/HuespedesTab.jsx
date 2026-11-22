@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaUser, FaTimes, FaUserPlus } from 'react-icons/fa';
-import { API_URL } from '../../services/api';
+import {
+  API_URL,
+  getClientDocumentPhotos,
+  uploadClientDocumentPhoto
+} from '../../services/api';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
 import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { getDisplaySegments } from '../../utils/virtualRoomReservation';
-import { formatBirthDateDisplay } from '../../constants/clientFormFields';
+import {
+  birthDateInputToPayload,
+  birthDateToInputValue,
+  formatBirthDateDisplay
+} from '../../constants/clientFormFields';
+import { getAddressFromNotes } from '../../utils/clientAddressNotes';
+import GuestPersonalFormFields, {
+  EMPTY_GUEST_PERSONAL_FIELDS
+} from '../GuestPersonalFormFields';
 
 function checkInStatusLabel(displayStatus) {
   switch (displayStatus) {
@@ -38,16 +50,13 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
   const [showModal, setShowModal] = useState(false);
   const guestOverlayDismiss = useOverlayDismiss(() => setShowModal(false));
   const [editingGuest, setEditingGuest] = useState(null);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    documentType: 'DNI',
-    documentNumber: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: ''
+  const [formData, setFormData] = useState({ ...EMPTY_GUEST_PERSONAL_FIELDS });
+  const [photos, setPhotos] = useState({
+    front: { uploaded: false, name: null },
+    back: { uploaded: false, name: null }
   });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [editingClientId, setEditingClientId] = useState(null);
 
   useEffect(() => {
     if (reservation?.guests) {
@@ -74,34 +83,88 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
   }, [guests, holderClientId]);
   const holderIsGuest = Boolean(holderGuest);
 
+  const fieldsFromGuest = (guest) => {
+    const client = guest?.client || {};
+    return {
+      ...EMPTY_GUEST_PERSONAL_FIELDS,
+      firstName: guest.firstName || client.firstName || '',
+      lastName: guest.lastName || client.lastName || '',
+      email: guest.email || client.email || '',
+      phone: guest.phone || client.phone || '',
+      documentType: guest.documentType || client.documentType || 'DNI',
+      documentNumber: guest.documentNumber || client.documentNumber || '',
+      birthDate: birthDateToInputValue(client.birthDate),
+      country: client.country || 'AR',
+      province: client.province || '',
+      city: guest.city || client.city || '',
+      address: guest.address || getAddressFromNotes(client.notes) || '',
+      wantsPromotions: Boolean(client.wantsPromotions)
+    };
+  };
+
+  const loadPhotosForClient = async (clientId) => {
+    if (!clientId) {
+      setPhotos({
+        front: { uploaded: false, name: null },
+        back: { uploaded: false, name: null }
+      });
+      return;
+    }
+    try {
+      const meta = await getClientDocumentPhotos(clientId);
+      setPhotos({
+        front: {
+          uploaded: Boolean(meta?.front?.exists),
+          name: meta?.front?.originalName || (meta?.front?.exists ? 'Frente' : null)
+        },
+        back: {
+          uploaded: Boolean(meta?.back?.exists),
+          name: meta?.back?.originalName || (meta?.back?.exists ? 'Dorso' : null)
+        }
+      });
+    } catch {
+      setPhotos({
+        front: { uploaded: false, name: null },
+        back: { uploaded: false, name: null }
+      });
+    }
+  };
+
   const handleAddClick = () => {
     setEditingGuest(null);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      documentType: 'DNI',
-      documentNumber: '',
-      phone: '',
-      email: '',
-      address: '',
-      city: ''
+    setEditingClientId(null);
+    setFormData({ ...EMPTY_GUEST_PERSONAL_FIELDS });
+    setPhotos({
+      front: { uploaded: false, name: null },
+      back: { uploaded: false, name: null }
     });
     setShowModal(true);
   };
 
-  const handleEditClick = (guest, index) => {
+  const handleEditClick = async (guest, index) => {
     setEditingGuest(index);
-    setFormData({
-      firstName: guest.firstName || '',
-      lastName: guest.lastName || '',
-      documentType: guest.documentType || 'DNI',
-      documentNumber: guest.documentNumber || '',
-      phone: guest.phone || '',
-      email: guest.email || '',
-      address: guest.address || '',
-      city: guest.city || ''
-    });
+    setFormData(fieldsFromGuest(guest));
+    let cid = guest.clientId || guest.client?.id || null;
+    setEditingClientId(cid);
     setShowModal(true);
+    // Si la reserva no traía client embebido, refrescar el huésped.
+    if (!guest.client && guest.id) {
+      try {
+        const response = await fetch(`${API_URL}/guests/${guest.id}`);
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data?.id) {
+          setFormData(fieldsFromGuest(data));
+          cid = data.clientId || data.client?.id || cid;
+          setEditingClientId(cid);
+          setGuests((prev) =>
+            prev.map((g) => (g.id === data.id ? { ...g, ...data } : g))
+          );
+        }
+      } catch {
+        /* keep local fields */
+      }
+    }
+    await loadPhotosForClient(cid);
   };
 
   const handleDelete = async (guestId) => {
@@ -176,13 +239,18 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
 
     try {
       setLoading(true);
+      const payload = {
+        ...formData,
+        birthDate: birthDateInputToPayload(formData.birthDate),
+        syncClient: true
+      };
 
       if (editingGuest === null) {
         const response = await fetch(`${API_URL}/guests`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...formData,
+            ...payload,
             reservationId: reservation.id
           })
         });
@@ -191,6 +259,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
         if (!response.ok) throw new Error(data.error || 'Error al crear el huésped');
 
         setGuests([...guests, data]);
+        setEditingClientId(data.clientId || data.client?.id || null);
         notify({ title: 'Listo', message: 'Huésped agregado exitosamente', type: 'success' });
       } else {
         const guestId = guests[editingGuest]?.id;
@@ -199,7 +268,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
         const response = await fetch(`${API_URL}/guests/${guestId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(payload)
         });
 
         const data = await response.json().catch(() => ({}));
@@ -208,6 +277,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
         const updatedGuests = [...guests];
         updatedGuests[editingGuest] = data;
         setGuests(updatedGuests);
+        setEditingClientId(data.clientId || data.client?.id || null);
         notify({ title: 'Listo', message: 'Huésped actualizado exitosamente', type: 'success' });
       }
 
@@ -222,10 +292,92 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
   };
 
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleLocationChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoSelect = async (file, slot) => {
+    if (!file || photoBusy) return;
+    let clientId = editingClientId;
+    // Si aún no hay client (alta nueva), guardar primero para obtener clientId.
+    if (!clientId) {
+      try {
+        setLoading(true);
+        const payload = {
+          ...formData,
+          birthDate: birthDateInputToPayload(formData.birthDate),
+          syncClient: true,
+          reservationId: reservation.id
+        };
+        if (editingGuest === null) {
+          if (!formData.firstName || !formData.lastName) {
+            throw new Error('Completá nombre y apellido antes de subir fotos');
+          }
+          const response = await fetch(`${API_URL}/guests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || 'Error al crear el huésped');
+          setGuests((prev) => [...prev, data]);
+          setEditingGuest(guests.length);
+          clientId = data.clientId || data.client?.id;
+          setEditingClientId(clientId);
+        } else {
+          const guestId = guests[editingGuest]?.id;
+          const response = await fetch(`${API_URL}/guests/${guestId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || 'Error al actualizar el huésped');
+          const updatedGuests = [...guests];
+          updatedGuests[editingGuest] = data;
+          setGuests(updatedGuests);
+          clientId = data.clientId || data.client?.id;
+          setEditingClientId(clientId);
+        }
+        if (onGuestUpdate) onGuestUpdate();
+      } catch (error) {
+        notify({ title: 'Error', message: error.message, type: 'error' });
+        setLoading(false);
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (!clientId) {
+      notify({
+        title: 'Sin perfil',
+        message: 'No se pudo vincular un cliente para las fotos',
+        type: 'warning'
+      });
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const result = await uploadClientDocumentPhoto(clientId, file, slot);
+      setPhotos((prev) => ({
+        ...prev,
+        [slot]: {
+          uploaded: true,
+          name: result.originalName || (slot === 'back' ? 'Dorso' : 'Frente')
+        }
+      }));
+    } catch (error) {
+      notify({ title: 'Error', message: error.message, type: 'error' });
+    } finally {
+      setPhotoBusy(false);
+    }
   };
 
   const emptySlots = [];
@@ -421,118 +573,34 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
             </div>
 
             <form onSubmit={handleSubmit} className={styles.modalForm}>
-              <div className={styles.formGroup}>
-                <label htmlFor="firstName">Nombre *</label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="lastName">Apellido *</label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="documentType">Tipo de Documento</label>
-                <select
-                  id="documentType"
-                  name="documentType"
-                  value={formData.documentType}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                >
-                  <option value="DNI">DNI</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="Cédula">Cédula</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="documentNumber">Número de Documento</label>
-                <input
-                  type="text"
-                  id="documentNumber"
-                  name="documentNumber"
-                  value={formData.documentNumber}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="phone">Teléfono</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="address">Dirección</label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="city">Ciudad</label>
-                <input
-                  type="text"
-                  id="city"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                />
-              </div>
+              <GuestPersonalFormFields
+                fields={formData}
+                onChange={handleInputChange}
+                onLocationChange={handleLocationChange}
+                disabled={loading || photoBusy}
+                birthDateRequired={false}
+                showPhotos
+                photos={photos}
+                onPhotoSelect={handlePhotoSelect}
+                photoBusy={photoBusy}
+                photosRequired={false}
+                photoTestIdPrefix="reservation-guest-doc"
+              />
 
               <div className={styles.modalActions}>
                 <button
                   type="button"
                   className={styles.cancelButton}
                   onClick={() => setShowModal(false)}
-                  disabled={loading}
+                  disabled={loading || photoBusy}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className={styles.submitButton} disabled={loading}>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                  disabled={loading || photoBusy}
+                >
                   {loading ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

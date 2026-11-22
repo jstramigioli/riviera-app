@@ -189,7 +189,9 @@ exports.getReservationPricingDetails = async (req, res) => {
       where: { id: parseInt(id) },
       include: {
         mainClient: true,
-        guests: true,
+        guests: {
+          include: { client: true }
+        },
         nightRates: {
           orderBy: { date: 'asc' }
         },

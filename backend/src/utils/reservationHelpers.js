@@ -426,7 +426,9 @@ async function getReservationWithData(reservationId) {
     where: { id: parseInt(reservationId) },
     include: {
       mainClient: true,
-      guests: true,
+      guests: {
+        include: { client: true }
+      },
       // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
         include: {

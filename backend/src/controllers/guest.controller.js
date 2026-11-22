@@ -7,6 +7,106 @@ const {
   getReservationGuestCapacity,
   findOverlappingGuestStay
 } = require('../utils/guestHelpers');
+const {
+  getAddressFromNotes,
+  createNotesWithAddress
+} = require('../utils/clientAddressNotes');
+
+function normalizeText(value) {
+  if (value == null) return null;
+  const cleaned = String(value).trim();
+  return cleaned || null;
+}
+
+function parseBirthDate(value) {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 12, 0, 0, 0);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+  }
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Campos de Guest (tabla) vs perfil Client. */
+function guestTableFields(body = {}) {
+  return {
+    firstName: normalizeText(body.firstName),
+    lastName: normalizeText(body.lastName),
+    documentType: normalizeText(body.documentType) || 'DNI',
+    documentNumber: normalizeText(body.documentNumber),
+    phone: normalizeText(body.phone),
+    email: normalizeText(body.email),
+    address: normalizeText(body.address),
+    city: normalizeText(body.city)
+  };
+}
+
+/**
+ * Crea o actualiza el Client vinculado al huésped (mismos campos que check-in, sin patente).
+ */
+async function upsertClientForGuest(guestOrNull, body, existingClientId = null) {
+  const g = guestTableFields(body);
+  if (!g.firstName || !g.lastName) {
+    const err = new Error('Nombre y apellido son requeridos');
+    err.status = 400;
+    throw err;
+  }
+  const birthDate = parseBirthDate(body.birthDate);
+  const country = normalizeText(body.country) || 'AR';
+  const province = normalizeText(body.province);
+  const city = g.city;
+  const address = g.address;
+  const wantsPromotions = Boolean(body.wantsPromotions);
+  const clientId = existingClientId || guestOrNull?.clientId || null;
+
+  if (clientId) {
+    const existing = await prisma.client.findUnique({
+      where: { id: parseInt(clientId, 10) },
+      select: { notes: true }
+    });
+    const notes = createNotesWithAddress(existing?.notes, address);
+    await prisma.client.update({
+      where: { id: parseInt(clientId, 10) },
+      data: {
+        firstName: g.firstName,
+        lastName: g.lastName,
+        email: g.email,
+        phone: g.phone,
+        documentType: g.documentType,
+        documentNumber: g.documentNumber,
+        birthDate,
+        country,
+        province,
+        city,
+        notes,
+        wantsPromotions
+      }
+    });
+    return parseInt(clientId, 10);
+  }
+
+  const created = await prisma.client.create({
+    data: {
+      firstName: g.firstName,
+      lastName: g.lastName,
+      email: g.email,
+      phone: g.phone,
+      documentType: g.documentType,
+      documentNumber: g.documentNumber,
+      birthDate,
+      country,
+      province,
+      city,
+      notes: createNotesWithAddress(null, address),
+      wantsPromotions
+    }
+  });
+  return created.id;
+}
 
 // Listar todos los huéspedes
 exports.getAllGuests = async (req, res) => {
@@ -76,36 +176,32 @@ async function assertCapacity(reservationId, extra = 1) {
   }
 }
 
-// Crear un nuevo huésped
+// Crear un nuevo huésped (+ perfil Client, mismos campos que check-in)
 exports.createGuest = async (req, res) => {
+  const body = req.body || {};
   const {
-    firstName,
-    lastName,
-    documentType,
-    documentNumber,
-    phone,
-    email,
-    address,
-    city,
     reservationId,
     clientId,
-    skipOverlapCheck
-  } = req.body;
+    skipOverlapCheck,
+    syncClient = true
+  } = body;
+  const fields = guestTableFields(body);
 
-  // Validaciones básicas
-  if (!firstName || !lastName) {
+  if (!fields.firstName || !fields.lastName) {
     return res.status(400).json({ error: 'Nombre y apellido son requeridos' });
   }
 
   try {
+    let linkedClientId = clientId != null ? parseInt(clientId, 10) : null;
+
     if (reservationId) {
       await assertCapacity(reservationId, 1);
 
       if (skipOverlapCheck !== true && skipOverlapCheck !== 'true') {
         const overlap = await findOverlappingGuestStay(prisma, {
           reservationId,
-          clientId: clientId || null,
-          documentNumber: documentNumber || null
+          clientId: linkedClientId,
+          documentNumber: fields.documentNumber
         });
         if (overlap) {
           return res.status(409).json({
@@ -116,18 +212,15 @@ exports.createGuest = async (req, res) => {
       }
     }
 
+    if (syncClient !== false && syncClient !== 'false') {
+      linkedClientId = await upsertClientForGuest(null, body, linkedClientId);
+    }
+
     const newGuest = await prisma.guest.create({
       data: {
-        firstName,
-        lastName,
-        documentType: documentType || 'DNI',
-        documentNumber: documentNumber || null,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
-        city: city || null,
+        ...fields,
         reservationId: reservationId || null,
-        clientId: clientId != null ? parseInt(clientId, 10) : null
+        clientId: linkedClientId
       },
       include: {
         client: true,
@@ -241,24 +334,40 @@ exports.addGuestFromClient = async (req, res) => {
   }
 };
 
-// Actualizar un huésped
+// Actualizar un huésped (+ sincroniza Client si syncClient)
 exports.updateGuest = async (req, res) => {
   const { id } = req.params;
-  const data = req.body;
+  const data = req.body || {};
   try {
-    const current = await prisma.guest.findUnique({ where: { id: parseInt(id) } });
+    const current = await prisma.guest.findUnique({ where: { id: parseInt(id, 10) } });
     if (!current) {
       return res.status(404).json({ error: 'Guest not found' });
     }
 
-    const nextDoc = data.documentNumber !== undefined ? data.documentNumber : current.documentNumber;
-    const nextClientId = data.clientId !== undefined ? data.clientId : current.clientId;
+    const fields = guestTableFields({
+      firstName: data.firstName !== undefined ? data.firstName : current.firstName,
+      lastName: data.lastName !== undefined ? data.lastName : current.lastName,
+      documentType: data.documentType !== undefined ? data.documentType : current.documentType,
+      documentNumber:
+        data.documentNumber !== undefined ? data.documentNumber : current.documentNumber,
+      phone: data.phone !== undefined ? data.phone : current.phone,
+      email: data.email !== undefined ? data.email : current.email,
+      address: data.address !== undefined ? data.address : current.address,
+      city: data.city !== undefined ? data.city : current.city
+    });
+
+    let nextClientId =
+      data.clientId !== undefined
+        ? data.clientId != null
+          ? parseInt(data.clientId, 10)
+          : null
+        : current.clientId;
 
     if (current.reservationId && data.skipOverlapCheck !== true) {
       const overlap = await findOverlappingGuestStay(prisma, {
         reservationId: current.reservationId,
         clientId: nextClientId,
-        documentNumber: nextDoc,
+        documentNumber: fields.documentNumber,
         excludeGuestId: current.id
       });
       if (overlap) {
@@ -269,12 +378,17 @@ exports.updateGuest = async (req, res) => {
       }
     }
 
-    const { skipOverlapCheck, ...updateData } = data;
-    void skipOverlapCheck;
+    const syncClient = data.syncClient !== false && data.syncClient !== 'false';
+    if (syncClient) {
+      nextClientId = await upsertClientForGuest(current, { ...data, ...fields }, nextClientId);
+    }
 
     const updatedGuest = await prisma.guest.update({
-      where: { id: parseInt(id) },
-      data: updateData,
+      where: { id: parseInt(id, 10) },
+      data: {
+        ...fields,
+        clientId: nextClientId
+      },
       include: { client: true }
     });
     res.json(updatedGuest);
@@ -282,9 +396,13 @@ exports.updateGuest = async (req, res) => {
     if (error.message && error.message.includes('Record not found')) {
       return res.status(404).json({ error: 'Guest not found' });
     }
-    res.status(500).json({ error: 'Error updating guest', details: error.message });
+    const status = error.status || 500;
+    res.status(status).json({ error: error.message || 'Error updating guest', details: error.message });
   }
 };
+
+/** Helper exportado para prefill staff (dirección desde notes del client). */
+exports.getAddressFromNotes = getAddressFromNotes;
 
 // Eliminar un huésped (incluye al titular-huésped; no afecta mainClientId)
 exports.deleteGuest = async (req, res) => {

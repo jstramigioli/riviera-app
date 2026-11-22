@@ -17,7 +17,12 @@ vi.mock('../../hooks/useAppNotice', () => ({
 }));
 
 vi.mock('../../services/api', () => ({
-  API_URL: 'http://test/api'
+  API_URL: 'http://test/api',
+  getClientDocumentPhotos: vi.fn(async () => ({
+    front: { exists: false },
+    back: { exists: false }
+  })),
+  uploadClientDocumentPhoto: vi.fn(async () => ({ originalName: 'doc.jpg' }))
 }));
 
 const baseReservation = {
