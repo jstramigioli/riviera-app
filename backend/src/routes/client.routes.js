@@ -16,7 +16,18 @@ router.get('/', clientController.getAllClients);
 // POST /api/clients - Crear un nuevo cliente
 router.post('/', validateClient, clientController.createClient);
 
-// Foto de DNI/documento (filesystem; sin columna Prisma)
+// Fotos de documento: frente + dorso
+router.get('/:id/document-photos', clientController.getClientDocumentPhotos);
+router.get('/:id/document-photos/:slot', clientController.getClientDocumentPhoto);
+router.get('/:id/document-photos/:slot/file', clientController.downloadClientDocumentPhoto);
+router.post(
+  '/:id/document-photos/:slot',
+  uploadDocumentPhoto.single('file'),
+  clientController.uploadClientDocumentPhoto
+);
+router.delete('/:id/document-photos/:slot', clientController.deleteClientDocumentPhoto);
+
+// Compat: slot único (front) — rutas legacy
 router.get('/:id/document-photo', clientController.getClientDocumentPhoto);
 router.get('/:id/document-photo/file', clientController.downloadClientDocumentPhoto);
 router.post(
@@ -46,4 +57,4 @@ router.put('/:id', validateClient, clientController.updateClient);
 // DELETE /api/clients/:id - Eliminar un cliente
 router.delete('/:id', clientController.deleteClient);
 
-module.exports = router; 
+module.exports = router;

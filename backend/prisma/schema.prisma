@@ -168,6 +168,18 @@ model Client {
   vehiclePlate    String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
+  /// Foto frente del documento (archivo en uploads/client-document-photos/{id}/).
+  documentPhotoFrontStoredName   String?
+  documentPhotoFrontOriginalName String?
+  documentPhotoFrontMimeType     String?
+  documentPhotoFrontSizeBytes    Int?
+  documentPhotoFrontUpdatedAt    DateTime?
+  /// Foto dorso del documento.
+  documentPhotoBackStoredName    String?
+  documentPhotoBackOriginalName  String?
+  documentPhotoBackMimeType      String?
+  documentPhotoBackSizeBytes     Int?
+  documentPhotoBackUpdatedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   queries         Query[]       @relation("ClientQueries")
@@ -535,6 +547,9 @@ model OnlineCheckIn {
   city           String?
   address        String?
   vehiclePlate   String?
+  /// Momento en que el huésped subió frente/dorso en este check-in (fotos siempre nuevas).
+  documentFrontUploadedAt DateTime?
+  documentBackUploadedAt  DateTime?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   reservation    Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)

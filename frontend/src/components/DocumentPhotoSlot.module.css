@@ -1,0 +1,108 @@
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 8px;
+  background: var(--color-bg-white, #fff);
+  min-width: 0;
+}
+
+.slot.dragging {
+  border-color: var(--color-primary, #3f5f8a);
+  background: rgba(63, 95, 138, 0.06);
+}
+
+.hasPhoto {
+  border-color: #c5d0de;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary-dark, #334d70);
+}
+
+.status {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b7280);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 1px dashed #c5d0de;
+  border-radius: 6px;
+  background: #f7f9fc;
+  overflow: hidden;
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  background: #111;
+}
+
+.placeholder {
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  padding: 6px 10px;
+  border: 1px solid #dee2e6;
+  background: white;
+  color: #495057;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-primary, #3f5f8a);
+  color: white;
+  border-color: var(--color-primary, #3f5f8a);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #fef3f2;
+  color: #b42318;
+  border-color: #fecdca;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

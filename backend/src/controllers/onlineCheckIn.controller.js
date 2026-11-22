@@ -9,6 +9,11 @@ const {
   getAddressFromNotes,
   createNotesWithAddress
 } = require('../utils/clientAddressNotes');
+const {
+  assertSlot,
+  saveDocumentPhoto,
+  prismaFieldsForSlot
+} = require('../utils/clientDocumentPhoto');
 
 const CLIENT_DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'Cédula', 'Otro'];
 
@@ -308,11 +313,86 @@ async function getPublicCheckIn(req, res) {
         checkIn: segment?.startDate || null,
         checkOut: segment?.endDate || null
       },
-      fields
+      fields,
+      // Fotos siempre nuevas: no prefill; solo flags de esta sesión de check-in.
+      documentPhotos: {
+        frontUploaded: Boolean(checkIn.documentFrontUploadedAt),
+        backUploaded: Boolean(checkIn.documentBackUploadedAt)
+      }
     });
   } catch (error) {
     console.error('getPublicCheckIn', error);
     return res.status(500).json({ error: 'Error al cargar check-in' });
+  }
+}
+
+/**
+ * Público: subir foto frente/dorso (reemplaza la anterior del slot).
+ * No reutiliza fotos previas del cliente: cada check-in exige subidas nuevas.
+ */
+async function uploadPublicCheckInDocumentPhoto(req, res) {
+  try {
+    const token = normalizeTokenParam(req.params.token);
+    if (!isWellFormedToken(token)) {
+      return res.status(400).json({
+        error: 'Link incompleto o corrupto. Pedí un link nuevo desde la reserva.'
+      });
+    }
+
+    const checked = assertSlot(req.params.slot);
+    if (checked.error) {
+      return res.status(400).json({ error: checked.error });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Archivo requerido' });
+    }
+
+    const checkIn = await prisma.onlineCheckIn.findUnique({
+      where: { token },
+      include: { reservation: true }
+    });
+    if (!checkIn) {
+      return res.status(404).json({ error: 'Link de check-in inválido' });
+    }
+    if (checkIn.expiresAt && checkIn.expiresAt < new Date()) {
+      return res.status(410).json({ error: 'Este link de check-in expiró' });
+    }
+    if (checkIn.status === 'COMPLETED') {
+      return res.status(409).json({ error: 'Este check-in ya fue completado' });
+    }
+
+    const clientId = checkIn.reservation.mainClientId;
+    const result = saveDocumentPhoto(clientId, req.file, checked.slot);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const now = new Date();
+    const checkInPhotoField =
+      checked.slot === 'front' ? { documentFrontUploadedAt: now } : { documentBackUploadedAt: now };
+
+    await prisma.$transaction([
+      prisma.client.update({
+        where: { id: clientId },
+        data: prismaFieldsForSlot(checked.slot, result.meta)
+      }),
+      prisma.onlineCheckIn.update({
+        where: { id: checkIn.id },
+        data: checkInPhotoField
+      })
+    ]);
+
+    return res.status(201).json({
+      ok: true,
+      slot: checked.slot,
+      originalName: result.meta.originalName,
+      mimeType: result.meta.mimeType,
+      sizeBytes: result.meta.sizeBytes,
+      updatedAt: result.meta.updatedAt
+    });
+  } catch (error) {
+    console.error('uploadPublicCheckInDocumentPhoto', error);
+    return res.status(500).json({ error: 'Error al subir la foto del documento' });
   }
 }
 
@@ -355,6 +435,12 @@ async function submitPublicCheckIn(req, res) {
     }
     if (!birthDate) {
       return res.status(400).json({ error: 'La fecha de nacimiento es obligatoria' });
+    }
+
+    if (!checkIn.documentFrontUploadedAt || !checkIn.documentBackUploadedAt) {
+      return res.status(400).json({
+        error: 'Debés subir la foto del frente y del dorso del documento'
+      });
     }
 
     const email = normalizeText(body.email);
@@ -439,5 +525,6 @@ module.exports = {
   getReservationCheckIn,
   sendReservationCheckIn,
   getPublicCheckIn,
+  uploadPublicCheckInDocumentPhoto,
   submitPublicCheckIn
 };

@@ -286,9 +286,25 @@ export async function getClientBalance(clientId) {
   return res.json();
 }
 
-/** Meta de foto de DNI/documento del cliente. null si no hay. */
-export async function getClientDocumentPhoto(clientId) {
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+function documentPhotoSlotPath(slot) {
+  const cleaned = String(slot || 'front').toLowerCase();
+  if (cleaned === 'dorso' || cleaned === 'back') return 'back';
+  return 'front';
+}
+
+/** Meta de ambos slots { front, back }. */
+export async function getClientDocumentPhotos(clientId) {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Error obteniendo fotos de documento');
+  return res.json();
+}
+
+/** Meta de un slot. null si no hay. */
+export async function getClientDocumentPhoto(clientId, slot = 'front') {
+  const s = documentPhotoSlotPath(slot);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos/${s}`, {
     credentials: 'include'
   });
   if (res.status === 404) return null;
@@ -296,10 +312,11 @@ export async function getClientDocumentPhoto(clientId) {
   return res.json();
 }
 
-export async function uploadClientDocumentPhoto(clientId, file) {
+export async function uploadClientDocumentPhoto(clientId, file, slot = 'front') {
+  const s = documentPhotoSlotPath(slot);
   const form = new FormData();
   form.append('file', file);
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos/${s}`, {
     method: 'POST',
     credentials: 'include',
     body: form
@@ -311,8 +328,9 @@ export async function uploadClientDocumentPhoto(clientId, file) {
   return res.json();
 }
 
-export async function downloadClientDocumentPhoto(clientId, filename) {
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo/file`, {
+export async function downloadClientDocumentPhoto(clientId, filename, slot = 'front') {
+  const s = documentPhotoSlotPath(slot);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos/${s}/file`, {
     credentials: 'include'
   });
   if (!res.ok) throw new Error('Error descargando foto de documento');
@@ -320,15 +338,16 @@ export async function downloadClientDocumentPhoto(clientId, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = filename || `documento-cliente-${clientId}`;
+  anchor.download = filename || `documento-${s}-cliente-${clientId}`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
 }
 
-export async function openClientDocumentPhoto(clientId) {
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo/file`, {
+export async function openClientDocumentPhoto(clientId, slot = 'front') {
+  const s = documentPhotoSlotPath(slot);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos/${s}/file`, {
     credentials: 'include'
   });
   if (!res.ok) throw new Error('Error abriendo foto de documento');
@@ -338,8 +357,9 @@ export async function openClientDocumentPhoto(clientId) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-export async function deleteClientDocumentPhoto(clientId) {
-  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photo`, {
+export async function deleteClientDocumentPhoto(clientId, slot = 'front') {
+  const s = documentPhotoSlotPath(slot);
+  const res = await apiFetch(`${API_URL}/clients/${clientId}/document-photos/${s}`, {
     method: 'DELETE',
     credentials: 'include'
   });

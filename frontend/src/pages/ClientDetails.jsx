@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
 import { FiMapPin } from 'react-icons/fi';
@@ -7,7 +7,7 @@ import {
   fetchReservations,
   fetchServiceTypes,
   getClientBalance,
-  getClientDocumentPhoto,
+  getClientDocumentPhotos,
   uploadClientDocumentPhoto,
   openClientDocumentPhoto,
   downloadClientDocumentPhoto,
@@ -16,6 +16,7 @@ import {
 import FieldEditor from '../components/FieldEditor';
 import EditClientModal from '../components/EditClientModal';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
+import DocumentPhotoSlot from '../components/DocumentPhotoSlot';
 import ReservationIdChip from '../components/ReservationIdChip';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import styles from './ClientDetails.module.css';
@@ -26,8 +27,6 @@ import { formatMoneyArs } from '../utils/formatMoney';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
 import { formatBirthDateDisplay } from '../constants/clientFormFields';
 import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
-
-const DNI_PHOTO_ACCEPT = 'image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf';
 
 /** Activas: Ingresada, Prerreserva/PENDIENTE, Confirmada. */
 const ACTIVE_RESERVATION_STATUSES = new Set([
@@ -44,11 +43,10 @@ const ClientDetails = () => {
   const navigate = useNavigate();
   const { notify, noticeDialog } = useAppNotice();
   const { confirm, confirmDialog } = useConfirmDialog();
-  const dniPhotoInputRef = useRef(null);
   const [client, setClient] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [clientBalance, setClientBalance] = useState(null);
-  const [documentPhoto, setDocumentPhoto] = useState(null);
+  const [documentPhotos, setDocumentPhotos] = useState({ front: null, back: null });
   const [documentPhotoBusy, setDocumentPhotoBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,15 +58,18 @@ const ClientDetails = () => {
 
   const loadDocumentPhoto = useCallback(async () => {
     if (!clientId) {
-      setDocumentPhoto(null);
+      setDocumentPhotos({ front: null, back: null });
       return;
     }
     try {
-      const meta = await getClientDocumentPhoto(clientId);
-      setDocumentPhoto(meta);
+      const meta = await getClientDocumentPhotos(clientId);
+      setDocumentPhotos({
+        front: meta?.front || null,
+        back: meta?.back || null
+      });
     } catch (err) {
-      console.error('Error cargando foto de documento:', err);
-      setDocumentPhoto(null);
+      console.error('Error cargando fotos de documento:', err);
+      setDocumentPhotos({ front: null, back: null });
     }
   }, [clientId]);
 
@@ -198,16 +199,15 @@ const ClientDetails = () => {
     }
   };
 
-  const handleDniPhotoUpload = async (fileList) => {
-    const file = fileList?.[0];
+  const handleDniPhotoUpload = async (file, slot) => {
     if (!file || !client?.id || documentPhotoBusy) return;
     setDocumentPhotoBusy(true);
     try {
-      const meta = await uploadClientDocumentPhoto(client.id, file);
-      setDocumentPhoto(meta);
+      const meta = await uploadClientDocumentPhoto(client.id, file, slot);
+      setDocumentPhotos((prev) => ({ ...prev, [slot]: meta }));
       notify({
         title: 'Foto guardada',
-        message: 'La foto del documento se subió correctamente.',
+        message: `Se subió la foto del ${slot === 'back' ? 'dorso' : 'frente'}.`,
         type: 'success'
       });
     } catch (err) {
@@ -218,18 +218,18 @@ const ClientDetails = () => {
       });
     } finally {
       setDocumentPhotoBusy(false);
-      if (dniPhotoInputRef.current) dniPhotoInputRef.current.value = '';
     }
   };
 
-  const handleViewDniPhoto = async () => {
-    if (!client?.id || !documentPhoto || documentPhotoBusy) return;
+  const handleViewDniPhoto = async (slot) => {
+    const photo = documentPhotos[slot];
+    if (!client?.id || !photo || documentPhotoBusy) return;
     setDocumentPhotoBusy(true);
     try {
-      await openClientDocumentPhoto(client.id);
+      await openClientDocumentPhoto(client.id, slot);
     } catch (err) {
       try {
-        await downloadClientDocumentPhoto(client.id, documentPhoto.originalName);
+        await downloadClientDocumentPhoto(client.id, photo.originalName, slot);
       } catch (downloadErr) {
         notify({
           title: 'Error',
@@ -245,19 +245,20 @@ const ClientDetails = () => {
     }
   };
 
-  const handleDeleteDniPhoto = async () => {
-    if (!client?.id || !documentPhoto || documentPhotoBusy) return;
+  const handleDeleteDniPhoto = async (slot) => {
+    const photo = documentPhotos[slot];
+    if (!client?.id || !photo || documentPhotoBusy) return;
     const ok = await confirm({
       title: 'Eliminar foto',
-      message: '¿Eliminar la foto del documento de identidad?',
+      message: `¿Eliminar la foto del ${slot === 'back' ? 'dorso' : 'frente'} del documento?`,
       confirmText: 'Eliminar',
       cancelText: 'Cancelar'
     });
     if (!ok) return;
     setDocumentPhotoBusy(true);
     try {
-      await deleteClientDocumentPhoto(client.id);
-      setDocumentPhoto(null);
+      await deleteClientDocumentPhoto(client.id, slot);
+      setDocumentPhotos((prev) => ({ ...prev, [slot]: null }));
       notify({
         title: 'Foto eliminada',
         message: 'Se eliminó la foto del documento.',
@@ -509,52 +510,27 @@ const ClientDetails = () => {
               <h2 id="widget-dni-photo" className={styles.widgetTitle}>
                 Foto del documento
               </h2>
-              <div className={styles.dniPhotoMeta}>
-                {documentPhoto ? documentPhoto.originalName || 'Foto cargada' : 'Sin foto cargada'}
-              </div>
-              <div className={styles.dniPhotoActions}>
-                <input
-                  ref={dniPhotoInputRef}
-                  id="client-dni-photo-input"
-                  type="file"
-                  accept={DNI_PHOTO_ACCEPT}
-                  className={styles.dniPhotoInput}
-                  disabled={documentPhotoBusy}
-                  onChange={(e) => handleDniPhotoUpload(e.target.files)}
+              <div className={styles.dniPhotoSlots}>
+                <DocumentPhotoSlot
+                  label="Frente"
+                  slot="front"
+                  meta={documentPhotos.front}
+                  busy={documentPhotoBusy}
+                  onSelect={handleDniPhotoUpload}
+                  onView={handleViewDniPhoto}
+                  onDelete={handleDeleteDniPhoto}
+                  testIdPrefix="client-dni-photo"
                 />
-                <button
-                  type="button"
-                  className={styles.uploadButton}
-                  disabled={documentPhotoBusy}
-                  onClick={() => dniPhotoInputRef.current?.click()}
-                  data-testid="client-dni-photo-upload"
-                >
-                  {documentPhotoBusy
-                    ? 'Procesando…'
-                    : documentPhoto
-                      ? 'Reemplazar foto'
-                      : 'Subir foto'}
-                </button>
-                <button
-                  type="button"
-                  className={styles.viewButton}
-                  disabled={documentPhotoBusy || !documentPhoto}
-                  onClick={handleViewDniPhoto}
-                  data-testid="client-dni-photo-view"
-                >
-                  Ver documento
-                </button>
-                {documentPhoto ? (
-                  <button
-                    type="button"
-                    className={styles.deletePhotoButton}
-                    disabled={documentPhotoBusy}
-                    onClick={handleDeleteDniPhoto}
-                    data-testid="client-dni-photo-delete"
-                  >
-                    Eliminar
-                  </button>
-                ) : null}
+                <DocumentPhotoSlot
+                  label="Dorso"
+                  slot="back"
+                  meta={documentPhotos.back}
+                  busy={documentPhotoBusy}
+                  onSelect={handleDniPhotoUpload}
+                  onView={handleViewDniPhoto}
+                  onDelete={handleDeleteDniPhoto}
+                  testIdPrefix="client-dni-photo"
+                />
               </div>
             </section>
 

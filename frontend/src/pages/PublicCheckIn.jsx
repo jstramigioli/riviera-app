@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
 import LocationSelector from '../components/LocationSelector';
+import DocumentPhotoSlot from '../components/DocumentPhotoSlot';
 import {
   BIRTH_DATE_LABEL_REQUIRED,
   CLIENT_DOCUMENT_TYPES,
@@ -44,10 +45,16 @@ export default function PublicCheckIn() {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [reservation, setReservation] = useState(null);
   const [fields, setFields] = useState(EMPTY);
+  // Fotos siempre nuevas: no prefill de archivos previos del cliente.
+  const [photos, setPhotos] = useState({
+    front: { uploaded: false, name: null },
+    back: { uploaded: false, name: null }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +76,17 @@ export default function PublicCheckIn() {
           documentType: data.fields?.documentType || 'DNI',
           birthDate: birthDateToInputValue(data.fields?.birthDate),
           wantsPromotions: Boolean(data.fields?.wantsPromotions)
+        });
+        // Si el huésped ya subió en esta sesión (reload), marcar flags — sin mostrar archivo viejo.
+        setPhotos({
+          front: {
+            uploaded: Boolean(data.documentPhotos?.frontUploaded),
+            name: data.documentPhotos?.frontUploaded ? 'Frente cargado' : null
+          },
+          back: {
+            uploaded: Boolean(data.documentPhotos?.backUploaded),
+            name: data.documentPhotos?.backUploaded ? 'Dorso cargado' : null
+          }
         });
         setDone(Boolean(data.completed));
       } catch (err) {
@@ -94,6 +112,35 @@ export default function PublicCheckIn() {
     setFields((prev) => ({ ...prev, [field]: value }));
   }
 
+  async function handlePhotoSelect(file, slot) {
+    if (!file || photoBusy || !token) return;
+    setPhotoBusy(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(
+        `${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}/document-photos/${slot}`,
+        { method: 'POST', body: form }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo subir la foto');
+      }
+      setPhotos((prev) => ({
+        ...prev,
+        [slot]: {
+          uploaded: true,
+          name: data.originalName || (slot === 'back' ? 'Dorso cargado' : 'Frente cargado')
+        }
+      }));
+    } catch (err) {
+      setError(err.message || 'Error al subir la foto');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
@@ -101,6 +148,9 @@ export default function PublicCheckIn() {
     try {
       if (!fields.birthDate) {
         throw new Error('La fecha de nacimiento es obligatoria');
+      }
+      if (!photos.front.uploaded || !photos.back.uploaded) {
+        throw new Error('Debés subir la foto del frente y del dorso del documento');
       }
       const res = await fetch(`${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -236,6 +286,28 @@ export default function PublicCheckIn() {
                 <input name="documentNumber" value={fields.documentNumber} onChange={handleChange} />
               </label>
             </div>
+            <div className={styles.photoSlots}>
+              <DocumentPhotoSlot
+                label="Frente del documento"
+                slot="front"
+                meta={photos.front.uploaded ? { originalName: photos.front.name, exists: true } : null}
+                busy={photoBusy}
+                required
+                onSelect={handlePhotoSelect}
+                showDelete={false}
+                testIdPrefix="checkin-doc"
+              />
+              <DocumentPhotoSlot
+                label="Dorso del documento"
+                slot="back"
+                meta={photos.back.uploaded ? { originalName: photos.back.name, exists: true } : null}
+                busy={photoBusy}
+                required
+                onSelect={handlePhotoSelect}
+                showDelete={false}
+                testIdPrefix="checkin-doc"
+              />
+            </div>
           </section>
 
           <section className={styles.section}>
@@ -296,7 +368,7 @@ export default function PublicCheckIn() {
           </section>
 
           <div className={styles.actions}>
-            <button type="submit" className={styles.submit} disabled={saving}>
+            <button type="submit" className={styles.submit} disabled={saving || photoBusy}>
               {saving ? 'Guardando…' : 'Confirmar check-in'}
             </button>
           </div>

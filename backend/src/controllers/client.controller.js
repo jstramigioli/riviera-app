@@ -4,10 +4,15 @@ const { aggregateAccountsBalance } = require('../utils/accountBalance');
 const { DEFAULT_IVA_CONDITION } = require('../utils/billingConstants');
 const {
   readMeta,
+  readAllMeta,
   absolutePath,
   saveDocumentPhoto,
   deleteDocumentPhoto,
-  toPublicMeta
+  toPublicMeta,
+  toPublicSlots,
+  assertSlot,
+  prismaFieldsForSlot,
+  prismaFieldsForAll
 } = require('../utils/clientDocumentPhoto');
 
 function normalizeBillingString(value) {
@@ -510,18 +515,44 @@ async function assertClientExists(clientId) {
   return Boolean(client);
 }
 
-/** Meta de foto de DNI/documento (filesystem; sin columna Prisma). */
+function resolvePhotoSlot(req) {
+  return assertSlot(req.params.slot || req.query.slot || req.body?.slot || 'front');
+}
+
+/** Meta de ambos slots (frente/dorso). */
+exports.getClientDocumentPhotos = async (req, res) => {
+  const clientId = parseInt(req.params.id, 10);
+  try {
+    if (!(await assertClientExists(clientId))) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    res.json(toPublicSlots(readAllMeta(clientId)));
+  } catch (error) {
+    console.error('Error leyendo fotos de documento:', error);
+    res.status(500).json({ error: 'Error al obtener las fotos del documento' });
+  }
+};
+
+/** Meta de un slot (compat: sin :slot → front). */
 exports.getClientDocumentPhoto = async (req, res) => {
   const clientId = parseInt(req.params.id, 10);
   try {
     if (!(await assertClientExists(clientId))) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    const meta = readMeta(clientId);
-    if (!meta) {
-      return res.status(404).json({ error: 'Sin foto de documento', exists: false });
+    const checked = resolvePhotoSlot(req);
+    if (checked.error) {
+      return res.status(400).json({ error: checked.error });
     }
-    res.json(toPublicMeta(meta));
+    const meta = readMeta(clientId, checked.slot);
+    if (!meta) {
+      return res.status(404).json({
+        error: `Sin foto de documento (${checked.slot === 'front' ? 'frente' : 'dorso'})`,
+        exists: false,
+        slot: checked.slot
+      });
+    }
+    res.json(toPublicMeta({ ...meta, slot: checked.slot }));
   } catch (error) {
     console.error('Error leyendo foto de documento:', error);
     res.status(500).json({ error: 'Error al obtener la foto del documento' });
@@ -534,7 +565,11 @@ exports.downloadClientDocumentPhoto = async (req, res) => {
     if (!(await assertClientExists(clientId))) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    const meta = readMeta(clientId);
+    const checked = resolvePhotoSlot(req);
+    if (checked.error) {
+      return res.status(400).json({ error: checked.error });
+    }
+    const meta = readMeta(clientId, checked.slot);
     if (!meta) {
       return res.status(404).json({ error: 'Sin foto de documento' });
     }
@@ -559,14 +594,22 @@ exports.uploadClientDocumentPhoto = async (req, res) => {
     if (!(await assertClientExists(clientId))) {
       return res.status(404).json({ error: 'Client not found' });
     }
+    const checked = resolvePhotoSlot(req);
+    if (checked.error) {
+      return res.status(400).json({ error: checked.error });
+    }
     if (!req.file) {
       return res.status(400).json({ error: 'Archivo requerido' });
     }
-    const result = saveDocumentPhoto(clientId, req.file);
+    const result = saveDocumentPhoto(clientId, req.file, checked.slot);
     if (result.error) {
       return res.status(400).json({ error: result.error });
     }
-    res.status(201).json(toPublicMeta(result.meta));
+    await prisma.client.update({
+      where: { id: clientId },
+      data: prismaFieldsForSlot(checked.slot, result.meta)
+    });
+    res.status(201).json(toPublicMeta({ ...result.meta, slot: checked.slot }));
   } catch (error) {
     console.error('Error subiendo foto de documento:', error);
     res.status(500).json({ error: 'Error al subir la foto del documento' });
@@ -579,8 +622,30 @@ exports.deleteClientDocumentPhoto = async (req, res) => {
     if (!(await assertClientExists(clientId))) {
       return res.status(404).json({ error: 'Client not found' });
     }
-    const result = deleteDocumentPhoto(clientId);
-    res.json({ ok: true, deleted: result.deleted });
+    const rawSlot = req.params.slot || req.query.slot;
+    if (!rawSlot) {
+      const result = deleteDocumentPhoto(clientId);
+      if (result.deleted) {
+        await prisma.client.update({
+          where: { id: clientId },
+          data: prismaFieldsForAll(null)
+        });
+      }
+      return res.json({ ok: true, deleted: result.deleted });
+    }
+    const checked = assertSlot(rawSlot);
+    if (checked.error) {
+      return res.status(400).json({ error: checked.error });
+    }
+    const result = deleteDocumentPhoto(clientId, checked.slot);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+    await prisma.client.update({
+      where: { id: clientId },
+      data: prismaFieldsForSlot(checked.slot, null)
+    });
+    res.json({ ok: true, deleted: result.deleted, slot: checked.slot });
   } catch (error) {
     console.error('Error eliminando foto de documento:', error);
     res.status(500).json({ error: 'Error al eliminar la foto del documento' });

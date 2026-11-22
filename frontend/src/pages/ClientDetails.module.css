@@ -851,6 +851,18 @@
   padding-bottom: 8px;
 }
 
+.dniPhotoSlots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .dniPhotoSlots {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dniPhotoHint {
   margin: -4px 0 8px;
   color: var(--color-text-muted);
