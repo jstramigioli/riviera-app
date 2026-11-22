@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiCheck, FiPlus, FiX } from 'react-icons/fi';
+import { FiCheck, FiFilter, FiPlus, FiX } from 'react-icons/fi';
 import {
   getAccountsWithBalances,
   getAllCobros,
@@ -23,6 +23,7 @@ import CobrosHistorialTable, {
 import ReservationIdChip from '../components/ReservationIdChip';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { countryName } from '../constants/countries';
+import { getStatusLabel } from '../utils/reservationStatusUtils';
 import styles from './Cobros.module.css';
 
 const SECTIONS = {
@@ -95,14 +96,139 @@ const STATUS_COLORS = {
   A_FAVOR: '#f59f00',
 };
 
-const DEFAULT_STATUS_FILTERS = {
-  PENDIENTE: true,
-  PAGADO: false,
-  A_FAVOR: false,
+const EMPTY_ACCOUNT_FILTERS = {
+  origen: '',
+  cuenta: '',
+  estado: '',
+  cobros: '',
+  cliente: '',
+  cargosMin: '',
+  cargosMax: '',
+  pagadoMin: '',
+  pagadoMax: '',
+  saldoMin: '',
+  saldoMax: '',
+  saldoEstado: 'PENDIENTE',
+  ultimoFrom: '',
+  ultimoTo: '',
 };
 
-/** Reservas actualmente alojadas (check-in hecho, aún en casa). */
-const ALOJADAS_STATUS = 'INGRESADA';
+const ACCOUNT_COLUMN_KEYS = {
+  origen: ['origen'],
+  cuenta: ['cuenta'],
+  estado: ['estado'],
+  cobros: ['cobros'],
+  cliente: ['cliente'],
+  cargos: ['cargosMin', 'cargosMax'],
+  pagado: ['pagadoMin', 'pagadoMax'],
+  saldo: ['saldoMin', 'saldoMax'],
+  saldoEstado: ['saldoEstado'],
+  ultimo: ['ultimoFrom', 'ultimoTo'],
+};
+
+const ACCOUNT_COLUMNS = [
+  { key: 'origen', label: 'Origen' },
+  { key: 'cuenta', label: 'Cuenta' },
+  { key: 'estado', label: 'Estado' },
+  { key: 'cobros', label: 'Cobros' },
+  { key: 'cliente', label: 'Cliente' },
+  { key: 'cargos', label: 'Cargos' },
+  { key: 'pagado', label: 'Pagado' },
+  { key: 'saldo', label: 'Saldo' },
+  { key: 'saldoEstado', label: 'Saldo estado' },
+  { key: 'ultimo', label: 'Último mov.' },
+];
+
+const SALDO_ESTADO_OPTIONS = [
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'PAGADO', label: 'Pagado' },
+  { value: 'A_FAVOR', label: 'A favor' },
+];
+
+function foldAccents(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function includesNormalized(haystack, needle) {
+  if (!needle) return true;
+  return foldAccents(haystack).includes(foldAccents(String(needle).trim()));
+}
+
+function isExternalAccount(reservation) {
+  const origen = reservation?.origen || reservation?.accountKind || 'RESERVA';
+  return origen === 'EXTERNA' || origen === 'EXTERNAL';
+}
+
+function accountEstadoValue(reservation) {
+  if (isExternalAccount(reservation)) {
+    return reservation.accountStatus || reservation.status || '';
+  }
+  return reservation.status || '';
+}
+
+function accountEstadoLabel(value) {
+  if (!value) return '—';
+  if (value === 'OPEN') return 'Abierta';
+  if (value === 'CLOSED') return 'Cerrada';
+  return getStatusLabel(value);
+}
+
+function accountCuentaLabel(reservation) {
+  if (isExternalAccount(reservation)) {
+    return (
+      reservation.accountLabel ||
+      (reservation.accountId != null ? `Externa #${reservation.accountId}` : 'Cuenta externa')
+    );
+  }
+  const id = reservation.reservationId || reservation.id;
+  return id != null ? String(id) : '';
+}
+
+function accountClientName(reservation) {
+  const client = reservation.mainClient;
+  if (client) {
+    return `${client.firstName || ''} ${client.lastName || ''}`.trim();
+  }
+  if (isExternalAccount(reservation)) {
+    return reservation.accountLabel || 'Cuenta externa';
+  }
+  return 'Sin cliente';
+}
+
+function accountLastMoveDate(reservation) {
+  const paymentList = reservation.cobros || [];
+  const lastPaymentDate =
+    paymentList.length > 0
+      ? paymentList.reduce((latest, cobro) => {
+          const d = cobro.fecha ? new Date(cobro.fecha) : null;
+          if (!d || Number.isNaN(d.getTime())) return latest;
+          if (!latest || d > latest) return d;
+          return latest;
+        }, null)
+      : null;
+  if (lastPaymentDate) return lastPaymentDate;
+  if (reservation.updatedAt) {
+    const d = new Date(reservation.updatedAt);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  if (reservation.createdAt) {
+    const d = new Date(reservation.createdAt);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function matchesAmountRange(value, minRaw, maxRaw) {
+  const amount = Number(value) || 0;
+  const min = String(minRaw || '').trim() === '' ? null : Number(minRaw);
+  const max = String(maxRaw || '').trim() === '' ? null : Number(maxRaw);
+  if (min != null && !Number.isNaN(min) && amount < min) return false;
+  if (max != null && !Number.isNaN(max) && amount > max) return false;
+  return true;
+}
 
 function toDateInputValue(value) {
   if (!value) return '';
@@ -163,14 +289,14 @@ const Cobros = () => {
   const [editingCobro, setEditingCobro] = useState(null);
   const [summaryCobro, setSummaryCobro] = useState(null);
 
-  const [statusFilters, setStatusFilters] = useState(DEFAULT_STATUS_FILTERS);
-  const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
-  const [origenFilter, setOrigenFilter] = useState('todas'); // todas | reserva | externa
+  const [accountFilters, setAccountFilters] = useState(EMPTY_ACCOUNT_FILTERS);
+  const [openAccountColumn, setOpenAccountColumn] = useState(null);
+  const [accountFilterMenuPos, setAccountFilterMenuPos] = useState({ top: 0, left: 0 });
+  const accountFilterMenuRef = useRef(null);
+  const accountFilterBtnRefs = useRef({});
   const [showExternalForm, setShowExternalForm] = useState(false);
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
 
   useEffect(() => {
@@ -440,30 +566,137 @@ const Cobros = () => {
     </div>
   );
 
-  const toggleStatus = (status) => {
-    setStatusFilters((prev) => ({ ...prev, [status]: !prev[status] }));
+  const setAccountFilter = (key, value) => {
+    setAccountFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const isAccountColumnActive = useCallback(
+    (column) =>
+      (ACCOUNT_COLUMN_KEYS[column] || []).some(
+        (key) => String(accountFilters[key] || '').trim() !== ''
+      ),
+    [accountFilters]
+  );
+
+  const hasActiveAccountFilters = useMemo(
+    () =>
+      Object.keys(EMPTY_ACCOUNT_FILTERS).some(
+        (key) => String(accountFilters[key] ?? '') !== String(EMPTY_ACCOUNT_FILTERS[key] ?? '')
+      ) || Boolean(clientIdParam),
+    [accountFilters, clientIdParam]
+  );
+
+  const syncAccountFilterMenuPos = useCallback((column) => {
+    const btn = accountFilterBtnRefs.current[column];
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setAccountFilterMenuPos({ top: rect.bottom + 4, left: rect.left });
+  }, []);
+
+  const toggleAccountColumn = (column) => {
+    setOpenAccountColumn((prev) => {
+      if (prev === column) return null;
+      syncAccountFilterMenuPos(column);
+      return column;
+    });
+  };
+
+  useEffect(() => {
+    if (!openAccountColumn) return undefined;
+    syncAccountFilterMenuPos(openAccountColumn);
+    const onPointerDown = (e) => {
+      const btn = accountFilterBtnRefs.current[openAccountColumn];
+      if (accountFilterMenuRef.current?.contains(e.target)) return;
+      if (btn?.contains(e.target)) return;
+      setOpenAccountColumn(null);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpenAccountColumn(null);
+    };
+    const onReposition = () => syncAccountFilterMenuPos(openAccountColumn);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [openAccountColumn, syncAccountFilterMenuPos]);
+
+  const accountEstadoOptions = useMemo(() => {
+    const values = new Set();
+    (reservationsWithBalances || []).forEach((reservation) => {
+      const value = accountEstadoValue(reservation);
+      if (value) values.add(value);
+    });
+    return Array.from(values)
+      .sort((a, b) => accountEstadoLabel(a).localeCompare(accountEstadoLabel(b), 'es'))
+      .map((value) => ({ value, label: accountEstadoLabel(value) }));
+  }, [reservationsWithBalances]);
+
   const filteredAccounts = useMemo(() => {
-    const from = startOfDay(dateFrom);
-    const to = endOfDay(dateTo);
+    const from = startOfDay(accountFilters.ultimoFrom);
+    const to = endOfDay(accountFilters.ultimoTo);
     const clientId = clientIdParam ? Number(clientIdParam) : null;
+    const origen = String(accountFilters.origen || '').trim();
+    const estado = String(accountFilters.estado || '').trim();
+    const saldoEstado = String(accountFilters.saldoEstado || '').trim();
 
     return (reservationsWithBalances || []).filter((reservation) => {
-      const payStatus = reservation.estadoCobro || 'PENDIENTE';
-      if (!statusFilters[payStatus]) return false;
+      const isExterna = isExternalAccount(reservation);
 
-      const origen = reservation.origen || reservation.accountKind || 'RESERVA';
-      const isExterna = origen === 'EXTERNA' || origen === 'EXTERNAL';
-      if (origenFilter === 'reserva' && isExterna) return false;
-      if (origenFilter === 'externa' && !isExterna) return false;
+      if (origen === 'reserva' && isExterna) return false;
+      if (origen === 'externa' && !isExterna) return false;
 
-      if (scopeFilter === 'alojadas') {
-        if (isExterna) {
-          if (reservation.accountStatus && reservation.accountStatus !== 'OPEN') return false;
-        } else if (reservation.status !== ALOJADAS_STATUS) {
-          return false;
-        }
+      if (estado) {
+        if (accountEstadoValue(reservation) !== estado) return false;
+      }
+
+      if (saldoEstado) {
+        const payStatus = reservation.estadoCobro || 'PENDIENTE';
+        if (payStatus !== saldoEstado) return false;
+      }
+
+      if (!includesNormalized(accountCuentaLabel(reservation), accountFilters.cuenta)) {
+        return false;
+      }
+
+      if (!includesNormalized(accountClientName(reservation), accountFilters.cliente)) {
+        return false;
+      }
+
+      if (String(accountFilters.cobros || '').trim()) {
+        const codes = (reservation.cobros || [])
+          .map((cobro) => paymentCodeLabel(cobro))
+          .join(' ');
+        if (!includesNormalized(codes, accountFilters.cobros)) return false;
+      }
+
+      if (
+        !matchesAmountRange(
+          reservation.totalCargos,
+          accountFilters.cargosMin,
+          accountFilters.cargosMax
+        )
+      ) {
+        return false;
+      }
+      if (
+        !matchesAmountRange(
+          reservation.totalCobros,
+          accountFilters.pagadoMin,
+          accountFilters.pagadoMax
+        )
+      ) {
+        return false;
+      }
+      if (
+        !matchesAmountRange(reservation.saldo, accountFilters.saldoMin, accountFilters.saldoMax)
+      ) {
+        return false;
       }
 
       if (clientId != null && !Number.isNaN(clientId)) {
@@ -474,30 +707,15 @@ const Cobros = () => {
       }
 
       if (from || to) {
-        const paymentDates = (reservation.cobros || [])
-          .map((cobro) => (cobro.fecha ? new Date(cobro.fecha) : null))
-          .filter((d) => d && !Number.isNaN(d.getTime()));
-        const refDate =
-          paymentDates.length > 0
-            ? new Date(Math.max(...paymentDates.map((d) => d.getTime())))
-            : new Date(reservation.updatedAt || reservation.createdAt);
-
-        if (Number.isNaN(refDate.getTime())) return false;
+        const refDate = accountLastMoveDate(reservation);
+        if (!refDate || Number.isNaN(refDate.getTime())) return false;
         if (from && refDate < from) return false;
         if (to && refDate > to) return false;
       }
 
       return true;
     });
-  }, [
-    reservationsWithBalances,
-    statusFilters,
-    scopeFilter,
-    origenFilter,
-    dateFrom,
-    dateTo,
-    clientIdParam,
-  ]);
+  }, [reservationsWithBalances, accountFilters, clientIdParam]);
 
   const hasActivePayFilters = useMemo(
     () =>
@@ -781,6 +999,22 @@ const Cobros = () => {
               <div className={styles.sectionHeader}>
                 <h2>Cuentas pendientes</h2>
                 <div className={styles.sectionActions}>
+                  {hasActiveAccountFilters && (
+                    <button
+                      type="button"
+                      className={styles.clearDates}
+                      onClick={() => {
+                        setAccountFilters(EMPTY_ACCOUNT_FILTERS);
+                        if (clientIdParam) {
+                          const next = new URLSearchParams(searchParams);
+                          next.delete('clientId');
+                          setSearchParams(next, { replace: true });
+                        }
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.createButton}
@@ -815,149 +1049,8 @@ const Cobros = () => {
                 </div>
               )}
 
-              <div className={styles.filters} aria-label="Filtros de cuentas">
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel} id="cuentas-origen-label">Origen</span>
-                  <div
-                    className={styles.segmented}
-                    role="radiogroup"
-                    aria-labelledby="cuentas-origen-label"
-                  >
-                    <label
-                      className={`${styles.segment} ${origenFilter === 'todas' ? styles.segmentActive : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="origen"
-                        className={styles.segmentInput}
-                        checked={origenFilter === 'todas'}
-                        onChange={() => setOrigenFilter('todas')}
-                      />
-                      Todas
-                    </label>
-                    <label
-                      className={`${styles.segment} ${origenFilter === 'reserva' ? styles.segmentActive : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="origen"
-                        className={styles.segmentInput}
-                        checked={origenFilter === 'reserva'}
-                        onChange={() => setOrigenFilter('reserva')}
-                      />
-                      Reserva
-                    </label>
-                    <label
-                      className={`${styles.segment} ${origenFilter === 'externa' ? styles.segmentActive : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="origen"
-                        className={styles.segmentInput}
-                        checked={origenFilter === 'externa'}
-                        onChange={() => setOrigenFilter('externa')}
-                      />
-                      Externa
-                    </label>
-                  </div>
-                </div>
-
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel} id="cuentas-alcance-label">Alcance</span>
-                  <div
-                    className={styles.segmented}
-                    role="radiogroup"
-                    aria-labelledby="cuentas-alcance-label"
-                  >
-                    <label
-                      className={`${styles.segment} ${scopeFilter === 'alojadas' ? styles.segmentActive : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope"
-                        className={styles.segmentInput}
-                        checked={scopeFilter === 'alojadas'}
-                        onChange={() => setScopeFilter('alojadas')}
-                      />
-                      Alojadas ahora
-                    </label>
-                    <label
-                      className={`${styles.segment} ${scopeFilter === 'todas' ? styles.segmentActive : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope"
-                        className={styles.segmentInput}
-                        checked={scopeFilter === 'todas'}
-                        onChange={() => setScopeFilter('todas')}
-                      />
-                      Todas
-                    </label>
-                  </div>
-                </div>
-
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Saldo</span>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.PENDIENTE}
-                      onChange={() => toggleStatus('PENDIENTE')}
-                    />
-                    Pendientes
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.PAGADO}
-                      onChange={() => toggleStatus('PAGADO')}
-                    />
-                    Pagados
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.A_FAVOR}
-                      onChange={() => toggleStatus('A_FAVOR')}
-                    />
-                    A favor
-                  </label>
-                </div>
-
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Fechas</span>
-                  <label className={styles.dateField}>
-                    <input
-                      type="date"
-                      aria-label="Fecha desde"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                  </label>
-                  <label className={styles.dateField}>
-                    <input
-                      type="date"
-                      aria-label="Fecha hasta"
-                      value={dateTo}
-                      min={dateFrom || undefined}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                  </label>
-                  {(dateFrom || dateTo) && (
-                    <button
-                      type="button"
-                      className={styles.clearDates}
-                      onClick={() => {
-                        setDateFrom('');
-                        setDateTo('');
-                      }}
-                    >
-                      Limpiar fechas
-                    </button>
-                  )}
-                </div>
-
-                {clientIdParam && (
+              {clientIdParam && (
+                <div className={styles.filters} aria-label="Filtro de cliente por URL">
                   <div className={styles.filterGroup}>
                     <span className={styles.meta}>Filtro cliente #{clientIdParam}</span>
                     <button
@@ -972,8 +1065,8 @@ const Cobros = () => {
                       Quitar filtro de cliente
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className={styles.panelHeader}>
                 <h3>
@@ -982,63 +1075,59 @@ const Cobros = () => {
                 </h3>
               </div>
 
-              {filteredAccounts.length === 0 ? (
-                <div className={styles.emptyState}>
-                  <p>No hay cuentas con los filtros actuales</p>
-                </div>
-              ) : (
-                <div className={styles.tableContainer}>
-                  <table className={styles.table}>
-                    <thead>
+              <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      {ACCOUNT_COLUMNS.map(({ key, label }) => {
+                        const isOpen = openAccountColumn === key;
+                        const isActive = isAccountColumnActive(key);
+                        return (
+                          <th key={key} className={styles.columnHeader}>
+                            <div className={styles.columnHeaderInner}>
+                              <span>{label}</span>
+                              <button
+                                type="button"
+                                ref={(el) => {
+                                  accountFilterBtnRefs.current[key] = el;
+                                }}
+                                className={`${styles.filterBtn} ${isOpen ? styles.filterBtnOpen : ''} ${isActive ? styles.filterBtnActive : ''}`}
+                                aria-label={`Filtrar ${label}`}
+                                aria-expanded={isOpen}
+                                aria-haspopup="dialog"
+                                onClick={() => toggleAccountColumn(key)}
+                              >
+                                <FiFilter size={13} aria-hidden="true" />
+                              </button>
+                            </div>
+                          </th>
+                        );
+                      })}
+                      <th className={styles.actionsHeader}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAccounts.length === 0 ? (
                       <tr>
-                        <th>Origen</th>
-                        <th>Cuenta</th>
-                        <th>Estado</th>
-                        <th>Cobros</th>
-                        <th>Cliente</th>
-                        <th>Cargos</th>
-                        <th>Pagado</th>
-                        <th>Saldo</th>
-                        <th>Saldo estado</th>
-                        <th>Último mov.</th>
-                        <th>Acciones</th>
+                        <td colSpan={11} className={styles.emptyCell}>
+                          No hay cuentas con los filtros actuales
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAccounts.map((reservation) => {
+                    ) : (
+                      filteredAccounts.map((reservation) => {
                         const client = reservation.mainClient;
-                        const isExterna =
-                          reservation.origen === 'EXTERNA' ||
-                          reservation.accountKind === 'EXTERNAL';
-                        const clientName = client
-                          ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-                          : isExterna
-                            ? reservation.accountLabel || 'Cuenta externa'
-                            : 'Sin cliente';
+                        const isExterna = isExternalAccount(reservation);
+                        const clientName = accountClientName(reservation);
                         const statusColor =
                           STATUS_COLORS[reservation.estadoCobro] || '#6b7280';
                         const paymentList = (reservation.cobros || [])
                           .slice()
                           .sort((a, b) => Number(a.id) - Number(b.id));
-                        const lastPaymentDate =
-                          paymentList.length > 0
-                            ? paymentList.reduce((latest, cobro) => {
-                                const d = cobro.fecha ? new Date(cobro.fecha) : null;
-                                if (!d || Number.isNaN(d.getTime())) return latest;
-                                if (!latest || d > latest) return d;
-                                return latest;
-                              }, null)
-                            : null;
-                        const lastMove =
-                          lastPaymentDate ||
-                          (reservation.updatedAt
-                            ? new Date(reservation.updatedAt)
-                            : reservation.createdAt
-                              ? new Date(reservation.createdAt)
-                              : null);
+                        const lastMove = accountLastMoveDate(reservation);
                         const rowKey = reservation.accountId || `r-${reservation.id}`;
                         const reservaNum =
                           reservation.reservationId || reservation.id;
+                        const estadoValue = accountEstadoValue(reservation);
 
                         return (
                           <tr key={rowKey} className={styles.row}>
@@ -1058,9 +1147,7 @@ const Cobros = () => {
                               )}
                             </td>
                             <td className={styles.metaCell}>
-                              {isExterna
-                                ? reservation.accountStatus || reservation.status || '—'
-                                : reservation.status || '—'}
+                              {accountEstadoLabel(estadoValue)}
                             </td>
                             <td>
                               {paymentList.length > 0 ? (
@@ -1127,11 +1214,191 @@ const Cobros = () => {
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {openAccountColumn ? (
+                <div
+                  ref={accountFilterMenuRef}
+                  className={styles.filterMenu}
+                  role="dialog"
+                  aria-label={`Filtro ${openAccountColumn}`}
+                  style={{
+                    top: accountFilterMenuPos.top,
+                    left: accountFilterMenuPos.left,
+                  }}
+                >
+                  {openAccountColumn === 'origen' && (
+                    <select
+                      className={styles.columnFilter}
+                      aria-label="Filtrar por origen"
+                      autoFocus
+                      value={accountFilters.origen}
+                      onChange={(e) => setAccountFilter('origen', e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      <option value="reserva">Reserva</option>
+                      <option value="externa">Externa</option>
+                    </select>
+                  )}
+                  {openAccountColumn === 'cuenta' && (
+                    <input
+                      type="search"
+                      className={styles.columnFilter}
+                      aria-label="Filtrar por cuenta"
+                      placeholder="Buscar…"
+                      autoFocus
+                      value={accountFilters.cuenta}
+                      onChange={(e) => setAccountFilter('cuenta', e.target.value)}
+                    />
+                  )}
+                  {openAccountColumn === 'estado' && (
+                    <select
+                      className={styles.columnFilter}
+                      aria-label="Filtrar por estado"
+                      autoFocus
+                      value={accountFilters.estado}
+                      onChange={(e) => setAccountFilter('estado', e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {accountEstadoOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {openAccountColumn === 'cobros' && (
+                    <input
+                      type="search"
+                      className={styles.columnFilter}
+                      aria-label="Filtrar por cobros"
+                      placeholder="Código…"
+                      autoFocus
+                      value={accountFilters.cobros}
+                      onChange={(e) => setAccountFilter('cobros', e.target.value)}
+                    />
+                  )}
+                  {openAccountColumn === 'cliente' && (
+                    <input
+                      type="search"
+                      className={styles.columnFilter}
+                      aria-label="Buscar cliente"
+                      placeholder="Buscar cliente…"
+                      autoFocus
+                      value={accountFilters.cliente}
+                      onChange={(e) => setAccountFilter('cliente', e.target.value)}
+                    />
+                  )}
+                  {openAccountColumn === 'cargos' && (
+                    <div className={styles.columnFilterStack}>
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Cargos mínimo"
+                        placeholder="Mín"
+                        autoFocus
+                        value={accountFilters.cargosMin}
+                        onChange={(e) => setAccountFilter('cargosMin', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Cargos máximo"
+                        placeholder="Máx"
+                        value={accountFilters.cargosMax}
+                        onChange={(e) => setAccountFilter('cargosMax', e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {openAccountColumn === 'pagado' && (
+                    <div className={styles.columnFilterStack}>
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Pagado mínimo"
+                        placeholder="Mín"
+                        autoFocus
+                        value={accountFilters.pagadoMin}
+                        onChange={(e) => setAccountFilter('pagadoMin', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Pagado máximo"
+                        placeholder="Máx"
+                        value={accountFilters.pagadoMax}
+                        onChange={(e) => setAccountFilter('pagadoMax', e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {openAccountColumn === 'saldo' && (
+                    <div className={styles.columnFilterStack}>
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Saldo mínimo"
+                        placeholder="Mín"
+                        autoFocus
+                        value={accountFilters.saldoMin}
+                        onChange={(e) => setAccountFilter('saldoMin', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className={styles.columnFilter}
+                        aria-label="Saldo máximo"
+                        placeholder="Máx"
+                        value={accountFilters.saldoMax}
+                        onChange={(e) => setAccountFilter('saldoMax', e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {openAccountColumn === 'saldoEstado' && (
+                    <select
+                      className={styles.columnFilter}
+                      aria-label="Filtrar por saldo estado"
+                      autoFocus
+                      value={accountFilters.saldoEstado}
+                      onChange={(e) => setAccountFilter('saldoEstado', e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      {SALDO_ESTADO_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {openAccountColumn === 'ultimo' && (
+                    <div className={styles.columnFilterStack}>
+                      <label className={styles.columnFilterRow}>
+                        <span className={styles.columnFilterLabel}>Desde</span>
+                        <input
+                          type="date"
+                          className={styles.columnFilter}
+                          aria-label="Último movimiento desde"
+                          value={accountFilters.ultimoFrom}
+                          onChange={(e) => setAccountFilter('ultimoFrom', e.target.value)}
+                        />
+                      </label>
+                      <label className={styles.columnFilterRow}>
+                        <span className={styles.columnFilterLabel}>Hasta</span>
+                        <input
+                          type="date"
+                          className={styles.columnFilter}
+                          aria-label="Último movimiento hasta"
+                          value={accountFilters.ultimoTo}
+                          min={accountFilters.ultimoFrom || undefined}
+                          onChange={(e) => setAccountFilter('ultimoTo', e.target.value)}
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
-              )}
+              ) : null}
             </section>
           )}
 
