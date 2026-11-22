@@ -63,20 +63,6 @@
   cursor: not-allowed;
 }
 
-.info {
-  background-color: var(--info-background, #eff6ff);
-  border: 1px solid var(--info-border, #bfdbfe);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.info small {
-  color: var(--info-text, #1e40af);
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-
 /* Estados de error */
 .select.error,
 .input.error {
