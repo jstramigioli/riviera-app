@@ -161,6 +161,7 @@ const Cobros = () => {
   const [showCobroForm, setShowCobroForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [editingCobro, setEditingCobro] = useState(null);
+  const [summaryCobro, setSummaryCobro] = useState(null);
 
   const [statusFilters, setStatusFilters] = useState(DEFAULT_STATUS_FILTERS);
   const [scopeFilter, setScopeFilter] = useState('alojadas'); // alojadas | todas
@@ -645,6 +646,7 @@ const Cobros = () => {
   };
 
   const handleEditCobro = (cobro) => {
+    setSummaryCobro(null);
     setSelectedReservation(null);
     setEditingCobro(cobro);
     setShowCobroForm(true);
@@ -654,6 +656,19 @@ const Cobros = () => {
     setShowCobroForm(false);
     setSelectedReservation(null);
     setEditingCobro(null);
+  };
+
+  const handleOpenCobroSummary = (cobro) => {
+    if (!cobro?.id && !cobro?.codigo) return;
+    const fromHistorial =
+      cobro?.id != null
+        ? (payments || []).find((row) => row.id === cobro.id)
+        : null;
+    setSummaryCobro(fromHistorial || cobro);
+  };
+
+  const handleCloseCobroSummary = () => {
+    setSummaryCobro(null);
   };
 
   const handleDeleteCobro = async (cobro) => {
@@ -695,9 +710,12 @@ const Cobros = () => {
 
   const handlePaymentSuccess = (nuevoCobro) => {
     if (nuevoCobro?.id != null) {
+      const code = paymentCodeLabel(nuevoCobro);
+      const reservaRef =
+        nuevoCobro.reservaId || selectedReservation?.reservationId || selectedReservation?.id;
       notify({
         title: 'Cobro registrado',
-        message: `Nº ${nuevoCobro.id} — anotalo en el papelito. Reserva #${nuevoCobro.reservaId || selectedReservation?.id || '—'}.`,
+        message: reservaRef != null ? `${code} · Reserva #${reservaRef}.` : `${code}.`,
         type: 'success',
       });
     }
@@ -976,7 +994,7 @@ const Cobros = () => {
                         <th>Origen</th>
                         <th>Cuenta</th>
                         <th>Estado</th>
-                        <th>Códigos</th>
+                        <th>Cobros</th>
                         <th>Cliente</th>
                         <th>Cargos</th>
                         <th>Pagado</th>
@@ -1046,14 +1064,17 @@ const Cobros = () => {
                             </td>
                             <td>
                               {paymentList.length > 0 ? (
-                                <div
-                                  className={styles.paymentIdList}
-                                  title="Códigos de cobro para papelitos"
-                                >
+                                <div className={styles.paymentIdList}>
                                   {paymentList.map((cobro) => (
-                                    <span key={cobro.id} className={styles.paymentId}>
+                                    <button
+                                      key={cobro.imputacionId || cobro.id}
+                                      type="button"
+                                      className={styles.paymentId}
+                                      onClick={() => handleOpenCobroSummary(cobro)}
+                                      aria-label={`Ver resumen del cobro ${paymentCodeLabel(cobro)}`}
+                                    >
                                       {paymentCodeLabel(cobro)}
-                                    </span>
+                                    </button>
                                   ))}
                                 </div>
                               ) : (
@@ -1223,6 +1244,104 @@ const Cobros = () => {
           onClose={handleCloseCobroForm}
           onSuccess={handlePaymentSuccess}
         />
+      )}
+
+      {summaryCobro && (
+        <div
+          className={styles.summaryOverlay}
+          role="presentation"
+          onClick={handleCloseCobroSummary}
+        >
+          <div
+            className={styles.summaryModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cobro-summary-title"
+            data-testid="cobro-summary-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.summaryHeader}>
+              <h3 id="cobro-summary-title">
+                Resumen · {paymentCodeLabel(summaryCobro)}
+              </h3>
+              <button
+                type="button"
+                className={styles.summaryClose}
+                onClick={handleCloseCobroSummary}
+                aria-label="Cerrar"
+              >
+                <FiX aria-hidden="true" />
+              </button>
+            </div>
+            <dl className={styles.summaryList}>
+              <div>
+                <dt>Código</dt>
+                <dd>{paymentCodeLabel(summaryCobro)}</dd>
+              </div>
+              <div>
+                <dt>Fecha</dt>
+                <dd>{formatDisplayDate(summaryCobro.fecha)}</dd>
+              </div>
+              <div>
+                <dt>Monto</dt>
+                <dd>
+                  {formatMoneyArs(
+                    summaryCobro.montoARS != null
+                      ? summaryCobro.montoARS
+                      : summaryCobro.monto
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Método</dt>
+                <dd>{summaryCobro.metodo || '—'}</dd>
+              </div>
+              <div>
+                <dt>Motivo</dt>
+                <dd>{summaryCobro.motivo || 'Cobro'}</dd>
+              </div>
+              {(summaryCobro.moneda || summaryCobro.tipoCambio) && (
+                <div>
+                  <dt>Moneda</dt>
+                  <dd>
+                    {summaryCobro.moneda || 'ARS'}
+                    {summaryCobro.moneda === 'USD' && summaryCobro.tipoCambio
+                      ? ` · TC ${summaryCobro.tipoCambio}`
+                      : ''}
+                  </dd>
+                </div>
+              )}
+              {summaryCobro.esImputacionParcial ? (
+                <div>
+                  <dt>Imputación</dt>
+                  <dd>Parcial</dd>
+                </div>
+              ) : null}
+              {summaryCobro.notas ? (
+                <div>
+                  <dt>Notas</dt>
+                  <dd>{summaryCobro.notas}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className={styles.summaryActions}>
+              <button
+                type="button"
+                className={styles.summarySecondary}
+                onClick={handleCloseCobroSummary}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className={styles.summaryPrimary}
+                onClick={() => handleEditCobro(summaryCobro)}
+              >
+                Editar cobro
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {noticeDialog}
