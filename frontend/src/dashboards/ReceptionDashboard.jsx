@@ -761,7 +761,7 @@ export default function ReceptionDashboard() {
           onOpenClient={openClient}
         />
 
-        <NotificationsPanel />
+        <NotificationsPanel todayIso={todayIso} />
         </div>
       </div>
 

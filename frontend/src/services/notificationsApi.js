@@ -1,4 +1,4 @@
-import { API_URL } from './api';
+import { API_URL, apiFetch } from './api';
 
 async function parseJson(res, fallbackError) {
   const data = await res.json().catch(() => ({}));
@@ -16,14 +16,14 @@ export async function fetchNotifications(params = {}) {
   if (params.severity) qs.set('severity', params.severity);
   if (params.q) qs.set('q', params.q);
   if (params.limit) qs.set('limit', String(params.limit));
-  const res = await fetch(`${API_URL}/notifications?${qs.toString()}`, {
+  const res = await apiFetch(`${API_URL}/notifications?${qs.toString()}`, {
     credentials: 'include'
   });
   return parseJson(res, 'Error al listar notificaciones');
 }
 
 export async function syncNotifications(dateIso) {
-  const res = await fetch(`${API_URL}/notifications/sync`, {
+  const res = await apiFetch(`${API_URL}/notifications/sync`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -33,7 +33,7 @@ export async function syncNotifications(dateIso) {
 }
 
 export async function markNotificationRead(id) {
-  const res = await fetch(`${API_URL}/notifications/${id}/read`, {
+  const res = await apiFetch(`${API_URL}/notifications/${id}/read`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -41,7 +41,7 @@ export async function markNotificationRead(id) {
 }
 
 export async function markNotificationUnread(id) {
-  const res = await fetch(`${API_URL}/notifications/${id}/read`, {
+  const res = await apiFetch(`${API_URL}/notifications/${id}/read`, {
     method: 'DELETE',
     credentials: 'include'
   });
@@ -49,7 +49,7 @@ export async function markNotificationUnread(id) {
 }
 
 export async function resolveNotification(id) {
-  const res = await fetch(`${API_URL}/notifications/${id}/resolve`, {
+  const res = await apiFetch(`${API_URL}/notifications/${id}/resolve`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -57,7 +57,7 @@ export async function resolveNotification(id) {
 }
 
 export async function unresolveNotification(id) {
-  const res = await fetch(`${API_URL}/notifications/${id}/unresolve`, {
+  const res = await apiFetch(`${API_URL}/notifications/${id}/unresolve`, {
     method: 'POST',
     credentials: 'include'
   });
