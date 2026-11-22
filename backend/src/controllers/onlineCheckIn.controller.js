@@ -5,18 +5,24 @@ const {
   buildMailto,
   sendCheckInEmail
 } = require('../services/checkInMail');
-const {
-  getAddressFromNotes,
-  createNotesWithAddress
-} = require('../utils/clientAddressNotes');
+const { getAddressFromNotes } = require('../utils/clientAddressNotes');
 const {
   assertSlot,
   saveDocumentPhoto,
   prismaFieldsForSlot
 } = require('../utils/clientDocumentPhoto');
+const {
+  saveCheckInDocumentPhoto,
+  prismaCheckInFieldsForSlot,
+  absolutePath: checkInPhotoAbsolutePath,
+  readAllMeta: readCheckInPhotoMeta
+} = require('../utils/checkInDocumentPhoto');
 const { ensureHolderAsGuest } = require('../utils/guestHelpers');
-
-const CLIENT_DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'Cédula', 'Otro'];
+const {
+  buildIdentityKey,
+  resolveClientIdentity
+} = require('../services/resolveClientIdentity');
+const fs = require('fs');
 
 // 16 bytes → 32 hex chars: enough entropy, menos chance de truncarse al copiar en chat/UI
 const TOKEN_BYTES = 16;
@@ -77,6 +83,54 @@ function parseBirthDate(value) {
   return d;
 }
 
+/** Form externo: siempre vacío (sin precarga de ficha Client). */
+function emptyPersonalFields() {
+  return {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    documentType: 'DNI',
+    documentNumber: '',
+    documentIssuingCountry: 'AR',
+    birthDate: '',
+    country: 'AR',
+    province: '',
+    city: '',
+    address: '',
+    wantsPromotions: false
+  };
+}
+
+/** Snapshot de esta estadía (OnlineCheckIn), no de la ficha Client. */
+function snapshotFields(checkIn) {
+  if (!checkIn) return emptyPersonalFields();
+  const hasSnapshot = Boolean(
+    checkIn.firstName ||
+      checkIn.lastName ||
+      checkIn.documentNumber ||
+      checkIn.completedAt ||
+      checkIn.documentFrontUploadedAt
+  );
+  if (!hasSnapshot) return emptyPersonalFields();
+  return {
+    firstName: checkIn.firstName || '',
+    lastName: checkIn.lastName || '',
+    email: checkIn.email || '',
+    phone: checkIn.phone || '',
+    documentType: checkIn.documentType || 'DNI',
+    documentNumber: checkIn.documentNumber || '',
+    documentIssuingCountry: checkIn.documentIssuingCountry || 'AR',
+    birthDate: birthDateToInputValue(checkIn.birthDate),
+    country: checkIn.country || 'AR',
+    province: checkIn.province || '',
+    city: checkIn.city || '',
+    address: checkIn.address || '',
+    wantsPromotions: false
+  };
+}
+
+/** Prefill staff (interno): ficha Client + guest. */
 function clientPrefill(client = {}, reservation = {}, guest = {}) {
   return {
     firstName: client.firstName || guest.firstName || '',
@@ -85,13 +139,14 @@ function clientPrefill(client = {}, reservation = {}, guest = {}) {
     phone: client.phone || guest.phone || '',
     documentType: client.documentType || guest.documentType || 'DNI',
     documentNumber: client.documentNumber || guest.documentNumber || '',
+    documentIssuingCountry:
+      client.documentIssuingCountry || guest.documentIssuingCountry || client.country || 'AR',
     birthDate: birthDateToInputValue(client.birthDate),
     country: client.country || 'AR',
     province: client.province || '',
     city: client.city || guest.city || '',
     address: getAddressFromNotes(client.notes) || guest.address || '',
     wantsPromotions: Boolean(client.wantsPromotions)
-    // Patente: ficha de reserva (no por pasajero).
   };
 }
 
@@ -162,11 +217,6 @@ function serializePublicReservation(reservation) {
   };
 }
 
-function normalizeDocumentType(value) {
-  const cleaned = normalizeText(value) || 'DNI';
-  return CLIENT_DOCUMENT_TYPES.includes(cleaned) ? cleaned : 'DNI';
-}
-
 function mergeFields(checkIn, prefill) {
   return {
     ...prefill,
@@ -176,6 +226,8 @@ function mergeFields(checkIn, prefill) {
     phone: checkIn?.phone || prefill.phone,
     documentType: checkIn?.documentType || prefill.documentType,
     documentNumber: checkIn?.documentNumber || prefill.documentNumber,
+    documentIssuingCountry:
+      checkIn?.documentIssuingCountry || prefill.documentIssuingCountry || 'AR',
     birthDate: birthDateToInputValue(checkIn?.birthDate) || prefill.birthDate,
     country: checkIn?.country || prefill.country || 'AR',
     province: checkIn?.province || prefill.province,
@@ -335,26 +387,39 @@ async function ensureGuestCheckInRows(reservation, { markSent = false } = {}) {
   return results;
 }
 
-function serializeGuestCheckIn(guest, checkIn, reservation, tokenExpired) {
+/**
+ * @param {'public'|'staff'} mode — public: form vacío / solo snapshot de estadía; staff: prefill ficha.
+ */
+function serializeGuestCheckIn(guest, checkIn, reservation, tokenExpired, mode = 'staff') {
   const client = guest.client || {};
-  const prefill = clientPrefill(client, reservation, guest);
-  const fields = mergeFields(checkIn, prefill);
+  const fields =
+    mode === 'public'
+      ? snapshotFields(checkIn)
+      : mergeFields(checkIn, clientPrefill(client, reservation, guest));
   const status = checkIn?.status || 'PENDING';
   const visual = displayStatus(checkIn, tokenExpired);
+  const labelName =
+    mode === 'public'
+      ? [guest.firstName, guest.lastName].filter(Boolean).join(' ') ||
+        (checkIn?.firstName ? `${checkIn.firstName} ${checkIn.lastName || ''}`.trim() : '') ||
+        `Huésped ${guest.id}`
+      : [guest.firstName, guest.lastName].filter(Boolean).join(' ') || fields.firstName;
   return {
     guestId: guest.id,
     clientId: guest.clientId || checkIn?.clientId || null,
     isHolder: Number(guest.clientId) === Number(reservation.mainClientId),
-    name: [guest.firstName, guest.lastName].filter(Boolean).join(' ') || fields.firstName,
+    name: labelName,
     status,
     displayStatus: visual,
     sentAt: checkIn?.sentAt || null,
     completedAt: checkIn?.completedAt || null,
     validatedAt: checkIn?.validatedAt || null,
+    needsManualReview: Boolean(checkIn?.needsManualReview),
+    identityConflictNote: checkIn?.identityConflictNote || null,
     fields,
     documentPhotos: {
-      frontUploaded: Boolean(checkIn?.documentFrontUploadedAt),
-      backUploaded: Boolean(checkIn?.documentBackUploadedAt)
+      frontUploaded: Boolean(checkIn?.documentFrontUploadedAt || checkIn?.documentPhotoFrontStoredName),
+      backUploaded: Boolean(checkIn?.documentBackUploadedAt || checkIn?.documentPhotoBackStoredName)
     },
     completed: status === 'COMPLETED'
   };
@@ -619,7 +684,7 @@ async function getPublicCheckIn(req, res) {
     });
     const byGuest = new Map(checkIns.map((c) => [c.guestId, c]));
     const guests = (reservation.guests || []).map((guest) =>
-      serializeGuestCheckIn(guest, byGuest.get(guest.id), reservation, false)
+      serializeGuestCheckIn(guest, byGuest.get(guest.id), reservation, false, 'public')
     );
     const progress = progressFromGuests(guests);
     const guestIdParam = req.query.guestId != null ? Number(req.query.guestId) : null;
@@ -647,6 +712,7 @@ async function getPublicCheckIn(req, res) {
         : null,
       guests,
       // Compat: si hay un solo huésped, exponer fields en raíz (forms viejos / 1 huésped).
+      // Público: fields vacíos salvo snapshot de esta estadía (nunca precarga de Client).
       fields: selected?.fields || (guests.length === 1 ? guests[0].fields : null),
       documentPhotos:
         selected?.documentPhotos ||
@@ -728,37 +794,8 @@ async function resolveGuestCheckInForAccess(access, guestIdRaw) {
 }
 
 /**
- * Asegura Client para el huésped (upsert mínimo) y lo vincula.
- */
-async function ensureClientForGuest(tx, guest, data) {
-  if (guest.clientId) {
-    return guest.clientId;
-  }
-  const created = await tx.client.create({
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      documentType: data.documentType || 'DNI',
-      documentNumber: data.documentNumber,
-      birthDate: data.birthDate || null,
-      country: data.country || 'AR',
-      province: data.province || null,
-      city: data.city || null,
-      notes: createNotesWithAddress(null, data.address),
-      wantsPromotions: Boolean(data.wantsPromotions)
-    }
-  });
-  await tx.guest.update({
-    where: { id: guest.id },
-    data: { clientId: created.id }
-  });
-  return created.id;
-}
-
-/**
  * Público: subir foto frente/dorso del huésped (siempre nueva en este check-in).
+ * Snapshot en OnlineCheckIn + copia actual en ficha Client (si ya hay vínculo).
  */
 async function uploadPublicCheckInDocumentPhoto(req, res) {
   try {
@@ -797,14 +834,16 @@ async function uploadPublicCheckInDocumentPhoto(req, res) {
     const { guest, checkIn, reservation } = resolved;
 
     if (checkIn.status === 'COMPLETED') {
-      // Permitir re-edición: reabrir a SENT al subir fotos nuevas
+      // Permitir re-edición: reabrir a SENT al subir fotos nuevas de esta estadía
       await prisma.onlineCheckIn.update({
         where: { id: checkIn.id },
         data: {
           status: 'SENT',
           completedAt: null,
           documentFrontUploadedAt: null,
-          documentBackUploadedAt: null
+          documentBackUploadedAt: null,
+          ...prismaCheckInFieldsForSlot('front', null),
+          ...prismaCheckInFieldsForSlot('back', null)
         }
       });
       checkIn.status = 'SENT';
@@ -812,58 +851,45 @@ async function uploadPublicCheckInDocumentPhoto(req, res) {
       checkIn.documentBackUploadedAt = null;
     }
 
-    let clientId = guest.clientId || checkIn.clientId;
-    if (!clientId) {
-      clientId = await prisma.$transaction(async (tx) =>
-        ensureClientForGuest(tx, guest, {
-          firstName: guest.firstName || 'Huésped',
-          lastName: guest.lastName || String(guest.id),
-          email: guest.email || null,
-          phone: guest.phone || null,
-          documentType: guest.documentType || 'DNI',
-          documentNumber: guest.documentNumber || null,
-          city: guest.city || null,
-          address: guest.address || null
-        })
-      );
-      await prisma.onlineCheckIn.update({
-        where: { id: checkIn.id },
-        data: { clientId }
-      });
-    }
-
-    const result = saveDocumentPhoto(clientId, req.file, checked.slot);
-    if (result.error) {
-      return res.status(400).json({ error: result.error });
+    const stayPhoto = saveCheckInDocumentPhoto(checkIn.id, req.file, checked.slot);
+    if (stayPhoto.error) {
+      return res.status(400).json({ error: stayPhoto.error });
     }
 
     const now = new Date();
     const checkInPhotoField =
       checked.slot === 'front' ? { documentFrontUploadedAt: now } : { documentBackUploadedAt: now };
 
-    await prisma.$transaction([
-      prisma.client.update({
-        where: { id: clientId },
-        data: prismaFieldsForSlot(checked.slot, result.meta)
-      }),
-      prisma.onlineCheckIn.update({
-        where: { id: checkIn.id },
-        data: {
-          ...checkInPhotoField,
-          clientId,
-          status: checkIn.status === 'PENDING' ? 'SENT' : checkIn.status
-        }
-      })
-    ]);
+    let clientId = guest.clientId || checkIn.clientId || null;
+    // Si ya hay client vinculado, actualizar ficha actual; el snapshot de estadía queda aparte.
+    if (clientId) {
+      const clientPhoto = saveDocumentPhoto(clientId, req.file, checked.slot);
+      if (!clientPhoto.error) {
+        await prisma.client.update({
+          where: { id: clientId },
+          data: prismaFieldsForSlot(checked.slot, clientPhoto.meta)
+        });
+      }
+    }
+
+    await prisma.onlineCheckIn.update({
+      where: { id: checkIn.id },
+      data: {
+        ...checkInPhotoField,
+        ...prismaCheckInFieldsForSlot(checked.slot, stayPhoto.meta),
+        clientId: clientId || undefined,
+        status: checkIn.status === 'PENDING' ? 'SENT' : checkIn.status
+      }
+    });
 
     return res.status(201).json({
       ok: true,
       guestId: guest.id,
       slot: checked.slot,
-      originalName: result.meta.originalName,
-      mimeType: result.meta.mimeType,
-      sizeBytes: result.meta.sizeBytes,
-      updatedAt: result.meta.updatedAt,
+      originalName: stayPhoto.meta.originalName,
+      mimeType: stayPhoto.meta.mimeType,
+      sizeBytes: stayPhoto.meta.sizeBytes,
+      updatedAt: stayPhoto.meta.updatedAt,
       reservationId: reservation.id
     });
   } catch (error) {
@@ -929,8 +955,15 @@ async function submitPublicCheckIn(req, res) {
 
     const email = normalizeText(body.email);
     const phone = normalizeText(body.phone);
-    const documentType = normalizeDocumentType(body.documentType);
-    const documentNumber = normalizeText(body.documentNumber);
+    const identity = buildIdentityKey({
+      documentType: body.documentType,
+      documentNumber: body.documentNumber,
+      documentIssuingCountry: body.documentIssuingCountry || body.issuingCountry
+    });
+    const documentType = identity.documentType;
+    const documentNumber = identity.documentNumber;
+    const documentIssuingCountry = identity.documentIssuingCountry;
+    const documentNumberNormalized = identity.documentNumberNormalized;
     const country = normalizeText(body.country) || 'AR';
     const province = normalizeText(body.province);
     const city = normalizeText(body.city);
@@ -938,82 +971,118 @@ async function submitPublicCheckIn(req, res) {
     const wantsPromotions = Boolean(body.wantsPromotions);
     const markValidated = Boolean(body.validated);
 
-    const result = await prisma.$transaction(async (tx) => {
-      const clientId = await ensureClientForGuest(tx, guest, {
-        firstName,
-        lastName,
-        email,
-        phone,
-        documentType,
-        documentNumber,
-        birthDate,
-        country,
-        province,
-        city,
-        address,
-        wantsPromotions
-      });
+    if (!documentNumberNormalized) {
+      return res.status(400).json({ error: 'El número de documento es obligatorio' });
+    }
 
-      const existingClient = await tx.client.findUnique({
-        where: { id: clientId },
-        select: { notes: true }
-      });
-      const notes = createNotesWithAddress(existingClient?.notes, address);
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        const resolution = await resolveClientIdentity(
+          tx,
+          {
+            firstName,
+            lastName,
+            email,
+            phone,
+            documentType,
+            documentNumber,
+            documentIssuingCountry,
+            birthDate,
+            country,
+            province,
+            city,
+            address,
+            wantsPromotions
+          },
+          { preferredClientId: guest.clientId || checkIn.clientId || null }
+        );
 
-      await tx.client.update({
-        where: { id: clientId },
-        data: {
-          firstName,
-          lastName,
-          email,
-          phone,
-          documentType,
-          documentNumber,
-          birthDate,
-          country,
-          province,
-          city,
-          wantsPromotions,
-          notes
+        const clientId = resolution.client.id;
+
+        await tx.guest.update({
+          where: { id: guest.id },
+          data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            documentType,
+            documentNumber,
+            documentIssuingCountry,
+            city,
+            address,
+            clientId
+          }
+        });
+
+        return {
+          checkIn: await tx.onlineCheckIn.update({
+            where: { id: checkIn.id },
+            data: {
+              status: 'COMPLETED',
+              completedAt: new Date(),
+              validatedAt: markValidated ? new Date() : checkIn.validatedAt,
+              clientId,
+              firstName,
+              lastName,
+              email,
+              phone,
+              documentType,
+              documentNumber,
+              documentIssuingCountry,
+              documentNumberNormalized,
+              birthDate,
+              country,
+              province,
+              city,
+              address,
+              needsManualReview: resolution.needsManualReview,
+              identityConflictNote: resolution.identityConflictNote
+            }
+          }),
+          resolution
+        };
+      });
+    } catch (txError) {
+      if (txError.status === 400) {
+        return res.status(400).json({ error: txError.message });
+      }
+      if (txError.code === 'P2002') {
+        return res.status(409).json({
+          error: 'Ya existe un cliente con ese tipo, país emisor y número de documento'
+        });
+      }
+      throw txError;
+    }
+
+    // Sincronizar fotos de estadía → ficha Client actual (sin mutar el snapshot).
+    try {
+      const clientId = result.resolution.client.id;
+      const stayMeta = readCheckInPhotoMeta(checkIn.id);
+      for (const slot of ['front', 'back']) {
+        const meta = stayMeta[slot];
+        if (!meta?.storedName) continue;
+        const src = checkInPhotoAbsolutePath(checkIn.id, meta.storedName);
+        if (!fs.existsSync(src)) continue;
+        const buffer = fs.readFileSync(src);
+        const fakeFile = {
+          buffer,
+          mimetype: meta.mimeType || 'image/jpeg',
+          size: meta.sizeBytes || buffer.length,
+          originalname: meta.originalName || meta.storedName
+        };
+        const saved = saveDocumentPhoto(clientId, fakeFile, slot);
+        if (!saved.error) {
+          await prisma.client.update({
+            where: { id: clientId },
+            data: prismaFieldsForSlot(slot, saved.meta)
+          });
         }
-      });
-
-      await tx.guest.update({
-        where: { id: guest.id },
-        data: {
-          firstName,
-          lastName,
-          email,
-          phone,
-          documentType,
-          documentNumber,
-          city,
-          address,
-          clientId
-        }
-      });
-
-      return tx.onlineCheckIn.update({
-        where: { id: checkIn.id },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-          validatedAt: markValidated ? new Date() : checkIn.validatedAt,
-          clientId,
-          firstName,
-          lastName,
-          email,
-          phone,
-          documentType,
-          documentNumber,
-          birthDate,
-          country,
-          province,
-          city,
-          address
-        }
-      });
-    });
+      }
+    } catch (syncErr) {
+      console.warn('sync check-in photos to client', syncErr.message);
+    }
 
     const all = await prisma.onlineCheckIn.findMany({
       where: { reservationId: reservation.id, guestId: { not: null } }
@@ -1023,8 +1092,10 @@ async function submitPublicCheckIn(req, res) {
     return res.json({
       ok: true,
       guestId: guest.id,
-      status: result.status,
-      completedAt: result.completedAt,
+      status: result.checkIn.status,
+      completedAt: result.checkIn.completedAt,
+      needsManualReview: result.resolution.needsManualReview,
+      identityConflictNote: result.resolution.identityConflictNote,
       progress: { completed, total: all.length, label: `${completed}/${all.length}` }
     });
   } catch (error) {

@@ -14,6 +14,7 @@ const {
   prismaFieldsForSlot,
   prismaFieldsForAll
 } = require('../utils/clientDocumentPhoto');
+const { buildIdentityKey } = require('../services/resolveClientIdentity');
 
 function normalizeBillingString(value) {
   if (value == null) return null;
@@ -54,6 +55,60 @@ exports.getAllClients = async (req, res) => {
   }
 };
 
+/**
+ * Búsqueda liviana para sugerencias (huésped interno / agenda).
+ * GET /clients/search?q=...
+ */
+exports.searchClients = async (req, res) => {
+  try {
+    const q = String(req.query.q || req.query.query || '').trim();
+    const limit = Math.min(25, Math.max(1, Number(req.query.limit) || 12));
+    if (q.length < 1) {
+      return res.json([]);
+    }
+
+    const tokens = q.split(/\s+/).filter(Boolean).slice(0, 4);
+    const orClauses = [];
+    for (const token of tokens) {
+      orClauses.push(
+        { firstName: { contains: token, mode: 'insensitive' } },
+        { lastName: { contains: token, mode: 'insensitive' } },
+        { documentNumber: { contains: token, mode: 'insensitive' } },
+        { documentNumberNormalized: { contains: token.replace(/[\s.\-/\\_]/g, '').toUpperCase() } },
+        { email: { contains: token, mode: 'insensitive' } },
+        { phone: { contains: token } }
+      );
+    }
+
+    const clients = await prisma.client.findMany({
+      where: { OR: orClauses },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      take: limit,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        documentType: true,
+        documentNumber: true,
+        documentIssuingCountry: true,
+        birthDate: true,
+        country: true,
+        province: true,
+        city: true,
+        notes: true,
+        wantsPromotions: true,
+        needsIdentityReview: true
+      }
+    });
+    res.json(clients);
+  } catch (error) {
+    console.error('searchClients', error);
+    res.status(500).json({ error: 'Error al buscar clientes' });
+  }
+};
+
 // Obtener un cliente específico
 exports.getClientById = async (req, res) => {
   const { id } = req.params;
@@ -72,7 +127,7 @@ exports.getClientById = async (req, res) => {
 
 // Crear un cliente
 exports.createClient = async (req, res) => {
-  const { firstName, lastName, email, phone, documentType, documentNumber, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, documentIssuingCountry, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
@@ -88,6 +143,12 @@ exports.createClient = async (req, res) => {
   } catch {
     return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
   }
+
+  const identity = buildIdentityKey({
+    documentType,
+    documentNumber,
+    documentIssuingCountry: documentIssuingCountry || country
+  });
   
   try {
     const data = {
@@ -95,8 +156,10 @@ exports.createClient = async (req, res) => {
       lastName,
       email: email || null,
       phone: phone || null,
-      documentType: documentType || 'DNI',
-      documentNumber: documentNumber || null,
+      documentType: identity.documentType,
+      documentNumber: identity.documentNumber,
+      documentIssuingCountry: identity.documentIssuingCountry,
+      documentNumberNormalized: identity.documentNumberNormalized,
       country: country || null,
       province: province || null,
       city: city || null,
@@ -116,6 +179,11 @@ exports.createClient = async (req, res) => {
   } catch (error) {
     console.error('Error creating client:', error);
     console.error('Request body:', req.body);
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Ya existe un cliente con ese tipo, país emisor y número de documento'
+      });
+    }
     const details = process.env.NODE_ENV !== 'production' ? error.message : undefined;
     res.status(500).json({
       error: 'Error creating client',
@@ -128,7 +196,7 @@ exports.createClient = async (req, res) => {
 // Actualizar un cliente
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, documentType, documentNumber, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, documentIssuingCountry, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
@@ -147,8 +215,22 @@ exports.updateClient = async (req, res) => {
       return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
     }
   }
-  
+
   try {
+    const existing = await prisma.client.findUnique({ where: { id: parseInt(id, 10) } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    const identity = buildIdentityKey({
+      documentType: documentType !== undefined ? documentType : existing.documentType,
+      documentNumber: documentNumber !== undefined ? documentNumber : existing.documentNumber,
+      documentIssuingCountry:
+        documentIssuingCountry !== undefined
+          ? documentIssuingCountry
+          : existing.documentIssuingCountry || country || existing.country
+    });
+
     const updatedClient = await prisma.client.update({
       where: { id: parseInt(id) },
       data: {
@@ -156,8 +238,10 @@ exports.updateClient = async (req, res) => {
         lastName,
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
-        ...(documentType !== undefined && { documentType }),
-        ...(documentNumber !== undefined && { documentNumber }),
+        documentType: identity.documentType,
+        documentNumber: identity.documentNumber,
+        documentIssuingCountry: identity.documentIssuingCountry,
+        documentNumberNormalized: identity.documentNumberNormalized,
         ...(birthDate !== undefined && { birthDate: parsedBirthDate }),
         ...(country !== undefined && { country }),
         ...(province !== undefined && { province }),
@@ -171,6 +255,11 @@ exports.updateClient = async (req, res) => {
   } catch (error) {
     if (error.message && error.message.includes('Record not found')) {
       return res.status(404).json({ error: 'Client not found' });
+    }
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Ya existe un cliente con ese tipo, país emisor y número de documento'
+      });
     }
     res.status(500).json({ error: 'Error updating client', details: error.message });
   }

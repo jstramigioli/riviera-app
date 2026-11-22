@@ -4,7 +4,8 @@ import DocumentPhotoSlot from './DocumentPhotoSlot';
 import {
   BIRTH_DATE_LABEL_OPTIONAL,
   BIRTH_DATE_LABEL_REQUIRED,
-  CLIENT_DOCUMENT_TYPES
+  CLIENT_DOCUMENT_TYPES,
+  DOCUMENT_ISSUING_COUNTRIES
 } from '../constants/clientFormFields';
 import styles from '../pages/PublicCheckIn.module.css';
 
@@ -16,6 +17,7 @@ export const EMPTY_GUEST_PERSONAL_FIELDS = {
   phone: '',
   documentType: 'DNI',
   documentNumber: '',
+  documentIssuingCountry: 'AR',
   birthDate: '',
   country: 'AR',
   province: '',
@@ -143,6 +145,22 @@ export default function GuestPersonalFormFields({
               onChange={handleChange}
               disabled={disabled}
             />
+          </label>
+          <label className={styles.field}>
+            <span>País emisor</span>
+            <select
+              name="documentIssuingCountry"
+              value={fields.documentIssuingCountry || 'AR'}
+              onChange={handleChange}
+              disabled={disabled}
+              data-testid={`${photoTestIdPrefix}-issuing-country`}
+            >
+              {DOCUMENT_ISSUING_COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         {showPhotos && (

@@ -7,37 +7,22 @@ const {
   getReservationGuestCapacity,
   findOverlappingGuestStay
 } = require('../utils/guestHelpers');
+const { getAddressFromNotes } = require('../utils/clientAddressNotes');
 const {
-  getAddressFromNotes,
-  createNotesWithAddress
-} = require('../utils/clientAddressNotes');
-
-function normalizeText(value) {
-  if (value == null) return null;
-  const cleaned = String(value).trim();
-  return cleaned || null;
-}
-
-function parseBirthDate(value) {
-  if (value == null || value === '') return null;
-  const raw = String(value).trim();
-  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (ymd) {
-    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 12, 0, 0, 0);
-    if (Number.isNaN(d.getTime())) return null;
-    return d;
-  }
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+  normalizeText,
+  buildIdentityKey,
+  resolveClientIdentity
+} = require('../services/resolveClientIdentity');
 
 /** Campos de Guest (tabla) vs perfil Client. */
 function guestTableFields(body = {}) {
+  const identity = buildIdentityKey(body);
   return {
     firstName: normalizeText(body.firstName),
     lastName: normalizeText(body.lastName),
-    documentType: normalizeText(body.documentType) || 'DNI',
-    documentNumber: normalizeText(body.documentNumber),
+    documentType: identity.documentType,
+    documentNumber: identity.documentNumber,
+    documentIssuingCountry: identity.documentIssuingCountry,
     phone: normalizeText(body.phone),
     email: normalizeText(body.email),
     address: normalizeText(body.address),
@@ -46,66 +31,29 @@ function guestTableFields(body = {}) {
 }
 
 /**
- * Crea o actualiza el Client vinculado al huésped (mismos campos que check-in, sin patente).
+ * Misma lógica que check-in externo: match por tipo+país emisor+nro normalizado.
  */
 async function upsertClientForGuest(guestOrNull, body, existingClientId = null) {
-  const g = guestTableFields(body);
-  if (!g.firstName || !g.lastName) {
-    const err = new Error('Nombre y apellido son requeridos');
-    err.status = 400;
-    throw err;
-  }
-  const birthDate = parseBirthDate(body.birthDate);
-  const country = normalizeText(body.country) || 'AR';
-  const province = normalizeText(body.province);
-  const city = g.city;
-  const address = g.address;
-  const wantsPromotions = Boolean(body.wantsPromotions);
-  const clientId = existingClientId || guestOrNull?.clientId || null;
+  const preferred =
+    existingClientId != null
+      ? parseInt(existingClientId, 10)
+      : guestOrNull?.clientId != null
+        ? parseInt(guestOrNull.clientId, 10)
+        : body.clientId != null
+          ? parseInt(body.clientId, 10)
+          : null;
 
-  if (clientId) {
-    const existing = await prisma.client.findUnique({
-      where: { id: parseInt(clientId, 10) },
-      select: { notes: true }
-    });
-    const notes = createNotesWithAddress(existing?.notes, address);
-    await prisma.client.update({
-      where: { id: parseInt(clientId, 10) },
-      data: {
-        firstName: g.firstName,
-        lastName: g.lastName,
-        email: g.email,
-        phone: g.phone,
-        documentType: g.documentType,
-        documentNumber: g.documentNumber,
-        birthDate,
-        country,
-        province,
-        city,
-        notes,
-        wantsPromotions
-      }
-    });
-    return parseInt(clientId, 10);
-  }
-
-  const created = await prisma.client.create({
-    data: {
-      firstName: g.firstName,
-      lastName: g.lastName,
-      email: g.email,
-      phone: g.phone,
-      documentType: g.documentType,
-      documentNumber: g.documentNumber,
-      birthDate,
-      country,
-      province,
-      city,
-      notes: createNotesWithAddress(null, address),
-      wantsPromotions
-    }
-  });
-  return created.id;
+  const resolution = await prisma.$transaction(async (tx) =>
+    resolveClientIdentity(tx, body, {
+      preferredClientId: Number.isFinite(preferred) ? preferred : null
+    })
+  );
+  return {
+    clientId: resolution.client.id,
+    needsManualReview: resolution.needsManualReview,
+    identityConflictNote: resolution.identityConflictNote,
+    client: resolution.client
+  };
 }
 
 // Listar todos los huéspedes
@@ -212,8 +160,10 @@ exports.createGuest = async (req, res) => {
       }
     }
 
+    let resolveMeta = null;
     if (syncClient !== false && syncClient !== 'false') {
-      linkedClientId = await upsertClientForGuest(null, body, linkedClientId);
+      resolveMeta = await upsertClientForGuest(null, body, linkedClientId);
+      linkedClientId = resolveMeta.clientId;
     }
 
     const newGuest = await prisma.guest.create({
@@ -231,9 +181,18 @@ exports.createGuest = async (req, res) => {
         }
       }
     });
-    res.status(201).json(newGuest);
+    res.status(201).json({
+      ...newGuest,
+      needsManualReview: Boolean(resolveMeta?.needsManualReview),
+      identityConflictNote: resolveMeta?.identityConflictNote || null
+    });
   } catch (error) {
     console.error('Error creating guest:', error);
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Ya existe un cliente con ese tipo, país emisor y número de documento'
+      });
+    }
     const status = error.status || 500;
     res.status(status).json({ error: error.message || 'Error creating guest', details: error.message });
   }
@@ -350,10 +309,18 @@ exports.updateGuest = async (req, res) => {
       documentType: data.documentType !== undefined ? data.documentType : current.documentType,
       documentNumber:
         data.documentNumber !== undefined ? data.documentNumber : current.documentNumber,
+      documentIssuingCountry:
+        data.documentIssuingCountry !== undefined
+          ? data.documentIssuingCountry
+          : current.documentIssuingCountry,
       phone: data.phone !== undefined ? data.phone : current.phone,
       email: data.email !== undefined ? data.email : current.email,
       address: data.address !== undefined ? data.address : current.address,
-      city: data.city !== undefined ? data.city : current.city
+      city: data.city !== undefined ? data.city : current.city,
+      birthDate: data.birthDate,
+      country: data.country,
+      province: data.province,
+      wantsPromotions: data.wantsPromotions
     });
 
     let nextClientId =
@@ -378,9 +345,11 @@ exports.updateGuest = async (req, res) => {
       }
     }
 
+    let resolveMeta = null;
     const syncClient = data.syncClient !== false && data.syncClient !== 'false';
     if (syncClient) {
-      nextClientId = await upsertClientForGuest(current, { ...data, ...fields }, nextClientId);
+      resolveMeta = await upsertClientForGuest(current, { ...data, ...fields }, nextClientId);
+      nextClientId = resolveMeta.clientId;
     }
 
     const updatedGuest = await prisma.guest.update({
@@ -391,10 +360,19 @@ exports.updateGuest = async (req, res) => {
       },
       include: { client: true }
     });
-    res.json(updatedGuest);
+    res.json({
+      ...updatedGuest,
+      needsManualReview: Boolean(resolveMeta?.needsManualReview),
+      identityConflictNote: resolveMeta?.identityConflictNote || null
+    });
   } catch (error) {
     if (error.message && error.message.includes('Record not found')) {
       return res.status(404).json({ error: 'Guest not found' });
+    }
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Ya existe un cliente con ese tipo, país emisor y número de documento'
+      });
     }
     const status = error.status || 500;
     res.status(status).json({ error: error.message || 'Error updating guest', details: error.message });

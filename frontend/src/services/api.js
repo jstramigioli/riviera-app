@@ -110,6 +110,16 @@ export async function fetchClients() {
   return res.json();
 }
 
+/** Sugerencias de clientes (nombre/apellido/documento). */
+export async function searchClients(query, { limit = 12, signal } = {}) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+  const params = new URLSearchParams({ q, limit: String(limit) });
+  const res = await apiFetch(`${API_URL}/clients/search?${params}`, { signal });
+  if (!res.ok) throw new Error('Error al buscar clientes');
+  return res.json();
+}
+
 export async function fetchGuests() {
   const res = await apiFetch(`${API_URL}/guests`);
   if (!res.ok) throw new Error('Error fetching guests');

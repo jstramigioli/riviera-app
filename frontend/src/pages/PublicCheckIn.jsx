@@ -54,14 +54,24 @@ export default function PublicCheckIn() {
     if (!guest) return;
     setEditingVehicle(false);
     setSelectedGuestId(guest.guestId);
-    setFields({
-      ...EMPTY_GUEST_PERSONAL_FIELDS,
-      ...(guest.fields || {}),
-      country: guest.fields?.country || 'AR',
-      documentType: guest.fields?.documentType || 'DNI',
-      birthDate: birthDateToInputValue(guest.fields?.birthDate),
-      wantsPromotions: Boolean(guest.fields?.wantsPromotions)
-    });
+    // Form externo: sin precarga de ficha; solo snapshot de esta estadía si ya cargó datos.
+    const snap = guest.fields || {};
+    const hasStaySnapshot = Boolean(
+      snap.firstName || snap.lastName || snap.documentNumber || guest.completed
+    );
+    setFields(
+      hasStaySnapshot
+        ? {
+            ...EMPTY_GUEST_PERSONAL_FIELDS,
+            ...snap,
+            country: snap.country || 'AR',
+            documentType: snap.documentType || 'DNI',
+            documentIssuingCountry: snap.documentIssuingCountry || 'AR',
+            birthDate: birthDateToInputValue(snap.birthDate),
+            wantsPromotions: Boolean(snap.wantsPromotions)
+          }
+        : { ...EMPTY_GUEST_PERSONAL_FIELDS }
+    );
     setPhotos({
       front: {
         uploaded: Boolean(guest.documentPhotos?.frontUploaded),
