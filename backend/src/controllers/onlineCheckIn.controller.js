@@ -90,8 +90,62 @@ function clientPrefill(client = {}, reservation = {}, guest = {}) {
     province: client.province || '',
     city: client.city || guest.city || '',
     address: getAddressFromNotes(client.notes) || guest.address || '',
-    wantsPromotions: Boolean(client.wantsPromotions),
-    vehiclePlate: reservation.vehiclePlate || client.vehiclePlate || ''
+    wantsPromotions: Boolean(client.wantsPromotions)
+    // Patente: ficha de reserva (no por pasajero).
+  };
+}
+
+const PUBLIC_SEGMENTS_INCLUDE = {
+  orderBy: { startDate: 'asc' },
+  include: {
+    room: { include: { roomType: true } },
+    roomType: true,
+    virtualRoom: { include: { roomType: true } }
+  }
+};
+
+function serializePublicSegments(segments = []) {
+  return segments.map((seg) => {
+    const roomTypeName =
+      seg.roomType?.name ||
+      seg.room?.roomType?.name ||
+      seg.virtualRoom?.roomType?.name ||
+      null;
+    return {
+      id: seg.id,
+      startDate: seg.startDate,
+      endDate: seg.endDate,
+      guestCount: seg.guestCount,
+      serviceType: seg.serviceType || null,
+      reservationType: seg.reservationType || null,
+      services: Array.isArray(seg.services) ? seg.services : undefined,
+      isActive: seg.isActive !== false,
+      isVirtual: Boolean(seg.isVirtual),
+      // Sin nº de habitación: solo tipo.
+      roomType: roomTypeName ? { name: roomTypeName } : null,
+      room: roomTypeName ? { roomType: { name: roomTypeName } } : null
+    };
+  });
+}
+
+function serializePublicReservation(reservation) {
+  const segments = serializePublicSegments(reservation.segments || []);
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+  return {
+    id: reservation.id,
+    checkIn: first?.startDate || null,
+    checkOut: last?.endDate || null,
+    requiredGuests: reservation.requiredGuests || null,
+    days: reservation.days || null,
+    vehiclePlate: reservation.vehiclePlate || null,
+    segments,
+    mainClient: reservation.mainClient
+      ? {
+          firstName: reservation.mainClient.firstName || '',
+          lastName: reservation.mainClient.lastName || ''
+        }
+      : null
   };
 }
 
@@ -114,8 +168,7 @@ function mergeFields(checkIn, prefill) {
     province: checkIn?.province || prefill.province,
     city: checkIn?.city || prefill.city,
     address: checkIn?.address || prefill.address,
-    wantsPromotions: prefill.wantsPromotions,
-    vehiclePlate: checkIn?.vehiclePlate || prefill.vehiclePlate
+    wantsPromotions: prefill.wantsPromotions
   };
 }
 
@@ -147,7 +200,7 @@ async function resolveAccessByToken(token) {
     include: {
       mainClient: true,
       guests: { include: { client: true }, orderBy: { id: 'asc' } },
-      segments: { orderBy: { startDate: 'asc' }, take: 1 },
+      segments: PUBLIC_SEGMENTS_INCLUDE,
       onlineCheckIns: true
     }
   });
@@ -167,7 +220,7 @@ async function resolveAccessByToken(token) {
         include: {
           mainClient: true,
           guests: { include: { client: true }, orderBy: { id: 'asc' } },
-          segments: { orderBy: { startDate: 'asc' }, take: 1 },
+          segments: PUBLIC_SEGMENTS_INCLUDE,
           onlineCheckIns: true
         }
       }
@@ -250,8 +303,7 @@ async function ensureGuestCheckInRows(reservation, { markSent = false } = {}) {
           country: guest.client?.country || null,
           province: guest.client?.province || null,
           city: guest.city || guest.client?.city || null,
-          address: guest.address || null,
-          vehiclePlate: reservation.vehiclePlate || guest.client?.vehiclePlate || null
+          address: guest.address || null
         }
       });
     } else if (shouldMarkSent && row.status !== 'COMPLETED' && row.status !== 'EXPIRED') {
@@ -537,12 +589,14 @@ async function getPublicCheckIn(req, res) {
         include: {
           mainClient: true,
           guests: { include: { client: true }, orderBy: { id: 'asc' } },
-          segments: { orderBy: { startDate: 'asc' }, take: 1 }
+          segments: PUBLIC_SEGMENTS_INCLUDE
         }
       });
       if (refreshed) {
         reservation.guests = refreshed.guests;
         reservation.segments = refreshed.segments;
+        reservation.mainClient = refreshed.mainClient;
+        reservation.vehiclePlate = refreshed.vehiclePlate;
       }
     }
 
@@ -555,21 +609,22 @@ async function getPublicCheckIn(req, res) {
       serializeGuestCheckIn(guest, byGuest.get(guest.id), reservation, false)
     );
     const progress = progressFromGuests(guests);
-    const segment = reservation.segments?.[0];
     const guestIdParam = req.query.guestId != null ? Number(req.query.guestId) : null;
     const selected =
       guestIdParam && Number.isFinite(guestIdParam)
         ? guests.find((g) => g.guestId === guestIdParam) || null
         : null;
+    const plate = normalizePlate(reservation.vehiclePlate);
 
     return res.json({
       status: aggregateStatus(guests, true),
       completed: progress.total > 0 && progress.completed === progress.total,
       progress,
-      reservation: {
-        id: reservation.id,
-        checkIn: segment?.startDate || null,
-        checkOut: segment?.endDate || null
+      reservation: serializePublicReservation(reservation),
+      vehicle: {
+        plate: plate || '',
+        completed: Boolean(plate),
+        displayStatus: plate ? 'completo' : 'pendiente'
       },
       guests,
       // Compat: si hay un solo huésped, exponer fields en raíz (forms viejos / 1 huésped).
@@ -582,6 +637,46 @@ async function getPublicCheckIn(req, res) {
   } catch (error) {
     console.error('getPublicCheckIn', error);
     return res.status(500).json({ error: 'Error al cargar check-in' });
+  }
+}
+
+/**
+ * Público: guardar patente a nivel reserva (ficha vehículo, no por pasajero).
+ */
+async function submitPublicCheckInVehicle(req, res) {
+  try {
+    const token = normalizeTokenParam(req.params.token);
+    if (!isWellFormedToken(token)) {
+      return res.status(400).json({
+        error: 'Link incompleto o corrupto. Pedí un link nuevo desde la reserva.'
+      });
+    }
+
+    const access = await resolveAccessByToken(token);
+    if (!access) {
+      return res.status(404).json({ error: 'Link de check-in inválido' });
+    }
+    if (isExpired(access.expiresAt)) {
+      return res.status(410).json({ error: 'Este link de check-in expiró' });
+    }
+
+    const vehiclePlate = normalizePlate(req.body?.vehiclePlate ?? req.body?.plate);
+    const updated = await prisma.reservation.update({
+      where: { id: access.reservation.id },
+      data: { vehiclePlate }
+    });
+
+    return res.json({
+      ok: true,
+      vehicle: {
+        plate: updated.vehiclePlate || '',
+        completed: Boolean(updated.vehiclePlate),
+        displayStatus: updated.vehiclePlate ? 'completo' : 'pendiente'
+      }
+    });
+  } catch (error) {
+    console.error('submitPublicCheckInVehicle', error);
+    return res.status(500).json({ error: 'Error al guardar el vehículo' });
   }
 }
 
@@ -625,7 +720,6 @@ async function ensureClientForGuest(tx, guest, data) {
       province: data.province || null,
       city: data.city || null,
       notes: createNotesWithAddress(null, data.address),
-      vehiclePlate: data.vehiclePlate || null,
       wantsPromotions: Boolean(data.wantsPromotions)
     }
   });
@@ -815,7 +909,6 @@ async function submitPublicCheckIn(req, res) {
     const city = normalizeText(body.city);
     const address = normalizeText(body.address);
     const wantsPromotions = Boolean(body.wantsPromotions);
-    const vehiclePlate = normalizePlate(body.vehiclePlate);
     const markValidated = Boolean(body.validated);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -831,7 +924,6 @@ async function submitPublicCheckIn(req, res) {
         province,
         city,
         address,
-        vehiclePlate,
         wantsPromotions
       });
 
@@ -855,8 +947,7 @@ async function submitPublicCheckIn(req, res) {
           province,
           city,
           wantsPromotions,
-          notes,
-          vehiclePlate
+          notes
         }
       });
 
@@ -875,13 +966,6 @@ async function submitPublicCheckIn(req, res) {
         }
       });
 
-      if (vehiclePlate) {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: { vehiclePlate }
-        });
-      }
-
       return tx.onlineCheckIn.update({
         where: { id: checkIn.id },
         data: {
@@ -899,8 +983,7 @@ async function submitPublicCheckIn(req, res) {
           country,
           province,
           city,
-          address,
-          vehiclePlate
+          address
         }
       });
     });
@@ -915,7 +998,6 @@ async function submitPublicCheckIn(req, res) {
       guestId: guest.id,
       status: result.status,
       completedAt: result.completedAt,
-      vehiclePlate: result.vehiclePlate,
       progress: { completed, total: all.length, label: `${completed}/${all.length}` }
     });
   } catch (error) {
@@ -929,5 +1011,6 @@ module.exports = {
   sendReservationCheckIn,
   getPublicCheckIn,
   uploadPublicCheckInDocumentPhoto,
-  submitPublicCheckIn
+  submitPublicCheckIn,
+  submitPublicCheckInVehicle
 };

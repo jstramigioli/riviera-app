@@ -3,6 +3,7 @@ const multer = require('multer');
 const {
   getPublicCheckIn,
   submitPublicCheckIn,
+  submitPublicCheckInVehicle,
   uploadPublicCheckInDocumentPhoto
 } = require('../controllers/onlineCheckIn.controller');
 
@@ -20,6 +21,7 @@ router.post(
   uploadDocumentPhoto.single('file'),
   uploadPublicCheckInDocumentPhoto
 );
+router.post('/:token/vehicle', submitPublicCheckInVehicle);
 router.post('/:token', submitPublicCheckIn);
 
 module.exports = router;

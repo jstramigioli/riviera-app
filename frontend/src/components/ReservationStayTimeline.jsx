@@ -45,17 +45,20 @@ const useIsNarrow = (enabled) => {
   return matches;
 };
 
-const SegmentCard = ({ card, vertical }) => {
+const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
   if (!card) return null;
   const guestsLabel = `${card.guests} huésped${card.guests === 1 ? '' : 'es'}`;
   const nightsLabel = `${card.nights} noche${card.nights === 1 ? '' : 's'}`;
+  const roomLine = hideRoomNumber
+    ? (card.roomType || '—')
+    : `Habitación: ${card.room} - ${card.roomType || '—'}`;
   return (
     <div className={styles.segmentStack}>
       {!vertical ? <span className={styles.segmentConnector} aria-hidden /> : null}
       <div className={styles.segmentCard} data-testid="timeline-segment-card">
         <span className={styles.segmentRoom}>
-          Habitación: {card.room} - {card.roomType || '—'}
-          {card.roomFixed ? (
+          {roomLine}
+          {!hideRoomNumber && card.roomFixed ? (
             <FiLock
               className={styles.roomFixedIcon}
               aria-label="Habitación fijada"
@@ -97,11 +100,21 @@ const ReservationStayTimeline = ({
   /** Muestra «Reservado por» (aplicación/medio) bajo el track. */
   showSource = false,
   /** Sin scroll horizontal propio: el contenedor externo scrollea. */
-  noOwnScroll = false
+  noOwnScroll = false,
+  /** Oculta nº de habitación; muestra solo el tipo. */
+  hideRoomNumber = false,
+  /** Etiquetas de nodos (p.ej. Ingreso / Egreso en check-in público). */
+  checkInTitle,
+  checkOutTitle
 }) => {
   const timeline = useMemo(
-    () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
-    [reservation, getServiceTypeLabel]
+    () =>
+      buildReservationStayTimeline(reservation, {
+        getServiceTypeLabel,
+        checkInTitle,
+        checkOutTitle
+      }),
+    [reservation, getServiceTypeLabel, checkInTitle, checkOutTitle]
   );
 
   const isNarrow = useIsNarrow(orientation === 'auto');
@@ -182,7 +195,11 @@ const ReservationStayTimeline = ({
               >
                 <div className={styles.line} aria-hidden />
                 {item.card ? (
-                  <SegmentCard card={item.card} vertical={isVertical} />
+                  <SegmentCard
+                    card={item.card}
+                    vertical={isVertical}
+                    hideRoomNumber={hideRoomNumber}
+                  />
                 ) : null}
               </div>
             );

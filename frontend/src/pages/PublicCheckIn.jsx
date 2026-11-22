@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { FiCheck, FiChevronLeft, FiUser } from 'react-icons/fi';
 import LocationSelector from '../components/LocationSelector';
 import DocumentPhotoSlot from '../components/DocumentPhotoSlot';
+import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import {
   BIRTH_DATE_LABEL_REQUIRED,
   CLIENT_DOCUMENT_TYPES,
@@ -28,18 +29,8 @@ const EMPTY = {
   province: '',
   city: '',
   address: '',
-  wantsPromotions: false,
-  vehiclePlate: ''
+  wantsPromotions: false
 };
-
-function formatDate(value) {
-  if (!value) return null;
-  try {
-    return new Date(value).toLocaleDateString('es-AR');
-  } catch {
-    return null;
-  }
-}
 
 function statusLabel(displayStatus) {
   switch (displayStatus) {
@@ -62,8 +53,11 @@ export default function PublicCheckIn() {
   const [error, setError] = useState('');
   const [reservation, setReservation] = useState(null);
   const [guests, setGuests] = useState([]);
+  const [vehicle, setVehicle] = useState({ plate: '', completed: false, displayStatus: 'pendiente' });
   const [progress, setProgress] = useState({ completed: 0, total: 0, label: '0/0' });
   const [selectedGuestId, setSelectedGuestId] = useState(null);
+  const [editingVehicle, setEditingVehicle] = useState(false);
+  const [vehiclePlateDraft, setVehiclePlateDraft] = useState('');
   const [fields, setFields] = useState(EMPTY);
   // Fotos siempre nuevas: no prefill de archivos previos del cliente.
   const [photos, setPhotos] = useState({
@@ -74,6 +68,7 @@ export default function PublicCheckIn() {
 
   const applyGuestForm = useCallback((guest) => {
     if (!guest) return;
+    setEditingVehicle(false);
     setSelectedGuestId(guest.guestId);
     setFields({
       ...EMPTY,
@@ -107,6 +102,13 @@ export default function PublicCheckIn() {
         throw new Error(data.error || 'No se pudo cargar el check-in');
       }
       setReservation(data.reservation || null);
+      setVehicle(
+        data.vehicle || {
+          plate: data.reservation?.vehiclePlate || '',
+          completed: Boolean(data.reservation?.vehiclePlate),
+          displayStatus: data.reservation?.vehiclePlate ? 'completo' : 'pendiente'
+        }
+      );
       const list = Array.isArray(data.guests) ? data.guests : [];
       setGuests(list);
       setProgress(data.progress || { completed: 0, total: list.length, label: `0/${list.length}` });
@@ -124,14 +126,12 @@ export default function PublicCheckIn() {
     (async () => {
       const list = await loadCheckIn();
       if (cancelled || !list) return;
-      if (list.length === 1) {
-        applyGuestForm(list[0]);
-      }
+      // Con varios huéspedes (o vehículo), empezar en la lista de cards.
     })();
     return () => {
       cancelled = true;
     };
-  }, [loadCheckIn, applyGuestForm]);
+  }, [loadCheckIn]);
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -213,7 +213,44 @@ export default function PublicCheckIn() {
     }
   }
 
-  if (loading && !guests.length) {
+  async function handleSaveVehicle(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(
+        `${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}/vehicle`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vehiclePlate: vehiclePlateDraft })
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo guardar el vehículo');
+      }
+      setVehicle(
+        data.vehicle || {
+          plate: vehiclePlateDraft,
+          completed: Boolean(String(vehiclePlateDraft || '').trim()),
+          displayStatus: String(vehiclePlateDraft || '').trim() ? 'completo' : 'pendiente'
+        }
+      );
+      setReservation((prev) =>
+        prev
+          ? { ...prev, vehiclePlate: data.vehicle?.plate ?? vehiclePlateDraft }
+          : prev
+      );
+      setEditingVehicle(false);
+    } catch (err) {
+      setError(err.message || 'Error al guardar el vehículo');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading && !guests.length && !reservation) {
     return (
       <div className={styles.page}>
         <div className={styles.shell}>
@@ -223,7 +260,7 @@ export default function PublicCheckIn() {
     );
   }
 
-  if (error && !guests.length) {
+  if (error && !guests.length && !reservation) {
     return (
       <div className={styles.page}>
         <div className={styles.shell}>
@@ -234,16 +271,30 @@ export default function PublicCheckIn() {
     );
   }
 
-  const checkInLabel = formatDate(reservation?.checkIn);
-  const checkOutLabel = formatDate(reservation?.checkOut);
   const allDone = progress.total > 0 && progress.completed === progress.total;
-  const showList = !selectedGuestId;
+  const showList = !selectedGuestId && !editingVehicle;
+
+  const timelineBlock = reservation ? (
+    <div className={styles.timelineWrap} data-testid="checkin-stay-timeline">
+      <ReservationStayTimeline
+        reservation={reservation}
+        hideHeader
+        hideTotal
+        hideRoomNumber
+        checkInTitle="Ingreso"
+        checkOutTitle="Egreso"
+        compact
+        orientation="auto"
+      />
+    </div>
+  ) : null;
 
   if (allDone && showList) {
     return (
       <div className={styles.page}>
         <div className={styles.shell}>
           <h1 className={styles.brand}>Hotel Riviera</h1>
+          {timelineBlock}
           <div className={styles.successBox}>
             <FiCheck aria-hidden className={styles.successIcon} />
             <div>
@@ -274,17 +325,7 @@ export default function PublicCheckIn() {
       <div className={styles.shell}>
         <header className={styles.header}>
           <h1 className={styles.brand}>Hotel Riviera</h1>
-          <p className={styles.lead}>
-            Completá o corregí los datos antes de la llegada
-            {reservation?.id ? ` (reserva #${reservation.id})` : ''}.
-          </p>
-          {(checkInLabel || checkOutLabel) && (
-            <p className={styles.meta}>
-              {checkInLabel && <span>Ingreso: {checkInLabel}</span>}
-              {checkInLabel && checkOutLabel ? ' · ' : null}
-              {checkOutLabel && <span>Egreso: {checkOutLabel}</span>}
-            </p>
-          )}
+          {timelineBlock}
           <p className={styles.progress} data-testid="checkin-progress">
             Progreso: {progress.label}
           </p>
@@ -324,8 +365,75 @@ export default function PublicCheckIn() {
                   </span>
                 </button>
               ))}
+
+              <button
+                type="button"
+                className={styles.guestCard}
+                data-testid="checkin-vehicle-card"
+                data-status={vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}
+                onClick={() => {
+                  setSelectedGuestId(null);
+                  setVehiclePlateDraft(vehicle.plate || '');
+                  setEditingVehicle(true);
+                  setError('');
+                }}
+              >
+                <span className={styles.guestCardIcon} aria-hidden>
+                  <span className={styles.vehicleGlyph}>P</span>
+                </span>
+                <span className={styles.guestCardBody}>
+                  <span className={styles.guestCardName}>Vehículo</span>
+                  <span
+                    className={`${styles.guestStatus} ${
+                      styles[`status_${vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}`] || ''
+                    }`}
+                  >
+                    {vehicle.plate
+                      ? vehicle.plate
+                      : statusLabel(vehicle.displayStatus || 'pendiente')}
+                  </span>
+                </span>
+                <span className={styles.guestCardAction}>
+                  {vehicle.completed ? 'Ver / editar' : 'Completar'}
+                </span>
+              </button>
             </div>
           </section>
+        ) : editingVehicle ? (
+          <>
+            <button
+              type="button"
+              className={styles.backButton}
+              onClick={() => {
+                setEditingVehicle(false);
+                setError('');
+              }}
+            >
+              <FiChevronLeft aria-hidden /> Volver
+            </button>
+            <form className={styles.form} onSubmit={handleSaveVehicle}>
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Vehículo</h2>
+                <label className={styles.field}>
+                  <span>{VEHICLE_PLATE_LABEL}</span>
+                  <input
+                    name="vehiclePlate"
+                    value={vehiclePlateDraft}
+                    onChange={(e) => setVehiclePlateDraft(e.target.value)}
+                    placeholder="Ej. AB123CD"
+                    autoCapitalize="characters"
+                    data-testid="checkin-vehicle-plate"
+                  />
+                  <span className={styles.hint}>{VEHICLE_PLATE_HINT}</span>
+                </label>
+              </section>
+              <div className={styles.actions}>
+                <button type="submit" className={styles.submit} disabled={saving}>
+                  {saving ? 'Guardando…' : 'Guardar patente'}
+                </button>
+              </div>
+            </form>
+          </>
         ) : (
           <>
             <button
@@ -455,21 +563,6 @@ export default function PublicCheckIn() {
                     onChange={handleChange}
                   />
                   Deseo recibir información de promociones
-                </label>
-              </section>
-
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Vehículo</h2>
-                <label className={styles.field}>
-                  <span>{VEHICLE_PLATE_LABEL}</span>
-                  <input
-                    name="vehiclePlate"
-                    value={fields.vehiclePlate}
-                    onChange={handleChange}
-                    placeholder="Ej. AB123CD"
-                    autoCapitalize="characters"
-                  />
-                  <span className={styles.hint}>{VEHICLE_PLATE_HINT}</span>
                 </label>
               </section>
 

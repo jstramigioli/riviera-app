@@ -143,6 +143,8 @@ const changeTitle = (kind) => {
  */
 export function buildReservationStayTimeline(reservation, options = {}) {
   const getServiceTypeLabel = options.getServiceTypeLabel;
+  const checkInTitle = options.checkInTitle || 'Check-in';
+  const checkOutTitle = options.checkOutTitle || 'Check-out';
   const rawSegments = reservation?.segments || [];
   const segments = getDisplaySegments(rawSegments).slice().sort((a, b) => {
     const aStart = dateKey(a.startDate || a.checkIn);
@@ -175,7 +177,7 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     type: 'node',
     id: 'checkin',
     kind: 'checkin',
-    title: 'Check-in',
+    title: checkInTitle,
     date: checkIn,
     dateLabel: formatShortDate(checkIn)
   });
@@ -217,7 +219,7 @@ export function buildReservationStayTimeline(reservation, options = {}) {
     type: 'node',
     id: 'checkout',
     kind: 'checkout',
-    title: 'Check-out',
+    title: checkOutTitle,
     date: checkOut,
     dateLabel: formatShortDate(checkOut)
   });
