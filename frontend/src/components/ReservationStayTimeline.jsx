@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import { formatMoneyArs } from '../utils/formatMoney';
@@ -49,23 +50,41 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
   if (!card) return null;
   const guestsLabel = `${card.guests} huésped${card.guests === 1 ? '' : 'es'}`;
   const nightsLabel = `${card.nights} noche${card.nights === 1 ? '' : 's'}`;
-  const roomLine = hideRoomNumber
-    ? (card.roomType || '—')
-    : `Habitación: ${card.room} - ${card.roomType || '—'}`;
+  const roomType = card.roomType || '—';
+  const canOpenRoom = Boolean(card.roomId) && !hideRoomNumber;
+  const roomName = card.room || '—';
+  const roomNameNode = canOpenRoom ? (
+    <Link
+      to={`/habitaciones/${card.roomId}`}
+      className={styles.roomNameLink}
+      title={`Ver perfil de habitación ${roomName}`}
+      data-testid="timeline-room-link"
+    >
+      {roomName}
+    </Link>
+  ) : (
+    roomName
+  );
   return (
     <div className={styles.segmentStack}>
       {!vertical ? <span className={styles.segmentConnector} aria-hidden /> : null}
       <div className={styles.segmentCard} data-testid="timeline-segment-card">
         <span className={styles.segmentRoom}>
-          {roomLine}
-          {!hideRoomNumber && card.roomFixed ? (
-            <FiLock
-              className={styles.roomFixedIcon}
-              aria-label="Habitación fijada"
-              title="Habitación fijada"
-              data-testid="timeline-room-fixed-icon"
-            />
-          ) : null}
+          {hideRoomNumber ? (
+            roomType
+          ) : (
+            <>
+              Habitación: {roomNameNode} - {roomType}
+              {card.roomFixed ? (
+                <FiLock
+                  className={styles.roomFixedIcon}
+                  aria-label="Habitación fijada"
+                  title="Habitación fijada"
+                  data-testid="timeline-room-fixed-icon"
+                />
+              ) : null}
+            </>
+          )}
         </span>
         <span className={styles.segmentService}>{card.service}</span>
         <span className={styles.segmentMeta}>{guestsLabel}</span>

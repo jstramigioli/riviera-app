@@ -94,6 +94,14 @@ const roomTypeLabel = (seg) => {
 /** Habitación fijada / no reasignable (requerimiento de habitación específica). */
 const isRoomFixed = (seg) => Boolean(seg?.requiredRoomId || seg?.fixed);
 
+/** Id físico para link al perfil; null en virtual / sin habitación. */
+const resolveRoomId = (seg) => {
+  if (!seg) return null;
+  if (seg.virtualRoomId != null || seg.isVirtual) return null;
+  const id = seg.roomId ?? seg.room?.id ?? null;
+  return id != null && id !== '' ? id : null;
+};
+
 const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
   if (!seg) return null;
   const start = seg.startDate || seg.checkIn;
@@ -104,6 +112,7 @@ const edgeCard = (seg, getServiceTypeLabel, fallbackGuests) => {
   const nights = civilNights(start, end);
   return {
     room: roomLabel(seg),
+    roomId: resolveRoomId(seg),
     roomType: roomTypeLabel(seg),
     service: serviceLabelFor(seg, getServiceTypeLabel),
     guests,

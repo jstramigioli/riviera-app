@@ -259,6 +259,28 @@
   word-break: break-word;
 }
 
+.roomNameLink {
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(51, 77, 112, 0.35);
+  cursor: pointer;
+}
+
+.roomNameLink:hover,
+.roomNameLink:focus-visible {
+  color: var(--color-primary, #3f5f8a);
+  text-decoration-color: currentColor;
+}
+
+.roomNameLink:focus-visible {
+  outline: 2px solid var(--color-primary, #3f5f8a);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .roomFixedIcon {
   display: inline-block;
   flex: 0 0 auto;

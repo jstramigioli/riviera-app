@@ -48,6 +48,7 @@ describe('buildReservationStayTimeline', () => {
     expect(stay.label).toBe('22 · desayuno');
     expect(stay.card).toEqual({
       room: '22',
+      roomId: 22,
       roomType: 'Doble',
       service: 'Desayuno',
       guests: 2,
@@ -125,6 +126,7 @@ describe('buildReservationStayTimeline', () => {
     ]);
     expect(edges[0].card).toMatchObject({
       room: '22',
+      roomId: 22,
       roomType: 'Doble',
       service: 'Desayuno',
       guests: 2,
@@ -132,6 +134,7 @@ describe('buildReservationStayTimeline', () => {
     });
     expect(edges[1].card).toMatchObject({
       room: '15',
+      roomId: 15,
       roomType: 'Triple',
       service: 'Desayuno',
       guests: 2,
@@ -139,6 +142,7 @@ describe('buildReservationStayTimeline', () => {
     });
     expect(edges[2].card).toMatchObject({
       room: '15',
+      roomId: 15,
       roomType: 'Triple',
       service: 'Media pensión',
       guests: 3,
@@ -193,6 +197,7 @@ describe('buildReservationStayTimeline', () => {
     expect(stayEdge.label).toBe('8-9 (cuadruple) · desayuno');
     expect(stayEdge.card).toMatchObject({
       room: '8-9 (cuadruple)',
+      roomId: null,
       roomType: 'Cuádruple',
       service: 'Desayuno',
       guests: 4,
