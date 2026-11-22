@@ -577,7 +577,7 @@ const ClientDetails = () => {
                   <table className={styles.reservationsTable}>
                     <thead className={styles.tableHeader}>
                       <tr>
-                        <th>Nº</th>
+                        <th>ID</th>
                         <th>Estadía</th>
                         <th>Estado</th>
                         <th>Saldo</th>

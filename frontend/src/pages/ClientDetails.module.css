@@ -491,7 +491,7 @@
   z-index: 10;
 }
 
-/* Columnas secundarias compactas; Estadía toma el resto / crece con el timeline. */
+/* Columnas ID/Estado/Saldo/Acciones compactas; Estadía toma el resto / crece con el timeline. */
 .reservationsTable th:nth-child(1),
 .reservationsTable td:nth-child(1) {
   width: 4.25rem;
