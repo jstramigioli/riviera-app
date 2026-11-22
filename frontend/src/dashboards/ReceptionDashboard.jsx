@@ -35,6 +35,7 @@ const NOTES_PLACEHOLDER = 'Agregar notas…';
 
 const RANGE_OPTIONS = [
   { days: 1, label: 'Hoy' },
+  { days: 2, label: 'Mañana' },
   { days: 3, label: '3 días' },
   { days: 7, label: '7 días' }
 ];

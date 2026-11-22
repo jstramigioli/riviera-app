@@ -207,6 +207,48 @@ describe('receptionDashboardStats', () => {
     expect(model.notifications).toEqual([]);
   });
 
+  it('horizonte Mañana (2) incluye ingreso de mañana, no el de +2', () => {
+    const reservations = [
+      {
+        id: 1,
+        status: 'CONFIRMADA',
+        requiredGuests: 2,
+        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        segments: [
+          {
+            roomId: 1,
+            startDate: '2024-01-03',
+            endDate: '2024-01-05',
+            guestCount: 2,
+            isActive: true
+          }
+        ]
+      },
+      {
+        id: 2,
+        status: 'CONFIRMADA',
+        requiredGuests: 1,
+        mainClient: { firstName: 'Luis', lastName: 'Paz' },
+        segments: [
+          {
+            roomId: 2,
+            startDate: '2024-01-04',
+            endDate: '2024-01-06',
+            guestCount: 1,
+            isActive: true
+          }
+        ]
+      }
+    ];
+    const tomorrowHorizon = buildCheckInPanelItems(
+      '2024-01-02',
+      rooms,
+      reservations,
+      { horizonDays: 2 }
+    );
+    expect(tomorrowHorizon.map((i) => i.reservationId)).toEqual([1]);
+  });
+
   it('horizonte 3 días incluye ingresos futuros pendientes', () => {
     const reservations = [
       {
