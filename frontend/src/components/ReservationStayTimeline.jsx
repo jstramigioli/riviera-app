@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import { formatMoneyArs } from '../utils/formatMoney';
+import { sourceLabel } from '../constants/reservationSource';
 import styles from './ReservationStayTimeline.module.css';
 
 const NARROW_MQ = '(max-width: 720px)';
@@ -92,7 +93,9 @@ const ReservationStayTimeline = ({
   compact = false,
   hideHeader = false,
   hideTotal = false,
-  embedded = false
+  embedded = false,
+  /** Muestra «Reservado por» (aplicación/medio) bajo el track. */
+  showSource = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -200,6 +203,11 @@ const ReservationStayTimeline = ({
           );
         })}
       </div>
+      {showSource ? (
+        <p className={styles.sourceLine} data-testid="timeline-source">
+          {sourceLabel(reservation.source)}
+        </p>
+      ) : null}
     </section>
   );
 };

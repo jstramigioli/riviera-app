@@ -5,6 +5,7 @@ import { FiMapPin } from 'react-icons/fi';
 import {
   fetchClients,
   fetchReservations,
+  fetchServiceTypes,
   getClientBalance,
   getClientDocumentPhoto,
   uploadClientDocumentPhoto,
@@ -16,6 +17,7 @@ import FieldEditor from '../components/FieldEditor';
 import EditClientModal from '../components/EditClientModal';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import ReservationIdChip from '../components/ReservationIdChip';
+import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -23,6 +25,7 @@ import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
 import { formatBirthDateDisplay } from '../constants/clientFormFields';
+import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consultaNavigation';
 
 const DNI_PHOTO_ACCEPT = 'image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf';
 
@@ -41,6 +44,7 @@ const ClientDetails = () => {
   const [error, setError] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [serviceTypes, setServiceTypes] = useState([]);
 
   const loadDocumentPhoto = useCallback(async () => {
     if (!clientId) {
@@ -94,6 +98,41 @@ const ClientDetails = () => {
       loadClientData();
     }
   }, [clientId, loadClientData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchServiceTypes();
+        if (!cancelled) setServiceTypes(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error cargando tipos de servicio:', err);
+        if (!cancelled) setServiceTypes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const getServiceTypeLabel = useCallback(
+    (serviceTypeId) => {
+      if (!serviceTypeId) return 'No especificado';
+      const serviceType = serviceTypes.find((st) => st.id === serviceTypeId);
+      return serviceType ? serviceType.name : serviceTypeId;
+    },
+    [serviceTypes]
+  );
+
+  const openReservationDetail = (reservationId) => {
+    navigate(`/reservations/${reservationId}`);
+  };
+
+  const openReservationEdit = (reservationId) => {
+    navigate(buildConsultaEditPath(reservationId), {
+      state: buildConsultaEditState(reservationId)
+    });
+  };
 
   const handleEditField = (fieldName) => {
     setEditingField(fieldName);
@@ -538,10 +577,8 @@ const ClientDetails = () => {
                   <table className={styles.reservationsTable}>
                     <thead className={styles.tableHeader}>
                       <tr>
-                        <th>ID</th>
-                        <th>Habitación</th>
-                        <th>Check-in</th>
-                        <th>Check-out</th>
+                        <th>Nº</th>
+                        <th>Estadía</th>
                         <th>Estado</th>
                         <th>Saldo</th>
                         <th>Acciones</th>
@@ -551,21 +588,28 @@ const ClientDetails = () => {
                       {reservations.map((reservation) => {
                         const saldo = getReservationSaldo(reservation.id);
                         return (
-                          <tr
-                            key={reservation.id}
-                            className={styles.reservationRow}
-                            onClick={() => navigate(`/reservations/${reservation.id}`)}
-                          >
+                          <tr key={reservation.id} className={styles.reservationRow}>
                             <td>
                               <ReservationIdChip
                                 id={reservation.id}
                                 source={reservation.source}
                                 status={reservation.status}
+                                onClick={() => openReservationDetail(reservation.id)}
+                                title={`Ver detalle de la Reserva #${reservation.id}`}
                               />
                             </td>
-                            <td>{reservation.room?.name || 'Sin asignar'}</td>
-                            <td>{formatDate(reservation.checkIn)}</td>
-                            <td>{formatDate(reservation.checkOut)}</td>
+                            <td className={styles.stayCell}>
+                              <ReservationStayTimeline
+                                reservation={reservation}
+                                getServiceTypeLabel={getServiceTypeLabel}
+                                orientation="horizontal"
+                                compact
+                                hideHeader
+                                hideTotal
+                                embedded
+                                showSource
+                              />
+                            </td>
                             <td>
                               <span
                                 className={`${styles.statusValue} ${styles[reservation.status] || ''}`}
@@ -581,16 +625,18 @@ const ClientDetails = () => {
                                   }`}
                             </td>
                             <td>
-                              <button
-                                type="button"
-                                className={styles.viewButton}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/reservations/${reservation.id}`);
-                                }}
-                              >
-                                Ver Detalles
-                              </button>
+                              <div className={styles.rowActions}>
+                                <button
+                                  type="button"
+                                  className={styles.rowActionBtn}
+                                  onClick={() => openReservationEdit(reservation.id)}
+                                  title="Editar reserva"
+                                  aria-label={`Editar reserva #${reservation.id}`}
+                                  data-testid={`client-reservation-edit-${reservation.id}`}
+                                >
+                                  <FaPen />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );

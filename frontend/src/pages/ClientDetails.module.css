@@ -464,7 +464,7 @@
   background: white;
   border-radius: var(--radius-md);
   overflow: auto;
-  max-height: 360px;
+  max-height: 480px;
   border: 1px solid #e9ecef;
 }
 
@@ -487,13 +487,11 @@
   font-size: var(--font-size-small);
 }
 
-.reservationsTable th:nth-child(1) { width: 8%; }  /* ID */
-.reservationsTable th:nth-child(2) { width: 20%; } /* Habitación */
-.reservationsTable th:nth-child(3) { width: 15%; } /* Check-in */
-.reservationsTable th:nth-child(4) { width: 15%; } /* Check-out */
-.reservationsTable th:nth-child(5) { width: 12%; } /* Estado */
-.reservationsTable th:nth-child(6) { width: 15%; } /* Total */
-.reservationsTable th:nth-child(7) { width: 15%; } /* Acciones */
+.reservationsTable th:nth-child(1) { width: 10%; } /* Nº */
+.reservationsTable th:nth-child(2) { width: 48%; } /* Estadía (timeline) */
+.reservationsTable th:nth-child(3) { width: 14%; } /* Estado */
+.reservationsTable th:nth-child(4) { width: 16%; } /* Saldo */
+.reservationsTable th:nth-child(5) { width: 12%; } /* Acciones */
 
 .reservationsTable td {
   padding: 12px;
@@ -503,17 +501,17 @@
 }
 
 /* Centrar contenido de columnas específicas */
-.reservationsTable td:nth-child(1),  /* ID */
-.reservationsTable td:nth-child(5),  /* Estado */
-.reservationsTable td:nth-child(6),  /* Total */
-.reservationsTable td:nth-child(7) { /* Acciones */
+.reservationsTable td:nth-child(1),  /* Nº */
+.reservationsTable td:nth-child(3),  /* Estado */
+.reservationsTable td:nth-child(4),  /* Saldo */
+.reservationsTable td:nth-child(5) { /* Acciones */
   text-align: center;
 }
 
-.reservationsTable th:nth-child(1),  /* ID */
-.reservationsTable th:nth-child(5),  /* Estado */
-.reservationsTable th:nth-child(6),  /* Total */
-.reservationsTable th:nth-child(7) { /* Acciones */
+.reservationsTable th:nth-child(1),  /* Nº */
+.reservationsTable th:nth-child(3),  /* Estado */
+.reservationsTable th:nth-child(4),  /* Saldo */
+.reservationsTable th:nth-child(5) { /* Acciones */
   text-align: center;
 }
 
@@ -529,7 +527,7 @@
 .reservationsTable tbody {
   display: block;
   width: 100%;
-  max-height: 320px; /* Altura fija para el tbody */
+  max-height: 420px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e0 #f7fafc;
@@ -560,7 +558,6 @@
 }
 
 .reservationRow {
-  cursor: pointer;
   transition: background-color 0.2s;
 }
 
@@ -568,10 +565,53 @@
   background-color: #f8f9fa;
 }
 
+.stayCell {
+  text-align: left;
+  min-width: 0;
+}
+
 .totalAmount {
   font-weight: 600;
   color: var(--color-success);
   font-size: 1rem;
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.rowActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-sm, 4px);
+  background: #fff;
+  color: var(--color-primary-dark, #334d70);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rowActionBtn:hover {
+  background: var(--color-primary-light, #e8eef5);
+  border-color: var(--color-primary, #3f5f8a);
+  color: var(--color-primary, #3f5f8a);
+}
+
+.rowActionBtn:focus-visible {
+  outline: 2px solid var(--color-primary, #3f5f8a);
+  outline-offset: 2px;
+}
+
+.rowActionBtn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .viewButton {
