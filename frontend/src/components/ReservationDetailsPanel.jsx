@@ -97,9 +97,6 @@ const ReservationDetailsPanel = ({
 
   const clientName = stayHeader?.clientName || '—';
   const clientId = stayHeader?.clientId || reservation.mainClient?.id || null;
-  const nightsLabel = stayHeader?.totalNights
-    ? `${stayHeader.totalNights} noche${stayHeader.totalNights === 1 ? '' : 's'}`
-    : '—';
   const totalLabel =
     stayHeader?.totalAmount > 0 ? formatCurrency(stayHeader.totalAmount) : '—';
   const canOpenClient = Boolean(clientId);
@@ -180,7 +177,6 @@ const ReservationDetailsPanel = ({
             ) : (
               <h3 className={styles.guestName}>{clientName}</h3>
             )}
-            <p className={styles.guestNights}>{nightsLabel}</p>
             <ClientContactLinks
               phone={reservation.mainClient?.phone}
               email={reservation.mainClient?.email}
