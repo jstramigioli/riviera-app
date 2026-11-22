@@ -278,8 +278,20 @@
   min-height: 72px;
 }
 
-.layoutCol .amountModes {
+.montosTwoCol {
+  display: grid;
   grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.montosTwoColWithTender {
+  grid-template-columns: 1fr 1fr;
+}
+
+.layoutCol .montosTwoCol .amountModes {
+  grid-template-columns: 1fr;
+  margin: 0;
 }
 
 .layoutCol .amountModesSameBox {
@@ -295,6 +307,12 @@
   padding: 0;
   border: none;
   background: transparent;
+}
+
+.layoutCol .montosTwoCol .cashTenderSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .layoutCol .cashTenderTitle {
@@ -700,6 +718,10 @@
 
 @media (max-width: 640px) {
   .amountModes {
+    grid-template-columns: 1fr;
+  }
+
+  .montosTwoColWithTender {
     grid-template-columns: 1fr;
   }
 }

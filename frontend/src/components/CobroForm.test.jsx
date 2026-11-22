@@ -1133,6 +1133,9 @@ describe('CobroForm facturación', () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
+    const montosZone = screen.getByTestId('payment-montos-zone')
+    expect(montosZone).toContainElement(screen.getByTestId('payment-amount-modes'))
+    expect(montosZone).toContainElement(screen.getByTestId('payment-cash-tender'))
 
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
       target: { value: '100000' }

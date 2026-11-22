@@ -2122,141 +2122,146 @@ const CobroForm = ({
               </div>
 
               <div
-                className={`${styles.amountModes} ${styles.amountModesSameBox}`}
-                data-testid="payment-amount-modes"
+                className={`${styles.montosTwoCol}${
+                  showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
+                }`}
+                data-testid="payment-montos-zone"
               >
                 <div
-                  className={`${styles.amountModeBlock} ${
-                    amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
-                  }`}
+                  className={`${styles.amountModes} ${styles.amountModesSameBox}`}
+                  data-testid="payment-amount-modes"
                 >
-                  <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
-                    {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-                  </span>
-                  {foreignCurrency ? (
-                    <div
-                      className={styles.fxSyncFields}
-                      role="group"
-                      aria-labelledby="payment-monto-ingresado-label"
-                      data-testid="payment-fx-sync"
-                    >
-                      <label htmlFor="payment-monto">Monto en {monedaCode}</label>
-                      <input
-                        id="payment-monto"
-                        type="number"
-                        value={formData.monto}
-                        onChange={(e) => handleInputChange('monto', e.target.value)}
-                        onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                        required={amountMode === AMOUNT_MODE_INGRESADO}
-                        disabled={loading}
-                        data-testid="payment-monto-ingresado"
-                        aria-label={`Monto en ${monedaCode}`}
-                      />
-
-                      <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
-                      <input
-                        id="payment-equiv-ars"
-                        type="number"
-                        value={equivArsDraft}
-                        onChange={(e) => handleEquivalenteArsChange(e.target.value)}
-                        onFocus={() => {
-                          equivArsFocusedRef.current = true;
-                          setAmountMode(AMOUNT_MODE_INGRESADO);
-                        }}
-                        onBlur={() => {
-                          equivArsFocusedRef.current = false;
-                          const ars = parseFloat(equivArsDraft);
-                          if (ars > 0) {
-                            setEquivArsDraft(String(roundMoney(ars)));
-                          } else if (!equivArsDraft) {
-                            setEquivArsDraft('');
-                          } else {
-                            const tc = parseFloat(formData.tipoCambio) || 0;
-                            const monto = parseFloat(formData.monto) || 0;
-                            setEquivArsDraft(
-                              monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
-                            );
-                          }
-                        }}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                        disabled={loading}
-                        data-testid="payment-equiv-ars"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <label htmlFor="payment-monto" className={styles.srOnly}>
-                        {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-                      </label>
-                      <input
-                        id="payment-monto"
-                        type="number"
-                        value={formData.monto}
-                        onChange={(e) => handleInputChange('monto', e.target.value)}
-                        onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                        required={amountMode === AMOUNT_MODE_INGRESADO}
-                        disabled={loading}
-                        data-testid="payment-monto-ingresado"
-                        aria-labelledby="payment-monto-ingresado-label"
-                      />
-                    </>
-                  )}
-                </div>
-
-                <div
-                  className={`${styles.amountModeBlock} ${
-                    amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
-                  }`}
-                >
-                  <label htmlFor="payment-monto-saldar">Monto a saldar</label>
-                  <input
-                    id="payment-monto-saldar"
-                    type="number"
-                    value={montoASaldar}
-                    onChange={(e) => handleMontoASaldarChange(e.target.value)}
-                    onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
-                    placeholder={
-                      isDevolucion && selectedCobroOrigen
-                        ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
-                        : saldoPendiente != null && Number(saldoPendiente) > 0
-                          ? formatArs(saldoPendiente)
-                          : '0'
-                    }
-                    step="0.01"
-                    min="0"
-                    required={amountMode === AMOUNT_MODE_SALDAR}
-                    disabled={loading || isEditMode}
-                    data-testid="payment-monto-saldar"
-                  />
-                  {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
-                    <button
-                      type="button"
-                      className={styles.useSaldoBtn}
-                      disabled={loading || isEditMode}
-                      onClick={useSaldoPendienteAsSaldar}
-                      data-testid="payment-use-saldo"
-                    >
-                      Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
-                    </button>
-                  ) : null}
-                  {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
-                    <span className={styles.helpText} data-testid="payment-refund-discount-hint">
-                      Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
-                      cuánto devolver.
+                  <div
+                    className={`${styles.amountModeBlock} ${
+                      amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
+                    }`}
+                  >
+                    <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
+                      {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
                     </span>
-                  ) : null}
-                </div>
-              </div>
+                    {foreignCurrency ? (
+                      <div
+                        className={styles.fxSyncFields}
+                        role="group"
+                        aria-labelledby="payment-monto-ingresado-label"
+                        data-testid="payment-fx-sync"
+                      >
+                        <label htmlFor="payment-monto">Monto en {monedaCode}</label>
+                        <input
+                          id="payment-monto"
+                          type="number"
+                          value={formData.monto}
+                          onChange={(e) => handleInputChange('monto', e.target.value)}
+                          onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                          required={amountMode === AMOUNT_MODE_INGRESADO}
+                          disabled={loading}
+                          data-testid="payment-monto-ingresado"
+                          aria-label={`Monto en ${monedaCode}`}
+                        />
 
-              <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
+                        <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
+                        <input
+                          id="payment-equiv-ars"
+                          type="number"
+                          value={equivArsDraft}
+                          onChange={(e) => handleEquivalenteArsChange(e.target.value)}
+                          onFocus={() => {
+                            equivArsFocusedRef.current = true;
+                            setAmountMode(AMOUNT_MODE_INGRESADO);
+                          }}
+                          onBlur={() => {
+                            equivArsFocusedRef.current = false;
+                            const ars = parseFloat(equivArsDraft);
+                            if (ars > 0) {
+                              setEquivArsDraft(String(roundMoney(ars)));
+                            } else if (!equivArsDraft) {
+                              setEquivArsDraft('');
+                            } else {
+                              const tc = parseFloat(formData.tipoCambio) || 0;
+                              const monto = parseFloat(formData.monto) || 0;
+                              setEquivArsDraft(
+                                monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
+                              );
+                            }
+                          }}
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                          disabled={loading}
+                          data-testid="payment-equiv-ars"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <label htmlFor="payment-monto" className={styles.srOnly}>
+                          {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
+                        </label>
+                        <input
+                          id="payment-monto"
+                          type="number"
+                          value={formData.monto}
+                          onChange={(e) => handleInputChange('monto', e.target.value)}
+                          onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                          required={amountMode === AMOUNT_MODE_INGRESADO}
+                          disabled={loading}
+                          data-testid="payment-monto-ingresado"
+                          aria-labelledby="payment-monto-ingresado-label"
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  <div
+                    className={`${styles.amountModeBlock} ${
+                      amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+                    }`}
+                  >
+                    <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+                    <input
+                      id="payment-monto-saldar"
+                      type="number"
+                      value={montoASaldar}
+                      onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                      onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
+                      placeholder={
+                        isDevolucion && selectedCobroOrigen
+                          ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
+                          : saldoPendiente != null && Number(saldoPendiente) > 0
+                            ? formatArs(saldoPendiente)
+                            : '0'
+                      }
+                      step="0.01"
+                      min="0"
+                      required={amountMode === AMOUNT_MODE_SALDAR}
+                      disabled={loading || isEditMode}
+                      data-testid="payment-monto-saldar"
+                    />
+                    {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
+                      <button
+                        type="button"
+                        className={styles.useSaldoBtn}
+                        disabled={loading || isEditMode}
+                        onClick={useSaldoPendienteAsSaldar}
+                        data-testid="payment-use-saldo"
+                      >
+                        Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
+                      </button>
+                    ) : null}
+                    {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
+                      <span className={styles.helpText} data-testid="payment-refund-discount-hint">
+                        Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
+                        cuánto devolver.
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
                 {showCashTender ? (
                   <section
                     className={styles.cashTenderSection}
@@ -2310,7 +2315,9 @@ const CobroForm = ({
                     </div>
                   </section>
                 ) : null}
+              </div>
 
+              <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
                 {isCardMethod(formData.metodo) ? (
                   <div className={styles.methodFields}>
                     <div className={styles.formGroup}>
