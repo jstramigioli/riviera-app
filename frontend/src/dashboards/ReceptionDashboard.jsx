@@ -214,7 +214,7 @@ function NotesEditDialog({
 
 /**
  * Dashboard operativo de recepción.
- * Hoy = todayIsoLocal(); acciones rápidas = mismo FloatingActionButton del Libro.
+ * Fecha operativa = todayIsoLocal(); hub + sin botón Hoy (solo en Libro).
  */
 export default function ReceptionDashboard() {
   const navigate = useNavigate();
@@ -766,7 +766,6 @@ export default function ReceptionDashboard() {
       </div>
 
       <FloatingActionButton
-        onToday={() => navigate('/libro-de-reservas')}
         onCreateQuery={() => navigate('/consulta')}
         onCreateReservation={() => navigate('/consulta?modo=reserva')}
         onCreateConsumption={() => setConsumptionOpen(true)}

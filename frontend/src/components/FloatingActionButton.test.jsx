@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import FloatingActionButton from './FloatingActionButton'
 
 describe('FloatingActionButton hub', () => {
-  it('muestra Hoy arriba y abre el menú del +', () => {
+  it('con onToday muestra Hoy arriba y abre el menú del +', () => {
     const onToday = vi.fn()
     const onCreateQuery = vi.fn()
     const onCreateReservation = vi.fn()
@@ -55,5 +55,19 @@ describe('FloatingActionButton hub', () => {
     expect(onCreatePayment).toHaveBeenCalledTimes(1)
 
     expect(screen.queryByRole('button', { name: 'Buscar en el Libro' })).toBeNull()
+  })
+
+  it('sin onToday no muestra el botón Hoy', () => {
+    render(
+      <FloatingActionButton
+        onCreateQuery={vi.fn()}
+        onCreateReservation={vi.fn()}
+        onCreateConsumption={vi.fn()}
+        onCreatePayment={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: 'Ir a hoy' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Abrir menú de altas' })).toBeTruthy()
   })
 })

@@ -3,7 +3,8 @@ import { FiPlus, FiX } from 'react-icons/fi';
 import styles from '../styles/FloatingActionButton.module.css';
 
 /**
- * Hub flotante del Libro: Hoy arriba del +; el + abre menú de alta.
+ * Hub flotante: el + abre menú de alta.
+ * «Hoy» solo si hay onToday (Libro de reservas).
  */
 export default function FloatingActionButton({
   onToday,
@@ -15,6 +16,7 @@ export default function FloatingActionButton({
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const menuId = useId();
+  const showToday = typeof onToday === 'function';
 
   useEffect(() => {
     if (!open) return undefined;
@@ -66,15 +68,17 @@ export default function FloatingActionButton({
 
   return (
     <div className={styles.floatingActionContainer} ref={rootRef}>
-      <button
-        type="button"
-        className={styles.todayButton}
-        onClick={() => run(onToday)}
-        aria-label="Ir a hoy"
-        title="Hoy"
-      >
-        Hoy
-      </button>
+      {showToday ? (
+        <button
+          type="button"
+          className={styles.todayButton}
+          onClick={() => run(onToday)}
+          aria-label="Ir a hoy"
+          title="Hoy"
+        >
+          Hoy
+        </button>
+      ) : null}
 
       <div
         id={menuId}
