@@ -684,7 +684,8 @@ describe('CobroForm facturación', () => {
     expect(screen.queryByText(/Recibe \/ registra/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Crédito a cuenta/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Saldo restante/i)).not.toBeInTheDocument()
-    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/^Saldo:/)
+    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/Nuevo saldo/)
+    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/89\.500/)
   })
 
   it('fuerza toggle de facturación en Transferencia y muestra Factura B', async () => {

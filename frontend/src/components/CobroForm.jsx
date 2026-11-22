@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiPlus, FiSave, FiX } from 'react-icons/fi';
+import {
+  FiCreditCard,
+  FiDollarSign,
+  FiMoreHorizontal,
+  FiPlus,
+  FiRefreshCw,
+  FiSave,
+  FiUpload,
+  FiX
+} from 'react-icons/fi';
 import {
   createCobro,
   createAccountCobro,
@@ -104,6 +113,19 @@ function formMontoToArs(monto, moneda, tipoCambio) {
 
 function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
+}
+
+/** Icono SVG distinto por medio de pago (columna de método). */
+function paymentMethodIcon(metodo) {
+  const m = String(metodo || '')
+    .trim()
+    .toLowerCase();
+  if (m.includes('efectivo')) return FiDollarSign;
+  if (m.includes('tarjeta') || m.includes('débito') || m.includes('debito') || m.includes('crédito') || m.includes('credito')) {
+    return FiCreditCard;
+  }
+  if (m.includes('transfer')) return FiRefreshCw;
+  return FiMoreHorizontal;
 }
 
 function reservationOptionLabel(row) {
@@ -1486,6 +1508,7 @@ const CobroForm = ({
   const hasIngresadoAmount = (parseFloat(formData.monto) || 0) > 0;
   const foreignCurrency = isForeignCurrency(formData.moneda);
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
+  const MethodIcon = paymentMethodIcon(formData.metodo);
 
   const creditoACuentaARS =
     !isDevolucion &&
@@ -1499,6 +1522,47 @@ const CobroForm = ({
     !isDevolucion && saldoPendiente != null
       ? roundMoney(Number(saldoPendiente) - creditoACuentaARS)
       : null;
+
+  const montoDescontadoARS = !isDevolucion
+    ? manualPromoPreview?.aplica && !manualPromoPreview.probeOnly
+      ? Number(manualPromoPreview.descuentoARS) || 0
+      : 0
+    : selectedCobroOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0
+      ? roundMoney(Math.max(0, refundCreditoARS - tenderMontoARS))
+      : 0;
+
+  const headerIngresadoLabel = isDevolucion
+    ? 'Devolver al cliente'
+    : isSaldarMode
+      ? 'Cliente abona'
+      : 'Monto ingresado';
+
+  const headerIngresadoDisplay = (() => {
+    if (isDevolucion) {
+      return tenderMontoARS > 0 ? formatMoneyArs(tenderMontoARS) : '—';
+    }
+    if (isSaldarMode) {
+      return tenderMontoARS > 0 ? formatMoneyArs(tenderMontoARS) : '—';
+    }
+    if (!hasIngresadoAmount) return '—';
+    if (foreignCurrency && monedaCode === 'USD') {
+      return formatMoneyUsd(parseFloat(formData.monto) || 0);
+    }
+    if (foreignCurrency) {
+      return formatMoney(parseFloat(formData.monto) || 0, monedaCode);
+    }
+    return formatMoneyArs(parseFloat(formData.monto) || 0);
+  })();
+
+  const headerSaldadoDisplay = (() => {
+    if (isDevolucion) {
+      return refundCreditoARS > 0 ? formatMoneyArs(refundCreditoARS) : '—';
+    }
+    return creditoACuentaARS > 0 ? formatMoneyArs(creditoACuentaARS) : '—';
+  })();
+
+  const headerDescontadoDisplay =
+    montoDescontadoARS > 0 ? formatMoneyArs(montoDescontadoARS) : '—';
 
   return (
     <div className={styles.overlay} {...overlayDismiss}>
@@ -1556,807 +1620,888 @@ const CobroForm = ({
         ) : null}
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formBody}>
-          {showAllocationUi && (
-            <div className={`${styles.formRow} ${styles.formRowFull}`}>
-              <div className={styles.formGroup} ref={accountPickerRef}>
-                <div className={styles.allocationFieldHeader}>
-                  <label
-                    htmlFor={
-                      assignedAllocations.length === 0 ? 'payment-reservation' : undefined
-                    }
-                    id="payment-imputa-label"
-                    data-testid="payment-imputa-label"
-                  >
-                    Imputar a
-                  </label>
-                </div>
-                <div className={styles.allocationsList} data-testid="payment-allocations">
-                  {allocations.map((alloc) => {
-                    const row = alloc.optionKey
-                      ? optionByKey.get(alloc.optionKey) || null
-                      : null;
-                    const isAssigned = Boolean(row);
-                    const menuOpen = activeAllocId === alloc.localId;
-                    const kind = isAssigned
-                      ? isExternalRow(row)
-                        ? 'Externa'
-                        : 'Reserva'
-                      : null;
-
-                    if (isAssigned) {
-                      return (
-                        <div
-                          key={alloc.localId}
-                          className={styles.allocationChip}
-                          data-testid={`payment-alloc-chip-${alloc.localId}`}
-                        >
-                          <div className={styles.allocationChipMain}>
-                            <span className={styles.accountOptionKind}>{kind}</span>
-                            <span className={styles.allocationChipLabel}>
-                              {reservationOptionLabel(row)}
-                            </span>
-                          </div>
-                          {isMultiAlloc && !isDevolucion ? (
-                            <label className={styles.allocationMonto}>
-                              <span>Monto</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={alloc.monto}
-                                onChange={(e) =>
-                                  setAllocationMonto(alloc.localId, e.target.value)
-                                }
-                                disabled={loading}
-                                aria-label={`Monto imputado a ${reservationOptionLabel(row)}`}
-                                data-testid={`payment-alloc-monto-${alloc.localId}`}
-                              />
-                            </label>
-                          ) : null}
-                          <button
-                            type="button"
-                            className={styles.allocationRemove}
-                            onClick={() => clearAllocation(alloc.localId)}
-                            disabled={loading}
-                            aria-label="Quitar imputación"
-                          >
-                            <FiX aria-hidden="true" />
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={alloc.localId} className={styles.accountCombobox}>
-                        <input
-                          id={
-                            alloc.localId === allocations[0]?.localId
-                              ? 'payment-reservation'
-                              : undefined
-                          }
-                          type="text"
-                          role="combobox"
-                          aria-expanded={menuOpen}
-                          aria-controls={`payment-account-listbox-${alloc.localId}`}
-                          aria-autocomplete="list"
-                          aria-labelledby="payment-imputa-label"
-                          aria-label="Elegir reserva o cuenta externa a la que se imputa el cobro"
-                          placeholder={
-                            loadingMeta
-                              ? 'Cargando…'
-                              : occupiedOptions.length === 0
-                                ? 'Sin reservas/cuentas — creá una externa'
-                                : 'Buscar por habitación, huésped o cuenta…'
-                          }
-                          value={accountQuery}
-                          onChange={(e) => {
-                            setAccountQuery(e.target.value);
-                            setActiveAllocId(alloc.localId);
-                            setShowCreateExternal(false);
-                          }}
-                          onFocus={() => {
-                            setActiveAllocId(alloc.localId);
-                            setAccountQuery('');
-                            setShowCreateExternal(false);
-                          }}
-                          required={assignedAllocations.length === 0}
-                          disabled={loadingMeta || loading}
-                          data-testid="payment-account-search"
-                          autoComplete="off"
-                        />
-                        {menuOpen ? (
-                          <ul
-                            id={`payment-account-listbox-${alloc.localId}`}
-                            className={styles.accountMenu}
-                            role="listbox"
-                            aria-label="Reservas y cuentas externas"
-                          >
-                            {filteredAccountOptions.length === 0 ? (
-                              <li
-                                className={styles.accountMenuEmpty}
-                                role="presentation"
-                                data-testid="payment-account-empty"
-                              >
-                                {occupiedOptions.length === 0
-                                  ? 'No hay reservas ni cuentas abiertas. Creá una cuenta externa abajo.'
-                                  : 'Sin coincidencias. Probá otro texto o creá una cuenta externa.'}
-                              </li>
-                            ) : (
-                              filteredAccountOptions.map((opt) => {
-                                const key = optionKey(opt);
-                                const optKind = isExternalRow(opt) ? 'Externa' : 'Reserva';
-                                return (
-                                  <li key={key} role="presentation">
-                                    <button
-                                      type="button"
-                                      role="option"
-                                      aria-selected={false}
-                                      className={styles.accountOption}
-                                      onClick={() => pickAccountOption(opt, alloc.localId)}
-                                    >
-                                      <span className={styles.accountOptionKind}>{optKind}</span>
-                                      <span className={styles.accountOptionLabel}>
-                                        {reservationOptionLabel(opt)}
-                                      </span>
-                                    </button>
-                                  </li>
-                                );
-                              })
-                            )}
-                            <li
-                              className={styles.accountMenuCreate}
-                              role="presentation"
-                            >
-                              {!showCreateExternal ? (
-                                <button
-                                  type="button"
-                                  className={styles.createExternalInMenu}
-                                  disabled={loading || creatingExternal}
-                                  onClick={() => setShowCreateExternal(true)}
-                                  data-testid="payment-create-external"
-                                >
-                                  <FiPlus aria-hidden="true" />
-                                  Crear cuenta externa
-                                </button>
-                              ) : (
-                                <div
-                                  className={styles.createExternalPanel}
-                                  aria-label="Alta cuenta externa"
-                                >
-                                  <input
-                                    type="text"
-                                    value={externalLabel}
-                                    onChange={(e) => setExternalLabel(e.target.value)}
-                                    placeholder="Ej. Bar mesa 3 / Empresa ACME"
-                                    aria-label="Etiqueta de cuenta externa"
-                                    disabled={loading || creatingExternal}
-                                    data-testid="payment-external-label"
-                                  />
-                                  <button
-                                    type="button"
-                                    className={styles.createExternalConfirm}
-                                    disabled={loading || creatingExternal}
-                                    onClick={() => handleCreateExternalAccount(alloc.localId)}
-                                  >
-                                    {creatingExternal ? 'Creando…' : 'Crear'}
-                                  </button>
-                                </div>
-                              )}
-                            </li>
-                          </ul>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {!isDevolucion && assignedAllocations.length > 0 ? (
-                  <button
-                    type="button"
-                    className={styles.addAllocationBtn}
-                    disabled={loading || loadingMeta}
-                    onClick={addAllocationRow}
-                    data-testid="payment-add-allocation"
-                  >
-                    <FiPlus aria-hidden="true" />
-                    Agregar otra reserva
-                  </button>
-                ) : null}
-
-                {isMultiAlloc && !isDevolucion ? (
-                  <p className={styles.allocationHint} data-testid="payment-alloc-hint">
-                    Indicá cuánto de lo recibido va a cada reserva/cuenta. La suma debe
-                    coincidir con el monto del cobro.
-                  </p>
-                ) : null}
+                    <div className={styles.formBody}>
+          <div
+            className={styles.summaryHeader}
+            data-testid="payment-summary"
+            aria-label={isDevolucion ? 'Resumen de la devolución' : 'Resumen del cobro'}
+          >
+            <div className={styles.summaryHeaderCell}>
+              <span className={styles.summaryHeaderLabel}>{headerIngresadoLabel}</span>
+              <span className={styles.summaryHeaderValue}>{headerIngresadoDisplay}</span>
+            </div>
+            <div className={styles.summaryHeaderCell}>
+              <span className={styles.summaryHeaderLabel}>Monto descontado</span>
+              <span className={styles.summaryHeaderValue}>{headerDescontadoDisplay}</span>
+            </div>
+            <div className={styles.summaryHeaderCell}>
+              <span className={styles.summaryHeaderLabel}>
+                {isDevolucion ? 'Monto a saldar' : 'Monto saldado'}
+              </span>
+              <span className={styles.summaryHeaderValue} data-testid="summary-monto-saldado">
+                {headerSaldadoDisplay}
+              </span>
+            </div>
+            {foreignCurrency && !isDevolucion ? (
+              <div className={styles.summaryHeaderCell} data-testid="summary-equivalente-ars">
+                <span className={styles.summaryHeaderLabel}>Equivalente en ARS</span>
+                <span className={styles.summaryHeaderValue}>
+                  {hasIngresadoAmount ? formatMoneyArs(montoARS) : '—'}
+                </span>
               </div>
-            </div>
-          )}
-
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-fecha">Fecha *</label>
-              <input
-                id="payment-fecha"
-                type="date"
-                value={formData.fecha}
-                onChange={(e) => handleInputChange('fecha', e.target.value)}
-                required
-                disabled={loading}
-                data-testid="payment-fecha"
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-metodo">
-                {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
-              </label>
-              <select
-                id="payment-metodo"
-                value={formData.metodo}
-                onChange={(e) => handleInputChange('metodo', e.target.value)}
-                required
-                disabled={loading || methodConfigs.length === 0}
-              >
-                {methodConfigs.length === 0 ? (
-                  <option value="">Cargando medios…</option>
-                ) : (
-                  methodConfigs.map((m) => (
-                    <option key={m.id} value={m.label}>
-                      {m.label}
-                    </option>
-                  ))
-                )}
-              </select>
+            ) : null}
+            <div className={styles.summaryHeaderMeta}>
+              <span>Motivo: {motivoActual}</span>
+              {foreignCurrency && !isDevolucion && parseFloat(formData.tipoCambio) > 0 ? (
+                <span>TC: {parseFloat(formData.tipoCambio)}</span>
+              ) : null}
             </div>
           </div>
 
-          <div className={styles.formRow}>
-            <div
-              className={
-                foreignCurrency ? styles.monedaTcPair : styles.formGroup
-              }
-              data-testid="payment-moneda-tc"
-            >
+          <div className={styles.layoutGrid}>
+            {/* Col 1 — entidad / fecha / toggles / notas */}
+            <section className={styles.layoutCol} aria-label="Datos del cobro">
               <div className={styles.formGroup}>
-                <label htmlFor="payment-moneda">Moneda *</label>
-                <select
-                  id="payment-moneda"
-                  value={formData.moneda}
-                  onChange={(e) => handleInputChange('moneda', e.target.value)}
+                <label htmlFor="payment-fecha">Fecha *</label>
+                <input
+                  id="payment-fecha"
+                  type="date"
+                  value={formData.fecha}
+                  onChange={(e) => handleInputChange('fecha', e.target.value)}
                   required
                   disabled={loading}
-                  data-testid="payment-moneda"
-                >
-                  {SYSTEM_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {foreignCurrency ? (
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-tc">Tipo de cambio *</label>
-                  <input
-                    id="payment-tc"
-                    type="number"
-                    value={formData.tipoCambio}
-                    onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                    onFocus={() => {
-                      if (amountMode !== AMOUNT_MODE_SALDAR) {
-                        setAmountMode(AMOUNT_MODE_INGRESADO);
-                      }
-                    }}
-                    placeholder="1000.00"
-                    step="0.01"
-                    min="0"
-                    required
-                    disabled={loading}
-                    data-testid="payment-tc"
-                  />
-                  {tipoCambioGlobal != null && (
-                    <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            {!isDevolucion && canUseSena ? (
-              <div className={styles.formGroup}>
-                <span className={styles.fieldLabel} id="payment-sena-label">
-                  Seña
-                </span>
-                <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                  <input
-                    id="payment-sena-toggle"
-                    type="checkbox"
-                    checked={esSena}
-                    disabled={loading}
-                    aria-labelledby="payment-sena-label"
-                    onChange={(e) => setEsSena(e.target.checked)}
-                  />
-                  <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                </label>
-              </div>
-            ) : (
-              <div className={styles.formGroup} aria-hidden="true" />
-            )}
-          </div>
-
-          <div
-            className={`${styles.amountModes} ${styles.amountModesSameBox}`}
-            data-testid="payment-amount-modes"
-          >
-            <div
-              className={`${styles.amountModeBlock} ${
-                amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
-              }`}
-            >
-              <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
-                {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-              </span>
-              {foreignCurrency ? (
-                <div
-                  className={styles.fxSyncFields}
-                  role="group"
-                  aria-labelledby="payment-monto-ingresado-label"
-                  data-testid="payment-fx-sync"
-                >
-                  <label htmlFor="payment-monto">Monto en {monedaCode}</label>
-                  <input
-                    id="payment-monto"
-                    type="number"
-                    value={formData.monto}
-                    onChange={(e) => handleInputChange('monto', e.target.value)}
-                    onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    required={amountMode === AMOUNT_MODE_INGRESADO}
-                    disabled={loading}
-                    data-testid="payment-monto-ingresado"
-                    aria-label={`Monto en ${monedaCode}`}
-                  />
-
-                  <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
-                  <input
-                    id="payment-equiv-ars"
-                    type="number"
-                    value={equivArsDraft}
-                    onChange={(e) => handleEquivalenteArsChange(e.target.value)}
-                    onFocus={() => {
-                      equivArsFocusedRef.current = true;
-                      setAmountMode(AMOUNT_MODE_INGRESADO);
-                    }}
-                    onBlur={() => {
-                      equivArsFocusedRef.current = false;
-                      const ars = parseFloat(equivArsDraft);
-                      if (ars > 0) {
-                        setEquivArsDraft(String(roundMoney(ars)));
-                      } else if (!equivArsDraft) {
-                        setEquivArsDraft('');
-                      } else {
-                        const tc = parseFloat(formData.tipoCambio) || 0;
-                        const monto = parseFloat(formData.monto) || 0;
-                        setEquivArsDraft(
-                          monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
-                        );
-                      }
-                    }}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    disabled={loading}
-                    data-testid="payment-equiv-ars"
-                  />
-                </div>
-              ) : (
-                <>
-                  <label htmlFor="payment-monto" className={styles.srOnly}>
-                    {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-                  </label>
-                  <input
-                    id="payment-monto"
-                    type="number"
-                    value={formData.monto}
-                    onChange={(e) => handleInputChange('monto', e.target.value)}
-                    onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    required={amountMode === AMOUNT_MODE_INGRESADO}
-                    disabled={loading}
-                    data-testid="payment-monto-ingresado"
-                    aria-labelledby="payment-monto-ingresado-label"
-                  />
-                </>
-              )}
-            </div>
-
-            <div
-              className={`${styles.amountModeBlock} ${
-                amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
-              }`}
-            >
-              <label htmlFor="payment-monto-saldar">Monto a saldar</label>
-              <input
-                id="payment-monto-saldar"
-                type="number"
-                value={montoASaldar}
-                onChange={(e) => handleMontoASaldarChange(e.target.value)}
-                onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
-                placeholder={
-                  isDevolucion && selectedCobroOrigen
-                    ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
-                    : saldoPendiente != null && Number(saldoPendiente) > 0
-                      ? formatArs(saldoPendiente)
-                      : '0'
-                }
-                step="0.01"
-                min="0"
-                required={amountMode === AMOUNT_MODE_SALDAR}
-                disabled={loading || isEditMode}
-                data-testid="payment-monto-saldar"
-              />
-              {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
-                <button
-                  type="button"
-                  className={styles.useSaldoBtn}
-                  disabled={loading || isEditMode}
-                  onClick={useSaldoPendienteAsSaldar}
-                  data-testid="payment-use-saldo"
-                >
-                  Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
-                </button>
-              ) : null}
-              {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
-                <span className={styles.helpText} data-testid="payment-refund-discount-hint">
-                  Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
-                  cuánto devolver.
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          {showCashTender ? (
-            <section
-              className={styles.cashTenderSection}
-              data-testid="payment-cash-tender"
-              aria-labelledby="payment-cash-tender-title"
-            >
-              <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
-                Movimiento de efectivo
-              </h3>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-dinero-recibido">
-                    Dinero recibido ({formData.moneda || 'ARS'})
-                  </label>
-                  <input
-                    id="payment-dinero-recibido"
-                    type="number"
-                    value={dineroRecibido}
-                    onChange={(e) => {
-                      dineroRecibidoDirtyRef.current = true;
-                      setDineroRecibido(e.target.value);
-                      const next = suggestVueltoARS({
-                        dineroRecibido: parseFloat(e.target.value) || 0,
-                        moneda: formData.moneda,
-                        tipoCambio: formData.tipoCambio,
-                        montoIngresadoARS: montoARS
-                      });
-                      setVueltoARS(String(next));
-                    }}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    disabled={loading}
-                    data-testid="payment-dinero-recibido"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-vuelto-ars">Vuelto entregado (ARS)</label>
-                  <input
-                    id="payment-vuelto-ars"
-                    type="number"
-                    value={vueltoARS}
-                    readOnly
-                    tabIndex={-1}
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    disabled={loading}
-                    data-testid="payment-vuelto-ars"
-                    aria-readonly="true"
-                  />
-                  <span className={styles.helpText}>
-                    Sugerido = excedente máx. Para acreditar excedente, subí el monto
-                    ingresado
-                    {foreignCurrency ? ' · mismo TC del cobro' : ''}
-                  </span>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {isDevolucion && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-origen">Cobro de origen *</label>
-                <select
-                  id="payment-origen"
-                  value={cobroOrigenId}
-                  onChange={(e) => setCobroOrigenId(e.target.value)}
-                  required
-                  disabled={loading || cobrosOrigen.length === 0}
-                >
-                  <option value="">
-                    {cobrosOrigen.length === 0
-                      ? 'No hay cobros disponibles'
-                      : 'Seleccionar cobro…'}
-                  </option>
-                  {cobrosOrigen.map((p) => {
-                    const disc = p.discountApplication?.montoARS;
-                    const discLabel =
-                      disc != null && Number(disc) > 0
-                        ? ` · desc. ${formatMoneyArs(disc)}`
-                        : '';
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {p.codigo || `#${p.id}`} — {p.metodo || 'Cobro'} —{' '}
-                        {formatMoneyArs(p.montoARS)}
-                        {discLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-                <span className={styles.helpText}>
-                  Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
-                </span>
-              </div>
-            </div>
-          )}
-
-          {!isDevolucion && manualPromoSuggestions.length > 0 && (
-            <div
-              className={styles.manualPromoBlock}
-              data-testid="payment-manual-promos"
-            >
-              <p className={styles.discountTitle}>Valor al aplicar</p>
-              <p className={styles.helpText}>
-                Promos/descuentos sin valor fijo: completá el beneficio para aplicarlos.
-              </p>
-              {manualPromoSuggestions.map((s) => (
-                <label key={s.id} className={styles.manualPromoRow}>
-                  <span className={styles.manualPromoLabel}>{s.label}</span>
-                  <span className={styles.manualPromoInputWrap}>
-                    <input
-                      type="number"
-                      min="0"
-                      step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
-                      className={styles.manualPromoInput}
-                      value={manualPromoValues[s.id] ?? ''}
-                      onChange={(e) => setManualPromoValue(s.id, e.target.value)}
-                      placeholder="—"
-                      aria-label={`Valor de ${s.label}`}
-                      disabled={loading}
-                    />
-                    <span className={styles.manualPromoUnit} aria-hidden="true">
-                      {benefitUnitLabel(s.benefitType)}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          {!isDevolucion &&
-            manualPromoPreview?.aplica &&
-            manualPromoPreview.appliedRules?.length > 0 && (
-              <div
-                className={styles.promoList}
-                role="status"
-                data-testid="payment-applied-promos"
-              >
-                {manualPromoPreview.appliedRules.map((promo) => {
-                  const removable = isRemovableOptionalPromo(promo);
-                  return (
-                    <div
-                      key={promo.promotionRuleId || promo.code || promo.label}
-                      className={styles.promoBlock}
-                    >
-                      <div className={styles.promoRow}>
-                        <span className={styles.promoLabel}>
-                          {promo.label}
-                          {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
-                        </span>
-                        <span className={styles.promoValue}>
-                          {manualPromoPreview.probeOnly && promo.porcentaje != null
-                            ? `−${promo.porcentaje}%`
-                            : `−${formatMoneyArs(promo.montoARS)}`}
-                        </span>
-                      </div>
-                      {removable ? (
-                        <button
-                          type="button"
-                          className={styles.promoRemoveBtn}
-                          onClick={() => removeOptionalPromo(promo)}
-                          aria-label={`Quitar ${promo.label}`}
-                          disabled={loading}
-                          data-testid={`payment-promo-remove-${promo.promotionRuleId}`}
-                        >
-                          <FiX aria-hidden="true" />
-                          <span>Quitar</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-          {!isDevolucion && (
-            <div className={styles.addPromoWrap} ref={addPromoRef}>
-              <button
-                type="button"
-                className={styles.addPromoBtn}
-                onClick={() => setAddPromoOpen((v) => !v)}
-                aria-expanded={addPromoOpen}
-                aria-haspopup="listbox"
-                disabled={loading || optionalChoices.length === 0}
-                data-testid="payment-add-optional-promo"
-              >
-                <FiPlus aria-hidden="true" />
-                descuento
-              </button>
-              {addPromoOpen && optionalChoices.length > 0 ? (
-                <ul
-                  className={styles.addPromoMenu}
-                  role="listbox"
-                  aria-label="Descuentos opcionales"
-                >
-                  {optionalChoices.map((choice) => {
-                    const valueLabel = formatOptionalBenefitValue(choice);
-                    return (
-                      <li key={choice.id} role="option">
-                        <button
-                          type="button"
-                          className={styles.addPromoOption}
-                          onClick={() => addOptionalPromo(choice)}
-                        >
-                          <span className={styles.addPromoName}>{choice.label}</span>
-                          {valueLabel ? (
-                            <span className={styles.addPromoMeta}>{valueLabel}</span>
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-          )}
-
-          {showComprobanteField && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
-                <label
-                  className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
-                  htmlFor="payment-comprobante"
-                >
-                  <input
-                    id="payment-comprobante"
-                    type="file"
-                    accept={COMPROBANTE_ACCEPT}
-                    multiple
-                    disabled={loading}
-                    onChange={(e) => {
-                      handleComprobanteChange(e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                  {comprobanteFiles.length > 0
-                    ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
-                    : 'Adjuntar JPG, PNG o PDF (también se puede después en Cobros)'}
-                </label>
-                {comprobanteFiles.length > 0 && (
-                  <button
-                    type="button"
-                    className={styles.comprobanteClear}
-                    disabled={loading}
-                    onClick={() => setComprobanteFiles([])}
-                  >
-                    Quitar archivos
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {isCardMethod(formData.metodo) && (
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-card">Número de tarjeta *</label>
-                <input
-                  id="payment-card"
-                  type="text"
-                  value={formData.numeroTarjeta}
-                  onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
-                  placeholder="**** **** **** ****"
-                  maxLength={19}
-                  required
+                  data-testid="payment-fecha"
                 />
               </div>
 
+              {showAllocationUi && (
+                <div className={styles.formGroup} ref={accountPickerRef}>
+                  <div className={styles.allocationFieldHeader}>
+                    <label
+                      htmlFor={
+                        assignedAllocations.length === 0 ? 'payment-reservation' : undefined
+                      }
+                      id="payment-imputa-label"
+                      data-testid="payment-imputa-label"
+                    >
+                      Imputar a
+                    </label>
+                  </div>
+                  <div className={styles.allocationsList} data-testid="payment-allocations">
+                    {allocations.map((alloc) => {
+                      const row = alloc.optionKey
+                        ? optionByKey.get(alloc.optionKey) || null
+                        : null;
+                      const isAssigned = Boolean(row);
+                      const menuOpen = activeAllocId === alloc.localId;
+                      const kind = isAssigned
+                        ? isExternalRow(row)
+                          ? 'Externa'
+                          : 'Reserva'
+                        : null;
+
+                      if (isAssigned) {
+                        return (
+                          <div
+                            key={alloc.localId}
+                            className={styles.allocationChip}
+                            data-testid={`payment-alloc-chip-${alloc.localId}`}
+                          >
+                            <div className={styles.allocationChipMain}>
+                              <span className={styles.accountOptionKind}>{kind}</span>
+                              <span className={styles.allocationChipLabel}>
+                                {reservationOptionLabel(row)}
+                              </span>
+                            </div>
+                            {isMultiAlloc && !isDevolucion ? (
+                              <label className={styles.allocationMonto}>
+                                <span>Monto</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={alloc.monto}
+                                  onChange={(e) =>
+                                    setAllocationMonto(alloc.localId, e.target.value)
+                                  }
+                                  disabled={loading}
+                                  aria-label={`Monto imputado a ${reservationOptionLabel(row)}`}
+                                  data-testid={`payment-alloc-monto-${alloc.localId}`}
+                                />
+                              </label>
+                            ) : null}
+                            <button
+                              type="button"
+                              className={styles.allocationRemove}
+                              onClick={() => clearAllocation(alloc.localId)}
+                              disabled={loading}
+                              aria-label="Quitar imputación"
+                            >
+                              <FiX aria-hidden="true" />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={alloc.localId} className={styles.accountCombobox}>
+                          <input
+                            id={
+                              alloc.localId === allocations[0]?.localId
+                                ? 'payment-reservation'
+                                : undefined
+                            }
+                            type="text"
+                            role="combobox"
+                            aria-expanded={menuOpen}
+                            aria-controls={`payment-account-listbox-${alloc.localId}`}
+                            aria-autocomplete="list"
+                            aria-labelledby="payment-imputa-label"
+                            aria-label="Elegir reserva o cuenta externa a la que se imputa el cobro"
+                            placeholder={
+                              loadingMeta
+                                ? 'Cargando…'
+                                : occupiedOptions.length === 0
+                                  ? 'Sin reservas/cuentas — creá una externa'
+                                  : 'Buscar por habitación, huésped o cuenta…'
+                            }
+                            value={accountQuery}
+                            onChange={(e) => {
+                              setAccountQuery(e.target.value);
+                              setActiveAllocId(alloc.localId);
+                              setShowCreateExternal(false);
+                            }}
+                            onFocus={() => {
+                              setActiveAllocId(alloc.localId);
+                              setAccountQuery('');
+                              setShowCreateExternal(false);
+                            }}
+                            required={assignedAllocations.length === 0}
+                            disabled={loadingMeta || loading}
+                            data-testid="payment-account-search"
+                            autoComplete="off"
+                          />
+                          {menuOpen ? (
+                            <ul
+                              id={`payment-account-listbox-${alloc.localId}`}
+                              className={styles.accountMenu}
+                              role="listbox"
+                              aria-label="Reservas y cuentas externas"
+                            >
+                              {filteredAccountOptions.length === 0 ? (
+                                <li
+                                  className={styles.accountMenuEmpty}
+                                  role="presentation"
+                                  data-testid="payment-account-empty"
+                                >
+                                  {occupiedOptions.length === 0
+                                    ? 'No hay reservas ni cuentas abiertas. Creá una cuenta externa abajo.'
+                                    : 'Sin coincidencias. Probá otro texto o creá una cuenta externa.'}
+                                </li>
+                              ) : (
+                                filteredAccountOptions.map((opt) => {
+                                  const key = optionKey(opt);
+                                  const optKind = isExternalRow(opt) ? 'Externa' : 'Reserva';
+                                  return (
+                                    <li key={key} role="presentation">
+                                      <button
+                                        type="button"
+                                        role="option"
+                                        aria-selected={false}
+                                        className={styles.accountOption}
+                                        onClick={() => pickAccountOption(opt, alloc.localId)}
+                                      >
+                                        <span className={styles.accountOptionKind}>{optKind}</span>
+                                        <span className={styles.accountOptionLabel}>
+                                          {reservationOptionLabel(opt)}
+                                        </span>
+                                      </button>
+                                    </li>
+                                  );
+                                })
+                              )}
+                              <li
+                                className={styles.accountMenuCreate}
+                                role="presentation"
+                              >
+                                {!showCreateExternal ? (
+                                  <button
+                                    type="button"
+                                    className={styles.createExternalInMenu}
+                                    disabled={loading || creatingExternal}
+                                    onClick={() => setShowCreateExternal(true)}
+                                    data-testid="payment-create-external"
+                                  >
+                                    <FiPlus aria-hidden="true" />
+                                    Crear cuenta externa
+                                  </button>
+                                ) : (
+                                  <div
+                                    className={styles.createExternalPanel}
+                                    aria-label="Alta cuenta externa"
+                                  >
+                                    <input
+                                      type="text"
+                                      value={externalLabel}
+                                      onChange={(e) => setExternalLabel(e.target.value)}
+                                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                                      aria-label="Etiqueta de cuenta externa"
+                                      disabled={loading || creatingExternal}
+                                      data-testid="payment-external-label"
+                                    />
+                                    <button
+                                      type="button"
+                                      className={styles.createExternalConfirm}
+                                      disabled={loading || creatingExternal}
+                                      onClick={() => handleCreateExternalAccount(alloc.localId)}
+                                    >
+                                      {creatingExternal ? 'Creando…' : 'Crear'}
+                                    </button>
+                                  </div>
+                                )}
+                              </li>
+                            </ul>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {!isDevolucion && assignedAllocations.length > 0 ? (
+                    <button
+                      type="button"
+                      className={styles.addAllocationBtn}
+                      disabled={loading || loadingMeta}
+                      onClick={addAllocationRow}
+                      data-testid="payment-add-allocation"
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Agregar reserva
+                    </button>
+                  ) : null}
+
+                  {isMultiAlloc && !isDevolucion ? (
+                    <p className={styles.allocationHint} data-testid="payment-alloc-hint">
+                      Indicá cuánto de lo recibido va a cada reserva/cuenta. La suma debe
+                      coincidir con el monto del cobro.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
+              {isDevolucion && (
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-origen">Cobro de origen *</label>
+                  <select
+                    id="payment-origen"
+                    value={cobroOrigenId}
+                    onChange={(e) => setCobroOrigenId(e.target.value)}
+                    required
+                    disabled={loading || cobrosOrigen.length === 0}
+                  >
+                    <option value="">
+                      {cobrosOrigen.length === 0
+                        ? 'No hay cobros disponibles'
+                        : 'Seleccionar cobro…'}
+                    </option>
+                    {cobrosOrigen.map((p) => {
+                      const disc = p.discountApplication?.montoARS;
+                      const discLabel =
+                        disc != null && Number(disc) > 0
+                          ? ` · desc. ${formatMoneyArs(disc)}`
+                          : '';
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.codigo || `#${p.id}`} — {p.metodo || 'Cobro'} —{' '}
+                          {formatMoneyArs(p.montoARS)}
+                          {discLabel}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <span className={styles.helpText}>
+                    Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
+                  </span>
+                </div>
+              )}
+
+              <div className={styles.toggleStack}>
+                {!isDevolucion && canUseSena ? (
+                  <div className={styles.formGroup}>
+                    <span className={styles.fieldLabel} id="payment-sena-label">
+                      Seña
+                    </span>
+                    <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                      <input
+                        id="payment-sena-toggle"
+                        type="checkbox"
+                        checked={esSena}
+                        disabled={loading}
+                        aria-labelledby="payment-sena-label"
+                        onChange={(e) => setEsSena(e.target.checked)}
+                      />
+                      <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                    </label>
+                  </div>
+                ) : null}
+
+                {!isEditMode ? (
+                  <div className={styles.formGroup}>
+                    <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
+                      <input
+                        id="payment-billing-toggle"
+                        type="checkbox"
+                        checked={billingEnabled}
+                        disabled={billingForced || loading}
+                        onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                      />
+                      <span>Requiere facturación</span>
+                      {billingForced && (
+                        <span className={styles.helpText}>Obligatorio para este medio de pago</span>
+                      )}
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+
               <div className={styles.formGroup}>
-                <label htmlFor="payment-empresa">Empresa *</label>
-                <select
-                  id="payment-empresa"
-                  value={formData.empresa}
-                  onChange={(e) => handleInputChange('empresa', e.target.value)}
-                  required
+                <label htmlFor="payment-notas">Notas</label>
+                <textarea
+                  id="payment-notas"
+                  value={formData.notas}
+                  onChange={(e) => handleInputChange('notas', e.target.value)}
+                  placeholder="Notas adicionales..."
+                  rows={3}
+                />
+              </div>
+            </section>
+
+            {/* Col 2 — medio de pago + campos condicionales */}
+            <section className={styles.layoutCol} aria-label="Medio de pago">
+              <div className={styles.methodHero}>
+                <div className={styles.methodIconWrap} aria-hidden="true">
+                  <MethodIcon />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-metodo">
+                    {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+                  </label>
+                  <select
+                    id="payment-metodo"
+                    value={formData.metodo}
+                    onChange={(e) => handleInputChange('metodo', e.target.value)}
+                    required
+                    disabled={loading || methodConfigs.length === 0}
+                  >
+                    {methodConfigs.length === 0 ? (
+                      <option value="">Cargando medios…</option>
+                    ) : (
+                      methodConfigs.map((m) => (
+                        <option key={m.id} value={m.label}>
+                          {m.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                <p className={styles.methodName} aria-hidden="true">
+                  {formData.metodo || '—'}
+                </p>
+              </div>
+
+              <div
+                className={
+                  foreignCurrency ? styles.monedaTcPair : styles.formGroup
+                }
+                data-testid="payment-moneda-tc"
+              >
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-moneda">Moneda *</label>
+                  <select
+                    id="payment-moneda"
+                    value={formData.moneda}
+                    onChange={(e) => handleInputChange('moneda', e.target.value)}
+                    required
+                    disabled={loading}
+                    data-testid="payment-moneda"
+                  >
+                    {SYSTEM_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {foreignCurrency ? (
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-tc">Tipo de cambio *</label>
+                    <input
+                      id="payment-tc"
+                      type="number"
+                      value={formData.tipoCambio}
+                      onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                      onFocus={() => {
+                        if (amountMode !== AMOUNT_MODE_SALDAR) {
+                          setAmountMode(AMOUNT_MODE_INGRESADO);
+                        }
+                      }}
+                      placeholder="1000.00"
+                      step="0.01"
+                      min="0"
+                      required
+                      disabled={loading}
+                      data-testid="payment-tc"
+                    />
+                    {tipoCambioGlobal != null && (
+                      <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                className={`${styles.amountModes} ${styles.amountModesSameBox}`}
+                data-testid="payment-amount-modes"
+              >
+                <div
+                  className={`${styles.amountModeBlock} ${
+                    amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
+                  }`}
                 >
-                  <option value="">Seleccionar empresa...</option>
-                  {formData.metodo === 'Tarjeta Debito' ? (
-                    <>
-                      <option value="Maestro">Maestro</option>
-                      <option value="Visa Electron">Visa Electron</option>
-                      <option value="Cabal 24hs">Cabal 24hs</option>
-                      <option value="Mastercard Debito">Mastercard Débito</option>
-                      <option value="Otra">Otra</option>
-                    </>
+                  <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
+                    {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
+                  </span>
+                  {foreignCurrency ? (
+                    <div
+                      className={styles.fxSyncFields}
+                      role="group"
+                      aria-labelledby="payment-monto-ingresado-label"
+                      data-testid="payment-fx-sync"
+                    >
+                      <label htmlFor="payment-monto">Monto en {monedaCode}</label>
+                      <input
+                        id="payment-monto"
+                        type="number"
+                        value={formData.monto}
+                        onChange={(e) => handleInputChange('monto', e.target.value)}
+                        onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        required={amountMode === AMOUNT_MODE_INGRESADO}
+                        disabled={loading}
+                        data-testid="payment-monto-ingresado"
+                        aria-label={`Monto en ${monedaCode}`}
+                      />
+
+                      <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
+                      <input
+                        id="payment-equiv-ars"
+                        type="number"
+                        value={equivArsDraft}
+                        onChange={(e) => handleEquivalenteArsChange(e.target.value)}
+                        onFocus={() => {
+                          equivArsFocusedRef.current = true;
+                          setAmountMode(AMOUNT_MODE_INGRESADO);
+                        }}
+                        onBlur={() => {
+                          equivArsFocusedRef.current = false;
+                          const ars = parseFloat(equivArsDraft);
+                          if (ars > 0) {
+                            setEquivArsDraft(String(roundMoney(ars)));
+                          } else if (!equivArsDraft) {
+                            setEquivArsDraft('');
+                          } else {
+                            const tc = parseFloat(formData.tipoCambio) || 0;
+                            const monto = parseFloat(formData.monto) || 0;
+                            setEquivArsDraft(
+                              monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
+                            );
+                          }
+                        }}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        disabled={loading}
+                        data-testid="payment-equiv-ars"
+                      />
+                    </div>
                   ) : (
                     <>
-                      <option value="American Express">American Express</option>
-                      <option value="Visa">Visa</option>
-                      <option value="Mastercard">Mastercard</option>
-                      <option value="Credencial">Credencial</option>
-                      <option value="Carta Franca">Carta Franca</option>
-                      <option value="Cabal">Cabal</option>
-                      <option value="Diners">Diners</option>
-                      <option value="Tarjeta Shopping">Tarjeta Shopping</option>
-                      <option value="Tarjeta Naranja">Tarjeta Naranja</option>
-                      <option value="Otra">Otra</option>
+                      <label htmlFor="payment-monto" className={styles.srOnly}>
+                        {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
+                      </label>
+                      <input
+                        id="payment-monto"
+                        type="number"
+                        value={formData.monto}
+                        onChange={(e) => handleInputChange('monto', e.target.value)}
+                        onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        required={amountMode === AMOUNT_MODE_INGRESADO}
+                        disabled={loading}
+                        data-testid="payment-monto-ingresado"
+                        aria-labelledby="payment-monto-ingresado-label"
+                      />
                     </>
                   )}
-                </select>
+                </div>
+
+                <div
+                  className={`${styles.amountModeBlock} ${
+                    amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+                  }`}
+                >
+                  <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+                  <input
+                    id="payment-monto-saldar"
+                    type="number"
+                    value={montoASaldar}
+                    onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                    onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
+                    placeholder={
+                      isDevolucion && selectedCobroOrigen
+                        ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
+                        : saldoPendiente != null && Number(saldoPendiente) > 0
+                          ? formatArs(saldoPendiente)
+                          : '0'
+                    }
+                    step="0.01"
+                    min="0"
+                    required={amountMode === AMOUNT_MODE_SALDAR}
+                    disabled={loading || isEditMode}
+                    data-testid="payment-monto-saldar"
+                  />
+                  {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
+                    <button
+                      type="button"
+                      className={styles.useSaldoBtn}
+                      disabled={loading || isEditMode}
+                      onClick={useSaldoPendienteAsSaldar}
+                      data-testid="payment-use-saldo"
+                    >
+                      Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
+                    </button>
+                  ) : null}
+                  {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
+                    <span className={styles.helpText} data-testid="payment-refund-discount-hint">
+                      Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
+                      cuánto devolver.
+                    </span>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          )}
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="payment-notas">Notas</label>
-              <textarea
-                id="payment-notas"
-                value={formData.notas}
-                onChange={(e) => handleInputChange('notas', e.target.value)}
-                placeholder="Notas adicionales..."
-                rows={2}
-              />
-            </div>
-          </div>
+              {showCashTender ? (
+                <section
+                  className={styles.cashTenderSection}
+                  data-testid="payment-cash-tender"
+                  aria-labelledby="payment-cash-tender-title"
+                >
+                  <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
+                    Efectivo
+                  </h3>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-dinero-recibido">
+                      Paga con ({formData.moneda || 'ARS'})
+                    </label>
+                    <input
+                      id="payment-dinero-recibido"
+                      type="number"
+                      value={dineroRecibido}
+                      onChange={(e) => {
+                        dineroRecibidoDirtyRef.current = true;
+                        setDineroRecibido(e.target.value);
+                        const next = suggestVueltoARS({
+                          dineroRecibido: parseFloat(e.target.value) || 0,
+                          moneda: formData.moneda,
+                          tipoCambio: formData.tipoCambio,
+                          montoIngresadoARS: montoARS
+                        });
+                        setVueltoARS(String(next));
+                      }}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                      disabled={loading}
+                      data-testid="payment-dinero-recibido"
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                    <input
+                      id="payment-vuelto-ars"
+                      type="number"
+                      value={vueltoARS}
+                      readOnly
+                      tabIndex={-1}
+                      placeholder="0"
+                      step="0.01"
+                      min="0"
+                      disabled={loading}
+                      data-testid="payment-vuelto-ars"
+                      aria-readonly="true"
+                    />
+                    <span className={styles.helpText}>
+                      Solo lectura (= excedente). Para acreditar, subí el monto ingresado
+                      {foreignCurrency ? ' · mismo TC del cobro' : ''}
+                    </span>
+                  </div>
+                </section>
+              ) : null}
 
-          {!isEditMode ? (
-          <div className={styles.billingToggleRow}>
-            <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
-              <input
-                id="payment-billing-toggle"
-                type="checkbox"
-                checked={billingEnabled}
-                disabled={billingForced || loading}
-                onChange={(e) => setRequiereFacturacion(e.target.checked)}
-              />
-              <span>Requiere facturación</span>
-              {billingForced && (
-                <span className={styles.helpText}>Obligatorio para este medio de pago</span>
+              {isCardMethod(formData.metodo) && (
+                <div className={styles.methodFields}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-card">Número de tarjeta *</label>
+                    <input
+                      id="payment-card"
+                      type="text"
+                      value={formData.numeroTarjeta}
+                      onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
+                      placeholder="**** **** **** ****"
+                      maxLength={19}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-empresa">Empresa *</label>
+                    <select
+                      id="payment-empresa"
+                      value={formData.empresa}
+                      onChange={(e) => handleInputChange('empresa', e.target.value)}
+                      required
+                    >
+                      <option value="">Seleccionar empresa...</option>
+                      {formData.metodo === 'Tarjeta Debito' ? (
+                        <>
+                          <option value="Maestro">Maestro</option>
+                          <option value="Visa Electron">Visa Electron</option>
+                          <option value="Cabal 24hs">Cabal 24hs</option>
+                          <option value="Mastercard Debito">Mastercard Débito</option>
+                          <option value="Otra">Otra</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="American Express">American Express</option>
+                          <option value="Visa">Visa</option>
+                          <option value="Mastercard">Mastercard</option>
+                          <option value="Credencial">Credencial</option>
+                          <option value="Carta Franca">Carta Franca</option>
+                          <option value="Cabal">Cabal</option>
+                          <option value="Diners">Diners</option>
+                          <option value="Tarjeta Shopping">Tarjeta Shopping</option>
+                          <option value="Tarjeta Naranja">Tarjeta Naranja</option>
+                          <option value="Otra">Otra</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
               )}
-            </label>
+
+              {showComprobanteField && (
+                <div className={styles.formGroup}>
+                  <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
+                  <label
+                    className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
+                    htmlFor="payment-comprobante"
+                  >
+                    <input
+                      id="payment-comprobante"
+                      type="file"
+                      accept={COMPROBANTE_ACCEPT}
+                      multiple
+                      disabled={loading}
+                      onChange={(e) => {
+                        handleComprobanteChange(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <FiUpload aria-hidden="true" />
+                    {comprobanteFiles.length > 0
+                      ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
+                      : 'Subir comprobante (JPG, PNG o PDF)'}
+                  </label>
+                  {comprobanteFiles.length > 0 && (
+                    <button
+                      type="button"
+                      className={styles.comprobanteClear}
+                      disabled={loading}
+                      onClick={() => setComprobanteFiles([])}
+                    >
+                      Quitar archivos
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Col 3 — descuentos */}
+            <section className={styles.layoutCol} aria-label="Descuentos">
+              <h3 className={styles.colTitle}>Descuentos</h3>
+
+              {!isDevolucion && manualPromoSuggestions.length > 0 && (
+                <div
+                  className={styles.manualPromoBlock}
+                  data-testid="payment-manual-promos"
+                >
+                  <p className={styles.discountTitle}>Valor al aplicar</p>
+                  <p className={styles.helpText}>
+                    Promos/descuentos sin valor fijo: completá el beneficio para aplicarlos.
+                  </p>
+                  {manualPromoSuggestions.map((s) => (
+                    <label key={s.id} className={styles.manualPromoRow}>
+                      <span className={styles.manualPromoLabel}>{s.label}</span>
+                      <span className={styles.manualPromoInputWrap}>
+                        <input
+                          type="number"
+                          min="0"
+                          step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                          className={styles.manualPromoInput}
+                          value={manualPromoValues[s.id] ?? ''}
+                          onChange={(e) => setManualPromoValue(s.id, e.target.value)}
+                          placeholder="—"
+                          aria-label={`Valor de ${s.label}`}
+                          disabled={loading}
+                        />
+                        <span className={styles.manualPromoUnit} aria-hidden="true">
+                          {benefitUnitLabel(s.benefitType)}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {!isDevolucion &&
+                manualPromoPreview?.aplica &&
+                manualPromoPreview.appliedRules?.length > 0 && (
+                  <div
+                    className={styles.promoList}
+                    role="status"
+                    data-testid="payment-applied-promos"
+                  >
+                    {manualPromoPreview.appliedRules.map((promo) => {
+                      const removable = isRemovableOptionalPromo(promo);
+                      return (
+                        <div
+                          key={promo.promotionRuleId || promo.code || promo.label}
+                          className={styles.promoBlock}
+                        >
+                          <div className={styles.promoRow}>
+                            <span className={styles.promoLabel}>
+                              {promo.label}
+                              {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                            </span>
+                            <span className={styles.promoValue}>
+                              {manualPromoPreview.probeOnly && promo.porcentaje != null
+                                ? `−${promo.porcentaje}%`
+                                : `−${formatMoneyArs(promo.montoARS)}`}
+                            </span>
+                          </div>
+                          {removable ? (
+                            <button
+                              type="button"
+                              className={styles.promoRemoveBtn}
+                              onClick={() => removeOptionalPromo(promo)}
+                              aria-label={`Quitar ${promo.label}`}
+                              disabled={loading}
+                              data-testid={`payment-promo-remove-${promo.promotionRuleId}`}
+                            >
+                              <FiX aria-hidden="true" />
+                              <span>Quitar</span>
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              {!isDevolucion && (
+                <div className={styles.addPromoWrap} ref={addPromoRef}>
+                  <button
+                    type="button"
+                    className={styles.addPromoBtn}
+                    onClick={() => setAddPromoOpen((v) => !v)}
+                    aria-expanded={addPromoOpen}
+                    aria-haspopup="listbox"
+                    disabled={loading || optionalChoices.length === 0}
+                    data-testid="payment-add-optional-promo"
+                  >
+                    <FiPlus aria-hidden="true" />
+                    Descuento
+                  </button>
+                  {addPromoOpen && optionalChoices.length > 0 ? (
+                    <ul
+                      className={styles.addPromoMenu}
+                      role="listbox"
+                      aria-label="Descuentos opcionales"
+                    >
+                      {optionalChoices.map((choice) => {
+                        const valueLabel = formatOptionalBenefitValue(choice);
+                        return (
+                          <li key={choice.id} role="option">
+                            <button
+                              type="button"
+                              className={styles.addPromoOption}
+                              onClick={() => addOptionalPromo(choice)}
+                            >
+                              <span className={styles.addPromoName}>{choice.label}</span>
+                              {valueLabel ? (
+                                <span className={styles.addPromoMeta}>{valueLabel}</span>
+                              ) : null}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+
+              {isDevolucion ? (
+                <p className={styles.helpText}>
+                  En devolución no se agregan descuentos; se revierten los del cobro de origen.
+                </p>
+              ) : null}
+            </section>
+
+            {/* Col 4 — saldos */}
+            <section className={styles.layoutCol} aria-label="Saldo" data-testid="payment-saldo-col">
+              <div className={styles.saldoBlock}>
+                <span className={styles.saldoLabel}>Saldo original</span>
+                <span className={styles.saldoValue}>
+                  {!isDevolucion && saldoPendiente != null
+                    ? formatMoneyArs(saldoPendiente)
+                    : '—'}
+                </span>
+              </div>
+              <div className={styles.saldoBlock}>
+                <span className={styles.saldoLabel}>Monto saldado</span>
+                <span className={styles.saldoValue}>
+                  {!isDevolucion && creditoACuentaARS > 0
+                    ? formatMoneyArs(creditoACuentaARS)
+                    : isDevolucion && refundCreditoARS > 0
+                      ? formatMoneyArs(refundCreditoARS)
+                      : '—'}
+                </span>
+              </div>
+              <div className={styles.saldoDivider} aria-hidden="true" />
+              <div
+                className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
+                data-testid="summary-saldo"
+              >
+                <span className={styles.saldoLabel}>Nuevo saldo</span>
+                <span className={styles.saldoValueLarge}>
+                  {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
+                </span>
+              </div>
+            </section>
           </div>
-          ) : null}
 
           {!isEditMode && billingEnabled && (
             <div className={styles.billingSection}>
@@ -2584,124 +2729,28 @@ const CobroForm = ({
           </div>
 
           <div className={styles.stickyFooter}>
-          <div className={styles.paymentSummary} data-testid="payment-summary">
-            <h3>{isDevolucion ? 'Resumen de la devolución' : 'Resumen del cobro'}</h3>
-            <div className={styles.summaryRow}>
-              <span>Motivo:</span>
-              <span>{motivoActual}</span>
+            {error && <div className={styles.errorMessage}>{error}</div>}
+
+            <div className={styles.actions}>
+              <button
+                type="button"
+                onClick={onClose}
+                className={styles.cancelButton}
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>
+                <FiSave />
+                {loading
+                  ? 'Guardando...'
+                  : isEditMode
+                    ? 'Guardar cambios'
+                    : isDevolucion
+                      ? 'Guardar devolución'
+                      : 'Guardar cobro'}
+              </button>
             </div>
-            {isDevolucion ? (
-              <>
-                <div className={styles.summaryRow}>
-                  <span>Monto a saldar:</span>
-                  <span className={styles.amount}>
-                    {refundCreditoARS > 0 ? formatMoneyArs(refundCreditoARS) : '—'}
-                  </span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Devolver al cliente:</span>
-                  <span className={styles.amountARS}>
-                    {tenderMontoARS > 0 ? `−${formatMoneyArs(tenderMontoARS)}` : '—'}
-                  </span>
-                </div>
-                {selectedCobroOrigen && origenDescuentoARS > 0 && tenderMontoARS > 0 ? (
-                  <div className={styles.summaryRow}>
-                    <span>Desc. revertido:</span>
-                    <span>
-                      {formatMoneyArs(
-                        roundMoney(Math.max(0, refundCreditoARS - tenderMontoARS))
-                      )}
-                    </span>
-                  </div>
-                ) : null}
-              </>
-            ) : isSaldarMode ? (
-              <>
-                <div className={styles.summaryRow}>
-                  <span>Monto saldado:</span>
-                  <span className={styles.amount} data-testid="summary-monto-saldado">
-                    {montoASaldarARS > 0 ? formatMoneyArs(montoASaldarARS) : '—'}
-                  </span>
-                </div>
-                <div className={styles.summaryRow}>
-                  <span>Cliente abona:</span>
-                  <span className={styles.amountARS}>
-                    {montoASaldarARS > 0 && tenderMontoARS > 0
-                      ? formatMoneyArs(tenderMontoARS)
-                      : '—'}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={styles.summaryRow}>
-                  <span>Monto original:</span>
-                  <span className={styles.amount}>
-                    {hasIngresadoAmount
-                      ? foreignCurrency && monedaCode === 'USD'
-                        ? formatMoneyUsd(parseFloat(formData.monto) || 0)
-                        : foreignCurrency
-                          ? formatMoney(parseFloat(formData.monto) || 0, monedaCode)
-                          : formatMoneyArs(parseFloat(formData.monto) || 0)
-                      : '—'}
-                  </span>
-                </div>
-                {foreignCurrency && (
-                  <div className={styles.summaryRow}>
-                    <span>Tipo de cambio:</span>
-                    <span>
-                      {parseFloat(formData.tipoCambio) > 0
-                        ? parseFloat(formData.tipoCambio)
-                        : '—'}
-                    </span>
-                  </div>
-                )}
-                {foreignCurrency && (
-                  <div className={styles.summaryRow}>
-                    <span>Equivalente en ARS:</span>
-                    <span className={styles.amountARS} data-testid="summary-equivalente-ars">
-                      {hasIngresadoAmount ? formatMoneyArs(montoARS) : '—'}
-                    </span>
-                  </div>
-                )}
-                <div className={styles.summaryRow}>
-                  <span>Monto saldado:</span>
-                  <span className={styles.amount} data-testid="summary-monto-saldado">
-                    {montoASaldarARS > 0 ? formatMoneyArs(montoASaldarARS) : '—'}
-                  </span>
-                </div>
-              </>
-            )}
-            {saldoProyectadoARS != null && (
-              <div className={styles.summaryRow} data-testid="summary-saldo">
-                <span>Saldo:</span>
-                <span className={styles.amount}>{formatMoneyArs(saldoProyectadoARS)}</span>
-              </div>
-            )}
-          </div>
-
-          {error && <div className={styles.errorMessage}>{error}</div>}
-
-          <div className={styles.actions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-              disabled={loading}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className={styles.submitButton} disabled={loading}>
-              <FiSave />
-              {loading
-                ? 'Guardando...'
-                : isEditMode
-                  ? 'Guardar cambios'
-                  : isDevolucion
-                    ? 'Guardar devolución'
-                    : 'Guardar cobro'}
-            </button>
-          </div>
           </div>
         </form>
       </div>
