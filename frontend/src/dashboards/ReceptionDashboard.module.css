@@ -433,6 +433,18 @@
   border-color: #b7e0bf;
   background: #edf8ef;
   color: var(--dash-success);
+  cursor: pointer;
+}
+
+.checkInBtnDone:hover:not(:disabled) {
+  border-color: #c4c4c4;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.checkInBtnDone:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 /* Mismos círculos que ReservationStayTimeline (check-in / check-out). */

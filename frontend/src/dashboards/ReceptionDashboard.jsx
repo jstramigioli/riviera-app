@@ -240,6 +240,8 @@ export default function ReceptionDashboard() {
   const [notesEditor, setNotesEditor] = useState(null);
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState(null);
+  /** Estado pre-check-in por reserva, para deshacer «ingresada» al mismo valor. */
+  const preCheckInStatusByIdRef = useRef(new Map());
 
   useEffect(() => {
     return subscribeSimulatedToday(() => {
@@ -382,6 +384,24 @@ export default function ReceptionDashboard() {
       await load({ quiet: true });
     } finally {
       setStatusBusyId(null);
+    }
+  };
+
+  /** Toggle check-in: INGRESADA ↔ estado previo (fallback CONFIRMADA). */
+  const toggleCheckIn = (item) => {
+    if (!item?.reservationId) return;
+    if (item.status === 'INGRESADA') {
+      const previous =
+        preCheckInStatusByIdRef.current.get(item.reservationId) || 'CONFIRMADA';
+      preCheckInStatusByIdRef.current.delete(item.reservationId);
+      setStatus(item.reservationId, previous);
+      return;
+    }
+    if (item.pending) {
+      if (item.status) {
+        preCheckInStatusByIdRef.current.set(item.reservationId, item.status);
+      }
+      setStatus(item.reservationId, 'INGRESADA');
     }
   };
 
@@ -593,20 +613,23 @@ export default function ReceptionDashboard() {
                                   disabled={statusBusyId === item.reservationId}
                                   aria-label={`Marcar ingreso de ${item.guestName || 'reserva'}`}
                                   title="Marcar como ingresada"
-                                  onClick={() =>
-                                    setStatus(item.reservationId, 'INGRESADA')
-                                  }
+                                  aria-pressed="false"
+                                  onClick={() => toggleCheckIn(item)}
                                 >
                                   <FiCheck aria-hidden="true" />
                                 </button>
                               ) : item.status === 'INGRESADA' ? (
-                                <span
+                                <button
+                                  type="button"
                                   className={`${styles.checkInBtn} ${styles.checkInBtnDone}`}
-                                  aria-label="Ingresada"
-                                  title="Ingresada"
+                                  disabled={statusBusyId === item.reservationId}
+                                  aria-label={`Desmarcar ingreso de ${item.guestName || 'reserva'}`}
+                                  title="Ingresada (clic para desmarcar)"
+                                  aria-pressed="true"
+                                  onClick={() => toggleCheckIn(item)}
                                 >
                                   <FiCheck aria-hidden="true" />
-                                </span>
+                                </button>
                               ) : (
                                 <span className={styles.statusMuted}>—</span>
                               )}
