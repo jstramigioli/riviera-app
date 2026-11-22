@@ -204,18 +204,18 @@
 .profileSheet {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .profileLine {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .profileTextBtn {
-  display: inline;
+  display: block;
   margin: 0;
   padding: 0;
   border: none;
@@ -227,6 +227,11 @@
   text-align: left;
   cursor: pointer;
   word-break: break-word;
+}
+
+.guestInfo .profileTextBtn {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .profileTextBtn:hover {
@@ -258,6 +263,37 @@
 .inlineContactBtn svg {
   width: 14px;
   height: 14px;
+}
+
+.locationBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.locationIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.locationIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.locationLines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 
 .sidePanelFooter {
