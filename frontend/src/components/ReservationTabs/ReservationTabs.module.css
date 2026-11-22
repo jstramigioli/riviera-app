@@ -32,6 +32,12 @@
   line-height: 1.2;
 }
 
+.checkInProgress {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary, #3f5f8a);
+}
+
 /* Título Info general: alineado con Reserva #N del side panel; más aire antes de cards */
 .generalInfoTitle {
   font-size: 1.35rem;
@@ -1324,7 +1330,32 @@
   font-size: var(--font-size-large);
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0 0 16px 0;
+  margin: 0 0 8px 0;
+}
+
+.checkInStatus {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 12px;
+  color: #6b7280;
+}
+
+.checkIn_completo {
+  color: #2f9e44;
+}
+
+.checkIn_incompleto {
+  color: #b7791f;
+}
+
+.checkIn_pendiente {
+  color: #6b7280;
+}
+
+.checkIn_expirado {
+  color: #e03131;
 }
 
 .guestCard .guestDetails {

@@ -188,6 +188,8 @@ model Client {
   accounts        Account[]
   /// Apariciones como huésped de una reserva (opcional; el titular usa mainClientId).
   guestStays      Guest[]
+  /// Registros históricos de check-in online vinculados a este cliente.
+  onlineCheckIns  OnlineCheckIn[]
   /// Datos de facturación aparte del perfil (reutilizables en próximos cobros).
   billingProfile  ClientBillingProfile?
 
@@ -238,6 +240,8 @@ model Guest {
   updatedAt      DateTime     @updatedAt
   reservation    Reservation? @relation(fields: [reservationId], references: [id])
   client         Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  /// Check-ins online históricos de este huésped en la reserva.
+  onlineCheckIns OnlineCheckIn[]
 
   @@index([clientId])
   @@index([reservationId, clientId])
@@ -269,6 +273,10 @@ model Reservation {
   /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
   source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
+  /// Token público único de check-in online (un link por reserva; filas por huésped en OnlineCheckIn).
+  checkInToken          String?                @unique
+  checkInTokenSentAt    DateTime?
+  checkInTokenExpiresAt DateTime?
   parentReservationId Int?
   /// Patente del vehículo (estacionamiento), cargada vía check-in online o recepción.
   vehiclePlate        String?
@@ -526,14 +534,22 @@ enum OnlineCheckInStatus {
   EXPIRED
 }
 
-/// Check-in online vinculado a una reserva (token público + respuestas).
+/// Check-in online histórico por huésped + reserva (snapshot + estado).
+/// El link público vive en Reservation.checkInToken; token acá es legacy / compat.
 model OnlineCheckIn {
   id             String              @id @default(cuid())
   reservationId  Int
-  token          String              @unique
+  /// Huésped de la estadía (una fila histórica por guest+reserva).
+  guestId        Int?
+  /// Cliente de agenda asociado (titular u otro); se actualiza al completar.
+  clientId       Int?
+  /// Legacy: token por fila. Nuevos accesos usan Reservation.checkInToken.
+  token          String?             @unique
   status         OnlineCheckInStatus @default(PENDING)
   sentAt         DateTime?
   completedAt    DateTime?
+  /// Validación staff (opcional; misma vía de registro).
+  validatedAt    DateTime?
   expiresAt      DateTime?
   firstName      String?
   lastName       String?
@@ -553,8 +569,13 @@ model OnlineCheckIn {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   reservation    Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  guest          Guest?              @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  client         Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
+  @@unique([reservationId, guestId])
   @@index([reservationId])
+  @@index([guestId])
+  @@index([clientId])
   @@index([status])
 }
 

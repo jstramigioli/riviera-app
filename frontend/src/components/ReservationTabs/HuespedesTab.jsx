@@ -8,7 +8,29 @@ import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { getDisplaySegments } from '../../utils/virtualRoomReservation';
 import { formatBirthDateDisplay } from '../../constants/clientFormFields';
 
-const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
+function checkInStatusLabel(displayStatus) {
+  switch (displayStatus) {
+    case 'completo':
+      return 'Check-in completo';
+    case 'incompleto':
+      return 'Check-in incompleto';
+    case 'expirado':
+      return 'Check-in expirado';
+    case 'pendiente':
+      return 'Check-in pendiente';
+    default:
+      return null;
+  }
+}
+
+const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests = [] }) => {
+  const checkInByGuestId = useMemo(() => {
+    const map = new Map();
+    (checkInGuests || []).forEach((g) => {
+      if (g?.guestId != null) map.set(Number(g.guestId), g);
+    });
+    return map;
+  }, [checkInGuests]);
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
   const [guests, setGuests] = useState([]);
@@ -217,6 +239,13 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
     <div className={styles.tabContent}>
       <div className={styles.sectionHeader}>
         <h3 className={styles.sectionTitle}>Huéspedes</h3>
+        {checkInGuests?.length > 0 && (
+          <span className={styles.checkInProgress} data-testid="huespedes-checkin-progress">
+            Check-in online:{' '}
+            {checkInGuests.filter((g) => g.displayStatus === 'completo' || g.completed).length}/
+            {checkInGuests.length}
+          </span>
+        )}
       </div>
 
       <div className={styles.guestsGrid}>
@@ -291,11 +320,14 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
         {guests.map((guest, index) => {
           const isHolderGuest =
             holderClientId && Number(guest.clientId) === Number(holderClientId);
+          const checkIn = checkInByGuestId.get(Number(guest.id));
+          const checkInLabel = checkInStatusLabel(checkIn?.displayStatus);
           return (
             <div
               key={guest.id}
               className={styles.guestCard}
               data-testid={isHolderGuest ? 'holder-guest-card' : 'guest-card'}
+              data-checkin-status={checkIn?.displayStatus || undefined}
             >
               <div className={styles.guestCardHeader}>
                 <span className={styles.guestBadgeSecundary}>
@@ -327,6 +359,14 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               <h4 className={styles.guestName}>
                 {guest.firstName} {guest.lastName}
               </h4>
+              {checkInLabel && (
+                <div
+                  className={`${styles.checkInStatus} ${styles[`checkIn_${checkIn.displayStatus}`] || ''}`}
+                  data-testid="guest-checkin-status"
+                >
+                  {checkInLabel}
+                </div>
+              )}
               <div className={styles.guestDetails}>
                 {guest.documentNumber && (
                   <div className={styles.guestDetail}>

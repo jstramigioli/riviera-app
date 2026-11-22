@@ -195,6 +195,138 @@
   color: var(--color-success, #2f9e44);
 }
 
+.progress {
+  margin: 10px 0 0;
+  font-size: 0.846rem;
+  font-weight: 600;
+  color: var(--color-primary-dark, #334d70);
+}
+
+.okBanner {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(47, 158, 68, 0.1);
+  color: var(--color-success, #2f9e44);
+  font-size: 0.846rem;
+}
+
+.guestList {
+  margin-top: 8px;
+}
+
+.guestCards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guestCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.guestCard:hover {
+  border-color: var(--color-primary, #3f5f8a);
+  background: rgba(63, 95, 138, 0.04);
+}
+
+.guestCardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(63, 95, 138, 0.1);
+  color: var(--color-primary, #3f5f8a);
+  flex-shrink: 0;
+}
+
+.guestCardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guestCardName {
+  font-size: 0.923rem;
+  font-weight: 600;
+  color: var(--color-text-main, #3a4250);
+}
+
+.guestStatus {
+  font-size: 0.769rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.status_completo {
+  color: var(--color-success, #2f9e44);
+}
+
+.status_incompleto {
+  color: #b7791f;
+}
+
+.status_pendiente {
+  color: var(--color-text-muted, #6b7280);
+}
+
+.status_expirado {
+  color: var(--color-danger, #e03131);
+}
+
+.guestCardAction {
+  font-size: 0.769rem;
+  font-weight: 600;
+  color: var(--color-primary, #3f5f8a);
+  flex-shrink: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-primary, #3f5f8a);
+  font: inherit;
+  font-size: 0.846rem;
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.linkButton {
+  display: inline-block;
+  margin-top: 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-primary, #3f5f8a);
+  font: inherit;
+  font-size: 0.846rem;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: 1fr;

@@ -14,6 +14,7 @@ const {
   saveDocumentPhoto,
   prismaFieldsForSlot
 } = require('../utils/clientDocumentPhoto');
+const { ensureHolderAsGuest } = require('../utils/guestHelpers');
 
 const CLIENT_DOCUMENT_TYPES = ['DNI', 'Pasaporte', 'Cédula', 'Otro'];
 
@@ -76,19 +77,19 @@ function parseBirthDate(value) {
   return d;
 }
 
-function clientPrefill(client = {}, reservation = {}) {
+function clientPrefill(client = {}, reservation = {}, guest = {}) {
   return {
-    firstName: client.firstName || '',
-    lastName: client.lastName || '',
-    email: client.email || '',
-    phone: client.phone || '',
-    documentType: client.documentType || 'DNI',
-    documentNumber: client.documentNumber || '',
+    firstName: client.firstName || guest.firstName || '',
+    lastName: client.lastName || guest.lastName || '',
+    email: client.email || guest.email || '',
+    phone: client.phone || guest.phone || '',
+    documentType: client.documentType || guest.documentType || 'DNI',
+    documentNumber: client.documentNumber || guest.documentNumber || '',
     birthDate: birthDateToInputValue(client.birthDate),
     country: client.country || 'AR',
     province: client.province || '',
-    city: client.city || '',
-    address: getAddressFromNotes(client.notes),
+    city: client.city || guest.city || '',
+    address: getAddressFromNotes(client.notes) || guest.address || '',
     wantsPromotions: Boolean(client.wantsPromotions),
     vehiclePlate: reservation.vehiclePlate || client.vehiclePlate || ''
   };
@@ -99,15 +100,217 @@ function normalizeDocumentType(value) {
   return CLIENT_DOCUMENT_TYPES.includes(cleaned) ? cleaned : 'DNI';
 }
 
-async function getLatestCheckIn(reservationId) {
-  return prisma.onlineCheckIn.findFirst({
-    where: { reservationId },
-    orderBy: { createdAt: 'desc' }
-  });
+function mergeFields(checkIn, prefill) {
+  return {
+    ...prefill,
+    firstName: checkIn?.firstName || prefill.firstName,
+    lastName: checkIn?.lastName || prefill.lastName,
+    email: checkIn?.email || prefill.email,
+    phone: checkIn?.phone || prefill.phone,
+    documentType: checkIn?.documentType || prefill.documentType,
+    documentNumber: checkIn?.documentNumber || prefill.documentNumber,
+    birthDate: birthDateToInputValue(checkIn?.birthDate) || prefill.birthDate,
+    country: checkIn?.country || prefill.country || 'AR',
+    province: checkIn?.province || prefill.province,
+    city: checkIn?.city || prefill.city,
+    address: checkIn?.address || prefill.address,
+    wantsPromotions: prefill.wantsPromotions,
+    vehiclePlate: checkIn?.vehiclePlate || prefill.vehiclePlate
+  };
+}
+
+/** Visual de card: completo / incompleto / pendiente / expirado. */
+function displayStatus(checkIn, tokenExpired = false) {
+  if (!checkIn) return 'pendiente';
+  if (checkIn.status === 'COMPLETED') return 'completo';
+  if (checkIn.status === 'EXPIRED' || tokenExpired) return 'expirado';
+  const started =
+    Boolean(checkIn.documentFrontUploadedAt) ||
+    Boolean(checkIn.documentBackUploadedAt) ||
+    Boolean(checkIn.firstName && checkIn.lastName && checkIn.completedAt == null && checkIn.address);
+  if (started) return 'incompleto';
+  return 'pendiente';
+}
+
+function expiryDateFromNow() {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + Number(process.env.CHECKIN_TOKEN_DAYS || DEFAULT_EXPIRY_DAYS));
+  return expiresAt;
 }
 
 /**
- * Staff: estado del check-in de una reserva.
+ * Resuelve acceso por token de reserva (nuevo) o fila OnlineCheckIn legacy.
+ */
+async function resolveAccessByToken(token) {
+  const byReservation = await prisma.reservation.findFirst({
+    where: { checkInToken: token },
+    include: {
+      mainClient: true,
+      guests: { include: { client: true }, orderBy: { id: 'asc' } },
+      segments: { orderBy: { startDate: 'asc' }, take: 1 },
+      onlineCheckIns: true
+    }
+  });
+  if (byReservation) {
+    return {
+      reservation: byReservation,
+      expiresAt: byReservation.checkInTokenExpiresAt,
+      sentAt: byReservation.checkInTokenSentAt,
+      legacyCheckIn: null
+    };
+  }
+
+  const legacy = await prisma.onlineCheckIn.findUnique({
+    where: { token },
+    include: {
+      reservation: {
+        include: {
+          mainClient: true,
+          guests: { include: { client: true }, orderBy: { id: 'asc' } },
+          segments: { orderBy: { startDate: 'asc' }, take: 1 },
+          onlineCheckIns: true
+        }
+      }
+    }
+  });
+  if (!legacy?.reservation) return null;
+
+  // Migración lazy del token legacy a la reserva
+  if (!legacy.reservation.checkInToken) {
+    try {
+      await prisma.reservation.update({
+        where: { id: legacy.reservationId },
+        data: {
+          checkInToken: legacy.token,
+          checkInTokenSentAt: legacy.sentAt,
+          checkInTokenExpiresAt: legacy.expiresAt
+        }
+      });
+      legacy.reservation.checkInToken = legacy.token;
+      legacy.reservation.checkInTokenSentAt = legacy.sentAt;
+      legacy.reservation.checkInTokenExpiresAt = legacy.expiresAt;
+    } catch (err) {
+      console.warn('lazy migrate checkInToken', err.message);
+    }
+  }
+
+  return {
+    reservation: legacy.reservation,
+    expiresAt: legacy.reservation.checkInTokenExpiresAt || legacy.expiresAt,
+    sentAt: legacy.reservation.checkInTokenSentAt || legacy.sentAt,
+    legacyCheckIn: legacy
+  };
+}
+
+function isExpired(expiresAt) {
+  return Boolean(expiresAt && expiresAt < new Date());
+}
+
+/**
+ * Asegura una fila OnlineCheckIn por cada Guest de la reserva.
+ */
+async function ensureGuestCheckInRows(reservation, { markSent = false } = {}) {
+  const guests = reservation.guests || [];
+  if (!guests.length) return [];
+
+  // Si ya hay link activo, los huéspedes nuevos entran como SENT.
+  const shouldMarkSent =
+    markSent ||
+    (Boolean(reservation.checkInToken) && !isExpired(reservation.checkInTokenExpiresAt));
+
+  const existing = await prisma.onlineCheckIn.findMany({
+    where: {
+      reservationId: reservation.id,
+      guestId: { in: guests.map((g) => g.id) }
+    }
+  });
+  const byGuest = new Map(existing.filter((c) => c.guestId != null).map((c) => [c.guestId, c]));
+  const now = new Date();
+  const expiresAt = reservation.checkInTokenExpiresAt || null;
+
+  const results = [];
+  for (const guest of guests) {
+    let row = byGuest.get(guest.id);
+    if (!row) {
+      row = await prisma.onlineCheckIn.create({
+        data: {
+          reservationId: reservation.id,
+          guestId: guest.id,
+          clientId: guest.clientId || null,
+          status: shouldMarkSent ? 'SENT' : 'PENDING',
+          sentAt: shouldMarkSent ? now : null,
+          expiresAt,
+          firstName: guest.firstName || null,
+          lastName: guest.lastName || null,
+          email: guest.email || guest.client?.email || null,
+          phone: guest.phone || guest.client?.phone || null,
+          documentType: guest.documentType || guest.client?.documentType || null,
+          documentNumber: guest.documentNumber || guest.client?.documentNumber || null,
+          birthDate: guest.client?.birthDate || null,
+          country: guest.client?.country || null,
+          province: guest.client?.province || null,
+          city: guest.city || guest.client?.city || null,
+          address: guest.address || null,
+          vehiclePlate: reservation.vehiclePlate || guest.client?.vehiclePlate || null
+        }
+      });
+    } else if (shouldMarkSent && row.status !== 'COMPLETED' && row.status !== 'EXPIRED') {
+      row = await prisma.onlineCheckIn.update({
+        where: { id: row.id },
+        data: {
+          status: 'SENT',
+          sentAt: row.sentAt || now,
+          expiresAt: expiresAt || row.expiresAt,
+          clientId: row.clientId || guest.clientId || null
+        }
+      });
+    }
+    results.push(row);
+  }
+  return results;
+}
+
+function serializeGuestCheckIn(guest, checkIn, reservation, tokenExpired) {
+  const client = guest.client || {};
+  const prefill = clientPrefill(client, reservation, guest);
+  const fields = mergeFields(checkIn, prefill);
+  const status = checkIn?.status || 'PENDING';
+  const visual = displayStatus(checkIn, tokenExpired);
+  return {
+    guestId: guest.id,
+    clientId: guest.clientId || checkIn?.clientId || null,
+    isHolder: Number(guest.clientId) === Number(reservation.mainClientId),
+    name: [guest.firstName, guest.lastName].filter(Boolean).join(' ') || fields.firstName,
+    status,
+    displayStatus: visual,
+    sentAt: checkIn?.sentAt || null,
+    completedAt: checkIn?.completedAt || null,
+    validatedAt: checkIn?.validatedAt || null,
+    fields,
+    documentPhotos: {
+      frontUploaded: Boolean(checkIn?.documentFrontUploadedAt),
+      backUploaded: Boolean(checkIn?.documentBackUploadedAt)
+    },
+    completed: status === 'COMPLETED'
+  };
+}
+
+function progressFromGuests(guestPayloads) {
+  const total = guestPayloads.length;
+  const completed = guestPayloads.filter((g) => g.completed || g.displayStatus === 'completo').length;
+  return { completed, total, label: `${completed}/${total}` };
+}
+
+function aggregateStatus(guestPayloads, hasToken) {
+  if (!guestPayloads.length) return hasToken ? 'SENT' : null;
+  if (guestPayloads.every((g) => g.status === 'COMPLETED')) return 'COMPLETED';
+  if (guestPayloads.some((g) => g.status === 'SENT' || g.status === 'COMPLETED')) return 'SENT';
+  if (guestPayloads.some((g) => g.status === 'EXPIRED')) return 'EXPIRED';
+  return 'PENDING';
+}
+
+/**
+ * Staff: estado del check-in de una reserva (progreso N/M + por huésped).
  */
 async function getReservationCheckIn(req, res) {
   try {
@@ -118,27 +321,56 @@ async function getReservationCheckIn(req, res) {
 
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: { mainClient: true }
+      include: {
+        mainClient: true,
+        guests: { include: { client: true }, orderBy: { id: 'asc' } },
+        onlineCheckIns: true
+      }
     });
     if (!reservation) {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    const checkIn = await getLatestCheckIn(reservationId);
-    const checkInUrl = checkIn ? buildCheckInUrl(checkIn.token) : null;
+    if (reservation.guests?.length) {
+      await ensureGuestCheckInRows(reservation);
+      const refreshed = await prisma.onlineCheckIn.findMany({
+        where: { reservationId, guestId: { not: null } }
+      });
+      reservation.onlineCheckIns = refreshed;
+    }
+
+    const tokenExpired = isExpired(reservation.checkInTokenExpiresAt);
+    const byGuest = new Map(
+      (reservation.onlineCheckIns || [])
+        .filter((c) => c.guestId != null)
+        .map((c) => [c.guestId, c])
+    );
+    const guests = (reservation.guests || []).map((guest) =>
+      serializeGuestCheckIn(guest, byGuest.get(guest.id), reservation, tokenExpired)
+    );
+    const progress = progressFromGuests(guests);
+    const checkInUrl = reservation.checkInToken
+      ? buildCheckInUrl(reservation.checkInToken)
+      : null;
+    const status = aggregateStatus(guests, Boolean(reservation.checkInToken));
 
     return res.json({
       reservationId,
       vehiclePlate: reservation.vehiclePlate || null,
-      checkIn: checkIn
+      progress,
+      guests,
+      checkIn: reservation.checkInToken || guests.length
         ? {
-            id: checkIn.id,
-            status: checkIn.status,
-            sentAt: checkIn.sentAt,
-            completedAt: checkIn.completedAt,
-            expiresAt: checkIn.expiresAt,
-            vehiclePlate: checkIn.vehiclePlate,
-            checkInUrl
+            id: null,
+            status: status || 'PENDING',
+            sentAt: reservation.checkInTokenSentAt,
+            completedAt: progress.completed === progress.total && progress.total > 0
+              ? guests.map((g) => g.completedAt).filter(Boolean).sort().slice(-1)[0] || null
+              : null,
+            expiresAt: reservation.checkInTokenExpiresAt,
+            vehiclePlate: reservation.vehiclePlate,
+            checkInUrl,
+            progress
           }
         : null
     });
@@ -149,7 +381,7 @@ async function getReservationCheckIn(req, res) {
 }
 
 /**
- * Staff: generar/renovar token y enviar (o preparar mailto) al cliente.
+ * Staff: generar/renovar token de reserva y asegurar filas por huésped.
  */
 async function sendReservationCheckIn(req, res) {
   try {
@@ -158,12 +390,33 @@ async function sendReservationCheckIn(req, res) {
       return res.status(400).json({ error: 'ID de reserva inválido' });
     }
 
-    const reservation = await prisma.reservation.findUnique({
+    let reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
-      include: { mainClient: true }
+      include: {
+        mainClient: true,
+        guests: { include: { client: true }, orderBy: { id: 'asc' } }
+      }
     });
     if (!reservation) {
       return res.status(404).json({ error: 'Reserva no encontrada' });
+    }
+
+    // Si no hay huéspedes, incorporar al responsable (misma vía Guest↔Reservation).
+    if (!reservation.guests?.length) {
+      await ensureHolderAsGuest(prisma, reservationId, reservation.mainClientId);
+      reservation = await prisma.reservation.findUnique({
+        where: { id: reservationId },
+        include: {
+          mainClient: true,
+          guests: { include: { client: true }, orderBy: { id: 'asc' } }
+        }
+      });
+    }
+
+    if (!reservation.guests?.length) {
+      return res.status(400).json({
+        error: 'La reserva no tiene huéspedes. Agregá al menos uno antes de enviar el check-in.'
+      });
     }
 
     const client = reservation.mainClient;
@@ -175,29 +428,23 @@ async function sendReservationCheckIn(req, res) {
     }
 
     const token = crypto.randomBytes(TOKEN_BYTES).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + Number(process.env.CHECKIN_TOKEN_DAYS || DEFAULT_EXPIRY_DAYS));
+    const expiresAt = expiryDateFromNow();
+    const sentAt = new Date();
 
-    const checkIn = await prisma.onlineCheckIn.create({
+    reservation = await prisma.reservation.update({
+      where: { id: reservationId },
       data: {
-        reservationId,
-        token,
-        status: 'SENT',
-        sentAt: new Date(),
-        expiresAt,
-        firstName: client?.firstName || null,
-        lastName: client?.lastName || null,
-        email: to,
-        phone: client?.phone || null,
-        documentType: client?.documentType || null,
-        documentNumber: client?.documentNumber || null,
-        birthDate: client?.birthDate || null,
-        country: client?.country || null,
-        province: client?.province || null,
-        city: client?.city || null,
-        vehiclePlate: reservation.vehiclePlate || client?.vehiclePlate || null
+        checkInToken: token,
+        checkInTokenSentAt: sentAt,
+        checkInTokenExpiresAt: expiresAt
+      },
+      include: {
+        mainClient: true,
+        guests: { include: { client: true }, orderBy: { id: 'asc' } }
       }
     });
+
+    await ensureGuestCheckInRows(reservation, { markSent: true });
 
     const checkInUrl = buildCheckInUrl(token);
     const guestName = [client?.firstName, client?.lastName].filter(Boolean).join(' ');
@@ -221,14 +468,26 @@ async function sendReservationCheckIn(req, res) {
       mailResult = { emailed: false, reason: 'smtp_error', detail: mailError.message };
     }
 
+    const guestRows = await prisma.onlineCheckIn.findMany({
+      where: { reservationId, guestId: { not: null } }
+    });
+    const byGuest = new Map(guestRows.map((c) => [c.guestId, c]));
+    const guests = reservation.guests.map((g) =>
+      serializeGuestCheckIn(g, byGuest.get(g.id), reservation, false)
+    );
+    const progress = progressFromGuests(guests);
+
     return res.status(201).json({
       checkIn: {
-        id: checkIn.id,
-        status: checkIn.status,
-        sentAt: checkIn.sentAt,
-        expiresAt: checkIn.expiresAt,
-        checkInUrl
+        id: null,
+        status: aggregateStatus(guests, true),
+        sentAt,
+        expiresAt,
+        checkInUrl,
+        progress
       },
+      progress,
+      guests,
       to,
       checkInUrl,
       mailtoUrl,
@@ -242,7 +501,7 @@ async function sendReservationCheckIn(req, res) {
 }
 
 /**
- * Público: obtener formulario prellenado por token.
+ * Público: lista de huéspedes + estados (o form data por guestId query).
  */
 async function getPublicCheckIn(req, res) {
   try {
@@ -253,72 +512,72 @@ async function getPublicCheckIn(req, res) {
       });
     }
 
-    const checkIn = await prisma.onlineCheckIn.findUnique({
-      where: { token },
-      include: {
-        reservation: {
-          include: {
-            mainClient: true,
-            segments: {
-              orderBy: { startDate: 'asc' },
-              take: 1
-            }
-          }
-        }
-      }
-    });
-
-    if (!checkIn) {
+    const access = await resolveAccessByToken(token);
+    if (!access) {
       return res.status(404).json({ error: 'Link de check-in inválido' });
     }
 
-    if (checkIn.expiresAt && checkIn.expiresAt < new Date()) {
-      if (checkIn.status !== 'EXPIRED') {
-        await prisma.onlineCheckIn.update({
-          where: { id: checkIn.id },
-          data: { status: 'EXPIRED' }
-        });
-      }
+    const { reservation, expiresAt } = access;
+    if (isExpired(expiresAt)) {
+      await prisma.onlineCheckIn.updateMany({
+        where: {
+          reservationId: reservation.id,
+          guestId: { not: null },
+          status: { not: 'COMPLETED' }
+        },
+        data: { status: 'EXPIRED' }
+      });
       return res.status(410).json({ error: 'Este link de check-in expiró' });
     }
 
-    const reservation = checkIn.reservation;
-    const client = reservation.mainClient || {};
-    const prefill = clientPrefill(client, reservation);
-    // Prefer already submitted / snapshotted values when present
-    const fields = {
-      ...prefill,
-      firstName: checkIn.firstName || prefill.firstName,
-      lastName: checkIn.lastName || prefill.lastName,
-      email: checkIn.email || prefill.email,
-      phone: checkIn.phone || prefill.phone,
-      documentType: checkIn.documentType || prefill.documentType,
-      documentNumber: checkIn.documentNumber || prefill.documentNumber,
-      birthDate: birthDateToInputValue(checkIn.birthDate) || prefill.birthDate,
-      country: checkIn.country || prefill.country || 'AR',
-      province: checkIn.province || prefill.province,
-      city: checkIn.city || prefill.city,
-      address: checkIn.address || prefill.address,
-      wantsPromotions: prefill.wantsPromotions,
-      vehiclePlate: checkIn.vehiclePlate || prefill.vehiclePlate
-    };
+    if (!reservation.guests?.length) {
+      await ensureHolderAsGuest(prisma, reservation.id, reservation.mainClientId);
+      const refreshed = await prisma.reservation.findUnique({
+        where: { id: reservation.id },
+        include: {
+          mainClient: true,
+          guests: { include: { client: true }, orderBy: { id: 'asc' } },
+          segments: { orderBy: { startDate: 'asc' }, take: 1 }
+        }
+      });
+      if (refreshed) {
+        reservation.guests = refreshed.guests;
+        reservation.segments = refreshed.segments;
+      }
+    }
 
+    await ensureGuestCheckInRows(reservation);
+    const checkIns = await prisma.onlineCheckIn.findMany({
+      where: { reservationId: reservation.id, guestId: { not: null } }
+    });
+    const byGuest = new Map(checkIns.map((c) => [c.guestId, c]));
+    const guests = (reservation.guests || []).map((guest) =>
+      serializeGuestCheckIn(guest, byGuest.get(guest.id), reservation, false)
+    );
+    const progress = progressFromGuests(guests);
     const segment = reservation.segments?.[0];
+    const guestIdParam = req.query.guestId != null ? Number(req.query.guestId) : null;
+    const selected =
+      guestIdParam && Number.isFinite(guestIdParam)
+        ? guests.find((g) => g.guestId === guestIdParam) || null
+        : null;
 
     return res.json({
-      status: checkIn.status,
-      completed: checkIn.status === 'COMPLETED',
+      status: aggregateStatus(guests, true),
+      completed: progress.total > 0 && progress.completed === progress.total,
+      progress,
       reservation: {
         id: reservation.id,
         checkIn: segment?.startDate || null,
         checkOut: segment?.endDate || null
       },
-      fields,
-      // Fotos siempre nuevas: no prefill; solo flags de esta sesión de check-in.
-      documentPhotos: {
-        frontUploaded: Boolean(checkIn.documentFrontUploadedAt),
-        backUploaded: Boolean(checkIn.documentBackUploadedAt)
-      }
+      guests,
+      // Compat: si hay un solo huésped, exponer fields en raíz (forms viejos / 1 huésped).
+      fields: selected?.fields || (guests.length === 1 ? guests[0].fields : null),
+      documentPhotos:
+        selected?.documentPhotos ||
+        (guests.length === 1 ? guests[0].documentPhotos : { frontUploaded: false, backUploaded: false }),
+      selectedGuestId: selected?.guestId || (guests.length === 1 ? guests[0].guestId : null)
     });
   } catch (error) {
     console.error('getPublicCheckIn', error);
@@ -326,9 +585,59 @@ async function getPublicCheckIn(req, res) {
   }
 }
 
+async function resolveGuestCheckInForAccess(access, guestIdRaw) {
+  const guestId = Number(guestIdRaw);
+  if (!Number.isFinite(guestId)) {
+    return { error: 'guestId inválido', status: 400 };
+  }
+  const reservation = access.reservation;
+  const guest = (reservation.guests || []).find((g) => g.id === guestId);
+  if (!guest) {
+    return { error: 'Huésped no encontrado en esta reserva', status: 404 };
+  }
+  await ensureGuestCheckInRows(reservation);
+  const checkIn = await prisma.onlineCheckIn.findFirst({
+    where: { reservationId: reservation.id, guestId }
+  });
+  if (!checkIn) {
+    return { error: 'Registro de check-in no encontrado', status: 404 };
+  }
+  return { guest, checkIn, reservation };
+}
+
 /**
- * Público: subir foto frente/dorso (reemplaza la anterior del slot).
- * No reutiliza fotos previas del cliente: cada check-in exige subidas nuevas.
+ * Asegura Client para el huésped (upsert mínimo) y lo vincula.
+ */
+async function ensureClientForGuest(tx, guest, data) {
+  if (guest.clientId) {
+    return guest.clientId;
+  }
+  const created = await tx.client.create({
+    data: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      documentType: data.documentType || 'DNI',
+      documentNumber: data.documentNumber,
+      birthDate: data.birthDate || null,
+      country: data.country || 'AR',
+      province: data.province || null,
+      city: data.city || null,
+      notes: createNotesWithAddress(null, data.address),
+      vehiclePlate: data.vehiclePlate || null,
+      wantsPromotions: Boolean(data.wantsPromotions)
+    }
+  });
+  await tx.guest.update({
+    where: { id: guest.id },
+    data: { clientId: created.id }
+  });
+  return created.id;
+}
+
+/**
+ * Público: subir foto frente/dorso del huésped (siempre nueva en este check-in).
  */
 async function uploadPublicCheckInDocumentPhoto(req, res) {
   try {
@@ -347,21 +656,61 @@ async function uploadPublicCheckInDocumentPhoto(req, res) {
       return res.status(400).json({ error: 'Archivo requerido' });
     }
 
-    const checkIn = await prisma.onlineCheckIn.findUnique({
-      where: { token },
-      include: { reservation: true }
-    });
-    if (!checkIn) {
+    const access = await resolveAccessByToken(token);
+    if (!access) {
       return res.status(404).json({ error: 'Link de check-in inválido' });
     }
-    if (checkIn.expiresAt && checkIn.expiresAt < new Date()) {
+    if (isExpired(access.expiresAt)) {
       return res.status(410).json({ error: 'Este link de check-in expiró' });
     }
+
+    const guestIdRaw = req.body?.guestId ?? req.query?.guestId;
+    let guestId = guestIdRaw;
+    if (guestId == null && access.reservation.guests?.length === 1) {
+      guestId = access.reservation.guests[0].id;
+    }
+    const resolved = await resolveGuestCheckInForAccess(access, guestId);
+    if (resolved.error) {
+      return res.status(resolved.status).json({ error: resolved.error });
+    }
+    const { guest, checkIn, reservation } = resolved;
+
     if (checkIn.status === 'COMPLETED') {
-      return res.status(409).json({ error: 'Este check-in ya fue completado' });
+      // Permitir re-edición: reabrir a SENT al subir fotos nuevas
+      await prisma.onlineCheckIn.update({
+        where: { id: checkIn.id },
+        data: {
+          status: 'SENT',
+          completedAt: null,
+          documentFrontUploadedAt: null,
+          documentBackUploadedAt: null
+        }
+      });
+      checkIn.status = 'SENT';
+      checkIn.documentFrontUploadedAt = null;
+      checkIn.documentBackUploadedAt = null;
     }
 
-    const clientId = checkIn.reservation.mainClientId;
+    let clientId = guest.clientId || checkIn.clientId;
+    if (!clientId) {
+      clientId = await prisma.$transaction(async (tx) =>
+        ensureClientForGuest(tx, guest, {
+          firstName: guest.firstName || 'Huésped',
+          lastName: guest.lastName || String(guest.id),
+          email: guest.email || null,
+          phone: guest.phone || null,
+          documentType: guest.documentType || 'DNI',
+          documentNumber: guest.documentNumber || null,
+          city: guest.city || null,
+          address: guest.address || null
+        })
+      );
+      await prisma.onlineCheckIn.update({
+        where: { id: checkIn.id },
+        data: { clientId }
+      });
+    }
+
     const result = saveDocumentPhoto(clientId, req.file, checked.slot);
     if (result.error) {
       return res.status(400).json({ error: result.error });
@@ -378,17 +727,23 @@ async function uploadPublicCheckInDocumentPhoto(req, res) {
       }),
       prisma.onlineCheckIn.update({
         where: { id: checkIn.id },
-        data: checkInPhotoField
+        data: {
+          ...checkInPhotoField,
+          clientId,
+          status: checkIn.status === 'PENDING' ? 'SENT' : checkIn.status
+        }
       })
     ]);
 
     return res.status(201).json({
       ok: true,
+      guestId: guest.id,
       slot: checked.slot,
       originalName: result.meta.originalName,
       mimeType: result.meta.mimeType,
       sizeBytes: result.meta.sizeBytes,
-      updatedAt: result.meta.updatedAt
+      updatedAt: result.meta.updatedAt,
+      reservationId: reservation.id
     });
   } catch (error) {
     console.error('uploadPublicCheckInDocumentPhoto', error);
@@ -397,7 +752,7 @@ async function uploadPublicCheckInDocumentPhoto(req, res) {
 }
 
 /**
- * Público: enviar respuestas; actualiza cliente (incl. patente) + patente de reserva + snapshot.
+ * Público / staff vía mismo link: guardar check-in de un huésped.
  */
 async function submitPublicCheckIn(req, res) {
   try {
@@ -408,19 +763,25 @@ async function submitPublicCheckIn(req, res) {
       });
     }
 
-    const checkIn = await prisma.onlineCheckIn.findUnique({
-      where: { token },
-      include: { reservation: true }
-    });
-
-    if (!checkIn) {
+    const access = await resolveAccessByToken(token);
+    if (!access) {
       return res.status(404).json({ error: 'Link de check-in inválido' });
     }
-    if (checkIn.expiresAt && checkIn.expiresAt < new Date()) {
+    if (isExpired(access.expiresAt)) {
       return res.status(410).json({ error: 'Este link de check-in expiró' });
     }
 
     const body = req.body || {};
+    let guestId = body.guestId;
+    if (guestId == null && access.reservation.guests?.length === 1) {
+      guestId = access.reservation.guests[0].id;
+    }
+    const resolved = await resolveGuestCheckInForAccess(access, guestId);
+    if (resolved.error) {
+      return res.status(resolved.status).json({ error: resolved.error });
+    }
+    const { guest, checkIn, reservation } = resolved;
+
     const firstName = normalizeText(body.firstName);
     const lastName = normalizeText(body.lastName);
     if (!firstName || !lastName) {
@@ -437,7 +798,9 @@ async function submitPublicCheckIn(req, res) {
       return res.status(400).json({ error: 'La fecha de nacimiento es obligatoria' });
     }
 
-    if (!checkIn.documentFrontUploadedAt || !checkIn.documentBackUploadedAt) {
+    // Releer flags de fotos (por si se reabrió)
+    const fresh = await prisma.onlineCheckIn.findUnique({ where: { id: checkIn.id } });
+    if (!fresh?.documentFrontUploadedAt || !fresh?.documentBackUploadedAt) {
       return res.status(400).json({
         error: 'Debés subir la foto del frente y del dorso del documento'
       });
@@ -453,19 +816,33 @@ async function submitPublicCheckIn(req, res) {
     const address = normalizeText(body.address);
     const wantsPromotions = Boolean(body.wantsPromotions);
     const vehiclePlate = normalizePlate(body.vehiclePlate);
-
-    const reservationId = checkIn.reservationId;
-    const mainClientId = checkIn.reservation.mainClientId;
+    const markValidated = Boolean(body.validated);
 
     const result = await prisma.$transaction(async (tx) => {
+      const clientId = await ensureClientForGuest(tx, guest, {
+        firstName,
+        lastName,
+        email,
+        phone,
+        documentType,
+        documentNumber,
+        birthDate,
+        country,
+        province,
+        city,
+        address,
+        vehiclePlate,
+        wantsPromotions
+      });
+
       const existingClient = await tx.client.findUnique({
-        where: { id: mainClientId },
+        where: { id: clientId },
         select: { notes: true }
       });
       const notes = createNotesWithAddress(existingClient?.notes, address);
 
       await tx.client.update({
-        where: { id: mainClientId },
+        where: { id: clientId },
         data: {
           firstName,
           lastName,
@@ -483,16 +860,35 @@ async function submitPublicCheckIn(req, res) {
         }
       });
 
-      await tx.reservation.update({
-        where: { id: reservationId },
-        data: { vehiclePlate }
+      await tx.guest.update({
+        where: { id: guest.id },
+        data: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          documentType,
+          documentNumber,
+          city,
+          address,
+          clientId
+        }
       });
+
+      if (vehiclePlate) {
+        await tx.reservation.update({
+          where: { id: reservation.id },
+          data: { vehiclePlate }
+        });
+      }
 
       return tx.onlineCheckIn.update({
         where: { id: checkIn.id },
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
+          validatedAt: markValidated ? new Date() : checkIn.validatedAt,
+          clientId,
           firstName,
           lastName,
           email,
@@ -509,11 +905,18 @@ async function submitPublicCheckIn(req, res) {
       });
     });
 
+    const all = await prisma.onlineCheckIn.findMany({
+      where: { reservationId: reservation.id, guestId: { not: null } }
+    });
+    const completed = all.filter((c) => c.status === 'COMPLETED').length;
+
     return res.json({
       ok: true,
+      guestId: guest.id,
       status: result.status,
       completedAt: result.completedAt,
-      vehiclePlate: result.vehiclePlate
+      vehiclePlate: result.vehiclePlate,
+      progress: { completed, total: all.length, label: `${completed}/${all.length}` }
     });
   } catch (error) {
     console.error('submitPublicCheckIn', error);

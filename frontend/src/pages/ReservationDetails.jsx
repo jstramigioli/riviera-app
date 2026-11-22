@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -95,58 +95,55 @@ const ReservationDetails = () => {
   const [editData, setEditData] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Cargar datos iniciales
-  useEffect(() => {
-    const loadReservationData = async () => {
-      try {
-        setLoading(true);
-        
-        const [reservationsData, serviceTypesResponse] = await Promise.all([
-          fetchReservations(),
-          fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then(res => res.json())
-        ]);
-        
-        const foundReservation = reservationsData.find(r => r.id === parseInt(reservationId));
-        
-        if (!foundReservation) {
-          setError('Reserva no encontrada');
-          setLoading(false);
-          return;
-        }
-        
-        setReservation(foundReservation);
-        setEditData(foundReservation);
-        setAllReservations(reservationsData);
-        setServiceTypes(serviceTypesResponse.data || []);
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error cargando datos de la reserva:', error);
-        setError('Error al cargar los datos de la reserva');
-        setLoading(false);
-      }
-    };
+  const loadReservationData = useCallback(async () => {
+    if (!reservationId) return;
+    try {
+      setLoading(true);
 
-    if (reservationId) {
-      loadReservationData();
+      const [reservationsData, serviceTypesResponse] = await Promise.all([
+        fetchReservations(),
+        fetch('http://localhost:3001/api/service-types?hotelId=default-hotel').then((res) => res.json())
+      ]);
+
+      const foundReservation = reservationsData.find((r) => r.id === parseInt(reservationId, 10));
+
+      if (!foundReservation) {
+        setError('Reserva no encontrada');
+        setLoading(false);
+        return;
+      }
+
+      setReservation(foundReservation);
+      setEditData(foundReservation);
+      setAllReservations(reservationsData);
+      setServiceTypes(serviceTypesResponse.data || []);
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error cargando datos de la reserva:', error);
+      setError('Error al cargar los datos de la reserva');
+      setLoading(false);
     }
   }, [reservationId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!reservationId) return;
-      try {
-        const data = await getReservationCheckIn(reservationId);
-        if (!cancelled) setCheckInInfo(data);
-      } catch (err) {
-        console.error('Error cargando check-in online:', err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const refreshCheckInInfo = useCallback(async () => {
+    if (!reservationId) return;
+    try {
+      const data = await getReservationCheckIn(reservationId);
+      setCheckInInfo(data);
+    } catch (err) {
+      console.error('Error cargando check-in online:', err);
+    }
   }, [reservationId]);
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadReservationData();
+  }, [loadReservationData]);
+
+  useEffect(() => {
+    refreshCheckInInfo();
+  }, [refreshCheckInInfo]);
 
   const handleSendCheckIn = async () => {
     if (!reservation) return;
@@ -166,7 +163,9 @@ const ReservationDetails = () => {
         ...(prev || {}),
         reservationId: reservation.id,
         vehiclePlate: prev?.vehiclePlate || null,
-        checkIn: result.checkIn
+        checkIn: result.checkIn,
+        progress: result.progress || result.checkIn?.progress || prev?.progress,
+        guests: result.guests || prev?.guests || []
       }));
 
       if (result.emailed) {
@@ -524,6 +523,11 @@ const ReservationDetails = () => {
           <HuespedesTab
             reservation={reservation}
             onClientClick={handleClientClick}
+            checkInGuests={checkInInfo?.guests || []}
+            onGuestUpdate={() => {
+              loadReservationData();
+              refreshCheckInInfo();
+            }}
           />
         );
       case 'regimen':
@@ -692,13 +696,19 @@ const ReservationDetails = () => {
                 )}
               </div>
             )}
-            {checkInInfo?.checkIn?.status && (
-              <div className={styles.checkInMeta}>
-                Check-in online: {checkInInfo.checkIn.status === 'COMPLETED'
-                  ? 'Completado'
-                  : checkInInfo.checkIn.status === 'SENT'
-                    ? 'Enviado'
-                    : checkInInfo.checkIn.status}
+            {(checkInInfo?.progress || checkInInfo?.checkIn?.status) && (
+              <div className={styles.checkInMeta} data-testid="reservation-checkin-progress">
+                Check-in online:{' '}
+                {checkInInfo.progress?.label
+                  ? checkInInfo.progress.label
+                  : checkInInfo.checkIn?.status === 'COMPLETED'
+                    ? 'Completado'
+                    : checkInInfo.checkIn?.status === 'SENT'
+                      ? 'Enviado'
+                      : checkInInfo.checkIn?.status}
+                {checkInInfo.progress?.total > 0 && checkInInfo.checkIn?.status === 'COMPLETED'
+                  ? ' · Completo'
+                  : null}
               </div>
             )}
           </div>
