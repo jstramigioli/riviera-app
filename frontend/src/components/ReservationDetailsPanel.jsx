@@ -125,6 +125,7 @@ const ReservationDetailsPanel = ({
               reservation={reservation}
               onStatusChange={onStatusChange}
               onDelete={onDelete}
+              variant="plain"
               menuPlacement="below"
             />
           </div>

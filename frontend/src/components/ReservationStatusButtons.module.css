@@ -52,6 +52,52 @@
   transform: rotate(180deg);
 }
 
+/* Panel Libro: palabra + circulito + flecha, sin recuadro de color */
+.plain {
+  flex: 0 1 auto;
+}
+
+.plainTrigger {
+  width: auto;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.plainTrigger:hover {
+  border: none;
+  background: transparent;
+  color: var(--color-text, #212529);
+}
+
+.plainTrigger:focus-visible {
+  outline: 2px solid #80bdff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.plain .dropdownMenu {
+  left: 0;
+  right: auto;
+  min-width: 180px;
+}
+
 .tone_PENDIENTE {
   border-color: #ffe08a;
   background: #fff8e1;

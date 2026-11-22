@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FaChevronDown, FaTrash } from 'react-icons/fa';
 import useReservationStatuses from '../hooks/useReservationStatuses';
-import { getStatusLabel, isDangerStatus } from '../utils/reservationStatusUtils';
+import {
+  getStatusColor,
+  getStatusLabel,
+  isDangerStatus
+} from '../utils/reservationStatusUtils';
 import styles from './ReservationStatusButtons.module.css';
 
 const ReservationStatusButtons = ({
@@ -54,16 +58,39 @@ const ReservationStatusButtons = ({
     if (onDelete) onDelete(reservation);
   };
 
+  const isPlain = variant === 'plain';
+
   return (
-    <div className={`${styles.statusButtonsContainer} ${variant === 'dark' ? styles.onDark : ''}`} ref={rootRef}>
+    <div
+      className={[
+        styles.statusButtonsContainer,
+        variant === 'dark' ? styles.onDark : '',
+        isPlain ? styles.plain : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      ref={rootRef}
+    >
       <button
         type="button"
-        className={`${styles.dropdownTrigger} ${styles[`tone_${reservation.status}`] || ''}`}
+        className={[
+          styles.dropdownTrigger,
+          isPlain ? styles.plainTrigger : styles[`tone_${reservation.status}`] || ''
+        ]
+          .filter(Boolean)
+          .join(' ')}
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Cambiar estado"
       >
+        {isPlain && (
+          <span
+            className={styles.statusDot}
+            style={{ backgroundColor: getStatusColor(reservation.status) }}
+            aria-hidden
+          />
+        )}
         <span className={styles.triggerLabel}>{getStatusLabel(reservation.status, statuses)}</span>
         <FaChevronDown className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} />
       </button>
