@@ -39,6 +39,15 @@ function Header() {
   }
 
   const showConfig = can('settings') || can('auditoria');
+  const showAlojamiento = can('reservas') || can('clientes');
+  const consultasSection = new URLSearchParams(location.search).get('section');
+  const alojamientoActive =
+    location.pathname === '/libro-de-reservas' ||
+    location.pathname === '/consultas-reservas' ||
+    location.pathname.startsWith('/habitaciones') ||
+    location.pathname.startsWith('/rooms/') ||
+    location.pathname.startsWith('/clientes') ||
+    location.pathname.startsWith('/clients/');
 
   return (
     <nav className={styles.navigation}>
@@ -55,37 +64,62 @@ function Header() {
               Dashboard
             </Link>
           ) : null}
-          {can('reservas') ? (
-            <Link
-              to="/libro-de-reservas"
-              className={`${styles.navLink} ${location.pathname === '/libro-de-reservas' ? styles.active : ''}`}
-            >
-              Libro de Reservas
-            </Link>
-          ) : null}
-          {can('reservas') ? (
-            <Link
-              to="/consultas-reservas"
-              className={`${styles.navLink} ${location.pathname === '/consultas-reservas' ? styles.active : ''}`}
-            >
-              Consultas y Reservas
-            </Link>
-          ) : null}
-          {can('reservas') ? (
-            <Link
-              to="/habitaciones"
-              className={`${styles.navLink} ${location.pathname.startsWith('/habitaciones') || location.pathname.startsWith('/rooms/') ? styles.active : ''}`}
-            >
-              Habitaciones
-            </Link>
-          ) : null}
-          {can('clientes') ? (
-            <Link
-              to="/clientes"
-              className={`${styles.navLink} ${location.pathname.startsWith('/clientes') || location.pathname.startsWith('/clients/') ? styles.active : ''}`}
-            >
-              Clientes
-            </Link>
+          {showAlojamiento ? (
+            <div className={styles.navDropdown}>
+              <span
+                className={`${styles.navLink} ${styles.navDropdownTrigger} ${alojamientoActive ? styles.active : ''}`}
+                aria-haspopup="true"
+              >
+                Alojamiento
+              </span>
+              <div className={styles.navDropdownMenu} role="menu">
+                {can('reservas') ? (
+                  <Link
+                    to="/libro-de-reservas"
+                    role="menuitem"
+                    className={`${styles.navDropdownItem} ${location.pathname === '/libro-de-reservas' ? styles.navDropdownItemActive : ''}`}
+                  >
+                    Libro de reservas
+                  </Link>
+                ) : null}
+                {can('reservas') ? (
+                  <Link
+                    to="/consultas-reservas?section=consultas"
+                    role="menuitem"
+                    className={`${styles.navDropdownItem} ${location.pathname === '/consultas-reservas' && consultasSection !== 'reservas' ? styles.navDropdownItemActive : ''}`}
+                  >
+                    Consultas
+                  </Link>
+                ) : null}
+                {can('reservas') ? (
+                  <Link
+                    to="/consultas-reservas?section=reservas"
+                    role="menuitem"
+                    className={`${styles.navDropdownItem} ${location.pathname === '/consultas-reservas' && consultasSection === 'reservas' ? styles.navDropdownItemActive : ''}`}
+                  >
+                    Reservas
+                  </Link>
+                ) : null}
+                {can('reservas') ? (
+                  <Link
+                    to="/habitaciones"
+                    role="menuitem"
+                    className={`${styles.navDropdownItem} ${location.pathname.startsWith('/habitaciones') || location.pathname.startsWith('/rooms/') ? styles.navDropdownItemActive : ''}`}
+                  >
+                    Habitaciones
+                  </Link>
+                ) : null}
+                {can('clientes') ? (
+                  <Link
+                    to="/clientes"
+                    role="menuitem"
+                    className={`${styles.navDropdownItem} ${location.pathname.startsWith('/clientes') || location.pathname.startsWith('/clients/') ? styles.navDropdownItemActive : ''}`}
+                  >
+                    Clientes
+                  </Link>
+                ) : null}
+              </div>
+            </div>
           ) : null}
           {can('finanzas') ? (
             <Link

@@ -266,6 +266,60 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.navDropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.navDropdownTrigger {
+  cursor: default;
+  user-select: none;
+}
+
+.navDropdownMenu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  min-width: 12.5rem;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #d8dde6;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(51, 77, 112, 0.12);
+  z-index: 1100;
+}
+
+.navDropdown:hover .navDropdownMenu,
+.navDropdown:focus-within .navDropdownMenu {
+  display: block;
+}
+
+.navDropdownItem {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 4px;
+  color: #3a4250;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.navDropdownItem:hover,
+.navDropdownItem:focus-visible {
+  background: #e8eef5;
+  outline: none;
+}
+
+.navDropdownItemActive {
+  background: #e8eef5;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .configButton {
   font-size: var(--font-size-medium);
   padding: 8px 12px;

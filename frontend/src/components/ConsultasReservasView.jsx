@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
@@ -26,12 +26,31 @@ import styles from './ConsultasReservasView.module.css';
 
 function ConsultasReservasView() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [activeSection, setActiveSection] = useState('consultas');
+  const sectionParam = searchParams.get('section') === 'reservas' ? 'reservas' : 'consultas';
+  const [activeSection, setActiveSection] = useState(sectionParam);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [clearingAll, setClearingAll] = useState(false);
+
+  useEffect(() => {
+    if (sectionParam !== activeSection) {
+      setActiveSection(sectionParam);
+    }
+  }, [sectionParam, activeSection]);
+
+  function selectSection(section) {
+    setActiveSection(section);
+    const next = new URLSearchParams(searchParams);
+    if (section === 'reservas') {
+      next.set('section', 'reservas');
+    } else {
+      next.delete('section');
+    }
+    setSearchParams(next, { replace: true });
+  }
   
   const {
     rooms,
@@ -223,14 +242,14 @@ function ConsultasReservasView() {
           <button 
             type="button"
             className={`${styles.sectionButton} ${activeSection === 'consultas' ? styles.active : ''}`}
-            onClick={() => setActiveSection('consultas')}
+            onClick={() => selectSection('consultas')}
           >
             Consultas
           </button>
           <button 
             type="button"
             className={`${styles.sectionButton} ${activeSection === 'reservas' ? styles.active : ''}`}
-            onClick={() => setActiveSection('reservas')}
+            onClick={() => selectSection('reservas')}
           >
             Reservas
           </button>

@@ -3,8 +3,10 @@ import { describe, it, expect, vi } from 'vitest'
 import Header from './Header'
 
 vi.mock('react-router-dom', () => ({
-  Link: ({ children, to, title }) => <a href={to} title={title}>{children}</a>,
-  useLocation: () => ({ pathname: '/' }),
+  Link: ({ children, to, title, role, className }) => (
+    <a href={to} title={title} role={role} className={className}>{children}</a>
+  ),
+  useLocation: () => ({ pathname: '/', search: '' }),
   useNavigate: () => vi.fn(),
 }))
 
@@ -28,24 +30,35 @@ vi.mock('./GlobalNavSearch', () => ({
 }))
 
 describe('Header', () => {
-  it('renders navigation links', () => {
+  it('agrupa Alojamiento con ítems bajo hover y mantiene el resto del nav', () => {
     render(<Header />)
-    expect(screen.getByText('Libro de Reservas')).toBeInTheDocument()
-    expect(screen.getByText('Consultas y Reservas')).toBeInTheDocument()
+    expect(screen.getByText('Alojamiento')).toBeInTheDocument()
+    expect(screen.getByText('Libro de reservas')).toBeInTheDocument()
+    expect(screen.getByText('Consultas')).toBeInTheDocument()
+    expect(screen.getByText('Reservas')).toBeInTheDocument()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
     expect(screen.getByText('Clientes')).toBeInTheDocument()
     expect(screen.getByText('Estado de cuentas')).toBeInTheDocument()
     expect(screen.getByText('Estadísticas')).toBeInTheDocument()
+    expect(screen.queryByText('Consultas y Reservas')).not.toBeInTheDocument()
 
-    const links = screen.getAllByRole('link').map((link) => link.textContent)
-    const consultasIdx = links.indexOf('Consultas y Reservas')
-    const habitacionesIdx = links.indexOf('Habitaciones')
-    const clientesIdx = links.indexOf('Clientes')
-    const cuentasIdx = links.indexOf('Estado de cuentas')
-    expect(consultasIdx).toBeGreaterThanOrEqual(0)
-    expect(habitacionesIdx).toBeGreaterThan(consultasIdx)
-    expect(clientesIdx).toBeGreaterThan(habitacionesIdx)
-    expect(cuentasIdx).toBeGreaterThan(clientesIdx)
+    // Menú por hover: display:none hasta hover (accesible con hidden:true)
+    expect(
+      screen.getByRole('menuitem', { name: 'Libro de reservas', hidden: true })
+    ).toHaveAttribute('href', '/libro-de-reservas')
+    expect(
+      screen.getByRole('menuitem', { name: 'Consultas', hidden: true })
+    ).toHaveAttribute('href', '/consultas-reservas?section=consultas')
+    expect(
+      screen.getByRole('menuitem', { name: 'Reservas', hidden: true })
+    ).toHaveAttribute('href', '/consultas-reservas?section=reservas')
+    expect(
+      screen.getByRole('menuitem', { name: 'Habitaciones', hidden: true })
+    ).toHaveAttribute('href', '/habitaciones')
+    expect(
+      screen.getByRole('menuitem', { name: 'Clientes', hidden: true })
+    ).toHaveAttribute('href', '/clientes')
+    expect(screen.getByRole('link', { name: 'Estado de cuentas' })).toBeInTheDocument()
   })
 
   it('does not render Tarifas, Precios inteligentes or Auditoría in top nav', () => {
@@ -76,4 +89,3 @@ describe('Header', () => {
     ).toBeInTheDocument()
   })
 })
-
