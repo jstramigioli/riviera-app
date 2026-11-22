@@ -608,6 +608,7 @@ const ClientDetails = () => {
                                 hideTotal
                                 embedded
                                 showSource
+                                noOwnScroll
                               />
                             </td>
                             <td>

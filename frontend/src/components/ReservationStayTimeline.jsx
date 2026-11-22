@@ -95,7 +95,9 @@ const ReservationStayTimeline = ({
   hideTotal = false,
   embedded = false,
   /** Muestra «Reservado por» (aplicación/medio) bajo el track. */
-  showSource = false
+  showSource = false,
+  /** Sin scroll horizontal propio: el contenedor externo scrollea. */
+  noOwnScroll = false
 }) => {
   const timeline = useMemo(
     () => buildReservationStayTimeline(reservation, { getServiceTypeLabel }),
@@ -121,7 +123,8 @@ const ReservationStayTimeline = ({
     isVertical ? styles.timelineVertical : styles.timelineHorizontal,
     compact ? styles.timelineCompact : '',
     hideHeader ? styles.timelineNoHeader : '',
-    embedded ? styles.timelineEmbedded : ''
+    embedded ? styles.timelineEmbedded : '',
+    noOwnScroll ? styles.timelineNoOwnScroll : ''
   ]
     .filter(Boolean)
     .join(' ');

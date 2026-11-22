@@ -297,6 +297,13 @@
   padding: 0;
 }
 
+/* El scroll lo maneja el contenedor (p.ej. tabla); el track no scrollea solo. */
+.timelineNoOwnScroll .track {
+  overflow-x: visible;
+  width: max-content;
+  min-width: 100%;
+}
+
 .timelineEmbedded .segmentCard {
   background: transparent;
   border: 1px solid rgba(51, 77, 112, 0.22);

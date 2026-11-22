@@ -466,95 +466,85 @@
   overflow: auto;
   max-height: 480px;
   border: 1px solid #e9ecef;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 #f7fafc;
 }
 
 .reservationsTable {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-small);
-  table-layout: fixed;
-  display: block;
-  height: 100%;
+  table-layout: auto;
 }
 
 .reservationsTable th {
   background: #f8f9fa;
-  padding: 12px;
+  padding: 10px 8px;
   text-align: left;
   font-weight: 600;
   color: #495057;
   border-bottom: 2px solid #dee2e6;
   font-size: var(--font-size-small);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.reservationsTable th:nth-child(1) { width: 10%; } /* Nº */
-.reservationsTable th:nth-child(2) { width: 48%; } /* Estadía (timeline) */
-.reservationsTable th:nth-child(3) { width: 14%; } /* Estado */
-.reservationsTable th:nth-child(4) { width: 16%; } /* Saldo */
-.reservationsTable th:nth-child(5) { width: 12%; } /* Acciones */
+/* Columnas secundarias compactas; Estadía toma el resto / crece con el timeline. */
+.reservationsTable th:nth-child(1),
+.reservationsTable td:nth-child(1) {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  padding-left: 8px;
+  padding-right: 6px;
+}
+
+.reservationsTable th:nth-child(2),
+.reservationsTable td:nth-child(2) {
+  min-width: 22rem;
+}
+
+.reservationsTable th:nth-child(3),
+.reservationsTable td:nth-child(3) {
+  width: 6.5rem;
+  min-width: 6.5rem;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.reservationsTable th:nth-child(4),
+.reservationsTable td:nth-child(4) {
+  width: 7.5rem;
+  min-width: 7.5rem;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.reservationsTable th:nth-child(5),
+.reservationsTable td:nth-child(5) {
+  width: 3.5rem;
+  min-width: 3.5rem;
+  padding-left: 6px;
+  padding-right: 8px;
+}
 
 .reservationsTable td {
-  padding: 12px;
+  padding: 10px 8px;
   border-bottom: 1px solid #e9ecef;
   vertical-align: middle;
   color: #495057;
 }
 
-/* Centrar contenido de columnas específicas */
-.reservationsTable td:nth-child(1),  /* Nº */
-.reservationsTable td:nth-child(3),  /* Estado */
-.reservationsTable td:nth-child(4),  /* Saldo */
-.reservationsTable td:nth-child(5) { /* Acciones */
+.reservationsTable td:nth-child(1),
+.reservationsTable td:nth-child(3),
+.reservationsTable td:nth-child(4),
+.reservationsTable td:nth-child(5),
+.reservationsTable th:nth-child(1),
+.reservationsTable th:nth-child(3),
+.reservationsTable th:nth-child(4),
+.reservationsTable th:nth-child(5) {
   text-align: center;
-}
-
-.reservationsTable th:nth-child(1),  /* Nº */
-.reservationsTable th:nth-child(3),  /* Estado */
-.reservationsTable th:nth-child(4),  /* Saldo */
-.reservationsTable th:nth-child(5) { /* Acciones */
-  text-align: center;
-}
-
-.reservationsTable thead {
-  display: block;
-  width: 100%;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f8f9fa;
-}
-
-.reservationsTable tbody {
-  display: block;
-  width: 100%;
-  max-height: 420px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e0 #f7fafc;
-}
-
-.reservationsTable tbody::-webkit-scrollbar {
-  width: 8px;
-}
-
-.reservationsTable tbody::-webkit-scrollbar-track {
-  background: #f7fafc;
-}
-
-.reservationsTable tbody::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 4px;
-}
-
-.reservationsTable tbody::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
-
-.reservationsTable thead tr,
-.reservationsTable tbody tr {
-  display: table;
-  width: 100%;
-  table-layout: fixed;
 }
 
 .reservationRow {
@@ -567,7 +557,7 @@
 
 .stayCell {
   text-align: left;
-  min-width: 0;
+  white-space: nowrap;
 }
 
 .totalAmount {
