@@ -1,4 +1,4 @@
-﻿-- Room: puede contener cuna (config habitaciones)
+-- Room: puede contener cuna (config habitaciones)
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "puedeCuna" BOOLEAN NOT NULL DEFAULT false;
 
 -- Requisitos por tramo: cuna en Query y ReservationSegment
