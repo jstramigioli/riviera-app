@@ -83,11 +83,16 @@
   padding: 16px 16px 24px;
   background: var(--color-bg);
   min-height: calc(100vh - var(--nav-height));
+  min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .mainContentBody {
+  width: 100%;
   max-width: 1400px;
+  min-width: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -116,6 +121,8 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .sectionHeader {
@@ -219,12 +226,15 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-width: 100%;
   max-height: calc(100vh - var(--nav-height) - 220px);
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-small);
   line-height: 1.35;
@@ -428,9 +438,10 @@
   .mainContent {
     margin-left: 0;
     padding: 12px 12px 20px;
+    overflow-x: hidden;
   }
 
   .tableWrap {
-    max-height: none;
+    max-height: min(70vh, calc(100vh - var(--nav-height) - 180px));
   }
 }
