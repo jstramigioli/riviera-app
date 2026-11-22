@@ -223,6 +223,14 @@ export function mainClientDisplayName(reservation) {
   return 'Sin nombre';
 }
 
+/** Id del titular de la reserva (para abrir perfil desde listas). */
+export function mainClientIdOf(reservation) {
+  const id = reservation?.mainClient?.id ?? reservation?.mainClientId;
+  if (id == null || id === '') return null;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : null;
+}
+
 function buildRoomsById(rooms) {
   const map = new Map();
   for (const room of rooms || []) {

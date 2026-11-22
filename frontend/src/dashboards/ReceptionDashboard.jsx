@@ -300,6 +300,11 @@ export default function ReceptionDashboard() {
     navigate(`/reservations/${reservationId}`);
   };
 
+  const openClient = (clientId) => {
+    if (clientId == null) return;
+    navigate(`/clients/${clientId}`);
+  };
+
   const resetPaymentState = () => {
     setPaymentOpen(false);
     setPaymentReservaId(null);
@@ -524,7 +529,16 @@ export default function ReceptionDashboard() {
                               <button
                                 type="button"
                                 className={styles.listLink}
-                                onClick={() => openReservation(item.reservationId)}
+                                onClick={() =>
+                                  item.clientId != null
+                                    ? openClient(item.clientId)
+                                    : openReservation(item.reservationId)
+                                }
+                                title={
+                                  item.clientId != null
+                                    ? 'Ver cliente'
+                                    : 'Ver reserva'
+                                }
                               >
                                 {item.guestName || item.label}
                               </button>
@@ -649,7 +663,16 @@ export default function ReceptionDashboard() {
                             <button
                               type="button"
                               className={styles.listLink}
-                              onClick={() => openReservation(item.reservationId)}
+                              onClick={() =>
+                                item.clientId != null
+                                  ? openClient(item.clientId)
+                                  : openReservation(item.reservationId)
+                              }
+                              title={
+                                item.clientId != null
+                                  ? 'Ver cliente'
+                                  : 'Ver reserva'
+                              }
                             >
                               {item.guestName || item.label}
                             </button>
@@ -713,6 +736,7 @@ export default function ReceptionDashboard() {
           onMealsDateChange={setMealsDateIso}
           meals={meals}
           onOpenReservation={openReservation}
+          onOpenClient={openClient}
         />
 
         <NotificationsPanel />

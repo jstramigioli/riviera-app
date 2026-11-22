@@ -6,6 +6,7 @@
 import {
   computeDayInfoStats,
   mainClientDisplayName,
+  mainClientIdOf,
   mealFlagsFromServiceRef,
   movementListLabel,
   movementRoomLabel,
@@ -227,6 +228,7 @@ export function pendingCheckoutItems(
     const late = Boolean(end && end < todayIso);
     items.push({
       reservationId: reservation.id,
+      clientId: mainClientIdOf(reservation),
       roomLabel: room,
       guestName,
       guests: guestCountForReservation(reservation),
@@ -304,6 +306,7 @@ export function buildCheckInPanelItems(
     const pending = PRE_CHECKIN_STATUSES.has(reservation.status);
     items.push({
       reservationId: reservation.id,
+      clientId: mainClientIdOf(reservation),
       roomLabel: room,
       guestName,
       guests: guestCountForReservation(reservation),
@@ -342,6 +345,7 @@ function enrichMovementItemsWithStatus(items, reservations) {
     const res = byId.get(item.reservationId);
     return {
       ...item,
+      clientId: item.clientId ?? mainClientIdOf(res),
       guestName: item.guestName || mainClientDisplayName(res),
       guests: guestCountForReservation(res),
       status: res?.status || null,
@@ -407,6 +411,7 @@ function mealDetailItems(dayIso, rooms, reservations, serviceTypes, meal) {
 
     items.push({
       reservationId: reservation.id,
+      clientId: mainClientIdOf(reservation),
       roomLabel: room,
       guestName,
       guests,

@@ -168,7 +168,8 @@ export default function ComidasHub({
   mealsDateIso,
   onMealsDateChange,
   meals,
-  onOpenReservation
+  onOpenReservation,
+  onOpenClient
 }) {
   const [detailMeal, setDetailMeal] = useState(null);
   const [selectedBreakfast, setSelectedBreakfast] = useState(() => new Set());
@@ -487,7 +488,14 @@ export default function ComidasHub({
                       <button
                         type="button"
                         className={styles.listLink}
-                        onClick={() => onOpenReservation?.(item.reservationId)}
+                        onClick={() =>
+                          item.clientId != null
+                            ? onOpenClient?.(item.clientId)
+                            : onOpenReservation?.(item.reservationId)
+                        }
+                        title={
+                          item.clientId != null ? 'Ver cliente' : 'Ver reserva'
+                        }
                       >
                         {item.guestName}
                       </button>

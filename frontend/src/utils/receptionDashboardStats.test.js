@@ -26,7 +26,7 @@ describe('receptionDashboardStats', () => {
       {
         id: 10,
         status: 'INGRESADA',
-        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        mainClient: { id: 101, firstName: 'Ana', lastName: 'Ruiz' },
         segments: [
           {
             roomId: 1,
@@ -40,7 +40,7 @@ describe('receptionDashboardStats', () => {
       {
         id: 11,
         status: 'FINALIZADA',
-        mainClient: { firstName: 'Luis', lastName: 'Mora' },
+        mainClient: { id: 102, firstName: 'Luis', lastName: 'Mora' },
         segments: [
           {
             roomId: 3,
@@ -56,6 +56,7 @@ describe('receptionDashboardStats', () => {
     const late = lateCheckoutItems('2024-01-05', rooms, reservations);
     expect(late).toHaveLength(1);
     expect(late[0].reservationId).toBe(10);
+    expect(late[0].clientId).toBe(101);
   });
 
   it('ocupacion por tipo usa solo habitaciones en servicio', () => {
@@ -90,7 +91,7 @@ describe('receptionDashboardStats', () => {
         id: 1,
         status: 'CONFIRMADA',
         requiredGuests: 2,
-        mainClient: { firstName: 'Ana', lastName: 'Ruiz' },
+        mainClient: { id: 201, firstName: 'Ana', lastName: 'Ruiz' },
         segments: [
           {
             roomId: 1,
@@ -105,6 +106,7 @@ describe('receptionDashboardStats', () => {
         id: 2,
         status: 'PENDIENTE',
         requiredGuests: 1,
+        mainClientId: 202,
         mainClient: { firstName: 'Luis', lastName: 'Mora' },
         segments: [
           {
@@ -120,6 +122,8 @@ describe('receptionDashboardStats', () => {
     const items = buildCheckInPanelItems('2024-01-02', rooms, reservations);
     expect(items.map((i) => i.reservationId).sort()).toEqual([1, 2]);
     expect(items.find((i) => i.reservationId === 2).overdue).toBe(true);
+    expect(items.find((i) => i.reservationId === 1).clientId).toBe(201);
+    expect(items.find((i) => i.reservationId === 2).clientId).toBe(202);
   });
 
   it('egresos solo checkout <= hoy (hoy + atrasados, sin futuras)', () => {
