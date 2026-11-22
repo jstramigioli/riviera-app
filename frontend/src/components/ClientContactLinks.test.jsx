@@ -31,19 +31,17 @@ describe('ClientContactLinks', () => {
     expect(screen.queryByText(/^(e-?mail|mail):?$/i)).not.toBeInTheDocument();
   });
 
-  it('enlaza teléfono a WhatsApp y email a mailto', () => {
+  it('enlaza teléfono a WhatsApp y email a mailto, con iconos SVG', () => {
     render(
       <ClientContactLinks phone="+54 223 111-2222" email="ana@hotel.test" />
     );
 
-    expect(screen.getByRole('link', { name: /WhatsApp/i })).toHaveAttribute(
-      'href',
-      'https://wa.me/542231112222'
-    );
-    expect(screen.getByRole('link', { name: /email/i })).toHaveAttribute(
-      'href',
-      'mailto:ana@hotel.test'
-    );
+    const wa = screen.getByRole('link', { name: /WhatsApp/i });
+    const mail = screen.getByRole('link', { name: /email/i });
+    expect(wa).toHaveAttribute('href', 'https://wa.me/542231112222');
+    expect(mail).toHaveAttribute('href', 'mailto:ana@hotel.test');
+    expect(wa.querySelector('svg')).toBeTruthy();
+    expect(mail.querySelector('svg')).toBeTruthy();
   });
 
   it('copia el valor y confirma en el botón', async () => {

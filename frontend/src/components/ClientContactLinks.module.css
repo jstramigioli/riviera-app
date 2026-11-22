@@ -13,10 +13,10 @@
 }
 
 .value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--color-primary, #3f5f8a);
   font-size: var(--font-size-medium, 0.923rem);
   font-weight: 500;
@@ -25,8 +25,34 @@
 }
 
 .value:hover {
-  text-decoration: underline;
   color: var(--color-primary-dark, #334d70);
+}
+
+.value:hover .valueText {
+  text-decoration: underline;
+}
+
+.icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: inherit;
+}
+
+.icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.valueText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .copyBtn {
