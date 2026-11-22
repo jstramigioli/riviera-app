@@ -73,7 +73,8 @@ export function collectReservationPanelRequirements(reservation, tagsCatalog = [
   });
 
   const flags = [];
-  if (reservation?.requiereCuna) {
+  const segmentNeedsCuna = segments.some((seg) => Boolean(seg?.requiereCuna));
+  if (segmentNeedsCuna || reservation?.requiereCuna) {
     flags.push({ key: 'cuna', label: 'Requiere cuna' });
   }
   if (reservation?.requiereEstacionamiento) {

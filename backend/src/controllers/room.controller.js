@@ -80,7 +80,7 @@ exports.getRoomById = async (req, res) => {
 
 // Crear una nueva habitación
 exports.createRoom = async (req, res) => {
-  const { name, description, roomTypeId, tagIds, beds, superficie } = req.body;
+  const { name, description, roomTypeId, tagIds, beds, superficie, puedeCuna } = req.body;
 
   if (!name || !roomTypeId) {
     return res.status(400).json({ error: 'Name and roomTypeId are required' });
@@ -118,6 +118,7 @@ exports.createRoom = async (req, res) => {
         name,
         description,
         superficie: superficieParsed.value,
+        puedeCuna: Boolean(puedeCuna),
         roomTypeId: Number(roomTypeId),
         maxPeople,
         status: 'available',
@@ -145,7 +146,7 @@ exports.createRoom = async (req, res) => {
 // Actualizar una habitación
 exports.updateRoom = async (req, res) => {
   const { id } = req.params;
-  const { name, description, roomTypeId, orderIndex, tagIds, beds, superficie } = req.body;
+  const { name, description, roomTypeId, orderIndex, tagIds, beds, superficie, puedeCuna } = req.body;
 
   if (!id) return res.status(400).json({ error: 'Room id is required' });
 
@@ -197,6 +198,7 @@ exports.updateRoom = async (req, res) => {
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(!superficieParsed.skip && { superficie: superficieParsed.value }),
+        ...(puedeCuna !== undefined && { puedeCuna: Boolean(puedeCuna) }),
         ...(roomTypeId && { roomTypeId: nextRoomTypeId }),
         ...(maxPeople && { maxPeople }),
         ...(orderIndex !== undefined && orderIndex !== null && { orderIndex: Number(orderIndex) }),

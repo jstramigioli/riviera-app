@@ -3,8 +3,9 @@ import { describe, it, expect, vi } from 'vitest';
 import BedPreferenceFields from './BedPreferenceFields';
 
 describe('BedPreferenceFields', () => {
-  it('muestra checkbox Preferencia de camas sin campos Mat/Ind si no hay preferencia', () => {
+  it('muestra toggles de camas y cuna sin Mat/Ind si no hay preferencia', () => {
     const onChange = vi.fn();
+    const onCuna = vi.fn();
     render(
       <BedPreferenceFields
         value={{ bedPreferenceNone: true }}
@@ -12,15 +13,21 @@ describe('BedPreferenceFields', () => {
         maxSingleBeds={2}
         guests={4}
         onChange={onChange}
+        requiereCuna={false}
+        onRequiereCunaChange={onCuna}
       />
     );
 
-    expect(screen.getByRole('checkbox', { name: 'Preferencia de camas' })).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Preferencia de camas' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(screen.getByRole('button', { name: 'Cuna' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByLabelText('Camas matrimoniales')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Camas individuales')).not.toBeInTheDocument();
   });
 
-  it('al tildar muestra Mat/Ind y emite bedPreferenceNone false', () => {
+  it('al activar preferencia de camas muestra Mat/Ind y emite bedPreferenceNone false', () => {
     const onChange = vi.fn();
     render(
       <BedPreferenceFields
@@ -32,13 +39,31 @@ describe('BedPreferenceFields', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Preferencia de camas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preferencia de camas' }));
 
     expect(onChange).toHaveBeenCalledWith({
       bedPreferenceNone: false,
       preferredDoubleBeds: 0,
       preferredSingleBeds: 0
     });
+  });
+
+  it('toggle cuna emite onRequiereCunaChange', () => {
+    const onCuna = vi.fn();
+    render(
+      <BedPreferenceFields
+        value={{ bedPreferenceNone: true }}
+        maxDoubleBeds={1}
+        maxSingleBeds={1}
+        guests={2}
+        onChange={vi.fn()}
+        requiereCuna={false}
+        onRequiereCunaChange={onCuna}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cuna' }));
+    expect(onCuna).toHaveBeenCalledWith(true);
   });
 
   it('opciones Mat/Ind limitadas por maxDoubleBeds y maxSingleBeds', () => {
@@ -78,7 +103,10 @@ describe('BedPreferenceFields', () => {
       />
     );
 
-    expect(screen.getByRole('checkbox', { name: 'Preferencia de camas' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Preferencia de camas' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
     const mat = screen.getByLabelText('Camas matrimoniales');
     expect(mat).toHaveValue('1');
     fireEvent.change(mat, { target: { value: '2' } });
@@ -89,7 +117,7 @@ describe('BedPreferenceFields', () => {
     });
   });
 
-  it('al destildar limpia cantidades', () => {
+  it('al desactivar preferencia limpia cantidades', () => {
     const onChange = vi.fn();
     render(
       <BedPreferenceFields
@@ -105,7 +133,7 @@ describe('BedPreferenceFields', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Preferencia de camas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preferencia de camas' }));
     expect(onChange).toHaveBeenCalledWith({
       bedPreferenceNone: true,
       preferredDoubleBeds: 0,

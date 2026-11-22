@@ -839,16 +839,6 @@ export default function ConsultaBalancePanel({
             <label className={styles.requirementCheck}>
               <input
                 type="checkbox"
-                checked={Boolean(requiereCuna)}
-                onChange={(e) => onRequiereCunaChange?.(e.target.checked)}
-                disabled={disabled || isSnapshot}
-                data-testid="balance-requiere-cuna"
-              />
-              Requiere cuna
-            </label>
-            <label className={styles.requirementCheck}>
-              <input
-                type="checkbox"
                 checked={Boolean(requiereEstacionamiento)}
                 onChange={(e) => onRequiereEstacionamientoChange?.(e.target.checked)}
                 disabled={disabled || isSnapshot}

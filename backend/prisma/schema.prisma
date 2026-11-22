@@ -70,6 +70,8 @@ model Room {
   description           String?
   /// Superficie opcional en m² (editable en Config → Habitaciones).
   superficie            Float?
+  /// Característica: la habitación admite cuna.
+  puedeCuna             Boolean                @default(false)
   maxPeople             Int
   status                String
   orderIndex            Int                    @default(0)
@@ -570,6 +572,8 @@ model Query {
   bedPreferenceNone    Boolean          @default(true)
   preferredDoubleBeds  Int              @default(0)
   preferredSingleBeds  Int              @default(0)
+  /// Requisito del tramo: necesita cuna.
+  requiereCuna         Boolean          @default(false)
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   queryGroupId         String?
@@ -843,6 +847,8 @@ model ReservationSegment {
   bedPreferenceNone    Boolean      @default(true)
   preferredDoubleBeds  Int          @default(0)
   preferredSingleBeds  Int          @default(0)
+  /// Requisito del tramo: necesita cuna.
+  requiereCuna         Boolean      @default(false)
   reservation          Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   room                 Room         @relation(fields: [roomId], references: [id])
   roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])

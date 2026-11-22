@@ -1,18 +1,28 @@
-/* Preferencia de camas — checkbox + campos solo si tildado */
+/* Preferencia de camas / cuna — toggles botón + Mat/Ind si camas on */
 
 .root {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
 }
 
-.toggle {
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.switchRow {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   min-height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
   font-family: var(--font-main);
   font-size: var(--font-size-small);
   font-weight: 500;
@@ -22,9 +32,64 @@
   cursor: pointer;
 }
 
-.toggle input {
-  margin: 0;
-  accent-color: var(--color-primary);
+.switchRow:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.switchRow:focus-visible {
+  outline: none;
+}
+
+.switchRow:focus-visible .switch {
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.switch {
+  --switch-w: 1.75rem;
+  --switch-h: 1rem;
+  --thumb: 0.72rem;
+  position: relative;
+  display: inline-block;
+  width: var(--switch-w);
+  height: var(--switch-h);
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-light, #f0f2f5);
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 50%;
+  left: 0.12rem;
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 1px rgba(31, 41, 51, 0.08);
+  transform: translateY(-50%);
+  transition: left 0.15s ease, border-color 0.15s ease;
+  pointer-events: none;
+}
+
+.switchOn {
+  background: color-mix(in srgb, var(--color-primary) 72%, white);
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+.switchOn .switchThumb {
+  left: calc(100% - var(--thumb) - 0.12rem);
+  border-color: transparent;
+}
+
+.switchLabel {
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-main);
 }
 
 .counts {

@@ -25,6 +25,7 @@ function HabitacionesTab() {
     name: '',
     description: '',
     superficie: '',
+    puedeCuna: false,
     roomTypeId: '',
     tagIds: [],
     beds: []
@@ -80,6 +81,7 @@ function HabitacionesTab() {
       name: room.name,
       description: room.description || '',
       superficie: room.superficie != null ? String(room.superficie) : '',
+      puedeCuna: Boolean(room.puedeCuna),
       roomTypeId: room.roomTypeId,
       tagIds: room.tags ? room.tags.map(tag => tag.id) : [],
       beds: Array.isArray(room.beds) && room.beds.length > 0
@@ -162,6 +164,7 @@ function HabitacionesTab() {
       name: '',
       description: '',
       superficie: '',
+      puedeCuna: false,
       roomTypeId: initialTypeId,
       tagIds: [],
       beds: defaultBedsForCapacity(maxPeople)
@@ -174,6 +177,7 @@ function HabitacionesTab() {
       name: '',
       description: '',
       superficie: '',
+      puedeCuna: false,
       roomTypeId: '',
       tagIds: [],
       beds: []
@@ -210,6 +214,7 @@ function HabitacionesTab() {
         name: '',
         description: '',
         superficie: '',
+        puedeCuna: false,
         roomTypeId: '',
         tagIds: [],
         beds: []
@@ -431,6 +436,16 @@ function HabitacionesTab() {
                   }}>
                     Superficie
                   </th>
+                  <th style={{
+                    padding: '12px',
+                    textAlign: 'left',
+                    borderBottom: '2px solid var(--color-border)',
+                    fontWeight: '600',
+                    color: 'var(--color-text-main)',
+                    fontSize: 'var(--font-size-small)'
+                  }}>
+                    Puede cuna
+                  </th>
                   <th style={{ 
                     padding: '12px', 
                     textAlign: 'left', 
@@ -553,6 +568,32 @@ function HabitacionesTab() {
                         ) : (
                           <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
                             {formatSuperficie(room.superficie)}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {editingRoom === room.id ? (
+                          <label style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: 'var(--font-size-small)',
+                            color: 'var(--color-text-main)',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(editForm.puedeCuna)}
+                              onChange={(e) => handleInputChange('puedeCuna', e.target.checked)}
+                              aria-label="Puede contener cuna"
+                              data-testid={`room-puede-cuna-${room.id}`}
+                            />
+                            Sí
+                          </label>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-small)' }}>
+                            {room.puedeCuna ? 'Sí' : 'No'}
                           </span>
                         )}
                       </td>
@@ -877,6 +918,28 @@ function HabitacionesTab() {
                   }}
                   placeholder="Opcional"
                 />
+              </div>
+
+              {/* Puede contener cuna */}
+              <div>
+                <label style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: '600',
+                  color: 'var(--color-text-main)',
+                  fontSize: 'var(--font-size-small)',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(newRoomForm.puedeCuna)}
+                    onChange={(e) => handleNewRoomInputChange('puedeCuna', e.target.checked)}
+                    aria-label="Puede contener cuna"
+                    data-testid="new-room-puede-cuna"
+                  />
+                  Puede contener cuna
+                </label>
               </div>
 
               {/* Descripción */}

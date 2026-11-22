@@ -7,14 +7,14 @@ import {
 import styles from './BedPreferenceFields.module.css';
 
 /**
- * Preferencia de camas para consulta/reserva.
- * Checkbox «Preferencia de camas»; Mat./Ind. solo si está tildado.
- * Máximos Mat/Ind = max entre habitaciones con capacidad === huéspedes.
- * Opciones grisadas si matrimoniales×2 + individuales > huéspedes.
+ * Preferencia de camas + cuna para requisitos especiales de un tramo.
+ * Toggles botón (no checkbox); Mat./Ind. solo si preferencia de camas está on.
  */
 function BedPreferenceFields({
   value = {},
   onChange,
+  requiereCuna = false,
+  onRequiereCunaChange,
   maxDoubleBeds = 0,
   maxSingleBeds = 0,
   guests = 0,
@@ -42,32 +42,66 @@ function BedPreferenceFields({
   const doubleValue = clamped.preferredDoubleBeds;
   const singleValue = clamped.preferredSingleBeds;
 
+  const toggleBeds = () => {
+    if (disabled) return;
+    if (!enabled) {
+      emit({
+        bedPreferenceNone: false,
+        preferredDoubleBeds: pref.preferredDoubleBeds || 0,
+        preferredSingleBeds: pref.preferredSingleBeds || 0
+      });
+    } else {
+      emit({
+        bedPreferenceNone: true,
+        preferredDoubleBeds: 0,
+        preferredSingleBeds: 0
+      });
+    }
+  };
+
+  const toggleCuna = () => {
+    if (disabled || !onRequiereCunaChange) return;
+    onRequiereCunaChange(!Boolean(requiereCuna));
+  };
+
   return (
     <div className={styles.root}>
-      <label className={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={enabled}
+      <div className={styles.toggles}>
+        <button
+          type="button"
+          className={styles.switchRow}
+          onClick={toggleBeds}
           disabled={disabled}
+          aria-pressed={enabled}
           aria-label="Preferencia de camas"
-          onChange={(e) => {
-            if (e.target.checked) {
-              emit({
-                bedPreferenceNone: false,
-                preferredDoubleBeds: pref.preferredDoubleBeds || 0,
-                preferredSingleBeds: pref.preferredSingleBeds || 0
-              });
-            } else {
-              emit({
-                bedPreferenceNone: true,
-                preferredDoubleBeds: 0,
-                preferredSingleBeds: 0
-              });
-            }
-          }}
-        />
-        Preferencia de camas
-      </label>
+          data-testid="bed-preference-toggle"
+        >
+          <span className={`${styles.switch} ${enabled ? styles.switchOn : ''}`} aria-hidden="true">
+            <span className={styles.switchThumb} />
+          </span>
+          <span className={styles.switchLabel}>Preferencia de camas</span>
+        </button>
+
+        {typeof onRequiereCunaChange === 'function' && (
+          <button
+            type="button"
+            className={styles.switchRow}
+            onClick={toggleCuna}
+            disabled={disabled}
+            aria-pressed={Boolean(requiereCuna)}
+            aria-label="Cuna"
+            data-testid="cuna-toggle"
+          >
+            <span
+              className={`${styles.switch} ${requiereCuna ? styles.switchOn : ''}`}
+              aria-hidden="true"
+            >
+              <span className={styles.switchThumb} />
+            </span>
+            <span className={styles.switchLabel}>Cuna</span>
+          </button>
+        )}
+      </div>
 
       {enabled && (
         <div className={styles.counts}>

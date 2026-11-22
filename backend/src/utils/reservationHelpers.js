@@ -558,6 +558,9 @@ async function createReservationWithSegments(reservationData) {
   }
 
   const logicalCount = collapseVirtualGroupsForTimeline(resolvedSegments).length;
+  const segmentRequiereCuna = resolvedSegments.some((seg) => Boolean(seg.requiereCuna));
+  const resolvedRequiereCuna =
+    requiereCuna !== undefined ? Boolean(requiereCuna) : segmentRequiereCuna;
 
   // Crear la reserva + Account 1:1 en la misma secuencia
   const reservation = await prisma.reservation.create({
@@ -566,7 +569,8 @@ async function createReservationWithSegments(reservationData) {
       status,
       notes,
       source: normalizeReservationSource(source),
-      requiereCuna: Boolean(requiereCuna),
+      // Mirror legado a nivel reserva (= OR de tramos); la fuente de verdad es el segmento.
+      requiereCuna: resolvedRequiereCuna || segmentRequiereCuna,
       requiereEstacionamiento: Boolean(requiereEstacionamiento),
       isMultiRoom: logicalCount > 1 || isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null,
@@ -606,6 +610,7 @@ async function createReservationWithSegments(reservationData) {
         requiredTags: segmentData.requiredTags || [],
         requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
         ...normalizeBedPreference(segmentData),
+        requiereCuna: Boolean(segmentData.requiereCuna),
         reason: segmentData.reason || 'Segmento de reserva',
         notes: segmentData.notes || 'Segmento creado automáticamente',
         isActive: true
@@ -809,6 +814,16 @@ async function updateReservationWithSegments(reservationId, updateData) {
 
   const id = parseInt(reservationId, 10);
 
+  const segmentRequiereCuna =
+    Array.isArray(segments) &&
+    segments.some((seg) => Boolean(seg.requiereCuna));
+  const nextRequiereCuna =
+    Array.isArray(segments)
+      ? Boolean(requiereCuna) || segmentRequiereCuna
+      : requiereCuna !== undefined
+        ? Boolean(requiereCuna)
+        : undefined;
+
   // Actualizar datos básicos de la reserva
   await prisma.reservation.update({
     where: { id },
@@ -821,9 +836,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
         : {}),
       ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
       ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
-      ...(requiereCuna !== undefined
-        ? { requiereCuna: Boolean(requiereCuna) }
-        : {}),
+      ...(nextRequiereCuna !== undefined ? { requiereCuna: nextRequiereCuna } : {}),
       ...(requiereEstacionamiento !== undefined
         ? { requiereEstacionamiento: Boolean(requiereEstacionamiento) }
         : {}),
@@ -902,6 +915,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
             ? parseInt(segmentData.requiredRoomId, 10)
             : null,
           ...normalizeBedPreference(segmentData),
+          requiereCuna: Boolean(segmentData.requiereCuna),
           reason: segmentData.reason,
           notes: segmentData.notes,
           isActive: true
