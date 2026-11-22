@@ -209,10 +209,10 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
               </div>
             </div>
 
-            {/* Ubicación */}
+            {/* Ubicación + domicilio */}
             <div className={styles.section}>
-              <h3> Ubicación</h3>
-              
+              <h3>Ubicación</h3>
+
               <LocationSelector
                 country={formData.country}
                 province={formData.province}
@@ -221,14 +221,9 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                 onProvinceChange={(value) => handleLocationChange('province', value)}
                 onCityChange={(value) => handleLocationChange('city', value)}
               />
-            </div>
 
-            {/* Domicilio */}
-            <div className={styles.section}>
-              <h3> Domicilio</h3>
-              
               <div className={styles.fieldGroup}>
-                <label htmlFor="address"> Dirección</label>
+                <label htmlFor="address">Domicilio</label>
                 <textarea
                   id="address"
                   name="address"
