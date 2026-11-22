@@ -181,6 +181,14 @@ function mapAccountSaldoRow(account) {
   const reservation = account.reservation || null;
   const client = account.client || reservation?.mainClient || null;
   const origen = account.kind === ACCOUNT_KIND.EXTERNAL ? 'EXTERNA' : 'RESERVA';
+  const segments = reservation?.segments || [];
+  const activeSegments = segments.filter((segment) => segment.isActive !== false);
+  const staySegments = activeSegments.length > 0 ? activeSegments : segments;
+  const checkOutCivil = staySegments
+    .map((segment) => civilFromDb(segment.endDate))
+    .filter(Boolean)
+    .sort()
+    .at(-1) || null;
 
   const cobrosView = (account.imputaciones && account.imputaciones.length > 0
     ? account.imputaciones.map((imp) => ({
@@ -219,6 +227,8 @@ function mapAccountSaldoRow(account) {
     reservationId: account.reservationId || null,
     status: reservation?.status || account.status,
     source: reservation?.source || null,
+    checkOut: checkOutCivil,
+    endDate: checkOutCivil,
     mainClient: client,
     cantidadHuespedes: reservation?._count?.guests ?? 0,
     totalCargos,
@@ -263,6 +273,9 @@ exports.getAccountsConSaldos = async (req, res) => {
             source: true,
             mainClient: {
               select: { id: true, firstName: true, lastName: true, email: true, phone: true }
+            },
+            segments: {
+              select: { endDate: true, isActive: true }
             },
             _count: { select: { guests: true } }
           }

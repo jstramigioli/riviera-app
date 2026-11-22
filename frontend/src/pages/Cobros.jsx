@@ -100,6 +100,8 @@ const EMPTY_ACCOUNT_FILTERS = {
   origen: '',
   cuenta: '',
   estado: '',
+  finalizacionFrom: '',
+  finalizacionTo: '',
   cliente: '',
   saldoMin: '',
   saldoMax: '',
@@ -110,6 +112,7 @@ const ACCOUNT_COLUMN_KEYS = {
   origen: ['origen'],
   cuenta: ['cuenta'],
   estado: ['estado'],
+  finalizacion: ['finalizacionFrom', 'finalizacionTo'],
   cliente: ['cliente'],
   saldo: ['saldoMin', 'saldoMax'],
   saldoEstado: ['saldoEstado'],
@@ -119,6 +122,7 @@ const ACCOUNT_COLUMNS = [
   { key: 'origen', label: 'Origen' },
   { key: 'cuenta', label: 'Cuenta' },
   { key: 'estado', label: 'Estado' },
+  { key: 'finalizacion', label: 'Finalización de la reserva' },
   { key: 'cliente', label: 'Cliente' },
   { key: 'saldo', label: 'Saldo' },
   { key: 'saldoEstado', label: 'Saldo estado' },
@@ -185,6 +189,14 @@ function accountClientName(reservation) {
   return 'Sin cliente';
 }
 
+function accountFinalizacionDate(reservation) {
+  if (isExternalAccount(reservation)) return null;
+  const raw = reservation?.checkOut || reservation?.endDate || null;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function matchesAmountRange(value, minRaw, maxRaw) {
   const amount = Number(value) || 0;
   const min = String(minRaw || '').trim() === '' ? null : Number(minRaw);
@@ -208,6 +220,18 @@ function formatDisplayDate(value) {
   const iso = toDateInputValue(value);
   if (!iso) return '—';
   return iso.split('-').reverse().join('/');
+}
+
+function startOfDay(isoDate) {
+  if (!isoDate) return null;
+  const date = new Date(`${isoDate}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function endOfDay(isoDate) {
+  if (!isoDate) return null;
+  const date = new Date(`${isoDate}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 const Cobros = () => {
@@ -594,6 +618,8 @@ const Cobros = () => {
     const origen = String(accountFilters.origen || '').trim();
     const estado = String(accountFilters.estado || '').trim();
     const saldoEstado = String(accountFilters.saldoEstado || '').trim();
+    const finalizacionFrom = startOfDay(accountFilters.finalizacionFrom);
+    const finalizacionTo = endOfDay(accountFilters.finalizacionTo);
 
     return (reservationsWithBalances || []).filter((reservation) => {
       const isExterna = isExternalAccount(reservation);
@@ -622,6 +648,13 @@ const Cobros = () => {
         !matchesAmountRange(reservation.saldo, accountFilters.saldoMin, accountFilters.saldoMax)
       ) {
         return false;
+      }
+
+      if (finalizacionFrom || finalizacionTo) {
+        const refDate = accountFinalizacionDate(reservation);
+        if (!refDate) return false;
+        if (finalizacionFrom && refDate < finalizacionFrom) return false;
+        if (finalizacionTo && refDate > finalizacionTo) return false;
       }
 
       if (clientId != null && !Number.isNaN(clientId)) {
@@ -1045,7 +1078,7 @@ const Cobros = () => {
                   <tbody>
                     {pagedAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className={styles.emptyCell}>
+                        <td colSpan={8} className={styles.emptyCell}>
                           No hay cuentas con los filtros actuales
                         </td>
                       </tr>
@@ -1060,6 +1093,7 @@ const Cobros = () => {
                         const reservaNum =
                           reservation.reservationId || reservation.id;
                         const estadoValue = accountEstadoValue(reservation);
+                        const finalizacion = accountFinalizacionDate(reservation);
 
                         return (
                           <tr key={rowKey} className={styles.row}>
@@ -1080,6 +1114,9 @@ const Cobros = () => {
                             </td>
                             <td className={styles.metaCell}>
                               {accountEstadoLabel(estadoValue)}
+                            </td>
+                            <td className={styles.metaCell}>
+                              {finalizacion ? formatDisplayDate(finalizacion) : '—'}
                             </td>
                             <td>
                               <button
@@ -1206,6 +1243,31 @@ const Cobros = () => {
                         </option>
                       ))}
                     </select>
+                  )}
+                  {openAccountColumn === 'finalizacion' && (
+                    <div className={styles.columnFilterStack}>
+                      <label className={styles.columnFilterRow}>
+                        <span className={styles.columnFilterLabel}>Desde</span>
+                        <input
+                          type="date"
+                          className={styles.columnFilter}
+                          aria-label="Finalización de la reserva desde"
+                          value={accountFilters.finalizacionFrom}
+                          onChange={(e) => setAccountFilter('finalizacionFrom', e.target.value)}
+                        />
+                      </label>
+                      <label className={styles.columnFilterRow}>
+                        <span className={styles.columnFilterLabel}>Hasta</span>
+                        <input
+                          type="date"
+                          className={styles.columnFilter}
+                          aria-label="Finalización de la reserva hasta"
+                          value={accountFilters.finalizacionTo}
+                          min={accountFilters.finalizacionFrom || undefined}
+                          onChange={(e) => setAccountFilter('finalizacionTo', e.target.value)}
+                        />
+                      </label>
+                    </div>
                   )}
                   {openAccountColumn === 'cliente' && (
                     <input
