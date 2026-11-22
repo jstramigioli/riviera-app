@@ -293,7 +293,7 @@ export default function ComidasHub({
             >
               <span className={styles.comidasTotalLabel}>Desayuno</span>
               <span className={styles.comidasTotalValue}>{breakfastTotal}</span>
-              <span className={styles.comidasTotalHint}>personas · ver detalle</span>
+              <span className={styles.comidasTotalHint}>personas</span>
             </button>
             <button
               type="button"
@@ -304,7 +304,7 @@ export default function ComidasHub({
             >
               <span className={styles.comidasTotalLabel}>Cena</span>
               <span className={styles.comidasTotalValue}>{dinnerTotal}</span>
-              <span className={styles.comidasTotalHint}>personas · ver detalle</span>
+              <span className={styles.comidasTotalHint}>personas</span>
             </button>
           </div>
 
