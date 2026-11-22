@@ -341,15 +341,6 @@ const LocationSelector = ({
           </div>
         )}
       </div>
-
-      {/* Información adicional */}
-      {isArgentina && (
-        <div className={styles.info}>
-          <small>
-            Escribe en el campo ciudad para buscar localidades disponibles. Usa las flechas ↑↓ para navegar y Enter para seleccionar.
-          </small>
-        </div>
-      )}
     </div>
   );
 };
