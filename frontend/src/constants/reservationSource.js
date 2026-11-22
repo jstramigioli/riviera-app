@@ -110,9 +110,34 @@ export const FINISHED_RESERVATION_BAR_STYLE = Object.freeze({
   color: '#6b7280'
 });
 
+/** Prerreserva (PENDIENTE): mezcla hacia blanco del color de canal. */
+export const PRERESERVA_LIGHTEN = 0.42;
+
+/**
+ * Aclara un #RRGGBB mezclándolo con blanco.
+ * @param {string} hex
+ * @param {number} amount 0 = sin cambio, 1 = blanco
+ */
+export function lightenHex(hex, amount = PRERESERVA_LIGHTEN) {
+  if (typeof hex !== 'string') return hex;
+  const raw = hex.trim().replace(/^#/, '');
+  const full =
+    raw.length === 3
+      ? raw.split('').map((c) => c + c).join('')
+      : raw;
+  if (!/^[0-9A-Fa-f]{6}$/.test(full)) return hex;
+  const t = Math.min(1, Math.max(0, Number(amount) || 0));
+  const mix = (channel) =>
+    Math.round(parseInt(channel, 16) + (255 - parseInt(channel, 16)) * t)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${mix(full.slice(0, 2))}${mix(full.slice(2, 4))}${mix(full.slice(4, 6))}`;
+}
+
 /**
  * Colores de barra/chip de reserva (misma regla que el Libro):
- * FINALIZADA → gris; con medio → color del medio (localStorage/default); sin medio → celeste Libro.
+ * FINALIZADA → gris; con medio → color del medio; PENDIENTE (prerreserva) → tono más claro del canal;
+ * sin medio → celeste Libro.
  */
 export function resolveReservationBarColors(
   source,
@@ -125,18 +150,18 @@ export function resolveReservationBarColors(
   const colors = sourceColors || loadSourceColors();
   const sourceColor =
     source && colors[source] ? colors[source] : null;
-  if (sourceColor) {
-    return {
-      backgroundColor: sourceColor,
-      borderColor: sourceColor,
-      color: contrastTextColor(sourceColor),
-      finished: false
-    };
-  }
+  const base = sourceColor || DEFAULT_RESERVATION_BAR_COLOR;
+  const backgroundColor =
+    status === 'PENDIENTE' ? lightenHex(base, PRERESERVA_LIGHTEN) : base;
+  const borderColor =
+    status === 'PENDIENTE' && !sourceColor
+      ? DEFAULT_RESERVATION_BAR_BORDER
+      : backgroundColor;
   return {
-    backgroundColor: DEFAULT_RESERVATION_BAR_COLOR,
-    borderColor: DEFAULT_RESERVATION_BAR_BORDER,
-    color: contrastTextColor(DEFAULT_RESERVATION_BAR_COLOR),
-    finished: false
+    backgroundColor,
+    borderColor,
+    color: contrastTextColor(backgroundColor),
+    finished: false,
+    prerreserva: status === 'PENDIENTE'
   };
 }

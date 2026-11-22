@@ -3,7 +3,9 @@ import {
   DEFAULT_SOURCE_COLORS,
   DEFAULT_RESERVATION_BAR_COLOR,
   FINISHED_RESERVATION_BAR_STYLE,
+  PRERESERVA_LIGHTEN,
   contrastTextColor,
+  lightenHex,
   resolveReservationBarColors
 } from './reservationSource'
 
@@ -51,5 +53,24 @@ describe('resolveReservationBarColors', () => {
     const style = resolveReservationBarColors(null, 'CONFIRMADA', DEFAULT_SOURCE_COLORS)
     expect(style.backgroundColor).toBe(DEFAULT_RESERVATION_BAR_COLOR)
     expect(style.finished).toBe(false)
+  })
+
+  it('PENDIENTE (prerreserva) → tono más claro del mismo canal', () => {
+    const full = resolveReservationBarColors('BOOKING', 'CONFIRMADA', DEFAULT_SOURCE_COLORS)
+    const pre = resolveReservationBarColors('BOOKING', 'PENDIENTE', DEFAULT_SOURCE_COLORS)
+    expect(pre.backgroundColor).toBe(
+      lightenHex(DEFAULT_SOURCE_COLORS.BOOKING, PRERESERVA_LIGHTEN)
+    )
+    expect(pre.backgroundColor).not.toBe(full.backgroundColor)
+    expect(pre.prerreserva).toBe(true)
+    expect(pre.finished).toBe(false)
+  })
+})
+
+describe('lightenHex', () => {
+  it('mezcla hacia blanco', () => {
+    expect(lightenHex('#000000', 0.5)).toBe('#808080')
+    expect(lightenHex('#003580', 0)).toBe('#003580')
+    expect(lightenHex('#003580', 1)).toBe('#ffffff')
   })
 })

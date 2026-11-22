@@ -27,7 +27,9 @@ export default function ReservationIdChip({
     title ||
     (status === 'FINALIZADA'
       ? `Reserva ${label} · Finalizada`
-      : `Reserva ${label} · ${medio}`);
+      : status === 'PENDIENTE'
+        ? `Reserva ${label} · Prerreserva · ${medio}`
+        : `Reserva ${label} · ${medio}`);
 
   const classNames = [
     styles.chip,

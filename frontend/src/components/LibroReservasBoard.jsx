@@ -745,9 +745,11 @@ export default function LibroReservasBoard({
                       b.status,
                       sourceColors
                     );
-                    // Sin medio: hereda CSS .bar; con medio/finalizada: inline como el Libro.
+                    // Medio / finalizada / prerreserva: tint inline (misma regla que ReservationIdChip).
                     const barStyle =
-                      finished || (b.source && sourceColors[b.source])
+                      finished ||
+                      b.status === 'PENDIENTE' ||
+                      (b.source && sourceColors[b.source])
                         ? {
                             ...style,
                             backgroundColor: barColors.backgroundColor,
