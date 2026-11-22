@@ -952,6 +952,39 @@ describe('CobroForm facturación', () => {
     })
   })
 
+  it('layout 4 columnas permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
+
+    expect(screen.getByTestId('payment-summary')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-amount-modes')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+    expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Comprobante \(opcional\)/i)).toBeInTheDocument()
+    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
+    expect(screen.getByText(/Requiere facturación/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Tarjeta Credito' }
+    })
+    expect(screen.getByLabelText(/Número de tarjeta/i)).toBeInTheDocument()
+    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
+  })
+
   it('efectivo: sección movimiento + sync recibido/vuelto (A/B); transferencia la oculta (F)', async () => {
     const { createCobro } = await import('../services/api')
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
