@@ -122,8 +122,9 @@ describe('ClientBalanceMovements', () => {
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Efectivo/)
     await waitFor(() => {
       expect(screen.getByTestId('client-cobro-comprobantes')).toHaveTextContent(
-        /Sin comprobante adjunto/i
+        /Sin comprobante/i
       )
+      expect(screen.queryByText(/^Referencia$/i)).not.toBeInTheDocument()
     })
   })
 

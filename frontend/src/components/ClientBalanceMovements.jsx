@@ -572,10 +572,6 @@ const ClientBalanceMovements = ({
               <dd>{selectedCobro.accountLabel || '—'}</dd>
             </div>
             <div>
-              <dt>Referencia</dt>
-              <dd>{selectedCobro.referencia || '—'}</dd>
-            </div>
-            <div>
               <dt>Notas</dt>
               <dd>{selectedCobro.notas || '—'}</dd>
             </div>
@@ -584,27 +580,36 @@ const ClientBalanceMovements = ({
               <dd>
                 {loadingComprobantes ? (
                   <span className={styles.comprobanteMuted}>Cargando…</span>
-                ) : cobroComprobantes.length === 0 ? (
-                  <span className={styles.comprobanteMuted}>Sin comprobante adjunto</span>
+                ) : !selectedCobro.referencia && cobroComprobantes.length === 0 ? (
+                  <span className={styles.comprobanteMuted}>Sin comprobante</span>
                 ) : (
-                  <ul className={styles.comprobanteList}>
-                    {cobroComprobantes.map((file) => (
-                      <li key={file.id}>
-                        <button
-                          type="button"
-                          className={styles.comprobanteLink}
-                          onClick={() => handleDownloadComprobante(file)}
-                          disabled={downloadingAdjuntoId === file.id}
-                          title="Ver / descargar comprobante"
-                          data-testid={`client-cobro-comprobante-${file.id}`}
-                        >
-                          {downloadingAdjuntoId === file.id
-                            ? 'Descargando…'
-                            : file.originalName || `Comprobante ${file.id}`}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className={styles.comprobanteUnified}>
+                    {selectedCobro.referencia ? (
+                      <span data-testid="client-cobro-comprobante-ref">
+                        {selectedCobro.referencia}
+                      </span>
+                    ) : null}
+                    {cobroComprobantes.length > 0 ? (
+                      <ul className={styles.comprobanteList}>
+                        {cobroComprobantes.map((file) => (
+                          <li key={file.id}>
+                            <button
+                              type="button"
+                              className={styles.comprobanteLink}
+                              onClick={() => handleDownloadComprobante(file)}
+                              disabled={downloadingAdjuntoId === file.id}
+                              title="Ver / descargar comprobante"
+                              data-testid={`client-cobro-comprobante-${file.id}`}
+                            >
+                              {downloadingAdjuntoId === file.id
+                                ? 'Descargando…'
+                                : file.originalName || `Comprobante ${file.id}`}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                 )}
               </dd>
             </div>

@@ -54,7 +54,7 @@ const PAY_COLUMNS = [
   { key: 'moneda', label: 'Moneda' },
   { key: 'metodo', label: 'Método' },
   { key: 'motivo', label: 'Motivo' },
-  { key: 'referencia', label: 'Referencia' },
+  { key: 'referencia', label: 'Comprobante' },
 ];
 
 export function pagoMoneda(cobro) {
@@ -111,7 +111,7 @@ function endOfDay(isoDate) {
 
 /**
  * Tabla de historial de cobros (misma estructura que Estado de cuentas → Cobros).
- * Columnas: Código, Fecha, Reserva, Cliente, Monto, Moneda, Método, Motivo, Referencia, Factura, Retirado.
+ * Columnas: Código, Fecha, Reserva, Cliente, Monto, Moneda, Método, Motivo, Comprobante, Factura, Retirado.
  */
 export default function CobrosHistorialTable({
   payments = [],
@@ -859,7 +859,7 @@ export default function CobrosHistorialTable({
             <input
               type="search"
               className={styles.columnFilter}
-              aria-label="Filtrar por referencia"
+              aria-label="Filtrar por comprobante"
               placeholder="Buscar…"
               autoFocus
               value={payFilters.referencia}
