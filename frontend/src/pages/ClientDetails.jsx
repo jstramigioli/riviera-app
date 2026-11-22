@@ -303,12 +303,6 @@ const ClientDetails = () => {
             >
               Balance de Cobros
             </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'documents' ? styles.active : ''}`}
-              onClick={() => setActiveSection('documents')}
-            >
-              Documentación Asociada
-            </button>
           </div>
         </div>
 
@@ -344,8 +338,12 @@ const ClientDetails = () => {
                         <span className={styles.value}>{client.phone || 'Sin teléfono'}</span>
                       </div>
                       <div className={styles.infoItem} onClick={() => handleEditField('document')}>
-                        <span className={styles.label}> Documento:</span>
-                        <span className={styles.value}>{client.documentType && client.documentNumber ? `${client.documentType} ${client.documentNumber}` : 'Sin documento'}</span>
+                        <span className={styles.label}>DNI / Documento:</span>
+                        <span className={styles.value}>
+                          {client.documentType && client.documentNumber
+                            ? `${client.documentType} ${client.documentNumber}`
+                            : 'Sin documento'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -553,47 +551,6 @@ const ClientDetails = () => {
           )}
 
 
-          {/* Sección de Documentación Asociada */}
-          {activeSection === 'documents' && (
-            <div className={styles.section}>
-              <h2> Documentación Asociada</h2>
-              <div className={styles.documentsContainer}>
-                <div className={styles.documentsGrid}>
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon} aria-hidden="true"> ID</div>
-                    <div className={styles.documentInfo}>
-                      <h3> Documento de Identidad</h3>
-                      <p> Foto del DNI o documento de identidad del cliente</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          Subir Foto
-                        </button>
-                        <button className={styles.viewButton}>
-                          Ver Documento
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.documentCard}>
-                    <div className={styles.documentIcon} aria-hidden="true">$</div>
-                    <div className={styles.documentInfo}>
-                      <h3> Comprobantes de Cobro</h3>
-                      <p> Recibos y comprobantes de cobro</p>
-                      <div className={styles.documentActions}>
-                        <button className={styles.uploadButton}>
-                          Subir Comprobante
-                        </button>
-                        <button className={styles.viewButton}>
-                          Ver Comprobantes
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
       </div>

@@ -1,12 +1,21 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import CobroForm from './CobroForm';
-import { deleteCargo, deleteCobro, updateCargo } from '../services/api';
+import {
+  deleteCargo,
+  deleteCobro,
+  downloadCobroAdjunto,
+  fetchAccountCobros,
+  getCobrosByReserva,
+  updateCargo
+} from '../services/api';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import { formatMoneyArs } from '../utils/formatMoney';
 import styles from './ClientBalanceMovements.module.css';
+
+const ADJUNTO_COMPROBANTE = 'COMPROBANTE';
 
 function formatDate(dateString) {
   if (!dateString) return '—';
@@ -15,6 +24,10 @@ function formatDate(dateString) {
     month: '2-digit',
     year: 'numeric'
   });
+}
+
+function comprobantesOf(adjuntos) {
+  return (adjuntos || []).filter((a) => a?.tipo === ADJUNTO_COMPROBANTE);
 }
 
 /**
@@ -35,6 +48,9 @@ const ClientBalanceMovements = ({
   const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '', notas: '' });
   const [savingCargo, setSavingCargo] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [cobroComprobantes, setCobroComprobantes] = useState([]);
+  const [loadingComprobantes, setLoadingComprobantes] = useState(false);
+  const [downloadingAdjuntoId, setDownloadingAdjuntoId] = useState(null);
   const cargoEditOverlayDismiss = useOverlayDismiss(
     () => setEditingCargo(null),
     { enabled: !savingCargo }
@@ -55,6 +71,61 @@ const ClientBalanceMovements = ({
       ) || null
     );
   }, [selected, cobros]);
+
+  useEffect(() => {
+    if (!selectedCobro?.id) {
+      setCobroComprobantes([]);
+      setLoadingComprobantes(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadComprobantes = async () => {
+      setLoadingComprobantes(true);
+      try {
+        let rows = [];
+        if (selectedCobro.accountId) {
+          rows = await fetchAccountCobros(selectedCobro.accountId);
+        } else if (selectedCobro.reservaId) {
+          rows = await getCobrosByReserva(selectedCobro.reservaId);
+        }
+        const match = (Array.isArray(rows) ? rows : []).find((row) => row.id === selectedCobro.id);
+        if (!cancelled) {
+          setCobroComprobantes(comprobantesOf(match?.adjuntos));
+        }
+      } catch (err) {
+        console.error('Error cargando comprobantes del cobro:', err);
+        if (!cancelled) setCobroComprobantes([]);
+      } finally {
+        if (!cancelled) setLoadingComprobantes(false);
+      }
+    };
+
+    loadComprobantes();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCobro?.id, selectedCobro?.accountId, selectedCobro?.reservaId]);
+
+  const handleDownloadComprobante = async (adjunto) => {
+    if (!selectedCobro?.id || !adjunto?.id || downloadingAdjuntoId === adjunto.id) return;
+    setDownloadingAdjuntoId(adjunto.id);
+    try {
+      await downloadCobroAdjunto(
+        selectedCobro.id,
+        adjunto.id,
+        adjunto.originalName || `comprobante-${adjunto.id}`
+      );
+    } catch (err) {
+      notify({
+        title: 'Error',
+        message: err?.message || 'No se pudo descargar el comprobante',
+        type: 'error'
+      });
+    } finally {
+      setDownloadingAdjuntoId(null);
+    }
+  };
 
   const selectCargo = (cargo) => {
     setSelected({ type: 'cargo', id: cargo.id });
@@ -507,6 +578,35 @@ const ClientBalanceMovements = ({
             <div>
               <dt>Notas</dt>
               <dd>{selectedCobro.notas || '—'}</dd>
+            </div>
+            <div className={styles.detailComprobantes} data-testid="client-cobro-comprobantes">
+              <dt>Comprobante</dt>
+              <dd>
+                {loadingComprobantes ? (
+                  <span className={styles.comprobanteMuted}>Cargando…</span>
+                ) : cobroComprobantes.length === 0 ? (
+                  <span className={styles.comprobanteMuted}>Sin comprobante adjunto</span>
+                ) : (
+                  <ul className={styles.comprobanteList}>
+                    {cobroComprobantes.map((file) => (
+                      <li key={file.id}>
+                        <button
+                          type="button"
+                          className={styles.comprobanteLink}
+                          onClick={() => handleDownloadComprobante(file)}
+                          disabled={downloadingAdjuntoId === file.id}
+                          title="Ver / descargar comprobante"
+                          data-testid={`client-cobro-comprobante-${file.id}`}
+                        >
+                          {downloadingAdjuntoId === file.id
+                            ? 'Descargando…'
+                            : file.originalName || `Comprobante ${file.id}`}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
             </div>
             <div className={styles.detailActions}>
               <button

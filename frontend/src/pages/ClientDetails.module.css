@@ -656,106 +656,6 @@
   font-size: 1rem;
 }
 
-/* Estilos para documentación asociada */
-.documentsContainer {
-  background: white;
-  border-radius: var(--radius-md);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  flex: 1;
-}
-
-.documentsGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.documentCard {
-  background: #f8f9fa;
-  border-radius: var(--radius-md);
-  padding: 32px 20px;
-  border: 1px solid #e9ecef;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  width: 100%;
-}
-
-.documentCard:hover {
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-2px);
-}
-
-.documentIcon {
-  font-size: 3rem;
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.documentInfo {
-  flex: 1;
-  text-align: center;
-}
-
-.documentInfo h3 {
-  color: var(--color-primary);
-  font-size: var(--font-size-large);
-  margin: 0 0 12px 0;
-  font-weight: 600;
-}
-
-.documentInfo p {
-  color: #6c757d;
-  font-size: 1rem;
-  margin: 0 0 20px 0;
-  line-height: 1.4;
-}
-
-.documentActions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.uploadButton,
-.viewButton {
-  padding: 6px 12px;
-  border: 1px solid #dee2e6;
-  background: white;
-  color: #495057;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.uploadButton:hover {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.viewButton:hover {
-  background: #28a745;
-  color: white;
-  border-color: #28a745;
-}
-
 .mainContentFooter {
   padding: 0 15% 0 5%;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
@@ -851,10 +751,6 @@
   .infoItem {
     min-width: auto;
   }
-  
-  .documentsGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 768px) {
@@ -900,39 +796,6 @@
   
   .infoItem {
     min-width: auto;
-  }
-  
-  .documentsGrid {
-    gap: 16px;
-  }
-  
-  .documentCard {
-    padding: 24px 16px;
-  }
-  
-  .documentIcon {
-    font-size: var(--font-size-xxlarge);
-    width: 60px;
-    height: 60px;
-  }
-  
-  .documentInfo h3 {
-    font-size: var(--font-size-large);
-  }
-  
-  .documentInfo p {
-    font-size: 0.9rem;
-  }
-  
-  .documentActions {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .uploadButton,
-  .viewButton {
-    width: 100%;
-    max-width: 200px;
   }
   
   .contactButtons {

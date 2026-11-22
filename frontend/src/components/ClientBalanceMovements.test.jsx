@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ClientBalanceMovements from './ClientBalanceMovements'
-import { deleteCargo, deleteCobro, updateCargo } from '../services/api'
+import {
+  deleteCargo,
+  deleteCobro,
+  downloadCobroAdjunto,
+  fetchAccountCobros,
+  updateCargo
+} from '../services/api'
 
 vi.mock('./CobroForm', () => ({
   default: ({ onClose }) => (
@@ -16,7 +22,10 @@ vi.mock('./CobroForm', () => ({
 vi.mock('../services/api', () => ({
   updateCargo: vi.fn(),
   deleteCargo: vi.fn(),
-  deleteCobro: vi.fn()
+  deleteCobro: vi.fn(),
+  downloadCobroAdjunto: vi.fn(),
+  fetchAccountCobros: vi.fn().mockResolvedValue([]),
+  getCobrosByReserva: vi.fn().mockResolvedValue([])
 }))
 
 const notify = vi.fn()
@@ -84,9 +93,11 @@ describe('ClientBalanceMovements', () => {
     deleteCargo.mockResolvedValue({})
     deleteCobro.mockResolvedValue({})
     updateCargo.mockResolvedValue({})
+    fetchAccountCobros.mockResolvedValue([])
+    downloadCobroAdjunto.mockResolvedValue(undefined)
   })
 
-  it('muestra tablas de cargos y cobros y detalle al seleccionar', () => {
+  it('muestra tablas de cargos y cobros y detalle al seleccionar', async () => {
     render(
       <ClientBalanceMovements
         cargos={cargos}
@@ -109,6 +120,46 @@ describe('ClientBalanceMovements', () => {
     fireEvent.click(screen.getByTestId('client-cobro-row-20-200'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/A010/)
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Efectivo/)
+    await waitFor(() => {
+      expect(screen.getByTestId('client-cobro-comprobantes')).toHaveTextContent(
+        /Sin comprobante adjunto/i
+      )
+    })
+  })
+
+  it('permite ver/descargar comprobante del cobro desde el detalle', async () => {
+    fetchAccountCobros.mockResolvedValue([
+      {
+        id: 20,
+        adjuntos: [
+          { id: 77, tipo: 'COMPROBANTE', originalName: 'transferencia.pdf' },
+          { id: 78, tipo: 'FACTURA', originalName: 'factura.pdf' }
+        ]
+      }
+    ])
+
+    render(
+      <ClientBalanceMovements
+        cargos={cargos}
+        cobros={cobros}
+        formatPrice={formatPrice}
+        onChanged={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('client-cobro-row-20-200'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('client-cobro-comprobante-77')).toHaveTextContent(
+        'transferencia.pdf'
+      )
+    })
+    expect(screen.queryByText('factura.pdf')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('client-cobro-comprobante-77'))
+    await waitFor(() => {
+      expect(downloadCobroAdjunto).toHaveBeenCalledWith(20, 77, 'transferencia.pdf')
+    })
   })
 
   it('abre CobroForm al editar un cobro', () => {
