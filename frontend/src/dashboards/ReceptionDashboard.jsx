@@ -651,7 +651,7 @@ export default function ReceptionDashboard() {
                 Egresos
               </h3>
               {checkoutRows.length === 0 ? (
-                <p className={styles.empty}>Sin egresos en el rango.</p>
+                <p className={styles.empty}>Sin egresos.</p>
               ) : (
                 <div className={styles.tableScroll}>
                   <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
