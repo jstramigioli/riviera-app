@@ -24,7 +24,8 @@ import {
   getClientBillingProfile,
   getTipoCambioActual,
   uploadCobroAdjuntos,
-  previewPromotion
+  previewPromotion,
+  updateReservationStatus
 } from '../services/api';
 import {
   benefitUnitLabel,
@@ -61,6 +62,8 @@ import {
   suggestVueltoARS
 } from '../utils/cashTender';
 import { formatMoney, formatMoneyArs, formatMoneyUsd } from '../utils/formatMoney';
+import { RESERVATION_STATUSES } from '../utils/reservationStatusUtils';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './CobroForm.module.css';
 
@@ -202,6 +205,7 @@ const CobroForm = ({
 }) => {
   const isEditMode = initialCobro != null && initialCobro.id != null;
   const showAllocationUi = !isEditMode;
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [reservationOptions, setReservationOptions] = useState([]);
   const [allocations, setAllocations] = useState(() => [newAllocRow()]);
   const [activeAllocId, setActiveAllocId] = useState(null);
@@ -855,6 +859,7 @@ const CobroForm = ({
               accountId: reservation?.account?.id ?? reservation?.accountId ?? null,
               accountKind: 'RESERVATION',
               origen: 'RESERVA',
+              status: reservation?.status || null,
               clientId: seedClientId,
               clientLastName: reservation?.mainClient?.lastName || '',
               clientName: reservation?.mainClient
@@ -1500,6 +1505,55 @@ const CobroForm = ({
         }
       }
 
+      const offerConfirmStatus =
+        !isEditMode &&
+        !isDevolucion &&
+        motivoActual === 'Seña' &&
+        reservaId != null;
+
+      if (offerConfirmStatus) {
+        let status =
+          pickedRow?.status ||
+          reservationOptions.find(
+            (r) => Number(r.reservationId) === Number(reservaId)
+          )?.status ||
+          null;
+        if (!status) {
+          try {
+            const reservation = await fetchReservation(reservaId);
+            status = reservation?.status || null;
+          } catch {
+            status = null;
+          }
+        }
+        if (status === RESERVATION_STATUSES.PENDIENTE) {
+          setLoading(false);
+          const changeToConfirmada = await confirm({
+            title: '¿Cambiar a Confirmada?',
+            message: '',
+            confirmText: 'Confirmar',
+            cancelText: 'Mantener en prerreserva',
+            type: 'info',
+            confirmButtonClass: 'confirmada'
+          });
+          if (changeToConfirmada) {
+            try {
+              await updateReservationStatus(
+                reservaId,
+                RESERVATION_STATUSES.CONFIRMADA
+              );
+            } catch (statusErr) {
+              setError(
+                statusErr?.message ||
+                  'Cobro guardado, pero no se pudo cambiar el estado a Confirmada.'
+              );
+              onSuccess?.(nuevoCobro);
+              return;
+            }
+          }
+        }
+      }
+
       onSuccess?.(nuevoCobro);
       onClose();
     } catch (err) {
@@ -1570,6 +1624,8 @@ const CobroForm = ({
     montoDescontadoARS > 0 ? formatMoneyArs(montoDescontadoARS) : '—';
 
   return (
+    <>
+    {confirmDialog}
     <div className={styles.overlay} {...overlayDismiss}>
       <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="payment-form-title">
         <div className={styles.header}>
@@ -2756,6 +2812,7 @@ const CobroForm = ({
         </form>
       </div>
     </div>
+    </>
   );
 };
 

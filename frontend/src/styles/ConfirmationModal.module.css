@@ -145,6 +145,18 @@
   border-color: #e67700;
 }
 
+/* Estado CONFIRMADA (#17a2b8) — botón Confirmar post-seña */
+.confirmada {
+  background-color: #17a2b8;
+  color: #ffffff;
+  border-color: #17a2b8;
+}
+
+.confirmada:hover {
+  background-color: #138496;
+  border-color: #117a8b;
+}
+
 @keyframes confirmFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

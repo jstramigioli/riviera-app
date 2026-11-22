@@ -67,13 +67,15 @@ const ConfirmationModal = ({
           </button>
         </div>
 
-        <div className={styles.modalBody}>
-          {typeof message === 'string' ? (
-            <p className={styles.modalMessage}>{message}</p>
-          ) : (
-            <div className={styles.modalMessage}>{message}</div>
-          )}
-        </div>
+        {message != null && message !== '' ? (
+          <div className={styles.modalBody}>
+            {typeof message === 'string' ? (
+              <p className={styles.modalMessage}>{message}</p>
+            ) : (
+              <div className={styles.modalMessage}>{message}</div>
+            )}
+          </div>
+        ) : null}
 
         <div className={styles.modalFooter}>
           <button

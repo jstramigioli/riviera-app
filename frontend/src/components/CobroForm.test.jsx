@@ -8,6 +8,7 @@ vi.mock('../services/api', () => ({
   createClientMultiCobro: vi.fn(),
   updateCobro: vi.fn(),
   uploadCobroAdjuntos: vi.fn(),
+  updateReservationStatus: vi.fn().mockResolvedValue({ id: 22, status: 'CONFIRMADA' }),
   getTipoCambioActual: vi.fn().mockResolvedValue({ tipoCambio: 1000 }),
   previewPromotion: vi.fn().mockResolvedValue({ aplica: false }),
   fetchPaymentMethodConfigs: vi.fn().mockResolvedValue([
@@ -76,7 +77,8 @@ vi.mock('../services/api', () => ({
         clientLastName: 'Pérez',
         label: '101 - Pérez',
         accountKind: 'RESERVATION',
-        origen: 'RESERVA'
+        origen: 'RESERVA',
+        status: 'CONFIRMADA'
       },
       {
         reservationId: 22,
@@ -86,7 +88,8 @@ vi.mock('../services/api', () => ({
         clientLastName: 'Pérez',
         label: '202 - Pérez',
         accountKind: 'RESERVATION',
-        origen: 'RESERVA'
+        origen: 'RESERVA',
+        status: 'CONFIRMADA'
       },
       {
         reservationId: null,
@@ -104,6 +107,7 @@ vi.mock('../services/api', () => ({
   }),
   fetchReservation: vi.fn().mockResolvedValue({
     id: 22,
+    status: 'CONFIRMADA',
     mainClientId: 5,
     mainClient: { id: 5, firstName: 'Ana', lastName: 'Pérez' },
     account: { id: 202 }
@@ -129,6 +133,7 @@ import {
   createClientMultiCobro,
   createExternalAccount,
   updateCobro,
+  updateReservationStatus,
   fetchCuentasParaCobro,
   getClientBillingProfile,
   previewPromotion,
@@ -742,7 +747,8 @@ describe('CobroForm facturación', () => {
   })
 
   it('tabs Nuevo cobro / Nueva devolución y toggle Seña sin desplegable Motivo', async () => {
-    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    const onClose = vi.fn()
+    render(<CobroForm reservaId={22} onClose={onClose} onSuccess={vi.fn()} />)
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
@@ -773,6 +779,82 @@ describe('CobroForm facturación', () => {
       )
     )
     expect(createCobro.mock.calls[0][1]).not.toHaveProperty('referencia')
+    expect(screen.queryByRole('heading', { name: /Cambiar a Confirmada/i })).not.toBeInTheDocument()
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(updateReservationStatus).not.toHaveBeenCalled()
+  })
+
+  it('seña sobre prerreserva ofrece cambiar a Confirmada', async () => {
+    fetchCuentasParaCobro.mockResolvedValueOnce({
+      data: [
+        {
+          reservationId: 22,
+          accountId: 202,
+          roomName: '202',
+          clientId: 5,
+          clientLastName: 'Pérez',
+          label: '202 - Pérez',
+          accountKind: 'RESERVATION',
+          origen: 'RESERVA',
+          status: 'PENDIENTE'
+        }
+      ]
+    })
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    render(<CobroForm reservaId={22} onClose={onClose} onSuccess={onSuccess} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.click(screen.getByLabelText(/^Seña$/i))
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '2000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /Cambiar a Confirmada/i })).toBeInTheDocument()
+    )
+    expect(screen.getByRole('button', { name: 'Mantener en prerreserva' })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() =>
+      expect(updateReservationStatus).toHaveBeenCalledWith(22, 'CONFIRMADA')
+    )
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled())
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('seña sobre prerreserva puede mantenerse sin confirmar', async () => {
+    fetchCuentasParaCobro.mockResolvedValueOnce({
+      data: [
+        {
+          reservationId: 22,
+          accountId: 202,
+          roomName: '202',
+          clientId: 5,
+          clientLastName: 'Pérez',
+          label: '202 - Pérez',
+          accountKind: 'RESERVATION',
+          origen: 'RESERVA',
+          status: 'PENDIENTE'
+        }
+      ]
+    })
+    const onClose = vi.fn()
+    render(<CobroForm reservaId={22} onClose={onClose} onSuccess={vi.fn()} />)
+
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.click(screen.getByLabelText(/^Seña$/i))
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '2000' } })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /Cambiar a Confirmada/i })).toBeInTheDocument()
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Mantener en prerreserva' }))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(updateReservationStatus).not.toHaveBeenCalled()
   })
 
   it('Nueva devolución envía motivo Devolución', async () => {
