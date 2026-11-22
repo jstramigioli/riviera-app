@@ -1,10 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FiCreditCard,
-  FiDollarSign,
-  FiMoreHorizontal,
+  FiChevronDown,
   FiPlus,
-  FiRefreshCw,
   FiSave,
   FiUpload,
   FiX
@@ -119,19 +116,6 @@ function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
 }
 
-/** Icono SVG distinto por medio de pago (columna de método). */
-function paymentMethodIcon(metodo) {
-  const m = String(metodo || '')
-    .trim()
-    .toLowerCase();
-  if (m.includes('efectivo')) return FiDollarSign;
-  if (m.includes('tarjeta') || m.includes('débito') || m.includes('debito') || m.includes('crédito') || m.includes('credito')) {
-    return FiCreditCard;
-  }
-  if (m.includes('transfer')) return FiRefreshCw;
-  return FiMoreHorizontal;
-}
-
 function reservationOptionLabel(row) {
   if (row.label) return row.label;
   if (row.accountKind === 'EXTERNAL' || row.origen === 'EXTERNA') {
@@ -154,6 +138,59 @@ function isExternalRow(row) {
 }
 
 let allocSeq = 0;
+/**
+ * Reparte totalARS proporcional a saldo pendiente (>0).
+ * Última fila absorbe centavos para que la suma coincida exacta con totalARS.
+ * Cuentas sin saldo positivo reciben 0 y se omiten del resultado.
+ */
+function distributeProportionalToSaldo(totalARS, targets = []) {
+  const total = roundMoney(Math.abs(Number(totalARS) || 0));
+  if (total <= 0 || !Array.isArray(targets) || targets.length === 0) return [];
+
+  const weights = targets.map((t) =>
+    Math.max(0, roundMoney(Number(t.saldoPendiente) || 0))
+  );
+  const weightSum = roundMoney(weights.reduce((s, w) => s + w, 0));
+
+  if (weightSum <= 0) {
+    const first = targets[0];
+    return first
+      ? [
+          {
+            accountId: first.accountId,
+            reservaId: first.reservaId ?? null,
+            optionKey: first.optionKey,
+            saldoPendiente: 0,
+            montoARS: total
+          }
+        ]
+      : [];
+  }
+
+  let allocated = 0;
+  const rows = [];
+  for (let i = 0; i < targets.length; i += 1) {
+    const t = targets[i];
+    const isLast = i === targets.length - 1;
+    let part;
+    if (isLast) {
+      part = roundMoney(total - allocated);
+    } else {
+      part = roundMoney((weights[i] / weightSum) * total);
+      allocated = roundMoney(allocated + part);
+    }
+    if (part <= 0.009) continue;
+    rows.push({
+      accountId: t.accountId,
+      reservaId: t.reservaId ?? null,
+      optionKey: t.optionKey,
+      saldoPendiente: weights[i],
+      montoARS: part
+    });
+  }
+  return rows;
+}
+
 function newAllocRow(partial = {}) {
   allocSeq += 1;
   return {
@@ -208,11 +245,13 @@ const CobroForm = ({
   const { confirm, confirmDialog } = useConfirmDialog();
   const [reservationOptions, setReservationOptions] = useState([]);
   const [allocations, setAllocations] = useState(() => [newAllocRow()]);
+  const [allocSaldos, setAllocSaldos] = useState({});
   const [activeAllocId, setActiveAllocId] = useState(null);
   const [accountQuery, setAccountQuery] = useState('');
   const [showCreateExternal, setShowCreateExternal] = useState(false);
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -251,6 +290,11 @@ const CobroForm = ({
 
   const isMultiAlloc = assignedAllocations.length > 1;
   const pickedRow = assignedAllocations[0]?.row || null;
+
+  const assignedAllocKeys = useMemo(
+    () => assignedAllocations.map((a) => a.optionKey).join('|'),
+    [assignedAllocations]
+  );
 
   const isExternalAccount = isEditMode
     ? accountIdProp != null && reservaIdProp == null
@@ -808,6 +852,43 @@ const CobroForm = ({
   }, [accountId, reservaId]);
 
   useEffect(() => {
+    if (isEditMode || assignedAllocations.length === 0) {
+      setAllocSaldos({});
+      return undefined;
+    }
+    let cancelled = false;
+    async function loadAllocSaldos() {
+      const entries = await Promise.all(
+        assignedAllocations.map(async (alloc) => {
+          const key = alloc.optionKey;
+          try {
+            if (alloc.row?.reservationId) {
+              const summary = await getReservationFinancialSummary(
+                alloc.row.reservationId
+              );
+              return [key, Number(summary?.resumen?.saldo) || 0];
+            }
+            if (alloc.row?.accountId) {
+              const resumenRes = await fetchAccountResumen(alloc.row.accountId);
+              return [key, Number(resumenRes?.resumen?.saldo) || 0];
+            }
+          } catch {
+            return [key, 0];
+          }
+          return [key, 0];
+        })
+      );
+      if (!cancelled) setAllocSaldos(Object.fromEntries(entries));
+    }
+    loadAllocSaldos();
+    return () => {
+      cancelled = true;
+    };
+    // assignedAllocKeys evita churn por nuevas refs del mismo set de cuentas
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, assignedAllocKeys]);
+
+  useEffect(() => {
     let cancelled = false;
     async function boot() {
       if (isEditMode) {
@@ -992,9 +1073,26 @@ const CobroForm = ({
     }
   };
 
+  const saldoTotalAsignado = useMemo(() => {
+    if (assignedAllocations.length === 0) return null;
+    if (!isMultiAlloc) {
+      return saldoPendiente != null ? Number(saldoPendiente) : null;
+    }
+    let sum = 0;
+    let any = false;
+    for (const a of assignedAllocations) {
+      if (Object.prototype.hasOwnProperty.call(allocSaldos, a.optionKey)) {
+        any = true;
+        sum = roundMoney(sum + Math.max(0, Number(allocSaldos[a.optionKey]) || 0));
+      }
+    }
+    return any ? sum : null;
+  }, [assignedAllocations, isMultiAlloc, allocSaldos, saldoPendiente]);
+
   const useSaldoPendienteAsSaldar = () => {
-    if (saldoPendiente == null || Number(saldoPendiente) <= 0) return;
-    handleMontoASaldarChange(String(roundMoney(saldoPendiente)));
+    const saldo = saldoTotalAsignado;
+    if (saldo == null || Number(saldo) <= 0) return;
+    handleMontoASaldarChange(String(roundMoney(saldo)));
   };
 
   /** Monto de caja a registrar (ARS) según modo. En devolución = efectivo a devolver. */
@@ -1191,13 +1289,6 @@ const CobroForm = ({
     setShowCreateExternal(false);
   };
 
-  const setAllocationMonto = (allocLocalId, value) => {
-    setAllocations((prev) =>
-      prev.map((a) => (a.localId === allocLocalId ? { ...a, monto: value } : a))
-    );
-    setError(null);
-  };
-
   const handleCreateExternalAccount = async (allocLocalId) => {
     const label = String(externalLabel || '').trim();
     if (!label) {
@@ -1256,18 +1347,25 @@ const CobroForm = ({
       return;
     }
     if (isMultiAlloc) {
-      const distSum = assignedAllocations.reduce(
-        (s, a) => s + (Number(a.monto) || 0),
-        0
-      );
       const recibido =
         !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
           ? tenderMontoARS
           : montoARS;
-      if (assignedAllocations.some((a) => !(Number(a.monto) > 0))) {
-        setError('Indicá el monto a imputar en cada reserva/cuenta');
+      const autoRows = distributeProportionalToSaldo(
+        recibido,
+        assignedAllocations.map((a) => ({
+          optionKey: a.optionKey,
+          accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
+          reservaId:
+            a.row.reservationId != null ? Number(a.row.reservationId) : null,
+          saldoPendiente: Number(allocSaldos[a.optionKey]) || 0
+        }))
+      );
+      if (autoRows.length === 0 || autoRows.some((r) => !(r.montoARS > 0))) {
+        setError('No se pudo distribuir el cobro entre las cuentas seleccionadas');
         return;
       }
+      const distSum = autoRows.reduce((s, r) => s + (Number(r.montoARS) || 0), 0);
       if (Math.abs(roundMoney(distSum) - roundMoney(recibido)) > 0.009) {
         setError(
           `La suma imputada (${formatArs(distSum)}) debe coincidir con lo recibido (${formatArs(recibido)})`
@@ -1462,12 +1560,26 @@ const CobroForm = ({
           vueltoARS: pagoData.vueltoARS
         });
       } else if (isMultiAlloc) {
+        const recibidoMulti =
+          !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
+            ? tenderMontoARS
+            : montoARS;
+        const autoRows = distributeProportionalToSaldo(
+          recibidoMulti,
+          assignedAllocations.map((a) => ({
+            optionKey: a.optionKey,
+            accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
+            reservaId:
+              a.row.reservationId != null ? Number(a.row.reservationId) : null,
+            saldoPendiente: Number(allocSaldos[a.optionKey]) || 0
+          }))
+        );
         nuevoCobro = await createClientMultiCobro(clientId, {
           ...pagoData,
-          imputaciones: assignedAllocations.map((a, index) => ({
-            accountId: a.row.accountId != null ? Number(a.row.accountId) : undefined,
-            reservaId: a.row.reservationId != null ? Number(a.row.reservationId) : undefined,
-            montoARS: roundMoney(Number(a.monto) || 0),
+          imputaciones: autoRows.map((row, index) => ({
+            accountId: row.accountId != null ? Number(row.accountId) : undefined,
+            reservaId: row.reservaId != null ? Number(row.reservaId) : undefined,
+            montoARS: roundMoney(Number(row.montoARS) || 0),
             ordenIndex: index
           }))
         });
@@ -1567,7 +1679,6 @@ const CobroForm = ({
   const hasIngresadoAmount = (parseFloat(formData.monto) || 0) > 0;
   const foreignCurrency = isForeignCurrency(formData.moneda);
   const monedaCode = String(formData.moneda || 'ARS').toUpperCase();
-  const MethodIcon = paymentMethodIcon(formData.metodo);
 
   const creditoACuentaARS =
     !isDevolucion &&
@@ -1577,9 +1688,53 @@ const CobroForm = ({
       : isSaldarMode
         ? montoASaldarARS
         : Number(montoARS) || 0;
+
+  const reciboParaImputarARS =
+    !isDevolucion && isSaldarMode ? tenderMontoARS : Number(montoARS) || 0;
+
+  const autoImputaciones = useMemo(() => {
+    if (isDevolucion || assignedAllocations.length === 0) return [];
+    if (reciboParaImputarARS <= 0) return [];
+    return distributeProportionalToSaldo(
+      reciboParaImputarARS,
+      assignedAllocations.map((a) => ({
+        optionKey: a.optionKey,
+        accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
+        reservaId:
+          a.row.reservationId != null ? Number(a.row.reservationId) : null,
+        saldoPendiente:
+          isMultiAlloc || Object.prototype.hasOwnProperty.call(allocSaldos, a.optionKey)
+            ? Number(allocSaldos[a.optionKey]) || 0
+            : Number(saldoPendiente) || 0,
+        label: reservationOptionLabel(a.row)
+      }))
+    ).map((row) => {
+      const alloc = assignedAllocations.find((a) => a.optionKey === row.optionKey);
+      return {
+        ...row,
+        label: alloc ? reservationOptionLabel(alloc.row) : row.optionKey
+      };
+    });
+  }, [
+    isDevolucion,
+    assignedAllocations,
+    reciboParaImputarARS,
+    allocSaldos,
+    isMultiAlloc,
+    saldoPendiente
+  ]);
+
+  const excedenteARS =
+    !isDevolucion &&
+    saldoTotalAsignado != null &&
+    creditoACuentaARS > 0 &&
+    creditoACuentaARS > Number(saldoTotalAsignado)
+      ? roundMoney(creditoACuentaARS - Number(saldoTotalAsignado))
+      : 0;
+
   const saldoProyectadoARS =
-    !isDevolucion && saldoPendiente != null
-      ? roundMoney(Number(saldoPendiente) - creditoACuentaARS)
+    !isDevolucion && saldoTotalAsignado != null
+      ? roundMoney(Number(saldoTotalAsignado) - creditoACuentaARS)
       : null;
 
   const montoDescontadoARS = !isDevolucion
@@ -1681,1118 +1836,1159 @@ const CobroForm = ({
         ) : null}
 
         <form onSubmit={handleSubmit} className={styles.form}>
-                    <div className={styles.formBody}>
-          <div
-            className={styles.summaryHeader}
-            data-testid="payment-summary"
-            aria-label={isDevolucion ? 'Resumen de la devolución' : 'Resumen del cobro'}
-          >
-            <div className={`${styles.summaryHeaderCell} ${styles.summaryHeaderCellPill}`}>
-              <span className={styles.summaryHeaderLabel}>{headerIngresadoLabel}</span>
-              <span className={styles.summaryHeaderValue}>{headerIngresadoDisplay}</span>
-            </div>
-            <div className={styles.summaryHeaderCell}>
-              <span className={styles.summaryHeaderLabel}>Monto descontado</span>
-              <span className={styles.summaryHeaderValue}>{headerDescontadoDisplay}</span>
-            </div>
-            <div className={`${styles.summaryHeaderCell} ${styles.summaryHeaderCellPill}`}>
-              <span className={styles.summaryHeaderLabel}>
-                {isDevolucion ? 'Monto a saldar' : 'Monto saldado'}
-              </span>
-              <span className={styles.summaryHeaderValue} data-testid="summary-monto-saldado">
-                {headerSaldadoDisplay}
-              </span>
-            </div>
-            {foreignCurrency && !isDevolucion ? (
-              <div className={styles.summaryHeaderCell} data-testid="summary-equivalente-ars">
-                <span className={styles.summaryHeaderLabel}>Equivalente en ARS</span>
-                <span className={styles.summaryHeaderValue}>
-                  {hasIngresadoAmount ? formatMoneyArs(montoARS) : '—'}
-                </span>
-              </div>
-            ) : null}
-            <div className={styles.summaryHeaderMeta}>
-              <span>Motivo: {motivoActual}</span>
-              {foreignCurrency && !isDevolucion && parseFloat(formData.tipoCambio) > 0 ? (
-                <span>TC: {parseFloat(formData.tipoCambio)}</span>
-              ) : null}
-            </div>
-          </div>
+                                        <div className={styles.formBody}>
+          <div className={styles.workspace} data-testid="payment-workspace">
+            <div className={styles.mainPane}>
+              {/* 1) Destino del cobro */}
+              <section className={styles.sectionBlock} aria-label="Destino del cobro">
+                <h3 className={styles.sectionTitle}>Destino del cobro</h3>
 
-          <div className={styles.layoutGrid}>
-            {/* Col 1 — entidad / fecha / toggles / notas */}
-            <section className={styles.layoutCol} aria-label="Datos del cobro">
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-fecha">Fecha *</label>
-                <input
-                  id="payment-fecha"
-                  type="date"
-                  value={formData.fecha}
-                  onChange={(e) => handleInputChange('fecha', e.target.value)}
-                  required
-                  disabled={loading}
-                  data-testid="payment-fecha"
-                />
-              </div>
+                {showAllocationUi && (
+                  <div className={styles.formGroup} ref={accountPickerRef}>
+                    <div className={styles.allocationFieldHeader}>
+                      <label
+                        htmlFor={
+                          assignedAllocations.length === 0 ? 'payment-reservation' : undefined
+                        }
+                        id="payment-imputa-label"
+                        data-testid="payment-imputa-label"
+                      >
+                        Imputar a
+                      </label>
+                    </div>
+                    <div className={styles.allocationsList} data-testid="payment-allocations">
+                      {allocations.map((alloc) => {
+                        const row = alloc.optionKey
+                          ? optionByKey.get(alloc.optionKey) || null
+                          : null;
+                        const isAssigned = Boolean(row);
+                        const menuOpen = activeAllocId === alloc.localId;
+                        const kind = isAssigned
+                          ? isExternalRow(row)
+                            ? 'Externa'
+                            : 'Reserva'
+                          : null;
 
-              {showAllocationUi && (
-                <div className={styles.formGroup} ref={accountPickerRef}>
-                  <div className={styles.allocationFieldHeader}>
-                    <label
-                      htmlFor={
-                        assignedAllocations.length === 0 ? 'payment-reservation' : undefined
-                      }
-                      id="payment-imputa-label"
-                      data-testid="payment-imputa-label"
-                    >
-                      Imputar a
-                    </label>
-                  </div>
-                  <div className={styles.allocationsList} data-testid="payment-allocations">
-                    {allocations.map((alloc) => {
-                      const row = alloc.optionKey
-                        ? optionByKey.get(alloc.optionKey) || null
-                        : null;
-                      const isAssigned = Boolean(row);
-                      const menuOpen = activeAllocId === alloc.localId;
-                      const kind = isAssigned
-                        ? isExternalRow(row)
-                          ? 'Externa'
-                          : 'Reserva'
-                        : null;
-
-                      if (isAssigned) {
-                        return (
-                          <div
-                            key={alloc.localId}
-                            className={styles.allocationChip}
-                            data-testid={`payment-alloc-chip-${alloc.localId}`}
-                          >
-                            <div className={styles.allocationChipMain}>
-                              <span className={styles.accountOptionKind}>{kind}</span>
-                              <span className={styles.allocationChipLabel}>
-                                {reservationOptionLabel(row)}
-                              </span>
-                            </div>
-                            {isMultiAlloc && !isDevolucion ? (
-                              <label className={styles.allocationMonto}>
-                                <span>Monto</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={alloc.monto}
-                                  onChange={(e) =>
-                                    setAllocationMonto(alloc.localId, e.target.value)
-                                  }
-                                  disabled={loading}
-                                  aria-label={`Monto imputado a ${reservationOptionLabel(row)}`}
-                                  data-testid={`payment-alloc-monto-${alloc.localId}`}
-                                />
-                              </label>
-                            ) : null}
-                            <button
-                              type="button"
-                              className={styles.allocationRemove}
-                              onClick={() => clearAllocation(alloc.localId)}
-                              disabled={loading}
-                              aria-label="Quitar imputación"
+                        if (isAssigned) {
+                          return (
+                            <div
+                              key={alloc.localId}
+                              className={styles.allocationChip}
+                              data-testid={`payment-alloc-chip-${alloc.localId}`}
                             >
-                              <FiX aria-hidden="true" />
-                            </button>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div key={alloc.localId} className={styles.accountCombobox}>
-                          <input
-                            id={
-                              alloc.localId === allocations[0]?.localId
-                                ? 'payment-reservation'
-                                : undefined
-                            }
-                            type="text"
-                            role="combobox"
-                            aria-expanded={menuOpen}
-                            aria-controls={`payment-account-listbox-${alloc.localId}`}
-                            aria-autocomplete="list"
-                            aria-labelledby="payment-imputa-label"
-                            aria-label="Elegir reserva o cuenta externa a la que se imputa el cobro"
-                            placeholder={
-                              loadingMeta
-                                ? 'Cargando…'
-                                : occupiedOptions.length === 0
-                                  ? 'Sin reservas/cuentas — creá una externa'
-                                  : 'Buscar por habitación, huésped o cuenta…'
-                            }
-                            value={accountQuery}
-                            onChange={(e) => {
-                              setAccountQuery(e.target.value);
-                              setActiveAllocId(alloc.localId);
-                              setShowCreateExternal(false);
-                            }}
-                            onFocus={() => {
-                              setActiveAllocId(alloc.localId);
-                              setAccountQuery('');
-                              setShowCreateExternal(false);
-                            }}
-                            required={assignedAllocations.length === 0}
-                            disabled={loadingMeta || loading}
-                            data-testid="payment-account-search"
-                            autoComplete="off"
-                          />
-                          {menuOpen ? (
-                            <ul
-                              id={`payment-account-listbox-${alloc.localId}`}
-                              className={styles.accountMenu}
-                              role="listbox"
-                              aria-label="Reservas y cuentas externas"
-                            >
-                              {filteredAccountOptions.length === 0 ? (
-                                <li
-                                  className={styles.accountMenuEmpty}
-                                  role="presentation"
-                                  data-testid="payment-account-empty"
-                                >
-                                  {occupiedOptions.length === 0
-                                    ? 'No hay reservas ni cuentas abiertas. Creá una cuenta externa abajo.'
-                                    : 'Sin coincidencias. Probá otro texto o creá una cuenta externa.'}
-                                </li>
-                              ) : (
-                                filteredAccountOptions.map((opt) => {
-                                  const key = optionKey(opt);
-                                  const optKind = isExternalRow(opt) ? 'Externa' : 'Reserva';
-                                  return (
-                                    <li key={key} role="presentation">
-                                      <button
-                                        type="button"
-                                        role="option"
-                                        aria-selected={false}
-                                        className={styles.accountOption}
-                                        onClick={() => pickAccountOption(opt, alloc.localId)}
-                                      >
-                                        <span className={styles.accountOptionKind}>{optKind}</span>
-                                        <span className={styles.accountOptionLabel}>
-                                          {reservationOptionLabel(opt)}
-                                        </span>
-                                      </button>
-                                    </li>
-                                  );
-                                })
-                              )}
-                              <li
-                                className={styles.accountMenuCreate}
-                                role="presentation"
+                              <div className={styles.allocationChipMain}>
+                                <span className={styles.accountOptionKind}>{kind}</span>
+                                <span className={styles.allocationChipLabel}>
+                                  {reservationOptionLabel(row)}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className={styles.allocationRemove}
+                                onClick={() => clearAllocation(alloc.localId)}
+                                disabled={loading}
+                                aria-label="Quitar imputación"
                               >
-                                {!showCreateExternal ? (
-                                  <button
-                                    type="button"
-                                    className={styles.createExternalInMenu}
-                                    disabled={loading || creatingExternal}
-                                    onClick={() => setShowCreateExternal(true)}
-                                    data-testid="payment-create-external"
+                                <FiX aria-hidden="true" />
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={alloc.localId} className={styles.accountCombobox}>
+                            <input
+                              id={
+                                alloc.localId === allocations[0]?.localId
+                                  ? 'payment-reservation'
+                                  : undefined
+                              }
+                              type="text"
+                              role="combobox"
+                              aria-expanded={menuOpen}
+                              aria-controls={`payment-account-listbox-${alloc.localId}`}
+                              aria-autocomplete="list"
+                              aria-labelledby="payment-imputa-label"
+                              aria-label="Elegir reserva o cuenta externa a la que se imputa el cobro"
+                              placeholder={
+                                loadingMeta
+                                  ? 'Cargando…'
+                                  : occupiedOptions.length === 0
+                                    ? 'Sin reservas/cuentas — creá una externa'
+                                    : 'Buscar por habitación, huésped o cuenta…'
+                              }
+                              value={accountQuery}
+                              onChange={(e) => {
+                                setAccountQuery(e.target.value);
+                                setActiveAllocId(alloc.localId);
+                                setShowCreateExternal(false);
+                              }}
+                              onFocus={() => {
+                                setActiveAllocId(alloc.localId);
+                                setAccountQuery('');
+                                setShowCreateExternal(false);
+                              }}
+                              required={assignedAllocations.length === 0}
+                              disabled={loadingMeta || loading}
+                              data-testid="payment-account-search"
+                              autoComplete="off"
+                            />
+                            {menuOpen ? (
+                              <ul
+                                id={`payment-account-listbox-${alloc.localId}`}
+                                className={styles.accountMenu}
+                                role="listbox"
+                                aria-label="Reservas y cuentas externas"
+                              >
+                                {filteredAccountOptions.length === 0 ? (
+                                  <li
+                                    className={styles.accountMenuEmpty}
+                                    role="presentation"
+                                    data-testid="payment-account-empty"
                                   >
-                                    <FiPlus aria-hidden="true" />
-                                    Crear cuenta externa
-                                  </button>
+                                    {occupiedOptions.length === 0
+                                      ? 'No hay reservas ni cuentas abiertas. Creá una cuenta externa abajo.'
+                                      : 'Sin coincidencias. Probá otro texto o creá una cuenta externa.'}
+                                  </li>
                                 ) : (
-                                  <div
-                                    className={styles.createExternalPanel}
-                                    aria-label="Alta cuenta externa"
-                                  >
-                                    <input
-                                      type="text"
-                                      value={externalLabel}
-                                      onChange={(e) => setExternalLabel(e.target.value)}
-                                      placeholder="Ej. Bar mesa 3 / Empresa ACME"
-                                      aria-label="Etiqueta de cuenta externa"
-                                      disabled={loading || creatingExternal}
-                                      data-testid="payment-external-label"
-                                    />
+                                  filteredAccountOptions.map((opt) => {
+                                    const key = optionKey(opt);
+                                    const optKind = isExternalRow(opt) ? 'Externa' : 'Reserva';
+                                    return (
+                                      <li key={key} role="presentation">
+                                        <button
+                                          type="button"
+                                          role="option"
+                                          aria-selected={false}
+                                          className={styles.accountOption}
+                                          onClick={() => pickAccountOption(opt, alloc.localId)}
+                                        >
+                                          <span className={styles.accountOptionKind}>{optKind}</span>
+                                          <span className={styles.accountOptionLabel}>
+                                            {reservationOptionLabel(opt)}
+                                          </span>
+                                        </button>
+                                      </li>
+                                    );
+                                  })
+                                )}
+                                <li
+                                  className={styles.accountMenuCreate}
+                                  role="presentation"
+                                >
+                                  {!showCreateExternal ? (
                                     <button
                                       type="button"
-                                      className={styles.createExternalConfirm}
+                                      className={styles.createExternalInMenu}
                                       disabled={loading || creatingExternal}
-                                      onClick={() => handleCreateExternalAccount(alloc.localId)}
+                                      onClick={() => setShowCreateExternal(true)}
+                                      data-testid="payment-create-external"
                                     >
-                                      {creatingExternal ? 'Creando…' : 'Crear'}
+                                      <FiPlus aria-hidden="true" />
+                                      Crear cuenta externa
                                     </button>
-                                  </div>
-                                )}
-                              </li>
-                            </ul>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {!isDevolucion && assignedAllocations.length > 0 ? (
-                    <button
-                      type="button"
-                      className={styles.addAllocationBtn}
-                      disabled={loading || loadingMeta}
-                      onClick={addAllocationRow}
-                      data-testid="payment-add-allocation"
-                    >
-                      <FiPlus aria-hidden="true" />
-                      Agregar reserva
-                    </button>
-                  ) : null}
-
-                  {isMultiAlloc && !isDevolucion ? (
-                    <p className={styles.allocationHint} data-testid="payment-alloc-hint">
-                      Indicá cuánto de lo recibido va a cada reserva/cuenta. La suma debe
-                      coincidir con el monto del cobro.
-                    </p>
-                  ) : null}
-                </div>
-              )}
-
-              {isDevolucion && (
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-origen">Cobro de origen *</label>
-                  <select
-                    id="payment-origen"
-                    value={cobroOrigenId}
-                    onChange={(e) => setCobroOrigenId(e.target.value)}
-                    required
-                    disabled={loading || cobrosOrigen.length === 0}
-                  >
-                    <option value="">
-                      {cobrosOrigen.length === 0
-                        ? 'No hay cobros disponibles'
-                        : 'Seleccionar cobro…'}
-                    </option>
-                    {cobrosOrigen.map((p) => {
-                      const disc = p.discountApplication?.montoARS;
-                      const discLabel =
-                        disc != null && Number(disc) > 0
-                          ? ` · desc. ${formatMoneyArs(disc)}`
-                          : '';
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.codigo || `#${p.id}`} — {p.metodo || 'Cobro'} —{' '}
-                          {formatMoneyArs(p.montoARS)}
-                          {discLabel}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <span className={styles.helpText}>
-                    Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
-                  </span>
-                </div>
-              )}
-
-              <div className={styles.toggleStack}>
-                {!isDevolucion && canUseSena ? (
-                  <div className={styles.formGroup}>
-                    <span className={styles.fieldLabel} id="payment-sena-label">
-                      Seña
-                    </span>
-                    <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                      <input
-                        id="payment-sena-toggle"
-                        type="checkbox"
-                        checked={esSena}
-                        disabled={loading}
-                        aria-labelledby="payment-sena-label"
-                        onChange={(e) => setEsSena(e.target.checked)}
-                      />
-                      <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                    </label>
-                  </div>
-                ) : null}
-
-                {!isEditMode ? (
-                  <div className={styles.formGroup}>
-                    <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
-                      <input
-                        id="payment-billing-toggle"
-                        type="checkbox"
-                        checked={billingEnabled}
-                        disabled={billingForced || loading}
-                        onChange={(e) => setRequiereFacturacion(e.target.checked)}
-                      />
-                      <span>Requiere facturación</span>
-                      {billingForced && (
-                        <span className={styles.helpText}>Obligatorio para este medio de pago</span>
-                      )}
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="payment-notas">Notas</label>
-                <textarea
-                  id="payment-notas"
-                  value={formData.notas}
-                  onChange={(e) => handleInputChange('notas', e.target.value)}
-                  placeholder="Notas adicionales..."
-                  rows={3}
-                />
-              </div>
-            </section>
-
-            {/* Col 2 — medio de pago + campos condicionales */}
-            <section className={styles.layoutCol} aria-label="Medio de pago">
-              <div className={styles.methodHero}>
-                <div className={styles.methodIconWrap} aria-hidden="true">
-                  <MethodIcon />
-                </div>
-                <p className={styles.methodName} aria-hidden="true">
-                  {formData.metodo || '—'}
-                </p>
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-metodo" className={styles.srOnly}>
-                    {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
-                  </label>
-                  <select
-                    id="payment-metodo"
-                    value={formData.metodo}
-                    onChange={(e) => handleInputChange('metodo', e.target.value)}
-                    required
-                    disabled={loading || methodConfigs.length === 0}
-                    aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
-                  >
-                    {methodConfigs.length === 0 ? (
-                      <option value="">Cargando medios…</option>
-                    ) : (
-                      methodConfigs.map((m) => (
-                        <option key={m.id} value={m.label}>
-                          {m.label}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div
-                className={
-                  foreignCurrency ? styles.monedaTcPair : styles.formGroup
-                }
-                data-testid="payment-moneda-tc"
-              >
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-moneda">Moneda *</label>
-                  <select
-                    id="payment-moneda"
-                    value={formData.moneda}
-                    onChange={(e) => handleInputChange('moneda', e.target.value)}
-                    required
-                    disabled={loading}
-                    data-testid="payment-moneda"
-                  >
-                    {SYSTEM_CURRENCIES.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {foreignCurrency ? (
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-tc">Tipo de cambio *</label>
-                    <input
-                      id="payment-tc"
-                      type="number"
-                      value={formData.tipoCambio}
-                      onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                      onFocus={() => {
-                        if (amountMode !== AMOUNT_MODE_SALDAR) {
-                          setAmountMode(AMOUNT_MODE_INGRESADO);
-                        }
-                      }}
-                      placeholder="1000.00"
-                      step="0.01"
-                      min="0"
-                      required
-                      disabled={loading}
-                      data-testid="payment-tc"
-                    />
-                    {tipoCambioGlobal != null && (
-                      <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-
-              <div
-                className={`${styles.montosTwoCol}${
-                  showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
-                }`}
-                data-testid="payment-montos-zone"
-              >
-                <div
-                  className={`${styles.amountModes} ${styles.amountModesSameBox}`}
-                  data-testid="payment-amount-modes"
-                >
-                  <div
-                    className={`${styles.amountModeBlock} ${
-                      amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
-                    }`}
-                  >
-                    <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
-                      {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-                    </span>
-                    {foreignCurrency ? (
-                      <div
-                        className={styles.fxSyncFields}
-                        role="group"
-                        aria-labelledby="payment-monto-ingresado-label"
-                        data-testid="payment-fx-sync"
-                      >
-                        <label htmlFor="payment-monto">Monto en {monedaCode}</label>
-                        <input
-                          id="payment-monto"
-                          type="number"
-                          value={formData.monto}
-                          onChange={(e) => handleInputChange('monto', e.target.value)}
-                          onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          required={amountMode === AMOUNT_MODE_INGRESADO}
-                          disabled={loading}
-                          data-testid="payment-monto-ingresado"
-                          aria-label={`Monto en ${monedaCode}`}
-                        />
-
-                        <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
-                        <input
-                          id="payment-equiv-ars"
-                          type="number"
-                          value={equivArsDraft}
-                          onChange={(e) => handleEquivalenteArsChange(e.target.value)}
-                          onFocus={() => {
-                            equivArsFocusedRef.current = true;
-                            setAmountMode(AMOUNT_MODE_INGRESADO);
-                          }}
-                          onBlur={() => {
-                            equivArsFocusedRef.current = false;
-                            const ars = parseFloat(equivArsDraft);
-                            if (ars > 0) {
-                              setEquivArsDraft(String(roundMoney(ars)));
-                            } else if (!equivArsDraft) {
-                              setEquivArsDraft('');
-                            } else {
-                              const tc = parseFloat(formData.tipoCambio) || 0;
-                              const monto = parseFloat(formData.monto) || 0;
-                              setEquivArsDraft(
-                                monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
-                              );
-                            }
-                          }}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          disabled={loading}
-                          data-testid="payment-equiv-ars"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <label htmlFor="payment-monto" className={styles.srOnly}>
-                          {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
-                        </label>
-                        <input
-                          id="payment-monto"
-                          type="number"
-                          value={formData.monto}
-                          onChange={(e) => handleInputChange('monto', e.target.value)}
-                          onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          required={amountMode === AMOUNT_MODE_INGRESADO}
-                          disabled={loading}
-                          data-testid="payment-monto-ingresado"
-                          aria-labelledby="payment-monto-ingresado-label"
-                        />
-                      </>
-                    )}
-                  </div>
-
-                  <div
-                    className={`${styles.amountModeBlock} ${
-                      amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
-                    }`}
-                  >
-                    <label htmlFor="payment-monto-saldar">Monto a saldar</label>
-                    <input
-                      id="payment-monto-saldar"
-                      type="number"
-                      value={montoASaldar}
-                      onChange={(e) => handleMontoASaldarChange(e.target.value)}
-                      onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
-                      placeholder={
-                        isDevolucion && selectedCobroOrigen
-                          ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
-                          : saldoPendiente != null && Number(saldoPendiente) > 0
-                            ? formatArs(saldoPendiente)
-                            : '0'
-                      }
-                      step="0.01"
-                      min="0"
-                      required={amountMode === AMOUNT_MODE_SALDAR}
-                      disabled={loading || isEditMode}
-                      data-testid="payment-monto-saldar"
-                    />
-                    {!isDevolucion && saldoPendiente != null && Number(saldoPendiente) > 0 ? (
-                      <button
-                        type="button"
-                        className={styles.useSaldoBtn}
-                        disabled={loading || isEditMode}
-                        onClick={useSaldoPendienteAsSaldar}
-                        data-testid="payment-use-saldo"
-                      >
-                        Usar saldo pendiente ({formatMoneyArs(saldoPendiente)})
-                      </button>
-                    ) : null}
-                    {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
-                      <span className={styles.helpText} data-testid="payment-refund-discount-hint">
-                        Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
-                        cuánto devolver.
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {showCashTender ? (
-                  <section
-                    className={styles.cashTenderSection}
-                    data-testid="payment-cash-tender"
-                    aria-labelledby="payment-cash-tender-title"
-                  >
-                    <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
-                      Efectivo
-                    </h3>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-dinero-recibido">
-                        Paga con ({formData.moneda || 'ARS'})
-                      </label>
-                      <input
-                        id="payment-dinero-recibido"
-                        type="number"
-                        value={dineroRecibido}
-                        onChange={(e) => {
-                          dineroRecibidoDirtyRef.current = true;
-                          setDineroRecibido(e.target.value);
-                          const next = suggestVueltoARS({
-                            dineroRecibido: parseFloat(e.target.value) || 0,
-                            moneda: formData.moneda,
-                            tipoCambio: formData.tipoCambio,
-                            montoIngresadoARS: montoARS
-                          });
-                          setVueltoARS(String(next));
-                        }}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                        disabled={loading}
-                        data-testid="payment-dinero-recibido"
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
-                      <input
-                        id="payment-vuelto-ars"
-                        type="number"
-                        value={vueltoARS}
-                        readOnly
-                        tabIndex={-1}
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                        disabled={loading}
-                        data-testid="payment-vuelto-ars"
-                        aria-readonly="true"
-                      />
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-
-              <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
-                {isCardMethod(formData.metodo) ? (
-                  <div className={styles.methodFields}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-card">Número de tarjeta *</label>
-                      <input
-                        id="payment-card"
-                        type="text"
-                        value={formData.numeroTarjeta}
-                        onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
-                        placeholder="**** **** **** ****"
-                        maxLength={19}
-                        required
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-empresa">Empresa *</label>
-                      <select
-                        id="payment-empresa"
-                        value={formData.empresa}
-                        onChange={(e) => handleInputChange('empresa', e.target.value)}
-                        required
-                      >
-                        <option value="">Seleccionar empresa...</option>
-                        {formData.metodo === 'Tarjeta Debito' ? (
-                          <>
-                            <option value="Maestro">Maestro</option>
-                            <option value="Visa Electron">Visa Electron</option>
-                            <option value="Cabal 24hs">Cabal 24hs</option>
-                            <option value="Mastercard Debito">Mastercard Débito</option>
-                            <option value="Otra">Otra</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="American Express">American Express</option>
-                            <option value="Visa">Visa</option>
-                            <option value="Mastercard">Mastercard</option>
-                            <option value="Credencial">Credencial</option>
-                            <option value="Carta Franca">Carta Franca</option>
-                            <option value="Cabal">Cabal</option>
-                            <option value="Diners">Diners</option>
-                            <option value="Tarjeta Shopping">Tarjeta Shopping</option>
-                            <option value="Tarjeta Naranja">Tarjeta Naranja</option>
-                            <option value="Otra">Otra</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
-                  </div>
-                ) : null}
-
-                {showComprobanteField ? (
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
-                    <label
-                      className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
-                      htmlFor="payment-comprobante"
-                    >
-                      <input
-                        id="payment-comprobante"
-                        type="file"
-                        accept={COMPROBANTE_ACCEPT}
-                        multiple
-                        disabled={loading}
-                        onChange={(e) => {
-                          handleComprobanteChange(e.target.files);
-                          e.target.value = '';
-                        }}
-                      />
-                      <FiUpload aria-hidden="true" />
-                      {comprobanteFiles.length > 0
-                        ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
-                        : 'Subir comprobante (JPG, PNG o PDF)'}
-                    </label>
-                    {comprobanteFiles.length > 0 && (
-                      <button
-                        type="button"
-                        className={styles.comprobanteClear}
-                        disabled={loading}
-                        onClick={() => setComprobanteFiles([])}
-                      >
-                        Quitar archivos
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </section>
-
-            {/* Col 3 — descuentos */}
-            <section className={styles.layoutCol} aria-label="Descuentos">
-              <h3 className={styles.colTitle}>Descuentos</h3>
-
-              {!isDevolucion && manualPromoSuggestions.length > 0 && (
-                <div
-                  className={styles.manualPromoBlock}
-                  data-testid="payment-manual-promos"
-                >
-                  <p className={styles.discountTitle}>Valor al aplicar</p>
-                  {manualPromoSuggestions.map((s) => (
-                    <label key={s.id} className={styles.manualPromoRow}>
-                      <span className={styles.manualPromoLabel}>{s.label}</span>
-                      <span className={styles.manualPromoInputWrap}>
-                        <input
-                          type="number"
-                          min="0"
-                          step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
-                          className={styles.manualPromoInput}
-                          value={manualPromoValues[s.id] ?? ''}
-                          onChange={(e) => setManualPromoValue(s.id, e.target.value)}
-                          placeholder="—"
-                          aria-label={`Valor de ${s.label}`}
-                          disabled={loading}
-                        />
-                        <span className={styles.manualPromoUnit} aria-hidden="true">
-                          {benefitUnitLabel(s.benefitType)}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {!isDevolucion &&
-                manualPromoPreview?.aplica &&
-                manualPromoPreview.appliedRules?.length > 0 && (
-                  <div
-                    className={styles.promoList}
-                    role="status"
-                    data-testid="payment-applied-promos"
-                  >
-                    {manualPromoPreview.appliedRules.map((promo) => {
-                      const removable = isRemovableOptionalPromo(promo);
-                      return (
-                        <div
-                          key={promo.promotionRuleId || promo.code || promo.label}
-                          className={styles.promoBlock}
-                        >
-                          <div className={styles.promoRow}>
-                            <span className={styles.promoLabel}>
-                              {promo.label}
-                              {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
-                            </span>
-                            <span className={styles.promoValue}>
-                              {manualPromoPreview.probeOnly && promo.porcentaje != null
-                                ? `−${promo.porcentaje}%`
-                                : `−${formatMoneyArs(promo.montoARS)}`}
-                            </span>
+                                  ) : (
+                                    <div
+                                      className={styles.createExternalPanel}
+                                      aria-label="Alta cuenta externa"
+                                    >
+                                      <input
+                                        type="text"
+                                        value={externalLabel}
+                                        onChange={(e) => setExternalLabel(e.target.value)}
+                                        placeholder="Ej. Bar mesa 3 / Empresa ACME"
+                                        aria-label="Etiqueta de cuenta externa"
+                                        disabled={loading || creatingExternal}
+                                        data-testid="payment-external-label"
+                                      />
+                                      <button
+                                        type="button"
+                                        className={styles.createExternalConfirm}
+                                        disabled={loading || creatingExternal}
+                                        onClick={() => handleCreateExternalAccount(alloc.localId)}
+                                      >
+                                        {creatingExternal ? 'Creando…' : 'Crear'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </li>
+                              </ul>
+                            ) : null}
                           </div>
-                          {removable ? (
-                            <button
-                              type="button"
-                              className={styles.promoRemoveBtn}
-                              onClick={() => removeOptionalPromo(promo)}
-                              aria-label={`Quitar ${promo.label}`}
-                              disabled={loading}
-                              data-testid={`payment-promo-remove-${promo.promotionRuleId}`}
-                            >
-                              <FiX aria-hidden="true" />
-                              <span>Quitar</span>
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+
+                    {!isDevolucion && assignedAllocations.length > 0 ? (
+                      <button
+                        type="button"
+                        className={styles.addAllocationBtn}
+                        disabled={loading || loadingMeta}
+                        onClick={addAllocationRow}
+                        data-testid="payment-add-allocation"
+                      >
+                        <FiPlus aria-hidden="true" />
+                        Agregar reserva
+                      </button>
+                    ) : null}
                   </div>
                 )}
 
-              {!isDevolucion && (
-                <div className={styles.addPromoWrap} ref={addPromoRef}>
-                  <button
-                    type="button"
-                    className={styles.addPromoBtn}
-                    onClick={() => setAddPromoOpen((v) => !v)}
-                    aria-expanded={addPromoOpen}
-                    aria-haspopup="listbox"
-                    disabled={loading || optionalChoices.length === 0}
-                    data-testid="payment-add-optional-promo"
-                  >
-                    <FiPlus aria-hidden="true" />
-                    Descuento
-                  </button>
-                  {addPromoOpen && optionalChoices.length > 0 ? (
-                    <ul
-                      className={styles.addPromoMenu}
-                      role="listbox"
-                      aria-label="Descuentos opcionales"
+                {isDevolucion && (
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-origen">Cobro de origen *</label>
+                    <select
+                      id="payment-origen"
+                      value={cobroOrigenId}
+                      onChange={(e) => setCobroOrigenId(e.target.value)}
+                      required
+                      disabled={loading || cobrosOrigen.length === 0}
                     >
-                      {optionalChoices.map((choice) => {
-                        const valueLabel = formatOptionalBenefitValue(choice);
+                      <option value="">
+                        {cobrosOrigen.length === 0
+                          ? 'No hay cobros disponibles'
+                          : 'Seleccionar cobro…'}
+                      </option>
+                      {cobrosOrigen.map((p) => {
+                        const disc = p.discountApplication?.montoARS;
+                        const discLabel =
+                          disc != null && Number(disc) > 0
+                            ? ` · desc. ${formatMoneyArs(disc)}`
+                            : '';
                         return (
-                          <li key={choice.id} role="option">
-                            <button
-                              type="button"
-                              className={styles.addPromoOption}
-                              onClick={() => addOptionalPromo(choice)}
-                            >
-                              <span className={styles.addPromoName}>{choice.label}</span>
-                              {valueLabel ? (
-                                <span className={styles.addPromoMeta}>{valueLabel}</span>
-                              ) : null}
-                            </button>
-                          </li>
+                          <option key={p.id} value={p.id}>
+                            {p.codigo || `#${p.id}`} — {p.metodo || 'Cobro'} —{' '}
+                            {formatMoneyArs(p.montoARS)}
+                            {discLabel}
+                          </option>
                         );
                       })}
-                    </ul>
+                    </select>
+                    <span className={styles.helpText}>
+                      Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
+                    </span>
+                  </div>
+                )}
+              </section>
+
+              {/* 2) Datos del cobro */}
+              <section className={styles.sectionBlock} aria-label="Datos del cobro">
+                <h3 className={styles.sectionTitle}>Datos del cobro</h3>
+
+                <div
+                  className={`${styles.montosTwoCol}${
+                    showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
+                  }`}
+                  data-testid="payment-montos-zone"
+                >
+                  <div
+                    className={`${styles.amountModes} ${styles.amountModesSameBox} ${styles.heroAmount}`}
+                    data-testid="payment-amount-modes"
+                  >
+                    <div
+                      className={`${styles.amountModeBlock} ${
+                        amountMode === AMOUNT_MODE_INGRESADO ? styles.amountModeActive : ''
+                      }`}
+                    >
+                      <span className={styles.amountModeHeading} id="payment-monto-ingresado-label">
+                        {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
+                      </span>
+                      {foreignCurrency ? (
+                        <div
+                          className={styles.fxSyncFields}
+                          role="group"
+                          aria-labelledby="payment-monto-ingresado-label"
+                          data-testid="payment-fx-sync"
+                        >
+                          <label htmlFor="payment-monto">Monto en {monedaCode}</label>
+                          <input
+                            id="payment-monto"
+                            type="number"
+                            value={formData.monto}
+                            onChange={(e) => handleInputChange('monto', e.target.value)}
+                            onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                            placeholder="0"
+                            step="0.01"
+                            min="0"
+                            required={amountMode === AMOUNT_MODE_INGRESADO}
+                            disabled={loading}
+                            data-testid="payment-monto-ingresado"
+                            aria-label={`Monto en ${monedaCode}`}
+                          />
+
+                          <label htmlFor="payment-equiv-ars">Equivalente ARS</label>
+                          <input
+                            id="payment-equiv-ars"
+                            type="number"
+                            value={equivArsDraft}
+                            onChange={(e) => handleEquivalenteArsChange(e.target.value)}
+                            onFocus={() => {
+                              equivArsFocusedRef.current = true;
+                              setAmountMode(AMOUNT_MODE_INGRESADO);
+                            }}
+                            onBlur={() => {
+                              equivArsFocusedRef.current = false;
+                              const ars = parseFloat(equivArsDraft);
+                              if (ars > 0) {
+                                setEquivArsDraft(String(roundMoney(ars)));
+                              } else if (!equivArsDraft) {
+                                setEquivArsDraft('');
+                              } else {
+                                const tc = parseFloat(formData.tipoCambio) || 0;
+                                const monto = parseFloat(formData.monto) || 0;
+                                setEquivArsDraft(
+                                  monto > 0 && tc > 0 ? String(roundMoney(monto * tc)) : ''
+                                );
+                              }
+                            }}
+                            placeholder="0"
+                            step="0.01"
+                            min="0"
+                            disabled={loading}
+                            data-testid="payment-equiv-ars"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <label htmlFor="payment-monto" className={styles.srOnly}>
+                            {isDevolucion ? 'Monto a devolver' : 'Monto ingresado'}
+                          </label>
+                          <input
+                            id="payment-monto"
+                            type="number"
+                            value={formData.monto}
+                            onChange={(e) => handleInputChange('monto', e.target.value)}
+                            onFocus={() => setAmountMode(AMOUNT_MODE_INGRESADO)}
+                            placeholder="0"
+                            step="0.01"
+                            min="0"
+                            required={amountMode === AMOUNT_MODE_INGRESADO}
+                            disabled={loading}
+                            data-testid="payment-monto-ingresado"
+                            aria-labelledby="payment-monto-ingresado-label"
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div
+                      className={`${styles.amountModeBlock} ${
+                        amountMode === AMOUNT_MODE_SALDAR ? styles.amountModeActive : ''
+                      }`}
+                    >
+                      <label htmlFor="payment-monto-saldar">Monto a saldar</label>
+                      <input
+                        id="payment-monto-saldar"
+                        type="number"
+                        value={montoASaldar}
+                        onChange={(e) => handleMontoASaldarChange(e.target.value)}
+                        onFocus={() => setAmountMode(AMOUNT_MODE_SALDAR)}
+                        placeholder={
+                          isDevolucion && selectedCobroOrigen
+                            ? formatArs(roundMoney(origenCobroARS + origenDescuentoARS))
+                            : saldoTotalAsignado != null && Number(saldoTotalAsignado) > 0
+                              ? formatArs(saldoTotalAsignado)
+                              : '0'
+                        }
+                        step="0.01"
+                        min="0"
+                        required={amountMode === AMOUNT_MODE_SALDAR}
+                        disabled={loading || isEditMode}
+                        data-testid="payment-monto-saldar"
+                      />
+                      {!isDevolucion &&
+                      saldoTotalAsignado != null &&
+                      Number(saldoTotalAsignado) > 0 ? (
+                        <button
+                          type="button"
+                          className={styles.useSaldoBtn}
+                          disabled={loading || isEditMode}
+                          onClick={useSaldoPendienteAsSaldar}
+                          data-testid="payment-use-saldo"
+                        >
+                          Usar saldo pendiente ({formatMoneyArs(saldoTotalAsignado)})
+                        </button>
+                      ) : null}
+                      {isDevolucion && selectedCobroOrigen && origenDescuentoARS > 0 ? (
+                        <span className={styles.helpText} data-testid="payment-refund-discount-hint">
+                          Origen con desc. {formatMoneyArs(origenDescuentoARS)}: al saldar se calcula
+                          cuánto devolver.
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {showCashTender ? (
+                    <section
+                      className={styles.cashTenderSection}
+                      data-testid="payment-cash-tender"
+                      aria-labelledby="payment-cash-tender-title"
+                    >
+                      <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
+                        Efectivo
+                      </h3>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="payment-dinero-recibido">
+                          Paga con ({formData.moneda || 'ARS'})
+                        </label>
+                        <input
+                          id="payment-dinero-recibido"
+                          type="number"
+                          value={dineroRecibido}
+                          onChange={(e) => {
+                            dineroRecibidoDirtyRef.current = true;
+                            setDineroRecibido(e.target.value);
+                            const next = suggestVueltoARS({
+                              dineroRecibido: parseFloat(e.target.value) || 0,
+                              moneda: formData.moneda,
+                              tipoCambio: formData.tipoCambio,
+                              montoIngresadoARS: montoARS
+                            });
+                            setVueltoARS(String(next));
+                          }}
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                          disabled={loading}
+                          data-testid="payment-dinero-recibido"
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                        <input
+                          id="payment-vuelto-ars"
+                          type="number"
+                          value={vueltoARS}
+                          readOnly
+                          tabIndex={-1}
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                          disabled={loading}
+                          data-testid="payment-vuelto-ars"
+                          aria-readonly="true"
+                        />
+                      </div>
+                    </section>
                   ) : null}
                 </div>
-              )}
 
-              {isDevolucion ? (
-                <p className={styles.helpText}>
-                  En devolución no se agregan descuentos; se revierten los del cobro de origen.
-                </p>
-              ) : null}
-            </section>
-
-            {/* Col 4 — saldos */}
-            <section className={styles.layoutCol} aria-label="Saldo" data-testid="payment-saldo-col">
-              <div className={styles.saldoBlock}>
-                <span className={styles.saldoLabel}>Saldo original</span>
-                <span className={styles.saldoValue}>
-                  {!isDevolucion && saldoPendiente != null
-                    ? formatMoneyArs(saldoPendiente)
-                    : '—'}
-                </span>
-              </div>
-              <div className={styles.saldoBlock}>
-                <span className={styles.saldoLabel}>Monto saldado</span>
-                <span className={styles.saldoValue}>
-                  {!isDevolucion && creditoACuentaARS > 0
-                    ? formatMoneyArs(creditoACuentaARS)
-                    : isDevolucion && refundCreditoARS > 0
-                      ? formatMoneyArs(refundCreditoARS)
-                      : '—'}
-                </span>
-              </div>
-              <div className={styles.saldoDivider} aria-hidden="true" />
-              <div
-                className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
-                data-testid="summary-saldo"
-              >
-                <span className={styles.saldoLabel}>Nuevo saldo</span>
-                <span className={styles.saldoValueLarge}>
-                  {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
-                </span>
-              </div>
-            </section>
-          </div>
-
-          {!isEditMode && billingEnabled && (
-            <div className={`${styles.billingSection} ${styles.billingBelow}`}>
-              <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
-                <button
-                  type="button"
-                  className={`${styles.invoiceTypeButton} ${billing.tipo === 'B' ? styles.invoiceTypeActive : ''}`}
-                  onClick={() => handleBillingChange('tipo', 'B')}
-                  disabled={loading}
+                <div
+                  className={
+                    foreignCurrency ? styles.monedaTcPair : styles.formGroup
+                  }
+                  data-testid="payment-moneda-tc"
                 >
-                  Factura B
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.invoiceTypeButton} ${billing.tipo === 'T' ? styles.invoiceTypeActive : ''}`}
-                  onClick={() => handleBillingChange('tipo', 'T')}
-                  disabled={loading}
-                >
-                  Factura T
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.invoiceTypeButton} ${billing.tipo === 'A' ? styles.invoiceTypeActive : ''}`}
-                  onClick={() => handleBillingChange('tipo', 'A')}
-                  disabled={loading}
-                >
-                  Factura A
-                </button>
-              </div>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-moneda">Moneda *</label>
+                    <select
+                      id="payment-moneda"
+                      value={formData.moneda}
+                      onChange={(e) => handleInputChange('moneda', e.target.value)}
+                      required
+                      disabled={loading}
+                      data-testid="payment-moneda"
+                    >
+                      {SYSTEM_CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {foreignCurrency ? (
+                    <div className={styles.formGroup}>
+                      <label htmlFor="payment-tc">Tipo de cambio *</label>
+                      <input
+                        id="payment-tc"
+                        type="number"
+                        value={formData.tipoCambio}
+                        onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                        onFocus={() => {
+                          if (amountMode !== AMOUNT_MODE_SALDAR) {
+                            setAmountMode(AMOUNT_MODE_INGRESADO);
+                          }
+                        }}
+                        placeholder="1000.00"
+                        step="0.01"
+                        min="0"
+                        required
+                        disabled={loading}
+                        data-testid="payment-tc"
+                      />
+                      {tipoCambioGlobal != null && (
+                        <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
 
-              <div className={styles.formRow}>
+                <section className={styles.methodCompact} aria-label="Medio de pago">
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-metodo">
+                      {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+                    </label>
+                    <select
+                      id="payment-metodo"
+                      value={formData.metodo}
+                      onChange={(e) => handleInputChange('metodo', e.target.value)}
+                      required
+                      disabled={loading || methodConfigs.length === 0}
+                      aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
+                    >
+                      {methodConfigs.length === 0 ? (
+                        <option value="">Cargando medios…</option>
+                      ) : (
+                        methodConfigs.map((m) => (
+                          <option key={m.id} value={m.label}>
+                            {m.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
+                    {isCardMethod(formData.metodo) ? (
+                      <div className={styles.methodFields}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="payment-card">Número de tarjeta *</label>
+                          <input
+                            id="payment-card"
+                            type="text"
+                            value={formData.numeroTarjeta}
+                            onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
+                            placeholder="**** **** **** ****"
+                            maxLength={19}
+                            required
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="payment-empresa">Empresa *</label>
+                          <select
+                            id="payment-empresa"
+                            value={formData.empresa}
+                            onChange={(e) => handleInputChange('empresa', e.target.value)}
+                            required
+                          >
+                            <option value="">Seleccionar empresa...</option>
+                            {formData.metodo === 'Tarjeta Debito' ? (
+                              <>
+                                <option value="Maestro">Maestro</option>
+                                <option value="Visa Electron">Visa Electron</option>
+                                <option value="Cabal 24hs">Cabal 24hs</option>
+                                <option value="Mastercard Debito">Mastercard Débito</option>
+                                <option value="Otra">Otra</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="American Express">American Express</option>
+                                <option value="Visa">Visa</option>
+                                <option value="Mastercard">Mastercard</option>
+                                <option value="Credencial">Credencial</option>
+                                <option value="Carta Franca">Carta Franca</option>
+                                <option value="Cabal">Cabal</option>
+                                <option value="Diners">Diners</option>
+                                <option value="Tarjeta Shopping">Tarjeta Shopping</option>
+                                <option value="Tarjeta Naranja">Tarjeta Naranja</option>
+                                <option value="Otra">Otra</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {showComprobanteField ? (
+                      <div className={styles.formGroup}>
+                        <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
+                        <label
+                          className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
+                          htmlFor="payment-comprobante"
+                        >
+                          <input
+                            id="payment-comprobante"
+                            type="file"
+                            accept={COMPROBANTE_ACCEPT}
+                            multiple
+                            disabled={loading}
+                            onChange={(e) => {
+                              handleComprobanteChange(e.target.files);
+                              e.target.value = '';
+                            }}
+                          />
+                          <FiUpload aria-hidden="true" />
+                          {comprobanteFiles.length > 0
+                            ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
+                            : 'Subir comprobante (JPG, PNG o PDF)'}
+                        </label>
+                        {comprobanteFiles.length > 0 && (
+                          <button
+                            type="button"
+                            className={styles.comprobanteClear}
+                            disabled={loading}
+                            onClick={() => setComprobanteFiles([])}
+                          >
+                            Quitar archivos
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+
                 <div className={styles.formGroup}>
-                  <label htmlFor="billing-fecha">Fecha de facturación *</label>
+                  <label htmlFor="payment-fecha">Fecha *</label>
                   <input
-                    id="billing-fecha"
+                    id="payment-fecha"
                     type="date"
-                    value={billing.fecha}
-                    onChange={(e) => handleBillingChange('fecha', e.target.value)}
+                    value={formData.fecha}
+                    onChange={(e) => handleInputChange('fecha', e.target.value)}
                     required
+                    disabled={loading}
+                    data-testid="payment-fecha"
                   />
                 </div>
-              </div>
+              </section>
 
-              {isPersonInvoiceType(billing.tipo) ? (
-                <>
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-nombre">Nombre *</label>
-                      <input
-                        id="billing-nombre"
-                        type="text"
-                        value={billing.firstName}
-                        onChange={(e) => handleBillingChange('firstName', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-apellido">Apellido *</label>
-                      <input
-                        id="billing-apellido"
-                        type="text"
-                        value={billing.lastName}
-                        onChange={(e) => handleBillingChange('lastName', e.target.value)}
-                        required
-                      />
-                    </div>
+              {/* 3) Descuentos */}
+              <section className={styles.sectionBlock} aria-label="Descuentos">
+                <h3 className={styles.sectionTitle}>Descuentos</h3>
+
+                {!isDevolucion && manualPromoSuggestions.length > 0 && (
+                  <div
+                    className={styles.manualPromoBlock}
+                    data-testid="payment-manual-promos"
+                  >
+                    <p className={styles.discountTitle}>Valor al aplicar</p>
+                    {manualPromoSuggestions.map((s) => (
+                      <label key={s.id} className={styles.manualPromoRow}>
+                        <span className={styles.manualPromoLabel}>{s.label}</span>
+                        <span className={styles.manualPromoInputWrap}>
+                          <input
+                            type="number"
+                            min="0"
+                            step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                            className={styles.manualPromoInput}
+                            value={manualPromoValues[s.id] ?? ''}
+                            onChange={(e) => setManualPromoValue(s.id, e.target.value)}
+                            placeholder="—"
+                            aria-label={`Valor de ${s.label}`}
+                            disabled={loading}
+                          />
+                          <span className={styles.manualPromoUnit} aria-hidden="true">
+                            {benefitUnitLabel(s.benefitType)}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
                   </div>
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-doc-type">Tipo documento *</label>
-                      <select
-                        id="billing-doc-type"
-                        value={billing.documentType}
-                        onChange={(e) => handleBillingChange('documentType', e.target.value)}
+                )}
+
+                {!isDevolucion &&
+                  manualPromoPreview?.aplica &&
+                  manualPromoPreview.appliedRules?.length > 0 && (
+                    <div
+                      className={styles.promoList}
+                      role="status"
+                      data-testid="payment-applied-promos"
+                    >
+                      {manualPromoPreview.appliedRules.map((promo) => {
+                        const removable = isRemovableOptionalPromo(promo);
+                        return (
+                          <div
+                            key={promo.promotionRuleId || promo.code || promo.label}
+                            className={styles.promoBlock}
+                          >
+                            <div className={styles.promoRow}>
+                              <span className={styles.promoLabel}>
+                                {promo.label}
+                                {promo.porcentaje != null ? ` (${promo.porcentaje}%)` : ''}
+                              </span>
+                              <span className={styles.promoValue}>
+                                {manualPromoPreview.probeOnly && promo.porcentaje != null
+                                  ? `−${promo.porcentaje}%`
+                                  : `−${formatMoneyArs(promo.montoARS)}`}
+                              </span>
+                            </div>
+                            {removable ? (
+                              <button
+                                type="button"
+                                className={styles.promoRemoveBtn}
+                                onClick={() => removeOptionalPromo(promo)}
+                                aria-label={`Quitar ${promo.label}`}
+                                disabled={loading}
+                                data-testid={`payment-promo-remove-${promo.promotionRuleId}`}
+                              >
+                                <FiX aria-hidden="true" />
+                                <span>Quitar</span>
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                {!isDevolucion && (
+                  <div className={styles.addPromoWrap} ref={addPromoRef}>
+                    <button
+                      type="button"
+                      className={styles.addPromoBtn}
+                      onClick={() => setAddPromoOpen((v) => !v)}
+                      aria-expanded={addPromoOpen}
+                      aria-haspopup="listbox"
+                      disabled={loading || optionalChoices.length === 0}
+                      data-testid="payment-add-optional-promo"
+                    >
+                      <FiPlus aria-hidden="true" />
+                      Descuento
+                    </button>
+                    {addPromoOpen && optionalChoices.length > 0 ? (
+                      <ul
+                        className={styles.addPromoMenu}
+                        role="listbox"
+                        aria-label="Descuentos opcionales"
                       >
-                        {DOCUMENT_TYPES_AR.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-doc-num">N° documento *</label>
-                      <input
-                        id="billing-doc-num"
-                        type="text"
-                        value={billing.documentNumber}
-                        onChange={(e) => handleBillingChange('documentNumber', e.target.value)}
-                        required
-                      />
-                    </div>
+                        {optionalChoices.map((choice) => {
+                          const valueLabel = formatOptionalBenefitValue(choice);
+                          return (
+                            <li key={choice.id} role="option">
+                              <button
+                                type="button"
+                                className={styles.addPromoOption}
+                                onClick={() => addOptionalPromo(choice)}
+                              >
+                                <span className={styles.addPromoName}>{choice.label}</span>
+                                {valueLabel ? (
+                                  <span className={styles.addPromoMeta}>{valueLabel}</span>
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
                   </div>
-                  {billing.tipo === 'T' ? (
-                    <div className={styles.formRow}>
+                )}
+
+                {isDevolucion ? (
+                  <p className={styles.helpText}>
+                    En devolución no se agregan descuentos; se revierten los del cobro de origen.
+                  </p>
+                ) : null}
+              </section>
+
+              {/* 4) Imputaciones auto */}
+              {!isDevolucion ? (
+                <section
+                  className={styles.sectionBlock}
+                  aria-label="Imputaciones"
+                  data-testid="payment-auto-imputaciones"
+                >
+                  <h3 className={styles.sectionTitle}>Imputaciones</h3>
+                  {autoImputaciones.length > 0 ? (
+                    <ul className={styles.autoImputaciones}>
+                      {autoImputaciones.map((row) => (
+                        <li key={row.optionKey || `${row.accountId}-${row.reservaId}`}>
+                          <span>{row.label}</span>
+                          <span>{formatMoneyArs(row.montoARS)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : isMultiAlloc ? (
+                    <p className={styles.helpText}>
+                      La distribución se hace en proporción al saldo pendiente de cada cuenta.
+                    </p>
+                  ) : (
+                    <p className={styles.helpText}>Ingresá un monto para ver la imputación.</p>
+                  )}
+                </section>
+              ) : null}
+
+              {/* 5) Datos adicionales */}
+              <details
+                className={styles.extrasDetails}
+                data-testid="payment-extras"
+                open={extrasOpen}
+                onToggle={(e) => setExtrasOpen(e.currentTarget.open)}
+              >
+                <summary>
+                  Datos adicionales
+                  <FiChevronDown aria-hidden="true" />
+                </summary>
+                <div className={styles.extrasBody}>
+                  <div className={styles.toggleStack}>
+                    {!isDevolucion && canUseSena ? (
                       <div className={styles.formGroup}>
-                        <label htmlFor="billing-passport-country">
-                          País emisor del pasaporte *
+                        <span className={styles.fieldLabel} id="payment-sena-label">
+                          Seña
+                        </span>
+                        <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                          <input
+                            id="payment-sena-toggle"
+                            type="checkbox"
+                            checked={esSena}
+                            disabled={loading}
+                            aria-labelledby="payment-sena-label"
+                            onChange={(e) => setEsSena(e.target.checked)}
+                          />
+                          <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
                         </label>
-                        <select
-                          id="billing-passport-country"
-                          value={billing.passportCountry}
-                          onChange={(e) =>
-                            handleBillingChange('passportCountry', e.target.value)
-                          }
-                          required
-                        >
-                          <option value="">Seleccionar país…</option>
-                          {COUNTRIES.map((c) => (
-                            <option key={c.code} value={c.code}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
                       </div>
-                    </div>
-                  ) : null}
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-domicilio">Domicilio</label>
-                      <input
-                        id="billing-domicilio"
-                        type="text"
-                        value={billing.address}
-                        onChange={(e) => handleBillingChange('address', e.target.value)}
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-email-b">Email</label>
-                      <input
-                        id="billing-email-b"
-                        type="email"
-                        value={billing.email}
-                        onChange={(e) => handleBillingChange('email', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-razon">Razón social *</label>
-                      <input
-                        id="billing-razon"
-                        type="text"
-                        value={billing.businessName}
-                        onChange={(e) => handleBillingChange('businessName', e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-cuit">CUIT *</label>
-                      <input
-                        id="billing-cuit"
-                        type="text"
-                        value={billing.cuit}
-                        onChange={(e) => handleBillingChange('cuit', e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-dom-com">Domicilio comercial</label>
-                      <input
-                        id="billing-dom-com"
-                        type="text"
-                        value={billing.commercialAddress}
-                        onChange={(e) => handleBillingChange('commercialAddress', e.target.value)}
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-email-a">Email</label>
-                      <input
-                        id="billing-email-a"
-                        type="email"
-                        value={billing.email}
-                        onChange={(e) => handleBillingChange('email', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                      <label htmlFor="billing-iva">Condición frente al IVA</label>
-                      <select
-                        id="billing-iva"
-                        value={billing.ivaCondition}
-                        onChange={(e) => handleBillingChange('ivaCondition', e.target.value)}
-                      >
-                        {IVA_CONDITIONS.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
+                    ) : null}
 
-              {showInvoiceCardField && (
-                <div className={styles.formRow}>
+                    {!isEditMode ? (
+                      <div className={styles.formGroup}>
+                        <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
+                          <input
+                            id="payment-billing-toggle"
+                            type="checkbox"
+                            checked={billingEnabled}
+                            disabled={billingForced || loading}
+                            onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                          />
+                          <span>Requiere facturación</span>
+                          {billingForced && (
+                            <span className={styles.helpText}>
+                              Obligatorio para este medio de pago
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div className={styles.formGroup}>
-                    <label htmlFor="billing-tarjeta">Tarjeta / N°</label>
-                    <input
-                      id="billing-tarjeta"
-                      type="text"
-                      value={billing.cardNumber}
-                      onChange={(e) => handleBillingChange('cardNumber', e.target.value)}
-                      placeholder="Opcional"
+                    <label htmlFor="payment-notas">Notas</label>
+                    <textarea
+                      id="payment-notas"
+                      value={formData.notas}
+                      onChange={(e) => handleInputChange('notas', e.target.value)}
+                      placeholder="Notas adicionales..."
+                      rows={3}
                     />
                   </div>
                 </div>
-              )}
+              </details>
 
-              {clientId == null && showAllocationUi && (
-                <p className={styles.helpText}>
-                  Elegí una reserva para prellenar datos del cliente.
-                </p>
+              {/* Billing: visible when enabled (below extras so fields stay fillable) */}
+              {!isEditMode && billingEnabled && (
+                <div className={`${styles.billingSection} ${styles.billingBelow}`}>
+                  <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
+                    <button
+                      type="button"
+                      className={`${styles.invoiceTypeButton} ${billing.tipo === 'B' ? styles.invoiceTypeActive : ''}`}
+                      onClick={() => handleBillingChange('tipo', 'B')}
+                      disabled={loading}
+                    >
+                      Factura B
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.invoiceTypeButton} ${billing.tipo === 'T' ? styles.invoiceTypeActive : ''}`}
+                      onClick={() => handleBillingChange('tipo', 'T')}
+                      disabled={loading}
+                    >
+                      Factura T
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.invoiceTypeButton} ${billing.tipo === 'A' ? styles.invoiceTypeActive : ''}`}
+                      onClick={() => handleBillingChange('tipo', 'A')}
+                      disabled={loading}
+                    >
+                      Factura A
+                    </button>
+                  </div>
+
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label htmlFor="billing-fecha">Fecha de facturación *</label>
+                      <input
+                        id="billing-fecha"
+                        type="date"
+                        value={billing.fecha}
+                        onChange={(e) => handleBillingChange('fecha', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {isPersonInvoiceType(billing.tipo) ? (
+                    <>
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-nombre">Nombre *</label>
+                          <input
+                            id="billing-nombre"
+                            type="text"
+                            value={billing.firstName}
+                            onChange={(e) => handleBillingChange('firstName', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-apellido">Apellido *</label>
+                          <input
+                            id="billing-apellido"
+                            type="text"
+                            value={billing.lastName}
+                            onChange={(e) => handleBillingChange('lastName', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-doc-type">Tipo documento *</label>
+                          <select
+                            id="billing-doc-type"
+                            value={billing.documentType}
+                            onChange={(e) => handleBillingChange('documentType', e.target.value)}
+                          >
+                            {DOCUMENT_TYPES_AR.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-doc-num">N° documento *</label>
+                          <input
+                            id="billing-doc-num"
+                            type="text"
+                            value={billing.documentNumber}
+                            onChange={(e) => handleBillingChange('documentNumber', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      {billing.tipo === 'T' ? (
+                        <div className={styles.formRow}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="billing-passport-country">
+                              País emisor del pasaporte *
+                            </label>
+                            <select
+                              id="billing-passport-country"
+                              value={billing.passportCountry}
+                              onChange={(e) =>
+                                handleBillingChange('passportCountry', e.target.value)
+                              }
+                              required
+                            >
+                              <option value="">Seleccionar país…</option>
+                              {COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-domicilio">Domicilio</label>
+                          <input
+                            id="billing-domicilio"
+                            type="text"
+                            value={billing.address}
+                            onChange={(e) => handleBillingChange('address', e.target.value)}
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-email-b">Email</label>
+                          <input
+                            id="billing-email-b"
+                            type="email"
+                            value={billing.email}
+                            onChange={(e) => handleBillingChange('email', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-razon">Razón social *</label>
+                          <input
+                            id="billing-razon"
+                            type="text"
+                            value={billing.businessName}
+                            onChange={(e) => handleBillingChange('businessName', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-cuit">CUIT *</label>
+                          <input
+                            id="billing-cuit"
+                            type="text"
+                            value={billing.cuit}
+                            onChange={(e) => handleBillingChange('cuit', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-dom-com">Domicilio comercial</label>
+                          <input
+                            id="billing-dom-com"
+                            type="text"
+                            value={billing.commercialAddress}
+                            onChange={(e) => handleBillingChange('commercialAddress', e.target.value)}
+                          />
+                        </div>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-email-a">Email</label>
+                          <input
+                            id="billing-email-a"
+                            type="email"
+                            value={billing.email}
+                            onChange={(e) => handleBillingChange('email', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label htmlFor="billing-iva">Condición frente al IVA</label>
+                          <select
+                            id="billing-iva"
+                            value={billing.ivaCondition}
+                            onChange={(e) => handleBillingChange('ivaCondition', e.target.value)}
+                          >
+                            {IVA_CONDITIONS.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {showInvoiceCardField && (
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-tarjeta">Tarjeta / N°</label>
+                        <input
+                          id="billing-tarjeta"
+                          type="text"
+                          value={billing.cardNumber}
+                          onChange={(e) => handleBillingChange('cardNumber', e.target.value)}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {clientId == null && showAllocationUi && (
+                    <p className={styles.helpText}>
+                      Elegí una reserva para prellenar datos del cliente.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
-          )}
+
+            <aside
+              className={styles.summaryPane}
+              aria-label="Resumen"
+              data-testid="payment-summary-panel"
+            >
+              <div
+                data-testid="payment-summary"
+                aria-label={isDevolucion ? 'Resumen de la devolución' : 'Resumen del cobro'}
+              >
+                <div className={styles.saldoBlock}>
+                  <span className={styles.saldoLabel}>{headerIngresadoLabel}</span>
+                  <span className={styles.saldoValue}>{headerIngresadoDisplay}</span>
+                </div>
+                <div className={styles.saldoBlock}>
+                  <span className={styles.saldoLabel}>Monto descontado</span>
+                  <span className={styles.saldoValue}>{headerDescontadoDisplay}</span>
+                </div>
+                <div className={styles.saldoBlock}>
+                  <span className={styles.saldoLabel}>
+                    {isDevolucion ? 'Monto a saldar' : 'Total saldado'}
+                  </span>
+                  <span className={styles.saldoValue} data-testid="summary-monto-saldado">
+                    {headerSaldadoDisplay}
+                  </span>
+                </div>
+                {foreignCurrency && !isDevolucion ? (
+                  <div className={styles.saldoBlock} data-testid="summary-equivalente-ars">
+                    <span className={styles.saldoLabel}>Equivalente en ARS</span>
+                    <span className={styles.saldoValue}>
+                      {hasIngresadoAmount ? formatMoneyArs(montoARS) : '—'}
+                    </span>
+                  </div>
+                ) : null}
+                <div className={styles.saldoDivider} aria-hidden="true" />
+                <div className={styles.saldoBlock}>
+                  <span className={styles.saldoLabel}>Saldo original</span>
+                  <span className={styles.saldoValue}>
+                    {!isDevolucion && saldoTotalAsignado != null
+                      ? formatMoneyArs(saldoTotalAsignado)
+                      : '—'}
+                  </span>
+                </div>
+                {!isDevolucion && autoImputaciones.length > 0 ? (
+                  <div className={styles.summaryAllocList}>
+                    <span className={styles.saldoLabel}>Por cuenta</span>
+                    <ul className={styles.autoImputaciones}>
+                      {autoImputaciones.map((row) => (
+                        <li key={`sum-${row.optionKey || `${row.accountId}-${row.reservaId}`}`}>
+                          <span>{row.label}</span>
+                          <span>{formatMoneyArs(row.montoARS)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {excedenteARS > 0 ? (
+                  <div className={styles.saldoBlock}>
+                    <span className={styles.saldoLabel}>Excedente</span>
+                    <span className={styles.saldoValue}>{formatMoneyArs(excedenteARS)}</span>
+                  </div>
+                ) : null}
+                {showCashTender && Number(vueltoARS) > 0 ? (
+                  <div className={styles.saldoBlock}>
+                    <span className={styles.saldoLabel}>Vuelto</span>
+                    <span className={styles.saldoValue}>
+                      {formatMoneyArs(Number(vueltoARS) || 0)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className={styles.saldoDivider} aria-hidden="true" />
+                <div
+                  className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
+                  data-testid="summary-saldo"
+                >
+                  <span className={styles.saldoLabel}>Nuevo saldo</span>
+                  <span className={styles.saldoValueLarge}>
+                    {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
+                  </span>
+                </div>
+                <div className={styles.summaryMeta}>
+                  <span>Motivo: {motivoActual}</span>
+                  {foreignCurrency && !isDevolucion && parseFloat(formData.tipoCambio) > 0 ? (
+                    <span>TC: {parseFloat(formData.tipoCambio)}</span>
+                  ) : null}
+                </div>
+              </div>
+            </aside>
+          </div>
 
           </div>
 
-          <div className={styles.stickyFooter}>
+<div className={styles.stickyFooter}>
             {error && <div className={styles.errorMessage}>{error}</div>}
 
             <div className={styles.actions}>

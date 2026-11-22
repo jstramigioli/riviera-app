@@ -550,11 +550,10 @@ describe('CobroForm facturación', () => {
     })
     fireEvent.click(screen.getByRole('option', { name: /202 - Pérez/i }))
 
-    await waitFor(() => expect(screen.getByTestId('payment-alloc-hint')).toBeInTheDocument())
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), { target: { value: '1000' } })
-    const montoInputs = screen.getAllByLabelText(/Monto imputado/i)
-    fireEvent.change(montoInputs[0], { target: { value: '600' } })
-    fireEvent.change(montoInputs[1], { target: { value: '400' } })
+    expect(screen.queryByLabelText(/Monto imputado/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-alloc-hint')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('payment-auto-imputaciones')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
     await waitFor(() =>
@@ -563,8 +562,8 @@ describe('CobroForm facturación', () => {
         expect.objectContaining({
           monto: 1000,
           imputaciones: expect.arrayContaining([
-            expect.objectContaining({ reservaId: 11, montoARS: 600 }),
-            expect.objectContaining({ reservaId: 22, montoARS: 400 })
+            expect.objectContaining({ reservaId: 11, montoARS: 500 }),
+            expect.objectContaining({ reservaId: 22, montoARS: 500 })
           ])
         })
       )
@@ -1095,12 +1094,13 @@ describe('CobroForm facturación', () => {
     expect(screen.queryByText(/Cortesía off/i)).not.toBeInTheDocument()
   })
 
-  it('layout 4 columnas permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
+  it('layout workspace + resumen permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
 
+    expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
     expect(screen.getByTestId('payment-amount-modes')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
@@ -1112,7 +1112,8 @@ describe('CobroForm facturación', () => {
     })
     expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
     expect(screen.getByLabelText(/Comprobante \(opcional\)/i)).toBeInTheDocument()
-    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
     expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
@@ -1123,7 +1124,7 @@ describe('CobroForm facturación', () => {
       target: { value: 'Tarjeta Credito' }
     })
     expect(screen.getByLabelText(/Número de tarjeta/i)).toBeInTheDocument()
-    expect(screen.getByTestId('payment-saldo-col')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
   })
