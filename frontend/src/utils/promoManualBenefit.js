@@ -118,6 +118,8 @@ export function mergeManualBenefitSuggestions(lists = []) {
 
 /**
  * De inputs { [ruleId]: string } + selección opcional → maps para API.
+ * El valor al aplicar NO implica selección: opcionales default-off (MANUAL)
+ * solo entran vía selectedOptionalIds (+ descuento / + promoción).
  */
 export function buildBenefitApplyPayload({
   manualValues = {},
@@ -125,7 +127,6 @@ export function buildBenefitApplyPayload({
   deselectedRuleIds = []
 } = {}) {
   const benefitValueByRuleId = {};
-  const fromValues = [];
   for (const [key, raw] of Object.entries(manualValues || {})) {
     if (raw === '' || raw == null) continue;
     const n = Number(raw);
@@ -133,13 +134,10 @@ export function buildBenefitApplyPayload({
     const id = parseInt(key, 10);
     if (!Number.isFinite(id)) continue;
     benefitValueByRuleId[id] = n;
-    fromValues.push(id);
   }
   const selectedRuleIds = Array.from(
     new Set(
-      []
-        .concat(selectedOptionalIds || [])
-        .concat(fromValues)
+      (selectedOptionalIds || [])
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id))
     )
@@ -152,6 +150,33 @@ export function buildBenefitApplyPayload({
     )
   );
   return { benefitValueByRuleId, selectedRuleIds, deselectedRuleIds: deselected };
+}
+
+/**
+ * «Valor al aplicar» solo para reglas que ya están en juego:
+ * SUGERIDA/default-on (no deseleccionadas) o MANUAL ya elegidas con +.
+ */
+export function filterManualBenefitSuggestionsForUi(
+  suggestions = [],
+  { selectedOptionalIds = [], deselectedRuleIds = [] } = {}
+) {
+  const selected = new Set(
+    (selectedOptionalIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id))
+  );
+  const deselected = new Set(
+    (deselectedRuleIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id))
+  );
+  return (suggestions || []).filter((s) => {
+    if (!s || s.id == null) return false;
+    const id = Number(s.id);
+    if (!Number.isFinite(id)) return false;
+    if (deselected.has(id)) return false;
+    const modality = String(s.modality || '').toUpperCase();
+    const defaultOn =
+      s.defaultOn != null ? Boolean(s.defaultOn) : modality === 'SUGERIDA';
+    if (defaultOn || modality === 'SUGERIDA') return true;
+    return selected.has(id);
+  });
 }
 
 /** Promo aplicada removible: solo opcionales (MANUAL / SUGERIDA). AUTO siempre queda. */

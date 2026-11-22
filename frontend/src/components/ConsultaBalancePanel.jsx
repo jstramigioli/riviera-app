@@ -14,6 +14,7 @@ import {
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
   collectOptionalPromoChoices,
+  filterManualBenefitSuggestionsForUi,
   formatOptionalBenefitValue,
   isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
@@ -325,7 +326,12 @@ export default function ConsultaBalancePanel({
 
           if (!cancelled) {
             setSegmentQuotes(quotes.length ? quotes : fallbackQuotes);
-            setManualSuggestions(collectManualBenefitSuggestions(preview));
+            setManualSuggestions(
+              filterManualBenefitSuggestionsForUi(collectManualBenefitSuggestions(preview), {
+                selectedOptionalIds: selectedRuleIds,
+                deselectedRuleIds: deselected
+              })
+            );
             setOptionalChoices(collectOptionalPromoChoices(preview, promos));
             setPromoError(null);
           }
@@ -408,8 +414,9 @@ export default function ConsultaBalancePanel({
   const addOptionalPromo = (choice) => {
     if (!choice || choice.id == null) return;
     const id = Number(choice.id);
-    if (choice.defaultOn) {
-      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    if (choice.defaultOn || String(choice.modality || '').toUpperCase() === 'SUGERIDA') {
+      // default-on: alcanza con no estar deselected
     } else {
       setSelectedOptionalIds((prev) =>
         prev.includes(id) ? prev : [...prev, id]
@@ -421,12 +428,8 @@ export default function ConsultaBalancePanel({
   const removeOptionalPromo = (promo) => {
     const id = Number(promo?.promotionRuleId ?? promo?.id);
     if (!Number.isFinite(id)) return;
-    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
-      setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
-    } else {
-      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
-    }
+    setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setManualValues((prev) => {
       if (prev[id] == null && prev[String(id)] == null) return prev;
       const next = { ...prev };

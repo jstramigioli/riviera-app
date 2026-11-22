@@ -952,6 +952,67 @@ describe('CobroForm facturación', () => {
     })
   })
 
+  it('opcional MANUAL (default-off) no se auto-aplica; entra con + Descuento y sale con X', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      const selected = new Set((payload.selectedRuleIds || []).map(Number))
+      const deselected = new Set((payload.deselectedRuleIds || []).map(Number))
+      const appliedRules = []
+      if (selected.has(30) && !deselected.has(30)) {
+        appliedRules.push({
+          promotionRuleId: 30,
+          label: 'Cortesía off',
+          code: 'OFF10',
+          montoARS: 900,
+          porcentaje: 10,
+          modality: 'MANUAL',
+          defaultOn: false
+        })
+      }
+      return {
+        aplica: appliedRules.length > 0,
+        dineroARS: 9000,
+        descuentoARS: appliedRules.reduce((s, r) => s + r.montoARS, 0),
+        creditoARS: 9000 + appliedRules.reduce((s, r) => s + r.montoARS, 0),
+        appliedRules,
+        suggestions: [
+          {
+            id: 30,
+            label: 'Cortesía off',
+            modality: 'MANUAL',
+            defaultOn: false,
+            benefitType: 'PERCENT',
+            benefitValue: 10
+          }
+        ]
+      }
+    })
+
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '9000' } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-add-optional-promo')).toBeEnabled()
+    })
+    expect(screen.queryByText(/Cortesía off/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-applied-promos')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('payment-add-optional-promo'))
+    fireEvent.click(screen.getByRole('button', { name: /Cortesía off/i }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-applied-promos')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Cortesía off/i)).toBeInTheDocument()
+    expect(screen.getByTestId('payment-promo-remove-30')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('payment-promo-remove-30'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('payment-applied-promos')).not.toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Cortesía off/i)).not.toBeInTheDocument()
+  })
+
   it('layout 4 columnas permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())

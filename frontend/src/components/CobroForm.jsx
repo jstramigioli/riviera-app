@@ -31,6 +31,7 @@ import {
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
   collectOptionalPromoChoices,
+  filterManualBenefitSuggestionsForUi,
   formatOptionalBenefitValue,
   isRemovableOptionalPromo
 } from '../utils/promoManualBenefit';
@@ -605,7 +606,12 @@ const CobroForm = ({
         });
         if (cancelled) return;
         const mapped = mapSettlementPreview(preview, saldoForPreview);
-        setManualPromoSuggestions(collectManualBenefitSuggestions(preview));
+        setManualPromoSuggestions(
+          filterManualBenefitSuggestionsForUi(collectManualBenefitSuggestions(preview), {
+            selectedOptionalIds: selectedRuleIds,
+            deselectedRuleIds: deselected
+          })
+        );
         setManualPromoPreview(
           mapped
             ? {
@@ -708,12 +714,9 @@ const CobroForm = ({
   const removeOptionalPromo = (promo) => {
     const id = Number(promo?.promotionRuleId ?? promo?.id);
     if (!Number.isFinite(id)) return;
-    if (promo.defaultOn || String(promo.modality || '').toUpperCase() === 'SUGERIDA') {
-      setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
-    } else {
-      setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
-    }
+    // Opcionales (MANUAL / SUGERIDA): X siempre deselecciona; MANUAL también sale de selected.
+    setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
+    setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setManualPromoValues((prev) => {
       if (prev[id] == null && prev[String(id)] == null) return prev;
       const next = { ...prev };
@@ -726,8 +729,10 @@ const CobroForm = ({
   const addOptionalPromo = (choice) => {
     if (!choice || choice.id == null) return;
     const id = Number(choice.id);
-    if (choice.defaultOn) {
-      setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    // Re-activar: sacar de deselected; MANUAL/default-off entra por selected.
+    setDeselectedRuleIds((prev) => prev.filter((x) => Number(x) !== id));
+    if (choice.defaultOn || String(choice.modality || '').toUpperCase() === 'SUGERIDA') {
+      // default-on: alcanza con no estar deselected (+ applySuggestedDefaults)
     } else {
       setSelectedOptionalIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     }
@@ -2246,10 +2251,6 @@ const CobroForm = ({
                         data-testid="payment-vuelto-ars"
                         aria-readonly="true"
                       />
-                      <span className={styles.helpText}>
-                        Solo lectura (= excedente). Para acreditar, subí el monto ingresado
-                        {foreignCurrency ? ' · mismo TC del cobro' : ''}
-                      </span>
                     </div>
                   </section>
                 ) : null}

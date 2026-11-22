@@ -3,6 +3,7 @@ import {
   buildBenefitApplyPayload,
   collectManualBenefitSuggestions,
   collectOptionalPromoChoices,
+  filterManualBenefitSuggestionsForUi,
   formatOptionalBenefitValue,
   isRemovableOptionalPromo,
   mergeManualBenefitSuggestions
@@ -99,7 +100,7 @@ describe('promoManualBenefit', () => {
     expect(merged[0].label).toBe('A');
   });
 
-  it('buildBenefitApplyPayload une opcionales + valor al aplicar', () => {
+  it('buildBenefitApplyPayload: valor al aplicar no implica selección', () => {
     expect(
       buildBenefitApplyPayload({
         manualValues: {
@@ -114,9 +115,29 @@ describe('promoManualBenefit', () => {
       })
     ).toEqual({
       benefitValueByRuleId: { 10: 15, 14: 0 },
-      selectedRuleIds: [11, 9, 10, 14],
+      selectedRuleIds: [11, 9],
       deselectedRuleIds: [20]
     });
+  });
+
+  it('filterManualBenefitSuggestionsForUi: MANUAL solo si elegido; SUGERIDA salvo deselected', () => {
+    const suggestions = [
+      { id: 1, modality: 'MANUAL', defaultOn: false, benefitValueManual: true },
+      { id: 2, modality: 'SUGERIDA', defaultOn: true, benefitValueManual: true },
+      { id: 3, modality: 'MANUAL', defaultOn: false, benefitValueManual: true }
+    ];
+    expect(
+      filterManualBenefitSuggestionsForUi(suggestions, {
+        selectedOptionalIds: [3],
+        deselectedRuleIds: [2]
+      }).map((s) => s.id)
+    ).toEqual([3]);
+    expect(
+      filterManualBenefitSuggestionsForUi(suggestions, {
+        selectedOptionalIds: [],
+        deselectedRuleIds: []
+      }).map((s) => s.id)
+    ).toEqual([2]);
   });
 
   it('isRemovableOptionalPromo', () => {
