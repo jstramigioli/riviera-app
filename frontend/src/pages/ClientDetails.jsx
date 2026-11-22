@@ -323,14 +323,10 @@ const ClientDetails = () => {
     .filter((cobro) => !isDevolucionMovimiento(cobro))
     .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS) || 0), 0);
 
-  const documentLabel =
-    client.documentType && client.documentNumber
-      ? `${client.documentType} ${client.documentNumber}`
-      : client.documentNumber
-        ? String(client.documentNumber)
-        : client.documentType
-          ? String(client.documentType)
-          : '';
+  const documentNumber = String(client.documentNumber || '').trim();
+  const documentLabel = documentNumber
+    ? `${client.documentType ? `${client.documentType} ` : ''}${documentNumber}`
+    : '';
 
   const birthDateLabel = formatBirthDateDisplay(client.birthDate) || '';
   const emailValue = String(client.email || '').trim();
