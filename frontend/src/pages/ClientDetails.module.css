@@ -969,22 +969,6 @@
   .infoItem {
     min-width: auto;
   }
-  
-  .contactButtons {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .contactButton {
-    width: auto;
-    min-height: 48px;
-    padding: 12px;
-  }
-  
-  .contactButton svg {
-    width: 28px;
-    height: 28px;
-  }
 }
 
 /* Estilos del modal de edición */
