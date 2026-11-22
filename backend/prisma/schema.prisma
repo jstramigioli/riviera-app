@@ -156,6 +156,8 @@ model Client {
   phone           String?
   documentType    String        @default("DNI")
   documentNumber  String?
+  /// Fecha de nacimiento del cliente (check-in online la exige; perfil/CRUD opcional).
+  birthDate       DateTime?
   country         String?
   province        String?
   city            String?
@@ -525,6 +527,7 @@ model OnlineCheckIn {
   phone          String?
   documentType   String?
   documentNumber String?
+  birthDate      DateTime?
   country        String?
   province       String?
   city           String?

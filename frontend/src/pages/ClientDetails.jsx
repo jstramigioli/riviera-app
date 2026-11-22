@@ -22,6 +22,7 @@ import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
+import { formatBirthDateDisplay } from '../constants/clientFormFields';
 
 const DNI_PHOTO_ACCEPT = 'image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf';
 
@@ -327,6 +328,8 @@ const ClientDetails = () => {
       ? `${client.documentType} ${client.documentNumber}`
       : 'Sin documento';
 
+  const birthDateLabel = formatBirthDateDisplay(client.birthDate) || 'Sin fecha de nacimiento';
+
   const addressLabel = getAddressFromNotes(client.notes) || 'Sin domicilio';
   const locationLines = [
     { field: 'address', value: addressLabel, openModal: true },
@@ -366,6 +369,12 @@ const ClientDetails = () => {
             >
               {documentLabel}
             </button>
+            <p
+              className={styles.guestDates}
+              data-testid="client-profile-field-birthDate"
+            >
+              {birthDateLabel}
+            </p>
             <div className={styles.guestDates}>
               Cliente desde {new Date(client.createdAt).getFullYear()}
             </div>

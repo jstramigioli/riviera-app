@@ -2,9 +2,12 @@ import { FiX } from 'react-icons/fi';
 import React, { useState, useEffect } from 'react';
 import LocationSelector from './LocationSelector';
 import {
+  BIRTH_DATE_LABEL_OPTIONAL,
   CLIENT_DOCUMENT_TYPES,
   VEHICLE_PLATE_HINT,
-  VEHICLE_PLATE_LABEL
+  VEHICLE_PLATE_LABEL,
+  birthDateInputToPayload,
+  birthDateToInputValue
 } from '../constants/clientFormFields';
 import {
   createNotesWithAddress,
@@ -24,6 +27,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     phone: '',
     documentType: 'DNI',
     documentNumber: '',
+    birthDate: '',
     country: 'AR',
     province: '',
     city: '',
@@ -44,6 +48,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         phone: client.phone || '',
         documentType: client.documentType || 'DNI',
         documentNumber: client.documentNumber || '',
+        birthDate: birthDateToInputValue(client.birthDate),
         country: client.country || 'AR',
         province: client.province || '',
         city: client.city || '',
@@ -86,6 +91,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         phone: formData.phone,
         documentType: formData.documentType,
         documentNumber: formData.documentNumber,
+        birthDate: birthDateInputToPayload(formData.birthDate),
         country: formData.country,
         province: formData.province,
         city: formData.city,
@@ -171,6 +177,18 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   id="phone"
                   name="phone"
                   value={formData.phone}
+                  onChange={handleInputChange}
+                  className={styles.input}
+                />
+              </div>
+
+              <div className={styles.fieldGroup}>
+                <label htmlFor="birthDate">{BIRTH_DATE_LABEL_OPTIONAL}</label>
+                <input
+                  type="date"
+                  id="birthDate"
+                  name="birthDate"
+                  value={formData.birthDate}
                   onChange={handleInputChange}
                   className={styles.input}
                 />

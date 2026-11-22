@@ -3,9 +3,12 @@ import { useParams } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
 import LocationSelector from '../components/LocationSelector';
 import {
+  BIRTH_DATE_LABEL_REQUIRED,
   CLIENT_DOCUMENT_TYPES,
   VEHICLE_PLATE_HINT,
-  VEHICLE_PLATE_LABEL
+  VEHICLE_PLATE_LABEL,
+  birthDateInputToPayload,
+  birthDateToInputValue
 } from '../constants/clientFormFields';
 import styles from './PublicCheckIn.module.css';
 
@@ -19,6 +22,7 @@ const EMPTY = {
   phone: '',
   documentType: 'DNI',
   documentNumber: '',
+  birthDate: '',
   country: 'AR',
   province: '',
   city: '',
@@ -63,6 +67,7 @@ export default function PublicCheckIn() {
           ...(data.fields || {}),
           country: data.fields?.country || 'AR',
           documentType: data.fields?.documentType || 'DNI',
+          birthDate: birthDateToInputValue(data.fields?.birthDate),
           wantsPromotions: Boolean(data.fields?.wantsPromotions)
         });
         setDone(Boolean(data.completed));
@@ -94,10 +99,16 @@ export default function PublicCheckIn() {
     setSaving(true);
     setError('');
     try {
+      if (!fields.birthDate) {
+        throw new Error('La fecha de nacimiento es obligatoria');
+      }
       const res = await fetch(`${CHECKIN_API_BASE}/public/check-in/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields)
+        body: JSON.stringify({
+          ...fields,
+          birthDate: birthDateInputToPayload(fields.birthDate)
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -194,6 +205,17 @@ export default function PublicCheckIn() {
               <label className={styles.field}>
                 <span>Teléfono</span>
                 <input type="tel" name="phone" value={fields.phone} onChange={handleChange} autoComplete="tel" />
+              </label>
+              <label className={styles.field}>
+                <span>{BIRTH_DATE_LABEL_REQUIRED}</span>
+                <input
+                  type="date"
+                  name="birthDate"
+                  value={fields.birthDate}
+                  onChange={handleChange}
+                  required
+                  autoComplete="bday"
+                />
               </label>
             </div>
           </section>

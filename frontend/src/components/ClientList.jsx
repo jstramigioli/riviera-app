@@ -5,6 +5,7 @@ import api from '../services/api';
 import styles from '../styles/Estadisticas.module.css';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
+import { formatBirthDateDisplay } from '../constants/clientFormFields';
 
 function ClientList({ clients, onClientUpdated, onClientDeleted }) {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -164,6 +165,14 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
                   </span>
                 )}
               </th>
+              <th onClick={() => handleSort('birthDate')} className={styles.sortableHeader}>
+                Nacimiento
+                {sortField === 'birthDate' && (
+                  <span className={styles.sortIcon}>
+                    {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </th>
               <th onClick={() => handleSort('country')} className={styles.sortableHeader}>
                 País
                 {sortField === 'country' && (
@@ -229,6 +238,7 @@ function ClientList({ clients, onClientUpdated, onClientDeleted }) {
                 </td>
                 <td>{client.documentType || '-'}</td>
                 <td>{client.documentNumber || '-'}</td>
+                <td>{formatBirthDateDisplay(client.birthDate) || '-'}</td>
                 <td>
                   <span className={styles.countryBadge}>
                     {client.country || '-'}

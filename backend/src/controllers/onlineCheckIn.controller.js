@@ -44,6 +44,33 @@ function normalizeText(value) {
   return cleaned || null;
 }
 
+/** Serializa Date/ISO a YYYY-MM-DD para input type="date". */
+function birthDateToInputValue(value) {
+  if (!value) return '';
+  const raw = String(value);
+  const ymd = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (ymd) return ymd[1];
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** YYYY-MM-DD o ISO → Date a mediodía local; vacío → null. Lanza si inválido. */
+function parseBirthDate(value) {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 12, 0, 0, 0);
+    if (Number.isNaN(d.getTime())) throw new Error('invalid birthDate');
+    return d;
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw new Error('invalid birthDate');
+  return d;
+}
+
 function clientPrefill(client = {}, reservation = {}) {
   return {
     firstName: client.firstName || '',
@@ -52,6 +79,7 @@ function clientPrefill(client = {}, reservation = {}) {
     phone: client.phone || '',
     documentType: client.documentType || 'DNI',
     documentNumber: client.documentNumber || '',
+    birthDate: birthDateToInputValue(client.birthDate),
     country: client.country || 'AR',
     province: client.province || '',
     city: client.city || '',
@@ -158,6 +186,7 @@ async function sendReservationCheckIn(req, res) {
         phone: client?.phone || null,
         documentType: client?.documentType || null,
         documentNumber: client?.documentNumber || null,
+        birthDate: client?.birthDate || null,
         country: client?.country || null,
         province: client?.province || null,
         city: client?.city || null,
@@ -260,6 +289,7 @@ async function getPublicCheckIn(req, res) {
       phone: checkIn.phone || prefill.phone,
       documentType: checkIn.documentType || prefill.documentType,
       documentNumber: checkIn.documentNumber || prefill.documentNumber,
+      birthDate: birthDateToInputValue(checkIn.birthDate) || prefill.birthDate,
       country: checkIn.country || prefill.country || 'AR',
       province: checkIn.province || prefill.province,
       city: checkIn.city || prefill.city,
@@ -317,6 +347,16 @@ async function submitPublicCheckIn(req, res) {
       return res.status(400).json({ error: 'Nombre y apellido son obligatorios' });
     }
 
+    let birthDate;
+    try {
+      birthDate = parseBirthDate(body.birthDate);
+    } catch {
+      return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
+    }
+    if (!birthDate) {
+      return res.status(400).json({ error: 'La fecha de nacimiento es obligatoria' });
+    }
+
     const email = normalizeText(body.email);
     const phone = normalizeText(body.phone);
     const documentType = normalizeDocumentType(body.documentType);
@@ -347,6 +387,7 @@ async function submitPublicCheckIn(req, res) {
           phone,
           documentType,
           documentNumber,
+          birthDate,
           country,
           province,
           city,
@@ -372,6 +413,7 @@ async function submitPublicCheckIn(req, res) {
           phone,
           documentType,
           documentNumber,
+          birthDate,
           country,
           province,
           city,

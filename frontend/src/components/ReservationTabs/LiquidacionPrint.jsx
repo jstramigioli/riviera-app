@@ -196,6 +196,14 @@ const LiquidacionPrint = forwardRef(function LiquidacionPrint(
             <span className={styles.label}>Email</span>
             <strong>{client.email || '—'}</strong>
           </div>
+          <div>
+            <span className={styles.label}>Nacimiento</span>
+            <strong>
+              {client.birthDate
+                ? new Date(client.birthDate).toLocaleDateString('es-AR')
+                : '—'}
+            </strong>
+          </div>
         </div>
       </section>
 

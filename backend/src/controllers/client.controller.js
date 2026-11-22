@@ -22,6 +22,21 @@ function normalizePlate(value) {
   return cleaned || null;
 }
 
+/** YYYY-MM-DD o ISO → Date a mediodía local; vacío → null. Lanza si el valor es inválido. */
+function parseOptionalBirthDate(value) {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const d = new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 12, 0, 0, 0);
+    if (Number.isNaN(d.getTime())) throw new Error('invalid birthDate');
+    return d;
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) throw new Error('invalid birthDate');
+  return d;
+}
+
 // Listar todos los clientes (incluye createdAt/updatedAt para comparaciones temporales)
 exports.getAllClients = async (req, res) => {
   try {
@@ -52,7 +67,7 @@ exports.getClientById = async (req, res) => {
 
 // Crear un cliente
 exports.createClient = async (req, res) => {
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
@@ -60,6 +75,13 @@ exports.createClient = async (req, res) => {
   // Validar formato de email si se proporciona
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  let parsedBirthDate;
+  try {
+    parsedBirthDate = parseOptionalBirthDate(birthDate);
+  } catch {
+    return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
   }
   
   try {
@@ -80,6 +102,9 @@ exports.createClient = async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, 'vehiclePlate')) {
       data.vehiclePlate = normalizePlate(vehiclePlate);
     }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'birthDate')) {
+      data.birthDate = parsedBirthDate;
+    }
 
     const newClient = await prisma.client.create({ data });
     res.status(201).json(newClient);
@@ -98,7 +123,7 @@ exports.createClient = async (req, res) => {
 // Actualizar un cliente
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, phone, documentType, documentNumber, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
+  const { firstName, lastName, email, phone, documentType, documentNumber, birthDate, country, province, city, notes, vehiclePlate, wantsPromotions } = req.body;
   
   if (!firstName || !lastName) {
     return res.status(400).json({ error: 'First name and last name are required' });
@@ -107,6 +132,15 @@ exports.updateClient = async (req, res) => {
   // Validar formato de email si se proporciona
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  let parsedBirthDate;
+  if (birthDate !== undefined) {
+    try {
+      parsedBirthDate = parseOptionalBirthDate(birthDate);
+    } catch {
+      return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
+    }
   }
   
   try {
@@ -119,6 +153,7 @@ exports.updateClient = async (req, res) => {
         ...(phone !== undefined && { phone }),
         ...(documentType !== undefined && { documentType }),
         ...(documentNumber !== undefined && { documentNumber }),
+        ...(birthDate !== undefined && { birthDate: parsedBirthDate }),
         ...(country !== undefined && { country }),
         ...(province !== undefined && { province }),
         ...(city !== undefined && { city }),

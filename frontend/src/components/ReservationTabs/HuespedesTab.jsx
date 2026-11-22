@@ -6,6 +6,7 @@ import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
 import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
 import { getDisplaySegments } from '../../utils/virtualRoomReservation';
+import { formatBirthDateDisplay } from '../../constants/clientFormFields';
 
 const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -256,6 +257,12 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate }) => {
               <div className={styles.guestDetail}>
                 <strong>{reservation.mainClient.documentType}:</strong>{' '}
                 {reservation.mainClient.documentNumber}
+              </div>
+            )}
+            {reservation.mainClient?.birthDate && (
+              <div className={styles.guestDetail}>
+                <strong>Nacimiento:</strong>{' '}
+                {formatBirthDateDisplay(reservation.mainClient.birthDate)}
               </div>
             )}
             <div className={styles.guestDetail} data-testid="holder-guest-status">

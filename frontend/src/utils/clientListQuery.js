@@ -9,6 +9,7 @@ export function clientSearchHaystack(client) {
     client?.phone,
     client?.documentType,
     client?.documentNumber,
+    client?.birthDate,
     client?.country,
     client?.province,
     client?.city,

@@ -46,6 +46,7 @@ import { shiftIso, todayIsoLocal } from '../utils/calendarDates';
 import { previewRoomRatePromo } from '../utils/roomPromoPreview';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import BedPreferenceFields from '../components/BedPreferenceFields';
+import { birthDateInputToPayload, birthDateToInputValue } from '../constants/clientFormFields';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -2587,6 +2588,7 @@ export default function Consulta() {
           lastName: formData.mainClient.lastName,
           email: formData.mainClient.email || null,
           phone: formData.mainClient.phone || null,
+          birthDate: birthDateInputToPayload(formData.mainClient.birthDate),
         }),
       });
 
@@ -2601,7 +2603,8 @@ export default function Consulta() {
             firstName: newClient.firstName,
             lastName: newClient.lastName,
             email: newClient.email || '',
-            phone: newClient.phone || ''
+            phone: newClient.phone || '',
+            birthDate: birthDateToInputValue(newClient.birthDate)
           }
         }));
         
@@ -3148,6 +3151,7 @@ export default function Consulta() {
               lastName: formData.mainClient.lastName,
               email: formData.mainClient.email || null,
               phone: formData.mainClient.phone || null,
+              birthDate: birthDateInputToPayload(formData.mainClient.birthDate),
             }),
           });
 
@@ -3626,6 +3630,14 @@ export default function Consulta() {
                         value={formData.mainClient.phone || ''}
                         onChange={(e) => handleClientInputChange('phone', e.target.value)}
                         placeholder="Teléfono"
+                      />
+                      <input
+                        type="date"
+                        value={formData.mainClient.birthDate || ''}
+                        onChange={(e) => handleClientInputChange('birthDate', e.target.value)}
+                        placeholder="Fecha de nacimiento"
+                        aria-label="Fecha de nacimiento (opcional)"
+                        title="Fecha de nacimiento (opcional)"
                       />
                     </div>
                     <div className={styles.newClientButtons}>

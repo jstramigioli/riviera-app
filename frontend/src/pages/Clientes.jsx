@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchClients } from '../services/api';
 import { getAddressFromNotes } from '../utils/clientAddressNotes';
 import { filterAndSortClients } from '../utils/clientListQuery';
+import { formatBirthDateDisplay } from '../constants/clientFormFields';
 import styles from './Clientes.module.css';
 
 const COLUMNS = [
@@ -12,6 +13,7 @@ const COLUMNS = [
   { field: 'email', label: 'Email' },
   { field: 'phone', label: 'Teléfono' },
   { field: 'documentNumber', label: 'Documento' },
+  { field: 'birthDate', label: 'Nacimiento' },
   { field: 'country', label: 'País' },
   { field: 'province', label: 'Provincia' },
   { field: 'city', label: 'Ciudad' },
@@ -255,6 +257,9 @@ function Clientes() {
                       <td className={styles.tabular}>
                         {[client.documentType, client.documentNumber].filter(Boolean).join(' ') ||
                           '—'}
+                      </td>
+                      <td className={styles.tabular}>
+                        {formatBirthDateDisplay(client.birthDate) || '—'}
                       </td>
                       <td>{client.country || '—'}</td>
                       <td>{client.province || '—'}</td>
