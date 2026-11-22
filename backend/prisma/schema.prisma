@@ -574,6 +574,8 @@ model Query {
   preferredSingleBeds  Int              @default(0)
   /// Requisito del tramo: necesita cuna.
   requiereCuna         Boolean          @default(false)
+  /// Requisito del tramo: necesita estacionamiento.
+  requiereEstacionamiento Boolean       @default(false)
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   queryGroupId         String?
@@ -849,6 +851,8 @@ model ReservationSegment {
   preferredSingleBeds  Int          @default(0)
   /// Requisito del tramo: necesita cuna.
   requiereCuna         Boolean      @default(false)
+  /// Requisito del tramo: necesita estacionamiento.
+  requiereEstacionamiento Boolean   @default(false)
   reservation          Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   room                 Room         @relation(fields: [roomId], references: [id])
   roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])

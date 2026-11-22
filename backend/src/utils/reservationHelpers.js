@@ -561,6 +561,13 @@ async function createReservationWithSegments(reservationData) {
   const segmentRequiereCuna = resolvedSegments.some((seg) => Boolean(seg.requiereCuna));
   const resolvedRequiereCuna =
     requiereCuna !== undefined ? Boolean(requiereCuna) : segmentRequiereCuna;
+  const segmentRequiereEstacionamiento = resolvedSegments.some((seg) =>
+    Boolean(seg.requiereEstacionamiento)
+  );
+  const resolvedRequiereEstacionamiento =
+    requiereEstacionamiento !== undefined
+      ? Boolean(requiereEstacionamiento)
+      : segmentRequiereEstacionamiento;
 
   // Crear la reserva + Account 1:1 en la misma secuencia
   const reservation = await prisma.reservation.create({
@@ -571,7 +578,8 @@ async function createReservationWithSegments(reservationData) {
       source: normalizeReservationSource(source),
       // Mirror legado a nivel reserva (= OR de tramos); la fuente de verdad es el segmento.
       requiereCuna: resolvedRequiereCuna || segmentRequiereCuna,
-      requiereEstacionamiento: Boolean(requiereEstacionamiento),
+      requiereEstacionamiento:
+        resolvedRequiereEstacionamiento || segmentRequiereEstacionamiento,
       isMultiRoom: logicalCount > 1 || isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null,
       createdWithManualRate: promoOpts.createdWithManualRate
@@ -611,6 +619,7 @@ async function createReservationWithSegments(reservationData) {
         requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
         ...normalizeBedPreference(segmentData),
         requiereCuna: Boolean(segmentData.requiereCuna),
+        requiereEstacionamiento: Boolean(segmentData.requiereEstacionamiento),
         reason: segmentData.reason || 'Segmento de reserva',
         notes: segmentData.notes || 'Segmento creado automáticamente',
         isActive: true
@@ -823,6 +832,15 @@ async function updateReservationWithSegments(reservationId, updateData) {
       : requiereCuna !== undefined
         ? Boolean(requiereCuna)
         : undefined;
+  const segmentRequiereEstacionamiento =
+    Array.isArray(segments) &&
+    segments.some((seg) => Boolean(seg.requiereEstacionamiento));
+  const nextRequiereEstacionamiento =
+    Array.isArray(segments)
+      ? Boolean(requiereEstacionamiento) || segmentRequiereEstacionamiento
+      : requiereEstacionamiento !== undefined
+        ? Boolean(requiereEstacionamiento)
+        : undefined;
 
   // Actualizar datos básicos de la reserva
   await prisma.reservation.update({
@@ -837,8 +855,8 @@ async function updateReservationWithSegments(reservationId, updateData) {
       ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
       ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
       ...(nextRequiereCuna !== undefined ? { requiereCuna: nextRequiereCuna } : {}),
-      ...(requiereEstacionamiento !== undefined
-        ? { requiereEstacionamiento: Boolean(requiereEstacionamiento) }
+      ...(nextRequiereEstacionamiento !== undefined
+        ? { requiereEstacionamiento: nextRequiereEstacionamiento }
         : {}),
       ...(source !== undefined
         ? { source: normalizeReservationSource(source) }
@@ -916,6 +934,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
             : null,
           ...normalizeBedPreference(segmentData),
           requiereCuna: Boolean(segmentData.requiereCuna),
+          requiereEstacionamiento: Boolean(segmentData.requiereEstacionamiento),
           reason: segmentData.reason,
           notes: segmentData.notes,
           isActive: true

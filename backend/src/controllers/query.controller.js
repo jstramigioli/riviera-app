@@ -15,7 +15,8 @@ function bedPreferenceFields(source = {}) {
 function segmentRequirementFields(source = {}) {
   return {
     ...bedPreferenceFields(source),
-    requiereCuna: Boolean(source.requiereCuna)
+    requiereCuna: Boolean(source.requiereCuna),
+    requiereEstacionamiento: Boolean(source.requiereEstacionamiento)
   };
 }
 
@@ -171,6 +172,7 @@ const createQuery = async (req, res) => {
       preferredDoubleBeds,
       preferredSingleBeds,
       requiereCuna,
+      requiereEstacionamiento,
       guests = []
     } = req.body;
 
@@ -194,7 +196,8 @@ const createQuery = async (req, res) => {
           bedPreferenceNone,
           preferredDoubleBeds,
           preferredSingleBeds,
-          requiereCuna
+          requiereCuna,
+          requiereEstacionamiento
         }),
         guests: {
           create: guests.map(guest => ({
@@ -546,7 +549,8 @@ const updateQuery = async (req, res) => {
       bedPreferenceNone,
       preferredDoubleBeds,
       preferredSingleBeds,
-      requiereCuna
+      requiereCuna,
+      requiereEstacionamiento
     } = req.body;
 
     const query = await prisma.query.update({
@@ -569,7 +573,8 @@ const updateQuery = async (req, res) => {
           bedPreferenceNone,
           preferredDoubleBeds,
           preferredSingleBeds,
-          requiereCuna
+          requiereCuna,
+          requiereEstacionamiento
         })
       },
       include: {

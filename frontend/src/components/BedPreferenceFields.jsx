@@ -7,7 +7,7 @@ import {
 import styles from './BedPreferenceFields.module.css';
 
 /**
- * Preferencia de camas + cuna para requisitos especiales de un tramo.
+ * Preferencia de camas + cuna + estacionamiento para requisitos especiales de un tramo.
  * Toggles botón (no checkbox); Mat./Ind. solo si preferencia de camas está on.
  */
 function BedPreferenceFields({
@@ -15,6 +15,8 @@ function BedPreferenceFields({
   onChange,
   requiereCuna = false,
   onRequiereCunaChange,
+  requiereEstacionamiento = false,
+  onRequiereEstacionamientoChange,
   maxDoubleBeds = 0,
   maxSingleBeds = 0,
   guests = 0,
@@ -64,6 +66,11 @@ function BedPreferenceFields({
     onRequiereCunaChange(!Boolean(requiereCuna));
   };
 
+  const toggleEstacionamiento = () => {
+    if (disabled || !onRequiereEstacionamientoChange) return;
+    onRequiereEstacionamientoChange(!Boolean(requiereEstacionamiento));
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toggles}>
@@ -99,6 +106,26 @@ function BedPreferenceFields({
               <span className={styles.switchThumb} />
             </span>
             <span className={styles.switchLabel}>Cuna</span>
+          </button>
+        )}
+
+        {typeof onRequiereEstacionamientoChange === 'function' && (
+          <button
+            type="button"
+            className={styles.switchRow}
+            onClick={toggleEstacionamiento}
+            disabled={disabled}
+            aria-pressed={Boolean(requiereEstacionamiento)}
+            aria-label="Estacionamiento"
+            data-testid="estacionamiento-toggle"
+          >
+            <span
+              className={`${styles.switch} ${requiereEstacionamiento ? styles.switchOn : ''}`}
+              aria-hidden="true"
+            >
+              <span className={styles.switchThumb} />
+            </span>
+            <span className={styles.switchLabel}>Estacionamiento</span>
           </button>
         )}
       </div>

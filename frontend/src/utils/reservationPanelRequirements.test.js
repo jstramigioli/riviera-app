@@ -37,6 +37,20 @@ describe('collectReservationPanelRequirements', () => {
     expect(result.flags).toEqual([{ key: 'cuna', label: 'Requiere cuna' }]);
   });
 
+  it('incluye estacionamiento desde el tramo aunque la reserva no tenga el flag legado', () => {
+    const result = collectReservationPanelRequirements({
+      segments: [{
+        roomId: 10,
+        room: { name: '101' },
+        requiredTags: [],
+        requiereEstacionamiento: true
+      }]
+    }, tags);
+    expect(result.flags).toEqual([
+      { key: 'estacionamiento', label: 'Requiere estacionamiento' }
+    ]);
+  });
+
   it('incluye habitación fijada por requiredRoomId', () => {
     const result = collectReservationPanelRequirements({
       segments: [{

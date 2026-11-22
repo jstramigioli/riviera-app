@@ -77,7 +77,10 @@ export function collectReservationPanelRequirements(reservation, tagsCatalog = [
   if (segmentNeedsCuna || reservation?.requiereCuna) {
     flags.push({ key: 'cuna', label: 'Requiere cuna' });
   }
-  if (reservation?.requiereEstacionamiento) {
+  const segmentNeedsEstacionamiento = segments.some((seg) =>
+    Boolean(seg?.requiereEstacionamiento)
+  );
+  if (segmentNeedsEstacionamiento || reservation?.requiereEstacionamiento) {
     flags.push({ key: 'estacionamiento', label: 'Requiere estacionamiento' });
   }
 

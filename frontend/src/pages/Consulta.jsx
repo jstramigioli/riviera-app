@@ -238,16 +238,21 @@ export default function Consulta() {
       preferredDoubleBeds: 0,
       preferredSingleBeds: 0,
       requiereCuna: false,
+      requiereEstacionamiento: false,
       requiredRoomId: null,
       serviceType: ''
     }
   ]);
 
   const bedFieldsFrom = (source = {}) => normalizeBedPreference(source);
-  const cunaFrom = (source = {}, fallback = false) =>
-    source?.requiereCuna !== undefined && source?.requiereCuna !== null
-      ? Boolean(source.requiereCuna)
+  const boolFlagFrom = (source = {}, key, fallback = false) =>
+    source?.[key] !== undefined && source?.[key] !== null
+      ? Boolean(source[key])
       : Boolean(fallback);
+  const cunaFrom = (source = {}, fallback = false) =>
+    boolFlagFrom(source, 'requiereCuna', fallback);
+  const estacionamientoFrom = (source = {}, fallback = false) =>
+    boolFlagFrom(source, 'requiereEstacionamiento', fallback);
 
   // Estado para clientes
   const [clients, setClients] = useState([]);
@@ -346,8 +351,7 @@ export default function Consulta() {
   const [notes, setNotes] = useState('');
   /** Reservado por: WHATSAPP | MAIL | WEBSITE | BOOKING | MOSTRADOR */
   const [source, setSource] = useState('');
-  // Cuna es por tramo (segments[].requiereCuna); el OR se usa al persistir / copiar.
-  const [requiereEstacionamiento, setRequiereEstacionamiento] = useState(false);
+  // Cuna / estacionamiento son por tramo; el OR se usa al persistir / copiar.
   
   // Flag para evitar cargar datos múltiples veces
   const dataLoadedRef = useRef(false);
@@ -449,6 +453,7 @@ export default function Consulta() {
       requiredTags: [...(lastBlock?.requiredTags || [])],
       ...bedFieldsFrom(lastBlock || requirements),
       requiereCuna: cunaFrom(lastBlock),
+      requiereEstacionamiento: estacionamientoFrom(lastBlock),
       requiredRoomId: lastBlock?.requiredRoomId ?? null,
       serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
       requirementsNotes: lastBlock?.requirementsNotes || '',
@@ -551,6 +556,7 @@ export default function Consulta() {
           requiredTags: currentSegment.requiredTags || [],
           ...bedFieldsFrom(currentSegment),
           requiereCuna: cunaFrom(currentSegment),
+          requiereEstacionamiento: estacionamientoFrom(currentSegment),
           requiredRoomId: currentSegment.requiredRoomId || null,
           serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
         };
@@ -570,6 +576,7 @@ export default function Consulta() {
         requiredTags: currentSegment.requiredTags || [],
         ...bedFieldsFrom(currentSegment),
         requiereCuna: cunaFrom(currentSegment),
+        requiereEstacionamiento: estacionamientoFrom(currentSegment),
         requiredRoomId: currentSegment.requiredRoomId || null,
         serviceType: currentSegment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
       };
@@ -591,6 +598,7 @@ export default function Consulta() {
         requiredTags: currentSegment.requiredTags || [],
         ...bedFieldsFrom(currentSegment),
         requiereCuna: cunaFrom(currentSegment),
+        requiereEstacionamiento: estacionamientoFrom(currentSegment),
         requiredRoomId: currentSegment.requiredRoomId || null,
         serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
       };
@@ -745,6 +753,7 @@ export default function Consulta() {
           requiredTags: segment.requiredTags || [],
           ...bedFieldsFrom(segment),
           requiereCuna: Boolean(segment.requiereCuna),
+          requiereEstacionamiento: Boolean(segment.requiereEstacionamiento),
           serviceType: segment.serviceType || '',
           requirementsNotes: segment.requirementsNotes || '',
           // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
@@ -1163,6 +1172,7 @@ export default function Consulta() {
           requiredTags: seg.requiredTags || [],
           ...bedFieldsFrom(seg),
           requiereCuna: cunaFrom(seg, full.requiereCuna),
+          requiereEstacionamiento: estacionamientoFrom(seg, full.requiereEstacionamiento),
           requiredRoomId: seg.requiredRoomId || null,
           requirementsNotes: '',
           serviceType: seg.services?.[0] || full.reservationType || '',
@@ -1284,7 +1294,6 @@ export default function Consulta() {
 
         setNotes(full.notes || '');
         setSource(full.source || '');
-        setRequiereEstacionamiento(Boolean(full.requiereEstacionamiento));
         setActiveBlockIndex(0);
         setEditPrefillReady(true);
 
@@ -1406,6 +1415,7 @@ export default function Consulta() {
                 requiredTags: seg.requiredTags || [],
                 ...bedFieldsFrom(seg),
                 requiereCuna: cunaFrom(seg),
+                requiereEstacionamiento: estacionamientoFrom(seg),
                 requiredRoomId: seg.requiredRoomId || null,
                 requirementsNotes: seg.requirementsNotes || '',
                 serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -1423,7 +1433,6 @@ export default function Consulta() {
               // Cargar notas globales y medio
               setNotes(fullQueryData.notes || '');
               setSource(fullQueryData.source || '');
-              setRequiereEstacionamiento(false);
               
               // Establecer el primer segmento como activo
               setActiveBlockIndex(0);
@@ -1474,6 +1483,7 @@ export default function Consulta() {
                   requiredTags: fullQueryData.requiredTags || [],
                   ...bedFieldsFrom(fullQueryData),
                   requiereCuna: cunaFrom(fullQueryData),
+                  requiereEstacionamiento: estacionamientoFrom(fullQueryData),
                   requiredRoomId: fullQueryData.requiredRoomId || null,
                   requirementsNotes: fullQueryData.requirementsNotes || '',
                   serviceType: fullQueryData.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
@@ -1486,7 +1496,6 @@ export default function Consulta() {
               
               setNotes(fullQueryData.notes || '');
               setSource(fullQueryData.source || '');
-              setRequiereEstacionamiento(false);
             }
             
             setCurrentQueryId(fullQueryData.id);
@@ -2467,6 +2476,7 @@ export default function Consulta() {
         requiredTags: seg.requiredTags || [],
         ...bedFieldsFrom(seg),
         requiereCuna: cunaFrom(seg),
+        requiereEstacionamiento: estacionamientoFrom(seg),
         requiredRoomId: seg.requiredRoomId || null,
         requirementsNotes: seg.requirementsNotes || '',
         serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -2479,7 +2489,6 @@ export default function Consulta() {
       // Cargar notas globales y medio
       setNotes(query.notes || '');
       setSource(query.source || '');
-      setRequiereEstacionamiento(false);
       
       // Establecer el primer segmento como activo
       setActiveBlockIndex(0);
@@ -2505,6 +2514,7 @@ export default function Consulta() {
           requiredTags: query.requiredTags || [],
           ...bedFieldsFrom(query),
           requiereCuna: cunaFrom(query),
+          requiereEstacionamiento: estacionamientoFrom(query),
           requiredRoomId: query.requiredRoomId || null,
           requirementsNotes: query.requirementsNotes || '',
           serviceType: query.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -2514,7 +2524,6 @@ export default function Consulta() {
       
       setNotes(query.notes || '');
       setSource(query.source || '');
-      setRequiereEstacionamiento(false);
     }
 
     setCurrentQueryId(query.id);
@@ -3041,18 +3050,22 @@ export default function Consulta() {
         (seg.requiredTags && seg.requiredTags.length > 0) ||
         seg.requiredRoomId ||
         seg.requiereCuna ||
+        seg.requiereEstacionamiento ||
         !normalizeBedPreference(seg).bedPreferenceNone
       );
-      const hasOperationalRequirements = requiereEstacionamiento;
 
-      if (hasSegmentRequirements || hasOperationalRequirements) {
+      if (hasSegmentRequirements) {
         texto += 'REQUERIMIENTOS ESPECIALES\n';
-        if (requiereEstacionamiento) texto += 'Requiere estacionamiento\n';
         segments.forEach((segment, index) => {
           if (segment.requiereCuna) {
             texto += segments.length > 1
               ? `Tramo ${index + 1}: requiere cuna\n`
               : 'Requiere cuna\n';
+          }
+          if (segment.requiereEstacionamiento) {
+            texto += segments.length > 1
+              ? `Tramo ${index + 1}: requiere estacionamiento\n`
+              : 'Requiere estacionamiento\n';
           }
           if (segment.requiredTags && segment.requiredTags.length > 0) {
             const tagNames = segment.requiredTags
@@ -3306,6 +3319,7 @@ export default function Consulta() {
             requiredRoomId: segment.requiredRoomId || null,
             ...bedFieldsFrom(segment),
             requiereCuna: Boolean(segment.requiereCuna),
+            requiereEstacionamiento: Boolean(segment.requiereEstacionamiento),
             baseRate: baseRate,
             nightRates,
             guestCount: segment.requiredGuests
@@ -3315,7 +3329,9 @@ export default function Consulta() {
         notes: notes,
         source: source || null,
         requiereCuna: segments.some((seg) => Boolean(seg.requiereCuna)),
-        requiereEstacionamiento: Boolean(requiereEstacionamiento),
+        requiereEstacionamiento: segments.some((seg) =>
+          Boolean(seg.requiereEstacionamiento)
+        ),
         isMultiRoom: false,
         selectedRuleIds: useManualRate ? [] : promoApply.selectedRuleIds,
         deselectedRuleIds: useManualRate ? [] : promoApply.deselectedRuleIds,
@@ -3388,7 +3404,7 @@ export default function Consulta() {
           notes: notes,
           source: source || null,
           requiereCuna: reservationData.requiereCuna,
-          requiereEstacionamiento: Boolean(requiereEstacionamiento),
+          requiereEstacionamiento: reservationData.requiereEstacionamiento,
           segments: reservationData.segments,
           applyRateChanges,
           createdWithManualRate: useManualRate,
@@ -3497,6 +3513,7 @@ export default function Consulta() {
         preferredDoubleBeds: 0,
         preferredSingleBeds: 0,
         requiereCuna: false,
+        requiereEstacionamiento: false,
         requiredRoomId: null,
         serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
       }
@@ -3513,7 +3530,6 @@ export default function Consulta() {
     setCurrentQueryId(null);
     setNotes('');
     setSource('');
-    setRequiereEstacionamiento(false);
     setActiveBlockIndex(0);
     // Limpiar el ref de valores previos
     previousSegmentsRef.current = {};
@@ -3575,6 +3591,16 @@ export default function Consulta() {
     setSegments((prev) =>
       prev.map((segment) =>
         segment.id === segmentId ? { ...segment, requiereCuna: Boolean(next) } : segment
+      )
+    );
+  };
+
+  const handleSegmentEstacionamientoChange = (segmentId, next) => {
+    setSegments((prev) =>
+      prev.map((segment) =>
+        segment.id === segmentId
+          ? { ...segment, requiereEstacionamiento: Boolean(next) }
+          : segment
       )
     );
   };
@@ -3903,9 +3929,9 @@ export default function Consulta() {
                         </select>
                       </div>
 
-                      {/* Preferencia de camas + cuna (por tramo) */}
-                      <div className={styles.formGroup} style={{ flex: 1.2 }}>
-                        <label>Camas / cuna</label>
+                      {/* Preferencia de camas / cuna / estacionamiento (por tramo) */}
+                      <div className={styles.formGroup} style={{ flex: 1.4 }}>
+                        <label>Camas / cuna / estacionamiento</label>
                         <BedPreferenceFields
                           value={segments[activeBlockIndex] || {}}
                           maxDoubleBeds={bedLimits.maxDoubleBeds}
@@ -3915,6 +3941,16 @@ export default function Consulta() {
                           onRequiereCunaChange={(next) =>
                             segments[activeBlockIndex] &&
                             handleSegmentCunaChange(segments[activeBlockIndex].id, next)
+                          }
+                          requiereEstacionamiento={Boolean(
+                            segments[activeBlockIndex]?.requiereEstacionamiento
+                          )}
+                          onRequiereEstacionamientoChange={(next) =>
+                            segments[activeBlockIndex] &&
+                            handleSegmentEstacionamientoChange(
+                              segments[activeBlockIndex].id,
+                              next
+                            )
                           }
                           onChange={(pref) =>
                             segments[activeBlockIndex] &&
@@ -4250,8 +4286,6 @@ export default function Consulta() {
                       onNotesChange={setNotes}
                       source={source}
                       onSourceChange={setSource}
-                      requiereEstacionamiento={requiereEstacionamiento}
-                      onRequiereEstacionamientoChange={setRequiereEstacionamiento}
                       reservationStatus={reservationStatus}
                       onStatusChange={setReservationStatus}
                       onPromoApplyChange={handlePromoApplyChange}
@@ -4310,8 +4344,6 @@ export default function Consulta() {
                   onNotesChange={setNotes}
                   source={source}
                   onSourceChange={setSource}
-                  requiereEstacionamiento={requiereEstacionamiento}
-                  onRequiereEstacionamientoChange={setRequiereEstacionamiento}
                   reservationStatus={reservationStatus}
                   onStatusChange={setReservationStatus}
                   onPromoApplyChange={handlePromoApplyChange}

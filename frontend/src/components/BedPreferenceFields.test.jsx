@@ -66,6 +66,24 @@ describe('BedPreferenceFields', () => {
     expect(onCuna).toHaveBeenCalledWith(true);
   });
 
+  it('toggle estacionamiento emite onRequiereEstacionamientoChange', () => {
+    const onEst = vi.fn();
+    render(
+      <BedPreferenceFields
+        value={{ bedPreferenceNone: true }}
+        maxDoubleBeds={1}
+        maxSingleBeds={1}
+        guests={2}
+        onChange={vi.fn()}
+        requiereEstacionamiento={false}
+        onRequiereEstacionamientoChange={onEst}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Estacionamiento' }));
+    expect(onEst).toHaveBeenCalledWith(true);
+  });
+
   it('opciones Mat/Ind limitadas por maxDoubleBeds y maxSingleBeds', () => {
     render(
       <BedPreferenceFields

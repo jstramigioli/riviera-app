@@ -830,23 +830,6 @@ export default function ConsultaBalancePanel({
             </select>
           </div>
 
-          <fieldset
-            className={styles.requirementsFieldset}
-            data-testid="balance-requirements"
-            disabled={disabled || isSnapshot}
-          >
-            <legend className={styles.metaLabel}>Requerimientos</legend>
-            <label className={styles.requirementCheck}>
-              <input
-                type="checkbox"
-                checked={Boolean(requiereEstacionamiento)}
-                onChange={(e) => onRequiereEstacionamientoChange?.(e.target.checked)}
-                disabled={disabled || isSnapshot}
-                data-testid="balance-requiere-estacionamiento"
-              />
-              Requiere estacionamiento
-            </label>
-          </fieldset>
         </section>
       ) : null}
       </div>
