@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatMoneyArs } from '../utils/formatMoney';
 import ReservationIdChip from './ReservationIdChip';
+import RoomNameChip from './RoomNameChip';
 import GuestCheckInStatusCell from './GuestCheckInStatusCell';
 import ReservationStatusPlain from './ReservationStatusPlain';
 import styles from '../styles/ReservationsTable.module.css';
@@ -171,12 +172,6 @@ export default function ReservationsTable({
     return getServiceTypeName(firstService);
   };
 
-  // Función para manejar el clic en el nombre de habitación
-  const handleRoomClick = (e, roomId) => {
-    e.stopPropagation(); // Evitar que se active el clic de la fila
-    navigate(`/habitaciones/${roomId}`);
-  };
-
   // Función para manejar el clic en el nombre del cliente
   const handleClientClick = (e, clientId) => {
     e.stopPropagation(); // Evitar que se active el clic de la fila
@@ -313,12 +308,10 @@ export default function ReservationsTable({
                     />
                   </td>
                   <td className={styles.cell}>
-                    <span 
-                      className={styles.roomName}
-                      onClick={(e) => handleRoomClick(e, reservation.room?.id)}
-                    >
-                      {reservation.room?.name}
-                    </span>
+                    <RoomNameChip
+                      name={reservation.room?.name}
+                      roomId={reservation.room?.id}
+                    />
                   </td>
                   <td className={styles.cell}>
                     <div className={styles.clientInfo}>

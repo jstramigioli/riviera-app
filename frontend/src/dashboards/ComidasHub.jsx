@@ -11,6 +11,7 @@ import {
   fetchDailyMenuPdfBlob,
   getDailyMenuByDate
 } from '../services/gastronomiaApi';
+import RoomNameChip from '../components/RoomNameChip';
 import styles from './ReceptionDashboard.module.css';
 
 function sumGuests(items) {
@@ -500,7 +501,12 @@ export default function ComidasHub({
                         {item.guestName}
                       </button>
                     </td>
-                    <td>{item.roomLabel || '—'}</td>
+                    <td>
+                      <RoomNameChip
+                        name={item.roomLabel}
+                        rooms={item.rooms}
+                      />
+                    </td>
                     <td>{item.guests ?? '—'}</td>
                   </tr>
                 ))}

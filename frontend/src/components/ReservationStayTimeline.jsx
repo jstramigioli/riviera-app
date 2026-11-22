@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { sourceLabel } from '../constants/reservationSource';
+import RoomNameChip from './RoomNameChip';
 import styles from './ReservationStayTimeline.module.css';
 
 const NARROW_MQ = '(max-width: 720px)';
@@ -53,17 +53,15 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
   const roomType = card.roomType || '—';
   const canOpenRoom = Boolean(card.roomId) && !hideRoomNumber;
   const roomName = card.room || '—';
-  const roomNameNode = canOpenRoom ? (
-    <Link
-      to={`/habitaciones/${card.roomId}`}
-      className={styles.roomNameLink}
-      title={`Ver perfil de habitación ${roomName}`}
-      data-testid="timeline-room-link"
-    >
-      {roomName}
-    </Link>
-  ) : (
-    roomName
+  const roomNameNode = (
+    <RoomNameChip
+      name={roomName}
+      roomId={canOpenRoom ? card.roomId : null}
+      data-testid={canOpenRoom ? 'timeline-room-link' : undefined}
+      title={
+        canOpenRoom ? `Ver perfil de habitación ${roomName}` : undefined
+      }
+    />
   );
   return (
     <div className={styles.segmentStack}>

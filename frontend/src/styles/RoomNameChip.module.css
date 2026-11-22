@@ -1,0 +1,47 @@
+/* Chip nombre de habitación — misma forma que ReservationIdChip, sin color de canal */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: 3px;
+  border: 1px solid var(--color-border, #d8dde6);
+  padding: 0.15rem 0.4rem;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+  max-width: 100%;
+  font-family: inherit;
+  appearance: none;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-dark, #1f2933);
+}
+
+.clickable {
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter 0.15s ease, outline-color 0.15s ease;
+}
+
+.clickable:hover {
+  filter: brightness(0.97);
+  background: var(--color-bg, #f4f5f7);
+  outline: 1px solid var(--color-primary-dark, #1e3a5f);
+  outline-offset: 1px;
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: 2px;
+}
+
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+}

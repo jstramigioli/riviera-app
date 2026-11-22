@@ -22,6 +22,7 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import CobroForm from '../components/CobroForm';
 import ReservationIdChip from '../components/ReservationIdChip';
+import RoomNameChip from '../components/RoomNameChip';
 import ReservationStatusPlain from '../components/ReservationStatusPlain';
 import GuestCheckInStatusCell from '../components/GuestCheckInStatusCell';
 import NotificationsPanel from './NotificationsPanel';
@@ -595,7 +596,10 @@ export default function ReceptionDashboard() {
                               {item.guests ?? '—'}
                             </td>
                             <td className={styles.colRoom}>
-                              {item.roomLabel || '—'}
+                              <RoomNameChip
+                                name={item.roomLabel}
+                                rooms={item.rooms}
+                              />
                             </td>
                             <td className={styles.colService}>
                               <span className={styles.cellClamp}>
@@ -728,7 +732,10 @@ export default function ReceptionDashboard() {
                             {item.guests ?? '—'}
                           </td>
                           <td className={styles.colRoom}>
-                            {item.roomLabel || '—'}
+                            <RoomNameChip
+                              name={item.roomLabel}
+                              rooms={item.rooms}
+                            />
                           </td>
                           <td className={styles.colNotes}>
                             {renderNotesCell(item)}

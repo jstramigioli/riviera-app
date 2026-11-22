@@ -9,6 +9,7 @@ import {
   mainClientIdOf,
   mealFlagsFromServiceRef,
   movementListLabel,
+  movementRoomEntries,
   movementRoomLabel,
   primaryServiceRef
 } from './dayInfoStats';
@@ -218,18 +219,28 @@ export function pendingCheckoutItems(
     const { start, end } = stayBounds(reservation);
     if (!end || end > endHorizon) continue;
     const guestName = mainClientDisplayName(reservation);
-    const room = movementRoomLabel(
+    const roomEntries = movementRoomEntries(
       reservation,
       segments,
       end || todayIso,
       'out',
       roomsById
     );
+    const room = roomEntries.length
+      ? roomEntries.map((e) => e.name).join('/')
+      : movementRoomLabel(
+          reservation,
+          segments,
+          end || todayIso,
+          'out',
+          roomsById
+        );
     const late = Boolean(end && end < todayIso);
     items.push({
       reservationId: reservation.id,
       clientId: mainClientIdOf(reservation),
       roomLabel: room,
+      rooms: roomEntries,
       guestName,
       guests: guestCountForReservation(reservation),
       status: reservation.status,
@@ -303,12 +314,22 @@ export function buildCheckInPanelItems(
     seen.add(reservation.id);
 
     const guestName = mainClientDisplayName(reservation);
-    const room = movementRoomLabel(reservation, segments, start, 'in', roomsById);
+    const roomEntries = movementRoomEntries(
+      reservation,
+      segments,
+      start,
+      'in',
+      roomsById
+    );
+    const room = roomEntries.length
+      ? roomEntries.map((e) => e.name).join('/')
+      : movementRoomLabel(reservation, segments, start, 'in', roomsById);
     const pending = PRE_CHECKIN_STATUSES.has(reservation.status);
     items.push({
       reservationId: reservation.id,
       clientId: mainClientIdOf(reservation),
       roomLabel: room,
+      rooms: roomEntries,
       guestName,
       guests: guestCountForReservation(reservation),
       status: reservation.status,
@@ -399,13 +420,22 @@ function mealDetailItems(dayIso, rooms, reservations, serviceTypes, meal) {
     if (meal === 'dinner' && !flags.dinner) continue;
 
     const guestName = mainClientDisplayName(reservation);
-    const room = movementRoomLabel(
+    const roomEntries = movementRoomEntries(
       reservation,
       segments,
       dayIso,
       meal === 'breakfast' ? 'out' : 'in',
       roomsById
     );
+    const room = roomEntries.length
+      ? roomEntries.map((e) => e.name).join('/')
+      : movementRoomLabel(
+          reservation,
+          segments,
+          dayIso,
+          meal === 'breakfast' ? 'out' : 'in',
+          roomsById
+        );
     const guests =
       Number(reservation.requiredGuests) ||
       segsForMeal.reduce((sum, s) => sum + (Number(s.guestCount) || 0), 0) ||
@@ -415,6 +445,7 @@ function mealDetailItems(dayIso, rooms, reservations, serviceTypes, meal) {
       reservationId: reservation.id,
       clientId: mainClientIdOf(reservation),
       roomLabel: room,
+      rooms: roomEntries,
       guestName,
       guests,
       label: `${movementListLabel(room, guestName)} (${guests})`
