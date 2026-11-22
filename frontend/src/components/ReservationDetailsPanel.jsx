@@ -13,6 +13,7 @@ import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consulta
 import { sourceLabel } from '../constants/reservationSource';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { formatMoneyArs } from '../utils/formatMoney';
+import ReservationIdChip from './ReservationIdChip';
 import styles from './ReservationDetailsPanel.module.css';
 
 const formatCurrency = formatMoneyArs;
@@ -120,23 +121,16 @@ const ReservationDetailsPanel = ({
     <div className={styles.panel}>
       <div className={styles.header}>
         <div className={styles.headerMain}>
-          <h2 className={styles.title}>
-            <a
-              href={`/reservations/${reservation.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(`/reservations/${reservation.id}`);
-              }}
-              style={{
-                color: 'white',
-                textDecoration: 'underline',
-                cursor: 'pointer'
-              }}
+          <div className={styles.titleRow}>
+            <ReservationIdChip
+              id={reservation.id}
+              source={reservation.source}
+              status={reservation.status}
+              onClick={() => navigate(`/reservations/${reservation.id}`)}
               title={`Ver detalles de la Reserva #${reservation.id}`}
-            >
-              Reserva #{reservation.id}
-            </a>
-          </h2>
+              data-testid="panel-reservation-id-chip"
+            />
+          </div>
           <div className={styles.reservationStatus}>
             <span
               className={styles.statusIndicator}

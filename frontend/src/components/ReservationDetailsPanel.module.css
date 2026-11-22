@@ -16,8 +16,8 @@
   gap: 12px;
   padding: 16px 16px 14px 20px;
   border-bottom: 1px solid #e5e7eb;
-  background: var(--color-primary);
-  color: white;
+  background: #ffffff;
+  color: var(--color-text, #212529);
   border-radius: 0;
   flex-shrink: 0;
 }
@@ -35,9 +35,9 @@
 }
 
 .headerIconBtn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: var(--color-primary-dark, #334d70);
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
@@ -48,11 +48,12 @@
   font-size: 1.15rem;
   line-height: 1;
   padding: 0;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .headerIconBtn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #f3f4f6;
+  border-color: #d1d5db;
 }
 
 .headerIconBtn svg {
@@ -94,18 +95,18 @@
   backdrop-filter: blur(10px);
 }
 
-.title {
-  margin: 0;
-  font-size: var(--font-size-large);
-  font-weight: 600;
-  flex: 1;
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .reservationStatus {
-  margin-top: 4px;
-  font-size: 1rem;
+  margin-top: 6px;
+  font-size: 0.9rem;
   font-weight: 500;
-  opacity: 0.9;
+  color: var(--color-text-muted, #6b7280);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -253,10 +254,6 @@
 
   .body {
     padding: 16px;
-  }
-
-  .title {
-    font-size: var(--font-size-large);
   }
 
   .tableLabel {
