@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { getStatusLabel } from '../utils/reservationStatusUtils';
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
 import { FiCopy, FiCheck } from 'react-icons/fi';
@@ -60,18 +59,6 @@ const ReservationDetailsPanel = ({
   }, [reservation]);
 
   if (!reservation) return null;
-
-  const getStatusColor = (status) => {
-    const statusColors = {
-      PENDIENTE: '#ffc107',
-      CONFIRMADA: '#17a2b8',
-      INGRESADA: '#28a745',
-      FINALIZADA: '#6c757d',
-      CANCELADA: '#dc3545',
-      NO_PRESENTADA: '#fd7e14'
-    };
-    return statusColors[status] || '#6c757d';
-  };
 
   const handleClientClick = (clientId) => {
     const id = clientId || reservation.mainClient?.id;
@@ -134,11 +121,12 @@ const ReservationDetailsPanel = ({
             />
           </div>
           <div className={styles.reservationStatus}>
-            <span
-              className={styles.statusIndicator}
-              style={{ backgroundColor: getStatusColor(reservation.status) }}
+            <ReservationStatusButtons
+              reservation={reservation}
+              onStatusChange={onStatusChange}
+              onDelete={onDelete}
+              menuPlacement="below"
             />
-            {getStatusLabel(reservation.status)}
           </div>
         </div>
         <div className={styles.headerActions}>
@@ -230,13 +218,6 @@ const ReservationDetailsPanel = ({
       </div>
 
       <div className={styles.actionsRow}>
-        <div className={styles.actionsRowStatus}>
-          <ReservationStatusButtons
-            reservation={reservation}
-            onStatusChange={onStatusChange}
-            onDelete={onDelete}
-          />
-        </div>
         <ReservationPanelMoreMenu
           reservation={reservation}
           onAddConsumo={onAddConsumo}
