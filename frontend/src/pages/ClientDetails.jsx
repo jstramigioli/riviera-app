@@ -467,11 +467,8 @@ const ClientDetails = () => {
           <div className={styles.widgetsStack} data-testid="client-widgets">
             <section className={styles.widget} aria-labelledby="widget-dni-photo" data-testid="client-dni-photo-card">
               <h2 id="widget-dni-photo" className={styles.widgetTitle}>
-                Foto del DNI
+                Foto del documento
               </h2>
-              <p className={styles.dniPhotoHint}>
-                Foto del DNI o documento de identidad del cliente
-              </p>
               <div className={styles.dniPhotoMeta}>
                 {documentPhoto ? documentPhoto.originalName || 'Foto cargada' : 'Sin foto cargada'}
               </div>
