@@ -45,18 +45,67 @@
 }
 
 .sidePanelHeader {
-  padding: 24px 15% 24px 5%;
+  padding: 20px 16px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.sidePanelHeaderTop {
+  display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .sidePanelHeader h2 {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: var(--font-size-small);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.8);
+  min-width: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.headerIconBtn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.headerIconBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.headerIconBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.headerIconBtn svg {
+  width: 12px;
+  height: 12px;
 }
 
 .guestInfo {
@@ -115,11 +164,12 @@
 }
 
 .sidePanelContent {
-  padding: 24px 15% 24px 5%;
+  padding: 16px;
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .field {
@@ -155,7 +205,49 @@
   display: flex;
   gap: 8px;
   margin-top: 16px;
-  padding: 0 15% 0 5%;
+  padding: 0;
+  width: 100%;
+}
+
+.profileSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileField {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profileField:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.profileLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.profileValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  word-break: break-word;
 }
 
 .contactButton {
@@ -281,18 +373,63 @@
 
 .mainContentBody {
   flex: 1;
-  padding: 24px;
-  overflow: hidden; /* Evitar scroll general */
-  background: white;
+  padding: 16px 24px 24px;
+  overflow: auto;
+  background: var(--color-bg);
   min-height: 0;
+}
+
+.widgetsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.widget {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+}
+
+.widgetHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.widgetTitle {
+  color: var(--color-primary);
+  font-size: var(--font-size-medium);
+  margin: 0 0 12px 0;
+  font-weight: 700;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 8px;
+}
+
+.widgetHeaderRow .widgetTitle {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.reservationCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  max-height: calc(100vh - 140px); /* Limitar altura de la sección */
-  overflow: hidden;
 }
 
 .section h2 {
@@ -306,14 +443,9 @@
 .tableContainer {
   background: white;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 250px); /* Altura dinámica considerando header y panel de bienvenida */
-  max-height: calc(100vh - 250px);
+  overflow: auto;
+  max-height: 360px;
+  border: 1px solid #e9ecef;
 }
 
 .reservationsTable {
@@ -450,9 +582,9 @@
 /* Estilos para sección de balance */
 .balanceGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  height: 100%;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .balanceCard {
@@ -607,9 +739,9 @@
 }
 
 .dniPhotoHint {
-  margin: 0 0 8px;
+  margin: -4px 0 8px;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.4;
 }
 

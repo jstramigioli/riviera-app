@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { FaPen } from 'react-icons/fa';
 import {
   fetchClients,
   fetchReservations,
@@ -10,8 +11,8 @@ import {
   downloadClientDocumentPhoto,
   deleteClientDocumentPhoto
 } from '../services/api';
-import ReservationPricingDetails from '../components/ReservationPricingDetails';
 import FieldEditor from '../components/FieldEditor';
+import EditClientModal from '../components/EditClientModal';
 import MultiCobroClientPanel from '../components/MultiCobroClientPanel';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
@@ -36,8 +37,8 @@ const ClientDetails = () => {
   const [documentPhotoBusy, setDocumentPhotoBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState('personal');
   const [editingField, setEditingField] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const loadDocumentPhoto = useCallback(async () => {
     if (!clientId) {
@@ -57,15 +58,17 @@ const ClientDetails = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [clientsData, reservationsData, balanceData] = await Promise.all([
         fetchClients(),
         fetchReservations(),
         getClientBalance(clientId).catch(() => null)
       ]);
 
-      const foundClient = clientsData.find(c => c.id === parseInt(clientId));
-      const clientReservations = reservationsData.filter(r => r.mainClientId === parseInt(clientId));
+      const foundClient = clientsData.find((c) => c.id === parseInt(clientId, 10));
+      const clientReservations = reservationsData.filter(
+        (r) => r.mainClientId === parseInt(clientId, 10)
+      );
 
       if (!foundClient) {
         setError('Cliente no encontrado');
@@ -103,19 +106,42 @@ const ClientDetails = () => {
     setEditingField(null);
   };
 
+  const handleClientUpdated = (updatedClient) => {
+    setClient(updatedClient);
+    setIsEditModalOpen(false);
+  };
+
   const handleEmailClick = () => {
     if (client.email) {
-      notify({ title: 'Próximamente', message: `Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`, type: 'info' });
+      notify({
+        title: 'Próximamente',
+        message: `Funcionalidad de email próximamente disponible.\n\nSe enviará un email a: ${client.email}`,
+        type: 'info'
+      });
     } else {
-      notify({ title: 'Sin email', message: 'Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.', type: 'warning' });
+      notify({
+        title: 'Sin email',
+        message:
+          'Este cliente no tiene email registrado. Actualiza su información para poder contactarlo por email.',
+        type: 'warning'
+      });
     }
   };
 
   const handleWhatsAppClick = () => {
     if (client.phone) {
-      notify({ title: 'Próximamente', message: `Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`, type: 'info' });
+      notify({
+        title: 'Próximamente',
+        message: `Funcionalidad de WhatsApp próximamente disponible.\n\nSe enviará un mensaje al: ${client.phone}`,
+        type: 'info'
+      });
     } else {
-      notify({ title: 'Sin teléfono', message: 'Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.', type: 'warning' });
+      notify({
+        title: 'Sin teléfono',
+        message:
+          'Este cliente no tiene teléfono registrado. Actualiza su información para poder contactarlo por WhatsApp.',
+        type: 'warning'
+      });
     }
   };
 
@@ -126,7 +152,11 @@ const ClientDetails = () => {
     try {
       const meta = await uploadClientDocumentPhoto(client.id, file);
       setDocumentPhoto(meta);
-      notify({ title: 'Foto guardada', message: 'La foto del documento se subió correctamente.', type: 'success' });
+      notify({
+        title: 'Foto guardada',
+        message: 'La foto del documento se subió correctamente.',
+        type: 'success'
+      });
     } catch (err) {
       notify({
         title: 'Error',
@@ -150,7 +180,10 @@ const ClientDetails = () => {
       } catch (downloadErr) {
         notify({
           title: 'Error',
-          message: downloadErr?.message || err?.message || 'No se pudo abrir la foto del documento',
+          message:
+            downloadErr?.message ||
+            err?.message ||
+            'No se pudo abrir la foto del documento',
           type: 'error'
         });
       }
@@ -172,7 +205,11 @@ const ClientDetails = () => {
     try {
       await deleteClientDocumentPhoto(client.id);
       setDocumentPhoto(null);
-      notify({ title: 'Foto eliminada', message: 'Se eliminó la foto del documento.', type: 'success' });
+      notify({
+        title: 'Foto eliminada',
+        message: 'Se eliminó la foto del documento.',
+        type: 'success'
+      });
     } catch (err) {
       notify({
         title: 'Error',
@@ -194,33 +231,40 @@ const ClientDetails = () => {
 
   const getStatusLabel = (status) => {
     const statusLabels = {
-      'pending': 'Pendiente',
-      'confirmed': 'Confirmada',
-      'ingresada': 'Ingresada',
-      'checked_out': 'Check-out',
-      'cancelled': 'Cancelada',
-      'PENDIENTE': 'Pendiente',
-      'CONFIRMADA': 'Confirmada',
-      'INGRESADA': 'Ingresada',
-      'FINALIZADA': 'Finalizada',
-      'CANCELADA': 'Cancelada',
-      'NO_PRESENTADA': 'No presentada'
+      pending: 'Pendiente',
+      confirmed: 'Confirmada',
+      ingresada: 'Ingresada',
+      checked_out: 'Check-out',
+      cancelled: 'Cancelada',
+      PENDIENTE: 'Pendiente',
+      CONFIRMADA: 'Confirmada',
+      INGRESADA: 'Ingresada',
+      FINALIZADA: 'Finalizada',
+      CANCELADA: 'Cancelada',
+      NO_PRESENTADA: 'No presentada'
     };
     return statusLabels[status] || status;
   };
 
   const getReservationSaldo = (reservationId) => {
-    const fromBalance = clientBalance?.reservations?.find(r => r.reservationId === reservationId);
+    const fromBalance = clientBalance?.reservations?.find(
+      (r) => r.reservationId === reservationId
+    );
     if (fromBalance) return fromBalance.saldo;
     return null;
   };
 
   const getActiveReservations = () => {
-    return reservations.filter(r => !['FINALIZADA', 'CANCELADA', 'NO_PRESENTADA', 'checked_out', 'cancelled'].includes(r.status));
+    return reservations.filter(
+      (r) =>
+        !['FINALIZADA', 'CANCELADA', 'NO_PRESENTADA', 'checked_out', 'cancelled'].includes(
+          r.status
+        )
+    );
   };
 
   const getCompletedReservations = () => {
-    return reservations.filter(r => ['FINALIZADA', 'checked_out'].includes(r.status));
+    return reservations.filter((r) => ['FINALIZADA', 'checked_out'].includes(r.status));
   };
 
   const getCurrentStatus = () => {
@@ -228,56 +272,54 @@ const ClientDetails = () => {
     if (activeReservations.length === 0) {
       return 'Sin reservas';
     }
-    
-    // Buscar reservas que estén actualmente activas (check-in pasado, check-out futuro)
-    // Respetar fecha simulada de debug cuando está activa.
+
     const now = todayAsLocalDate();
-    const currentReservation = activeReservations.find(r => {
+    const currentReservation = activeReservations.find((r) => {
       const checkIn = new Date(r.checkIn);
       const checkOut = new Date(r.checkOut);
       return now >= checkIn && now <= checkOut;
     });
-    
+
     if (currentReservation) {
       return 'Alojado';
     }
-    
-    // Si hay reservas futuras, calcular días hasta la próxima
-    const futureReservations = activeReservations.filter(r => new Date(r.checkIn) > now);
+
+    const futureReservations = activeReservations.filter((r) => new Date(r.checkIn) > now);
     if (futureReservations.length > 0) {
-      const nextReservation = futureReservations.sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn))[0];
-      const daysUntilArrival = Math.ceil((new Date(nextReservation.checkIn) - now) / (1000 * 60 * 60 * 24));
-      
+      const nextReservation = futureReservations.sort(
+        (a, b) => new Date(a.checkIn) - new Date(b.checkIn)
+      )[0];
+      const daysUntilArrival = Math.ceil(
+        (new Date(nextReservation.checkIn) - now) / (1000 * 60 * 60 * 24)
+      );
+
       if (daysUntilArrival >= 30) {
         const months = Math.floor(daysUntilArrival / 30);
         const remainingDays = daysUntilArrival % 30;
         if (remainingDays === 0) {
           return `Llega en ${months} mes${months > 1 ? 'es' : ''}`;
-        } else {
-          return `Llega en ${months} mes${months > 1 ? 'es' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
         }
-      } else if (daysUntilArrival >= 7) {
+        return `Llega en ${months} mes${months > 1 ? 'es' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
+      }
+      if (daysUntilArrival >= 7) {
         const weeks = Math.floor(daysUntilArrival / 7);
         const remainingDays = daysUntilArrival % 7;
         if (remainingDays === 0) {
           return `Llega en ${weeks} semana${weeks > 1 ? 's' : ''}`;
-        } else {
-          return `Llega en ${weeks} semana${weeks > 1 ? 's' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
         }
-      } else {
-        return `Llega en ${daysUntilArrival} día${daysUntilArrival > 1 ? 's' : ''}`;
+        return `Llega en ${weeks} semana${weeks > 1 ? 's' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
       }
+      return `Llega en ${daysUntilArrival} día${daysUntilArrival > 1 ? 's' : ''}`;
     }
-    
+
     return 'Sin reservas';
   };
-
 
   if (loading) {
     return (
       <div className={styles.newLayout}>
         <div className={styles.loadingContainer}>
-          <div className={styles.loading}> Cargando datos del cliente...</div>
+          <div className={styles.loading}>Cargando datos del cliente...</div>
         </div>
       </div>
     );
@@ -288,7 +330,7 @@ const ClientDetails = () => {
       <div className={styles.newLayout}>
         <div className={styles.errorContainer}>
           <div className={styles.error}>{error}</div>
-          <button onClick={loadClientData} className={styles.retryButton}>
+          <button type="button" onClick={loadClientData} className={styles.retryButton}>
             Reintentar
           </button>
         </div>
@@ -300,8 +342,12 @@ const ClientDetails = () => {
     return (
       <div className={styles.newLayout}>
         <div className={styles.errorContainer}>
-          <div className={styles.error}> Cliente no encontrado</div>
-          <button onClick={() => navigate('/estado-de-cuentas')} className={styles.retryButton}>
+          <div className={styles.error}>Cliente no encontrado</div>
+          <button
+            type="button"
+            onClick={() => navigate('/estado-de-cuentas')}
+            className={styles.retryButton}
+          >
             Volver
           </button>
         </div>
@@ -313,11 +359,8 @@ const ClientDetails = () => {
   const activeReservations = getActiveReservations();
   const completedReservations = getCompletedReservations();
   const currentStatus = getCurrentStatus();
-  const accountLabel = totalBalance > 0
-    ? 'Cuenta Pendiente'
-    : totalBalance < 0
-      ? 'Saldo a favor'
-      : 'Cuenta al Día';
+  const accountLabel =
+    totalBalance > 0 ? 'Cuenta Pendiente' : totalBalance < 0 ? 'Saldo a favor' : 'Cuenta al Día';
 
   const cobrosMovimientos = clientBalance?.cobros || [];
   const isDevolucionMovimiento = (cobro) =>
@@ -329,13 +372,41 @@ const ClientDetails = () => {
     .filter((cobro) => !isDevolucionMovimiento(cobro))
     .reduce((sum, cobro) => sum + Math.abs(Number(cobro.montoARS) || 0), 0);
 
+  const documentLabel =
+    client.documentType && client.documentNumber
+      ? `${client.documentType} ${client.documentNumber}`
+      : 'Sin documento';
+
+  const profileFields = [
+    { field: 'firstName', label: 'Nombre', value: client.firstName || '—' },
+    { field: 'lastName', label: 'Apellido', value: client.lastName || '—' },
+    { field: 'email', label: 'Email', value: client.email || 'Sin email' },
+    { field: 'phone', label: 'Teléfono', value: client.phone || 'Sin teléfono' },
+    { field: 'document', label: 'Documento', value: documentLabel },
+    { field: 'country', label: 'País', value: client.country || 'Sin país' },
+    { field: 'province', label: 'Provincia', value: client.province || 'Sin provincia' },
+    { field: 'city', label: 'Localidad', value: client.city || 'Sin localidad' }
+  ];
+
   return (
     <div className={styles.newLayout}>
-      {/* Side Panel Izquierdo */}
-      <div className={styles.sidePanel}>
-        {/* Header del side panel */}
+      <aside className={styles.sidePanel} aria-label="Ficha del cliente">
         <div className={styles.sidePanelHeader}>
-          <h2> Cliente #{client.id}</h2>
+          <div className={styles.sidePanelHeaderTop}>
+            <h2>Cliente #{client.id}</h2>
+            <div className={styles.headerActions}>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className={styles.headerIconBtn}
+                title="Editar cliente"
+                aria-label="Editar cliente"
+                data-testid="client-edit-profile"
+              >
+                <FaPen />
+              </button>
+            </div>
+          </div>
           <div className={styles.guestInfo}>
             <div className={styles.guestName}>
               {client.firstName} {client.lastName}
@@ -344,209 +415,125 @@ const ClientDetails = () => {
               Cliente desde {new Date(client.createdAt).getFullYear()}
             </div>
             <div className={styles.guestStatus}>
-              <span className={styles.statusValue}>
-                {currentStatus}
-              </span>
+              <span className={styles.statusValue}>{currentStatus}</span>
             </div>
             <div className={styles.guestStatus}>
-              <span className={styles.statusValue}>
-                {accountLabel}
-              </span>
+              <span className={styles.statusValue}>{accountLabel}</span>
             </div>
           </div>
 
-          {/* Botones de contacto */}
           <div className={styles.contactButtons}>
-            <button 
+            <button
+              type="button"
               className={styles.contactButton}
-              onClick={() => handleEmailClick()}
+              onClick={handleEmailClick}
               title="Enviar email"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
               </svg>
             </button>
-            <button 
+            <button
+              type="button"
               className={styles.contactButton}
-              onClick={() => handleWhatsAppClick()}
+              onClick={handleWhatsAppClick}
               title="Enviar WhatsApp"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488" />
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Contenido del side panel - Menú de pestañas */}
         <div className={styles.sidePanelContent}>
-          <div className={styles.sectionMenu}>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'personal' ? styles.active : ''}`}
-              onClick={() => setActiveSection('personal')}
-            >
-              Información Personal
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'reservations' ? styles.active : ''}`}
-              onClick={() => setActiveSection('reservations')}
-            >
-              Reservas
-            </button>
-            <button 
-              className={`${styles.sectionButton} ${activeSection === 'balance' ? styles.active : ''}`}
-              onClick={() => setActiveSection('balance')}
-            >
-              Balance de Cobros
-            </button>
+          <div className={styles.profileSheet} data-testid="client-profile-sheet">
+            {profileFields.map((item) => (
+              <button
+                key={item.field}
+                type="button"
+                className={styles.profileField}
+                onClick={() => handleEditField(item.field)}
+                data-testid={`client-profile-field-${item.field}`}
+              >
+                <span className={styles.profileLabel}>{item.label}</span>
+                <span className={styles.profileValue}>{item.value}</span>
+              </button>
+            ))}
           </div>
         </div>
+      </aside>
 
-      </div>
-
-      {/* Main Content Derecho */}
       <div className={styles.mainContent}>
-        {/* Contenido principal */}
         <div className={styles.mainContentBody}>
-          {/* Sección de Información Personal */}
-          {activeSection === 'personal' && (
-            <div className={styles.section}>
-              <h2> Información Personal</h2>
-              <div className={styles.personalInfoContainer}>
-                <div className={styles.personalInfoGrid}>
-                  <div className={styles.personalInfoCard}>
-                    <h3> Datos Personales</h3>
-                    <div className={styles.infoList}>
-                      <div className={styles.infoItem} onClick={() => handleEditField('firstName')}>
-                        <span className={styles.label}> Nombre:</span>
-                        <span className={styles.value}>{client.firstName}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('lastName')}>
-                        <span className={styles.label}> Apellido:</span>
-                        <span className={styles.value}>{client.lastName}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('email')}>
-                        <span className={styles.label}> Email:</span>
-                        <span className={styles.value}>{client.email || 'Sin email'}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('phone')}>
-                        <span className={styles.label}> Teléfono:</span>
-                        <span className={styles.value}>{client.phone || 'Sin teléfono'}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('document')}>
-                        <span className={styles.label}>Documento:</span>
-                        <span className={styles.value}>
-                          {client.documentType && client.documentNumber
-                            ? `${client.documentType} ${client.documentNumber}`
-                            : 'Sin documento'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+          <div className={styles.widgetsStack} data-testid="client-widgets">
+            <section className={styles.widget} aria-labelledby="widget-dni-photo" data-testid="client-dni-photo-card">
+              <h2 id="widget-dni-photo" className={styles.widgetTitle}>
+                Foto del DNI
+              </h2>
+              <p className={styles.dniPhotoHint}>
+                Foto del DNI o documento de identidad del cliente
+              </p>
+              <div className={styles.dniPhotoMeta}>
+                {documentPhoto ? documentPhoto.originalName || 'Foto cargada' : 'Sin foto cargada'}
+              </div>
+              <div className={styles.dniPhotoActions}>
+                <input
+                  ref={dniPhotoInputRef}
+                  id="client-dni-photo-input"
+                  type="file"
+                  accept={DNI_PHOTO_ACCEPT}
+                  className={styles.dniPhotoInput}
+                  disabled={documentPhotoBusy}
+                  onChange={(e) => handleDniPhotoUpload(e.target.files)}
+                />
+                <button
+                  type="button"
+                  className={styles.uploadButton}
+                  disabled={documentPhotoBusy}
+                  onClick={() => dniPhotoInputRef.current?.click()}
+                  data-testid="client-dni-photo-upload"
+                >
+                  {documentPhotoBusy
+                    ? 'Procesando…'
+                    : documentPhoto
+                      ? 'Reemplazar foto'
+                      : 'Subir foto'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.viewButton}
+                  disabled={documentPhotoBusy || !documentPhoto}
+                  onClick={handleViewDniPhoto}
+                  data-testid="client-dni-photo-view"
+                >
+                  Ver documento
+                </button>
+                {documentPhoto ? (
+                  <button
+                    type="button"
+                    className={styles.deletePhotoButton}
+                    disabled={documentPhotoBusy}
+                    onClick={handleDeleteDniPhoto}
+                    data-testid="client-dni-photo-delete"
+                  >
+                    Eliminar
+                  </button>
+                ) : null}
+              </div>
+            </section>
 
-                  <div className={styles.personalInfoCard} data-testid="client-dni-photo-card">
-                    <h3>Foto del DNI</h3>
-                    <p className={styles.dniPhotoHint}>
-                      Foto del DNI o documento de identidad del cliente
-                    </p>
-                    <div className={styles.dniPhotoMeta}>
-                      {documentPhoto
-                        ? documentPhoto.originalName || 'Foto cargada'
-                        : 'Sin foto cargada'}
-                    </div>
-                    <div className={styles.dniPhotoActions}>
-                      <input
-                        ref={dniPhotoInputRef}
-                        id="client-dni-photo-input"
-                        type="file"
-                        accept={DNI_PHOTO_ACCEPT}
-                        className={styles.dniPhotoInput}
-                        disabled={documentPhotoBusy}
-                        onChange={(e) => handleDniPhotoUpload(e.target.files)}
-                      />
-                      <button
-                        type="button"
-                        className={styles.uploadButton}
-                        disabled={documentPhotoBusy}
-                        onClick={() => dniPhotoInputRef.current?.click()}
-                        data-testid="client-dni-photo-upload"
-                      >
-                        {documentPhotoBusy ? 'Procesando…' : documentPhoto ? 'Reemplazar foto' : 'Subir foto'}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.viewButton}
-                        disabled={documentPhotoBusy || !documentPhoto}
-                        onClick={handleViewDniPhoto}
-                        data-testid="client-dni-photo-view"
-                      >
-                        Ver documento
-                      </button>
-                      {documentPhoto ? (
-                        <button
-                          type="button"
-                          className={styles.deletePhotoButton}
-                          disabled={documentPhotoBusy}
-                          onClick={handleDeleteDniPhoto}
-                          data-testid="client-dni-photo-delete"
-                        >
-                          Eliminar
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                  
-                  <div className={styles.personalInfoCard}>
-                    <h3> Domicilio</h3>
-                    <div className={styles.infoList}>
-                      <div className={styles.infoItem} onClick={() => handleEditField('country')}>
-                        <span className={styles.label}> País:</span>
-                        <span className={styles.value}>{client.country || 'Sin país'}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('province')}>
-                        <span className={styles.label}> Provincia:</span>
-                        <span className={styles.value}>{client.province || 'Sin provincia'}</span>
-                      </div>
-                      <div className={styles.infoItem} onClick={() => handleEditField('city')}>
-                        <span className={styles.label}> Ciudad:</span>
-                        <span className={styles.value}>{client.city || 'Sin ciudad'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  
-                  <div className={styles.personalInfoCard}>
-                    <h3> Resumen de Cuenta</h3>
-                    <div className={styles.infoList}>
-                      <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}>
-                          {totalBalance < 0 ? 'Saldo a favor:' : 'Saldo:'}
-                        </span>
-                        <span className={styles.value}>{formatMoneyArs(Math.abs(totalBalance))}</span>
-                      </div>
-                      <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}> Reservas Activas:</span>
-                        <span className={styles.value}>{activeReservations.length}</span>
-                      </div>
-                      <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}> Reservas Completadas:</span>
-                        <span className={styles.value}>{completedReservations.length}</span>
-                      </div>
-                      <div className={`${styles.infoItem} ${styles.infoItemNonEditable}`}>
-                        <span className={styles.label}> Total de Reservas:</span>
-                        <span className={styles.value}>{reservations.length}</span>
-                      </div>
-                    </div>
-                  </div>
+            <section className={styles.widget} aria-labelledby="widget-reservas" data-testid="client-reservas-widget">
+              <div className={styles.widgetHeaderRow}>
+                <h2 id="widget-reservas" className={styles.widgetTitle}>
+                  Reservas
+                </h2>
+                <div className={styles.reservationCounts} aria-label="Resumen por estado">
+                  <span>Activas: {activeReservations.length}</span>
+                  <span>Completadas: {completedReservations.length}</span>
+                  <span>Total: {reservations.length}</span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Sección de Reservas */}
-          {activeSection === 'reservations' && (
-            <div className={styles.section}>
-              <h2> Reservas del Cliente</h2>
               {reservations.length === 0 ? (
                 <div className={styles.noDataMessage}>
                   Este cliente no tiene reservas registradas
@@ -566,67 +553,86 @@ const ClientDetails = () => {
                       </tr>
                     </thead>
                     <tbody className={styles.tableBody}>
-                      {reservations.map(reservation => {
+                      {reservations.map((reservation) => {
                         const saldo = getReservationSaldo(reservation.id);
                         return (
-                        <tr 
-                          key={reservation.id} 
-                          className={styles.reservationRow}
-                          onClick={() => navigate(`/reservations/${reservation.id}`)}
-                        >
-                          <td>#{reservation.id}</td>
-                          <td>{reservation.room?.name || 'Sin asignar'}</td>
-                          <td>{formatDate(reservation.checkIn)}</td>
-                          <td>{formatDate(reservation.checkOut)}</td>
-                          <td>
-                            <span className={`${styles.statusValue} ${styles[reservation.status]}`}>
-                              {getStatusLabel(reservation.status)}
-                            </span>
-                          </td>
-                          <td className={styles.totalAmount}>
-                            {saldo == null
-                              ? '—'
-                              : `${formatMoneyArs(Math.abs(saldo))}${saldo > 0 ? ' (debe)' : saldo < 0 ? ' (a favor)' : ''}`}
-                          </td>
-                          <td>
-                            <button 
-                              className={styles.viewButton}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/reservations/${reservation.id}`);
-                              }}
-                            >
-                              Ver Detalles
-                            </button>
-                          </td>
-                        </tr>
-                      );})}
+                          <tr
+                            key={reservation.id}
+                            className={styles.reservationRow}
+                            onClick={() => navigate(`/reservations/${reservation.id}`)}
+                          >
+                            <td>#{reservation.id}</td>
+                            <td>{reservation.room?.name || 'Sin asignar'}</td>
+                            <td>{formatDate(reservation.checkIn)}</td>
+                            <td>{formatDate(reservation.checkOut)}</td>
+                            <td>
+                              <span
+                                className={`${styles.statusValue} ${styles[reservation.status] || ''}`}
+                              >
+                                {getStatusLabel(reservation.status)}
+                              </span>
+                            </td>
+                            <td className={styles.totalAmount}>
+                              {saldo == null
+                                ? '—'
+                                : `${formatMoneyArs(Math.abs(saldo))}${
+                                    saldo > 0 ? ' (debe)' : saldo < 0 ? ' (a favor)' : ''
+                                  }`}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className={styles.viewButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/reservations/${reservation.id}`);
+                                }}
+                              >
+                                Ver Detalles
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
-            </div>
-          )}
+            </section>
 
-          {/* Sección de Balance de Cobros */}
-          {activeSection === 'balance' && (
-            <div className={styles.section}>
-              <h2> Balance de Cobros</h2>
+            <section
+              className={styles.widget}
+              aria-labelledby="widget-resumen-financiero"
+              data-testid="client-resumen-financiero-widget"
+            >
+              <h2 id="widget-resumen-financiero" className={styles.widgetTitle}>
+                Resumen financiero
+              </h2>
               <div className={styles.balanceGrid}>
                 <div className={styles.balanceCard}>
-                  <h3> Resumen Financiero</h3>
+                  <h3>Totales</h3>
                   <div className={styles.balanceDetails}>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>
-                        {totalBalance < 0 ? 'Saldo a favor:' : totalBalance > 0 ? 'Saldo deudor:' : 'Saldo:'}
+                        {totalBalance < 0
+                          ? 'Saldo a favor:'
+                          : totalBalance > 0
+                            ? 'Saldo deudor:'
+                            : 'Saldo:'}
                       </span>
-                      <span className={`${styles.value} ${totalBalance > 0 ? styles.negative : styles.positive}`}>
+                      <span
+                        className={`${styles.value} ${
+                          totalBalance > 0 ? styles.negative : styles.positive
+                        }`}
+                      >
                         {formatMoneyArs(Math.abs(totalBalance))}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total cargos:</span>
-                      <span className={styles.value}>{formatMoneyArs(clientBalance?.totalCharges || 0)}</span>
+                      <span className={styles.value}>
+                        {formatMoneyArs(clientBalance?.totalCharges || 0)}
+                      </span>
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total cobros:</span>
@@ -636,48 +642,19 @@ const ClientDetails = () => {
                     </div>
                     <div className={styles.balanceItem}>
                       <span className={styles.label}>Total devoluciones:</span>
-                      <span className={styles.value} data-testid="client-summary-total-devoluciones">
+                      <span
+                        className={styles.value}
+                        data-testid="client-summary-total-devoluciones"
+                      >
                         {formatMoneyArs(totalDevolucionesCliente)}
                       </span>
                     </div>
                     <div className={styles.balanceItem}>
-                      <span className={styles.label}> Reservas Activas:</span>
-                      <span className={styles.value}>{activeReservations.length}</span>
-                    </div>
-                    <div className={styles.balanceItem}>
-                      <span className={styles.label}>Última Actividad:</span>
+                      <span className={styles.label}>Última actividad:</span>
                       <span className={styles.value}>
-                        {reservations.length > 0 ? formatDate(reservations[0].createdAt) : 'Sin actividad'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className={styles.balanceCard}>
-                  <h3> Desglose por Estado</h3>
-                  <div className={styles.statusBreakdown}>
-                    <div className={styles.statusItem}>
-                      <span className={styles.label}> Pendientes:</span>
-                      <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'PENDIENTE' || r.status === 'pending').length}
-                      </span>
-                    </div>
-                    <div className={styles.statusItem}>
-                      <span className={styles.label}> Confirmadas:</span>
-                      <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'CONFIRMADA' || r.status === 'confirmed').length}
-                      </span>
-                    </div>
-                    <div className={styles.statusItem}>
-                      <span className={styles.label}> Ingresadas:</span>
-                      <span className={styles.value}>
-                        {reservations.filter(r => r.status === 'INGRESADA' || r.status === 'ingresada').length}
-                      </span>
-                    </div>
-                    <div className={styles.statusItem}>
-                      <span className={styles.label}> Completadas:</span>
-                      <span className={styles.value}>
-                        {completedReservations.length}
+                        {reservations.length > 0
+                          ? formatDate(reservations[0].createdAt)
+                          : 'Sin actividad'}
                       </span>
                     </div>
                   </div>
@@ -695,15 +672,11 @@ const ClientDetails = () => {
                 reservationsBalance={clientBalance?.reservations || []}
                 onCreated={() => loadClientData()}
               />
-            </div>
-          )}
-
-
+            </section>
+          </div>
         </div>
-
       </div>
 
-      {/* Modal de edición */}
       {editingField && (
         <FieldEditor
           fieldName={editingField}
@@ -714,6 +687,12 @@ const ClientDetails = () => {
           client={client}
         />
       )}
+      <EditClientModal
+        client={client}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onClientUpdated={handleClientUpdated}
+      />
       {noticeDialog}
       {confirmDialog}
     </div>
