@@ -32,6 +32,7 @@ describe('RoomDetails', () => {
         id: 3,
         name: '101',
         maxPeople: 2,
+        superficie: 28.5,
         description: 'Vista al jardín',
         roomType: { name: 'Doble' },
         tags: [],
@@ -60,6 +61,8 @@ describe('RoomDetails', () => {
       screen.getByRole('button', { name: 'Notificaciones / observaciones' })
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Setear estado' })).toBeInTheDocument()
+    expect(screen.getByText('Superficie')).toBeInTheDocument()
+    expect(screen.getByText('28.5 m²')).toBeInTheDocument()
     expect(screen.queryByText(/Estado de [Ll]impieza/i)).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Historial reservas' }))

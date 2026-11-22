@@ -239,6 +239,14 @@ function RoomDetails() {
                         <dd>{room.maxPeople ?? 'No especificada'}</dd>
                       </div>
                       <div className={styles.infoItem}>
+                        <dt>Superficie</dt>
+                        <dd>
+                          {room.superficie != null && room.superficie !== ''
+                            ? `${room.superficie} m²`
+                            : '—'}
+                        </dd>
+                      </div>
+                      <div className={styles.infoItem}>
                         <dt>Etiquetas</dt>
                         <dd>{tags || '—'}</dd>
                       </div>
