@@ -13,7 +13,6 @@ import {
 } from '../services/api';
 import FieldEditor from '../components/FieldEditor';
 import EditClientModal from '../components/EditClientModal';
-import MultiCobroClientPanel from '../components/MultiCobroClientPanel';
 import ClientBalanceMovements from '../components/ClientBalanceMovements';
 import styles from './ClientDetails.module.css';
 import { useAppNotice } from '../hooks/useAppNotice';
@@ -665,12 +664,6 @@ const ClientDetails = () => {
                 cargos={clientBalance?.cargos || []}
                 cobros={clientBalance?.cobros || []}
                 onChanged={() => loadClientData()}
-              />
-
-              <MultiCobroClientPanel
-                clientId={parseInt(clientId, 10)}
-                reservationsBalance={clientBalance?.reservations || []}
-                onCreated={() => loadClientData()}
               />
             </section>
           </div>
