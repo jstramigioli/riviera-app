@@ -270,6 +270,12 @@ model Reservation {
   requiereCuna        Boolean                @default(false)
   /// Requerimiento operativo: necesita lugar de estacionamiento.
   requiereEstacionamiento Boolean            @default(false)
+  /// Cantidad de vehículos (0|1). Mirror OR/max de tramos.
+  vehicleCount        Int                    @default(0)
+  /// Tipo de vehículo si vehicleCount ≥ 1.
+  vehicleType         VehicleType?
+  /// Cantidad de tráiler (0|1).
+  trailerCount        Int                    @default(0)
   /// Reservado por: WhatsApp, Mail, Sitio web, Booking o Mostrador.
   source              ReservationSource?
   isMultiRoom         Boolean                @default(false)
@@ -534,6 +540,13 @@ enum OnlineCheckInStatus {
   EXPIRED
 }
 
+/// Tipo de vehículo declarado en requisitos de reserva / tramo.
+enum VehicleType {
+  AUTO
+  CAMIONETA
+  MOTO
+}
+
 /// Check-in online histórico por huésped + reserva (snapshot + estado).
 /// El link público vive en Reservation.checkInToken; token acá es legacy / compat.
 model OnlineCheckIn {
@@ -612,6 +625,10 @@ model Query {
   requiereCuna         Boolean          @default(false)
   /// Requisito del tramo: necesita estacionamiento.
   requiereEstacionamiento Boolean       @default(false)
+  /// Cantidad de vehículos del tramo (0|1).
+  vehicleCount         Int              @default(0)
+  vehicleType          VehicleType?
+  trailerCount         Int              @default(0)
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   queryGroupId         String?
@@ -889,6 +906,10 @@ model ReservationSegment {
   requiereCuna         Boolean      @default(false)
   /// Requisito del tramo: necesita estacionamiento.
   requiereEstacionamiento Boolean   @default(false)
+  /// Cantidad de vehículos del tramo (0|1).
+  vehicleCount         Int          @default(0)
+  vehicleType          VehicleType?
+  trailerCount         Int          @default(0)
   reservation          Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   room                 Room         @relation(fields: [roomId], references: [id])
   roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])

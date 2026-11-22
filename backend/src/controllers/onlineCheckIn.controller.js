@@ -128,10 +128,20 @@ function serializePublicSegments(segments = []) {
   });
 }
 
+function reservationVehicleCount(reservation) {
+  const fromReservation = Number(reservation?.vehicleCount) || 0;
+  const fromSegments = Math.max(
+    0,
+    ...(reservation?.segments || []).map((s) => Number(s?.vehicleCount) || 0)
+  );
+  return Math.max(fromReservation, fromSegments);
+}
+
 function serializePublicReservation(reservation) {
   const segments = serializePublicSegments(reservation.segments || []);
   const first = segments[0];
   const last = segments[segments.length - 1];
+  const vehicleCount = reservationVehicleCount(reservation);
   return {
     id: reservation.id,
     checkIn: first?.startDate || null,
@@ -139,6 +149,9 @@ function serializePublicReservation(reservation) {
     requiredGuests: reservation.requiredGuests || null,
     days: reservation.days || null,
     vehiclePlate: reservation.vehiclePlate || null,
+    vehicleCount,
+    vehicleType: reservation.vehicleType || null,
+    trailerCount: Number(reservation.trailerCount) || 0,
     segments,
     mainClient: reservation.mainClient
       ? {
@@ -615,17 +628,23 @@ async function getPublicCheckIn(req, res) {
         ? guests.find((g) => g.guestId === guestIdParam) || null
         : null;
     const plate = normalizePlate(reservation.vehiclePlate);
+    const publicReservation = serializePublicReservation(reservation);
+    const needsVehicleCard = publicReservation.vehicleCount >= 1;
 
     return res.json({
       status: aggregateStatus(guests, true),
       completed: progress.total > 0 && progress.completed === progress.total,
       progress,
-      reservation: serializePublicReservation(reservation),
-      vehicle: {
-        plate: plate || '',
-        completed: Boolean(plate),
-        displayStatus: plate ? 'completo' : 'pendiente'
-      },
+      reservation: publicReservation,
+      vehicle: needsVehicleCard
+        ? {
+            plate: plate || '',
+            completed: Boolean(plate),
+            displayStatus: plate ? 'completo' : 'pendiente',
+            vehicleType: publicReservation.vehicleType || null,
+            required: true
+          }
+        : null,
       guests,
       // Compat: si hay un solo huésped, exponer fields en raíz (forms viejos / 1 huésped).
       fields: selected?.fields || (guests.length === 1 ? guests[0].fields : null),
@@ -660,6 +679,12 @@ async function submitPublicCheckInVehicle(req, res) {
       return res.status(410).json({ error: 'Este link de check-in expiró' });
     }
 
+    if (reservationVehicleCount(access.reservation) < 1) {
+      return res.status(400).json({
+        error: 'Esta reserva no requiere vehículo'
+      });
+    }
+
     const vehiclePlate = normalizePlate(req.body?.vehiclePlate ?? req.body?.plate);
     const updated = await prisma.reservation.update({
       where: { id: access.reservation.id },
@@ -671,7 +696,9 @@ async function submitPublicCheckInVehicle(req, res) {
       vehicle: {
         plate: updated.vehiclePlate || '',
         completed: Boolean(updated.vehiclePlate),
-        displayStatus: updated.vehiclePlate ? 'completo' : 'pendiente'
+        displayStatus: updated.vehiclePlate ? 'completo' : 'pendiente',
+        vehicleType: updated.vehicleType || access.reservation.vehicleType || null,
+        required: true
       }
     });
   } catch (error) {

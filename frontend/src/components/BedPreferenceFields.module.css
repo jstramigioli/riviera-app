@@ -99,6 +99,19 @@
   gap: 8px;
 }
 
+.vehicleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.vehicleRow .countField select[data-wide],
+.vehicleRow select#vehicle-type {
+  width: auto;
+  min-width: 7.5rem;
+}
+
 .countField {
   display: flex;
   align-items: center;

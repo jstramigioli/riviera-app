@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { normalizeReservationSource } = require('../constants/reservationSource');
 const { normalizeBedPreference } = require('../utils/bedConfig');
+const { normalizeVehicleRequirements } = require('../utils/vehicleRequirements');
 const prisma = new PrismaClient();
 
 function bedPreferenceFields(source = {}) {
@@ -16,7 +17,7 @@ function segmentRequirementFields(source = {}) {
   return {
     ...bedPreferenceFields(source),
     requiereCuna: Boolean(source.requiereCuna),
-    requiereEstacionamiento: Boolean(source.requiereEstacionamiento)
+    ...normalizeVehicleRequirements(source)
   };
 }
 

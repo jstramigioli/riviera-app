@@ -77,11 +77,36 @@ export function collectReservationPanelRequirements(reservation, tagsCatalog = [
   if (segmentNeedsCuna || reservation?.requiereCuna) {
     flags.push({ key: 'cuna', label: 'Requiere cuna' });
   }
-  const segmentNeedsEstacionamiento = segments.some((seg) =>
-    Boolean(seg?.requiereEstacionamiento)
+  const vehicleCount = Math.max(
+    Number(reservation?.vehicleCount) || 0,
+    ...segments.map((seg) => Number(seg?.vehicleCount) || 0)
   );
-  if (segmentNeedsEstacionamiento || reservation?.requiereEstacionamiento) {
-    flags.push({ key: 'estacionamiento', label: 'Requiere estacionamiento' });
+  const trailerCount = Math.max(
+    Number(reservation?.trailerCount) || 0,
+    ...segments.map((seg) => Number(seg?.trailerCount) || 0)
+  );
+  const vehicleType =
+    reservation?.vehicleType ||
+    segments.find((seg) => seg?.vehicleType)?.vehicleType ||
+    null;
+  if (vehicleCount >= 1) {
+    const typeLabel =
+      vehicleType === 'CAMIONETA'
+        ? 'camioneta'
+        : vehicleType === 'MOTO'
+          ? 'moto'
+          : 'auto';
+    flags.push({ key: 'vehiculo', label: `Vehículo (${typeLabel})` });
+  } else {
+    const segmentNeedsEstacionamiento = segments.some((seg) =>
+      Boolean(seg?.requiereEstacionamiento)
+    );
+    if (segmentNeedsEstacionamiento || reservation?.requiereEstacionamiento) {
+      flags.push({ key: 'estacionamiento', label: 'Requiere estacionamiento' });
+    }
+  }
+  if (trailerCount >= 1) {
+    flags.push({ key: 'trailer', label: 'Tráiler' });
   }
 
   return {

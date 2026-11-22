@@ -53,7 +53,7 @@ export default function PublicCheckIn() {
   const [error, setError] = useState('');
   const [reservation, setReservation] = useState(null);
   const [guests, setGuests] = useState([]);
-  const [vehicle, setVehicle] = useState({ plate: '', completed: false, displayStatus: 'pendiente' });
+  const [vehicle, setVehicle] = useState(null);
   const [progress, setProgress] = useState({ completed: 0, total: 0, label: '0/0' });
   const [selectedGuestId, setSelectedGuestId] = useState(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
@@ -103,11 +103,15 @@ export default function PublicCheckIn() {
       }
       setReservation(data.reservation || null);
       setVehicle(
-        data.vehicle || {
-          plate: data.reservation?.vehiclePlate || '',
-          completed: Boolean(data.reservation?.vehiclePlate),
-          displayStatus: data.reservation?.vehiclePlate ? 'completo' : 'pendiente'
-        }
+        data.vehicle
+          ? {
+              plate: data.vehicle.plate || '',
+              completed: Boolean(data.vehicle.completed),
+              displayStatus: data.vehicle.displayStatus || 'pendiente',
+              vehicleType: data.vehicle.vehicleType || null,
+              required: true
+            }
+          : null
       );
       const list = Array.isArray(data.guests) ? data.guests : [];
       setGuests(list);
@@ -366,40 +370,42 @@ export default function PublicCheckIn() {
                 </button>
               ))}
 
-              <button
-                type="button"
-                className={styles.guestCard}
-                data-testid="checkin-vehicle-card"
-                data-status={vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}
-                onClick={() => {
-                  setSelectedGuestId(null);
-                  setVehiclePlateDraft(vehicle.plate || '');
-                  setEditingVehicle(true);
-                  setError('');
-                }}
-              >
-                <span className={styles.guestCardIcon} aria-hidden>
-                  <span className={styles.vehicleGlyph}>P</span>
-                </span>
-                <span className={styles.guestCardBody}>
-                  <span className={styles.guestCardName}>Vehículo</span>
-                  <span
-                    className={`${styles.guestStatus} ${
-                      styles[`status_${vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}`] || ''
-                    }`}
-                  >
-                    {vehicle.plate
-                      ? vehicle.plate
-                      : statusLabel(vehicle.displayStatus || 'pendiente')}
+              {vehicle && (
+                <button
+                  type="button"
+                  className={styles.guestCard}
+                  data-testid="checkin-vehicle-card"
+                  data-status={vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}
+                  onClick={() => {
+                    setSelectedGuestId(null);
+                    setVehiclePlateDraft(vehicle.plate || '');
+                    setEditingVehicle(true);
+                    setError('');
+                  }}
+                >
+                  <span className={styles.guestCardIcon} aria-hidden>
+                    <span className={styles.vehicleGlyph}>P</span>
                   </span>
-                </span>
-                <span className={styles.guestCardAction}>
-                  {vehicle.completed ? 'Ver / editar' : 'Completar'}
-                </span>
-              </button>
+                  <span className={styles.guestCardBody}>
+                    <span className={styles.guestCardName}>Vehículo</span>
+                    <span
+                      className={`${styles.guestStatus} ${
+                        styles[`status_${vehicle.displayStatus || (vehicle.completed ? 'completo' : 'pendiente')}`] || ''
+                      }`}
+                    >
+                      {vehicle.plate
+                        ? vehicle.plate
+                        : statusLabel(vehicle.displayStatus || 'pendiente')}
+                    </span>
+                  </span>
+                  <span className={styles.guestCardAction}>
+                    {vehicle.completed ? 'Ver / editar' : 'Completar'}
+                  </span>
+                </button>
+              )}
             </div>
           </section>
-        ) : editingVehicle ? (
+        ) : editingVehicle && vehicle ? (
           <>
             <button
               type="button"

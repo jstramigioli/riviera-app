@@ -14,6 +14,10 @@ const {
 } = require('./virtualRoomSegments');
 const { normalizeBedPreference } = require('./bedConfig');
 const {
+  normalizeVehicleRequirements,
+  aggregateVehicleRequirements
+} = require('./vehicleRequirements');
+const {
   ensureReservationAccount,
   dualWriteReservationRefs
 } = require('./accountHelpers');
@@ -523,6 +527,9 @@ async function createReservationWithSegments(reservationData) {
     source,
     requiereCuna,
     requiereEstacionamiento,
+    vehicleCount,
+    vehicleType,
+    trailerCount,
     isMultiRoom = false,
     parentReservationId = null,
     /// Por defecto el responsable se incorpora como huésped (removible después).
@@ -561,13 +568,12 @@ async function createReservationWithSegments(reservationData) {
   const segmentRequiereCuna = resolvedSegments.some((seg) => Boolean(seg.requiereCuna));
   const resolvedRequiereCuna =
     requiereCuna !== undefined ? Boolean(requiereCuna) : segmentRequiereCuna;
-  const segmentRequiereEstacionamiento = resolvedSegments.some((seg) =>
-    Boolean(seg.requiereEstacionamiento)
-  );
-  const resolvedRequiereEstacionamiento =
-    requiereEstacionamiento !== undefined
-      ? Boolean(requiereEstacionamiento)
-      : segmentRequiereEstacionamiento;
+  const vehicleAgg = aggregateVehicleRequirements(resolvedSegments, {
+    vehicleCount,
+    vehicleType,
+    trailerCount,
+    requiereEstacionamiento
+  });
 
   // Crear la reserva + Account 1:1 en la misma secuencia
   const reservation = await prisma.reservation.create({
@@ -578,8 +584,10 @@ async function createReservationWithSegments(reservationData) {
       source: normalizeReservationSource(source),
       // Mirror legado a nivel reserva (= OR de tramos); la fuente de verdad es el segmento.
       requiereCuna: resolvedRequiereCuna || segmentRequiereCuna,
-      requiereEstacionamiento:
-        resolvedRequiereEstacionamiento || segmentRequiereEstacionamiento,
+      requiereEstacionamiento: vehicleAgg.requiereEstacionamiento,
+      vehicleCount: vehicleAgg.vehicleCount,
+      vehicleType: vehicleAgg.vehicleType,
+      trailerCount: vehicleAgg.trailerCount,
       isMultiRoom: logicalCount > 1 || isMultiRoom,
       parentReservationId: parentReservationId ? parseInt(parentReservationId) : null,
       createdWithManualRate: promoOpts.createdWithManualRate
@@ -619,7 +627,7 @@ async function createReservationWithSegments(reservationData) {
         requiredRoomId: segmentData.requiredRoomId ? parseInt(segmentData.requiredRoomId) : null,
         ...normalizeBedPreference(segmentData),
         requiereCuna: Boolean(segmentData.requiereCuna),
-        requiereEstacionamiento: Boolean(segmentData.requiereEstacionamiento),
+        ...normalizeVehicleRequirements(segmentData),
         reason: segmentData.reason || 'Segmento de reserva',
         notes: segmentData.notes || 'Segmento creado automáticamente',
         isActive: true
@@ -803,6 +811,9 @@ async function updateReservationWithSegments(reservationId, updateData) {
     dietCeliaco,
     requiereCuna,
     requiereEstacionamiento,
+    vehicleCount,
+    vehicleType,
+    trailerCount,
     source,
     segments,
     mainClientId,
@@ -832,14 +843,24 @@ async function updateReservationWithSegments(reservationId, updateData) {
       : requiereCuna !== undefined
         ? Boolean(requiereCuna)
         : undefined;
-  const segmentRequiereEstacionamiento =
-    Array.isArray(segments) &&
-    segments.some((seg) => Boolean(seg.requiereEstacionamiento));
-  const nextRequiereEstacionamiento =
+  const nextVehicle =
     Array.isArray(segments)
-      ? Boolean(requiereEstacionamiento) || segmentRequiereEstacionamiento
-      : requiereEstacionamiento !== undefined
-        ? Boolean(requiereEstacionamiento)
+      ? aggregateVehicleRequirements(segments, {
+          vehicleCount,
+          vehicleType,
+          trailerCount,
+          requiereEstacionamiento
+        })
+      : vehicleCount !== undefined ||
+          vehicleType !== undefined ||
+          trailerCount !== undefined ||
+          requiereEstacionamiento !== undefined
+        ? normalizeVehicleRequirements({
+            vehicleCount,
+            vehicleType,
+            trailerCount,
+            requiereEstacionamiento
+          })
         : undefined;
 
   // Actualizar datos básicos de la reserva
@@ -855,8 +876,13 @@ async function updateReservationWithSegments(reservationId, updateData) {
       ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
       ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
       ...(nextRequiereCuna !== undefined ? { requiereCuna: nextRequiereCuna } : {}),
-      ...(nextRequiereEstacionamiento !== undefined
-        ? { requiereEstacionamiento: nextRequiereEstacionamiento }
+      ...(nextVehicle
+        ? {
+            requiereEstacionamiento: nextVehicle.requiereEstacionamiento,
+            vehicleCount: nextVehicle.vehicleCount,
+            vehicleType: nextVehicle.vehicleType,
+            trailerCount: nextVehicle.trailerCount
+          }
         : {}),
       ...(source !== undefined
         ? { source: normalizeReservationSource(source) }
@@ -934,7 +960,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
             : null,
           ...normalizeBedPreference(segmentData),
           requiereCuna: Boolean(segmentData.requiereCuna),
-          requiereEstacionamiento: Boolean(segmentData.requiereEstacionamiento),
+          ...normalizeVehicleRequirements(segmentData),
           reason: segmentData.reason,
           notes: segmentData.notes,
           isActive: true

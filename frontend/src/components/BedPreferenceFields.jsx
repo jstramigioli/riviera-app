@@ -4,17 +4,28 @@ import {
   clampBedPreferenceToLimits,
   normalizeBedPreference
 } from '../utils/bedConfig';
+import {
+  VEHICLE_TYPES,
+  VEHICLE_TYPE_LABELS,
+  normalizeVehicleRequirements
+} from '../constants/vehicleRequirements';
 import styles from './BedPreferenceFields.module.css';
 
 /**
- * Preferencia de camas + cuna + estacionamiento para requisitos especiales de un tramo.
+ * Preferencia de camas + cuna + vehículo/tráiler para requisitos especiales de un tramo.
  * Toggles botón (no checkbox); Mat./Ind. solo si preferencia de camas está on.
+ * Vehículo: cantidad 0|1, tipo si ≥1, tráiler 0|1.
  */
 function BedPreferenceFields({
   value = {},
   onChange,
   requiereCuna = false,
   onRequiereCunaChange,
+  vehicleCount,
+  vehicleType,
+  trailerCount,
+  onVehicleRequirementsChange,
+  /** Legacy: si no hay handlers de vehículo, mantiene toggle estacionamiento. */
   requiereEstacionamiento = false,
   onRequiereEstacionamientoChange,
   maxDoubleBeds = 0,
@@ -27,6 +38,18 @@ function BedPreferenceFields({
   const maxDouble = Math.max(0, parseInt(maxDoubleBeds, 10) || 0);
   const maxSingle = Math.max(0, parseInt(maxSingleBeds, 10) || 0);
   const maxGuests = Math.max(0, parseInt(guests, 10) || 0);
+  const vehicle = normalizeVehicleRequirements({
+    vehicleCount:
+      vehicleCount != null
+        ? vehicleCount
+        : requiereEstacionamiento
+          ? 1
+          : 0,
+    vehicleType: vehicleType || (requiereEstacionamiento ? 'AUTO' : null),
+    trailerCount: trailerCount != null ? trailerCount : 0,
+    requiereEstacionamiento
+  });
+  const useVehicleFields = typeof onVehicleRequirementsChange === 'function';
 
   const emit = (patch) => {
     const next = clampBedPreferenceToLimits(
@@ -71,6 +94,13 @@ function BedPreferenceFields({
     onRequiereEstacionamientoChange(!Boolean(requiereEstacionamiento));
   };
 
+  const emitVehicle = (patch) => {
+    if (disabled || !useVehicleFields) return;
+    onVehicleRequirementsChange(
+      normalizeVehicleRequirements({ ...vehicle, ...patch })
+    );
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toggles}>
@@ -109,7 +139,7 @@ function BedPreferenceFields({
           </button>
         )}
 
-        {typeof onRequiereEstacionamientoChange === 'function' && (
+        {!useVehicleFields && typeof onRequiereEstacionamientoChange === 'function' && (
           <button
             type="button"
             className={styles.switchRow}
@@ -129,6 +159,62 @@ function BedPreferenceFields({
           </button>
         )}
       </div>
+
+      {useVehicleFields && (
+        <div className={styles.vehicleRow} data-testid="vehicle-requirements">
+          <div className={styles.countField}>
+            <label htmlFor="vehicle-count">Vehículos</label>
+            <select
+              id="vehicle-count"
+              value={vehicle.vehicleCount}
+              disabled={disabled}
+              aria-label="Cantidad de vehículos"
+              data-testid="vehicle-count-select"
+              onChange={(e) =>
+                emitVehicle({ vehicleCount: parseInt(e.target.value, 10) || 0 })
+              }
+            >
+              <option value={0}>0</option>
+              <option value={1}>1</option>
+            </select>
+          </div>
+          {vehicle.vehicleCount >= 1 && (
+            <div className={styles.countField}>
+              <label htmlFor="vehicle-type">Tipo</label>
+              <select
+                id="vehicle-type"
+                value={vehicle.vehicleType || 'AUTO'}
+                disabled={disabled}
+                aria-label="Tipo de vehículo"
+                data-testid="vehicle-type-select"
+                onChange={(e) => emitVehicle({ vehicleType: e.target.value })}
+              >
+                {VEHICLE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {VEHICLE_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className={styles.countField}>
+            <label htmlFor="trailer-count">Tráiler</label>
+            <select
+              id="trailer-count"
+              value={vehicle.trailerCount}
+              disabled={disabled}
+              aria-label="Cantidad de tráiler"
+              data-testid="trailer-count-select"
+              onChange={(e) =>
+                emitVehicle({ trailerCount: parseInt(e.target.value, 10) || 0 })
+              }
+            >
+              <option value={0}>0</option>
+              <option value={1}>1</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {enabled && (
         <div className={styles.counts}>

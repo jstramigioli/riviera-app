@@ -47,6 +47,7 @@ import { previewRoomRatePromo } from '../utils/roomPromoPreview';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import BedPreferenceFields from '../components/BedPreferenceFields';
 import { birthDateInputToPayload, birthDateToInputValue } from '../constants/clientFormFields';
+import { vehicleRequirementsFrom } from '../constants/vehicleRequirements';
 import styles from '../styles/Consulta.module.css';
 
 // Estados específicos para disponibilidad de habitaciones
@@ -239,6 +240,9 @@ export default function Consulta() {
       preferredSingleBeds: 0,
       requiereCuna: false,
       requiereEstacionamiento: false,
+      vehicleCount: 0,
+      vehicleType: null,
+      trailerCount: 0,
       requiredRoomId: null,
       serviceType: ''
     }
@@ -253,6 +257,8 @@ export default function Consulta() {
     boolFlagFrom(source, 'requiereCuna', fallback);
   const estacionamientoFrom = (source = {}, fallback = false) =>
     boolFlagFrom(source, 'requiereEstacionamiento', fallback);
+  const vehicleFrom = (source = {}, fallback = {}) =>
+    vehicleRequirementsFrom(source, fallback);
 
   // Estado para clientes
   const [clients, setClients] = useState([]);
@@ -453,7 +459,7 @@ export default function Consulta() {
       requiredTags: [...(lastBlock?.requiredTags || [])],
       ...bedFieldsFrom(lastBlock || requirements),
       requiereCuna: cunaFrom(lastBlock),
-      requiereEstacionamiento: estacionamientoFrom(lastBlock),
+      ...vehicleFrom(lastBlock),
       requiredRoomId: lastBlock?.requiredRoomId ?? null,
       serviceType: lastBlock?.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
       requirementsNotes: lastBlock?.requirementsNotes || '',
@@ -556,7 +562,7 @@ export default function Consulta() {
           requiredTags: currentSegment.requiredTags || [],
           ...bedFieldsFrom(currentSegment),
           requiereCuna: cunaFrom(currentSegment),
-          requiereEstacionamiento: estacionamientoFrom(currentSegment),
+          ...vehicleFrom(currentSegment),
           requiredRoomId: currentSegment.requiredRoomId || null,
           serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
         };
@@ -576,7 +582,7 @@ export default function Consulta() {
         requiredTags: currentSegment.requiredTags || [],
         ...bedFieldsFrom(currentSegment),
         requiereCuna: cunaFrom(currentSegment),
-        requiereEstacionamiento: estacionamientoFrom(currentSegment),
+        ...vehicleFrom(currentSegment),
         requiredRoomId: currentSegment.requiredRoomId || null,
         serviceType: currentSegment.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
       };
@@ -598,7 +604,7 @@ export default function Consulta() {
         requiredTags: currentSegment.requiredTags || [],
         ...bedFieldsFrom(currentSegment),
         requiereCuna: cunaFrom(currentSegment),
-        requiereEstacionamiento: estacionamientoFrom(currentSegment),
+        ...vehicleFrom(currentSegment),
         requiredRoomId: currentSegment.requiredRoomId || null,
         serviceType: getAlternativeServiceType(currentSegment.serviceType) // Servicio alternativo
       };
@@ -753,7 +759,7 @@ export default function Consulta() {
           requiredTags: segment.requiredTags || [],
           ...bedFieldsFrom(segment),
           requiereCuna: Boolean(segment.requiereCuna),
-          requiereEstacionamiento: Boolean(segment.requiereEstacionamiento),
+          ...vehicleFrom(segment),
           serviceType: segment.serviceType || '',
           requirementsNotes: segment.requirementsNotes || '',
           // NO guardamos roomId porque es un resultado de búsqueda que puede cambiar
@@ -1172,7 +1178,7 @@ export default function Consulta() {
           requiredTags: seg.requiredTags || [],
           ...bedFieldsFrom(seg),
           requiereCuna: cunaFrom(seg, full.requiereCuna),
-          requiereEstacionamiento: estacionamientoFrom(seg, full.requiereEstacionamiento),
+          ...vehicleFrom(seg, full),
           requiredRoomId: seg.requiredRoomId || null,
           requirementsNotes: '',
           serviceType: seg.services?.[0] || full.reservationType || '',
@@ -1415,7 +1421,7 @@ export default function Consulta() {
                 requiredTags: seg.requiredTags || [],
                 ...bedFieldsFrom(seg),
                 requiereCuna: cunaFrom(seg),
-                requiereEstacionamiento: estacionamientoFrom(seg),
+                ...vehicleFrom(seg),
                 requiredRoomId: seg.requiredRoomId || null,
                 requirementsNotes: seg.requirementsNotes || '',
                 serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -1483,7 +1489,7 @@ export default function Consulta() {
                   requiredTags: fullQueryData.requiredTags || [],
                   ...bedFieldsFrom(fullQueryData),
                   requiereCuna: cunaFrom(fullQueryData),
-                  requiereEstacionamiento: estacionamientoFrom(fullQueryData),
+                  ...vehicleFrom(fullQueryData),
                   requiredRoomId: fullQueryData.requiredRoomId || null,
                   requirementsNotes: fullQueryData.requirementsNotes || '',
                   serviceType: fullQueryData.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : '')
@@ -2476,7 +2482,7 @@ export default function Consulta() {
         requiredTags: seg.requiredTags || [],
         ...bedFieldsFrom(seg),
         requiereCuna: cunaFrom(seg),
-        requiereEstacionamiento: estacionamientoFrom(seg),
+        ...vehicleFrom(seg),
         requiredRoomId: seg.requiredRoomId || null,
         requirementsNotes: seg.requirementsNotes || '',
         serviceType: seg.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -2514,7 +2520,7 @@ export default function Consulta() {
           requiredTags: query.requiredTags || [],
           ...bedFieldsFrom(query),
           requiereCuna: cunaFrom(query),
-          requiereEstacionamiento: estacionamientoFrom(query),
+          ...vehicleFrom(query),
           requiredRoomId: query.requiredRoomId || null,
           requirementsNotes: query.requirementsNotes || '',
           serviceType: query.serviceType || (serviceTypes.length > 0 ? serviceTypes[0].id : ''),
@@ -3046,13 +3052,18 @@ export default function Consulta() {
       }
 
       // Requerimientos especiales
-      const hasSegmentRequirements = segments.some(seg =>
-        (seg.requiredTags && seg.requiredTags.length > 0) ||
-        seg.requiredRoomId ||
-        seg.requiereCuna ||
-        seg.requiereEstacionamiento ||
-        !normalizeBedPreference(seg).bedPreferenceNone
-      );
+      const hasSegmentRequirements = segments.some(seg => {
+        const v = vehicleFrom(seg);
+        return (
+          (seg.requiredTags && seg.requiredTags.length > 0) ||
+          seg.requiredRoomId ||
+          seg.requiereCuna ||
+          v.vehicleCount >= 1 ||
+          v.trailerCount >= 1 ||
+          seg.requiereEstacionamiento ||
+          !normalizeBedPreference(seg).bedPreferenceNone
+        );
+      });
 
       if (hasSegmentRequirements) {
         texto += 'REQUERIMIENTOS ESPECIALES\n';
@@ -3062,10 +3073,17 @@ export default function Consulta() {
               ? `Tramo ${index + 1}: requiere cuna\n`
               : 'Requiere cuna\n';
           }
-          if (segment.requiereEstacionamiento) {
+          const v = vehicleFrom(segment);
+          if (v.vehicleCount >= 1) {
+            const tipo = v.vehicleType || 'AUTO';
             texto += segments.length > 1
-              ? `Tramo ${index + 1}: requiere estacionamiento\n`
-              : 'Requiere estacionamiento\n';
+              ? `Tramo ${index + 1}: vehículo (${tipo})\n`
+              : `Vehículo (${tipo})\n`;
+          }
+          if (v.trailerCount >= 1) {
+            texto += segments.length > 1
+              ? `Tramo ${index + 1}: tráiler\n`
+              : 'Tráiler\n';
           }
           if (segment.requiredTags && segment.requiredTags.length > 0) {
             const tagNames = segment.requiredTags
@@ -3319,7 +3337,7 @@ export default function Consulta() {
             requiredRoomId: segment.requiredRoomId || null,
             ...bedFieldsFrom(segment),
             requiereCuna: Boolean(segment.requiereCuna),
-            requiereEstacionamiento: Boolean(segment.requiereEstacionamiento),
+            ...vehicleFrom(segment),
             baseRate: baseRate,
             nightRates,
             guestCount: segment.requiredGuests
@@ -3329,9 +3347,29 @@ export default function Consulta() {
         notes: notes,
         source: source || null,
         requiereCuna: segments.some((seg) => Boolean(seg.requiereCuna)),
-        requiereEstacionamiento: segments.some((seg) =>
-          Boolean(seg.requiereEstacionamiento)
-        ),
+        ...(() => {
+          const agg = vehicleFrom(
+            segments.reduce(
+              (acc, seg) => {
+                const v = vehicleFrom(seg);
+                return {
+                  vehicleCount: Math.max(acc.vehicleCount, v.vehicleCount),
+                  trailerCount: Math.max(acc.trailerCount, v.trailerCount),
+                  vehicleType: acc.vehicleType || v.vehicleType,
+                  requiereEstacionamiento:
+                    acc.requiereEstacionamiento || v.requiereEstacionamiento
+                };
+              },
+              {
+                vehicleCount: 0,
+                trailerCount: 0,
+                vehicleType: null,
+                requiereEstacionamiento: false
+              }
+            )
+          );
+          return agg;
+        })(),
         isMultiRoom: false,
         selectedRuleIds: useManualRate ? [] : promoApply.selectedRuleIds,
         deselectedRuleIds: useManualRate ? [] : promoApply.deselectedRuleIds,
@@ -3405,6 +3443,9 @@ export default function Consulta() {
           source: source || null,
           requiereCuna: reservationData.requiereCuna,
           requiereEstacionamiento: reservationData.requiereEstacionamiento,
+          vehicleCount: reservationData.vehicleCount,
+          vehicleType: reservationData.vehicleType,
+          trailerCount: reservationData.trailerCount,
           segments: reservationData.segments,
           applyRateChanges,
           createdWithManualRate: useManualRate,
@@ -3514,6 +3555,9 @@ export default function Consulta() {
         preferredSingleBeds: 0,
         requiereCuna: false,
         requiereEstacionamiento: false,
+        vehicleCount: 0,
+        vehicleType: null,
+        trailerCount: 0,
         requiredRoomId: null,
         serviceType: serviceTypes.length > 0 ? serviceTypes[0].id : ''
       }
@@ -3600,6 +3644,23 @@ export default function Consulta() {
       prev.map((segment) =>
         segment.id === segmentId
           ? { ...segment, requiereEstacionamiento: Boolean(next) }
+          : segment
+      )
+    );
+  };
+
+  const handleSegmentVehicleRequirementsChange = (segmentId, next) => {
+    const v = vehicleFrom(next);
+    setSegments((prev) =>
+      prev.map((segment) =>
+        segment.id === segmentId
+          ? {
+              ...segment,
+              vehicleCount: v.vehicleCount,
+              vehicleType: v.vehicleType,
+              trailerCount: v.trailerCount,
+              requiereEstacionamiento: v.requiereEstacionamiento
+            }
           : segment
       )
     );
@@ -3929,9 +3990,9 @@ export default function Consulta() {
                         </select>
                       </div>
 
-                      {/* Preferencia de camas / cuna / estacionamiento (por tramo) */}
+                      {/* Preferencia de camas / cuna / vehículo (por tramo) */}
                       <div className={styles.formGroup} style={{ flex: 1.4 }}>
-                        <label>Camas / cuna / estacionamiento</label>
+                        <label>Camas / cuna / vehículo</label>
                         <BedPreferenceFields
                           value={segments[activeBlockIndex] || {}}
                           maxDoubleBeds={bedLimits.maxDoubleBeds}
@@ -3942,12 +4003,12 @@ export default function Consulta() {
                             segments[activeBlockIndex] &&
                             handleSegmentCunaChange(segments[activeBlockIndex].id, next)
                           }
-                          requiereEstacionamiento={Boolean(
-                            segments[activeBlockIndex]?.requiereEstacionamiento
-                          )}
-                          onRequiereEstacionamientoChange={(next) =>
+                          vehicleCount={segments[activeBlockIndex]?.vehicleCount}
+                          vehicleType={segments[activeBlockIndex]?.vehicleType}
+                          trailerCount={segments[activeBlockIndex]?.trailerCount}
+                          onVehicleRequirementsChange={(next) =>
                             segments[activeBlockIndex] &&
-                            handleSegmentEstacionamientoChange(
+                            handleSegmentVehicleRequirementsChange(
                               segments[activeBlockIndex].id,
                               next
                             )

@@ -61,6 +61,9 @@ exports.createReservation = async (req, res) => {
     source,
     requiereCuna,
     requiereEstacionamiento,
+    vehicleCount,
+    vehicleType,
+    trailerCount,
     isMultiRoom = false,
     includeHolderAsGuest = true
   } = req.body;
@@ -79,6 +82,9 @@ exports.createReservation = async (req, res) => {
       source,
       requiereCuna,
       requiereEstacionamiento,
+      vehicleCount,
+      vehicleType,
+      trailerCount,
       isMultiRoom,
       includeHolderAsGuest
     };
@@ -111,6 +117,9 @@ exports.createMultiSegmentReservation = async (req, res) => {
     source,
     requiereCuna,
     requiereEstacionamiento,
+    vehicleCount,
+    vehicleType,
+    trailerCount,
     isMultiRoom = false,
     includeHolderAsGuest = true,
     selectedRuleIds,
@@ -134,6 +143,9 @@ exports.createMultiSegmentReservation = async (req, res) => {
       source,
       requiereCuna,
       requiereEstacionamiento,
+      vehicleCount,
+      vehicleType,
+      trailerCount,
       isMultiRoom,
       includeHolderAsGuest,
       selectedRuleIds,
