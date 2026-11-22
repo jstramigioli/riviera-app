@@ -429,7 +429,7 @@ function ConsultasReservasView() {
                 <select
                   value={editData.status || selectedReservation.status}
                 >
-                  <option value="PENDIENTE"> Pendiente</option>
+                  <option value="PENDIENTE"> Prerreserva</option>
                   <option value="CONFIRMADA"> Confirmada</option>
                   <option value="INGRESADA"> Ingresada</option>
                   <option value="FINALIZADA"> Finalizada</option>

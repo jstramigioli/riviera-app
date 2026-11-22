@@ -71,7 +71,7 @@ export function creditSaldoAmount(row) {
 function statusLabel(status) {
   if (!status) return '—';
   if (status === 'INGRESADA') return 'Ingresada';
-  if (status === 'PENDIENTE') return 'Pendiente';
+  if (status === 'PENDIENTE') return 'Prerreserva';
   if (status === 'CONFIRMADA') return 'Confirmada';
   if (status === 'FINALIZADA') return 'Finalizada';
   return status;

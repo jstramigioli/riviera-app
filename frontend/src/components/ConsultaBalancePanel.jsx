@@ -824,7 +824,7 @@ export default function ConsultaBalancePanel({
               onChange={(e) => onStatusChange?.(e.target.value)}
               disabled={disabled || isSnapshot}
             >
-              <option value="PENDIENTE">Pendiente</option>
+              <option value="PENDIENTE">Prerreserva</option>
               <option value="CONFIRMADA">Confirmada</option>
               <option value="INGRESADA">Ingresada</option>
             </select>

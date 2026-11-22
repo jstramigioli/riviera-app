@@ -13,7 +13,7 @@ export const RESERVATION_STATUSES = {
 
 /** Fallback si el API aún no respondió */
 export const FALLBACK_STATUS_OPTIONS = [
-  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'PENDIENTE', label: 'Prerreserva' },
   { value: 'CONFIRMADA', label: 'Confirmada' },
   { value: 'INGRESADA', label: 'Ingresada' },
   { value: 'FINALIZADA', label: 'Finalizada' },
@@ -26,7 +26,7 @@ export const getStatusLabel = (status, options = FALLBACK_STATUS_OPTIONS) => {
   if (fromOptions?.label) return fromOptions.label;
 
   const statusMap = {
-    [RESERVATION_STATUSES.PENDIENTE]: 'Pendiente',
+    [RESERVATION_STATUSES.PENDIENTE]: 'Prerreserva',
     [RESERVATION_STATUSES.CONFIRMADA]: 'Confirmada',
     [RESERVATION_STATUSES.INGRESADA]: 'Ingresada',
     [RESERVATION_STATUSES.FINALIZADA]: 'Finalizada',

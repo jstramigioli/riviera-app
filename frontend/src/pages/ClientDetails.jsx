@@ -233,12 +233,12 @@ const ClientDetails = () => {
 
   const getStatusLabel = (status) => {
     const statusLabels = {
-      pending: 'Pendiente',
+      pending: 'Prerreserva',
       confirmed: 'Confirmada',
       ingresada: 'Ingresada',
       checked_out: 'Check-out',
       cancelled: 'Cancelada',
-      PENDIENTE: 'Pendiente',
+      PENDIENTE: 'Prerreserva',
       CONFIRMADA: 'Confirmada',
       INGRESADA: 'Ingresada',
       FINALIZADA: 'Finalizada',

@@ -29,7 +29,7 @@ const VALID_RESERVATION_STATUSES = prismaStatuses?.length
 
 /** Etiquetas UI (español) asociadas al enum canónico del backend */
 const RESERVATION_STATUS_LABELS = {
-  PENDIENTE: 'Pendiente',
+  PENDIENTE: 'Prerreserva',
   CONFIRMADA: 'Confirmada',
   INGRESADA: 'Ingresada',
   FINALIZADA: 'Finalizada',
