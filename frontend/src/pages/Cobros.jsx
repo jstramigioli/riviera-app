@@ -100,43 +100,28 @@ const EMPTY_ACCOUNT_FILTERS = {
   origen: '',
   cuenta: '',
   estado: '',
-  cobros: '',
   cliente: '',
-  cargosMin: '',
-  cargosMax: '',
-  pagadoMin: '',
-  pagadoMax: '',
   saldoMin: '',
   saldoMax: '',
   saldoEstado: 'PENDIENTE',
-  ultimoFrom: '',
-  ultimoTo: '',
 };
 
 const ACCOUNT_COLUMN_KEYS = {
   origen: ['origen'],
   cuenta: ['cuenta'],
   estado: ['estado'],
-  cobros: ['cobros'],
   cliente: ['cliente'],
-  cargos: ['cargosMin', 'cargosMax'],
-  pagado: ['pagadoMin', 'pagadoMax'],
   saldo: ['saldoMin', 'saldoMax'],
   saldoEstado: ['saldoEstado'],
-  ultimo: ['ultimoFrom', 'ultimoTo'],
 };
 
 const ACCOUNT_COLUMNS = [
   { key: 'origen', label: 'Origen' },
   { key: 'cuenta', label: 'Cuenta' },
   { key: 'estado', label: 'Estado' },
-  { key: 'cobros', label: 'Cobros' },
   { key: 'cliente', label: 'Cliente' },
-  { key: 'cargos', label: 'Cargos' },
-  { key: 'pagado', label: 'Pagado' },
   { key: 'saldo', label: 'Saldo' },
   { key: 'saldoEstado', label: 'Saldo estado' },
-  { key: 'ultimo', label: 'Último mov.' },
 ];
 
 const ACCOUNTS_PAGE_SIZE = 20;
@@ -200,29 +185,6 @@ function accountClientName(reservation) {
   return 'Sin cliente';
 }
 
-function accountLastMoveDate(reservation) {
-  const paymentList = reservation.cobros || [];
-  const lastPaymentDate =
-    paymentList.length > 0
-      ? paymentList.reduce((latest, cobro) => {
-          const d = cobro.fecha ? new Date(cobro.fecha) : null;
-          if (!d || Number.isNaN(d.getTime())) return latest;
-          if (!latest || d > latest) return d;
-          return latest;
-        }, null)
-      : null;
-  if (lastPaymentDate) return lastPaymentDate;
-  if (reservation.updatedAt) {
-    const d = new Date(reservation.updatedAt);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  if (reservation.createdAt) {
-    const d = new Date(reservation.createdAt);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  return null;
-}
-
 function matchesAmountRange(value, minRaw, maxRaw) {
   const amount = Number(value) || 0;
   const min = String(minRaw || '').trim() === '' ? null : Number(minRaw);
@@ -246,18 +208,6 @@ function formatDisplayDate(value) {
   const iso = toDateInputValue(value);
   if (!iso) return '—';
   return iso.split('-').reverse().join('/');
-}
-
-function startOfDay(isoDate) {
-  if (!isoDate) return null;
-  const date = new Date(`${isoDate}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function endOfDay(isoDate) {
-  if (!isoDate) return null;
-  const date = new Date(`${isoDate}T23:59:59.999`);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 const Cobros = () => {
@@ -289,7 +239,6 @@ const Cobros = () => {
   const [showCobroForm, setShowCobroForm] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [editingCobro, setEditingCobro] = useState(null);
-  const [summaryCobro, setSummaryCobro] = useState(null);
 
   const [accountFilters, setAccountFilters] = useState(EMPTY_ACCOUNT_FILTERS);
   const [accountsPage, setAccountsPage] = useState(1);
@@ -641,8 +590,6 @@ const Cobros = () => {
   }, [reservationsWithBalances]);
 
   const filteredAccounts = useMemo(() => {
-    const from = startOfDay(accountFilters.ultimoFrom);
-    const to = endOfDay(accountFilters.ultimoTo);
     const clientId = clientIdParam ? Number(clientIdParam) : null;
     const origen = String(accountFilters.origen || '').trim();
     const estado = String(accountFilters.estado || '').trim();
@@ -671,31 +618,6 @@ const Cobros = () => {
         return false;
       }
 
-      if (String(accountFilters.cobros || '').trim()) {
-        const codes = (reservation.cobros || [])
-          .map((cobro) => paymentCodeLabel(cobro))
-          .join(' ');
-        if (!includesNormalized(codes, accountFilters.cobros)) return false;
-      }
-
-      if (
-        !matchesAmountRange(
-          reservation.totalCargos,
-          accountFilters.cargosMin,
-          accountFilters.cargosMax
-        )
-      ) {
-        return false;
-      }
-      if (
-        !matchesAmountRange(
-          reservation.totalCobros,
-          accountFilters.pagadoMin,
-          accountFilters.pagadoMax
-        )
-      ) {
-        return false;
-      }
       if (
         !matchesAmountRange(reservation.saldo, accountFilters.saldoMin, accountFilters.saldoMax)
       ) {
@@ -707,13 +629,6 @@ const Cobros = () => {
           reservation.mainClient?.id === clientId ||
           Number(reservation.mainClientId) === clientId;
         if (!matchesClient) return false;
-      }
-
-      if (from || to) {
-        const refDate = accountLastMoveDate(reservation);
-        if (!refDate || Number.isNaN(refDate.getTime())) return false;
-        if (from && refDate < from) return false;
-        if (to && refDate > to) return false;
       }
 
       return true;
@@ -898,7 +813,6 @@ const Cobros = () => {
   };
 
   const handleEditCobro = (cobro) => {
-    setSummaryCobro(null);
     setSelectedReservation(null);
     setEditingCobro(cobro);
     setShowCobroForm(true);
@@ -908,19 +822,6 @@ const Cobros = () => {
     setShowCobroForm(false);
     setSelectedReservation(null);
     setEditingCobro(null);
-  };
-
-  const handleOpenCobroSummary = (cobro) => {
-    if (!cobro?.id && !cobro?.codigo) return;
-    const fromHistorial =
-      cobro?.id != null
-        ? (payments || []).find((row) => row.id === cobro.id)
-        : null;
-    setSummaryCobro(fromHistorial || cobro);
-  };
-
-  const handleCloseCobroSummary = () => {
-    setSummaryCobro(null);
   };
 
   const handleDeleteCobro = async (cobro) => {
@@ -1144,7 +1045,7 @@ const Cobros = () => {
                   <tbody>
                     {pagedAccounts.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className={styles.emptyCell}>
+                        <td colSpan={7} className={styles.emptyCell}>
                           No hay cuentas con los filtros actuales
                         </td>
                       </tr>
@@ -1155,10 +1056,6 @@ const Cobros = () => {
                         const clientName = accountClientName(reservation);
                         const statusColor =
                           STATUS_COLORS[reservation.estadoCobro] || '#6b7280';
-                        const paymentList = (reservation.cobros || [])
-                          .slice()
-                          .sort((a, b) => Number(a.id) - Number(b.id));
-                        const lastMove = accountLastMoveDate(reservation);
                         const rowKey = reservation.accountId || `r-${reservation.id}`;
                         const reservaNum =
                           reservation.reservationId || reservation.id;
@@ -1185,25 +1082,6 @@ const Cobros = () => {
                               {accountEstadoLabel(estadoValue)}
                             </td>
                             <td>
-                              {paymentList.length > 0 ? (
-                                <div className={styles.paymentIdList}>
-                                  {paymentList.map((cobro) => (
-                                    <button
-                                      key={cobro.imputacionId || cobro.id}
-                                      type="button"
-                                      className={styles.paymentId}
-                                      onClick={() => handleOpenCobroSummary(cobro)}
-                                      aria-label={`Ver resumen del cobro ${paymentCodeLabel(cobro)}`}
-                                    >
-                                      {paymentCodeLabel(cobro)}
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className={styles.meta}>Sin cobros</span>
-                              )}
-                            </td>
-                            <td>
                               <button
                                 type="button"
                                 className={styles.linkButton}
@@ -1216,8 +1094,6 @@ const Cobros = () => {
                                 <div className={styles.meta}>{client.email}</div>
                               )}
                             </td>
-                            <td>{formatMoneyArs(reservation.totalCargos)}</td>
-                            <td>{formatMoneyArs(reservation.totalCobros)}</td>
                             <td className={styles.amountCell} style={{ color: statusColor }}>
                               {formatMoneyArs(reservation.saldo)}
                             </td>
@@ -1228,11 +1104,6 @@ const Cobros = () => {
                               >
                                 {reservation.estadoCobro}
                               </span>
-                            </td>
-                            <td className={styles.metaCell}>
-                              {lastMove && !Number.isNaN(lastMove.getTime())
-                                ? formatDisplayDate(lastMove)
-                                : '—'}
                             </td>
                             <td>
                               <div className={styles.rowActions}>
@@ -1336,17 +1207,6 @@ const Cobros = () => {
                       ))}
                     </select>
                   )}
-                  {openAccountColumn === 'cobros' && (
-                    <input
-                      type="search"
-                      className={styles.columnFilter}
-                      aria-label="Filtrar por cobros"
-                      placeholder="Código…"
-                      autoFocus
-                      value={accountFilters.cobros}
-                      onChange={(e) => setAccountFilter('cobros', e.target.value)}
-                    />
-                  )}
                   {openAccountColumn === 'cliente' && (
                     <input
                       type="search"
@@ -1357,48 +1217,6 @@ const Cobros = () => {
                       value={accountFilters.cliente}
                       onChange={(e) => setAccountFilter('cliente', e.target.value)}
                     />
-                  )}
-                  {openAccountColumn === 'cargos' && (
-                    <div className={styles.columnFilterStack}>
-                      <input
-                        type="number"
-                        className={styles.columnFilter}
-                        aria-label="Cargos mínimo"
-                        placeholder="Mín"
-                        autoFocus
-                        value={accountFilters.cargosMin}
-                        onChange={(e) => setAccountFilter('cargosMin', e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className={styles.columnFilter}
-                        aria-label="Cargos máximo"
-                        placeholder="Máx"
-                        value={accountFilters.cargosMax}
-                        onChange={(e) => setAccountFilter('cargosMax', e.target.value)}
-                      />
-                    </div>
-                  )}
-                  {openAccountColumn === 'pagado' && (
-                    <div className={styles.columnFilterStack}>
-                      <input
-                        type="number"
-                        className={styles.columnFilter}
-                        aria-label="Pagado mínimo"
-                        placeholder="Mín"
-                        autoFocus
-                        value={accountFilters.pagadoMin}
-                        onChange={(e) => setAccountFilter('pagadoMin', e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className={styles.columnFilter}
-                        aria-label="Pagado máximo"
-                        placeholder="Máx"
-                        value={accountFilters.pagadoMax}
-                        onChange={(e) => setAccountFilter('pagadoMax', e.target.value)}
-                      />
-                    </div>
                   )}
                   {openAccountColumn === 'saldo' && (
                     <div className={styles.columnFilterStack}>
@@ -1436,31 +1254,6 @@ const Cobros = () => {
                         </option>
                       ))}
                     </select>
-                  )}
-                  {openAccountColumn === 'ultimo' && (
-                    <div className={styles.columnFilterStack}>
-                      <label className={styles.columnFilterRow}>
-                        <span className={styles.columnFilterLabel}>Desde</span>
-                        <input
-                          type="date"
-                          className={styles.columnFilter}
-                          aria-label="Último movimiento desde"
-                          value={accountFilters.ultimoFrom}
-                          onChange={(e) => setAccountFilter('ultimoFrom', e.target.value)}
-                        />
-                      </label>
-                      <label className={styles.columnFilterRow}>
-                        <span className={styles.columnFilterLabel}>Hasta</span>
-                        <input
-                          type="date"
-                          className={styles.columnFilter}
-                          aria-label="Último movimiento hasta"
-                          value={accountFilters.ultimoTo}
-                          min={accountFilters.ultimoFrom || undefined}
-                          onChange={(e) => setAccountFilter('ultimoTo', e.target.value)}
-                        />
-                      </label>
-                    </div>
                   )}
                 </div>
               ) : null}
@@ -1576,104 +1369,6 @@ const Cobros = () => {
           onClose={handleCloseCobroForm}
           onSuccess={handlePaymentSuccess}
         />
-      )}
-
-      {summaryCobro && (
-        <div
-          className={styles.summaryOverlay}
-          role="presentation"
-          onClick={handleCloseCobroSummary}
-        >
-          <div
-            className={styles.summaryModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cobro-summary-title"
-            data-testid="cobro-summary-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.summaryHeader}>
-              <h3 id="cobro-summary-title">
-                Resumen · {paymentCodeLabel(summaryCobro)}
-              </h3>
-              <button
-                type="button"
-                className={styles.summaryClose}
-                onClick={handleCloseCobroSummary}
-                aria-label="Cerrar"
-              >
-                <FiX aria-hidden="true" />
-              </button>
-            </div>
-            <dl className={styles.summaryList}>
-              <div>
-                <dt>Código</dt>
-                <dd>{paymentCodeLabel(summaryCobro)}</dd>
-              </div>
-              <div>
-                <dt>Fecha</dt>
-                <dd>{formatDisplayDate(summaryCobro.fecha)}</dd>
-              </div>
-              <div>
-                <dt>Monto</dt>
-                <dd>
-                  {formatMoneyArs(
-                    summaryCobro.montoARS != null
-                      ? summaryCobro.montoARS
-                      : summaryCobro.monto
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Método</dt>
-                <dd>{summaryCobro.metodo || '—'}</dd>
-              </div>
-              <div>
-                <dt>Motivo</dt>
-                <dd>{summaryCobro.motivo || 'Cobro'}</dd>
-              </div>
-              {(summaryCobro.moneda || summaryCobro.tipoCambio) && (
-                <div>
-                  <dt>Moneda</dt>
-                  <dd>
-                    {summaryCobro.moneda || 'ARS'}
-                    {summaryCobro.moneda === 'USD' && summaryCobro.tipoCambio
-                      ? ` · TC ${summaryCobro.tipoCambio}`
-                      : ''}
-                  </dd>
-                </div>
-              )}
-              {summaryCobro.esImputacionParcial ? (
-                <div>
-                  <dt>Imputación</dt>
-                  <dd>Parcial</dd>
-                </div>
-              ) : null}
-              {summaryCobro.notas ? (
-                <div>
-                  <dt>Notas</dt>
-                  <dd>{summaryCobro.notas}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <div className={styles.summaryActions}>
-              <button
-                type="button"
-                className={styles.summarySecondary}
-                onClick={handleCloseCobroSummary}
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                className={styles.summaryPrimary}
-                onClick={() => handleEditCobro(summaryCobro)}
-              >
-                Editar cobro
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {noticeDialog}
