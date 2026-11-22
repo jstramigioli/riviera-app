@@ -29,6 +29,16 @@ import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consulta
 
 const DNI_PHOTO_ACCEPT = 'image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf';
 
+/** Activas: Ingresada, Prerreserva/PENDIENTE, Confirmada. */
+const ACTIVE_RESERVATION_STATUSES = new Set([
+  'PENDIENTE',
+  'CONFIRMADA',
+  'INGRESADA',
+  'pending',
+  'confirmed',
+  'ingresada'
+]);
+
 const ClientDetails = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
@@ -45,6 +55,8 @@ const ClientDetails = () => {
   const [editingField, setEditingField] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [serviceTypes, setServiceTypes] = useState([]);
+  /** false = solo activas; true = también finalizadas/canceladas. */
+  const [showFinished, setShowFinished] = useState(false);
 
   const loadDocumentPhoto = useCallback(async () => {
     if (!clientId) {
@@ -295,18 +307,9 @@ const ClientDetails = () => {
     return null;
   };
 
-  const getActiveReservations = () => {
-    return reservations.filter(
-      (r) =>
-        !['FINALIZADA', 'CANCELADA', 'NO_PRESENTADA', 'checked_out', 'cancelled'].includes(
-          r.status
-        )
-    );
-  };
-
-  const getCompletedReservations = () => {
-    return reservations.filter((r) => ['FINALIZADA', 'checked_out'].includes(r.status));
-  };
+  const visibleReservations = showFinished
+    ? reservations
+    : reservations.filter((r) => ACTIVE_RESERVATION_STATUSES.has(r?.status));
 
   if (loading) {
     return (
@@ -349,8 +352,6 @@ const ClientDetails = () => {
   }
 
   const totalBalance = clientBalance?.balance ?? 0;
-  const activeReservations = getActiveReservations();
-  const completedReservations = getCompletedReservations();
 
   const cobrosMovimientos = clientBalance?.cobros || [];
   const isDevolucionMovimiento = (cobro) =>
@@ -562,15 +563,38 @@ const ClientDetails = () => {
                 <h2 id="widget-reservas" className={styles.widgetTitle}>
                   Reservas
                 </h2>
-                <div className={styles.reservationCounts} aria-label="Resumen por estado">
-                  <span>Activas: {activeReservations.length}</span>
-                  <span>Completadas: {completedReservations.length}</span>
-                  <span>Total: {reservations.length}</span>
-                </div>
+                {reservations.length > 0 ? (
+                  <button
+                    type="button"
+                    className={styles.filterToggle}
+                    onClick={() => setShowFinished((prev) => !prev)}
+                    aria-pressed={showFinished}
+                    aria-label={
+                      showFinished
+                        ? 'Mostrar todas las reservas'
+                        : 'Mostrar también reservas finalizadas'
+                    }
+                    data-testid="client-reservas-show-finished-toggle"
+                  >
+                    <span
+                      className={`${styles.filterSwitch} ${showFinished ? styles.filterSwitchOn : ''}`}
+                      aria-hidden="true"
+                    >
+                      <span className={styles.filterSwitchThumb} />
+                    </span>
+                    <span className={styles.filterToggleLabel}>
+                      {showFinished ? 'Mostrar todas' : 'Mostrar finalizadas'}
+                    </span>
+                  </button>
+                ) : null}
               </div>
               {reservations.length === 0 ? (
                 <div className={styles.noDataMessage}>
                   Este cliente no tiene reservas registradas
+                </div>
+              ) : visibleReservations.length === 0 ? (
+                <div className={styles.noDataMessage}>
+                  No hay reservas activas. Activá «Mostrar finalizadas» para ver el historial.
                 </div>
               ) : (
                 <div className={styles.tableContainer}>
@@ -585,7 +609,7 @@ const ClientDetails = () => {
                       </tr>
                     </thead>
                     <tbody className={styles.tableBody}>
-                      {reservations.map((reservation) => {
+                      {visibleReservations.map((reservation) => {
                         const saldo = getReservationSaldo(reservation.id);
                         return (
                           <tr key={reservation.id} className={styles.reservationRow}>
