@@ -93,7 +93,7 @@ function dualWriteExternalRefs(account) {
 /**
  * Crea Account EXTERNAL (label alcanza; clientId opcional).
  */
-async function createExternalAccount(db, { label, clientId = null, notes = null } = {}) {
+async function createExternalAccount(db, { label, clientId = null } = {}) {
   const trimmed = label != null ? String(label).trim() : '';
   if (!trimmed) {
     throw new Error('label es requerido para cuenta externa');
@@ -107,7 +107,6 @@ async function createExternalAccount(db, { label, clientId = null, notes = null 
           ? parseInt(clientId, 10)
           : null,
       label: trimmed,
-      notes: notes != null ? String(notes).trim() || null : null,
       status: ACCOUNT_STATUS.OPEN
     }
   });

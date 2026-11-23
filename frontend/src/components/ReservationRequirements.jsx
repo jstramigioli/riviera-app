@@ -241,36 +241,6 @@ function ReservationRequirements({
         </div>
       </div>
 
-      {/* Notas de Requerimientos */}
-      <div>
-        <label style={{
-          display: 'block',
-          marginBottom: '8px',
-          fontWeight: '500',
-          color: 'var(--color-text-main)',
-          fontSize: 'var(--font-size-medium)'
-        }}>
-          Notas Adicionales:
-        </label>
-        <textarea
-          value={requirements.requirementsNotes || ''}
-          onChange={(e) => onRequirementsChange({
-            ...requirements,
-            requirementsNotes: e.target.value
-          })}
-          placeholder="Notas adicionales sobre los requerimientos..."
-          style={{
-            width: '100%',
-            padding: '12px',
-            border: '1px solid var(--color-border)',
-            borderRadius: '6px',
-            fontSize: 'var(--font-size-medium)',
-            backgroundColor: 'var(--color-bg-white)',
-            minHeight: '80px',
-            resize: 'vertical'
-          }}
-        />
-      </div>
     </div>
   );
 }

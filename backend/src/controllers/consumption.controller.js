@@ -144,7 +144,7 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 
 /**
  * Carga una comanda de consumos sobre una reserva o cuenta externa.
- * Body: { reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD, notes? }
+ * Body: { reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD }
  * Si viene reservationId → Account 1:1. Si accountId EXTERNAL → sin reserva.
  */
 exports.createConsumptionOrder = async (req, res) => {
@@ -157,7 +157,6 @@ exports.createConsumptionOrder = async (req, res) => {
         : Number(reservationIdRaw);
     const accountId =
       accountIdRaw == null || accountIdRaw === '' ? null : Number(accountIdRaw);
-    const notes = req.body.notes ? String(req.body.notes).trim() : null;
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
     const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date, req);
 
@@ -331,7 +330,6 @@ exports.createConsumptionOrder = async (req, res) => {
             subcategoriaCargoId: sub.id,
             descripcion,
             monto,
-            notas: notes,
             fecha: cargoFecha
           },
           include: { subcategoriaCargo: true }

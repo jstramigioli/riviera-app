@@ -335,7 +335,6 @@ async function addLodgingCargo({
       serviceTypeId: serviceTypeId || null,
       descripcion: `DEBUG alojamiento ${nights} noche(s)`,
       monto: new Prisma.Decimal(monto),
-      notas: batchNotes(batchId),
       fecha: businessDateFromToday(today)
     }
   });
@@ -350,7 +349,6 @@ async function addConsumptionCargo({ reservationId, account, batchId, today }) {
       subcategoriaCargoId: sub.id,
       descripcion: `DEBUG consumo ${sub.nombre}`,
       monto: new Prisma.Decimal(3500),
-      notas: batchNotes(batchId),
       fecha: businessDateFromToday(today)
     }
   });
@@ -373,7 +371,6 @@ async function addFullPayment({ reservationId, account, amount, batchId, today }
       moneda: 'ARS',
       metodo: method?.label || 'Efectivo',
       motivo: 'Cobro',
-      notas: batchNotes(batchId),
       fecha: businessDateFromToday(today)
     }
   });
@@ -540,11 +537,19 @@ async function createFromPlan(plan, options = {}) {
       await prisma.reservation.update({
         where: { id: reservation.id },
         data: {
-          notaComidas: 'DEBUG: sin cebolla',
-          dietVegetariano: true,
           vehiclePlate: client.vehiclePlate || null
         }
       });
+      const guests = await prisma.guest.findMany({
+        where: { reservationId: reservation.id },
+        select: { id: true }
+      });
+      if (guests.length) {
+        await prisma.guest.updateMany({
+          where: { id: { in: guests.map((g) => g.id) } },
+          data: { dietVegetariano: true }
+        });
+      }
     } else if (client.vehiclePlate) {
       await prisma.reservation.update({
         where: { id: reservation.id },

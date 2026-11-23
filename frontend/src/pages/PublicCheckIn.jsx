@@ -68,7 +68,10 @@ export default function PublicCheckIn() {
             documentType: snap.documentType || 'DNI',
             documentIssuingCountry: snap.documentIssuingCountry || 'AR',
             birthDate: birthDateToInputValue(snap.birthDate),
-            wantsPromotions: Boolean(snap.wantsPromotions)
+            wantsPromotions: Boolean(snap.wantsPromotions),
+            dietVegetariano: Boolean(snap.dietVegetariano),
+            dietVegano: Boolean(snap.dietVegano),
+            dietCeliaco: Boolean(snap.dietCeliaco)
           }
         : { ...EMPTY_GUEST_PERSONAL_FIELDS }
     );

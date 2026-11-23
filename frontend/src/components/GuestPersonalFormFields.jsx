@@ -23,7 +23,10 @@ export const EMPTY_GUEST_PERSONAL_FIELDS = {
   province: '',
   city: '',
   address: '',
-  wantsPromotions: false
+  wantsPromotions: false,
+  dietVegetariano: false,
+  dietVegano: false,
+  dietCeliaco: false
 };
 
 /**
@@ -232,6 +235,44 @@ export default function GuestPersonalFormFields({
             disabled={disabled}
             autoComplete="street-address"
           />
+        </label>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Régimen alimentario</h2>
+        <p className={styles.hint}>Preferencias del huésped para cocina / recepción.</p>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietVegetariano"
+            checked={Boolean(fields.dietVegetariano)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-vegetariano"
+          />
+          Vegetariano
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietVegano"
+            checked={Boolean(fields.dietVegano)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-vegano"
+          />
+          Vegano
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietCeliaco"
+            checked={Boolean(fields.dietCeliaco)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-celiaco"
+          />
+          Celíaco
         </label>
       </section>
 

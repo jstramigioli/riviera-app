@@ -168,7 +168,6 @@ const createQuery = async (req, res) => {
       requiredGuests,
       requiredRoomId,
       requiredTags = [],
-      requirementsNotes,
       bedPreferenceNone,
       preferredDoubleBeds,
       preferredSingleBeds,
@@ -192,7 +191,6 @@ const createQuery = async (req, res) => {
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
-        requirementsNotes,
         ...segmentRequirementFields({
           bedPreferenceNone,
           preferredDoubleBeds,
@@ -285,7 +283,6 @@ const createMultiSegmentQuery = async (req, res) => {
           requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
           requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
           requiredTags: segment.requiredTags || [],
-          requirementsNotes: segment.requirementsNotes || null,
           ...segmentRequirementFields(segment),
           guests: {
             create: (segment.guests || []).map(guest => ({
@@ -417,7 +414,6 @@ const updateMultiSegmentQuery = async (req, res) => {
         requiredGuests: segment.requiredGuests ? parseInt(segment.requiredGuests) : null,
         requiredRoomId: segment.requiredRoomId ? parseInt(segment.requiredRoomId) : null,
         requiredTags: segment.requiredTags || [],
-        requirementsNotes: segment.requirementsNotes || null,
         ...segmentRequirementFields(segment)
       };
       
@@ -546,7 +542,6 @@ const updateQuery = async (req, res) => {
       requiredGuests,
       requiredRoomId,
       requiredTags,
-      requirementsNotes,
       bedPreferenceNone,
       preferredDoubleBeds,
       preferredSingleBeds,
@@ -569,7 +564,6 @@ const updateQuery = async (req, res) => {
         requiredGuests: requiredGuests ? parseInt(requiredGuests) : null,
         requiredRoomId: requiredRoomId ? parseInt(requiredRoomId) : null,
         requiredTags: requiredTags || [],
-        requirementsNotes,
         ...segmentRequirementFields({
           bedPreferenceNone,
           preferredDoubleBeds,
@@ -719,7 +713,6 @@ const convertQueryToReservation = async (req, res) => {
         requiredGuests: query.requiredGuests || 1,
         requiredRoomId: query.requiredRoomId,
         requiredTags: query.requiredTags || [],
-        requirementsNotes: query.requirementsNotes,
         guests: {
           create: query.guests.map(guest => ({
             firstName: guest.firstName || '',

@@ -344,7 +344,6 @@ const CobroForm = ({
         metodo: 'Efectivo',
         numeroTarjeta: '',
         empresa: '',
-        notas: '',
         fecha: todayLocalDateInputValue()
       };
     }
@@ -356,7 +355,6 @@ const CobroForm = ({
       metodo: initialCobro.metodo || 'Efectivo',
       numeroTarjeta: initialCobro.numeroTarjeta || '',
       empresa: initialCobro.empresa || '',
-      notas: initialCobro.notas || '',
       fecha: pagoFechaToInput(initialCobro.fecha)
     };
   });
@@ -1526,7 +1524,6 @@ const CobroForm = ({
         motivo: motivoActual,
         numeroTarjeta: isCardMethod(formData.metodo) ? formData.numeroTarjeta : undefined,
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
-        notas: formData.notas || null,
         fecha: fechaIso,
         requiereFacturacion: billingEnabled,
         factura: isEditMode ? undefined : facturaPayload,
@@ -1550,7 +1547,6 @@ const CobroForm = ({
           motivo: pagoData.motivo,
           numeroTarjeta: pagoData.numeroTarjeta ?? null,
           empresa: pagoData.empresa ?? null,
-          notas: pagoData.notas,
           fecha: pagoData.fecha,
           selectedRuleIds: pagoData.selectedRuleIds,
           deselectedRuleIds: pagoData.deselectedRuleIds,
@@ -2659,16 +2655,6 @@ const CobroForm = ({
                     ) : null}
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-notas">Notas</label>
-                    <textarea
-                      id="payment-notas"
-                      value={formData.notas}
-                      onChange={(e) => handleInputChange('notas', e.target.value)}
-                      placeholder="Notas adicionales..."
-                      rows={3}
-                    />
-                  </div>
                 </div>
               </details>
 

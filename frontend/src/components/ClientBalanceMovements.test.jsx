@@ -54,7 +54,6 @@ describe('ClientBalanceMovements', () => {
       descripcion: 'Minibar',
       monto: 1500,
       fecha: '2026-01-05T00:00:00.000Z',
-      notas: 'Agua',
       accountLabel: 'Reserva #9',
       editable: true,
       subcategoriaCargoId: 3,

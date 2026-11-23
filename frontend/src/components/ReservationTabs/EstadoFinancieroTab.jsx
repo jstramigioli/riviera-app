@@ -111,8 +111,7 @@ const EstadoFinancieroTab = ({
   const [newCargo, setNewCargo] = useState({
     descripcion: '',
     monto: '',
-    subcategoriaCargoId: null,
-    notas: ''
+    subcategoriaCargoId: null
   });
   const printRef = useRef(null);
   const pendingHandledRef = useRef(null);
@@ -168,8 +167,7 @@ const EstadoFinancieroTab = ({
     setNewCargo({
       descripcion: '',
       monto: '',
-      subcategoriaCargoId: defaultSubcategoriaId(),
-      notas: ''
+      subcategoriaCargoId: defaultSubcategoriaId()
     });
     setEditingCargo(null);
   };
@@ -191,8 +189,7 @@ const EstadoFinancieroTab = ({
     setNewCargo({
       descripcion: cargo.descripcion || '',
       monto: String(cargo.monto ?? ''),
-      subcategoriaCargoId: cargo.subcategoriaCargoId,
-      notas: cargo.notas || ''
+      subcategoriaCargoId: cargo.subcategoriaCargoId
     });
     setShowCargoModal(true);
   };
@@ -200,8 +197,7 @@ const EstadoFinancieroTab = ({
   const buildCargoPayload = () => {
     const base = {
       descripcion: newCargo.descripcion,
-      monto: parseFloat(newCargo.monto),
-      notas: newCargo.notas || null
+      monto: parseFloat(newCargo.monto)
     };
     const subId = newCargo.subcategoriaCargoId || defaultSubcategoriaId();
     if (subId) {
@@ -609,7 +605,6 @@ const EstadoFinancieroTab = ({
                                 <th>Método</th>
                                 <th>Motivo</th>
                                 <th>Descuento</th>
-                                <th>Notas</th>
                                 <th>Acciones</th>
                               </tr>
                             </thead>
@@ -653,7 +648,6 @@ const EstadoFinancieroTab = ({
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td className={styles.notasCell}>{cobro.notas || '—'}</td>
                                     <td>
                                       <span className={styles.breakdownActions}>
                                         <button
@@ -849,15 +843,6 @@ const EstadoFinancieroTab = ({
                   onChange={(e) => setNewCargo({ ...newCargo, monto: e.target.value })}
                   placeholder="0.00"
                   data-testid="input-cargo-monto"
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Notas</label>
-                <textarea
-                  value={newCargo.notas}
-                  onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
-                  placeholder="Observaciones opcionales"
-                  rows="3"
                 />
               </div>
               <div className={styles.modalActions}>

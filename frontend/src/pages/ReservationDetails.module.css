@@ -239,6 +239,47 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+.reservationNotesBlock {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reservationNotesLabel {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.reservationNotesTextarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.reservationNotesTextarea::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.reservationNotesTextarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.reservationNotesSaving {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .sidePanelContent {
   padding: 24px 15% 24px 5%;
   flex: 1;

@@ -30,7 +30,6 @@ const pagoDetalle = (cobro) => {
     parts.push(originalLabel);
     if (Number.isFinite(tc) && tc > 0) parts.push(`TC ${tc}`);
   }
-  if (cobro.notas) parts.push(cobro.notas);
   return parts.join(' · ') || '—';
 };
 

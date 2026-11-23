@@ -24,7 +24,6 @@ const CargosTab = ({
     descripcion: '', 
     monto: '', 
     subcategoriaCargoId: null,
-    notas: '' 
   });
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -164,8 +163,7 @@ const CargosTab = ({
   const buildCargoPayload = () => {
     const base = {
       descripcion: newCargo.descripcion,
-      monto: parseFloat(newCargo.monto),
-      notas: newCargo.notas || null
+      monto: parseFloat(newCargo.monto)
     };
     const subId = newCargo.subcategoriaCargoId || defaultSubcategoriaId();
     if (subId) {
@@ -188,8 +186,7 @@ const CargosTab = ({
       setNewCargo({
         descripcion: '',
         monto: '',
-        subcategoriaCargoId: subcategoriaActual,
-        notas: ''
+        subcategoriaCargoId: subcategoriaActual
       });
     }
 
@@ -201,8 +198,7 @@ const CargosTab = ({
     setNewCargo({
       descripcion: '',
       monto: '',
-      subcategoriaCargoId: defaultSubcategoriaId(),
-      notas: ''
+      subcategoriaCargoId: defaultSubcategoriaId()
     });
     setEditingCargo(null);
   };
@@ -220,8 +216,7 @@ const CargosTab = ({
     setNewCargo({
       descripcion: cargo.descripcion,
       monto: cargo.monto.toString(),
-      subcategoriaCargoId: cargo.subcategoriaCargoId,
-      notas: cargo.notas || ''
+      subcategoriaCargoId: cargo.subcategoriaCargoId
     });
     
     setShowAddModal(true);
@@ -317,7 +312,6 @@ const CargosTab = ({
                                 <th> Fecha</th>
                                 <th> Descripción</th>
                                 <th> Monto</th>
-                                <th> Notas</th>
                                 <th> Acciones</th>
                               </tr>
                             </thead>
@@ -328,9 +322,6 @@ const CargosTab = ({
                                   <td>{cargo.descripcion}</td>
                                   <td className={styles.montoCell}>
                                     {formatCurrency(parseFloat(cargo.monto))}
-                                  </td>
-                                  <td className={styles.notasCell}>
-                                    {cargo.notas || '-'}
                                   </td>
                                   <td>
                                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -423,15 +414,6 @@ const CargosTab = ({
                   value={newCargo.monto}
                   onChange={(e) => setNewCargo({ ...newCargo, monto: e.target.value })}
                   placeholder="0.00"
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label> Notas</label>
-                <textarea
-                  value={newCargo.notas}
-                  onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
-                  placeholder="Observaciones opcionales"
-                  rows="3"
                 />
               </div>
               <div className={styles.modalActions}>
