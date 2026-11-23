@@ -537,10 +537,19 @@ async function createFromPlan(plan, options = {}) {
       await prisma.reservation.update({
         where: { id: reservation.id },
         data: {
-          dietVegetariano: true,
           vehiclePlate: client.vehiclePlate || null
         }
       });
+      const guests = await prisma.guest.findMany({
+        where: { reservationId: reservation.id },
+        select: { id: true }
+      });
+      if (guests.length) {
+        await prisma.guest.updateMany({
+          where: { id: { in: guests.map((g) => g.id) } },
+          data: { dietVegetariano: true }
+        });
+      }
     } else if (client.vehiclePlate) {
       await prisma.reservation.update({
         where: { id: reservation.id },

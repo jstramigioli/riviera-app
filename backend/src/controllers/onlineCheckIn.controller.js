@@ -98,7 +98,10 @@ function emptyPersonalFields() {
     province: '',
     city: '',
     address: '',
-    wantsPromotions: false
+    wantsPromotions: false,
+    dietVegetariano: false,
+    dietVegano: false,
+    dietCeliaco: false
   };
 }
 
@@ -126,7 +129,10 @@ function snapshotFields(checkIn) {
     province: checkIn.province || '',
     city: checkIn.city || '',
     address: checkIn.address || '',
-    wantsPromotions: false
+    wantsPromotions: false,
+    dietVegetariano: Boolean(checkIn.dietVegetariano),
+    dietVegano: Boolean(checkIn.dietVegano),
+    dietCeliaco: Boolean(checkIn.dietCeliaco)
   };
 }
 
@@ -146,7 +152,10 @@ function clientPrefill(client = {}, reservation = {}, guest = {}) {
     province: client.province || '',
     city: client.city || guest.city || '',
     address: getAddressFromNotes(client.notes) || guest.address || '',
-    wantsPromotions: Boolean(client.wantsPromotions)
+    wantsPromotions: Boolean(client.wantsPromotions),
+    dietVegetariano: Boolean(guest.dietVegetariano),
+    dietVegano: Boolean(guest.dietVegano),
+    dietCeliaco: Boolean(guest.dietCeliaco)
   };
 }
 
@@ -368,7 +377,10 @@ async function ensureGuestCheckInRows(reservation, { markSent = false } = {}) {
           country: guest.client?.country || null,
           province: guest.client?.province || null,
           city: guest.city || guest.client?.city || null,
-          address: guest.address || null
+          address: guest.address || null,
+          dietVegetariano: Boolean(guest.dietVegetariano),
+          dietVegano: Boolean(guest.dietVegano),
+          dietCeliaco: Boolean(guest.dietCeliaco)
         }
       });
     } else if (shouldMarkSent && row.status !== 'COMPLETED' && row.status !== 'EXPIRED') {
@@ -969,6 +981,9 @@ async function submitPublicCheckIn(req, res) {
     const city = normalizeText(body.city);
     const address = normalizeText(body.address);
     const wantsPromotions = Boolean(body.wantsPromotions);
+    const dietVegetariano = Boolean(body.dietVegetariano);
+    const dietVegano = Boolean(body.dietVegano);
+    const dietCeliaco = Boolean(body.dietCeliaco);
     const markValidated = Boolean(body.validated);
 
     if (!documentNumberNormalized) {
@@ -1012,7 +1027,10 @@ async function submitPublicCheckIn(req, res) {
             documentIssuingCountry,
             city,
             address,
-            clientId
+            clientId,
+            dietVegetariano,
+            dietVegano,
+            dietCeliaco
           }
         });
 
@@ -1037,6 +1055,9 @@ async function submitPublicCheckIn(req, res) {
               province,
               city,
               address,
+              dietVegetariano,
+              dietVegano,
+              dietCeliaco,
               needsManualReview: resolution.needsManualReview,
               identityConflictNote: resolution.identityConflictNote
             }

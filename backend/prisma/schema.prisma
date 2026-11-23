@@ -244,6 +244,10 @@ model Guest {
   email          String?
   address        String?
   city           String?
+  /// Preferencias alimentarias del huésped (check-in / form manual).
+  dietVegetariano Boolean     @default(false)
+  dietVegano      Boolean     @default(false)
+  dietCeliaco     Boolean     @default(false)
   reservationId  Int?
   /// Vínculo opcional a Client (titular u otro cliente de la agenda).
   clientId       Int?
@@ -272,11 +276,8 @@ model Reservation {
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
-  /// Notas de comidas / régimen alimentario (cocina-recepción).
+  /// Notas de comidas / régimen alimentario (legacy; UI retirada).
   notaComidas         String?
-  dietVegetariano     Boolean                @default(false)
-  dietVegano          Boolean                @default(false)
-  dietCeliaco         Boolean                @default(false)
   /// Requerimiento operativo: necesita cuna en la habitación.
   requiereCuna        Boolean                @default(false)
   /// Requerimiento operativo: necesita lugar de estacionamiento.
@@ -589,6 +590,10 @@ model OnlineCheckIn {
   city           String?
   address        String?
   vehiclePlate   String?
+  /// Preferencias alimentarias snapshot de esta estadía.
+  dietVegetariano Boolean            @default(false)
+  dietVegano      Boolean            @default(false)
+  dietCeliaco     Boolean            @default(false)
   /// Momento en que el huésped subió frente/dorso en este check-in (fotos siempre nuevas).
   documentFrontUploadedAt DateTime?
   documentBackUploadedAt  DateTime?

@@ -1,106 +1,50 @@
-import { useEffect, useState } from 'react';
-import { updateReservation } from '../../services/api';
 import styles from './RegimenTab.module.css';
 
+const DIET_LABELS = [
+  { key: 'dietVegetariano', label: 'Vegetariano' },
+  { key: 'dietVegano', label: 'Vegano' },
+  { key: 'dietCeliaco', label: 'Celíaco' }
+];
+
+function guestDietLabels(guest) {
+  return DIET_LABELS.filter((d) => Boolean(guest?.[d.key])).map((d) => d.label);
+}
+
 /**
- * Submenú Régimen / Comidas de la vista reserva.
- * Flags de dieta (vegetariano / vegano / celíaco).
- * Las notas de estadía van en Reservation.notes (perfil de reserva).
+ * Resumen de régimen por huésped (solo lectura).
+ * Las dietas se editan en Huéspedes / check-in online.
  */
-export default function RegimenTab({ reservation, onSaved }) {
-  const [dietVegetariano, setDietVegetariano] = useState(
-    Boolean(reservation?.dietVegetariano)
-  );
-  const [dietVegano, setDietVegano] = useState(Boolean(reservation?.dietVegano));
-  const [dietCeliaco, setDietCeliaco] = useState(Boolean(reservation?.dietCeliaco));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [savedFlash, setSavedFlash] = useState(false);
-
-  useEffect(() => {
-    setDietVegetariano(Boolean(reservation?.dietVegetariano));
-    setDietVegano(Boolean(reservation?.dietVegano));
-    setDietCeliaco(Boolean(reservation?.dietCeliaco));
-  }, [
-    reservation?.id,
-    reservation?.dietVegetariano,
-    reservation?.dietVegano,
-    reservation?.dietCeliaco
-  ]);
-
-  const handleSave = async () => {
-    if (!reservation?.id) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await updateReservation(reservation.id, {
-        dietVegetariano,
-        dietVegano,
-        dietCeliaco
-      });
-      onSaved?.(updated);
-      setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 1600);
-    } catch (err) {
-      setError(err?.message || 'No se pudo guardar el régimen');
-    } finally {
-      setSaving(false);
-    }
-  };
+export default function RegimenTab({ reservation }) {
+  const guests = Array.isArray(reservation?.guests) ? reservation.guests : [];
 
   return (
     <div className={styles.root} data-testid="regimen-tab">
       <h3 className={styles.heading}>Régimen / Comidas</h3>
       <p className={styles.hint}>
-        Preferencias alimentarias de la estadía. Las notas generales van en el panel
-        de la reserva.
+        Resumen por huésped. Para cargar o cambiar dietas, usá la pestaña Huéspedes o el
+        check-in online.
       </p>
 
-      <fieldset className={styles.flags}>
-        <legend className={styles.legend}>Dieta</legend>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={dietVegetariano}
-            onChange={(e) => setDietVegetariano(e.target.checked)}
-          />
-          Vegetariano
-        </label>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={dietVegano}
-            onChange={(e) => setDietVegano(e.target.checked)}
-          />
-          Vegano
-        </label>
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={dietCeliaco}
-            onChange={(e) => setDietCeliaco(e.target.checked)}
-          />
-          Celíaco
-        </label>
-      </fieldset>
-
-      {error ? (
-        <p className={styles.error} role="alert">
-          {error}
+      {guests.length === 0 ? (
+        <p className={styles.empty} data-testid="regimen-empty">
+          Sin huéspedes cargados.
         </p>
-      ) : null}
-
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.saveBtn}
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? 'Guardando…' : 'Guardar régimen'}
-        </button>
-        {savedFlash ? <span className={styles.saved}>Guardado</span> : null}
-      </div>
+      ) : (
+        <ul className={styles.guestList} data-testid="regimen-guest-list">
+          {guests.map((guest) => {
+            const diets = guestDietLabels(guest);
+            const name = [guest.firstName, guest.lastName].filter(Boolean).join(' ') || 'Huésped';
+            return (
+              <li key={guest.id} className={styles.guestRow}>
+                <span className={styles.guestName}>{name}</span>
+                <span className={styles.guestDiets}>
+                  {diets.length ? diets.join(' · ') : 'Sin preferencias'}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

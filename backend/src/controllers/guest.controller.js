@@ -27,7 +27,10 @@ function guestTableFields(body = {}) {
     phone: normalizeText(body.phone),
     email: normalizeText(body.email),
     address: normalizeText(body.address),
-    city: normalizeText(body.city)
+    city: normalizeText(body.city),
+    dietVegetariano: Boolean(body.dietVegetariano),
+    dietVegano: Boolean(body.dietVegano),
+    dietCeliaco: Boolean(body.dietCeliaco)
   };
 }
 
@@ -325,6 +328,10 @@ exports.updateGuest = async (req, res) => {
       email: data.email !== undefined ? data.email : current.email,
       address: data.address !== undefined ? data.address : current.address,
       city: data.city !== undefined ? data.city : current.city,
+      dietVegetariano:
+        data.dietVegetariano !== undefined ? data.dietVegetariano : current.dietVegetariano,
+      dietVegano: data.dietVegano !== undefined ? data.dietVegano : current.dietVegano,
+      dietCeliaco: data.dietCeliaco !== undefined ? data.dietCeliaco : current.dietCeliaco,
       birthDate: data.birthDate,
       country: data.country,
       province: data.province,

@@ -134,7 +134,10 @@ const HuespedesTab = ({
       province: client.province || '',
       city: guest.city || client.city || '',
       address: guest.address || getAddressFromNotes(client.notes) || '',
-      wantsPromotions: Boolean(client.wantsPromotions)
+      wantsPromotions: Boolean(client.wantsPromotions),
+      dietVegetariano: Boolean(guest.dietVegetariano),
+      dietVegano: Boolean(guest.dietVegano),
+      dietCeliaco: Boolean(guest.dietCeliaco)
     };
   };
 
@@ -641,6 +644,18 @@ const HuespedesTab = ({
                 {guest.phone && (
                   <div className={styles.guestDetail}>
                     <strong>Tel:</strong> {guest.phone}
+                  </div>
+                )}
+                {(guest.dietVegetariano || guest.dietVegano || guest.dietCeliaco) && (
+                  <div className={styles.guestDetail} data-testid="guest-diet-summary">
+                    <strong>Dieta:</strong>{' '}
+                    {[
+                      guest.dietVegetariano ? 'Vegetariano' : null,
+                      guest.dietVegano ? 'Vegano' : null,
+                      guest.dietCeliaco ? 'Celíaco' : null
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </div>
                 )}
               </div>

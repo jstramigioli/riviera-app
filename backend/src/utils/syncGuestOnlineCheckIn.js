@@ -44,6 +44,11 @@ async function syncGuestOnlineCheckInCompleted(prisma, guest, body = {}, resolve
     province: normalizeText(body.province),
     city: normalizeText(body.city ?? guest.city),
     address: normalizeText(body.address ?? guest.address),
+    dietVegetariano: Boolean(
+      body.dietVegetariano !== undefined ? body.dietVegetariano : guest.dietVegetariano
+    ),
+    dietVegano: Boolean(body.dietVegano !== undefined ? body.dietVegano : guest.dietVegano),
+    dietCeliaco: Boolean(body.dietCeliaco !== undefined ? body.dietCeliaco : guest.dietCeliaco),
     needsManualReview: Boolean(resolveMeta?.needsManualReview),
     identityConflictNote: resolveMeta?.identityConflictNote || null
   };

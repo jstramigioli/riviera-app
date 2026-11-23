@@ -573,14 +573,7 @@ const ReservationDetails = () => {
           />
         );
       case 'regimen':
-        return (
-          <RegimenTab
-            reservation={reservation}
-            onSaved={(updated) => {
-              setReservation((prev) => ({ ...prev, ...updated }));
-            }}
-          />
-        );
+        return <RegimenTab reservation={reservation} />;
       default:
         return null;
     }

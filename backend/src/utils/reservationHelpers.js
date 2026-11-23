@@ -803,9 +803,6 @@ async function updateReservationWithSegments(reservationId, updateData) {
   const {
     status,
     notes,
-    dietVegetariano,
-    dietVegano,
-    dietCeliaco,
     requiereCuna,
     requiereEstacionamiento,
     vehicleCount,
@@ -866,11 +863,6 @@ async function updateReservationWithSegments(reservationId, updateData) {
     data: {
       status: status || undefined,
       notes: notes !== undefined ? notes : undefined,
-      ...(dietVegetariano !== undefined
-        ? { dietVegetariano: Boolean(dietVegetariano) }
-        : {}),
-      ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
-      ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
       ...(nextRequiereCuna !== undefined ? { requiereCuna: nextRequiereCuna } : {}),
       ...(nextVehicle
         ? {
