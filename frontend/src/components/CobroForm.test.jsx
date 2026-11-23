@@ -168,7 +168,6 @@ describe('CobroForm facturación', () => {
           moneda: 'ARS',
           metodo: 'Efectivo',
           motivo: 'Cobro',
-          notas: 'Seña parcial',
           fecha: '2026-11-11T15:00:00.000Z'
         }}
         onClose={vi.fn()}

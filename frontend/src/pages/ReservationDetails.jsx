@@ -85,6 +85,8 @@ const ReservationDetails = () => {
   const [sendingCheckIn, setSendingCheckIn] = useState(false);
   const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
 
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
@@ -118,6 +120,7 @@ const ReservationDetails = () => {
 
       setReservation(foundReservation);
       setEditData(foundReservation);
+      setNotesDraft(foundReservation.notes || '');
       setAllReservations(reservationsData);
       setServiceTypes(serviceTypesResponse.data || []);
 
@@ -406,6 +409,28 @@ const ReservationDetails = () => {
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleSaveNotes = async () => {
+    if (!reservation?.id || notesSaving) return;
+    const nextNotes = String(notesDraft || '').trim() || null;
+    const current = reservation.notes || null;
+    if (nextNotes === current) return;
+    setNotesSaving(true);
+    try {
+      const updated = await updateReservation(reservation.id, { notes: nextNotes });
+      setReservation((prev) => ({ ...prev, ...updated, notes: nextNotes }));
+      setNotesDraft(nextNotes || '');
+      notify({ message: 'Notas guardadas', type: 'success', autoDismiss: true });
+    } catch (err) {
+      notify({
+        title: 'Error',
+        message: err?.message || 'No se pudieron guardar las notas',
+        type: 'error'
+      });
+    } finally {
+      setNotesSaving(false);
+    }
   };
 
   const handleEditToggle = () => {
@@ -728,6 +753,25 @@ const ReservationDetails = () => {
                   : null}
               </div>
             )}
+
+            <div className={styles.reservationNotesBlock} data-testid="reservation-notes">
+              <label className={styles.reservationNotesLabel} htmlFor="reservation-notes-field">
+                Notas
+              </label>
+              <textarea
+                id="reservation-notes-field"
+                className={styles.reservationNotesTextarea}
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                onBlur={handleSaveNotes}
+                rows={4}
+                placeholder="Notas de la reserva…"
+                disabled={notesSaving}
+              />
+              {notesSaving ? (
+                <span className={styles.reservationNotesSaving}>Guardando…</span>
+              ) : null}
+            </div>
           </div>
         </div>
 

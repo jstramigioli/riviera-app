@@ -61,12 +61,6 @@ function SelectQueryModal({ isOpen, onClose, queries, clientName, onSelectQuery,
                       <span>{query.room.name}</span>
                     </div>
                   )}
-                  {query.requirementsNotes && (
-                    <div className={styles.queryDetail}>
-                      <span className={styles.detailLabel}> Notas:</span>
-                      <span className={styles.notesPreview}>{query.requirementsNotes}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

@@ -431,8 +431,8 @@ exports.getCuentasParaCobro = async (req, res) => {
 /** Alta Account EXTERNAL (label alcanza). */
 exports.createExternalAccountHandler = async (req, res) => {
   try {
-    const { label, clientId, notes } = req.body || {};
-    const account = await createExternalAccount(prisma, { label, clientId, notes });
+    const { label, clientId } = req.body || {};
+    const account = await createExternalAccount(prisma, { label, clientId });
     res.status(201).json({ success: true, data: account });
   } catch (error) {
     console.error('Error creando cuenta externa:', error);
@@ -602,7 +602,6 @@ exports.createAccountCargo = async (req, res) => {
         descripcion,
         monto: new Decimal(monto),
         subcategoriaCargoId: parseInt(subcategoriaCargoId, 10),
-        notas: notas || null,
         fecha: parseFechaInput(fecha, req)
       },
       include: { subcategoriaCargo: true }
@@ -830,7 +829,6 @@ exports.createAccountCobro = async (req, res) => {
             ? numeroTarjeta
             : null,
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
-          notas: notas || null,
           motivo: motivoCobro,
           fecha: parseFechaInput(fecha, req),
           requiereFacturacion: wantsBilling,
