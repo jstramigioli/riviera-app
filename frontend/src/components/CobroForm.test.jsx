@@ -771,6 +771,13 @@ describe('CobroForm facturación', () => {
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
+    expect(screen.queryByText(/Datos adicionales/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-extras')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-sena-row')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-fecha-lead')).toContainElement(
+      screen.getByTestId('payment-sena-row')
+    )
+
     fireEvent.change(screen.getByLabelText(/Método de pago/i), {
       target: { value: 'Transferencia' }
     })
@@ -778,6 +785,9 @@ describe('CobroForm facturación', () => {
     const toggle = screen.getByLabelText(/Requiere facturación/i)
     expect(toggle).toBeChecked()
     expect(toggle).toBeDisabled()
+    expect(toggle).toHaveAttribute('role', 'switch')
+    expect(screen.queryByText(/Obligatorio para este medio de pago/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-billing-toggle-row')).toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: 'Factura B' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Fecha de facturación/i)).toBeInTheDocument()

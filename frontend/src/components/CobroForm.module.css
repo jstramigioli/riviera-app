@@ -748,14 +748,26 @@
 }
 
 .billingToggleRow {
-  margin: 8px 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.senaUnderFecha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .toggleLabel {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-main);
@@ -766,6 +778,45 @@
   width: 16px;
   height: 16px;
   accent-color: var(--color-primary);
+}
+
+.toggleLabel input[role='switch'] {
+  width: 36px;
+  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  background: var(--color-border-dark, #b0b7c3);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.toggleLabel input[role='switch']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.toggleLabel input[role='switch']:checked {
+  background: var(--color-primary);
+}
+
+.toggleLabel input[role='switch']:checked::after {
+  transform: translateX(16px);
+}
+
+.toggleLabel input[role='switch']:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .billingSection {

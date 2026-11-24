@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FiChevronDown,
   FiPlus,
   FiSave,
   FiUpload,
@@ -251,7 +250,6 @@ const CobroForm = ({
   const [showCreateExternal, setShowCreateExternal] = useState(false);
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
-  const [extrasOpen, setExtrasOpen] = useState(false);
   const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -1909,6 +1907,25 @@ const CobroForm = ({
                     disabled={loading}
                     data-testid="payment-fecha"
                   />
+                  {!isDevolucion && canUseSena ? (
+                    <div className={styles.senaUnderFecha} data-testid="payment-sena-row">
+                      <span className={styles.fieldLabel} id="payment-sena-label">
+                        Seña
+                      </span>
+                      <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
+                        <input
+                          id="payment-sena-toggle"
+                          type="checkbox"
+                          role="switch"
+                          checked={esSena}
+                          disabled={loading}
+                          aria-labelledby="payment-sena-label"
+                          onChange={(e) => setEsSena(e.target.checked)}
+                        />
+                        <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* 1) Destino del cobro (sin título visible) */}
@@ -2733,63 +2750,30 @@ const CobroForm = ({
                 </section>
               ) : null}
 
-              {/* 5) Datos adicionales */}
-              <details
-                className={styles.extrasDetails}
-                data-testid="payment-extras"
-                open={extrasOpen}
-                onToggle={(e) => setExtrasOpen(e.currentTarget.open)}
-              >
-                <summary>
-                  Datos adicionales
-                  <FiChevronDown aria-hidden="true" />
-                </summary>
-                <div className={styles.extrasBody}>
-                  <div className={styles.toggleStack}>
-                    {!isDevolucion && canUseSena ? (
-                      <div className={styles.formGroup}>
-                        <span className={styles.fieldLabel} id="payment-sena-label">
-                          Seña
-                        </span>
-                        <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                          <input
-                            id="payment-sena-toggle"
-                            type="checkbox"
-                            checked={esSena}
-                            disabled={loading}
-                            aria-labelledby="payment-sena-label"
-                            onChange={(e) => setEsSena(e.target.checked)}
-                          />
-                          <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                        </label>
-                      </div>
-                    ) : null}
-
-                    {!isEditMode ? (
-                      <div className={styles.formGroup}>
-                        <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
-                          <input
-                            id="payment-billing-toggle"
-                            type="checkbox"
-                            checked={billingEnabled}
-                            disabled={billingForced || loading}
-                            onChange={(e) => setRequiereFacturacion(e.target.checked)}
-                          />
-                          <span>Requiere facturación</span>
-                          {billingForced && (
-                            <span className={styles.helpText}>
-                              Obligatorio para este medio de pago
-                            </span>
-                          )}
-                        </label>
-                      </div>
-                    ) : null}
-                  </div>
-
+              {!isEditMode ? (
+                <div
+                  className={styles.billingToggleRow}
+                  data-testid="payment-billing-toggle-row"
+                >
+                  <span className={styles.fieldLabel} id="payment-billing-label">
+                    Requiere facturación
+                  </span>
+                  <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
+                    <input
+                      id="payment-billing-toggle"
+                      type="checkbox"
+                      role="switch"
+                      checked={billingEnabled}
+                      disabled={billingForced || loading}
+                      aria-labelledby="payment-billing-label"
+                      onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                    />
+                    <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
+                  </label>
                 </div>
-              </details>
+              ) : null}
 
-              {/* Billing: visible when enabled (below extras so fields stay fillable) */}
+              {/* Billing form: visible when enabled */}
               {!isEditMode && billingEnabled && (
                 <div className={`${styles.billingSection} ${styles.billingBelow}`}>
                   <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
