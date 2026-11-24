@@ -2901,7 +2901,7 @@ const CobroForm = ({
                   <span className={styles.saldoValue}>{headerIngresadoDisplay}</span>
                 </div>
                 <div className={styles.saldoBlock}>
-                  <span className={styles.saldoLabel}>Monto descontado</span>
+                  <span className={styles.saldoLabel}>Monto bonificado</span>
                   <span className={styles.saldoValue}>{headerDescontadoDisplay}</span>
                 </div>
                 <div className={styles.saldoBlock}>
