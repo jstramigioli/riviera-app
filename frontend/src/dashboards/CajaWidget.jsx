@@ -9,71 +9,16 @@ import CobrosHistorialTable, {
 } from '../components/CobrosHistorialTable';
 import styles from './ReceptionDashboard.module.css';
 
-const RANGE_OPTIONS = [
-  { days: 1, label: 'Hoy' },
-  { days: 3, label: '3 días' },
-  { days: 7, label: '7 días' },
-];
-
-function addDaysIso(iso, delta) {
-  const [y, m, d] = String(iso).split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + delta);
-  const yy = dt.getFullYear();
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  const dd = String(dt.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
-
-/** Día civil local (YYYY-MM-DD) — evita que medianoche UTC caiga en el día anterior. */
-function toLocalIsoDate(value) {
-  if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  const yy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
-
-export function pagoInHorizon(cobro, todayIso, days) {
-  const fechaIso = toLocalIsoDate(cobro?.fecha);
-  if (!fechaIso || !todayIso) return false;
-  const fromIso = addDaysIso(todayIso, -(Math.max(1, days) - 1));
-  return fechaIso >= fromIso && fechaIso <= todayIso;
-}
-
-function RangeFilter({ value, onChange, labelledBy }) {
-  return (
-    <div className={styles.rangeGroup} role="group" aria-labelledby={labelledBy}>
-      {RANGE_OPTIONS.map((opt) => (
-        <button
-          key={opt.days}
-          type="button"
-          className={`${styles.rangeBtn} ${
-            value === opt.days ? styles.rangeBtnActive : ''
-          }`}
-          aria-pressed={value === opt.days}
-          onClick={() => onChange(opt.days)}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /**
  * Widget Caja del dashboard: historial de cobros (misma tabla que Estado de cuentas)
- * con rango Hoy | 3 días | 7 días y alta de cobro. Sin editar/eliminar aquí
+ * con alta de cobro. Sin filtros de rango ni editar/eliminar aquí
  * (esas acciones viven en Estado de cuentas, perfil y reserva).
  * `refreshToken`: el padre lo incrementa tras crear/editar cobro fuera del widget (FAB).
  */
-export default function CajaWidget({ todayIso, refreshToken = 0, className = '' }) {
+export default function CajaWidget({ refreshToken = 0, className = '' }) {
   const navigate = useNavigate();
   const { can } = useAuth();
   const canFacturacion = can('facturacion');
-  const [horizonDays, setHorizonDays] = useState(1);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -101,14 +46,6 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load es estable en la práctica
   }, [refreshToken]);
 
-  const horizonPayments = useMemo(
-    () =>
-      (payments || []).filter((cobro) =>
-        pagoInHorizon(cobro, todayIso, horizonDays)
-      ),
-    [payments, todayIso, horizonDays]
-  );
-
   const hasActivePayFilters = useMemo(
     () =>
       Object.values(payFilters).some((value) => String(value || '').trim() !== ''),
@@ -134,11 +71,6 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
           Caja
         </h2>
         <div className={styles.moduleToolbar}>
-          <RangeFilter
-            value={horizonDays}
-            onChange={setHorizonDays}
-            labelledBy="dash-caja"
-          />
           {hasActivePayFilters ? (
             <button
               type="button"
@@ -173,13 +105,13 @@ export default function CajaWidget({ todayIso, refreshToken = 0, className = '' 
       ) : (
         <div className={styles.cajaTableWrap}>
           <CobrosHistorialTable
-            payments={horizonPayments}
+            payments={payments}
             onPaymentsChange={setPayments}
             payFilters={payFilters}
             onPayFiltersChange={setPayFilters}
             enableColumnFilters
             canDeleteFactura={canFacturacion}
-            emptyMessage="Sin cobros en el rango seleccionado"
+            emptyMessage="Sin cobros"
             onClientClick={(client) => {
               if (client?.id) navigate(`/clients/${client.id}`);
             }}

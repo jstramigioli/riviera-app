@@ -755,7 +755,7 @@ export default function ReceptionDashboard() {
           </div>
         </section>
 
-        <CajaWidget todayIso={todayIso} refreshToken={cajaRefreshToken} />
+        <CajaWidget refreshToken={cajaRefreshToken} />
         </div>
 
         <div className={styles.masonryColSide}>

@@ -42,9 +42,7 @@ vi.mock('../components/CobroForm', () => ({
 }))
 
 import { getAllCobros } from '../services/api'
-import CajaWidget, { pagoInHorizon } from './CajaWidget'
-
-const TODAY = '2026-11-20'
+import CajaWidget from './CajaWidget'
 
 function makeCobro({ id, fecha, codigo, motivo = 'Cobro', metodo = 'Efectivo', reservaId = 10 }) {
   return {
@@ -78,10 +76,10 @@ describe('CajaWidget', () => {
     ])
   })
 
-  it('muestra cobros de hoy por defecto y permite cambiar a 3 días', async () => {
+  it('muestra todos los cobros sin filtros de rango', async () => {
     render(
       <MemoryRouter>
-        <CajaWidget todayIso={TODAY} />
+        <CajaWidget />
       </MemoryRouter>
     )
 
@@ -90,22 +88,17 @@ describe('CajaWidget', () => {
     })
 
     expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
-    expect(screen.queryByTestId('cobro-row-2')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('cobro-row-3')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: '3 días' }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
-      expect(screen.getByTestId('cobro-row-2')).toBeInTheDocument()
-    })
-    expect(screen.queryByTestId('cobro-row-3')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-2')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-3')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hoy' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '3 días' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '7 días' })).not.toBeInTheDocument()
   })
 
   it('abre crear cobro y no ofrece editar ni eliminar en el listado', async () => {
     render(
       <MemoryRouter>
-        <CajaWidget todayIso={TODAY} />
+        <CajaWidget />
       </MemoryRouter>
     )
 
@@ -121,22 +114,10 @@ describe('CajaWidget', () => {
     expect(screen.getByTestId('payment-form')).toHaveTextContent('create')
   })
 
-  it('pagoInHorizon compara por día civil local', () => {
-    expect(
-      pagoInHorizon({ fecha: '2026-11-20T15:00:00.000Z' }, TODAY, 1)
-    ).toBe(true)
-    expect(
-      pagoInHorizon({ fecha: '2026-11-19T15:00:00.000Z' }, TODAY, 1)
-    ).toBe(false)
-    expect(
-      pagoInHorizon({ fecha: '2026-11-18T15:00:00.000Z' }, TODAY, 3)
-    ).toBe(true)
-  })
-
   it('vuelve a pedir cobros cuando cambia refreshToken', async () => {
     const { rerender } = render(
       <MemoryRouter>
-        <CajaWidget todayIso={TODAY} refreshToken={0} />
+        <CajaWidget refreshToken={0} />
       </MemoryRouter>
     )
 
@@ -150,7 +131,7 @@ describe('CajaWidget', () => {
 
     rerender(
       <MemoryRouter>
-        <CajaWidget todayIso={TODAY} refreshToken={1} />
+        <CajaWidget refreshToken={1} />
       </MemoryRouter>
     )
 
@@ -168,7 +149,7 @@ describe('CajaWidget', () => {
             path="/"
             element={
               <>
-                <CajaWidget todayIso={TODAY} />
+                <CajaWidget />
                 <LocationProbe />
               </>
             }
@@ -207,7 +188,7 @@ describe('CajaWidget', () => {
 
     render(
       <MemoryRouter>
-        <CajaWidget todayIso={TODAY} />
+        <CajaWidget />
       </MemoryRouter>
     )
 
