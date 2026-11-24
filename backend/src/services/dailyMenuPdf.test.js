@@ -1,6 +1,5 @@
 const {
   buildDailyMenuPdfBuffer,
-  resolveMenuSpacing,
   POSTRE_TWO_COL_MIN,
   MAIN_MIN_PT,
   NAME_PT,
@@ -70,7 +69,7 @@ const DENSE_13_12_ITEMS = [
 ];
 
 describe('dailyMenuPdf', () => {
-  it('platos/secciones fijos en 16pt y página A5', () => {
+  it('tipografía fija ~16pt y página A5 (sin gaps fluidos)', () => {
     expect(NAME_PT).toBe(16);
     expect(SECTION_PT).toBe(16);
     expect(MAIN_MIN_PT).toBe(16);
@@ -151,76 +150,19 @@ describe('dailyMenuPdf', () => {
     expect(buf.length).toBeGreaterThan(500);
   });
 
-  it('menú denso 13/12: 16pt, 1 A5, gaps caben sin overflow', async () => {
-    const menu = {
+  it('menú denso 13/12: 1 A5, 16pt, sin API de gaps fluidos', async () => {
+    expect(() => require('./dailyMenuPdf').resolveMenuSpacing).toThrow;
+    const mod = require('./dailyMenuPdf');
+    expect(mod.resolveMenuSpacing).toBeUndefined();
+
+    const buf = await buildDailyMenuPdfBuffer({
       date: new Date(Date.UTC(2026, 11, 13, 12)),
       kind: 'CONVENTIONAL',
       items: DENSE_13_12_ITEMS
-    };
-    const spacing = resolveMenuSpacing(menu);
-    expect(spacing.fits).toBe(true);
-    expect(spacing.nameSize).toBe(16);
-    expect(spacing.sectionSize).toBe(16);
-    // El pie no acumula slack: último texto cerca del borde útil.
-    expect(spacing.bottomGap).toBeLessThan(3);
-    expect(spacing.bottomEdgeGap).toBeLessThan(12);
-
-    const buf = await buildDailyMenuPdfBuffer(menu);
+    });
     const asText = buf.toString('latin1');
     const pageCount = Number((asText.match(/\/Count\s+(\d+)/) || [])[1] || 0);
     expect(pageCount).toBe(1);
-  });
-
-  it('menú corto reparte más aire que el denso (no acumula todo abajo)', () => {
-    const dense = resolveMenuSpacing({
-      date: new Date(Date.UTC(2026, 11, 13, 12)),
-      kind: 'CONVENTIONAL',
-      items: DENSE_13_12_ITEMS
-    });
-    const sparse = resolveMenuSpacing({
-      date: new Date(Date.UTC(2026, 11, 14, 12)),
-      kind: 'CONVENTIONAL',
-      items: [
-        {
-          section: 'ENTRADA',
-          nameSnapshot: 'Empanadas',
-          descriptionSnap: null,
-          sortOrder: 0
-        },
-        {
-          section: 'SOPA',
-          nameSnapshot: 'Consomé',
-          descriptionSnap: null,
-          sortOrder: 1
-        },
-        {
-          section: 'PRIMER_PLATO',
-          nameSnapshot: 'Ñoquis',
-          descriptionSnap: null,
-          sortOrder: 2
-        },
-        {
-          section: 'POSTRE',
-          nameSnapshot: 'Flan',
-          descriptionSnap: null,
-          sortOrder: 3
-        },
-        {
-          section: 'POSTRE',
-          nameSnapshot: 'Helado',
-          descriptionSnap: null,
-          sortOrder: 4
-        }
-      ]
-    });
-    expect(sparse.afterSection).toBeGreaterThan(dense.afterSection);
-    expect(sparse.itemGap + sparse.afterSection).toBeGreaterThan(
-      dense.itemGap + dense.afterSection
-    );
-    expect(sparse.slack).toBeGreaterThan(dense.slack);
-    expect(sparse.bottomGap).toBeLessThan(3);
-    expect(dense.bottomGap).toBeLessThan(3);
-    expect(sparse.bottomEdgeGap).toBeLessThan(12);
-    expect(dense.bottomEdgeGap).toBeLessThan(12);
+    expect(buf.slice(0, 4).toString()).toBe('%PDF');
   });
 });
