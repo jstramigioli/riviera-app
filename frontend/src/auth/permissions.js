@@ -8,7 +8,8 @@ const PERMISSIONS = {
   tarifas: [ROLES.ADMIN, ROLES.PROPIETARIO],
   /** Submenú Facturación A/B + subida PDF de factura. */
   facturacion: [ROLES.ADMIN, ROLES.PROPIETARIO],
-  reportes: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA],
+  /** Estadísticas: solo admin y propietario (sin gerencia). */
+  reportes: [ROLES.ADMIN, ROLES.PROPIETARIO],
   auditoria: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA],
   /** Medios de pago (catálogo; descuentos solo en promociones). */
   mediosPago: [ROLES.ADMIN, ROLES.PROPIETARIO, ROLES.GERENCIA],
