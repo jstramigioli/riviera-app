@@ -1,11 +1,13 @@
 const {
   buildDailyMenuPdfBuffer,
-  resolveMenuTypography,
+  resolveMenuSpacing,
   POSTRE_TWO_COL_MIN,
   MAIN_MIN_PT,
+  NAME_PT,
   TITLE_PT,
   DATE_PT,
   SECTION_PT,
+  DESC_PT,
   A5_PT
 } = require('./dailyMenuPdf');
 
@@ -68,11 +70,13 @@ const DENSE_13_12_ITEMS = [
 ];
 
 describe('dailyMenuPdf', () => {
-  it('pisos de legibilidad y página A5', () => {
-    expect(MAIN_MIN_PT).toBeGreaterThanOrEqual(14);
-    expect(TITLE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(SECTION_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(DATE_PT).toBeLessThan(MAIN_MIN_PT);
+  it('platos/secciones fijos en 16pt y página A5', () => {
+    expect(NAME_PT).toBe(16);
+    expect(SECTION_PT).toBe(16);
+    expect(MAIN_MIN_PT).toBe(16);
+    expect(TITLE_PT).toBe(18);
+    expect(DATE_PT).toBe(12);
+    expect(DESC_PT).toBe(14);
     expect(A5_PT[0]).toBeCloseTo(148 * 2.83465, 3);
     expect(A5_PT[1]).toBeCloseTo(210 * 2.83465, 3);
   });
@@ -147,25 +151,69 @@ describe('dailyMenuPdf', () => {
     expect(buf.length).toBeGreaterThan(500);
   });
 
-  it('menú denso 13/12 cabe en 1 A5 con tipografía maximizada (≥14pt platos)', async () => {
+  it('menú denso 13/12: 16pt, 1 A5, gaps caben sin overflow', async () => {
     const menu = {
       date: new Date(Date.UTC(2026, 11, 13, 12)),
       kind: 'CONVENTIONAL',
       items: DENSE_13_12_ITEMS
     };
-    const typo = resolveMenuTypography(menu);
-    expect(typo.fits).toBe(true);
-    expect(typo.nameSize).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(typo.sectionSize).toBe(typo.nameSize);
-    expect(typo.titleSize).toBeGreaterThanOrEqual(typo.nameSize);
-    expect(typo.descSize).toBeGreaterThanOrEqual(11);
-    // Con el dataset denso del 13/12 debe llegar al menos a 18pt.
-    expect(typo.nameSize).toBeGreaterThanOrEqual(18);
+    const spacing = resolveMenuSpacing(menu);
+    expect(spacing.fits).toBe(true);
+    expect(spacing.nameSize).toBe(16);
+    expect(spacing.sectionSize).toBe(16);
 
     const buf = await buildDailyMenuPdfBuffer(menu);
     const asText = buf.toString('latin1');
     const pageCount = Number((asText.match(/\/Count\s+(\d+)/) || [])[1] || 0);
     expect(pageCount).toBe(1);
-    expect(buf.slice(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('menú corto reparte más aire que el denso (no acumula todo abajo)', () => {
+    const dense = resolveMenuSpacing({
+      date: new Date(Date.UTC(2026, 11, 13, 12)),
+      kind: 'CONVENTIONAL',
+      items: DENSE_13_12_ITEMS
+    });
+    const sparse = resolveMenuSpacing({
+      date: new Date(Date.UTC(2026, 11, 14, 12)),
+      kind: 'CONVENTIONAL',
+      items: [
+        {
+          section: 'ENTRADA',
+          nameSnapshot: 'Empanadas',
+          descriptionSnap: null,
+          sortOrder: 0
+        },
+        {
+          section: 'SOPA',
+          nameSnapshot: 'Consomé',
+          descriptionSnap: null,
+          sortOrder: 1
+        },
+        {
+          section: 'PRIMER_PLATO',
+          nameSnapshot: 'Ñoquis',
+          descriptionSnap: null,
+          sortOrder: 2
+        },
+        {
+          section: 'POSTRE',
+          nameSnapshot: 'Flan',
+          descriptionSnap: null,
+          sortOrder: 3
+        },
+        {
+          section: 'POSTRE',
+          nameSnapshot: 'Helado',
+          descriptionSnap: null,
+          sortOrder: 4
+        }
+      ]
+    });
+    expect(sparse.afterSection).toBeGreaterThan(dense.afterSection);
+    expect(sparse.itemGap + sparse.afterSection).toBeGreaterThan(
+      dense.itemGap + dense.afterSection
+    );
+    expect(sparse.slack).toBeGreaterThan(dense.slack);
   });
 });

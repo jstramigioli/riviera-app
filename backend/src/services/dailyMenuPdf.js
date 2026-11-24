@@ -33,19 +33,15 @@ const CONVENTIONAL_ORDER = [
 const POSTRE_TWO_COL_MIN = 3;
 
 /**
- * Pisos de legibilidad. El layout sube lo más posible por encima
- * mientras quepa en 1 A5 (prioriza tipo sobre aire).
+ * Tipografía fija pedida por Julián: platos/secciones 16pt.
+ * Título un poco mayor; fecha/notas legibles pero subordinadas.
  */
-const MAIN_MIN_PT = 14;
-const TITLE_MIN_PT = 16;
-const DATE_MIN_PT = 11;
-const SECTION_MIN_PT = 14;
-const DESC_MIN_PT = 11;
-
-/** Compat / tests: referencias de piso. */
-const TITLE_PT = TITLE_MIN_PT;
-const DATE_PT = DATE_MIN_PT;
-const SECTION_PT = SECTION_MIN_PT;
+const NAME_PT = 16;
+const SECTION_PT = 16;
+const TITLE_PT = 18;
+const DATE_PT = 12;
+const DESC_PT = 14;
+const MAIN_MIN_PT = NAME_PT;
 
 /** A5 en puntos (148×210 mm). */
 const A5_PT = [148 * 2.83465, 210 * 2.83465];
@@ -53,6 +49,8 @@ const A5_PT = [148 * 2.83465, 210 * 2.83465];
 const A4_PT = A5_PT;
 
 const LOGO_ASPECT = 740 / 410;
+const LOGO_H = 40;
+const BAND_PAD = 10;
 
 const LOGO_CANDIDATES = [
   path.join(__dirname, '../../assets/riviera-hotel-logo.png'),
@@ -62,10 +60,23 @@ const LOGO_CANDIDATES = [
   path.join(__dirname, '../../../frontend/src/assets/logo-hotel.png')
 ];
 
-const PAGE_MARGINS = { top: 18, bottom: 18, left: 26, right: 26 };
+const PAGE_MARGINS = { top: 20, bottom: 20, left: 28, right: 28 };
 
-const NAME_PT_MAX = 22;
-const NAME_PT_MIN = MAIN_MIN_PT;
+/** Pisos de gap (pt). El slack restante se reparte entre slots flexibles. */
+const MIN_AFTER_TITLE = 4;
+const MIN_AFTER_DATE = 6;
+const MIN_AFTER_RULE = 8;
+const MIN_AFTER_SECTION_TITLE = 3;
+const MIN_ITEM_GAP = 3;
+const MIN_AFTER_SECTION = 6;
+const MIN_BAND_TO_TITLE = 8;
+
+/** Techos para que menús muy vacíos no queden excesivamente aireados. */
+const MAX_ITEM_GAP = 18;
+const MAX_AFTER_SECTION = 28;
+const MAX_AFTER_RULE = 22;
+
+const COL_GAP = 10;
 
 function resolveLogoPath() {
   for (const candidate of LOGO_CANDIDATES) {
@@ -99,27 +110,15 @@ function groupItems(items) {
   return map;
 }
 
-/** Escala tipográfica: legibilidad primero, gaps mínimos. */
-function typographyForNameSize(namePt) {
-  const nameSize = namePt;
-  const sectionSize = Math.max(SECTION_MIN_PT, namePt);
-  const titleSize = Math.max(TITLE_MIN_PT, namePt + 2);
-  const dateSize = Math.max(DATE_MIN_PT, Math.round(namePt * 0.7));
-  const descSize = Math.max(DESC_MIN_PT, namePt - 2);
+function fixedTypography() {
   return {
-    nameSize,
-    sectionSize,
-    titleSize,
-    dateSize,
-    descSize,
-    itemGap: 0.05,
-    sectionGap: 0.12,
-    afterSectionGap: 0.06,
-    afterTitleGap: 0.08,
-    afterDateGap: 0.16,
-    afterRuleGap: 0.24,
-    logoH: namePt >= 18 ? 32 : namePt >= 16 ? 36 : 40,
-    bandPad: 8
+    nameSize: NAME_PT,
+    sectionSize: SECTION_PT,
+    titleSize: TITLE_PT,
+    dateSize: DATE_PT,
+    descSize: DESC_PT,
+    logoH: LOGO_H,
+    bandPad: BAND_PAD
   };
 }
 
@@ -138,10 +137,37 @@ function sectionTitleHeight(doc, text, sectionSize, width) {
   return doc.heightOfString(text, { width, lineGap: 0, characterSpacing: 0.6 });
 }
 
+function postreBlockHeight(doc, list, nameSize, descSize, contentWidth, itemGapPt) {
+  if (!list.length) return 0;
+  if (list.length < POSTRE_TWO_COL_MIN) {
+    let h = 0;
+    list.forEach((item, i) => {
+      h += itemBlockHeight(doc, item, nameSize, descSize, contentWidth);
+      if (i < list.length - 1) h += itemGapPt;
+    });
+    return h;
+  }
+  const colWidth = (contentWidth - COL_GAP) / 2;
+  const mid = Math.ceil(list.length / 2);
+  const leftCol = list.slice(0, mid);
+  const rightCol = list.slice(mid);
+  const colH = (col) => {
+    let h = 0;
+    col.forEach((item, i) => {
+      h += itemBlockHeight(doc, item, nameSize, descSize, colWidth);
+      if (i < col.length - 1) h += itemGapPt;
+    });
+    return h;
+  };
+  return Math.max(colH(leftCol), colH(rightCol));
+}
+
 /**
- * Simula la altura del menú sin dibujar (evita falsos "fits" por page-break de PDFKit).
+ * Cuenta slots flexibles y altura sólida (texto + gaps mínimos).
+ * Devuelve gaps en pt ya repartidos para llenar la hoja sin acumular vacío abajo.
  */
-function measureMenuFinalY(menu, typo, logoPath) {
+function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
+  const typo = fixedTypography();
   const doc = new PDFDocument({
     size: A5_PT,
     margins: { ...PAGE_MARGINS },
@@ -150,98 +176,138 @@ function measureMenuFinalY(menu, typo, logoPath) {
   doc.on('data', () => {});
 
   const pageWidth = A5_PT[0];
-  const left = PAGE_MARGINS.left;
   const contentWidth = pageWidth - PAGE_MARGINS.left - PAGE_MARGINS.right;
   const bottomLimit = A5_PT[1] - PAGE_MARGINS.bottom;
-
-  const {
-    nameSize,
-    sectionSize,
-    titleSize,
-    dateSize,
-    descSize,
-    itemGap,
-    sectionGap,
-    afterSectionGap,
-    afterTitleGap,
-    afterDateGap,
-    afterRuleGap,
-    logoH,
-    bandPad
-  } = typo;
-
   const bySection = groupItems(menu.items);
-  const bandHeight = logoPath ? logoH + bandPad : 40;
-  let y = bandHeight + 8;
+  const bandHeight = logoPath ? typo.logoH + typo.bandPad : 40;
 
-  doc.font('Helvetica-Bold').fontSize(titleSize);
-  y += doc.heightOfString('Menú', { width: contentWidth, lineGap: 0 });
-  y += titleSize * afterTitleGap;
-
-  doc.font('Helvetica').fontSize(dateSize);
-  y += doc.heightOfString(formatMenuDate(menu.date) || ' ', {
+  let solid = bandHeight + MIN_BAND_TO_TITLE;
+  doc.font('Helvetica-Bold').fontSize(typo.titleSize);
+  solid += doc.heightOfString('Menú', { width: contentWidth, lineGap: 0 });
+  solid += MIN_AFTER_TITLE;
+  doc.font('Helvetica').fontSize(typo.dateSize);
+  solid += doc.heightOfString(formatMenuDate(menu.date) || ' ', {
     width: contentWidth,
     lineGap: 0
   });
-  y += dateSize * afterDateGap;
-  y += 1; // rule
-  y += Math.max(nameSize, sectionSize) * afterRuleGap;
+  solid += MIN_AFTER_DATE;
+  solid += 1; // rule
+  solid += MIN_AFTER_RULE;
 
-  const gapAfterItem = nameSize * itemGap;
+  // Slots flexibles: header (rule→body) + entre secciones + entre ítems
+  let flexSlots = 1; // after-rule absorbs slack
+  let itemGapSlots = 0;
+  let afterSectionSlots = 0;
 
   if (menu.kind === 'BUFFET') {
     const list = bySection.get('BUFFET') || [];
-    for (const item of list) {
-      y += itemBlockHeight(doc, item, nameSize, descSize, contentWidth);
-      y += gapAfterItem;
-    }
+    list.forEach((item, i) => {
+      solid += itemBlockHeight(doc, item, typo.nameSize, typo.descSize, contentWidth);
+      if (i < list.length - 1) {
+        solid += MIN_ITEM_GAP;
+        itemGapSlots += 1;
+      }
+    });
   } else {
+    const presentSections = [];
     for (const section of CONVENTIONAL_ORDER) {
       if (section === 'ENSALADA') {
-        y += sectionTitleHeight(
-          doc,
-          MESA_ENSALADAS.toUpperCase(),
-          sectionSize,
-          contentWidth
-        );
-        y += sectionSize * sectionGap;
+        presentSections.push({ section, list: null, saladOnly: true });
         continue;
       }
       const list = bySection.get(section) || [];
       if (!list.length) continue;
-      y += sectionTitleHeight(
-        doc,
-        SECTION_LABELS[section].toUpperCase(),
-        sectionSize,
-        contentWidth
-      );
-      y += sectionSize * 0.08;
+      presentSections.push({ section, list, saladOnly: false });
+    }
 
-      if (section === 'POSTRE' && list.length >= POSTRE_TWO_COL_MIN) {
-        const gap = 10;
-        const colWidth = (contentWidth - gap) / 2;
-        const mid = Math.ceil(list.length / 2);
-        const leftCol = list.slice(0, mid);
-        const rightCol = list.slice(mid);
-        let leftH = 0;
-        let rightH = 0;
-        for (const item of leftCol) {
-          leftH += itemBlockHeight(doc, item, nameSize, descSize, colWidth);
-          leftH += gapAfterItem;
-        }
-        for (const item of rightCol) {
-          rightH += itemBlockHeight(doc, item, nameSize, descSize, colWidth);
-          rightH += gapAfterItem;
-        }
-        y += Math.max(leftH, rightH);
+    presentSections.forEach((block, idx) => {
+      if (block.saladOnly) {
+        solid += sectionTitleHeight(
+          doc,
+          MESA_ENSALADAS.toUpperCase(),
+          typo.sectionSize,
+          contentWidth
+        );
       } else {
-        for (const item of list) {
-          y += itemBlockHeight(doc, item, nameSize, descSize, contentWidth);
-          y += gapAfterItem;
+        solid += sectionTitleHeight(
+          doc,
+          SECTION_LABELS[block.section].toUpperCase(),
+          typo.sectionSize,
+          contentWidth
+        );
+        solid += MIN_AFTER_SECTION_TITLE;
+        if (block.section === 'POSTRE') {
+          solid += postreBlockHeight(
+            doc,
+            block.list,
+            typo.nameSize,
+            typo.descSize,
+            contentWidth,
+            MIN_ITEM_GAP
+          );
+          if (block.list.length >= POSTRE_TWO_COL_MIN) {
+            const mid = Math.ceil(block.list.length / 2);
+            itemGapSlots += Math.max(0, mid - 1);
+            // right col gaps are parallel — no extra vertical slots
+          } else {
+            itemGapSlots += Math.max(0, block.list.length - 1);
+          }
+        } else {
+          block.list.forEach((item, i) => {
+            solid += itemBlockHeight(
+              doc,
+              item,
+              typo.nameSize,
+              typo.descSize,
+              contentWidth
+            );
+            if (i < block.list.length - 1) {
+              solid += MIN_ITEM_GAP;
+              itemGapSlots += 1;
+            }
+          });
         }
       }
-      y += Math.max(nameSize, sectionSize) * afterSectionGap;
-    }
+      if (idx < presentSections.length - 1) {
+        solid += MIN_AFTER_SECTION;
+        afterSectionSlots += 1;
+      }
+    });
+  }
+
+  flexSlots += itemGapSlots + afterSectionSlots;
+
+  const slack = Math.max(0, bottomLimit - solid);
+  // Pesos: más aire entre secciones que entre ítems; el after-rule también crece.
+  const weightRule = 1.4;
+  const weightSection = 1.6;
+  const weightItem = 1;
+  const totalWeight =
+    weightRule + afterSectionSlots * weightSection + itemGapSlots * weightItem;
+
+  const unit = totalWeight > 0 ? slack / totalWeight : 0;
+
+  let afterRule = Math.min(MAX_AFTER_RULE, MIN_AFTER_RULE + unit * weightRule);
+  let afterSection = Math.min(
+    MAX_AFTER_SECTION,
+    MIN_AFTER_SECTION + unit * weightSection
+  );
+  let itemGap = Math.min(MAX_ITEM_GAP, MIN_ITEM_GAP + unit * weightItem);
+
+  // Si los techos dejan slack sin usar, repartir el resto solo en after-section
+  // (y rule) para no dejar vacío abajo.
+  const usedExtra =
+    (afterRule - MIN_AFTER_RULE) +
+    afterSectionSlots * (afterSection - MIN_AFTER_SECTION) +
+    itemGapSlots * (itemGap - MIN_ITEM_GAP);
+  let leftover = slack - usedExtra;
+  if (leftover > 0.5 && afterSectionSlots > 0) {
+    const bump = leftover / (afterSectionSlots + (weightRule > 0 ? 1 : 0));
+    afterSection += bump;
+    afterRule += bump;
+    leftover = 0;
+  } else if (leftover > 0.5) {
+    afterRule += leftover;
   }
 
   try {
@@ -250,7 +316,27 @@ function measureMenuFinalY(menu, typo, logoPath) {
     /* ignore */
   }
 
-  return { finalY: y, bottomLimit, fits: y <= bottomLimit + 0.5 };
+  return {
+    ...typo,
+    fits: solid <= bottomLimit + 0.5,
+    solid,
+    slack,
+    bottomLimit,
+    afterTitle: MIN_AFTER_TITLE,
+    afterDate: MIN_AFTER_DATE,
+    afterRule,
+    afterSectionTitle: MIN_AFTER_SECTION_TITLE,
+    itemGap,
+    afterSection,
+    bandToTitle: MIN_BAND_TO_TITLE,
+    itemGapSlots,
+    afterSectionSlots
+  };
+}
+
+/** @deprecated nombre: ahora fija 16pt + gaps fluidos. */
+function resolveMenuTypography(menu, logoPath = resolveLogoPath()) {
+  return resolveMenuSpacing(menu, logoPath);
 }
 
 function drawCenteredItemAt(doc, item, nameSize, descSize, x, width, y) {
@@ -283,49 +369,51 @@ function drawCenteredItem(doc, item, nameSize, descSize, x, width) {
   doc.y = drawCenteredItemAt(doc, item, nameSize, descSize, x, width, doc.y);
 }
 
-/**
- * Postres 1–2 cols. Y absoluta + sin salto mid-columna (PDFKit).
- */
-function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth, itemGap = 0.08) {
-  const gapAfter = nameSize * itemGap;
-
+function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth, itemGapPt) {
   if (list.length < POSTRE_TWO_COL_MIN) {
-    for (const item of list) {
+    list.forEach((item, i) => {
       drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-      doc.y += gapAfter;
-    }
+      if (i < list.length - 1) doc.y += itemGapPt;
+    });
     return;
   }
 
-  const gap = 10;
-  const colWidth = (contentWidth - gap) / 2;
+  const colWidth = (contentWidth - COL_GAP) / 2;
   const mid = Math.ceil(list.length / 2);
   const leftCol = list.slice(0, mid);
   const rightCol = list.slice(mid);
   const startY = doc.y;
-  const rightX = left + colWidth + gap;
+  const rightX = left + colWidth + COL_GAP;
 
   const savedBottom = doc.page.margins.bottom;
   doc.page.margins.bottom = 0;
 
   let leftY = startY;
-  for (const item of leftCol) {
+  leftCol.forEach((item, i) => {
     leftY = drawCenteredItemAt(doc, item, nameSize, descSize, left, colWidth, leftY);
-    leftY += gapAfter;
-  }
+    if (i < leftCol.length - 1) leftY += itemGapPt;
+  });
 
   let rightY = startY;
-  for (const item of rightCol) {
-    rightY = drawCenteredItemAt(doc, item, nameSize, descSize, rightX, colWidth, rightY);
-    rightY += gapAfter;
-  }
+  rightCol.forEach((item, i) => {
+    rightY = drawCenteredItemAt(
+      doc,
+      item,
+      nameSize,
+      descSize,
+      rightX,
+      colWidth,
+      rightY
+    );
+    if (i < rightCol.length - 1) rightY += itemGapPt;
+  });
 
   doc.page.margins.bottom = savedBottom;
   doc.x = left;
   doc.y = Math.max(leftY, rightY);
 }
 
-function paintDailyMenu(doc, menu, typo, logoPath) {
+function paintDailyMenu(doc, menu, spacing, logoPath) {
   const pageWidth = doc.page.width;
   const left = doc.page.margins.left;
   const contentWidth = pageWidth - left - doc.page.margins.right;
@@ -336,15 +424,16 @@ function paintDailyMenu(doc, menu, typo, logoPath) {
     titleSize,
     dateSize,
     descSize,
-    itemGap,
-    sectionGap,
-    afterSectionGap,
-    afterTitleGap,
-    afterDateGap,
-    afterRuleGap,
     logoH,
-    bandPad
-  } = typo;
+    bandPad,
+    bandToTitle,
+    afterTitle,
+    afterDate,
+    afterRule,
+    afterSectionTitle,
+    itemGap,
+    afterSection
+  } = spacing;
 
   const bySection = groupItems(menu.items);
   const logoW = logoPath ? logoH * LOGO_ASPECT : 0;
@@ -362,39 +451,40 @@ function paintDailyMenu(doc, menu, typo, logoPath) {
     doc
       .fillColor('#ffffff')
       .font('Helvetica-Bold')
-      .fontSize(Math.min(14, titleSize))
+      .fontSize(14)
       .text('Hotel Riviera', left, 12, {
         width: contentWidth,
         align: 'center'
       });
   }
 
-  // Evita page-breaks espurios en menús densos ya dimensionados para 1 hoja.
   const savedBottom = doc.page.margins.bottom;
   doc.page.margins.bottom = 0;
 
-  doc.y = bandHeight + 8;
+  doc.y = bandHeight + bandToTitle;
   doc
     .fillColor(TEXT_DARK)
     .font('Helvetica-Bold')
     .fontSize(titleSize)
     .text('Menú', left, doc.y, { width: contentWidth, align: 'center' });
-  doc.moveDown(afterTitleGap);
+  doc.y += afterTitle;
   doc
     .font('Helvetica')
     .fontSize(dateSize)
     .fillColor(TEXT_DARK)
-    .text(formatMenuDate(menu.date), { align: 'center' });
+    .text(formatMenuDate(menu.date), left, doc.y, {
+      width: contentWidth,
+      align: 'center'
+    });
 
-  doc.moveDown(afterDateGap);
+  doc.y += afterDate;
   doc
     .strokeColor(RIVIERA_BLUE)
     .lineWidth(1)
     .moveTo(left + 16, doc.y)
     .lineTo(pageWidth - doc.page.margins.right - 16, doc.y)
     .stroke();
-
-  doc.moveDown(afterRuleGap);
+  doc.y += 1 + afterRule;
   doc.fillColor(TEXT_DARK);
 
   if (menu.kind === 'BUFFET') {
@@ -403,16 +493,27 @@ function paintDailyMenu(doc, menu, typo, logoPath) {
       doc.font('Helvetica-Oblique').fontSize(descSize).fillColor(TEXT_MUTED);
       doc.text('Sin preparaciones.', { align: 'center' });
     } else {
-      for (const item of list) {
+      list.forEach((item, i) => {
         drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-        doc.y += nameSize * itemGap;
-      }
+        if (i < list.length - 1) doc.y += itemGap;
+      });
     }
   } else {
-    let printed = 0;
+    const blocks = [];
     for (const section of CONVENTIONAL_ORDER) {
       if (section === 'ENSALADA') {
-        printed += 1;
+        blocks.push({ section, saladOnly: true });
+        continue;
+      }
+      const list = bySection.get(section) || [];
+      if (!list.length) continue;
+      blocks.push({ section, list, saladOnly: false });
+    }
+
+    let printed = 0;
+    blocks.forEach((block, idx) => {
+      printed += 1;
+      if (block.saladOnly) {
         doc
           .fillColor(RIVIERA_BLUE)
           .font('Helvetica-Bold')
@@ -422,32 +523,37 @@ function paintDailyMenu(doc, menu, typo, logoPath) {
             align: 'center',
             characterSpacing: 0.6
           });
-        doc.moveDown(sectionGap);
-        continue;
-      }
-      const list = bySection.get(section) || [];
-      if (!list.length) continue;
-      printed += 1;
-      doc
-        .fillColor(RIVIERA_BLUE)
-        .font('Helvetica-Bold')
-        .fontSize(sectionSize)
-        .text(SECTION_LABELS[section].toUpperCase(), left, doc.y, {
-          width: contentWidth,
-          align: 'center',
-          characterSpacing: 0.6
-        });
-      doc.moveDown(0.08);
-      if (section === 'POSTRE') {
-        drawPostreItems(doc, list, nameSize, descSize, left, contentWidth, itemGap);
       } else {
-        for (const item of list) {
-          drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-          doc.y += nameSize * itemGap;
+        doc
+          .fillColor(RIVIERA_BLUE)
+          .font('Helvetica-Bold')
+          .fontSize(sectionSize)
+          .text(SECTION_LABELS[block.section].toUpperCase(), left, doc.y, {
+            width: contentWidth,
+            align: 'center',
+            characterSpacing: 0.6
+          });
+        doc.y += afterSectionTitle;
+        if (block.section === 'POSTRE') {
+          drawPostreItems(
+            doc,
+            block.list,
+            nameSize,
+            descSize,
+            left,
+            contentWidth,
+            itemGap
+          );
+        } else {
+          block.list.forEach((item, i) => {
+            drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
+            if (i < block.list.length - 1) doc.y += itemGap;
+          });
         }
       }
-      doc.moveDown(afterSectionGap);
-    }
+      if (idx < blocks.length - 1) doc.y += afterSection;
+    });
+
     if (!printed) {
       doc.font('Helvetica-Oblique').fontSize(descSize).fillColor(TEXT_MUTED);
       doc.text('Sin platos cargados.', { align: 'center' });
@@ -459,37 +565,13 @@ function paintDailyMenu(doc, menu, typo, logoPath) {
 }
 
 /**
- * Mayor nameSize (pt) que cabe en 1 A5 sin overflow (medición por heightOfString).
- */
-function resolveMenuTypography(menu, logoPath = resolveLogoPath()) {
-  let best = {
-    ...typographyForNameSize(NAME_PT_MIN),
-    fits: false
-  };
-
-  for (let namePt = NAME_PT_MAX; namePt >= NAME_PT_MIN; namePt -= 1) {
-    const typo = typographyForNameSize(namePt);
-    const measured = measureMenuFinalY(menu, typo, logoPath);
-    if (measured.fits) {
-      return {
-        ...typo,
-        fits: true,
-        finalY: measured.finalY,
-        bottomLimit: measured.bottomLimit
-      };
-    }
-  }
-  return best;
-}
-
-/**
  * Genera un Buffer PDF A5 (148×210 mm) del menú diario.
- * Tipografía al máximo legible que quepa en una hoja.
+ * Platos/secciones 16pt; el aire vertical se reparte según la cantidad de platos.
  */
 function buildDailyMenuPdfBuffer(menu) {
   return new Promise((resolve, reject) => {
     const logoPath = resolveLogoPath();
-    const typo = resolveMenuTypography(menu, logoPath);
+    const spacing = resolveMenuSpacing(menu, logoPath);
 
     const doc = new PDFDocument({
       size: A5_PT,
@@ -505,29 +587,26 @@ function buildDailyMenuPdfBuffer(menu) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    paintDailyMenu(doc, menu, typo, logoPath);
+    paintDailyMenu(doc, menu, spacing, logoPath);
     doc.end();
   });
 }
 
 module.exports = {
   buildDailyMenuPdfBuffer,
+  resolveMenuSpacing,
   resolveMenuTypography,
-  typographyForNameSize,
-  measureMenuFinalY,
+  fixedTypography,
   SECTION_LABELS,
   CONVENTIONAL_ORDER,
   MESA_ENSALADAS,
   POSTRE_TWO_COL_MIN,
   MAIN_MIN_PT,
+  NAME_PT,
   TITLE_PT,
   DATE_PT,
   SECTION_PT,
-  TITLE_MIN_PT,
-  DATE_MIN_PT,
-  SECTION_MIN_PT,
-  DESC_MIN_PT,
-  NAME_PT_MAX,
+  DESC_PT,
   A5_PT,
   A4_PT
 };
