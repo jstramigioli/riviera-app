@@ -1775,7 +1775,34 @@ const CobroForm = ({
     saldoPendiente
   ]);
 
-  const showPorCuentaSummary = isMultiAlloc && autoImputaciones.length > 1;
+  /** Resumen multi: saldo original / saldado / restante por cuenta + totales. */
+  const multiAccountSummary = useMemo(() => {
+    if (isDevolucion || assignedAllocations.length < 2) return null;
+    const creditByKey = new Map(
+      autoImputaciones.map((r) => [r.optionKey, Number(r.montoARS) || 0])
+    );
+    const rows = assignedAllocations.map((a) => {
+      const saldoOriginal = Math.max(0, Number(allocSaldos[a.optionKey]) || 0);
+      const montoSaldado = Number(creditByKey.get(a.optionKey)) || 0;
+      return {
+        optionKey: a.optionKey,
+        label: reservationOptionLabel(a.row),
+        saldoOriginal,
+        montoSaldado,
+        saldoRestante: roundMoney(saldoOriginal - montoSaldado)
+      };
+    });
+    const totalOriginal = roundMoney(
+      rows.reduce((s, r) => s + r.saldoOriginal, 0)
+    );
+    const totalSaldado = roundMoney(rows.reduce((s, r) => s + r.montoSaldado, 0));
+    const totalRestante = roundMoney(
+      rows.reduce((s, r) => s + r.saldoRestante, 0)
+    );
+    return { rows, totalOriginal, totalSaldado, totalRestante };
+  }, [isDevolucion, assignedAllocations, allocSaldos, autoImputaciones]);
+
+  const showMultiAccountSummary = Boolean(multiAccountSummary?.rows?.length > 1);
 
   const excedenteARS =
     !isDevolucion &&
@@ -2723,33 +2750,6 @@ const CobroForm = ({
                 ) : null}
               </section>
 
-              {/* 4) Imputaciones auto */}
-              {!isDevolucion ? (
-                <section
-                  className={styles.sectionBlock}
-                  aria-label="Imputaciones"
-                  data-testid="payment-auto-imputaciones"
-                >
-                  <h3 className={styles.sectionTitle}>Imputaciones</h3>
-                  {autoImputaciones.length > 0 ? (
-                    <ul className={styles.autoImputaciones}>
-                      {autoImputaciones.map((row) => (
-                        <li key={row.optionKey || `${row.accountId}-${row.reservaId}`}>
-                          <span>{row.label}</span>
-                          <span>{formatMoneyArs(row.montoARS)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : isMultiAlloc ? (
-                    <p className={styles.helpText}>
-                      La distribución se hace en proporción al saldo pendiente de cada cuenta.
-                    </p>
-                  ) : (
-                    <p className={styles.helpText}>Ingresá un monto para ver la imputación.</p>
-                  )}
-                </section>
-              ) : null}
-
               {!isEditMode ? (
                 <label
                   className={styles.toggleInline}
@@ -3029,30 +3029,79 @@ const CobroForm = ({
                   </div>
                 ) : null}
                 <div className={styles.saldoDivider} aria-hidden="true" />
-                <div className={styles.saldoBlock}>
-                  <span className={styles.saldoLabel}>Saldo original</span>
-                  <span className={styles.saldoValue}>
-                    {!isDevolucion && saldoTotalAsignado != null
-                      ? formatMoneyArs(saldoTotalAsignado)
-                      : '—'}
-                  </span>
-                </div>
-                {!isDevolucion && showPorCuentaSummary ? (
+                {showMultiAccountSummary ? (
                   <div
-                    className={styles.summaryAllocList}
-                    data-testid="payment-summary-por-cuenta"
+                    className={styles.summaryMultiAccounts}
+                    data-testid="payment-summary-multi-accounts"
                   >
-                    <span className={styles.saldoLabel}>Por cuenta</span>
-                    <ul className={styles.autoImputaciones}>
-                      {autoImputaciones.map((row) => (
-                        <li key={`sum-${row.optionKey || `${row.accountId}-${row.reservaId}`}`}>
-                          <span>{row.label}</span>
-                          <span>{formatMoneyArs(row.montoARS)}</span>
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-saldo-original"
+                    >
+                      <span className={styles.saldoLabel}>Saldo original</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`orig-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.saldoOriginal)}</span>
+                          </li>
+                        ))}
+                        <li className={styles.summaryTotalRow}>
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalOriginal)}</span>
                         </li>
-                      ))}
-                    </ul>
+                      </ul>
+                    </div>
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-monto-saldado"
+                    >
+                      <span className={styles.saldoLabel}>Monto saldado</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`sald-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.montoSaldado)}</span>
+                          </li>
+                        ))}
+                        <li className={styles.summaryTotalRow}>
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalSaldado)}</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-saldo-restante"
+                    >
+                      <span className={styles.saldoLabel}>Saldo restante</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`rest-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.saldoRestante)}</span>
+                          </li>
+                        ))}
+                        <li
+                          className={`${styles.summaryTotalRow} ${styles.summaryTotalHighlight}`}
+                          data-testid="summary-saldo"
+                        >
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalRestante)}</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className={styles.saldoBlock}>
+                    <span className={styles.saldoLabel}>Saldo original</span>
+                    <span className={styles.saldoValue}>
+                      {!isDevolucion && saldoTotalAsignado != null
+                        ? formatMoneyArs(saldoTotalAsignado)
+                        : '—'}
+                    </span>
+                  </div>
+                )}
                 {excedenteARS > 0 ? (
                   <div className={styles.saldoBlock}>
                     <span className={styles.saldoLabel}>Excedente</span>
@@ -3067,16 +3116,17 @@ const CobroForm = ({
                     </span>
                   </div>
                 ) : null}
-                <div className={styles.saldoDivider} aria-hidden="true" />
-                <div
-                  className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
-                  data-testid="summary-saldo"
-                >
-                  <span className={styles.saldoLabel}>Nuevo saldo</span>
-                  <span className={styles.saldoValueLarge}>
-                    {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
-                  </span>
-                </div>
+                {!showMultiAccountSummary ? (
+                  <div
+                    className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
+                    data-testid="summary-saldo"
+                  >
+                    <span className={styles.saldoLabel}>Nuevo saldo</span>
+                    <span className={styles.saldoValueLarge}>
+                      {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
+                    </span>
+                  </div>
+                ) : null}
                 <div className={styles.summaryMeta}>
                   <span>Motivo: {motivoActual}</span>
                   {foreignCurrency && !isDevolucion && parseFloat(formData.tipoCambio) > 0 ? (

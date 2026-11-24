@@ -244,6 +244,24 @@
   gap: 6px;
 }
 
+.summaryMultiAccounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summaryTotalRow {
+  font-weight: var(--font-weight-semibold);
+  border-top: 1px solid var(--color-border);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.summaryTotalHighlight {
+  font-size: var(--font-size-base);
+  color: var(--color-text-dark);
+}
+
 .summaryMeta {
   display: flex;
   flex-wrap: wrap;

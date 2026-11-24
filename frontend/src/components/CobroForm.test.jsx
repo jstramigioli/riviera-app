@@ -583,7 +583,11 @@ describe('CobroForm facturación', () => {
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), { target: { value: '1000' } })
     expect(screen.queryByLabelText(/Monto imputado/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('payment-alloc-hint')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId('payment-auto-imputaciones')).toBeInTheDocument())
+    expect(screen.queryByTestId('payment-auto-imputaciones')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Imputaciones/i })).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-summary-multi-accounts')).toBeInTheDocument()
+    )
     fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
     await waitFor(() =>
@@ -607,7 +611,7 @@ describe('CobroForm facturación', () => {
     expect(screen.getByText(/202 - Pérez/i)).toBeInTheDocument()
   })
 
-  it('Por cuenta: oculto con 1 cuenta; multi muestra crédito a saldo (no caja)', async () => {
+  it('resumen multi: saldos por cuenta + totales; oculto con 1 cuenta', async () => {
     previewPromotion.mockResolvedValue({
       aplica: true,
       dineroARS: 90000,
@@ -634,7 +638,9 @@ describe('CobroForm facturación', () => {
     await waitFor(() =>
       expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
     )
+    expect(screen.queryByTestId('payment-summary-multi-accounts')).not.toBeInTheDocument()
     expect(screen.queryByTestId('payment-summary-por-cuenta')).not.toBeInTheDocument()
+    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/Nuevo saldo/)
 
     fireEvent.click(screen.getByTestId('payment-add-allocation'))
     const search = await screen.findByTestId('payment-account-search')
@@ -644,11 +650,17 @@ describe('CobroForm facturación', () => {
     })
     fireEvent.click(screen.getByRole('option', { name: /101 - Pérez/i }))
 
-    const porCuenta = await screen.findByTestId('payment-summary-por-cuenta')
-    expect(porCuenta).toHaveTextContent(/100\.000|50\.000/)
+    const multi = await screen.findByTestId('payment-summary-multi-accounts')
+    expect(screen.getByTestId('payment-summary-saldo-original')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-monto-saldado')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-saldo-restante')).toBeInTheDocument()
     // 100000 crédito / 2 saldos iguales → 50000 c/u (no 45000 de caja)
-    expect(porCuenta.textContent).toMatch(/50\.000/)
-    expect(porCuenta.textContent).not.toMatch(/45\.000/)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).toMatch(/50\.000/)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).not.toMatch(/45\.000/)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).toMatch(/Total/)
+    expect(multi.textContent).toMatch(/Saldo original/)
+    expect(multi.textContent).toMatch(/Saldo restante/)
+    expect(screen.queryByRole('heading', { name: /Imputaciones/i })).not.toBeInTheDocument()
   })
 
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {
