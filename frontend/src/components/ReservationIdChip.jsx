@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import {
   loadSourceColors,
   resolveReservationBarColors,
@@ -7,6 +8,7 @@ import styles from '../styles/ReservationIdChip.module.css';
 
 /**
  * Nº de reserva en chip con el color de barra del Libro (medio / finalizada).
+ * Por defecto navega a `/reservations/:id` (clickeable en toda la app).
  */
 export default function ReservationIdChip({
   id,
@@ -16,8 +18,12 @@ export default function ReservationIdChip({
   title = null,
   className = '',
   'data-testid': dataTestId,
-  prefix = '#'
+  prefix = '#',
+  navigateToDetail = true,
+  stopPropagation = true
 }) {
+  const navigate = useNavigate();
+
   if (id == null || id === '') return <span className={className}>—</span>;
 
   const colors = resolveReservationBarColors(source, status, loadSourceColors());
@@ -31,10 +37,22 @@ export default function ReservationIdChip({
         ? `Reserva ${label} · Prerreserva · ${medio}`
         : `Reserva ${label} · ${medio}`);
 
+  const handleClick =
+    onClick ||
+    (navigateToDetail
+      ? (event) => {
+          if (stopPropagation && event) {
+            event.stopPropagation();
+            event.preventDefault?.();
+          }
+          navigate(`/reservations/${id}`);
+        }
+      : null);
+
   const classNames = [
     styles.chip,
     colors.finished ? styles.finished : '',
-    onClick ? styles.clickable : '',
+    handleClick ? styles.clickable : '',
     className
   ]
     .filter(Boolean)
@@ -46,13 +64,13 @@ export default function ReservationIdChip({
     color: colors.color
   };
 
-  if (onClick) {
+  if (handleClick) {
     return (
       <button
         type="button"
         className={classNames}
         style={style}
-        onClick={onClick}
+        onClick={handleClick}
         title={tip}
         data-testid={dataTestId}
       >

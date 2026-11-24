@@ -47,7 +47,7 @@
   font-family: var(--font-main);
   font-size: var(--font-size-base);
   color: var(--color-text-main);
-  background: var(--color-bg);
+  background: #fff;
   overflow: hidden;
 }
 

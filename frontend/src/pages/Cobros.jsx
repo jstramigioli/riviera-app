@@ -37,13 +37,9 @@ import styles from './Cobros.module.css';
 
 const SECTIONS = {
   cuentas: 'cuentas',
-  cuentasFondo: 'cuentasFondo',
   cobros: 'cobros',
   facturacion: 'facturacion',
 };
-
-const isCuentasSection = (section) =>
-  section === SECTIONS.cuentas || section === SECTIONS.cuentasFondo;
 
 const FACTURA_B_COLUMNS = [
   { key: 'codigo', label: 'Código' },
@@ -302,9 +298,11 @@ const Cobros = () => {
   const initialSection =
     sectionParam === SECTIONS.facturacion && !canFacturacion
       ? SECTIONS.cuentas
-      : SECTIONS[sectionParam]
-        ? sectionParam
-        : SECTIONS.cuentas;
+      : sectionParam === 'cuentasFondo'
+        ? SECTIONS.cuentas
+        : SECTIONS[sectionParam]
+          ? sectionParam
+          : SECTIONS.cuentas;
 
   const [activeSection, setActiveSection] = useState(initialSection);
   const [reservationsWithBalances, setReservationsWithBalances] = useState([]);
@@ -341,6 +339,13 @@ const Cobros = () => {
   }, []);
 
   useEffect(() => {
+    if (sectionParam === 'cuentasFondo') {
+      if (activeSection !== SECTIONS.cuentas) setActiveSection(SECTIONS.cuentas);
+      const next = new URLSearchParams(searchParams);
+      next.set('section', SECTIONS.cuentas);
+      setSearchParams(next, { replace: true });
+      return;
+    }
     if (!SECTIONS[sectionParam]) return;
     if (sectionParam === SECTIONS.facturacion && !canFacturacion) {
       if (activeSection !== SECTIONS.cuentas) setActiveSection(SECTIONS.cuentas);
@@ -1039,10 +1044,8 @@ const Cobros = () => {
     );
   }
 
-  const cuentasFlat = activeSection === SECTIONS.cuentasFondo;
-
   return (
-    <div className={`${styles.newLayout} ${cuentasFlat ? styles.newLayoutWhite : ''}`}>
+    <div className={styles.newLayout}>
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <h2>Estado de cuentas</h2>
@@ -1054,13 +1057,6 @@ const Cobros = () => {
             onClick={() => selectSection(SECTIONS.cuentas)}
           >
             Cuentas pendientes
-          </button>
-          <button
-            type="button"
-            className={`${styles.sectionButton} ${activeSection === SECTIONS.cuentasFondo ? styles.active : ''}`}
-            onClick={() => selectSection(SECTIONS.cuentasFondo)}
-          >
-            Cuentas pendientes (fondo)
           </button>
           <button
             type="button"
@@ -1081,16 +1077,16 @@ const Cobros = () => {
         </nav>
       </aside>
 
-      <div className={`${styles.mainContent} ${cuentasFlat ? styles.mainContentWhite : ''}`}>
+      <div className={styles.mainContent}>
         <div
           className={`${styles.mainContentBody} ${
             activeSection === SECTIONS.facturacion ? styles.mainContentBodyWide : ''
           }`}
         >
-          {isCuentasSection(activeSection) && (
-            <section className={`${styles.section} ${cuentasFlat ? styles.sectionFlat : ''}`}>
+          {activeSection === SECTIONS.cuentas && (
+            <section className={styles.section}>
               <div className={styles.sectionHeader}>
-                <h2>{cuentasFlat ? 'Cuentas pendientes (fondo)' : 'Cuentas pendientes'}</h2>
+                <h2>Cuentas pendientes</h2>
                 <div className={styles.sectionActions}>
                   {hasActiveAccountFilters && (
                     <button
@@ -1263,9 +1259,6 @@ const Cobros = () => {
                               >
                                 {clientName || 'Sin cliente'}
                               </button>
-                              {client?.email && (
-                                <div className={styles.meta}>{client.email}</div>
-                              )}
                             </td>
                             <td className={styles.amountCell} style={{ color: statusColor }}>
                               {formatMoneyArs(reservation.saldo)}

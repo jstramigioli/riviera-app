@@ -588,7 +588,7 @@ export default function CobrosHistorialTable({
                           onClick={
                             onReservationClick
                               ? () => onReservationClick(reservaId, cobro)
-                              : null
+                              : undefined
                           }
                           title="Ver reserva"
                           data-testid={`cobro-reserva-link-${cobro.id}`}
