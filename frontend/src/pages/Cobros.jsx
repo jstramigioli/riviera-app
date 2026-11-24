@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiCheck, FiChevronLeft, FiChevronRight, FiFilter, FiPlus, FiX } from 'react-icons/fi';
+import { FiCheck, FiFilter, FiPlus, FiSearch, FiX } from 'react-icons/fi';
 import {
   getAccountsWithBalances,
   getAllCobros,
@@ -21,7 +21,16 @@ import CobrosHistorialTable, {
   paymentCodeLabel,
 } from '../components/CobrosHistorialTable';
 import ReservationIdChip from '../components/ReservationIdChip';
+import TablePager from '../components/TablePager';
 import { formatMoneyArs } from '../utils/formatMoney';
+import {
+  DEFAULT_PAGE_SIZE,
+  clampPage,
+  pageRange,
+  pageSlice,
+  totalPagesFor,
+} from '../utils/tablePagination';
+import { filterFacturacionRows } from '../utils/facturacionTableFilters';
 import { countryName } from '../constants/countries';
 import { getStatusLabel } from '../utils/reservationStatusUtils';
 import styles from './Cobros.module.css';
@@ -128,7 +137,23 @@ const ACCOUNT_COLUMNS = [
   { key: 'saldoEstado', label: 'Saldo estado' },
 ];
 
-const ACCOUNTS_PAGE_SIZE = 20;
+const FACTURACION_TIPOS = ['A', 'B', 'T'];
+
+const EMPTY_FACTURACION_TABLE_UI = {
+  showPrevious: false,
+  search: '',
+  page: 1,
+  pageSize: DEFAULT_PAGE_SIZE,
+};
+
+function facturacionSearchHaystack(cobro, columns) {
+  const parts = [paymentCodeLabel(cobro)];
+  for (const col of columns) {
+    if (col.key === 'codigo' || col.key === 'fecha' || col.key === 'montoSinIva') continue;
+    parts.push(facturaCellValue(cobro, col.key));
+  }
+  return foldAccents(parts.filter(Boolean).join(' '));
+}
 
 const SALDO_ESTADO_OPTIONS = [
   { value: 'PENDIENTE', label: 'Pendiente' },
@@ -266,6 +291,7 @@ const Cobros = () => {
 
   const [accountFilters, setAccountFilters] = useState(EMPTY_ACCOUNT_FILTERS);
   const [accountsPage, setAccountsPage] = useState(1);
+  const [accountsPageSize, setAccountsPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [openAccountColumn, setOpenAccountColumn] = useState(null);
   const [accountFilterMenuPos, setAccountFilterMenuPos] = useState({ top: 0, left: 0 });
   const accountFilterMenuRef = useRef(null);
@@ -274,6 +300,11 @@ const Cobros = () => {
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
+  const [facturacionUi, setFacturacionUi] = useState(() => ({
+    A: { ...EMPTY_FACTURACION_TABLE_UI },
+    B: { ...EMPTY_FACTURACION_TABLE_UI },
+    T: { ...EMPTY_FACTURACION_TABLE_UI },
+  }));
 
   useEffect(() => {
     loadData();
@@ -328,62 +359,55 @@ const Cobros = () => {
     return raw ? new Date(raw).getTime() : 0;
   };
 
-  const isFacturacionRowVisible = useCallback(
-    (cobro) => {
-      const hasComprobante = adjuntosOf(cobro, ADJUNTO_FACTURA).length > 0;
-      if (!hasComprobante) return true;
-      return facturacionSessionDone.has(cobro.id);
-    },
-    [facturacionSessionDone]
-  );
-
   useEffect(() => {
     if (activeSection !== SECTIONS.facturacion) {
       setFacturacionSessionDone(new Set());
     }
   }, [activeSection]);
 
-  const facturacionCobrosA = useMemo(
-    () =>
-      (payments || [])
-        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'A')
-        .filter(isFacturacionRowVisible)
-        .slice()
-        .sort((a, b) => {
-          const diff = facturacionSortMs(b) - facturacionSortMs(a);
-          if (diff !== 0) return diff;
-          return Number(b.id) - Number(a.id);
-        }),
-    [payments, isFacturacionRowVisible]
+  const patchFacturacionUi = useCallback((tipo, patch) => {
+    setFacturacionUi((prev) => {
+      const current = prev[tipo] || EMPTY_FACTURACION_TABLE_UI;
+      const next = { ...current, ...patch };
+      if (
+        Object.prototype.hasOwnProperty.call(patch, 'search') ||
+        Object.prototype.hasOwnProperty.call(patch, 'showPrevious') ||
+        Object.prototype.hasOwnProperty.call(patch, 'pageSize')
+      ) {
+        next.page = 1;
+      }
+      return { ...prev, [tipo]: next };
+    });
+  }, []);
+
+  const facturacionColumnsByTipo = useMemo(
+    () => ({
+      A: FACTURA_A_COLUMNS,
+      B: FACTURA_B_COLUMNS,
+      T: FACTURA_T_COLUMNS,
+    }),
+    []
   );
 
-  const facturacionCobrosB = useMemo(
-    () =>
-      (payments || [])
-        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'B')
-        .filter(isFacturacionRowVisible)
-        .slice()
-        .sort((a, b) => {
-          const diff = facturacionSortMs(b) - facturacionSortMs(a);
-          if (diff !== 0) return diff;
-          return Number(b.id) - Number(a.id);
-        }),
-    [payments, isFacturacionRowVisible]
-  );
-
-  const facturacionCobrosT = useMemo(
-    () =>
-      (payments || [])
-        .filter((cobro) => cobro?.requiereFacturacion && cobro?.factura?.tipo === 'T')
-        .filter(isFacturacionRowVisible)
-        .slice()
-        .sort((a, b) => {
-          const diff = facturacionSortMs(b) - facturacionSortMs(a);
-          if (diff !== 0) return diff;
-          return Number(b.id) - Number(a.id);
-        }),
-    [payments, isFacturacionRowVisible]
-  );
+  const facturacionRowsByTipo = useMemo(() => {
+    const result = { A: [], B: [], T: [] };
+    for (const tipo of FACTURACION_TIPOS) {
+      const ui = facturacionUi[tipo] || EMPTY_FACTURACION_TABLE_UI;
+      const columns = facturacionColumnsByTipo[tipo];
+      result[tipo] = filterFacturacionRows({
+        payments,
+        tipo,
+        showPrevious: ui.showPrevious,
+        search: ui.search,
+        sessionDoneIds: facturacionSessionDone,
+        adjuntosOf,
+        adjuntoTipo: ADJUNTO_FACTURA,
+        searchHaystack: (cobro) => facturacionSearchHaystack(cobro, columns),
+        sortMs: facturacionSortMs,
+      });
+    }
+    return result;
+  }, [payments, facturacionUi, facturacionColumnsByTipo, facturacionSessionDone]);
 
   const handleCopyCell = async (value) => {
     const text = String(value || '').trim();
@@ -493,65 +517,113 @@ const Cobros = () => {
     );
   };
 
-  const renderFacturacionTable = (tipo, columns, rows) => (
-    <div className={styles.billingBlock}>
-      <div className={styles.panelHeader}>
-        <h3>Factura {tipo}</h3>
-      </div>
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={
-                    col.key === 'montoSinIva'
-                      ? styles.amountCell
-                      : col.key === 'codigo' || col.key === 'documentType'
-                        ? styles.shortCell
-                        : undefined
-                  }
-                >
-                  {col.label}
-                </th>
-              ))}
-              <th>Comprobante</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
+  const renderFacturacionTable = (tipo) => {
+    const columns = facturacionColumnsByTipo[tipo];
+    const ui = facturacionUi[tipo] || EMPTY_FACTURACION_TABLE_UI;
+    const rows = facturacionRowsByTipo[tipo] || [];
+    const pagedRows = pageSlice(rows, ui.page, ui.pageSize);
+    const searchActive = String(ui.search || '').trim() !== '';
+    const emptyMessage = searchActive
+      ? `No hay resultados para la búsqueda en Factura ${tipo}`
+      : ui.showPrevious
+        ? `No hay cobros de Factura ${tipo}`
+        : `No hay cobros pendientes de Factura ${tipo}`;
+
+    return (
+      <div className={styles.billingBlock} data-testid={`facturacion-table-${tipo}`}>
+        <div className={styles.billingToolbar}>
+          <div className={styles.panelHeader}>
+            <h3>Factura {tipo}</h3>
+          </div>
+          <div className={styles.billingControls}>
+            <label className={styles.billingSearch}>
+              <FiSearch aria-hidden="true" size={14} />
+              <span className={styles.srOnly}>Buscar Factura {tipo}</span>
+              <input
+                type="search"
+                value={ui.search}
+                placeholder="Buscar nº, razón social, CUIT…"
+                aria-label={`Buscar Factura ${tipo}`}
+                data-testid={`facturacion-search-${tipo}`}
+                onChange={(e) => patchFacturacionUi(tipo, { search: e.target.value })}
+              />
+            </label>
+            <label className={styles.billingToggle}>
+              <input
+                type="checkbox"
+                checked={Boolean(ui.showPrevious)}
+                data-testid={`facturacion-show-previous-${tipo}`}
+                onChange={(e) =>
+                  patchFacturacionUi(tipo, { showPrevious: e.target.checked })
+                }
+              />
+              <span>Mostrar anteriores</span>
+            </label>
+          </div>
+        </div>
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
               <tr>
-                <td colSpan={columns.length + 1} className={styles.emptyCell}>
-                  No hay cobros pendientes de Factura {tipo}
-                </td>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={
+                      col.key === 'montoSinIva'
+                        ? styles.amountCell
+                        : col.key === 'codigo' || col.key === 'documentType'
+                          ? styles.shortCell
+                          : undefined
+                    }
+                  >
+                    {col.label}
+                  </th>
+                ))}
+                <th>Comprobante</th>
               </tr>
-            ) : (
-              rows.map((cobro) => (
-                <tr key={cobro.id} className={styles.row}>
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={
-                        col.key === 'codigo' || col.key === 'documentType'
-                          ? styles.idCell
-                          : col.key === 'montoSinIva'
-                            ? styles.amountCell
-                            : styles.metaCell
-                      }
-                    >
-                      {renderCopyCell(facturaCellValue(cobro, col.key))}
-                    </td>
-                  ))}
-                  <td className={styles.facturaCell}>{renderFacturaPdfCell(cobro)}</td>
+            </thead>
+            <tbody>
+              {pagedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 1} className={styles.emptyCell}>
+                    {emptyMessage}
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                pagedRows.map((cobro) => (
+                  <tr key={cobro.id} className={styles.row}>
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={
+                          col.key === 'codigo' || col.key === 'documentType'
+                            ? styles.idCell
+                            : col.key === 'montoSinIva'
+                              ? styles.amountCell
+                              : styles.metaCell
+                        }
+                      >
+                        {renderCopyCell(facturaCellValue(cobro, col.key))}
+                      </td>
+                    ))}
+                    <td className={styles.facturaCell}>{renderFacturaPdfCell(cobro)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <TablePager
+          total={rows.length}
+          page={ui.page}
+          pageSize={ui.pageSize}
+          onPageChange={(page) => patchFacturacionUi(tipo, { page })}
+          onPageSizeChange={(pageSize) => patchFacturacionUi(tipo, { pageSize })}
+          label={`Paginación Factura ${tipo}`}
+        />
       </div>
-    </div>
-  );
+    );
+  };
 
   const setAccountFilter = (key, value) => {
     setAccountFilters((prev) => ({ ...prev, [key]: value }));
@@ -681,34 +753,23 @@ const Cobros = () => {
 
   useEffect(() => {
     setAccountsPage(1);
-  }, [accountFilters, clientIdParam]);
+  }, [accountFilters, clientIdParam, accountsPageSize]);
 
-  const accountsTotalPages = Math.max(
-    1,
-    Math.ceil(filteredAccounts.length / ACCOUNTS_PAGE_SIZE)
-  );
+  const accountsTotalPages = totalPagesFor(filteredAccounts.length, accountsPageSize);
 
   useEffect(() => {
-    if (accountsPage > accountsTotalPages) {
-      setAccountsPage(accountsTotalPages);
-    }
-  }, [accountsPage, accountsTotalPages]);
+    setAccountsPage((prev) => clampPage(prev, accountsTotalPages));
+  }, [accountsTotalPages]);
 
-  const pagedAccounts = useMemo(() => {
-    const page = Math.min(Math.max(accountsPage, 1), accountsTotalPages);
-    const start = (page - 1) * ACCOUNTS_PAGE_SIZE;
-    return filteredAccounts.slice(start, start + ACCOUNTS_PAGE_SIZE);
-  }, [filteredAccounts, accountsPage, accountsTotalPages]);
+  const pagedAccounts = useMemo(
+    () => pageSlice(filteredAccounts, accountsPage, accountsPageSize),
+    [filteredAccounts, accountsPage, accountsPageSize]
+  );
 
-  const accountsPageRange = useMemo(() => {
-    if (filteredAccounts.length === 0) {
-      return { from: 0, to: 0 };
-    }
-    const page = Math.min(Math.max(accountsPage, 1), accountsTotalPages);
-    const from = (page - 1) * ACCOUNTS_PAGE_SIZE + 1;
-    const to = Math.min(page * ACCOUNTS_PAGE_SIZE, filteredAccounts.length);
-    return { from, to };
-  }, [filteredAccounts.length, accountsPage, accountsTotalPages]);
+  const accountsPageRange = useMemo(
+    () => pageRange(filteredAccounts.length, accountsPage, accountsPageSize),
+    [filteredAccounts.length, accountsPage, accountsPageSize]
+  );
 
   const hasActivePayFilters = useMemo(
     () =>
@@ -1185,35 +1246,14 @@ const Cobros = () => {
                 </table>
               </div>
 
-              {filteredAccounts.length > ACCOUNTS_PAGE_SIZE ? (
-                <div className={styles.pager} role="navigation" aria-label="Paginación de cuentas">
-                  <button
-                    type="button"
-                    className={styles.pagerBtn}
-                    aria-label="Página anterior"
-                    disabled={accountsPage <= 1}
-                    onClick={() => setAccountsPage((p) => Math.max(1, p - 1))}
-                  >
-                    <FiChevronLeft aria-hidden="true" />
-                    Anterior
-                  </button>
-                  <span className={styles.pagerStatus}>
-                    Página {Math.min(accountsPage, accountsTotalPages)} de {accountsTotalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.pagerBtn}
-                    aria-label="Página siguiente"
-                    disabled={accountsPage >= accountsTotalPages}
-                    onClick={() =>
-                      setAccountsPage((p) => Math.min(accountsTotalPages, p + 1))
-                    }
-                  >
-                    Siguiente
-                    <FiChevronRight aria-hidden="true" />
-                  </button>
-                </div>
-              ) : null}
+              <TablePager
+                total={filteredAccounts.length}
+                page={accountsPage}
+                pageSize={accountsPageSize}
+                onPageChange={setAccountsPage}
+                onPageSizeChange={setAccountsPageSize}
+                label="Paginación de cuentas"
+              />
 
               {openAccountColumn ? (
                 <div
@@ -1421,9 +1461,9 @@ const Cobros = () => {
               <div className={styles.sectionHeader}>
                 <h2>Facturación</h2>
               </div>
-              {renderFacturacionTable('A', FACTURA_A_COLUMNS, facturacionCobrosA)}
-              {renderFacturacionTable('B', FACTURA_B_COLUMNS, facturacionCobrosB)}
-              {renderFacturacionTable('T', FACTURA_T_COLUMNS, facturacionCobrosT)}
+              {renderFacturacionTable('A')}
+              {renderFacturacionTable('B')}
+              {renderFacturacionTable('T')}
             </section>
           )}
         </div>
