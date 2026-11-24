@@ -5,6 +5,10 @@
   background: var(--color-bg);
 }
 
+.newLayoutWhite {
+  background: #fff;
+}
+
 .sidebar {
   width: 260px;
   background: var(--color-primary);
@@ -70,6 +74,10 @@
   padding: 12px 16px 24px;
   background: var(--color-bg);
   min-height: calc(100vh - var(--nav-height));
+}
+
+.mainContentWhite {
+  background: #fff;
 }
 
 .mainContentBody {
@@ -191,6 +199,12 @@
   border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+.sectionFlat {
+  border-radius: 0;
+  box-shadow: none;
+  background: #fff;
 }
 
 .sectionHeader {
@@ -557,6 +571,37 @@
 
 .columnFilterRow .columnFilter {
   flex: 1 1 auto;
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.3rem 0.35rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-dark, #3a4250);
+  font-size: var(--font-size-small, 0.846rem);
+  text-align: left;
+  cursor: pointer;
+}
+
+.filterOption:hover {
+  background: var(--color-bg, #f5f6f8);
+}
+
+.filterOption input {
+  margin: 0;
+  accent-color: var(--color-primary, #3f5f8a);
+}
+
+.filterOptionEmpty {
+  padding: 0.3rem 0.35rem;
+  font-size: var(--font-size-small, 0.846rem);
+  color: var(--color-text-muted, #6b7280);
 }
 
 .emptyCell {
