@@ -1443,8 +1443,15 @@ const CobroForm = ({
           setError('El país emisor del pasaporte es requerido para Factura T');
           return;
         }
+        if (!String(billing.address || '').trim()) {
+          setError(`El domicilio es requerido para ${label}`);
+          return;
+        }
       } else if (!billing.businessName || !billing.cuit) {
         setError('Razón social y CUIT son requeridos para Factura A');
+        return;
+      } else if (!String(billing.commercialAddress || '').trim()) {
+        setError('El domicilio comercial es requerido para Factura A');
         return;
       }
     }
@@ -2774,12 +2781,13 @@ const CobroForm = ({
                       ) : null}
                       <div className={styles.formRow}>
                         <div className={styles.formGroup}>
-                          <label htmlFor="billing-domicilio">Domicilio</label>
+                          <label htmlFor="billing-domicilio">Domicilio *</label>
                           <input
                             id="billing-domicilio"
                             type="text"
                             value={billing.address}
                             onChange={(e) => handleBillingChange('address', e.target.value)}
+                            required
                           />
                         </div>
                         <div className={styles.formGroup}>
@@ -2819,12 +2827,13 @@ const CobroForm = ({
                       </div>
                       <div className={styles.formRow}>
                         <div className={styles.formGroup}>
-                          <label htmlFor="billing-dom-com">Domicilio comercial</label>
+                          <label htmlFor="billing-dom-com">Domicilio comercial *</label>
                           <input
                             id="billing-dom-com"
                             type="text"
                             value={billing.commercialAddress}
                             onChange={(e) => handleBillingChange('commercialAddress', e.target.value)}
+                            required
                           />
                         </div>
                         <div className={styles.formGroup}>
