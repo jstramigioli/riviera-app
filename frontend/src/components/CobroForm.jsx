@@ -1908,23 +1908,23 @@ const CobroForm = ({
                     data-testid="payment-fecha"
                   />
                   {!isDevolucion && canUseSena ? (
-                    <div className={styles.senaUnderFecha} data-testid="payment-sena-row">
-                      <span className={styles.fieldLabel} id="payment-sena-label">
-                        Seña
-                      </span>
-                      <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                        <input
-                          id="payment-sena-toggle"
-                          type="checkbox"
-                          role="switch"
-                          checked={esSena}
-                          disabled={loading}
-                          aria-labelledby="payment-sena-label"
-                          onChange={(e) => setEsSena(e.target.checked)}
-                        />
-                        <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                      </label>
-                    </div>
+                    <label
+                      className={styles.toggleInline}
+                      htmlFor="payment-sena-toggle"
+                      data-testid="payment-sena-row"
+                    >
+                      <span id="payment-sena-label">Seña</span>
+                      <input
+                        id="payment-sena-toggle"
+                        type="checkbox"
+                        role="switch"
+                        checked={esSena}
+                        disabled={loading}
+                        aria-labelledby="payment-sena-label"
+                        onChange={(e) => setEsSena(e.target.checked)}
+                      />
+                      <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                    </label>
                   ) : null}
                 </div>
 
@@ -2751,26 +2751,23 @@ const CobroForm = ({
               ) : null}
 
               {!isEditMode ? (
-                <div
-                  className={styles.billingToggleRow}
+                <label
+                  className={styles.toggleInline}
+                  htmlFor="payment-billing-toggle"
                   data-testid="payment-billing-toggle-row"
                 >
-                  <span className={styles.fieldLabel} id="payment-billing-label">
-                    Requiere facturación
-                  </span>
-                  <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
-                    <input
-                      id="payment-billing-toggle"
-                      type="checkbox"
-                      role="switch"
-                      checked={billingEnabled}
-                      disabled={billingForced || loading}
-                      aria-labelledby="payment-billing-label"
-                      onChange={(e) => setRequiereFacturacion(e.target.checked)}
-                    />
-                    <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
-                  </label>
-                </div>
+                  <span id="payment-billing-label">Requiere facturación</span>
+                  <input
+                    id="payment-billing-toggle"
+                    type="checkbox"
+                    role="switch"
+                    checked={billingEnabled}
+                    disabled={billingForced || loading}
+                    aria-labelledby="payment-billing-label"
+                    onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                  />
+                  <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
+                </label>
               ) : null}
 
               {/* Billing form: visible when enabled */}

@@ -748,19 +748,40 @@
 }
 
 .billingToggleRow {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
   margin: 4px 0 16px;
 }
 
 .senaUnderFecha {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  width: fit-content;
+  max-width: 100%;
   margin-top: 10px;
+}
+
+/* Label + switch juntos, sin estirar al ancho completo */
+.toggleInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fechaLead .toggleInline {
+  margin: 10px 0 0;
 }
 
 .toggleLabel {
@@ -768,19 +789,22 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
+  width: fit-content;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-main);
   cursor: pointer;
 }
 
-.toggleLabel input[type='checkbox'] {
+.toggleLabel input[type='checkbox'],
+.toggleInline input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--color-primary);
 }
 
-.toggleLabel input[role='switch'] {
+.toggleLabel input[role='switch'],
+.toggleInline input[role='switch'] {
   width: 36px;
   height: 20px;
   appearance: none;
@@ -793,7 +817,8 @@
   flex-shrink: 0;
 }
 
-.toggleLabel input[role='switch']::after {
+.toggleLabel input[role='switch']::after,
+.toggleInline input[role='switch']::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -806,15 +831,18 @@
   transition: transform 0.15s ease;
 }
 
-.toggleLabel input[role='switch']:checked {
+.toggleLabel input[role='switch']:checked,
+.toggleInline input[role='switch']:checked {
   background: var(--color-primary);
 }
 
-.toggleLabel input[role='switch']:checked::after {
+.toggleLabel input[role='switch']:checked::after,
+.toggleInline input[role='switch']:checked::after {
   transform: translateX(16px);
 }
 
-.toggleLabel input[role='switch']:disabled {
+.toggleLabel input[role='switch']:disabled,
+.toggleInline input[role='switch']:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
