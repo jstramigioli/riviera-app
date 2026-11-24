@@ -311,7 +311,7 @@ const CargosTab = ({
                               <tr>
                                 <th> Fecha</th>
                                 <th> Descripción</th>
-                                <th> Monto</th>
+                                <th className={styles.montoCell}> Monto</th>
                                 <th> Acciones</th>
                               </tr>
                             </thead>

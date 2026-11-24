@@ -549,6 +549,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Valores cortos al centro; montos a la derecha (vence .dataTable td left). */
+.dataTable th.colReserva,
+.dataTable td.colReserva,
+.dataTable th.colGuests,
+.dataTable td.colGuests,
+.dataTable th.colRoom,
+.dataTable td.colRoom {
+  text-align: center;
+}
+
+.dataTable th.colSaldo,
+.dataTable td.colSaldo {
+  text-align: right;
+}
+
 .colStatus {
   width: 110px;
   white-space: nowrap;

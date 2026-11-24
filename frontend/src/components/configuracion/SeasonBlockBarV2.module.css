@@ -571,9 +571,10 @@
 
 .priceCell {
   min-width: 120px;
-  text-align: center;
+  text-align: right;
   height: 60px; /* Altura fija para mantener consistencia */
   vertical-align: middle;
+  font-variant-numeric: tabular-nums;
 }
 
 .priceInput {
@@ -583,7 +584,7 @@
   border-radius: 4px;
   padding: 6px 8px;
   font-size: var(--font-size-base);
-  text-align: center;
+  text-align: right;
   height: 36px; /* Altura fija para el input */
   box-sizing: border-box;
 }

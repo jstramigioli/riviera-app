@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { FiArrowDown, FiArrowUp, FiCheck, FiX } from 'react-icons/fi';
 import {
   subscribeSimulatedToday,
@@ -70,16 +68,6 @@ export function creditSaldoAmount(row) {
   const saldo = Number(row.saldo);
   if (!Number.isFinite(saldo) || saldo >= 0) return null;
   return Math.abs(saldo);
-}
-
-function civilLocalDate(dayIso) {
-  const [y, m, d] = String(dayIso).split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function formatDayTitle(dayIso) {
-  const raw = format(civilLocalDate(dayIso), "EEEE d 'de' MMMM", { locale: es });
-  return raw.charAt(0).toLowerCase() + raw.slice(1);
 }
 
 function RangeFilter({ value, onChange, labelledBy }) {
@@ -434,7 +422,6 @@ export default function ReceptionDashboard() {
   }
 
   const { meals } = model;
-  const dayTitle = formatDayTitle(todayIso);
 
   const renderSaldoCell = (reservationId) => {
     const bal = balancesByReservationId.get(Number(reservationId));
@@ -485,7 +472,7 @@ export default function ReceptionDashboard() {
   return (
     <div className={styles.page}>
       <header className={styles.toolbar}>
-        <h1 className={styles.pageTitle}>{dayTitle}</h1>
+        <h1 className={styles.pageTitle}>Dashboard</h1>
       </header>
 
       {error ? (

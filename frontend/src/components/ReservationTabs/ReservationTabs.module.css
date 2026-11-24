@@ -819,6 +819,24 @@
   font-weight: 600;
   color: var(--color-primary);
   font-size: 1.05rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dataTable th.montoCell,
+.dataTable td.montoCell {
+  text-align: right;
+}
+
+.shortCell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dataTable th.shortCell,
+.dataTable td.shortCell {
+  text-align: center;
 }
 
 .notasCell {

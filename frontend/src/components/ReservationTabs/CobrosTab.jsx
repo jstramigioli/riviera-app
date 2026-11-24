@@ -63,8 +63,8 @@ const CobrosTab = ({
                 <thead>
                   <tr>
                     <th> Fecha</th>
-                    <th> Monto</th>
-                    <th> Moneda</th>
+                    <th className={styles.montoCell}> Monto</th>
+                    <th className={styles.shortCell}> Moneda</th>
                     <th> Método</th>
                     <th> Detalles</th>
                     <th> Acciones</th>
@@ -85,7 +85,7 @@ const CobrosTab = ({
                           </div>
                         )}
                       </td>
-                      <td>{cobro.moneda || 'ARS'}</td>
+                      <td className={styles.shortCell}>{cobro.moneda || 'ARS'}</td>
                       <td>{cobro.metodo}</td>
                       <td>
                         {['Tarjeta Debito', 'Tarjeta Credito'].includes(cobro.metodo) && (

@@ -600,15 +600,20 @@
   color: #495057;
 }
 
+/* ID / Estado / Acciones: valores cortos al centro. Saldo (4): monto a la derecha. */
 .reservationsTable td:nth-child(1),
 .reservationsTable td:nth-child(3),
-.reservationsTable td:nth-child(4),
 .reservationsTable td:nth-child(5),
 .reservationsTable th:nth-child(1),
 .reservationsTable th:nth-child(3),
-.reservationsTable th:nth-child(4),
 .reservationsTable th:nth-child(5) {
   text-align: center;
+}
+
+.reservationsTable th:nth-child(4),
+.reservationsTable td:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .reservationRow {

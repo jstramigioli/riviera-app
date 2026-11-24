@@ -443,6 +443,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.breakdownTable th:nth-child(2),
+.breakdownTable td:nth-child(2) {
+  text-align: right;
+}
+
 .breakdownTable th {
   color: var(--color-text-muted);
   font-weight: 600;

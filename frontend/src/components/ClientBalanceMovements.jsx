@@ -280,7 +280,7 @@ const ClientBalanceMovements = ({
                     <th>Fecha</th>
                     <th>Descripción</th>
                     <th>Cuenta</th>
-                    <th>Monto</th>
+                    <th className={styles.montoCell}>Monto</th>
                     <th />
                   </tr>
                 </thead>
@@ -354,10 +354,10 @@ const ClientBalanceMovements = ({
               <table className={styles.dataTable} data-testid="client-cobros-table">
                 <thead>
                   <tr>
-                    <th>Código</th>
+                    <th className={styles.shortCell}>Código</th>
                     <th>Fecha</th>
                     <th>Cuenta</th>
-                    <th>Monto</th>
+                    <th className={styles.montoCell}>Monto</th>
                     <th />
                   </tr>
                 </thead>
@@ -377,7 +377,7 @@ const ClientBalanceMovements = ({
                         data-testid={`client-cobro-row-${rowKey}`}
                         aria-selected={isSelected}
                       >
-                        <td>
+                        <td className={styles.shortCell}>
                           {codigo}
                           {cobro.esImputacionParcial ? ' · parcial' : ''}
                         </td>

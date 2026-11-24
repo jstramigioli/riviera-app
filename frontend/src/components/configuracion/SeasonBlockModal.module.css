@@ -387,6 +387,13 @@
   border-bottom: 1px solid var(--color-border-light);
 }
 
+/* Columnas de precio / ajuste: montos a la derecha (hab. sticky queda left). */
+.table th:not(:first-child),
+.table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .table th {
   background: var(--color-bg-light);
   font-weight: 600;

@@ -54,6 +54,12 @@
   vertical-align: middle;
 }
 
+/* Orden: valor corto al centro. */
+.table th:nth-child(5),
+.table td:nth-child(5) {
+  text-align: center;
+}
+
 .table th {
   font-weight: 600;
   color: #374151;
