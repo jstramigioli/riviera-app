@@ -157,6 +157,32 @@ describe('CobroForm facturación', () => {
     expect(screen.getByTestId('payment-fecha')).toHaveValue(todayLocalDateInputValue())
   })
 
+  it('layout: fecha arriba de reserva; método|moneda encima de montos; Comprobante sin (opcional)', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    const fecha = screen.getByTestId('payment-fecha')
+    const imputa = screen.getByTestId('payment-imputa-label')
+    const metodoMoneda = screen.getByTestId('payment-metodo-moneda-row')
+    const montos = screen.getByTestId('payment-montos-zone')
+    const datos = screen.getByRole('region', { name: 'Datos del cobro' })
+
+    expect(fecha.compareDocumentPosition(imputa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(datos.contains(metodoMoneda)).toBe(true)
+    expect(datos.contains(montos)).toBe(true)
+    expect(
+      metodoMoneda.compareDocumentPosition(montos) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(metodoMoneda.querySelector('#payment-metodo')).not.toBeNull()
+    expect(metodoMoneda.querySelector('#payment-moneda')).not.toBeNull()
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+    expect(screen.getByLabelText(/^Comprobante$/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Comprobante \(opcional\)/i)).not.toBeInTheDocument()
+  })
+
   it('en modo edición prefills y llama updateCobro', async () => {
     const onSuccess = vi.fn()
     render(
@@ -966,7 +992,7 @@ describe('CobroForm facturación', () => {
       target: { value: 'Transferencia' }
     })
 
-    const input = screen.getByLabelText(/Comprobante \(opcional\)/i)
+    const input = screen.getByLabelText(/^Comprobante$/i)
     expect(input).toBeInTheDocument()
     fireEvent.change(input, { target: { files: [file] } })
 
@@ -1110,7 +1136,7 @@ describe('CobroForm facturación', () => {
       target: { value: 'Transferencia' }
     })
     expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/Comprobante \(opcional\)/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Comprobante$/i)).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
     expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()

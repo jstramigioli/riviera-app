@@ -1835,6 +1835,19 @@ const CobroForm = ({
                                         <div className={styles.formBody}>
           <div className={styles.workspace} data-testid="payment-workspace">
             <div className={styles.mainPane}>
+              <div className={styles.formGroup} data-testid="payment-fecha-lead">
+                <label htmlFor="payment-fecha">Fecha *</label>
+                <input
+                  id="payment-fecha"
+                  type="date"
+                  value={formData.fecha}
+                  onChange={(e) => handleInputChange('fecha', e.target.value)}
+                  required
+                  disabled={loading}
+                  data-testid="payment-fecha"
+                />
+              </div>
+
               {/* 1) Destino del cobro */}
               <section className={styles.sectionBlock} aria-label="Destino del cobro">
                 <h3 className={styles.sectionTitle}>Destino del cobro</h3>
@@ -2072,6 +2085,84 @@ const CobroForm = ({
                 <h3 className={styles.sectionTitle}>Datos del cobro</h3>
 
                 <div
+                  className={styles.formRow}
+                  data-testid="payment-metodo-moneda-row"
+                >
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-metodo">
+                      {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+                    </label>
+                    <select
+                      id="payment-metodo"
+                      value={formData.metodo}
+                      onChange={(e) => handleInputChange('metodo', e.target.value)}
+                      required
+                      disabled={loading || methodConfigs.length === 0}
+                      aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
+                    >
+                      {methodConfigs.length === 0 ? (
+                        <option value="">Cargando medios…</option>
+                      ) : (
+                        methodConfigs.map((m) => (
+                          <option key={m.id} value={m.label}>
+                            {m.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-moneda">Moneda *</label>
+                    <select
+                      id="payment-moneda"
+                      value={formData.moneda}
+                      onChange={(e) => handleInputChange('moneda', e.target.value)}
+                      required
+                      disabled={loading}
+                      data-testid="payment-moneda"
+                    >
+                      {SYSTEM_CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  className={foreignCurrency ? styles.formGroup : undefined}
+                  data-testid="payment-moneda-tc"
+                >
+                  {foreignCurrency ? (
+                    <>
+                      <label htmlFor="payment-tc">Tipo de cambio *</label>
+                      <input
+                        id="payment-tc"
+                        type="number"
+                        value={formData.tipoCambio}
+                        onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                        onFocus={() => {
+                          if (amountMode !== AMOUNT_MODE_SALDAR) {
+                            setAmountMode(AMOUNT_MODE_INGRESADO);
+                          }
+                        }}
+                        placeholder="1000.00"
+                        step="0.01"
+                        min="0"
+                        required
+                        disabled={loading}
+                        data-testid="payment-tc"
+                      />
+                      {tipoCambioGlobal != null && (
+                        <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+
+                <div
                   className={`${styles.montosTwoCol}${
                     showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
                   }`}
@@ -2269,81 +2360,7 @@ const CobroForm = ({
                   ) : null}
                 </div>
 
-                <div
-                  className={
-                    foreignCurrency ? styles.monedaTcPair : styles.formGroup
-                  }
-                  data-testid="payment-moneda-tc"
-                >
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-moneda">Moneda *</label>
-                    <select
-                      id="payment-moneda"
-                      value={formData.moneda}
-                      onChange={(e) => handleInputChange('moneda', e.target.value)}
-                      required
-                      disabled={loading}
-                      data-testid="payment-moneda"
-                    >
-                      {SYSTEM_CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {foreignCurrency ? (
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-tc">Tipo de cambio *</label>
-                      <input
-                        id="payment-tc"
-                        type="number"
-                        value={formData.tipoCambio}
-                        onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                        onFocus={() => {
-                          if (amountMode !== AMOUNT_MODE_SALDAR) {
-                            setAmountMode(AMOUNT_MODE_INGRESADO);
-                          }
-                        }}
-                        placeholder="1000.00"
-                        step="0.01"
-                        min="0"
-                        required
-                        disabled={loading}
-                        data-testid="payment-tc"
-                      />
-                      {tipoCambioGlobal != null && (
-                        <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-
                 <section className={styles.methodCompact} aria-label="Medio de pago">
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-metodo">
-                      {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
-                    </label>
-                    <select
-                      id="payment-metodo"
-                      value={formData.metodo}
-                      onChange={(e) => handleInputChange('metodo', e.target.value)}
-                      required
-                      disabled={loading || methodConfigs.length === 0}
-                      aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
-                    >
-                      {methodConfigs.length === 0 ? (
-                        <option value="">Cargando medios…</option>
-                      ) : (
-                        methodConfigs.map((m) => (
-                          <option key={m.id} value={m.label}>
-                            {m.label}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
                   <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
                     {isCardMethod(formData.metodo) ? (
                       <div className={styles.methodFields}>
@@ -2397,7 +2414,7 @@ const CobroForm = ({
 
                     {showComprobanteField ? (
                       <div className={styles.formGroup}>
-                        <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
+                        <label htmlFor="payment-comprobante">Comprobante</label>
                         <label
                           className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
                           htmlFor="payment-comprobante"
@@ -2432,19 +2449,6 @@ const CobroForm = ({
                     ) : null}
                   </div>
                 </section>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-fecha">Fecha *</label>
-                  <input
-                    id="payment-fecha"
-                    type="date"
-                    value={formData.fecha}
-                    onChange={(e) => handleInputChange('fecha', e.target.value)}
-                    required
-                    disabled={loading}
-                    data-testid="payment-fecha"
-                  />
-                </div>
               </section>
 
               {/* 3) Descuentos */}
