@@ -80,3 +80,31 @@ describe('CobrosHistorialTable — moneda', () => {
     expect(options).toEqual(expect.arrayContaining(['', 'ARS', 'USD']))
   })
 })
+
+describe('CobrosHistorialTable — paginación', () => {
+  it('pagina de a 50 por defecto y permite cambiar filas', () => {
+    // Misma fecha → orden por id desc: 55…1. Página 1 = 55–6; página 2 = 5–1.
+    const payments = Array.from({ length: 55 }, (_, i) =>
+      makeCobro({ id: i + 1, moneda: i % 2 === 0 ? 'ARS' : 'USD' })
+    )
+
+    render(
+      <CobrosHistorialTable payments={payments} testId="cobros-pager-table" />
+    )
+
+    expect(screen.getByTestId('cobro-row-55')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-6')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-5')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }))
+    expect(screen.getByTestId('cobro-row-5')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('cobro-row-55')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Filas por página'), {
+      target: { value: '100' },
+    })
+    expect(screen.getByTestId('cobro-row-55')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-row-1')).toBeInTheDocument()
+  })
+})

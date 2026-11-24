@@ -10,7 +10,14 @@ import { useAppNotice } from '../hooks/useAppNotice';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
+import {
+  DEFAULT_PAGE_SIZE,
+  clampPage,
+  pageSlice,
+  totalPagesFor,
+} from '../utils/tablePagination';
 import ReservationIdChip from './ReservationIdChip';
+import TablePager from './TablePager';
 import styles from '../pages/Cobros.module.css';
 
 export function isDevolucionCobro(cobro) {
@@ -144,6 +151,8 @@ export default function CobrosHistorialTable({
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
   const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
   const [deletingCobroId, setDeletingCobroId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const setPayFilter = (key, value) => {
     setPayFilters((prev) => ({ ...prev, [key]: value }));
@@ -297,6 +306,21 @@ export default function CobrosHistorialTable({
         return Number(b.id) - Number(a.id);
       });
   }, [payments, payFilters, clientIdFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [payFilters, clientIdFilter, pageSize]);
+
+  const cobrosTotalPages = totalPagesFor(filteredCobros.length, pageSize);
+
+  useEffect(() => {
+    setPage((prev) => clampPage(prev, cobrosTotalPages));
+  }, [cobrosTotalPages]);
+
+  const pagedCobros = useMemo(
+    () => pageSlice(filteredCobros, page, pageSize),
+    [filteredCobros, page, pageSize]
+  );
 
   const patchCobro = (cobroId, updater) => {
     if (!onPaymentsChange) return;
@@ -526,14 +550,14 @@ export default function CobrosHistorialTable({
             </tr>
           </thead>
           <tbody>
-            {filteredCobros.length === 0 ? (
+            {pagedCobros.length === 0 ? (
               <tr>
                 <td colSpan={showRowActions ? 12 : 11} className={styles.emptyCell}>
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              filteredCobros.map((cobro) => {
+              pagedCobros.map((cobro) => {
                 const client = cobro.reserva?.mainClient;
                 const clientName = client
                   ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
@@ -738,6 +762,15 @@ export default function CobrosHistorialTable({
           </tbody>
         </table>
       </div>
+
+      <TablePager
+        total={filteredCobros.length}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        label="Paginación de cobros"
+      />
 
       {enableColumnFilters && openPayColumn ? (
         <div
