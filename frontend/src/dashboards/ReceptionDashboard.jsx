@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiArrowDown, FiArrowUp, FiCheck, FiX } from 'react-icons/fi';
 import {
   subscribeSimulatedToday,
@@ -201,6 +201,8 @@ function NotesEditDialog({
  */
 export default function ReceptionDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const flatFondo = searchParams.get('fondo') === '1';
   const [todayIso, setTodayIso] = useState(() => todayIsoLocal());
   const [mealsDateIso, setMealsDateIso] = useState(() => todayIsoLocal());
   const [horizonDays, setHorizonDays] = useState(1);
@@ -469,10 +471,32 @@ export default function ReceptionDashboard() {
     );
   };
 
+  const toggleFlatFondo = () => {
+    const next = new URLSearchParams(searchParams);
+    if (flatFondo) next.delete('fondo');
+    else next.set('fondo', '1');
+    setSearchParams(next, { replace: true });
+  };
+
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${flatFondo ? styles.pageFlat : ''}`}>
       <header className={styles.toolbar}>
-        <h1 className={styles.pageTitle}>Dashboard</h1>
+        <h1 className={styles.pageTitle}>
+          {flatFondo ? 'Dashboard (fondo)' : 'Dashboard'}
+        </h1>
+        <button
+          type="button"
+          className={styles.fondoToggle}
+          onClick={toggleFlatFondo}
+          aria-pressed={flatFondo}
+          title={
+            flatFondo
+              ? 'Volver al dashboard con contenedores'
+              : 'Preview fondo blanco sin cards grises'
+          }
+        >
+          {flatFondo ? 'Vista normal' : 'Vista fondo'}
+        </button>
       </header>
 
       {error ? (
