@@ -113,6 +113,12 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
     if (tipo === 'T' && !passportCountry) {
       return { error: 'El país emisor del pasaporte es requerido para Factura T' };
     }
+    const address = normalizeOptionalString(facturaInput.address || facturaInput.domicilio);
+    if (!address) {
+      return {
+        error: `El domicilio es requerido para Factura ${tipo}`
+      };
+    }
     return {
       data: {
         ...base,
@@ -125,13 +131,20 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
           facturaInput.documentNumber || facturaInput.numeroDocumento
         ),
         passportCountry: tipo === 'T' ? passportCountry : null,
-        address: normalizeOptionalString(facturaInput.address || facturaInput.domicilio),
+        address,
         businessName: null,
         cuit: null,
         commercialAddress: null,
         ivaCondition: null
       }
     };
+  }
+
+  const commercialAddress = normalizeOptionalString(
+    facturaInput.commercialAddress || facturaInput.domicilioComercial
+  );
+  if (!commercialAddress) {
+    return { error: 'El domicilio comercial es requerido para Factura A' };
   }
 
   return {
@@ -145,9 +158,7 @@ function buildFacturaData(facturaInput, metodo, numeroTarjetaCobro, req) {
       address: null,
       businessName: normalizeOptionalString(facturaInput.businessName || facturaInput.razonSocial),
       cuit: normalizeOptionalString(facturaInput.cuit),
-      commercialAddress: normalizeOptionalString(
-        facturaInput.commercialAddress || facturaInput.domicilioComercial
-      ),
+      commercialAddress,
       ivaCondition:
         normalizeOptionalString(facturaInput.ivaCondition || facturaInput.condicionIva) ||
         DEFAULT_IVA_CONDITION

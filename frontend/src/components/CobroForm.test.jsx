@@ -824,6 +824,47 @@ describe('CobroForm facturación', () => {
     expect(screen.getByLabelText(/Condición frente al IVA/i)).toHaveValue(
       'Responsable Inscripto'
     )
+    expect(screen.getByLabelText(/Domicilio comercial/i)).toBeRequired()
+  })
+
+  it('exige domicilio en Factura B y domicilio comercial en Factura A', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+    const domicilioB = screen.getByLabelText(/^Domicilio/i)
+    expect(domicilioB).toBeRequired()
+    expect(domicilioB).toHaveValue('Calle 1')
+
+    fireEvent.change(domicilioB, { target: { value: '   ' } })
+    fireEvent.change(screen.getByLabelText(/Monto a saldar/i), {
+      target: { value: '1000' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/El domicilio es requerido para Factura B/i)).toBeInTheDocument()
+    })
+    expect(createCobro).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Factura A' }))
+    fireEvent.change(screen.getByLabelText(/Razón social/i), {
+      target: { value: 'ACME SA' }
+    })
+    fireEvent.change(screen.getByLabelText(/^CUIT/i), {
+      target: { value: '30-71234567-1' }
+    })
+    fireEvent.change(screen.getByLabelText(/Domicilio comercial/i), {
+      target: { value: '   ' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
+    await waitFor(() => {
+      expect(
+        screen.getByText(/El domicilio comercial es requerido para Factura A/i)
+      ).toBeInTheDocument()
+    })
+    expect(createCobro).not.toHaveBeenCalled()
   })
 
   it('muestra Factura T con mismos campos que B más país emisor del pasaporte', async () => {
