@@ -33,8 +33,7 @@ const CONVENTIONAL_ORDER = [
 const POSTRE_TWO_COL_MIN = 3;
 
 /**
- * Tipografía fija pedida por Julián: platos/secciones 16pt.
- * Título un poco mayor; fecha/notas legibles pero subordinadas.
+ * Tipografía fija: platos/secciones 16pt.
  */
 const NAME_PT = 16;
 const SECTION_PT = 16;
@@ -49,8 +48,8 @@ const A5_PT = [148 * 2.83465, 210 * 2.83465];
 const A4_PT = A5_PT;
 
 const LOGO_ASPECT = 740 / 410;
-const LOGO_H = 40;
-const BAND_PAD = 10;
+const LOGO_H = 36;
+const BAND_PAD = 8;
 
 const LOGO_CANDIDATES = [
   path.join(__dirname, '../../assets/riviera-hotel-logo.png'),
@@ -60,21 +59,17 @@ const LOGO_CANDIDATES = [
   path.join(__dirname, '../../../frontend/src/assets/logo-hotel.png')
 ];
 
-const PAGE_MARGINS = { top: 20, bottom: 20, left: 28, right: 28 };
+/** Márgenes A5: pie chico para que el contenido llegue cerca del borde útil. */
+const PAGE_MARGINS = { top: 16, bottom: 14, left: 26, right: 26 };
 
-/** Pisos de gap (pt). El slack restante se reparte entre slots flexibles. */
-const MIN_AFTER_TITLE = 4;
-const MIN_AFTER_DATE = 6;
-const MIN_AFTER_RULE = 8;
-const MIN_AFTER_SECTION_TITLE = 3;
-const MIN_ITEM_GAP = 3;
-const MIN_AFTER_SECTION = 6;
-const MIN_BAND_TO_TITLE = 8;
-
-/** Techos para que menús muy vacíos no queden excesivamente aireados. */
-const MAX_ITEM_GAP = 18;
-const MAX_AFTER_SECTION = 28;
-const MAX_AFTER_RULE = 22;
+/** Pisos de gap (pt). El slack se reparte encima de estos mínimos. */
+const MIN_BAND_TO_TITLE = 6;
+const MIN_AFTER_TITLE = 3;
+const MIN_AFTER_DATE = 5;
+const MIN_AFTER_RULE = 6;
+const MIN_AFTER_SECTION_TITLE = 2;
+const MIN_ITEM_GAP = 2;
+const MIN_AFTER_SECTION = 4;
 
 const COL_GAP = 10;
 
@@ -122,221 +117,53 @@ function fixedTypography() {
   };
 }
 
-function itemBlockHeight(doc, item, nameSize, descSize, width) {
-  doc.font('Helvetica-Bold').fontSize(nameSize);
-  let h = doc.heightOfString(item.nameSnapshot || ' ', { width, lineGap: 0 });
-  if (item.descriptionSnap) {
-    doc.font('Helvetica').fontSize(descSize);
-    h += doc.heightOfString(item.descriptionSnap, { width, lineGap: 0 });
-  }
-  return h;
-}
-
-function sectionTitleHeight(doc, text, sectionSize, width) {
-  doc.font('Helvetica-Bold').fontSize(sectionSize);
-  return doc.heightOfString(text, { width, lineGap: 0, characterSpacing: 0.6 });
-}
-
-function postreBlockHeight(doc, list, nameSize, descSize, contentWidth, itemGapPt) {
-  if (!list.length) return 0;
-  if (list.length < POSTRE_TWO_COL_MIN) {
-    let h = 0;
-    list.forEach((item, i) => {
-      h += itemBlockHeight(doc, item, nameSize, descSize, contentWidth);
-      if (i < list.length - 1) h += itemGapPt;
-    });
-    return h;
-  }
-  const colWidth = (contentWidth - COL_GAP) / 2;
-  const mid = Math.ceil(list.length / 2);
-  const leftCol = list.slice(0, mid);
-  const rightCol = list.slice(mid);
-  const colH = (col) => {
-    let h = 0;
-    col.forEach((item, i) => {
-      h += itemBlockHeight(doc, item, nameSize, descSize, colWidth);
-      if (i < col.length - 1) h += itemGapPt;
-    });
-    return h;
+function minSpacingBase() {
+  return {
+    bandToTitle: MIN_BAND_TO_TITLE,
+    afterTitle: MIN_AFTER_TITLE,
+    afterDate: MIN_AFTER_DATE,
+    afterRule: MIN_AFTER_RULE,
+    afterSectionTitle: MIN_AFTER_SECTION_TITLE,
+    itemGap: MIN_ITEM_GAP,
+    afterSection: MIN_AFTER_SECTION
   };
-  return Math.max(colH(leftCol), colH(rightCol));
 }
 
-/**
- * Cuenta slots flexibles y altura sólida (texto + gaps mínimos).
- * Devuelve gaps en pt ya repartidos para llenar la hoja sin acumular vacío abajo.
- */
-function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
-  const typo = fixedTypography();
-  const doc = new PDFDocument({
-    size: A5_PT,
-    margins: { ...PAGE_MARGINS },
-    autoFirstPage: true
-  });
-  doc.on('data', () => {});
-
-  const pageWidth = A5_PT[0];
-  const contentWidth = pageWidth - PAGE_MARGINS.left - PAGE_MARGINS.right;
-  const bottomLimit = A5_PT[1] - PAGE_MARGINS.bottom;
+function countFlexSlots(menu) {
   const bySection = groupItems(menu.items);
-  const bandHeight = logoPath ? typo.logoH + typo.bandPad : 40;
-
-  let solid = bandHeight + MIN_BAND_TO_TITLE;
-  doc.font('Helvetica-Bold').fontSize(typo.titleSize);
-  solid += doc.heightOfString('Menú', { width: contentWidth, lineGap: 0 });
-  solid += MIN_AFTER_TITLE;
-  doc.font('Helvetica').fontSize(typo.dateSize);
-  solid += doc.heightOfString(formatMenuDate(menu.date) || ' ', {
-    width: contentWidth,
-    lineGap: 0
-  });
-  solid += MIN_AFTER_DATE;
-  solid += 1; // rule
-  solid += MIN_AFTER_RULE;
-
-  // Slots flexibles: header (rule→body) + entre secciones + entre ítems
-  let flexSlots = 1; // after-rule absorbs slack
   let itemGapSlots = 0;
   let afterSectionSlots = 0;
 
   if (menu.kind === 'BUFFET') {
     const list = bySection.get('BUFFET') || [];
-    list.forEach((item, i) => {
-      solid += itemBlockHeight(doc, item, typo.nameSize, typo.descSize, contentWidth);
-      if (i < list.length - 1) {
-        solid += MIN_ITEM_GAP;
-        itemGapSlots += 1;
-      }
-    });
-  } else {
-    const presentSections = [];
-    for (const section of CONVENTIONAL_ORDER) {
-      if (section === 'ENSALADA') {
-        presentSections.push({ section, list: null, saladOnly: true });
-        continue;
-      }
-      const list = bySection.get(section) || [];
-      if (!list.length) continue;
-      presentSections.push({ section, list, saladOnly: false });
+    itemGapSlots = Math.max(0, list.length - 1);
+    return { itemGapSlots, afterSectionSlots, headerFlexSlots: 4 };
+  }
+
+  const blocks = [];
+  for (const section of CONVENTIONAL_ORDER) {
+    if (section === 'ENSALADA') {
+      blocks.push({ section, saladOnly: true });
+      continue;
     }
-
-    presentSections.forEach((block, idx) => {
-      if (block.saladOnly) {
-        solid += sectionTitleHeight(
-          doc,
-          MESA_ENSALADAS.toUpperCase(),
-          typo.sectionSize,
-          contentWidth
-        );
-      } else {
-        solid += sectionTitleHeight(
-          doc,
-          SECTION_LABELS[block.section].toUpperCase(),
-          typo.sectionSize,
-          contentWidth
-        );
-        solid += MIN_AFTER_SECTION_TITLE;
-        if (block.section === 'POSTRE') {
-          solid += postreBlockHeight(
-            doc,
-            block.list,
-            typo.nameSize,
-            typo.descSize,
-            contentWidth,
-            MIN_ITEM_GAP
-          );
-          if (block.list.length >= POSTRE_TWO_COL_MIN) {
-            const mid = Math.ceil(block.list.length / 2);
-            itemGapSlots += Math.max(0, mid - 1);
-            // right col gaps are parallel — no extra vertical slots
-          } else {
-            itemGapSlots += Math.max(0, block.list.length - 1);
-          }
-        } else {
-          block.list.forEach((item, i) => {
-            solid += itemBlockHeight(
-              doc,
-              item,
-              typo.nameSize,
-              typo.descSize,
-              contentWidth
-            );
-            if (i < block.list.length - 1) {
-              solid += MIN_ITEM_GAP;
-              itemGapSlots += 1;
-            }
-          });
-        }
-      }
-      if (idx < presentSections.length - 1) {
-        solid += MIN_AFTER_SECTION;
-        afterSectionSlots += 1;
-      }
-    });
+    const list = bySection.get(section) || [];
+    if (!list.length) continue;
+    blocks.push({ section, list, saladOnly: false });
   }
 
-  flexSlots += itemGapSlots + afterSectionSlots;
-
-  const slack = Math.max(0, bottomLimit - solid);
-  // Pesos: más aire entre secciones que entre ítems; el after-rule también crece.
-  const weightRule = 1.4;
-  const weightSection = 1.6;
-  const weightItem = 1;
-  const totalWeight =
-    weightRule + afterSectionSlots * weightSection + itemGapSlots * weightItem;
-
-  const unit = totalWeight > 0 ? slack / totalWeight : 0;
-
-  let afterRule = Math.min(MAX_AFTER_RULE, MIN_AFTER_RULE + unit * weightRule);
-  let afterSection = Math.min(
-    MAX_AFTER_SECTION,
-    MIN_AFTER_SECTION + unit * weightSection
-  );
-  let itemGap = Math.min(MAX_ITEM_GAP, MIN_ITEM_GAP + unit * weightItem);
-
-  // Si los techos dejan slack sin usar, repartir el resto solo en after-section
-  // (y rule) para no dejar vacío abajo.
-  const usedExtra =
-    (afterRule - MIN_AFTER_RULE) +
-    afterSectionSlots * (afterSection - MIN_AFTER_SECTION) +
-    itemGapSlots * (itemGap - MIN_ITEM_GAP);
-  let leftover = slack - usedExtra;
-  if (leftover > 0.5 && afterSectionSlots > 0) {
-    const bump = leftover / (afterSectionSlots + (weightRule > 0 ? 1 : 0));
-    afterSection += bump;
-    afterRule += bump;
-    leftover = 0;
-  } else if (leftover > 0.5) {
-    afterRule += leftover;
+  afterSectionSlots = Math.max(0, blocks.length - 1);
+  for (const block of blocks) {
+    if (block.saladOnly) continue;
+    if (block.section === 'POSTRE' && block.list.length >= POSTRE_TWO_COL_MIN) {
+      const mid = Math.ceil(block.list.length / 2);
+      itemGapSlots += Math.max(0, mid - 1);
+    } else {
+      itemGapSlots += Math.max(0, block.list.length - 1);
+    }
   }
 
-  try {
-    doc.end();
-  } catch (_) {
-    /* ignore */
-  }
-
-  return {
-    ...typo,
-    fits: solid <= bottomLimit + 0.5,
-    solid,
-    slack,
-    bottomLimit,
-    afterTitle: MIN_AFTER_TITLE,
-    afterDate: MIN_AFTER_DATE,
-    afterRule,
-    afterSectionTitle: MIN_AFTER_SECTION_TITLE,
-    itemGap,
-    afterSection,
-    bandToTitle: MIN_BAND_TO_TITLE,
-    itemGapSlots,
-    afterSectionSlots
-  };
-}
-
-/** @deprecated nombre: ahora fija 16pt + gaps fluidos. */
-function resolveMenuTypography(menu, logoPath = resolveLogoPath()) {
-  return resolveMenuSpacing(menu, logoPath);
+  // header flex: bandToTitle, afterTitle, afterDate, afterRule
+  return { itemGapSlots, afterSectionSlots, headerFlexSlots: 4 };
 }
 
 function drawCenteredItemAt(doc, item, nameSize, descSize, x, width, y) {
@@ -437,7 +264,7 @@ function paintDailyMenu(doc, menu, spacing, logoPath) {
 
   const bySection = groupItems(menu.items);
   const logoW = logoPath ? logoH * LOGO_ASPECT : 0;
-  const bandHeight = logoPath ? logoH + bandPad : 40;
+  const bandHeight = logoPath ? logoH + bandPad : 36;
 
   doc.save();
   doc.rect(0, 0, pageWidth, bandHeight).fill(RIVIERA_BLUE);
@@ -452,7 +279,7 @@ function paintDailyMenu(doc, menu, spacing, logoPath) {
       .fillColor('#ffffff')
       .font('Helvetica-Bold')
       .fontSize(14)
-      .text('Hotel Riviera', left, 12, {
+      .text('Hotel Riviera', left, 10, {
         width: contentWidth,
         align: 'center'
       });
@@ -561,12 +388,115 @@ function paintDailyMenu(doc, menu, spacing, logoPath) {
   }
 
   doc.page.margins.bottom = savedBottom;
-  return { finalY: doc.y };
+  return { finalY: doc.y, pageCount: doc.bufferedPageRange().count };
+}
+
+function createScratchDoc() {
+  const doc = new PDFDocument({
+    size: A5_PT,
+    margins: { ...PAGE_MARGINS },
+    autoFirstPage: true
+  });
+  doc.on('data', () => {});
+  return doc;
+}
+
+/**
+ * Mide altura real pintando con gaps dados (dry-run).
+ * Evita desfaces heightOfString vs text() que dejaban slack sin usar.
+ */
+function measurePaintedFinalY(menu, spacing, logoPath) {
+  const doc = createScratchDoc();
+  const result = paintDailyMenu(doc, menu, spacing, logoPath);
+  try {
+    doc.end();
+  } catch (_) {
+    /* ignore */
+  }
+  return result;
+}
+
+/**
+ * Tipografía 16pt fija + gaps que absorben TODO el slack hasta el pie útil.
+ * Prioriza aire entre secciones; el blanco no se acumula abajo.
+ */
+function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
+  const typo = fixedTypography();
+  const bottomLimit = A5_PT[1] - PAGE_MARGINS.bottom;
+  const slots = countFlexSlots(menu);
+
+  const minSpacing = {
+    ...typo,
+    ...minSpacingBase()
+  };
+
+  const minPaint = measurePaintedFinalY(menu, minSpacing, logoPath);
+  const solid = minPaint.finalY;
+  const slack = Math.max(0, bottomLimit - solid);
+
+  // Pesos: secciones llevan la mayor parte del aire; ítems menos; header algo.
+  const wSection = 3.2;
+  const wItem = 1.0;
+  const wRule = 1.6;
+  const wAfterTitle = 0.8;
+  const wAfterDate = 0.8;
+  const wBand = 0.5;
+  const wSectionTitle = 0.7;
+
+  const totalWeight =
+    slots.afterSectionSlots * wSection +
+    slots.itemGapSlots * wItem +
+    wRule +
+    wAfterTitle +
+    wAfterDate +
+    wBand +
+    // afterSectionTitle applies once per non-salad content section
+    Math.max(0, slots.afterSectionSlots) * wSectionTitle;
+
+  const unit = totalWeight > 0 ? slack / totalWeight : 0;
+
+  const spacing = {
+    ...typo,
+    bandToTitle: MIN_BAND_TO_TITLE + unit * wBand,
+    afterTitle: MIN_AFTER_TITLE + unit * wAfterTitle,
+    afterDate: MIN_AFTER_DATE + unit * wAfterDate,
+    afterRule: MIN_AFTER_RULE + unit * wRule,
+    afterSectionTitle: MIN_AFTER_SECTION_TITLE + unit * wSectionTitle,
+    itemGap: MIN_ITEM_GAP + unit * wItem,
+    afterSection: MIN_AFTER_SECTION + unit * wSection
+  };
+
+  // Segunda pasada: si aún falta llegar al pie (redondeos), empujar afterSection/rule.
+  const painted = measurePaintedFinalY(menu, spacing, logoPath);
+  let shortfall = bottomLimit - painted.finalY;
+  if (shortfall > 0.75) {
+    const n = Math.max(1, slots.afterSectionSlots);
+    spacing.afterSection += shortfall / (n + 1);
+    spacing.afterRule += shortfall / (n + 1);
+    shortfall = 0;
+  }
+
+  const verify = measurePaintedFinalY(menu, spacing, logoPath);
+
+  return {
+    ...spacing,
+    fits: verify.finalY <= bottomLimit + 1.5 && verify.pageCount <= 1,
+    solid,
+    slack,
+    bottomLimit,
+    finalY: verify.finalY,
+    itemGapSlots: slots.itemGapSlots,
+    afterSectionSlots: slots.afterSectionSlots,
+    bottomGap: bottomLimit - verify.finalY
+  };
+}
+
+function resolveMenuTypography(menu, logoPath = resolveLogoPath()) {
+  return resolveMenuSpacing(menu, logoPath);
 }
 
 /**
  * Genera un Buffer PDF A5 (148×210 mm) del menú diario.
- * Platos/secciones 16pt; el aire vertical se reparte según la cantidad de platos.
  */
 function buildDailyMenuPdfBuffer(menu) {
   return new Promise((resolve, reject) => {
