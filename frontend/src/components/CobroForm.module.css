@@ -270,48 +270,6 @@
   color: var(--color-text-muted);
 }
 
-.extrasDetails {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-white);
-  padding: 0;
-}
-
-.extrasDetails > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-dark);
-  user-select: none;
-}
-
-.extrasDetails > summary::-webkit-details-marker {
-  display: none;
-}
-
-.extrasDetails > summary svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.15s ease;
-  color: var(--color-text-muted);
-}
-
-.extrasDetails[open] > summary svg {
-  transform: rotate(180deg);
-}
-
-.extrasBody {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 12px 12px;
-}
-
 /* Legacy 4-col grid kept for reference; form uses .workspace */
 .layoutGrid {
   display: grid;
