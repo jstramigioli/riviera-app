@@ -481,13 +481,26 @@ export default function CobrosHistorialTable({
           <thead>
             <tr>
               {PAY_COLUMNS.map(({ key, label }) => {
+                const alignClass =
+                  key === 'monto'
+                    ? styles.amountCell
+                    : key === 'codigo' || key === 'reserva' || key === 'moneda'
+                      ? styles.shortCell
+                      : undefined;
                 if (!enableColumnFilters) {
-                  return <th key={key}>{label}</th>;
+                  return (
+                    <th key={key} className={alignClass}>
+                      {label}
+                    </th>
+                  );
                 }
                 const isOpen = openPayColumn === key;
                 const isActive = isPayColumnActive(key);
                 return (
-                  <th key={key} className={styles.columnHeader}>
+                  <th
+                    key={key}
+                    className={[styles.columnHeader, alignClass].filter(Boolean).join(' ')}
+                  >
                     <div className={styles.columnHeaderInner}>
                       <span>{label}</span>
                       <button
@@ -575,7 +588,10 @@ export default function CobrosHistorialTable({
                       )}
                     </td>
                     <td className={styles.amountCell}>{formatMoneyArs(amount)}</td>
-                    <td className={styles.metaCell} data-testid={`cobro-moneda-${cobro.id}`}>
+                    <td
+                      className={`${styles.metaCell} ${styles.shortCell}`}
+                      data-testid={`cobro-moneda-${cobro.id}`}
+                    >
                       {moneda}
                     </td>
                     <td className={styles.metaCell}>{cobro.metodo || '—'}</td>

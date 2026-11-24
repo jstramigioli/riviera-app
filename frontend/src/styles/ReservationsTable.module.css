@@ -179,6 +179,22 @@
 .table td:nth-child(7) { width: 120px; } /* Tipo */
 .table td:nth-child(8) { width: 120px; } /* Estado */
 
+/* ID + Habitación: cortos al centro. Monto: a la derecha. */
+.table th:nth-child(1),
+.table td:nth-child(1),
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  text-align: center;
+  justify-content: center;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+  text-align: right;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Información del cliente */
 .clientInfo {
   display: flex;
@@ -247,6 +263,7 @@
   font-weight: 600;
   color: var(--color-text-dark);
   font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Tipo de reserva */

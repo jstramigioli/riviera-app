@@ -27,6 +27,13 @@
   /* Permitir que el texto se divida en dos líneas si es necesario */
 }
 
+/* ID / Noches / Huéspedes: valores cortos al centro. */
+.table th:nth-child(1),
+.table th:nth-child(5),
+.table th:nth-child(6) {
+  text-align: center;
+}
+
 .sortableHeader {
   cursor: pointer;
   user-select: none;
@@ -67,7 +74,7 @@
   font-weight: 600;
   color: #3b82f6;
   width: 70px;
-  text-align: left;
+  text-align: center;
 }
 
 .clientCell {

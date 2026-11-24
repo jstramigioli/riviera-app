@@ -32,6 +32,7 @@ function printMealRows(title, rows) {
   table{width:100%;border-collapse:collapse}
   th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #d8dde6}
   th{font-size:12px;color:#6b7280}
+  th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:center}
 </style></head><body>
 <h1>${escapeHtml(title)}</h1>
 <table><thead><tr><th>Nombre</th><th>Habitación</th><th>Huéspedes</th></tr></thead>
@@ -468,8 +469,8 @@ export default function ComidasHub({
                 <tr>
                   <th className={styles.checkCol} />
                   <th>Nombre</th>
-                  <th>Habitación</th>
-                  <th>Huéspedes</th>
+                  <th className={styles.colRoom}>Habitación</th>
+                  <th className={styles.colGuests}>Huéspedes</th>
                 </tr>
               </thead>
               <tbody>
@@ -501,13 +502,13 @@ export default function ComidasHub({
                         {item.guestName}
                       </button>
                     </td>
-                    <td>
+                    <td className={styles.colRoom}>
                       <RoomNameChip
                         name={item.roomLabel}
                         rooms={item.rooms}
                       />
                     </td>
-                    <td>{item.guests ?? '—'}</td>
+                    <td className={styles.colGuests}>{item.guests ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -598,13 +598,13 @@ const EstadoFinancieroTab = ({
                           >
                             <thead>
                               <tr>
-                                <th>Código</th>
+                                <th className={styles.shortCell}>Código</th>
                                 <th>Fecha</th>
-                                <th>Monto</th>
-                                <th>Moneda</th>
+                                <th className={styles.montoCell}>Monto</th>
+                                <th className={styles.shortCell}>Moneda</th>
                                 <th>Método</th>
                                 <th>Motivo</th>
-                                <th>Descuento</th>
+                                <th className={styles.montoCell}>Descuento</th>
                                 <th>Acciones</th>
                               </tr>
                             </thead>
@@ -618,7 +618,7 @@ const EstadoFinancieroTab = ({
                                     key={cobro.imputacionId || cobro.id}
                                     data-testid={`financial-cobro-row-${cobro.imputacionId || cobro.id}`}
                                   >
-                                    <td>
+                                    <td className={styles.shortCell}>
                                       {codigo}
                                       {cobro.esImputacionParcial
                                         ? ` · parte de ${formatCurrency(cobro.pagoTotalARS)}`
@@ -635,10 +635,10 @@ const EstadoFinancieroTab = ({
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td>{cobro.moneda || 'ARS'}</td>
+                                    <td className={styles.shortCell}>{cobro.moneda || 'ARS'}</td>
                                     <td>{cobro.metodo || '—'}</td>
                                     <td>{cobro.motivo || 'Cobro'}</td>
-                                    <td>
+                                    <td className={styles.montoCell}>
                                       {disc && Number(disc.montoARS) !== 0
                                         ? formatCurrency(disc.montoARS)
                                         : '—'}

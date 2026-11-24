@@ -503,7 +503,18 @@ const Cobros = () => {
           <thead>
             <tr>
               {columns.map((col) => (
-                <th key={col.key}>{col.label}</th>
+                <th
+                  key={col.key}
+                  className={
+                    col.key === 'montoSinIva'
+                      ? styles.amountCell
+                      : col.key === 'codigo' || col.key === 'documentType'
+                        ? styles.shortCell
+                        : undefined
+                  }
+                >
+                  {col.label}
+                </th>
               ))}
               <th>Comprobante</th>
             </tr>
@@ -522,7 +533,7 @@ const Cobros = () => {
                     <td
                       key={col.key}
                       className={
-                        col.key === 'codigo'
+                        col.key === 'codigo' || col.key === 'documentType'
                           ? styles.idCell
                           : col.key === 'montoSinIva'
                             ? styles.amountCell
@@ -1051,8 +1062,19 @@ const Cobros = () => {
                       {ACCOUNT_COLUMNS.map(({ key, label }) => {
                         const isOpen = openAccountColumn === key;
                         const isActive = isAccountColumnActive(key);
+                        const alignClass =
+                          key === 'saldo'
+                            ? styles.amountCell
+                            : key === 'origen' || key === 'cuenta'
+                              ? styles.shortCell
+                              : undefined;
                         return (
-                          <th key={key} className={styles.columnHeader}>
+                          <th
+                            key={key}
+                            className={[styles.columnHeader, alignClass]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
                             <div className={styles.columnHeaderInner}>
                               <span>{label}</span>
                               <button
@@ -1097,7 +1119,7 @@ const Cobros = () => {
 
                         return (
                           <tr key={rowKey} className={styles.row}>
-                            <td className={styles.metaCell}>
+                            <td className={`${styles.metaCell} ${styles.shortCell}`}>
                               {isExterna ? 'Externa' : 'Reserva'}
                             </td>
                             <td className={styles.idCell}>

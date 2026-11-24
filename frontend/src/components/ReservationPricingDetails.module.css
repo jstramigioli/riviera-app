@@ -93,6 +93,8 @@
   width: 120px;
   font-weight: 500;
   color: #1f2937;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .modificationsCell {
@@ -128,6 +130,8 @@
   width: 120px;
   font-weight: 600;
   color: #059669;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .totalsRow {
@@ -146,6 +150,8 @@
 
 .totalsBasePrice {
   color: #1f2937;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .totalsModifications {
@@ -155,6 +161,13 @@
 .totalsFinal {
   color: #059669;
   font-size: var(--font-size-medium);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingTable th:nth-child(2),
+.pricingTable th:nth-child(4) {
+  text-align: right;
 }
 
 .summary {
