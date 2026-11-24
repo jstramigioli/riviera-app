@@ -149,22 +149,22 @@ describe('dailyMenuPdf', () => {
     expect(buf.length).toBeGreaterThan(500);
   });
 
-  it('menú denso 13/12 cabe en 1 A5 (auto-fit ≤16pt, sin gaps fluidos)', async () => {
+  it('menú denso 13/12 cabe en 1 A5 (auto-fit ≤16pt, sin page-break mid-col)', async () => {
     const menu = {
       date: new Date(Date.UTC(2026, 11, 13, 12)),
       kind: 'CONVENTIONAL',
       items: DENSE_13_12_ITEMS
     };
-    const fit = resolveFitTypography(menu);
+    const fit = await resolveFitTypography(menu);
     expect(fit.fits).toBe(true);
     expect(fit.nameSize).toBeLessThanOrEqual(NAME_PT);
     expect(fit.nameSize).toBeGreaterThanOrEqual(NAME_PT_FLOOR);
     expect(fit.sectionSize).toBe(fit.nameSize);
     expect(fit.pageCount).toBe(1);
 
+    const { countPdfPages } = require('./dailyMenuPdf');
     const buf = await buildDailyMenuPdfBuffer(menu);
-    const asText = buf.toString('latin1');
-    const pageCount = Number((asText.match(/\/Count\s+(\d+)/) || [])[1] || 0);
-    expect(pageCount).toBe(1);
+    expect(countPdfPages(buf)).toBe(1);
+    expect(buf.slice(0, 4).toString()).toBe('%PDF');
   });
 });
