@@ -6,10 +6,21 @@ const {
   PACK_RECEPCION
 } = require('../utils/fakeReservationFactory');
 
+/**
+ * Gate del generador DEBUG.
+ * - true/1/yes → on
+ * - false/0/no → off
+ * - sin valor → on en local/dev (no production/test), para que el FAB
+ *   no desaparezca cuando backend/.env pierde el flag tras merges.
+ */
 function isDebugEnabled() {
-  return String(process.env.ENABLE_DEBUG_FAKE_RESERVATIONS || '')
+  const raw = String(process.env.ENABLE_DEBUG_FAKE_RESERVATIONS ?? '')
     .trim()
-    .toLowerCase() === 'true';
+    .toLowerCase();
+  if (raw === 'true' || raw === '1' || raw === 'yes') return true;
+  if (raw === 'false' || raw === '0' || raw === 'no') return false;
+  const nodeEnv = String(process.env.NODE_ENV || '').toLowerCase();
+  return nodeEnv !== 'production' && nodeEnv !== 'test';
 }
 
 function requireDebugAdmin(req, res) {
