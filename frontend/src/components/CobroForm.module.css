@@ -196,6 +196,24 @@
   display: none;
 }
 
+/* Slot variable junto a montos: paga con/vuelto, comprobante o tarjeta */
+.methodExtrasSlot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.methodExtrasSlot .cashTenderSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
 .autoImputaciones {
   list-style: none;
   margin: 0;

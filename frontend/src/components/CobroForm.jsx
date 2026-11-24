@@ -414,6 +414,9 @@ const CobroForm = ({
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
   const showCashTender = isEfectivo(formData.metodo) && !isDevolucion;
+  const showCardFields = isCardMethod(formData.metodo);
+  /** Un solo bloque variable junto a montos: efectivo / transferencia / tarjeta. */
+  const showMethodExtras = showCashTender || showComprobanteField || showCardFields;
   const isSaldarMode = amountMode === AMOUNT_MODE_SALDAR;
   const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
@@ -2171,7 +2174,7 @@ const CobroForm = ({
 
                 <div
                   className={`${styles.montosTwoCol}${
-                    showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
+                    showMethodExtras ? ` ${styles.montosTwoColWithTender}` : ''
                   }`}
                   data-testid="payment-montos-zone"
                 >
@@ -2312,150 +2315,150 @@ const CobroForm = ({
                     </div>
                   </div>
 
-                  {showCashTender ? (
+                  {showMethodExtras ? (
                     <section
-                      className={styles.cashTenderSection}
-                      data-testid="payment-cash-tender"
-                      aria-labelledby="payment-cash-tender-title"
+                      className={styles.methodExtrasSlot}
+                      aria-label="Medio de pago"
+                      data-testid="payment-method-fields"
                     >
-                      <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
-                        Efectivo
-                      </h3>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-dinero-recibido">
-                          Paga con ({formData.moneda || 'ARS'})
-                        </label>
-                        <input
-                          id="payment-dinero-recibido"
-                          type="number"
-                          value={dineroRecibido}
-                          onChange={(e) => {
-                            dineroRecibidoDirtyRef.current = true;
-                            setDineroRecibido(e.target.value);
-                            const next = suggestVueltoARS({
-                              dineroRecibido: parseFloat(e.target.value) || 0,
-                              moneda: formData.moneda,
-                              tipoCambio: formData.tipoCambio,
-                              montoIngresadoARS: montoARS
-                            });
-                            setVueltoARS(String(next));
-                          }}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          disabled={loading}
-                          data-testid="payment-dinero-recibido"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
-                        <input
-                          id="payment-vuelto-ars"
-                          type="number"
-                          value={vueltoARS}
-                          readOnly
-                          tabIndex={-1}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          disabled={loading}
-                          data-testid="payment-vuelto-ars"
-                          aria-readonly="true"
-                        />
-                      </div>
+                      {showCashTender ? (
+                        <div
+                          className={styles.cashTenderSection}
+                          data-testid="payment-cash-tender"
+                        >
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-dinero-recibido">
+                              Paga con ({formData.moneda || 'ARS'})
+                            </label>
+                            <input
+                              id="payment-dinero-recibido"
+                              type="number"
+                              value={dineroRecibido}
+                              onChange={(e) => {
+                                dineroRecibidoDirtyRef.current = true;
+                                setDineroRecibido(e.target.value);
+                                const next = suggestVueltoARS({
+                                  dineroRecibido: parseFloat(e.target.value) || 0,
+                                  moneda: formData.moneda,
+                                  tipoCambio: formData.tipoCambio,
+                                  montoIngresadoARS: montoARS
+                                });
+                                setVueltoARS(String(next));
+                              }}
+                              placeholder="0"
+                              step="0.01"
+                              min="0"
+                              disabled={loading}
+                              data-testid="payment-dinero-recibido"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                            <input
+                              id="payment-vuelto-ars"
+                              type="number"
+                              value={vueltoARS}
+                              readOnly
+                              tabIndex={-1}
+                              placeholder="0"
+                              step="0.01"
+                              min="0"
+                              disabled={loading}
+                              data-testid="payment-vuelto-ars"
+                              aria-readonly="true"
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {showCardFields ? (
+                        <div className={styles.methodFields}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-card">Número de tarjeta *</label>
+                            <input
+                              id="payment-card"
+                              type="text"
+                              value={formData.numeroTarjeta}
+                              onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
+                              placeholder="**** **** **** ****"
+                              maxLength={19}
+                              required
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-empresa">Empresa *</label>
+                            <select
+                              id="payment-empresa"
+                              value={formData.empresa}
+                              onChange={(e) => handleInputChange('empresa', e.target.value)}
+                              required
+                            >
+                              <option value="">Seleccionar empresa...</option>
+                              {formData.metodo === 'Tarjeta Debito' ? (
+                                <>
+                                  <option value="Maestro">Maestro</option>
+                                  <option value="Visa Electron">Visa Electron</option>
+                                  <option value="Cabal 24hs">Cabal 24hs</option>
+                                  <option value="Mastercard Debito">Mastercard Débito</option>
+                                  <option value="Otra">Otra</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="American Express">American Express</option>
+                                  <option value="Visa">Visa</option>
+                                  <option value="Mastercard">Mastercard</option>
+                                  <option value="Credencial">Credencial</option>
+                                  <option value="Carta Franca">Carta Franca</option>
+                                  <option value="Cabal">Cabal</option>
+                                  <option value="Diners">Diners</option>
+                                  <option value="Tarjeta Shopping">Tarjeta Shopping</option>
+                                  <option value="Tarjeta Naranja">Tarjeta Naranja</option>
+                                  <option value="Otra">Otra</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {showComprobanteField ? (
+                        <div className={styles.formGroup}>
+                          <label htmlFor="payment-comprobante">Comprobante</label>
+                          <label
+                            className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
+                            htmlFor="payment-comprobante"
+                          >
+                            <input
+                              id="payment-comprobante"
+                              type="file"
+                              accept={COMPROBANTE_ACCEPT}
+                              multiple
+                              disabled={loading}
+                              onChange={(e) => {
+                                handleComprobanteChange(e.target.files);
+                                e.target.value = '';
+                              }}
+                            />
+                            <FiUpload aria-hidden="true" />
+                            {comprobanteFiles.length > 0
+                              ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
+                              : 'Subir comprobante (JPG, PNG o PDF)'}
+                          </label>
+                          {comprobanteFiles.length > 0 && (
+                            <button
+                              type="button"
+                              className={styles.comprobanteClear}
+                              disabled={loading}
+                              onClick={() => setComprobanteFiles([])}
+                            >
+                              Quitar archivos
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </section>
                   ) : null}
                 </div>
-
-                <section className={styles.methodCompact} aria-label="Medio de pago">
-                  <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
-                    {isCardMethod(formData.metodo) ? (
-                      <div className={styles.methodFields}>
-                        <div className={styles.formGroup}>
-                          <label htmlFor="payment-card">Número de tarjeta *</label>
-                          <input
-                            id="payment-card"
-                            type="text"
-                            value={formData.numeroTarjeta}
-                            onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
-                            placeholder="**** **** **** ****"
-                            maxLength={19}
-                            required
-                          />
-                        </div>
-                        <div className={styles.formGroup}>
-                          <label htmlFor="payment-empresa">Empresa *</label>
-                          <select
-                            id="payment-empresa"
-                            value={formData.empresa}
-                            onChange={(e) => handleInputChange('empresa', e.target.value)}
-                            required
-                          >
-                            <option value="">Seleccionar empresa...</option>
-                            {formData.metodo === 'Tarjeta Debito' ? (
-                              <>
-                                <option value="Maestro">Maestro</option>
-                                <option value="Visa Electron">Visa Electron</option>
-                                <option value="Cabal 24hs">Cabal 24hs</option>
-                                <option value="Mastercard Debito">Mastercard Débito</option>
-                                <option value="Otra">Otra</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="American Express">American Express</option>
-                                <option value="Visa">Visa</option>
-                                <option value="Mastercard">Mastercard</option>
-                                <option value="Credencial">Credencial</option>
-                                <option value="Carta Franca">Carta Franca</option>
-                                <option value="Cabal">Cabal</option>
-                                <option value="Diners">Diners</option>
-                                <option value="Tarjeta Shopping">Tarjeta Shopping</option>
-                                <option value="Tarjeta Naranja">Tarjeta Naranja</option>
-                                <option value="Otra">Otra</option>
-                              </>
-                            )}
-                          </select>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {showComprobanteField ? (
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-comprobante">Comprobante</label>
-                        <label
-                          className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
-                          htmlFor="payment-comprobante"
-                        >
-                          <input
-                            id="payment-comprobante"
-                            type="file"
-                            accept={COMPROBANTE_ACCEPT}
-                            multiple
-                            disabled={loading}
-                            onChange={(e) => {
-                              handleComprobanteChange(e.target.files);
-                              e.target.value = '';
-                            }}
-                          />
-                          <FiUpload aria-hidden="true" />
-                          {comprobanteFiles.length > 0
-                            ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
-                            : 'Subir comprobante (JPG, PNG o PDF)'}
-                        </label>
-                        {comprobanteFiles.length > 0 && (
-                          <button
-                            type="button"
-                            className={styles.comprobanteClear}
-                            disabled={loading}
-                            onClick={() => setComprobanteFiles([])}
-                          >
-                            Quitar archivos
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                </section>
               </section>
 
               {/* 3) Descuentos */}

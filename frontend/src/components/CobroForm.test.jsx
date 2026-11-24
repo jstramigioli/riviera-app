@@ -1168,14 +1168,16 @@ describe('CobroForm facturación', () => {
     expect(screen.queryByText(/Cortesía off/i)).not.toBeInTheDocument()
   })
 
-  it('layout workspace + resumen permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
+  it('layout workspace + extras de método en el mismo slot junto a montos', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
 
+    const montosZone = screen.getByTestId('payment-montos-zone')
     expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary')).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
+    expect(montosZone).toContainElement(screen.getByTestId('payment-cash-tender'))
     expect(screen.getByTestId('payment-amount-modes')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
@@ -1186,9 +1188,10 @@ describe('CobroForm facturación', () => {
     })
     expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^Comprobante$/i)).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
+    expect(montosZone).toContainElement(screen.getByLabelText(/^Comprobante$/i))
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
@@ -1198,6 +1201,8 @@ describe('CobroForm facturación', () => {
       target: { value: 'Tarjeta Credito' }
     })
     expect(screen.getByLabelText(/Número de tarjeta/i)).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByLabelText(/Número de tarjeta/i))
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
