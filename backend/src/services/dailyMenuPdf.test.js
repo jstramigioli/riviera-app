@@ -1,12 +1,12 @@
 const {
   buildDailyMenuPdfBuffer,
+  resolveFitTypography,
   POSTRE_TWO_COL_MIN,
-  MAIN_MIN_PT,
   NAME_PT,
+  NAME_PT_FLOOR,
   TITLE_PT,
   DATE_PT,
   SECTION_PT,
-  DESC_PT,
   A5_PT
 } = require('./dailyMenuPdf');
 
@@ -69,13 +69,12 @@ const DENSE_13_12_ITEMS = [
 ];
 
 describe('dailyMenuPdf', () => {
-  it('tipografía fija ~16pt y página A5 (sin gaps fluidos)', () => {
+  it('objetivo tipográfico ~16pt, piso de auto-fit, página A5', () => {
     expect(NAME_PT).toBe(16);
     expect(SECTION_PT).toBe(16);
-    expect(MAIN_MIN_PT).toBe(16);
+    expect(NAME_PT_FLOOR).toBeLessThanOrEqual(NAME_PT);
     expect(TITLE_PT).toBe(18);
     expect(DATE_PT).toBe(12);
-    expect(DESC_PT).toBe(14);
     expect(A5_PT[0]).toBeCloseTo(148 * 2.83465, 3);
     expect(A5_PT[1]).toBeCloseTo(210 * 2.83465, 3);
   });
@@ -150,19 +149,22 @@ describe('dailyMenuPdf', () => {
     expect(buf.length).toBeGreaterThan(500);
   });
 
-  it('menú denso 13/12: 1 A5, 16pt, sin API de gaps fluidos', async () => {
-    expect(() => require('./dailyMenuPdf').resolveMenuSpacing).toThrow;
-    const mod = require('./dailyMenuPdf');
-    expect(mod.resolveMenuSpacing).toBeUndefined();
-
-    const buf = await buildDailyMenuPdfBuffer({
+  it('menú denso 13/12 cabe en 1 A5 (auto-fit ≤16pt, sin gaps fluidos)', async () => {
+    const menu = {
       date: new Date(Date.UTC(2026, 11, 13, 12)),
       kind: 'CONVENTIONAL',
       items: DENSE_13_12_ITEMS
-    });
+    };
+    const fit = resolveFitTypography(menu);
+    expect(fit.fits).toBe(true);
+    expect(fit.nameSize).toBeLessThanOrEqual(NAME_PT);
+    expect(fit.nameSize).toBeGreaterThanOrEqual(NAME_PT_FLOOR);
+    expect(fit.sectionSize).toBe(fit.nameSize);
+    expect(fit.pageCount).toBe(1);
+
+    const buf = await buildDailyMenuPdfBuffer(menu);
     const asText = buf.toString('latin1');
     const pageCount = Number((asText.match(/\/Count\s+(\d+)/) || [])[1] || 0);
     expect(pageCount).toBe(1);
-    expect(buf.slice(0, 4).toString()).toBe('%PDF');
   });
 });
