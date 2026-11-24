@@ -33,7 +33,7 @@ describe('roleHasPermission', () => {
     expect(roleHasPermission(ROLES.GERENCIA, 'settings')).toBe(false);
     expect(roleHasPermission(ROLES.GERENCIA, 'tarifas')).toBe(false);
     expect(roleHasPermission(ROLES.GERENCIA, 'facturacion')).toBe(false);
-    expect(roleHasPermission(ROLES.GERENCIA, 'reportes')).toBe(false);
+    expect(roleHasPermission(ROLES.GERENCIA, 'reportes')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'auditoria')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'mediosPago')).toBe(true);
     expect(roleHasPermission(ROLES.GERENCIA, 'promociones')).toBe(true);
