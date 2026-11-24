@@ -59,8 +59,11 @@ const LOGO_CANDIDATES = [
   path.join(__dirname, '../../../frontend/src/assets/logo-hotel.png')
 ];
 
-/** Márgenes A5: pie chico para que el contenido llegue cerca del borde útil. */
-const PAGE_MARGINS = { top: 16, bottom: 14, left: 26, right: 26 };
+/**
+ * Márgenes A5. El pie debe ser chico y comparable al aire bajo el logo
+ * (bandToTitle), no al gutter lateral — si no, se lee como “bloque blanco abajo”.
+ */
+const PAGE_MARGINS = { top: 14, bottom: 8, left: 24, right: 24 };
 
 /** Pisos de gap (pt). El slack se reparte encima de estos mínimos. */
 const MIN_BAND_TO_TITLE = 6;
@@ -434,15 +437,17 @@ function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
   const solid = minPaint.finalY;
   const slack = Math.max(0, bottomLimit - solid);
 
-  // Pesos: secciones llevan la mayor parte del aire; ítems menos; header algo.
-  const wSection = 3.2;
-  const wItem = 1.0;
-  const wRule = 1.6;
-  const wAfterTitle = 0.8;
-  const wAfterDate = 0.8;
-  const wBand = 0.5;
-  const wSectionTitle = 0.7;
+  // Casi todo el slack → entre secciones. Ítems/header reciben poco.
+  // Así el menú corto no “apila” vacío debajo de postres.
+  const wSection = 5.0;
+  const wItem = 0.55;
+  const wRule = 1.1;
+  const wAfterTitle = 0.45;
+  const wAfterDate = 0.45;
+  const wBand = 0.25;
+  const wSectionTitle = 0.45;
 
+  const sectionTitleSlots = Math.max(0, slots.afterSectionSlots); // approx non-salad separators
   const totalWeight =
     slots.afterSectionSlots * wSection +
     slots.itemGapSlots * wItem +
@@ -450,8 +455,7 @@ function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
     wAfterTitle +
     wAfterDate +
     wBand +
-    // afterSectionTitle applies once per non-salad content section
-    Math.max(0, slots.afterSectionSlots) * wSectionTitle;
+    sectionTitleSlots * wSectionTitle;
 
   const unit = totalWeight > 0 ? slack / totalWeight : 0;
 
@@ -466,17 +470,21 @@ function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
     afterSection: MIN_AFTER_SECTION + unit * wSection
   };
 
-  // Segunda pasada: si aún falta llegar al pie (redondeos), empujar afterSection/rule.
-  const painted = measurePaintedFinalY(menu, spacing, logoPath);
-  let shortfall = bottomLimit - painted.finalY;
-  if (shortfall > 0.75) {
-    const n = Math.max(1, slots.afterSectionSlots);
-    spacing.afterSection += shortfall / (n + 1);
-    spacing.afterRule += shortfall / (n + 1);
-    shortfall = 0;
+  // Empujar al pie útil: repetir hasta residual < 1.5pt o 4 iteraciones.
+  for (let i = 0; i < 4; i += 1) {
+    const painted = measurePaintedFinalY(menu, spacing, logoPath);
+    const shortfall = bottomLimit - painted.finalY;
+    if (shortfall <= 1.25) break;
+    if (slots.afterSectionSlots > 0) {
+      spacing.afterSection += shortfall / slots.afterSectionSlots;
+    } else {
+      spacing.afterRule += shortfall;
+      spacing.itemGap += shortfall * 0.15;
+    }
   }
 
   const verify = measurePaintedFinalY(menu, spacing, logoPath);
+  const bottomGap = bottomLimit - verify.finalY;
 
   return {
     ...spacing,
@@ -485,9 +493,12 @@ function resolveMenuSpacing(menu, logoPath = resolveLogoPath()) {
     slack,
     bottomLimit,
     finalY: verify.finalY,
+    pageHeight: A5_PT[1],
     itemGapSlots: slots.itemGapSlots,
     afterSectionSlots: slots.afterSectionSlots,
-    bottomGap: bottomLimit - verify.finalY
+    bottomGap,
+    /** Blanco bajo el último texto hasta el borde físico de la página. */
+    bottomEdgeGap: A5_PT[1] - verify.finalY
   };
 }
 

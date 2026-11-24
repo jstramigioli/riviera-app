@@ -161,8 +161,9 @@ describe('dailyMenuPdf', () => {
     expect(spacing.fits).toBe(true);
     expect(spacing.nameSize).toBe(16);
     expect(spacing.sectionSize).toBe(16);
-    // El pie no acumula slack: el contenido llega cerca del margen inferior.
-    expect(spacing.bottomGap).toBeLessThan(6);
+    // El pie no acumula slack: último texto cerca del borde útil.
+    expect(spacing.bottomGap).toBeLessThan(3);
+    expect(spacing.bottomEdgeGap).toBeLessThan(12);
 
     const buf = await buildDailyMenuPdfBuffer(menu);
     const asText = buf.toString('latin1');
@@ -217,7 +218,9 @@ describe('dailyMenuPdf', () => {
       dense.itemGap + dense.afterSection
     );
     expect(sparse.slack).toBeGreaterThan(dense.slack);
-    expect(sparse.bottomGap).toBeLessThan(6);
-    expect(dense.bottomGap).toBeLessThan(6);
+    expect(sparse.bottomGap).toBeLessThan(3);
+    expect(dense.bottomGap).toBeLessThan(3);
+    expect(sparse.bottomEdgeGap).toBeLessThan(12);
+    expect(dense.bottomEdgeGap).toBeLessThan(12);
   });
 });
