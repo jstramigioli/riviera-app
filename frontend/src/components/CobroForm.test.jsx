@@ -602,6 +602,50 @@ describe('CobroForm facturación', () => {
     expect(screen.getByText(/202 - Pérez/i)).toBeInTheDocument()
   })
 
+  it('Por cuenta: oculto con 1 cuenta; multi muestra crédito a saldo (no caja)', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
+      target: { value: '90000' }
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
+    )
+    expect(screen.queryByTestId('payment-summary-por-cuenta')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('payment-add-allocation'))
+    const search = await screen.findByTestId('payment-account-search')
+    fireEvent.focus(search)
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('option', { name: /101 - Pérez/i }))
+
+    const porCuenta = await screen.findByTestId('payment-summary-por-cuenta')
+    expect(porCuenta).toHaveTextContent(/100\.000|50\.000/)
+    // 100000 crédito / 2 saldos iguales → 50000 c/u (no 45000 de caja)
+    expect(porCuenta.textContent).toMatch(/50\.000/)
+    expect(porCuenta.textContent).not.toMatch(/45\.000/)
+  })
+
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {
     previewPromotion.mockResolvedValue({
       aplica: true,

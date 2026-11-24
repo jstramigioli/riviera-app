@@ -1688,11 +1688,12 @@ const CobroForm = ({
   const reciboParaImputarARS =
     !isDevolucion && isSaldarMode ? tenderMontoARS : Number(montoARS) || 0;
 
+  /** Crédito a saldo por cuenta (alineado a Total saldado / creditoACuentaARS). */
   const autoImputaciones = useMemo(() => {
     if (isDevolucion || assignedAllocations.length === 0) return [];
-    if (reciboParaImputarARS <= 0) return [];
+    if (!(creditoACuentaARS > 0)) return [];
     return distributeProportionalToSaldo(
-      reciboParaImputarARS,
+      creditoACuentaARS,
       assignedAllocations.map((a) => ({
         optionKey: a.optionKey,
         accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
@@ -1714,11 +1715,13 @@ const CobroForm = ({
   }, [
     isDevolucion,
     assignedAllocations,
-    reciboParaImputarARS,
+    creditoACuentaARS,
     allocSaldos,
     isMultiAlloc,
     saldoPendiente
   ]);
+
+  const showPorCuentaSummary = isMultiAlloc && autoImputaciones.length > 1;
 
   const excedenteARS =
     !isDevolucion &&
@@ -2929,8 +2932,11 @@ const CobroForm = ({
                       : '—'}
                   </span>
                 </div>
-                {!isDevolucion && autoImputaciones.length > 0 ? (
-                  <div className={styles.summaryAllocList}>
+                {!isDevolucion && showPorCuentaSummary ? (
+                  <div
+                    className={styles.summaryAllocList}
+                    data-testid="payment-summary-por-cuenta"
+                  >
                     <span className={styles.saldoLabel}>Por cuenta</span>
                     <ul className={styles.autoImputaciones}>
                       {autoImputaciones.map((row) => (
