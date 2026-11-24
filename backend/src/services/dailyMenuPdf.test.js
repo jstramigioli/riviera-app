@@ -1,19 +1,82 @@
 const {
   buildDailyMenuPdfBuffer,
+  resolveFitTypography,
   POSTRE_TWO_COL_MIN,
-  MAIN_MIN_PT,
+  NAME_PT,
+  NAME_PT_FLOOR,
   TITLE_PT,
   DATE_PT,
-  SECTION_PT
+  SECTION_PT,
+  A5_PT
 } = require('./dailyMenuPdf');
 
+const DENSE_13_12_ITEMS = [
+  {
+    section: 'ENTRADA',
+    nameSnapshot: 'Selección de fiambres con Terrina de verduras',
+    descriptionSnap: null,
+    sortOrder: 0
+  },
+  {
+    section: 'ENSALADA',
+    nameSnapshot: 'mesa de ensaladas',
+    descriptionSnap: null,
+    sortOrder: 1
+  },
+  {
+    section: 'SOPA',
+    nameSnapshot: 'Sopa crema Mixta - Consomé clarificado',
+    descriptionSnap: null,
+    sortOrder: 2
+  },
+  {
+    section: 'PRIMER_PLATO',
+    nameSnapshot: 'Lasagna rellena a la Sorrentina',
+    descriptionSnap: null,
+    sortOrder: 3
+  },
+  {
+    section: 'SEGUNDO_PLATO',
+    nameSnapshot: 'Carré de cerdo laqueado',
+    descriptionSnap: 'Acompañado por Chutney de peras y manzanas',
+    sortOrder: 4
+  },
+  {
+    section: 'PLATO_INFANTIL',
+    nameSnapshot: 'Salchichas con puré',
+    descriptionSnap: null,
+    sortOrder: 5
+  },
+  ...[
+    'Flan al caramelo',
+    'Ensalada de frutas',
+    'Duraznos al Oporto',
+    'Duraznos en almíbar',
+    'Peras al Chablís',
+    'Tarta Banoffe',
+    'Helados',
+    'Compotas',
+    'Budín de pan',
+    'Tiramisú',
+    'Torta Moka',
+    'Mousse de chocolate'
+  ].map((name, i) => ({
+    section: 'POSTRE',
+    nameSnapshot: name,
+    descriptionSnap: null,
+    sortOrder: 6 + i
+  }))
+];
+
 describe('dailyMenuPdf', () => {
-  it('elementos principales ≥ 14 pt (fecha más chica para A5)', () => {
-    expect(MAIN_MIN_PT).toBeGreaterThanOrEqual(14);
-    expect(TITLE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(SECTION_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
-    expect(DATE_PT).toBeLessThan(MAIN_MIN_PT);
-    expect(DATE_PT).toBe(11);
+  it('objetivo tipográfico ~16pt, piso de auto-fit, página A5', () => {
+    expect(NAME_PT).toBe(16);
+    expect(SECTION_PT).toBe(16);
+    expect(NAME_PT_FLOOR).toBeLessThanOrEqual(NAME_PT);
+    expect(TITLE_PT).toBe(18);
+    expect(DATE_PT).toBe(12);
+    expect(A5_PT[0]).toBeCloseTo(148 * 2.83465, 3);
+    expect(A5_PT[1]).toBeCloseTo(210 * 2.83465, 3);
   });
 
   it('genera un PDF con cabecera application/pdf-like bytes', async () => {
@@ -56,8 +119,6 @@ describe('dailyMenuPdf', () => {
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.slice(0, 4).toString()).toBe('%PDF');
     expect(buf.length).toBeGreaterThan(500);
-    // Metadatos / literales ASCII: no deben reaparecer los textos retirados.
-    // (El cuerpo del PDF va comprimido; no se buscan literales de platos aquí.)
     const asText = buf.toString('latin1');
     expect(asText).not.toMatch(/media pensi/i);
     expect(asText).not.toMatch(/Men.? convencional/i);
@@ -86,5 +147,24 @@ describe('dailyMenuPdf', () => {
     });
     expect(buf.slice(0, 4).toString()).toBe('%PDF');
     expect(buf.length).toBeGreaterThan(500);
+  });
+
+  it('menú denso 13/12 cabe en 1 A5 (auto-fit ≤16pt, sin page-break mid-col)', async () => {
+    const menu = {
+      date: new Date(Date.UTC(2026, 11, 13, 12)),
+      kind: 'CONVENTIONAL',
+      items: DENSE_13_12_ITEMS
+    };
+    const fit = await resolveFitTypography(menu);
+    expect(fit.fits).toBe(true);
+    expect(fit.nameSize).toBeLessThanOrEqual(NAME_PT);
+    expect(fit.nameSize).toBeGreaterThanOrEqual(NAME_PT_FLOOR);
+    expect(fit.sectionSize).toBe(fit.nameSize);
+    expect(fit.pageCount).toBe(1);
+
+    const { countPdfPages } = require('./dailyMenuPdf');
+    const buf = await buildDailyMenuPdfBuffer(menu);
+    expect(countPdfPages(buf)).toBe(1);
+    expect(buf.slice(0, 4).toString()).toBe('%PDF');
   });
 });
