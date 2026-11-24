@@ -4,16 +4,19 @@ const {
   MAIN_MIN_PT,
   TITLE_PT,
   DATE_PT,
-  SECTION_PT
+  SECTION_PT,
+  A4_PT
 } = require('./dailyMenuPdf');
 
 describe('dailyMenuPdf', () => {
-  it('elementos principales ≥ 14 pt (fecha más chica para A5)', () => {
+  it('elementos principales ≥ 14 pt (fecha más chica para caber en 1 A4)', () => {
     expect(MAIN_MIN_PT).toBeGreaterThanOrEqual(14);
     expect(TITLE_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
     expect(SECTION_PT).toBeGreaterThanOrEqual(MAIN_MIN_PT);
     expect(DATE_PT).toBeLessThan(MAIN_MIN_PT);
     expect(DATE_PT).toBe(11);
+    expect(A4_PT[0]).toBeCloseTo(210 * 2.83465, 3);
+    expect(A4_PT[1]).toBeCloseTo(297 * 2.83465, 3);
   });
 
   it('genera un PDF con cabecera application/pdf-like bytes', async () => {
@@ -86,5 +89,49 @@ describe('dailyMenuPdf', () => {
     });
     expect(buf.slice(0, 4).toString()).toBe('%PDF');
     expect(buf.length).toBeGreaterThan(500);
+  });
+
+  it('menú denso (12 postres) cabe en una sola página A4 con ambas columnas', async () => {
+    const items = [
+      { section: 'ENTRADA', nameSnapshot: 'Selección de fiambres con Terrina de verduras', descriptionSnap: null, sortOrder: 0 },
+      { section: 'ENSALADA', nameSnapshot: 'mesa de ensaladas', descriptionSnap: null, sortOrder: 1 },
+      { section: 'SOPA', nameSnapshot: 'Sopa crema Mixta - Consomé clarificado', descriptionSnap: null, sortOrder: 2 },
+      { section: 'PRIMER_PLATO', nameSnapshot: 'Lasagna rellena a la Sorrentina', descriptionSnap: null, sortOrder: 3 },
+      {
+        section: 'SEGUNDO_PLATO',
+        nameSnapshot: 'Carré de cerdo laqueado',
+        descriptionSnap: 'Acompañado por Chutney de peras y manzanas',
+        sortOrder: 4
+      },
+      { section: 'PLATO_INFANTIL', nameSnapshot: 'Salchichas con puré', descriptionSnap: null, sortOrder: 5 },
+      ...[
+        'Flan al caramelo',
+        'Ensalada de frutas',
+        'Duraznos al Oporto',
+        'Duraznos en almíbar',
+        'Peras al Chablís',
+        'Tarta Banoffe',
+        'Helados',
+        'Compotas',
+        'Budín de pan',
+        'Tiramisú',
+        'Torta Moka',
+        'Mousse de chocolate'
+      ].map((name, i) => ({
+        section: 'POSTRE',
+        nameSnapshot: name,
+        descriptionSnap: null,
+        sortOrder: 6 + i
+      }))
+    ];
+    const buf = await buildDailyMenuPdfBuffer({
+      date: new Date(Date.UTC(2026, 11, 13, 12)),
+      kind: 'CONVENTIONAL',
+      items
+    });
+    const asText = buf.toString('latin1');
+    const pageCount = Number((asText.match(/\/Count\s+(\d+)/) || [])[1] || 0);
+    expect(pageCount).toBe(1);
+    expect(buf.slice(0, 4).toString()).toBe('%PDF');
   });
 });

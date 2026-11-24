@@ -35,9 +35,12 @@ const POSTRE_TWO_COL_MIN = 3;
 /** Elementos principales del menú imprimible: ningún < 14 pt (fecha cabe más chica). */
 const MAIN_MIN_PT = 14;
 const TITLE_PT = 16;
-/** Fecha bajo título: más chica para caber en 1 página A5. */
+/** Fecha bajo título: más chica para caber en 1 página. */
 const DATE_PT = 11;
 const SECTION_PT = MAIN_MIN_PT;
+
+/** A4 en puntos (210×297 mm). */
+const A4_PT = [210 * 2.83465, 297 * 2.83465];
 
 /** Logo oficial Riviera Hotel (blanco sobre negro, ~16:9 / 740×410). */
 const LOGO_ASPECT = 740 / 410;
@@ -82,34 +85,61 @@ function groupItems(items) {
   return map;
 }
 
-function drawCenteredItem(doc, item, nameSize, descSize, x, width) {
+/**
+ * Dibuja un ítem centrado en (x, y) y devuelve la Y siguiente.
+ * Usa posición absoluta para no depender del flujo que parte páginas a mitad de columna.
+ */
+function drawCenteredItemAt(doc, item, nameSize, descSize, x, width, y) {
   doc
     .fillColor(TEXT_DARK)
     .font('Helvetica-Bold')
     .fontSize(nameSize)
-    .text(item.nameSnapshot, x, doc.y, { width, align: 'center' });
+    .text(item.nameSnapshot, x, y, {
+      width,
+      align: 'center',
+      lineGap: 1
+    });
+  let nextY = doc.y;
   if (item.descriptionSnap) {
     doc
       .font('Helvetica')
       .fontSize(descSize)
       .fillColor(TEXT_MUTED)
-      .text(item.descriptionSnap, x, doc.y, { width, align: 'center' });
+      .text(item.descriptionSnap, x, nextY, {
+        width,
+        align: 'center',
+        lineGap: 1
+      });
+    nextY = doc.y;
   }
+  return nextY;
+}
+
+function drawCenteredItem(doc, item, nameSize, descSize, x, width) {
+  const nextY = drawCenteredItemAt(doc, item, nameSize, descSize, x, width, doc.y);
+  doc.y = nextY;
 }
 
 /**
  * Postres en una o dos columnas. Con muchos (≥ POSTRE_TWO_COL_MIN) usa 2 cols.
+ *
+ * Importante: PDFKit parte página al superar el margen inferior mientras se
+ * dibuja la columna izquierda; al resetear `doc.y` para la derecha, esa
+ * columna queda en otra hoja / mal alineada. Por eso medimos y dibujamos con
+ * Y absoluta y desactivamos el salto automático durante el bloque de columnas.
  */
-function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth) {
+function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth, itemGap = 0.28) {
+  const gapAfter = nameSize * itemGap;
+
   if (list.length < POSTRE_TWO_COL_MIN) {
     for (const item of list) {
       drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-      doc.moveDown(0.35);
+      doc.y += gapAfter;
     }
     return;
   }
 
-  const gap = 12;
+  const gap = 14;
   const colWidth = (contentWidth - gap) / 2;
   const mid = Math.ceil(list.length / 2);
   const leftCol = list.slice(0, mid);
@@ -117,34 +147,36 @@ function drawPostreItems(doc, list, nameSize, descSize, left, contentWidth) {
   const startY = doc.y;
   const rightX = left + colWidth + gap;
 
+  // Evita saltos de página a mitad de columna (causa clásica de 2ª col. rota).
+  const savedBottom = doc.page.margins.bottom;
+  doc.page.margins.bottom = 0;
+
   let leftY = startY;
-  doc.y = leftY;
   for (const item of leftCol) {
-    drawCenteredItem(doc, item, nameSize, descSize, left, colWidth);
-    doc.moveDown(0.35);
-    leftY = doc.y;
+    leftY = drawCenteredItemAt(doc, item, nameSize, descSize, left, colWidth, leftY);
+    leftY += gapAfter;
   }
 
   let rightY = startY;
-  doc.y = rightY;
   for (const item of rightCol) {
-    drawCenteredItem(doc, item, nameSize, descSize, rightX, colWidth);
-    doc.moveDown(0.35);
-    rightY = doc.y;
+    rightY = drawCenteredItemAt(doc, item, nameSize, descSize, rightX, colWidth, rightY);
+    rightY += gapAfter;
   }
 
+  doc.page.margins.bottom = savedBottom;
+  doc.x = left;
   doc.y = Math.max(leftY, rightY);
 }
 
 /**
- * Genera un Buffer PDF A5 (148×210 mm) del menú diario.
+ * Genera un Buffer PDF A4 (210×297 mm) del menú diario.
  * Título: «Menú» + fecha. Sin textos «Menú convencional» / «media pensión».
  */
 function buildDailyMenuPdfBuffer(menu) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      size: [148 * 2.83465, 210 * 2.83465], // mm → pt
-      margins: { top: 36, bottom: 36, left: 36, right: 36 },
+      size: A4_PT,
+      margins: { top: 40, bottom: 40, left: 48, right: 48 },
       info: {
         Title: `Menú · Hotel Riviera`,
         Author: 'Hotel Riviera',
@@ -161,9 +193,20 @@ function buildDailyMenuPdfBuffer(menu) {
     const contentWidth = pageWidth - left - doc.page.margins.right;
     const logoPath = resolveLogoPath();
 
+    const bySection = groupItems(menu.items);
+    const itemCount = (menu.items || []).length;
+    const postreCount = (bySection.get('POSTRE') || []).length;
+    // Densidad: menús con muchos postres aprietan un poco el ritmo vertical.
+    const dense = itemCount > 14 || postreCount >= 8;
+    const nameSize = MAIN_MIN_PT;
+    const descSize = Math.max(9, nameSize - 3);
+    // En A4 hay más aire: densos aprietan poco; el resto respira más.
+    const sectionGap = dense ? 0.48 : 0.62;
+    const itemGap = dense ? 0.28 : 0.38;
+    const afterSectionGap = dense ? 0.28 : 0.42;
+
     // Banda azul Riviera + logo sin deformar (~16:9).
-    // Solo fijamos altura; el ancho sale de LOGO_ASPECT (no stretch).
-    const logoH = logoPath ? 48 : 0;
+    const logoH = logoPath ? (dense ? 48 : 54) : 0;
     const logoW = logoPath ? logoH * LOGO_ASPECT : 0;
     const bandHeight = logoPath ? logoH + 16 : 52;
     doc.save();
@@ -185,37 +228,29 @@ function buildDailyMenuPdfBuffer(menu) {
         });
     }
 
-    // Título: «Menú» + fecha (sin «media pensión» / «Menú convencional»)
-    doc.y = bandHeight + 18;
+    doc.y = bandHeight + (dense ? 16 : 20);
     doc
       .fillColor(TEXT_DARK)
       .font('Helvetica-Bold')
       .fontSize(TITLE_PT)
       .text('Menú', left, doc.y, { width: contentWidth, align: 'center' });
     doc
-      .moveDown(0.25)
+      .moveDown(0.22)
       .font('Helvetica')
       .fontSize(DATE_PT)
       .fillColor(TEXT_DARK)
       .text(formatMenuDate(menu.date), { align: 'center' });
 
     doc
-      .moveDown(0.6)
+      .moveDown(0.5)
       .strokeColor(RIVIERA_BLUE)
       .lineWidth(1)
-      .moveTo(left + 20, doc.y)
-      .lineTo(pageWidth - doc.page.margins.right - 20, doc.y)
+      .moveTo(left + 28, doc.y)
+      .lineTo(pageWidth - doc.page.margins.right - 28, doc.y)
       .stroke();
 
-    doc.moveDown(1);
+    doc.moveDown(dense ? 0.85 : 1.05);
     doc.fillColor(TEXT_DARK);
-
-    const bySection = groupItems(menu.items);
-    const itemCount = (menu.items || []).length;
-    // Platos ≥ MAIN_MIN_PT; densos quedan en 14, pocos suben un poco.
-    const nameSize =
-      itemCount > 18 ? MAIN_MIN_PT : itemCount > 10 ? MAIN_MIN_PT : MAIN_MIN_PT + 1;
-    const descSize = Math.max(8, nameSize - 2);
 
     if (menu.kind === 'BUFFET') {
       const list = bySection.get('BUFFET') || [];
@@ -225,7 +260,7 @@ function buildDailyMenuPdfBuffer(menu) {
       } else {
         for (const item of list) {
           drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-          doc.moveDown(0.45);
+          doc.y += nameSize * itemGap;
         }
       }
     } else {
@@ -244,7 +279,7 @@ function buildDailyMenuPdfBuffer(menu) {
               align: 'center',
               characterSpacing: 1.2
             });
-          doc.moveDown(0.55);
+          doc.moveDown(sectionGap);
           continue;
         }
         const list = bySection.get(section) || [];
@@ -254,20 +289,21 @@ function buildDailyMenuPdfBuffer(menu) {
           .fillColor(RIVIERA_BLUE)
           .font('Helvetica-Bold')
           .fontSize(SECTION_PT)
-          .text(SECTION_LABELS[section].toUpperCase(), {
+          .text(SECTION_LABELS[section].toUpperCase(), left, doc.y, {
+            width: contentWidth,
             align: 'center',
             characterSpacing: 1.2
           });
-        doc.moveDown(0.25);
+        doc.moveDown(0.2);
         if (section === 'POSTRE') {
-          drawPostreItems(doc, list, nameSize, descSize, left, contentWidth);
+          drawPostreItems(doc, list, nameSize, descSize, left, contentWidth, itemGap);
         } else {
           for (const item of list) {
             drawCenteredItem(doc, item, nameSize, descSize, left, contentWidth);
-            doc.moveDown(0.35);
+            doc.y += nameSize * itemGap;
           }
         }
-        doc.moveDown(0.35);
+        doc.moveDown(afterSectionGap);
       }
       if (!printed) {
         doc.font('Helvetica-Oblique').fontSize(10).fillColor(TEXT_MUTED);
@@ -288,5 +324,6 @@ module.exports = {
   MAIN_MIN_PT,
   TITLE_PT,
   DATE_PT,
-  SECTION_PT
+  SECTION_PT,
+  A4_PT
 };

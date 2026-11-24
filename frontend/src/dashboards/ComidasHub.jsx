@@ -116,7 +116,7 @@ function formatMenuDate(dateValue) {
 }
 
 /**
- * Mini menú estilo PDF A5: secciones con título + todos los ítems (sin logo).
+ * Mini menú estilo PDF A4: secciones con título + todos los ítems (sin logo).
  * ENSALADA: solo título «mesa de ensaladas» (misma tipografía que secciones; sin ítems).
  */
 function buildMenuPreviewSections(menu) {
