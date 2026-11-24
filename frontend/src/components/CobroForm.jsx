@@ -1382,8 +1382,8 @@ const CobroForm = ({
       setError('Seleccioná una reserva o cuenta externa');
       return;
     }
-    if (isEditMode && !reservaId && !accountId) {
-      setError('Seleccioná una cuenta');
+    if (isEditMode && !initialCobro?.id) {
+      setError('Cobro inválido para editar');
       return;
     }
     if (esSena && (isExternalAccount || isMultiAlloc)) {

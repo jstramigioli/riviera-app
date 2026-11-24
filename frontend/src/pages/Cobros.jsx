@@ -1473,7 +1473,11 @@ const Cobros = () => {
         <CobroForm
           reservaId={
             editingCobro
-              ? editingCobro.reservaId || editingCobro.reserva?.id || null
+              ? editingCobro.reservaId ||
+                editingCobro.reserva?.id ||
+                editingCobro.imputaciones?.[0]?.reservaId ||
+                editingCobro.imputaciones?.[0]?.reserva?.id ||
+                null
               : selectedReservation &&
                   selectedReservation.origen !== 'EXTERNA' &&
                   selectedReservation.accountKind !== 'EXTERNAL'
@@ -1482,7 +1486,9 @@ const Cobros = () => {
           }
           accountId={
             editingCobro
-              ? editingCobro.accountId || null
+              ? editingCobro.accountId ||
+                editingCobro.imputaciones?.[0]?.accountId ||
+                null
               : selectedReservation &&
                   (selectedReservation.origen === 'EXTERNA' ||
                     selectedReservation.accountKind === 'EXTERNAL')

@@ -214,28 +214,56 @@ function buildBillingProfileUpsert(clientId, facturaData) {
 // ============================================
 
 // Obtener historial global de cobros (con reserva y cliente)
+const COBRO_CLIENT_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true
+};
+
+const COBRO_RESERVA_SELECT = {
+  id: true,
+  status: true,
+  source: true,
+  mainClient: { select: COBRO_CLIENT_SELECT }
+};
+
+/** Include para listados de caja / Estado de cuentas (single + multi-imputación). */
+const COBRO_LIST_INCLUDE = {
+  factura: true,
+  ...PAGO_ADJUNTO_INCLUDE,
+  reserva: { select: COBRO_RESERVA_SELECT },
+  account: {
+    select: {
+      id: true,
+      kind: true,
+      label: true,
+      clientId: true,
+      client: { select: COBRO_CLIENT_SELECT }
+    }
+  },
+  imputaciones: {
+    orderBy: { ordenIndex: 'asc' },
+    include: {
+      reserva: { select: COBRO_RESERVA_SELECT },
+      account: {
+        select: {
+          id: true,
+          kind: true,
+          label: true,
+          clientId: true,
+          client: { select: COBRO_CLIENT_SELECT },
+          reservation: { select: COBRO_RESERVA_SELECT }
+        }
+      }
+    }
+  }
+};
+
 exports.getAllCobros = async (req, res) => {
   try {
     const cobros = await prisma.cobro.findMany({
-      include: {
-        factura: true,
-        ...PAGO_ADJUNTO_INCLUDE,
-        reserva: {
-          select: {
-            id: true,
-            status: true,
-            source: true,
-            mainClient: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
+      include: COBRO_LIST_INCLUDE,
       orderBy: { fecha: 'desc' },
     });
     res.json(redactFacturaIfNeeded(cobros, req.user));
