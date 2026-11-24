@@ -34,6 +34,7 @@ import {
 } from '../utils/promoManualBenefit';
 import {
   DEFAULT_COBRO_MOTIVO,
+  DEFAULT_IVA_CONDITION,
   DOCUMENT_TYPES_AR,
   IVA_CONDITIONS,
   MOTIVO_DEVOLUCION,
@@ -70,6 +71,29 @@ function pagoFechaToInput(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return todayLocalDateInputValue();
   return todayLocalDateInputValue(d);
+}
+
+/** Prefill del form de facturación desde CobroFactura (edición). */
+function billingFromCobroFactura(factura) {
+  if (!factura) return emptyBillingForm();
+  const tipo = ['A', 'B', 'T'].includes(factura.tipo) ? factura.tipo : 'B';
+  return emptyBillingForm({
+    tipo,
+    fecha: pagoFechaToInput(factura.fecha),
+    firstName: factura.firstName || '',
+    lastName: factura.lastName || '',
+    documentType:
+      factura.documentType || (tipo === 'T' ? 'Pasaporte' : 'DNI'),
+    documentNumber: factura.documentNumber || '',
+    passportCountry: factura.passportCountry || '',
+    address: factura.address || '',
+    email: factura.email || '',
+    businessName: factura.businessName || '',
+    cuit: factura.cuit || '',
+    commercialAddress: factura.commercialAddress || '',
+    ivaCondition: factura.ivaCondition || DEFAULT_IVA_CONDITION,
+    cardNumber: factura.cardNumber || ''
+  });
 }
 
 const MODE_PAGO = 'cobro';
@@ -240,7 +264,6 @@ const CobroForm = ({
   onSuccess
 }) => {
   const isEditMode = initialCobro != null && initialCobro.id != null;
-  const showAllocationUi = !isEditMode;
   const { confirm, confirmDialog } = useConfirmDialog();
   const [reservationOptions, setReservationOptions] = useState([]);
   const [allocations, setAllocations] = useState(() => [newAllocRow()]);
@@ -265,6 +288,9 @@ const CobroForm = ({
   const [esSena, setEsSena] = useState(
     () => isEditMode && String(initialCobro.motivo || '') === 'Seña'
   );
+  const isDevolucion = mode === MODE_DEVOLUCION;
+  /** Misma UI de imputación que en creación (también al editar cobros). */
+  const showAllocationUi = !isDevolucion;
 
   const optionByKey = useMemo(() => {
     const map = new Map();
@@ -294,33 +320,29 @@ const CobroForm = ({
     [assignedAllocations]
   );
 
-  const isExternalAccount = isEditMode
-    ? accountIdProp != null && reservaIdProp == null
-    : assignedAllocations.length > 0
+  const isExternalAccount =
+    assignedAllocations.length > 0
       ? assignedAllocations.every((a) => isExternalRow(a.row))
       : accountIdProp != null && reservaIdProp == null;
 
-  const reservaId = isEditMode
-    ? reservaIdProp != null
-      ? Number(reservaIdProp)
-      : null
-    : pickedRow?.reservationId
-      ? Number(pickedRow.reservationId)
-      : reservaIdProp != null && assignedAllocations.length === 0
+  const reservaId =
+    assignedAllocations.length > 0
+      ? pickedRow?.reservationId
+        ? Number(pickedRow.reservationId)
+        : null
+      : reservaIdProp != null
         ? Number(reservaIdProp)
         : null;
 
-  const accountId = isEditMode
-    ? accountIdProp != null
-      ? Number(accountIdProp)
-      : null
-    : pickedRow?.accountId
-      ? Number(pickedRow.accountId)
-      : accountIdProp != null && assignedAllocations.length === 0
+  const accountId =
+    assignedAllocations.length > 0
+      ? pickedRow?.accountId
+        ? Number(pickedRow.accountId)
+        : null
+      : accountIdProp != null
         ? Number(accountIdProp)
         : null;
 
-  const isDevolucion = mode === MODE_DEVOLUCION;
   // Seña solo en Account de reserva 1:1 (decisión PGH-130).
   const canUseSena = !isExternalAccount && !isMultiAlloc;
   const motivoActual = isDevolucion
@@ -357,8 +379,14 @@ const CobroForm = ({
     };
   });
 
-  const [requiereFacturacion, setRequiereFacturacion] = useState(false);
-  const [billing, setBilling] = useState(() => emptyBillingForm());
+  const [requiereFacturacion, setRequiereFacturacion] = useState(() =>
+    Boolean(isEditMode && (initialCobro?.requiereFacturacion || initialCobro?.factura))
+  );
+  const [billing, setBilling] = useState(() =>
+    isEditMode && initialCobro?.factura
+      ? billingFromCobroFactura(initialCobro.factura)
+      : emptyBillingForm()
+  );
   const [comprobanteFiles, setComprobanteFiles] = useState([]);
 
   const [tipoCambioGlobal, setTipoCambioGlobal] = useState(null);
@@ -904,7 +932,7 @@ const CobroForm = ({
   }, [accountId, reservaId]);
 
   useEffect(() => {
-    if (isEditMode || assignedAllocations.length === 0) {
+    if (assignedAllocations.length === 0) {
       setAllocSaldos({});
       return undefined;
     }
@@ -938,92 +966,209 @@ const CobroForm = ({
     };
     // assignedAllocKeys evita churn por nuevas refs del mismo set de cuentas
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, assignedAllocKeys]);
+  }, [assignedAllocKeys]);
 
   useEffect(() => {
     let cancelled = false;
-    async function boot() {
-      if (isEditMode) {
-        if (reservaIdProp) {
-          try {
-            setLoadingMeta(true);
-            const reservation = await fetchReservation(reservaIdProp);
-            const cid = reservation?.mainClient?.id || reservation?.mainClientId || null;
-            if (!cancelled) {
-              setClientId(cid);
-              if (cid) await applyBillingPrefill(cid);
-            }
-          } catch (err) {
-            if (!cancelled) setError(err.message || 'Error cargando datos del cobro');
-          } finally {
-            if (!cancelled) setLoadingMeta(false);
-          }
-        }
-        return;
-      }
 
+    function findOrSynthesizeOption(list, { accountId, reservationId, seed }) {
+      let match = null;
+      if (accountId != null) {
+        match = list.find((r) => Number(r.accountId) === Number(accountId)) || null;
+      }
+      if (!match && reservationId != null) {
+        match =
+          list.find((r) => Number(r.reservationId) === Number(reservationId)) || null;
+      }
+      if (match) return { row: match, synthetic: null };
+      if (!seed) return { row: null, synthetic: null };
+      return { row: null, synthetic: seed };
+    }
+
+    async function boot() {
       setLoadingMeta(true);
       setError(null);
       try {
         const optionsRes = await fetchCuentasParaCobro();
-        const list = Array.isArray(optionsRes.data)
+        let list = Array.isArray(optionsRes.data)
           ? optionsRes.data
           : Array.isArray(optionsRes)
             ? optionsRes
             : [];
         if (cancelled) return;
-        setReservationOptions(list);
 
-        let seedKey = '';
+        const synthetics = [];
+        let seedAllocs = [];
         let seedClientId = null;
-        if (reservaIdProp != null) {
-          const match =
-            list.find((r) => Number(r.reservationId) === Number(reservaIdProp)) || null;
-          if (match) {
-            seedKey = optionKey(match);
-            seedClientId = match.clientId || null;
-          } else {
-            const reservation = await fetchReservation(reservaIdProp);
-            if (cancelled) return;
-            seedClientId =
-              reservation?.mainClient?.id || reservation?.mainClientId || null;
-            const synthetic = {
-              reservationId: Number(reservaIdProp),
-              accountId: reservation?.account?.id ?? reservation?.accountId ?? null,
-              accountKind: 'RESERVATION',
-              origen: 'RESERVA',
-              status: reservation?.status || null,
-              clientId: seedClientId,
-              clientLastName: reservation?.mainClient?.lastName || '',
-              clientName: reservation?.mainClient
-                ? `${reservation.mainClient.firstName || ''} ${reservation.mainClient.lastName || ''}`.trim()
-                : '',
-              roomName: reservation?.segments?.[0]?.room?.name || null,
-              label: null
-            };
-            setReservationOptions((prev) => {
-              const key = optionKey(synthetic);
-              if (!key || prev.some((r) => optionKey(r) === key)) return prev;
-              return [...prev, synthetic];
+
+        if (isEditMode) {
+          const imps = Array.isArray(initialCobro?.imputaciones)
+            ? [...initialCobro.imputaciones].sort(
+                (a, b) => (a.ordenIndex || 0) - (b.ordenIndex || 0)
+              )
+            : [];
+
+          const seedTargets =
+            imps.length > 0
+              ? imps.map((imp) => ({
+                  accountId: imp.accountId ?? imp.account?.id ?? null,
+                  reservationId:
+                    imp.reservaId ??
+                    imp.reserva?.id ??
+                    imp.account?.reservation?.id ??
+                    null,
+                  clientId:
+                    imp.reserva?.mainClient?.id ??
+                    imp.account?.reservation?.mainClient?.id ??
+                    imp.account?.client?.id ??
+                    imp.account?.clientId ??
+                    null,
+                  status: imp.reserva?.status ?? imp.account?.reservation?.status ?? null,
+                  label:
+                    imp.account?.kind === 'EXTERNAL'
+                      ? imp.account.label || null
+                      : null,
+                  external: imp.account?.kind === 'EXTERNAL'
+                }))
+              : [
+                  {
+                    accountId:
+                      initialCobro?.accountId ??
+                      accountIdProp ??
+                      null,
+                    reservationId:
+                      initialCobro?.reservaId ??
+                      initialCobro?.reserva?.id ??
+                      reservaIdProp ??
+                      null,
+                    clientId:
+                      initialCobro?.reserva?.mainClient?.id ??
+                      initialCobro?.account?.client?.id ??
+                      null,
+                    status: initialCobro?.reserva?.status ?? null,
+                    label:
+                      initialCobro?.account?.kind === 'EXTERNAL'
+                        ? initialCobro.account.label || null
+                        : null,
+                    external: initialCobro?.account?.kind === 'EXTERNAL'
+                  }
+                ].filter((t) => t.accountId != null || t.reservationId != null);
+
+          for (const target of seedTargets) {
+            const seed =
+              target.accountId != null || target.reservationId != null
+                ? {
+                    reservationId: target.reservationId,
+                    accountId: target.accountId,
+                    accountKind: target.external ? 'EXTERNAL' : 'RESERVATION',
+                    origen: target.external ? 'EXTERNA' : 'RESERVA',
+                    status: target.status,
+                    clientId: target.clientId,
+                    label: target.label,
+                    clientLastName: '',
+                    clientName: '',
+                    roomName: null
+                  }
+                : null;
+            const { row, synthetic } = findOrSynthesizeOption(list, {
+              accountId: target.accountId,
+              reservationId: target.reservationId,
+              seed
             });
-            seedKey = optionKey(synthetic);
+            const finalRow = row || synthetic;
+            if (synthetic) synthetics.push(synthetic);
+            const key = optionKey(finalRow);
+            if (key) seedAllocs.push(newAllocRow({ optionKey: key }));
+            if (!seedClientId && target.clientId) seedClientId = target.clientId;
+            if (!seedClientId && finalRow?.clientId) seedClientId = finalRow.clientId;
           }
-        } else if (accountIdProp != null) {
-          const match = list.find((r) => Number(r.accountId) === Number(accountIdProp));
-          if (match) {
-            seedKey = optionKey(match);
-            seedClientId = match.clientId || null;
+
+          if (
+            !seedClientId &&
+            (reservaIdProp != null || initialCobro?.reservaId != null)
+          ) {
+            try {
+              const rid = reservaIdProp ?? initialCobro.reservaId;
+              const reservation = await fetchReservation(rid);
+              if (cancelled) return;
+              seedClientId =
+                reservation?.mainClient?.id || reservation?.mainClientId || null;
+            } catch {
+              /* ignore */
+            }
+          }
+        } else {
+          let seedKey = '';
+          if (reservaIdProp != null) {
+            const match =
+              list.find((r) => Number(r.reservationId) === Number(reservaIdProp)) ||
+              null;
+            if (match) {
+              seedKey = optionKey(match);
+              seedClientId = match.clientId || null;
+            } else {
+              const reservation = await fetchReservation(reservaIdProp);
+              if (cancelled) return;
+              seedClientId =
+                reservation?.mainClient?.id || reservation?.mainClientId || null;
+              const synthetic = {
+                reservationId: Number(reservaIdProp),
+                accountId:
+                  reservation?.account?.id ?? reservation?.accountId ?? null,
+                accountKind: 'RESERVATION',
+                origen: 'RESERVA',
+                status: reservation?.status || null,
+                clientId: seedClientId,
+                clientLastName: reservation?.mainClient?.lastName || '',
+                clientName: reservation?.mainClient
+                  ? `${reservation.mainClient.firstName || ''} ${reservation.mainClient.lastName || ''}`.trim()
+                  : '',
+                roomName: reservation?.segments?.[0]?.room?.name || null,
+                label: null
+              };
+              synthetics.push(synthetic);
+              seedKey = optionKey(synthetic);
+            }
+          } else if (accountIdProp != null) {
+            const match = list.find(
+              (r) => Number(r.accountId) === Number(accountIdProp)
+            );
+            if (match) {
+              seedKey = optionKey(match);
+              seedClientId = match.clientId || null;
+            }
+          }
+          if (seedKey) seedAllocs = [newAllocRow({ optionKey: seedKey })];
+        }
+
+        if (synthetics.length) {
+          const byKey = new Map(list.map((r) => [optionKey(r), r]));
+          for (const s of synthetics) {
+            const key = optionKey(s);
+            if (key && !byKey.has(key)) {
+              byKey.set(key, s);
+              list = [...list, s];
+            }
           }
         }
 
-        if (seedKey) {
-          setAllocations([newAllocRow({ optionKey: seedKey })]);
-          setActiveAllocId(null);
-          setClientId(seedClientId);
+        if (cancelled) return;
+        setReservationOptions(list);
+        setAllocations(seedAllocs.length > 0 ? seedAllocs : [newAllocRow()]);
+        setActiveAllocId(null);
+        setClientId(seedClientId);
+
+        if (isEditMode && initialCobro?.factura) {
+          setRequiereFacturacion(true);
+          setBilling(billingFromCobroFactura(initialCobro.factura));
+        } else if (isEditMode && initialCobro?.requiereFacturacion) {
+          setRequiereFacturacion(true);
           if (seedClientId) await applyBillingPrefill(seedClientId);
-        } else {
-          setAllocations([newAllocRow()]);
-          setActiveAllocId(null);
+        } else if (seedClientId && !isEditMode) {
+          await applyBillingPrefill(seedClientId);
+        } else if (seedClientId && isEditMode) {
+          // Perfil listo si activan facturación después
+          await applyBillingPrefill(seedClientId);
         }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Error cargando datos del cobro');
@@ -1035,14 +1180,16 @@ const CobroForm = ({
     return () => {
       cancelled = true;
     };
-  }, [isEditMode, reservaIdProp, accountIdProp, applyBillingPrefill]);
+  }, [isEditMode, reservaIdProp, accountIdProp, applyBillingPrefill, initialCobro]);
 
   useEffect(() => {
-    if (isEditMode || !pickedRow) return;
+    if (!pickedRow) return;
     const cid = pickedRow?.clientId || null;
     setClientId(cid);
+    // En edición con factura ya cargada no pisar el snapshot del cobro.
+    if (isEditMode && initialCobro?.factura) return;
     if (cid) applyBillingPrefill(cid);
-  }, [isEditMode, pickedRow, applyBillingPrefill]);
+  }, [pickedRow, applyBillingPrefill, isEditMode, initialCobro]);
 
   const loadTipoCambioGlobal = async () => {
     try {
@@ -1284,7 +1431,6 @@ const CobroForm = ({
   }, [activeAllocId, showCreateExternal]);
 
   const reloadAccountOptions = useCallback(async () => {
-    if (isEditMode) return [];
     const optionsRes = await fetchCuentasParaCobro();
     const list = Array.isArray(optionsRes.data)
       ? optionsRes.data
@@ -1293,7 +1439,7 @@ const CobroForm = ({
         : [];
     setReservationOptions(list);
     return list;
-  }, [isEditMode]);
+  }, []);
 
   const pickAccountOption = (row, allocLocalId) => {
     const key = optionKey(row);
@@ -1378,7 +1524,7 @@ const CobroForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isEditMode && assignedAllocations.length === 0) {
+    if (assignedAllocations.length === 0) {
       setError('Seleccioná una reserva o cuenta externa');
       return;
     }
@@ -1474,7 +1620,7 @@ const CobroForm = ({
       }
     }
 
-    if (!isEditMode && billingEnabled) {
+    if (billingEnabled) {
       if (!billing.tipo || !['A', 'B', 'T'].includes(billing.tipo)) {
         setError('Seleccioná Factura A, Factura B o Factura T');
         return;
@@ -1587,7 +1733,7 @@ const CobroForm = ({
         empresa: isCardMethod(formData.metodo) ? formData.empresa : undefined,
         fecha: fechaIso,
         requiereFacturacion: billingEnabled,
-        factura: isEditMode ? undefined : facturaPayload,
+        factura: billingEnabled ? facturaPayload : undefined,
         selectedRuleIds: isDevolucion ? undefined : manualPromoApply.selectedRuleIds,
         deselectedRuleIds: isDevolucion ? undefined : manualPromoApply.deselectedRuleIds,
         benefitValueByRuleId: isDevolucion ? undefined : manualPromoApply.benefitValueByRuleId,
@@ -1597,8 +1743,44 @@ const CobroForm = ({
           : {})
       };
 
+      const buildImputacionesPayload = (recibidoArs) => {
+        const autoRows = distributeProportionalToSaldo(
+          recibidoArs,
+          assignedAllocations.map((a) => ({
+            optionKey: a.optionKey,
+            accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
+            reservaId:
+              a.row.reservationId != null ? Number(a.row.reservationId) : null,
+            saldoPendiente: Number(allocSaldos[a.optionKey]) || 0
+          }))
+        );
+        return autoRows.map((row, index) => ({
+          accountId: row.accountId != null ? Number(row.accountId) : undefined,
+          reservaId: row.reservaId != null ? Number(row.reservaId) : undefined,
+          montoARS: roundMoney(Number(row.montoARS) || 0),
+          ordenIndex: index
+        }));
+      };
+
       let nuevoCobro;
       if (isEditMode) {
+        const recibidoEdit =
+          !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
+            ? tenderMontoARS
+            : montoARS;
+        const imputacionesEdit =
+          assignedAllocations.length > 0
+            ? buildImputacionesPayload(recibidoEdit)
+            : undefined;
+        if (
+          imputacionesEdit &&
+          (imputacionesEdit.length === 0 ||
+            imputacionesEdit.some((r) => !(r.montoARS > 0)))
+        ) {
+          setError('No se pudo distribuir el cobro entre las cuentas seleccionadas');
+          setLoading(false);
+          return;
+        }
         nuevoCobro = await updateCobro(initialCobro.id, {
           monto: pagoData.monto,
           moneda: pagoData.moneda,
@@ -1609,36 +1791,24 @@ const CobroForm = ({
           numeroTarjeta: pagoData.numeroTarjeta ?? null,
           empresa: pagoData.empresa ?? null,
           fecha: pagoData.fecha,
+          requiereFacturacion: billingEnabled,
+          factura: billingEnabled ? facturaPayload : null,
           selectedRuleIds: pagoData.selectedRuleIds,
           deselectedRuleIds: pagoData.deselectedRuleIds,
           benefitValueByRuleId: pagoData.benefitValueByRuleId,
           applySuggestedDefaults: pagoData.applySuggestedDefaults,
           dineroRecibido: pagoData.dineroRecibido,
-          vueltoARS: pagoData.vueltoARS
+          vueltoARS: pagoData.vueltoARS,
+          imputaciones: imputacionesEdit
         });
       } else if (isMultiAlloc) {
         const recibidoMulti =
           !isDevolucion && amountMode === AMOUNT_MODE_SALDAR
             ? tenderMontoARS
             : montoARS;
-        const autoRows = distributeProportionalToSaldo(
-          recibidoMulti,
-          assignedAllocations.map((a) => ({
-            optionKey: a.optionKey,
-            accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
-            reservaId:
-              a.row.reservationId != null ? Number(a.row.reservationId) : null,
-            saldoPendiente: Number(allocSaldos[a.optionKey]) || 0
-          }))
-        );
         nuevoCobro = await createClientMultiCobro(clientId, {
           ...pagoData,
-          imputaciones: autoRows.map((row, index) => ({
-            accountId: row.accountId != null ? Number(row.accountId) : undefined,
-            reservaId: row.reservaId != null ? Number(row.reservaId) : undefined,
-            montoARS: roundMoney(Number(row.montoARS) || 0),
-            ordenIndex: index
-          }))
+          imputaciones: buildImputacionesPayload(recibidoMulti)
         });
       } else if (isExternalAccount || (accountId && !reservaId)) {
         nuevoCobro = await createAccountCobro(accountId, pagoData);
@@ -2391,7 +2561,7 @@ const CobroForm = ({
                         step="0.01"
                         min="0"
                         required={amountMode === AMOUNT_MODE_SALDAR}
-                        disabled={loading || isEditMode}
+                        disabled={loading}
                         data-testid="payment-monto-saldar"
                       />
                       {!isDevolucion &&
@@ -2400,7 +2570,7 @@ const CobroForm = ({
                         <button
                           type="button"
                           className={styles.useSaldoBtn}
-                          disabled={loading || isEditMode}
+                          disabled={loading}
                           onClick={useSaldoPendienteAsSaldar}
                           data-testid="payment-use-saldo"
                         >
@@ -2754,28 +2924,26 @@ const CobroForm = ({
                 ) : null}
               </section>
 
-              {!isEditMode ? (
-                <label
-                  className={styles.toggleInline}
-                  htmlFor="payment-billing-toggle"
-                  data-testid="payment-billing-toggle-row"
-                >
-                  <span id="payment-billing-label">Requiere facturación</span>
-                  <input
-                    id="payment-billing-toggle"
-                    type="checkbox"
-                    role="switch"
-                    checked={billingEnabled}
-                    disabled={billingForced || loading}
-                    aria-labelledby="payment-billing-label"
-                    onChange={(e) => setRequiereFacturacion(e.target.checked)}
-                  />
-                  <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
-                </label>
-              ) : null}
+              <label
+                className={styles.toggleInline}
+                htmlFor="payment-billing-toggle"
+                data-testid="payment-billing-toggle-row"
+              >
+                <span id="payment-billing-label">Requiere facturación</span>
+                <input
+                  id="payment-billing-toggle"
+                  type="checkbox"
+                  role="switch"
+                  checked={billingEnabled}
+                  disabled={billingForced || loading}
+                  aria-labelledby="payment-billing-label"
+                  onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                />
+                <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
+              </label>
 
-              {/* Billing form: visible when enabled */}
-              {!isEditMode && billingEnabled && (
+              {/* Billing form: visible when enabled (crear y editar) */}
+              {billingEnabled && (
                 <div className={`${styles.billingSection} ${styles.billingBelow}`}>
                   <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
                     <button

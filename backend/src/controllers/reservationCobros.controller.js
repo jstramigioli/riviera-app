@@ -623,7 +623,10 @@ exports.updateCobro = async (req, res) => {
     applySuggestedDefaults,
     applyAutomatics,
     dineroRecibido,
-    vueltoARS
+    vueltoARS,
+    requiereFacturacion,
+    factura,
+    imputaciones: imputacionesBody
   } = req.body;
 
   try {
@@ -833,53 +836,195 @@ exports.updateCobro = async (req, res) => {
 
     const oldMontoARS = toNumber(pagoActual.montoARS);
     const imputaciones = pagoActual.imputaciones || [];
+    const replaceImputaciones = Array.isArray(imputacionesBody);
+
+    /** Resuelve filas de imputación nuevas (misma forma que create multi). */
+    let resolvedImps = null;
+    if (replaceImputaciones) {
+      const resolvedRows = [];
+      for (const row of imputacionesBody) {
+        let accountId = row.accountId != null ? parseInt(row.accountId, 10) : null;
+        let reservaId =
+          row.reservaId != null && row.reservaId !== ''
+            ? parseInt(row.reservaId, 10)
+            : null;
+        if (!Number.isFinite(accountId) && Number.isFinite(reservaId)) {
+          const acc = await ensureReservationAccount(prisma, reservaId);
+          accountId = acc.id;
+          reservaId = acc.reservationId ?? reservaId;
+        }
+        if (!Number.isFinite(accountId)) {
+          return res.status(400).json({
+            error: `Imputación sin cuenta válida (reservaId=${reservaId}, accountId=${row.accountId})`
+          });
+        }
+        if (!Number.isFinite(reservaId)) {
+          const acc = await prisma.account.findUnique({
+            where: { id: accountId },
+            select: { reservationId: true }
+          });
+          reservaId = acc?.reservationId ?? null;
+        }
+        resolvedRows.push({
+          accountId,
+          reservaId: Number.isFinite(reservaId) ? reservaId : null,
+          montoARS: row.montoARS,
+          bonificacionARS: row.bonificacionARS,
+          ordenIndex: row.ordenIndex
+        });
+      }
+      try {
+        resolvedImps = validateImputaciones(resolvedRows, montoARSFinal);
+      } catch (err) {
+        if (err.statusCode === 400) {
+          return res.status(400).json({ error: err.message });
+        }
+        throw err;
+      }
+      if (resolvedImps.length > 1) {
+        const clientIds = new Set();
+        for (const row of resolvedImps) {
+          const acc = await prisma.account.findUnique({
+            where: { id: row.accountId },
+            include: {
+              reservation: { select: { mainClientId: true } }
+            }
+          });
+          const cid = acc?.reservation?.mainClientId ?? acc?.clientId ?? null;
+          if (cid != null) clientIds.add(Number(cid));
+        }
+        if (clientIds.size > 1) {
+          return res.status(400).json({
+            error: 'Todas las imputaciones deben pertenecer al mismo cliente titular'
+          });
+        }
+      }
+    }
+
+    const billingForced = methodConfig
+      ? Boolean(methodConfig.requiereFacturacion)
+      : methodRequiresBilling(metodoFinal);
+    let wantsBilling = pagoActual.requiereFacturacion;
+    let facturaParsed = null;
+    const billingTouched =
+      requiereFacturacion !== undefined || factura !== undefined;
+    if (billingTouched || billingForced) {
+      wantsBilling =
+        billingForced ||
+        (requiereFacturacion !== undefined
+          ? Boolean(requiereFacturacion)
+          : Boolean(pagoActual.requiereFacturacion) || Boolean(factura));
+      if (wantsBilling) {
+        facturaParsed = buildFacturaData(
+          {
+            ...(factura && typeof factura === 'object' ? factura : {}),
+            motivo: motivoFinal
+          },
+          metodoFinal,
+          numeroTarjeta !== undefined ? numeroTarjeta : pagoActual.numeroTarjeta,
+          req
+        );
+        if (facturaParsed.error) {
+          return res.status(400).json({ error: facturaParsed.error });
+        }
+      }
+      dataToUpdate.requiereFacturacion = wantsBilling;
+    }
 
     const pagoActualizado = await prisma.$transaction(async (tx) => {
+      const oldAccountIds = [
+        ...new Set(
+          (imputaciones || [])
+            .map((i) => i.accountId)
+            .concat(pagoActual.accountId ? [pagoActual.accountId] : [])
+            .filter(Boolean)
+        )
+      ];
+
+      // Ancla cobro: 1 imputación → reserva/account; multi → null.
+      if (resolvedImps) {
+        if (resolvedImps.length === 1) {
+          dataToUpdate.accountId = resolvedImps[0].accountId;
+          dataToUpdate.reservaId = resolvedImps[0].reservaId;
+        } else {
+          dataToUpdate.accountId = null;
+          dataToUpdate.reservaId = null;
+        }
+      }
+
       await tx.cobro.update({
         where: { id: cobroId },
         data: dataToUpdate
       });
 
-      // Sincronizar montos de imputación al nuevo total (prorrateo si multi).
-      if (imputaciones.length === 1) {
-        await tx.cobroImputacion.update({
-          where: { id: imputaciones[0].id },
-          data: {
-            montoARS: new Decimal(montoARSFinal),
-            bonificacionARS: new Decimal(0)
-          }
-        });
-      } else if (imputaciones.length > 1 && oldMontoARS > 0) {
-        const factor = montoARSFinal / oldMontoARS;
-        let assigned = 0;
-        for (let i = 0; i < imputaciones.length; i += 1) {
-          const imp = imputaciones[i];
-          const next =
-            i === imputaciones.length - 1
-              ? roundMoney(montoARSFinal - assigned)
-              : roundMoney(toNumber(imp.montoARS) * factor);
-          assigned = roundMoney(assigned + next);
-          await tx.cobroImputacion.update({
-            where: { id: imp.id },
-            data: {
-              montoARS: new Decimal(next),
-              bonificacionARS: new Decimal(0)
-            }
-          });
-        }
-      } else if (imputaciones.length > 1) {
-        for (const imp of imputaciones) {
-          await tx.cobroImputacion.update({
-            where: { id: imp.id },
-            data: { bonificacionARS: new Decimal(0) }
-          });
-        }
-      }
-
       if (forwardDas.length) {
         await tx.discountApplication.deleteMany({
           where: { id: { in: forwardDas.map((d) => d.id) } }
         });
+      }
+
+      if (resolvedImps) {
+        await tx.cobroImputacion.deleteMany({ where: { cobroId } });
+        for (const row of resolvedImps) {
+          await tx.cobroImputacion.create({
+            data: {
+              cobroId,
+              accountId: row.accountId,
+              reservaId: row.reservaId,
+              montoARS: new Decimal(row.montoARS),
+              bonificacionARS: new Decimal(0),
+              ordenIndex: row.ordenIndex
+            }
+          });
+        }
+      } else {
+        // Sincronizar montos de imputación al nuevo total (prorrateo si multi).
+        if (imputaciones.length === 1) {
+          await tx.cobroImputacion.update({
+            where: { id: imputaciones[0].id },
+            data: {
+              montoARS: new Decimal(montoARSFinal),
+              bonificacionARS: new Decimal(0)
+            }
+          });
+        } else if (imputaciones.length > 1 && oldMontoARS > 0) {
+          const factor = montoARSFinal / oldMontoARS;
+          let assigned = 0;
+          for (let i = 0; i < imputaciones.length; i += 1) {
+            const imp = imputaciones[i];
+            const next =
+              i === imputaciones.length - 1
+                ? roundMoney(montoARSFinal - assigned)
+                : roundMoney(toNumber(imp.montoARS) * factor);
+            assigned = roundMoney(assigned + next);
+            await tx.cobroImputacion.update({
+              where: { id: imp.id },
+              data: {
+                montoARS: new Decimal(next),
+                bonificacionARS: new Decimal(0)
+              }
+            });
+          }
+        } else if (imputaciones.length > 1) {
+          for (const imp of imputaciones) {
+            await tx.cobroImputacion.update({
+              where: { id: imp.id },
+              data: { bonificacionARS: new Decimal(0) }
+            });
+          }
+        }
+      }
+
+      if (billingTouched || billingForced) {
+        if (wantsBilling && facturaParsed?.data) {
+          await tx.cobroFactura.upsert({
+            where: { cobroId },
+            create: { cobroId, ...facturaParsed.data },
+            update: { ...facturaParsed.data }
+          });
+        } else if (!wantsBilling) {
+          await tx.cobroFactura.deleteMany({ where: { cobroId } });
+        }
       }
 
       const refreshedImps = await tx.cobroImputacion.findMany({
@@ -919,12 +1064,32 @@ exports.updateCobro = async (req, res) => {
         }
       }
 
-      const accountIds = [
-        ...new Set(refreshedImps.map((i) => i.accountId).filter(Boolean))
-      ];
-      if (pagoActual.accountId && !accountIds.includes(pagoActual.accountId)) {
-        accountIds.push(pagoActual.accountId);
+      if (wantsBilling && facturaParsed?.data) {
+        let billingClientId = null;
+        for (const imp of refreshedImps) {
+          const acc = await tx.account.findUnique({
+            where: { id: imp.accountId },
+            include: { reservation: { select: { mainClientId: true } } }
+          });
+          billingClientId =
+            acc?.reservation?.mainClientId ?? acc?.clientId ?? null;
+          if (billingClientId) break;
+        }
+        if (billingClientId) {
+          await tx.clientBillingProfile.upsert(
+            buildBillingProfileUpsert(billingClientId, facturaParsed.data)
+          );
+        }
       }
+
+      const accountIds = [
+        ...new Set(
+          refreshedImps
+            .map((i) => i.accountId)
+            .concat(oldAccountIds)
+            .filter(Boolean)
+        )
+      ];
       for (const accountId of accountIds) {
         const { balance } = await loadAccountFinancialParts(tx, accountId);
         await syncAccountStatusFromBalance(tx, accountId, balance.saldo);
@@ -932,16 +1097,11 @@ exports.updateCobro = async (req, res) => {
 
       return tx.cobro.findUnique({
         where: { id: cobroId },
-        include: {
-          factura: true,
-          discountApplications: true,
-          imputaciones: true,
-          ...PAGO_ADJUNTO_INCLUDE
-        }
+        include: COBRO_LIST_INCLUDE
       });
     });
 
-    res.json(pagoActualizado);
+    res.json(redactFacturaIfNeeded([pagoActualizado], req.user)[0]);
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Cobro no encontrado' });
