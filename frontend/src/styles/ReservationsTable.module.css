@@ -246,7 +246,7 @@
 .amount {
   font-weight: 600;
   color: var(--color-text-dark);
-  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Tipo de reserva */
