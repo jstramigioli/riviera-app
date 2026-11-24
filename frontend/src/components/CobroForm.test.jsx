@@ -1107,6 +1107,74 @@ describe('CobroForm facturación', () => {
     })
   })
 
+  it('valor manual: no auto-commit al tipear; Enter/Aceptar confirma; Modificar reabre', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      const benefit = payload.benefitValueByRuleId?.[40]
+      const hasBenefit = benefit != null && Number(benefit) > 0
+      return {
+        aplica: hasBenefit,
+        dineroARS: hasBenefit ? 9000 : 10000,
+        descuentoARS: hasBenefit ? 1000 : 0,
+        creditoARS: hasBenefit ? 10000 : 10000,
+        appliedRules: hasBenefit
+          ? [
+              {
+                promotionRuleId: 40,
+                label: 'Bonif. manual',
+                code: 'BM40',
+                montoARS: 1000,
+                modality: 'SUGERIDA',
+                defaultOn: true
+              }
+            ]
+          : [],
+        suggestions: [
+          {
+            id: 40,
+            label: 'Bonif. manual',
+            modality: 'SUGERIDA',
+            defaultOn: true,
+            benefitType: 'FIXED',
+            benefitValueManual: true
+          }
+        ]
+      }
+    })
+
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '10000' } })
+
+    const input = await screen.findByTestId('payment-manual-promo-input-40')
+    previewPromotion.mockClear()
+    fireEvent.change(input, { target: { value: '1000' } })
+    await new Promise((r) => setTimeout(r, 400))
+    const callsWhileTyping = previewPromotion.mock.calls.filter(
+      (c) => c[0]?.benefitValueByRuleId?.[40] != null
+    )
+    expect(callsWhileTyping).toHaveLength(0)
+
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-manual-promo-value-40')).toHaveTextContent('1000')
+    )
+    expect(screen.queryByTestId('payment-manual-promo-input-40')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(
+        previewPromotion.mock.calls.some((c) => c[0]?.benefitValueByRuleId?.[40] === 1000)
+      ).toBe(true)
+    })
+
+    fireEvent.click(screen.getByTestId('payment-manual-promo-modify-40'))
+    const reopened = await screen.findByTestId('payment-manual-promo-input-40')
+    expect(reopened).toHaveValue(1000)
+    fireEvent.change(reopened, { target: { value: '500' } })
+    fireEvent.click(screen.getByTestId('payment-manual-promo-accept-40'))
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-manual-promo-value-40')).toHaveTextContent('500')
+    )
+  })
+
   it('opcional MANUAL (default-off) no se auto-aplica; entra con + Descuento y sale con X', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       const selected = new Set((payload.selectedRuleIds || []).map(Number))

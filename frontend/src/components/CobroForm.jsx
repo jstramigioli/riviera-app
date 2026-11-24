@@ -405,7 +405,12 @@ const CobroForm = ({
     })()
   );
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
+  /** Valores confirmados (Enter/Aceptar) → alimentan preview/submit. */
   const [manualPromoValues, setManualPromoValues] = useState({});
+  /** Borrador mientras se tipea (no dispara preview). */
+  const [manualPromoDrafts, setManualPromoDrafts] = useState({});
+  /** Ids en edición tras «Modificar» (o aún sin confirmar). */
+  const [manualPromoEditingIds, setManualPromoEditingIds] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
   const [optionalChoices, setOptionalChoices] = useState([]);
   const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
@@ -756,8 +761,62 @@ const CobroForm = ({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [addPromoOpen]);
 
-  const setManualPromoValue = (ruleId, value) => {
-    setManualPromoValues((prev) => ({ ...prev, [ruleId]: value }));
+  const clearManualPromoLocal = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    setManualPromoValues((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+    setManualPromoDrafts((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+    setManualPromoEditingIds((prev) => {
+      if (!prev[id] && !prev[String(id)]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
+
+  const setManualPromoDraft = (ruleId, value) => {
+    setManualPromoDrafts((prev) => ({ ...prev, [ruleId]: value }));
+  };
+
+  const commitManualPromoValue = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    const draft =
+      manualPromoDrafts[id] ??
+      manualPromoDrafts[String(id)] ??
+      manualPromoValues[id] ??
+      manualPromoValues[String(id)] ??
+      '';
+    setManualPromoValues((prev) => ({ ...prev, [id]: draft }));
+    setManualPromoDrafts((prev) => ({ ...prev, [id]: draft }));
+    setManualPromoEditingIds((prev) => {
+      if (!prev[id] && !prev[String(id)]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
+
+  const startEditManualPromo = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    const committed = manualPromoValues[id] ?? manualPromoValues[String(id)] ?? '';
+    setManualPromoDrafts((prev) => ({ ...prev, [id]: committed }));
+    setManualPromoEditingIds((prev) => ({ ...prev, [id]: true }));
   };
 
   const removeOptionalPromo = (promo) => {
@@ -766,13 +825,7 @@ const CobroForm = ({
     // Opcionales (MANUAL / SUGERIDA): X siempre deselecciona; MANUAL también sale de selected.
     setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
     setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    setManualPromoValues((prev) => {
-      if (prev[id] == null && prev[String(id)] == null) return prev;
-      const next = { ...prev };
-      delete next[id];
-      delete next[String(id)];
-      return next;
-    });
+    clearManualPromoLocal(id);
   };
 
   const addOptionalPromo = (choice) => {
@@ -2471,27 +2524,91 @@ const CobroForm = ({
                     data-testid="payment-manual-promos"
                   >
                     <p className={styles.discountTitle}>Valor al aplicar</p>
-                    {manualPromoSuggestions.map((s) => (
-                      <label key={s.id} className={styles.manualPromoRow}>
-                        <span className={styles.manualPromoLabel}>{s.label}</span>
-                        <span className={styles.manualPromoInputWrap}>
-                          <input
-                            type="number"
-                            min="0"
-                            step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
-                            className={styles.manualPromoInput}
-                            value={manualPromoValues[s.id] ?? ''}
-                            onChange={(e) => setManualPromoValue(s.id, e.target.value)}
-                            placeholder="—"
-                            aria-label={`Valor de ${s.label}`}
-                            disabled={loading}
-                          />
-                          <span className={styles.manualPromoUnit} aria-hidden="true">
-                            {benefitUnitLabel(s.benefitType)}
+                    {manualPromoSuggestions.map((s) => {
+                      const committed =
+                        manualPromoValues[s.id] ?? manualPromoValues[String(s.id)];
+                      const hasCommitted = committed != null && committed !== '';
+                      const editing =
+                        !hasCommitted ||
+                        Boolean(manualPromoEditingIds[s.id] || manualPromoEditingIds[String(s.id)]);
+                      const draft =
+                        manualPromoDrafts[s.id] ??
+                        manualPromoDrafts[String(s.id)] ??
+                        (hasCommitted ? committed : '');
+                      const unit = benefitUnitLabel(s.benefitType);
+
+                      if (!editing) {
+                        return (
+                          <div key={s.id} className={styles.manualPromoRow}>
+                            <span className={styles.manualPromoLabel}>{s.label}</span>
+                            <span className={styles.manualPromoInputWrap}>
+                              <span
+                                className={styles.manualPromoCommitted}
+                                data-testid={`payment-manual-promo-value-${s.id}`}
+                              >
+                                {committed}
+                                <span className={styles.manualPromoUnit} aria-hidden="true">
+                                  {unit}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                className={styles.manualPromoModifyBtn}
+                                onClick={() => startEditManualPromo(s.id)}
+                                disabled={loading}
+                                data-testid={`payment-manual-promo-modify-${s.id}`}
+                              >
+                                Modificar
+                              </button>
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={s.id} className={styles.manualPromoRow}>
+                          <label
+                            className={styles.manualPromoLabel}
+                            htmlFor={`payment-manual-promo-${s.id}`}
+                          >
+                            {s.label}
+                          </label>
+                          <span className={styles.manualPromoInputWrap}>
+                            <input
+                              id={`payment-manual-promo-${s.id}`}
+                              type="number"
+                              min="0"
+                              step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                              className={styles.manualPromoInput}
+                              value={draft}
+                              onChange={(e) => setManualPromoDraft(s.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  commitManualPromoValue(s.id);
+                                }
+                              }}
+                              placeholder="—"
+                              aria-label={`Valor de ${s.label}`}
+                              disabled={loading}
+                              data-testid={`payment-manual-promo-input-${s.id}`}
+                            />
+                            <span className={styles.manualPromoUnit} aria-hidden="true">
+                              {unit}
+                            </span>
+                            <button
+                              type="button"
+                              className={styles.manualPromoAcceptBtn}
+                              onClick={() => commitManualPromoValue(s.id)}
+                              disabled={loading}
+                              data-testid={`payment-manual-promo-accept-${s.id}`}
+                            >
+                              Aceptar
+                            </button>
                           </span>
-                        </span>
-                      </label>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
