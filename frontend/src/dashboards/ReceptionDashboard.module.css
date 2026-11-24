@@ -22,31 +22,6 @@
   line-height: 1.4;
 }
 
-/* Preview: fondo blanco directo, sin cards/contenedores sobre gris */
-.pageFlat {
-  --dash-bg: #ffffff;
-  --dash-shadow: none;
-}
-
-.pageFlat .module {
-  border-radius: 0;
-  box-shadow: none;
-  border-color: #e8ebf0;
-}
-
-.pageFlat .movementPane,
-.pageFlat .comidasMenuMini,
-.pageFlat .rangeGroup,
-.pageFlat .movementsSplit,
-.pageFlat .listTable thead th {
-  background: #fff;
-}
-
-.pageFlat .comidasMenuMini {
-  background: #fff;
-  border-radius: 0;
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -54,27 +29,6 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
-}
-
-.fondoToggle {
-  margin-left: auto;
-  padding: 6px 10px;
-  border: 1px solid var(--dash-border);
-  border-radius: 6px;
-  background: var(--dash-surface);
-  color: var(--dash-text-dark);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.fondoToggle:hover {
-  background: var(--dash-primary-light);
-  border-color: var(--dash-primary);
-}
-
-.pageFlat .fondoToggle {
-  border-radius: 0;
 }
 
 .pageTitle {
