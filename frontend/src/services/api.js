@@ -7,6 +7,21 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export { API_URL, SIMULATED_TODAY_HEADER };
 
+/** Une `error` + `details` del JSON de API (el backend a menudo pone la causa en details). */
+function apiErrorMessage(body, fallback) {
+  const raw = body && typeof body === 'object' ? body : {};
+  let message = raw.error || raw.message || fallback;
+  if (Array.isArray(raw.details) && raw.details.length) {
+    message = `${message}: ${raw.details.join('; ')}`;
+  } else if (raw.details != null && String(raw.details).trim() !== '') {
+    const detail = String(raw.details).trim();
+    if (!String(message).includes(detail)) {
+      message = `${message}: ${detail}`;
+    }
+  }
+  return message;
+}
+
 /** fetch hacia el API: adjunta X-Simulated-Today si el debug de fecha está activo. */
 export async function apiFetch(input, init = {}) {
   const headers = new Headers(init.headers || {});
@@ -1078,7 +1093,7 @@ export async function createAccountCobro(accountId, data) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error creating cobro');
+    throw new Error(apiErrorMessage(error, 'Error al crear el cobro'));
   }
   return res.json();
 }
@@ -1264,8 +1279,8 @@ export async function createCobro(reservaId, data) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || 'Error creating cobro');
+    const error = await res.json().catch(() => ({}));
+    throw new Error(apiErrorMessage(error, 'Error al crear el cobro'));
   }
   return res.json();
 }
@@ -1280,7 +1295,7 @@ export async function createClientMultiCobro(clientId, data) {
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || 'Error creating multi cobro');
+    throw new Error(apiErrorMessage(error, 'Error al crear el cobro'));
   }
   return res.json();
 }

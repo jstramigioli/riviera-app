@@ -157,6 +157,37 @@ describe('CobroForm facturación', () => {
     expect(screen.getByTestId('payment-fecha')).toHaveValue(todayLocalDateInputValue())
   })
 
+  it('layout: fecha+reserva en fila; sin títulos Destino/Datos; método|moneda encima de montos', async () => {
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+
+    const row = screen.getByTestId('payment-fecha-destino-row')
+    const fecha = screen.getByTestId('payment-fecha')
+    const imputa = screen.getByTestId('payment-imputa-label')
+    const metodoMoneda = screen.getByTestId('payment-metodo-moneda-row')
+    const montos = screen.getByTestId('payment-montos-zone')
+    const datos = screen.getByRole('region', { name: 'Datos del cobro' })
+
+    expect(row.contains(fecha)).toBe(true)
+    expect(row.contains(imputa)).toBe(true)
+    expect(fecha.compareDocumentPosition(imputa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /Destino del cobro/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Datos del cobro/i })).not.toBeInTheDocument()
+    expect(datos.contains(metodoMoneda)).toBe(true)
+    expect(datos.contains(montos)).toBe(true)
+    expect(
+      metodoMoneda.compareDocumentPosition(montos) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(metodoMoneda.querySelector('#payment-metodo')).not.toBeNull()
+    expect(metodoMoneda.querySelector('#payment-moneda')).not.toBeNull()
+
+    fireEvent.change(screen.getByLabelText(/Método de pago/i), {
+      target: { value: 'Transferencia' }
+    })
+    expect(screen.getByLabelText(/^Comprobante$/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Comprobante \(opcional\)/i)).not.toBeInTheDocument()
+  })
+
   it('en modo edición prefills y llama updateCobro', async () => {
     const onSuccess = vi.fn()
     render(
@@ -552,7 +583,11 @@ describe('CobroForm facturación', () => {
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), { target: { value: '1000' } })
     expect(screen.queryByLabelText(/Monto imputado/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('payment-alloc-hint')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId('payment-auto-imputaciones')).toBeInTheDocument())
+    expect(screen.queryByTestId('payment-auto-imputaciones')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Imputaciones/i })).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-summary-multi-accounts')).toBeInTheDocument()
+    )
     fireEvent.click(screen.getByRole('button', { name: /Guardar cobro/i }))
 
     await waitFor(() =>
@@ -574,6 +609,58 @@ describe('CobroForm facturación', () => {
     await waitFor(() => expect(fetchCuentasParaCobro).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('payment-add-allocation')).toBeInTheDocument())
     expect(screen.getByText(/202 - Pérez/i)).toBeInTheDocument()
+  })
+
+  it('resumen multi: saldos por cuenta + totales; oculto con 1 cuenta', async () => {
+    previewPromotion.mockResolvedValue({
+      aplica: true,
+      dineroARS: 90000,
+      descuentoARS: 10000,
+      creditoARS: 100000,
+      porcentaje: 10,
+      appliedRules: [
+        {
+          promotionRuleId: 1,
+          label: 'Descuento Efectivo',
+          code: 'EF10',
+          montoARS: 10000,
+          porcentaje: 10,
+          modality: 'AUTO'
+        }
+      ]
+    })
+
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
+      target: { value: '90000' }
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('summary-monto-saldado')).toHaveTextContent(/100\.000/)
+    )
+    expect(screen.queryByTestId('payment-summary-multi-accounts')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-summary-por-cuenta')).not.toBeInTheDocument()
+    expect(screen.getByTestId('summary-saldo')).toHaveTextContent(/Nuevo saldo/)
+
+    fireEvent.click(screen.getByTestId('payment-add-allocation'))
+    const search = await screen.findByTestId('payment-account-search')
+    fireEvent.focus(search)
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /101 - Pérez/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('option', { name: /101 - Pérez/i }))
+
+    const multi = await screen.findByTestId('payment-summary-multi-accounts')
+    expect(screen.getByTestId('payment-summary-saldo-original')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-monto-saldado')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-summary-saldo-restante')).toBeInTheDocument()
+    // 100000 crédito / 2 saldos iguales → 50000 c/u (no 45000 de caja)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).toMatch(/50\.000/)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).not.toMatch(/45\.000/)
+    expect(screen.getByTestId('payment-summary-monto-saldado').textContent).toMatch(/Total/)
+    expect(multi.textContent).toMatch(/Saldo original/)
+    expect(multi.textContent).toMatch(/Saldo restante/)
+    expect(screen.queryByRole('heading', { name: /Imputaciones/i })).not.toBeInTheDocument()
   })
 
   it('pide preview settlement al elegir medio aunque no haya monto', async () => {
@@ -696,6 +783,13 @@ describe('CobroForm facturación', () => {
 
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
+    expect(screen.queryByText(/Datos adicionales/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('payment-extras')).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-sena-row')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-fecha-lead')).toContainElement(
+      screen.getByTestId('payment-sena-row')
+    )
+
     fireEvent.change(screen.getByLabelText(/Método de pago/i), {
       target: { value: 'Transferencia' }
     })
@@ -703,6 +797,9 @@ describe('CobroForm facturación', () => {
     const toggle = screen.getByLabelText(/Requiere facturación/i)
     expect(toggle).toBeChecked()
     expect(toggle).toBeDisabled()
+    expect(toggle).toHaveAttribute('role', 'switch')
+    expect(screen.queryByText(/Obligatorio para este medio de pago/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('payment-billing-toggle-row')).toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: 'Factura B' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Fecha de facturación/i)).toBeInTheDocument()
@@ -1007,7 +1104,7 @@ describe('CobroForm facturación', () => {
       target: { value: 'Transferencia' }
     })
 
-    const input = screen.getByLabelText(/Comprobante \(opcional\)/i)
+    const input = screen.getByLabelText(/^Comprobante$/i)
     expect(input).toBeInTheDocument()
     fireEvent.change(input, { target: { files: [file] } })
 
@@ -1073,6 +1170,74 @@ describe('CobroForm facturación', () => {
     })
   })
 
+  it('valor manual: no auto-commit al tipear; Enter/Aceptar confirma; Modificar reabre', async () => {
+    previewPromotion.mockImplementation(async (payload) => {
+      const benefit = payload.benefitValueByRuleId?.[40]
+      const hasBenefit = benefit != null && Number(benefit) > 0
+      return {
+        aplica: hasBenefit,
+        dineroARS: hasBenefit ? 9000 : 10000,
+        descuentoARS: hasBenefit ? 1000 : 0,
+        creditoARS: hasBenefit ? 10000 : 10000,
+        appliedRules: hasBenefit
+          ? [
+              {
+                promotionRuleId: 40,
+                label: 'Bonif. manual',
+                code: 'BM40',
+                montoARS: 1000,
+                modality: 'SUGERIDA',
+                defaultOn: true
+              }
+            ]
+          : [],
+        suggestions: [
+          {
+            id: 40,
+            label: 'Bonif. manual',
+            modality: 'SUGERIDA',
+            defaultOn: true,
+            benefitType: 'FIXED',
+            benefitValueManual: true
+          }
+        ]
+      }
+    })
+
+    render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
+    await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText(/Monto ingresado/i), { target: { value: '10000' } })
+
+    const input = await screen.findByTestId('payment-manual-promo-input-40')
+    previewPromotion.mockClear()
+    fireEvent.change(input, { target: { value: '1000' } })
+    await new Promise((r) => setTimeout(r, 400))
+    const callsWhileTyping = previewPromotion.mock.calls.filter(
+      (c) => c[0]?.benefitValueByRuleId?.[40] != null
+    )
+    expect(callsWhileTyping).toHaveLength(0)
+
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-manual-promo-value-40')).toHaveTextContent('1000')
+    )
+    expect(screen.queryByTestId('payment-manual-promo-input-40')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(
+        previewPromotion.mock.calls.some((c) => c[0]?.benefitValueByRuleId?.[40] === 1000)
+      ).toBe(true)
+    })
+
+    fireEvent.click(screen.getByTestId('payment-manual-promo-modify-40'))
+    const reopened = await screen.findByTestId('payment-manual-promo-input-40')
+    expect(reopened).toHaveValue(1000)
+    fireEvent.change(reopened, { target: { value: '500' } })
+    fireEvent.click(screen.getByTestId('payment-manual-promo-accept-40'))
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-manual-promo-value-40')).toHaveTextContent('500')
+    )
+  })
+
   it('opcional MANUAL (default-off) no se auto-aplica; entra con + Descuento y sale con X', async () => {
     previewPromotion.mockImplementation(async (payload) => {
       const selected = new Set((payload.selectedRuleIds || []).map(Number))
@@ -1134,14 +1299,16 @@ describe('CobroForm facturación', () => {
     expect(screen.queryByText(/Cortesía off/i)).not.toBeInTheDocument()
   })
 
-  it('layout workspace + resumen permanece al cambiar de Efectivo a Transferencia/Tarjeta', async () => {
+  it('layout workspace + extras de método en el mismo slot junto a montos', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('payment-cash-tender')).toBeInTheDocument())
 
+    const montosZone = screen.getByTestId('payment-montos-zone')
     expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary')).toBeInTheDocument()
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
+    expect(montosZone).toContainElement(screen.getByTestId('payment-cash-tender'))
     expect(screen.getByTestId('payment-amount-modes')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
@@ -1151,10 +1318,11 @@ describe('CobroForm facturación', () => {
       target: { value: 'Transferencia' }
     })
     expect(screen.queryByTestId('payment-cash-tender')).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/Comprobante \(opcional\)/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Comprobante$/i)).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
+    expect(montosZone).toContainElement(screen.getByLabelText(/^Comprobante$/i))
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByTestId('payment-workspace')).toBeInTheDocument()
-    expect(screen.getByTestId('payment-method-fields')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Datos del cobro' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()
@@ -1164,6 +1332,8 @@ describe('CobroForm facturación', () => {
       target: { value: 'Tarjeta Credito' }
     })
     expect(screen.getByLabelText(/Número de tarjeta/i)).toBeInTheDocument()
+    expect(montosZone).toContainElement(screen.getByLabelText(/Número de tarjeta/i))
+    expect(montosZone).toContainElement(screen.getByTestId('payment-method-fields'))
     expect(screen.getByTestId('payment-summary-panel')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Medio de pago' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Descuentos' })).toBeInTheDocument()

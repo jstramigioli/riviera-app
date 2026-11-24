@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FiChevronDown,
   FiPlus,
   FiSave,
   FiUpload,
@@ -251,7 +250,6 @@ const CobroForm = ({
   const [showCreateExternal, setShowCreateExternal] = useState(false);
   const [externalLabel, setExternalLabel] = useState('');
   const [creatingExternal, setCreatingExternal] = useState(false);
-  const [extrasOpen, setExtrasOpen] = useState(false);
   const accountPickerRef = useRef(null);
   const [clientId, setClientId] = useState(null);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -405,7 +403,12 @@ const CobroForm = ({
     })()
   );
   const [manualPromoSuggestions, setManualPromoSuggestions] = useState([]);
+  /** Valores confirmados (Enter/Aceptar) → alimentan preview/submit. */
   const [manualPromoValues, setManualPromoValues] = useState({});
+  /** Borrador mientras se tipea (no dispara preview). */
+  const [manualPromoDrafts, setManualPromoDrafts] = useState({});
+  /** Ids en edición tras «Modificar» (o aún sin confirmar). */
+  const [manualPromoEditingIds, setManualPromoEditingIds] = useState({});
   const [manualPromoPreview, setManualPromoPreview] = useState(null);
   const [optionalChoices, setOptionalChoices] = useState([]);
   const [selectedOptionalIds, setSelectedOptionalIds] = useState([]);
@@ -414,6 +417,9 @@ const CobroForm = ({
   const addPromoRef = useRef(null);
   const showComprobanteField = isTransferencia(formData.metodo);
   const showCashTender = isEfectivo(formData.metodo) && !isDevolucion;
+  const showCardFields = isCardMethod(formData.metodo);
+  /** Un solo bloque variable junto a montos: efectivo / transferencia / tarjeta. */
+  const showMethodExtras = showCashTender || showComprobanteField || showCardFields;
   const isSaldarMode = amountMode === AMOUNT_MODE_SALDAR;
   const montoASaldarARS = roundMoney(parseFloat(montoASaldar) || 0);
 
@@ -753,8 +759,62 @@ const CobroForm = ({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [addPromoOpen]);
 
-  const setManualPromoValue = (ruleId, value) => {
-    setManualPromoValues((prev) => ({ ...prev, [ruleId]: value }));
+  const clearManualPromoLocal = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    setManualPromoValues((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+    setManualPromoDrafts((prev) => {
+      if (prev[id] == null && prev[String(id)] == null) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+    setManualPromoEditingIds((prev) => {
+      if (!prev[id] && !prev[String(id)]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
+
+  const setManualPromoDraft = (ruleId, value) => {
+    setManualPromoDrafts((prev) => ({ ...prev, [ruleId]: value }));
+  };
+
+  const commitManualPromoValue = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    const draft =
+      manualPromoDrafts[id] ??
+      manualPromoDrafts[String(id)] ??
+      manualPromoValues[id] ??
+      manualPromoValues[String(id)] ??
+      '';
+    setManualPromoValues((prev) => ({ ...prev, [id]: draft }));
+    setManualPromoDrafts((prev) => ({ ...prev, [id]: draft }));
+    setManualPromoEditingIds((prev) => {
+      if (!prev[id] && !prev[String(id)]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      delete next[String(id)];
+      return next;
+    });
+  };
+
+  const startEditManualPromo = (ruleId) => {
+    const id = Number(ruleId);
+    if (!Number.isFinite(id)) return;
+    const committed = manualPromoValues[id] ?? manualPromoValues[String(id)] ?? '';
+    setManualPromoDrafts((prev) => ({ ...prev, [id]: committed }));
+    setManualPromoEditingIds((prev) => ({ ...prev, [id]: true }));
   };
 
   const removeOptionalPromo = (promo) => {
@@ -763,13 +823,7 @@ const CobroForm = ({
     // Opcionales (MANUAL / SUGERIDA): X siempre deselecciona; MANUAL también sale de selected.
     setSelectedOptionalIds((prev) => prev.filter((x) => Number(x) !== id));
     setDeselectedRuleIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    setManualPromoValues((prev) => {
-      if (prev[id] == null && prev[String(id)] == null) return prev;
-      const next = { ...prev };
-      delete next[id];
-      delete next[String(id)];
-      return next;
-    });
+    clearManualPromoLocal(id);
   };
 
   const addOptionalPromo = (choice) => {
@@ -1695,11 +1749,12 @@ const CobroForm = ({
   const reciboParaImputarARS =
     !isDevolucion && isSaldarMode ? tenderMontoARS : Number(montoARS) || 0;
 
+  /** Crédito a saldo por cuenta (alineado a Total saldado / creditoACuentaARS). */
   const autoImputaciones = useMemo(() => {
     if (isDevolucion || assignedAllocations.length === 0) return [];
-    if (reciboParaImputarARS <= 0) return [];
+    if (!(creditoACuentaARS > 0)) return [];
     return distributeProportionalToSaldo(
-      reciboParaImputarARS,
+      creditoACuentaARS,
       assignedAllocations.map((a) => ({
         optionKey: a.optionKey,
         accountId: a.row.accountId != null ? Number(a.row.accountId) : null,
@@ -1721,11 +1776,40 @@ const CobroForm = ({
   }, [
     isDevolucion,
     assignedAllocations,
-    reciboParaImputarARS,
+    creditoACuentaARS,
     allocSaldos,
     isMultiAlloc,
     saldoPendiente
   ]);
+
+  /** Resumen multi: saldo original / saldado / restante por cuenta + totales. */
+  const multiAccountSummary = useMemo(() => {
+    if (isDevolucion || assignedAllocations.length < 2) return null;
+    const creditByKey = new Map(
+      autoImputaciones.map((r) => [r.optionKey, Number(r.montoARS) || 0])
+    );
+    const rows = assignedAllocations.map((a) => {
+      const saldoOriginal = Math.max(0, Number(allocSaldos[a.optionKey]) || 0);
+      const montoSaldado = Number(creditByKey.get(a.optionKey)) || 0;
+      return {
+        optionKey: a.optionKey,
+        label: reservationOptionLabel(a.row),
+        saldoOriginal,
+        montoSaldado,
+        saldoRestante: roundMoney(saldoOriginal - montoSaldado)
+      };
+    });
+    const totalOriginal = roundMoney(
+      rows.reduce((s, r) => s + r.saldoOriginal, 0)
+    );
+    const totalSaldado = roundMoney(rows.reduce((s, r) => s + r.montoSaldado, 0));
+    const totalRestante = roundMoney(
+      rows.reduce((s, r) => s + r.saldoRestante, 0)
+    );
+    return { rows, totalOriginal, totalSaldado, totalRestante };
+  }, [isDevolucion, assignedAllocations, allocSaldos, autoImputaciones]);
+
+  const showMultiAccountSummary = Boolean(multiAccountSummary?.rows?.length > 1);
 
   const excedenteARS =
     !isDevolucion &&
@@ -1842,10 +1926,47 @@ const CobroForm = ({
                                         <div className={styles.formBody}>
           <div className={styles.workspace} data-testid="payment-workspace">
             <div className={styles.mainPane}>
-              {/* 1) Destino del cobro */}
-              <section className={styles.sectionBlock} aria-label="Destino del cobro">
-                <h3 className={styles.sectionTitle}>Destino del cobro</h3>
+              <div
+                className={styles.fechaDestinoRow}
+                data-testid="payment-fecha-destino-row"
+              >
+                <div className={`${styles.formGroup} ${styles.fechaLead}`} data-testid="payment-fecha-lead">
+                  <label htmlFor="payment-fecha">Fecha *</label>
+                  <input
+                    id="payment-fecha"
+                    type="date"
+                    value={formData.fecha}
+                    onChange={(e) => handleInputChange('fecha', e.target.value)}
+                    required
+                    disabled={loading}
+                    data-testid="payment-fecha"
+                  />
+                  {!isDevolucion && canUseSena ? (
+                    <label
+                      className={styles.toggleInline}
+                      htmlFor="payment-sena-toggle"
+                      data-testid="payment-sena-row"
+                    >
+                      <span id="payment-sena-label">Seña</span>
+                      <input
+                        id="payment-sena-toggle"
+                        type="checkbox"
+                        role="switch"
+                        checked={esSena}
+                        disabled={loading}
+                        aria-labelledby="payment-sena-label"
+                        onChange={(e) => setEsSena(e.target.checked)}
+                      />
+                      <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
+                    </label>
+                  ) : null}
+                </div>
 
+                {/* 1) Destino del cobro (sin título visible) */}
+                <section
+                  className={styles.destinoSlot}
+                  aria-label="Destino del cobro"
+                >
                 {showAllocationUi && (
                   <div className={styles.formGroup} ref={accountPickerRef}>
                     <div className={styles.allocationFieldHeader}>
@@ -2069,15 +2190,92 @@ const CobroForm = ({
                     </select>
                   </div>
                 )}
-              </section>
+                </section>
+              </div>
 
-              {/* 2) Datos del cobro */}
+              {/* 2) Datos del cobro (sin título visible) */}
               <section className={styles.sectionBlock} aria-label="Datos del cobro">
-                <h3 className={styles.sectionTitle}>Datos del cobro</h3>
+                <div
+                  className={styles.formRow}
+                  data-testid="payment-metodo-moneda-row"
+                >
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-metodo">
+                      {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
+                    </label>
+                    <select
+                      id="payment-metodo"
+                      value={formData.metodo}
+                      onChange={(e) => handleInputChange('metodo', e.target.value)}
+                      required
+                      disabled={loading || methodConfigs.length === 0}
+                      aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
+                    >
+                      {methodConfigs.length === 0 ? (
+                        <option value="">Cargando medios…</option>
+                      ) : (
+                        methodConfigs.map((m) => (
+                          <option key={m.id} value={m.label}>
+                            {m.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label htmlFor="payment-moneda">Moneda *</label>
+                    <select
+                      id="payment-moneda"
+                      value={formData.moneda}
+                      onChange={(e) => handleInputChange('moneda', e.target.value)}
+                      required
+                      disabled={loading}
+                      data-testid="payment-moneda"
+                    >
+                      {SYSTEM_CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  className={foreignCurrency ? styles.formGroup : undefined}
+                  data-testid="payment-moneda-tc"
+                >
+                  {foreignCurrency ? (
+                    <>
+                      <label htmlFor="payment-tc">Tipo de cambio *</label>
+                      <input
+                        id="payment-tc"
+                        type="number"
+                        value={formData.tipoCambio}
+                        onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
+                        onFocus={() => {
+                          if (amountMode !== AMOUNT_MODE_SALDAR) {
+                            setAmountMode(AMOUNT_MODE_INGRESADO);
+                          }
+                        }}
+                        placeholder="1000.00"
+                        step="0.01"
+                        min="0"
+                        required
+                        disabled={loading}
+                        data-testid="payment-tc"
+                      />
+                      {tipoCambioGlobal != null && (
+                        <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
+                      )}
+                    </>
+                  ) : null}
+                </div>
 
                 <div
                   className={`${styles.montosTwoCol}${
-                    showCashTender ? ` ${styles.montosTwoColWithTender}` : ''
+                    showMethodExtras ? ` ${styles.montosTwoColWithTender}` : ''
                   }`}
                   data-testid="payment-montos-zone"
                 >
@@ -2218,236 +2416,149 @@ const CobroForm = ({
                     </div>
                   </div>
 
-                  {showCashTender ? (
+                  {showMethodExtras ? (
                     <section
-                      className={styles.cashTenderSection}
-                      data-testid="payment-cash-tender"
-                      aria-labelledby="payment-cash-tender-title"
+                      className={styles.methodExtrasSlot}
+                      aria-label="Medio de pago"
+                      data-testid="payment-method-fields"
                     >
-                      <h3 id="payment-cash-tender-title" className={styles.cashTenderTitle}>
-                        Efectivo
-                      </h3>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-dinero-recibido">
-                          Paga con ({formData.moneda || 'ARS'})
-                        </label>
-                        <input
-                          id="payment-dinero-recibido"
-                          type="number"
-                          value={dineroRecibido}
-                          onChange={(e) => {
-                            dineroRecibidoDirtyRef.current = true;
-                            setDineroRecibido(e.target.value);
-                            const next = suggestVueltoARS({
-                              dineroRecibido: parseFloat(e.target.value) || 0,
-                              moneda: formData.moneda,
-                              tipoCambio: formData.tipoCambio,
-                              montoIngresadoARS: montoARS
-                            });
-                            setVueltoARS(String(next));
-                          }}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          disabled={loading}
-                          data-testid="payment-dinero-recibido"
-                        />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
-                        <input
-                          id="payment-vuelto-ars"
-                          type="number"
-                          value={vueltoARS}
-                          readOnly
-                          tabIndex={-1}
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          disabled={loading}
-                          data-testid="payment-vuelto-ars"
-                          aria-readonly="true"
-                        />
-                      </div>
+                      {showCashTender ? (
+                        <div
+                          className={styles.cashTenderSection}
+                          data-testid="payment-cash-tender"
+                        >
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-dinero-recibido">
+                              Paga con ({formData.moneda || 'ARS'})
+                            </label>
+                            <input
+                              id="payment-dinero-recibido"
+                              type="number"
+                              value={dineroRecibido}
+                              onChange={(e) => {
+                                dineroRecibidoDirtyRef.current = true;
+                                setDineroRecibido(e.target.value);
+                                const next = suggestVueltoARS({
+                                  dineroRecibido: parseFloat(e.target.value) || 0,
+                                  moneda: formData.moneda,
+                                  tipoCambio: formData.tipoCambio,
+                                  montoIngresadoARS: montoARS
+                                });
+                                setVueltoARS(String(next));
+                              }}
+                              placeholder="0"
+                              step="0.01"
+                              min="0"
+                              disabled={loading}
+                              data-testid="payment-dinero-recibido"
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-vuelto-ars">Vuelto (ARS)</label>
+                            <input
+                              id="payment-vuelto-ars"
+                              type="number"
+                              value={vueltoARS}
+                              readOnly
+                              tabIndex={-1}
+                              placeholder="0"
+                              step="0.01"
+                              min="0"
+                              disabled={loading}
+                              data-testid="payment-vuelto-ars"
+                              aria-readonly="true"
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {showCardFields ? (
+                        <div className={styles.methodFields}>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-card">Número de tarjeta *</label>
+                            <input
+                              id="payment-card"
+                              type="text"
+                              value={formData.numeroTarjeta}
+                              onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
+                              placeholder="**** **** **** ****"
+                              maxLength={19}
+                              required
+                            />
+                          </div>
+                          <div className={styles.formGroup}>
+                            <label htmlFor="payment-empresa">Empresa *</label>
+                            <select
+                              id="payment-empresa"
+                              value={formData.empresa}
+                              onChange={(e) => handleInputChange('empresa', e.target.value)}
+                              required
+                            >
+                              <option value="">Seleccionar empresa...</option>
+                              {formData.metodo === 'Tarjeta Debito' ? (
+                                <>
+                                  <option value="Maestro">Maestro</option>
+                                  <option value="Visa Electron">Visa Electron</option>
+                                  <option value="Cabal 24hs">Cabal 24hs</option>
+                                  <option value="Mastercard Debito">Mastercard Débito</option>
+                                  <option value="Otra">Otra</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="American Express">American Express</option>
+                                  <option value="Visa">Visa</option>
+                                  <option value="Mastercard">Mastercard</option>
+                                  <option value="Credencial">Credencial</option>
+                                  <option value="Carta Franca">Carta Franca</option>
+                                  <option value="Cabal">Cabal</option>
+                                  <option value="Diners">Diners</option>
+                                  <option value="Tarjeta Shopping">Tarjeta Shopping</option>
+                                  <option value="Tarjeta Naranja">Tarjeta Naranja</option>
+                                  <option value="Otra">Otra</option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {showComprobanteField ? (
+                        <div className={styles.formGroup}>
+                          <label htmlFor="payment-comprobante">Comprobante</label>
+                          <label
+                            className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
+                            htmlFor="payment-comprobante"
+                          >
+                            <input
+                              id="payment-comprobante"
+                              type="file"
+                              accept={COMPROBANTE_ACCEPT}
+                              multiple
+                              disabled={loading}
+                              onChange={(e) => {
+                                handleComprobanteChange(e.target.files);
+                                e.target.value = '';
+                              }}
+                            />
+                            <FiUpload aria-hidden="true" />
+                            {comprobanteFiles.length > 0
+                              ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
+                              : 'Subir comprobante (JPG, PNG o PDF)'}
+                          </label>
+                          {comprobanteFiles.length > 0 && (
+                            <button
+                              type="button"
+                              className={styles.comprobanteClear}
+                              disabled={loading}
+                              onClick={() => setComprobanteFiles([])}
+                            >
+                              Quitar archivos
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </section>
                   ) : null}
-                </div>
-
-                <div
-                  className={
-                    foreignCurrency ? styles.monedaTcPair : styles.formGroup
-                  }
-                  data-testid="payment-moneda-tc"
-                >
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-moneda">Moneda *</label>
-                    <select
-                      id="payment-moneda"
-                      value={formData.moneda}
-                      onChange={(e) => handleInputChange('moneda', e.target.value)}
-                      required
-                      disabled={loading}
-                      data-testid="payment-moneda"
-                    >
-                      {SYSTEM_CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {foreignCurrency ? (
-                    <div className={styles.formGroup}>
-                      <label htmlFor="payment-tc">Tipo de cambio *</label>
-                      <input
-                        id="payment-tc"
-                        type="number"
-                        value={formData.tipoCambio}
-                        onChange={(e) => handleInputChange('tipoCambio', e.target.value)}
-                        onFocus={() => {
-                          if (amountMode !== AMOUNT_MODE_SALDAR) {
-                            setAmountMode(AMOUNT_MODE_INGRESADO);
-                          }
-                        }}
-                        placeholder="1000.00"
-                        step="0.01"
-                        min="0"
-                        required
-                        disabled={loading}
-                        data-testid="payment-tc"
-                      />
-                      {tipoCambioGlobal != null && (
-                        <span className={styles.helpText}>Global: {tipoCambioGlobal}</span>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-
-                <section className={styles.methodCompact} aria-label="Medio de pago">
-                  <div className={styles.formGroup}>
-                    <label htmlFor="payment-metodo">
-                      {isDevolucion ? 'Método de devolución *' : 'Método de pago *'}
-                    </label>
-                    <select
-                      id="payment-metodo"
-                      value={formData.metodo}
-                      onChange={(e) => handleInputChange('metodo', e.target.value)}
-                      required
-                      disabled={loading || methodConfigs.length === 0}
-                      aria-label={isDevolucion ? 'Método de devolución' : 'Método de pago'}
-                    >
-                      {methodConfigs.length === 0 ? (
-                        <option value="">Cargando medios…</option>
-                      ) : (
-                        methodConfigs.map((m) => (
-                          <option key={m.id} value={m.label}>
-                            {m.label}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <div className={styles.methodFieldsSlot} data-testid="payment-method-fields">
-                    {isCardMethod(formData.metodo) ? (
-                      <div className={styles.methodFields}>
-                        <div className={styles.formGroup}>
-                          <label htmlFor="payment-card">Número de tarjeta *</label>
-                          <input
-                            id="payment-card"
-                            type="text"
-                            value={formData.numeroTarjeta}
-                            onChange={(e) => handleInputChange('numeroTarjeta', e.target.value)}
-                            placeholder="**** **** **** ****"
-                            maxLength={19}
-                            required
-                          />
-                        </div>
-                        <div className={styles.formGroup}>
-                          <label htmlFor="payment-empresa">Empresa *</label>
-                          <select
-                            id="payment-empresa"
-                            value={formData.empresa}
-                            onChange={(e) => handleInputChange('empresa', e.target.value)}
-                            required
-                          >
-                            <option value="">Seleccionar empresa...</option>
-                            {formData.metodo === 'Tarjeta Debito' ? (
-                              <>
-                                <option value="Maestro">Maestro</option>
-                                <option value="Visa Electron">Visa Electron</option>
-                                <option value="Cabal 24hs">Cabal 24hs</option>
-                                <option value="Mastercard Debito">Mastercard Débito</option>
-                                <option value="Otra">Otra</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="American Express">American Express</option>
-                                <option value="Visa">Visa</option>
-                                <option value="Mastercard">Mastercard</option>
-                                <option value="Credencial">Credencial</option>
-                                <option value="Carta Franca">Carta Franca</option>
-                                <option value="Cabal">Cabal</option>
-                                <option value="Diners">Diners</option>
-                                <option value="Tarjeta Shopping">Tarjeta Shopping</option>
-                                <option value="Tarjeta Naranja">Tarjeta Naranja</option>
-                                <option value="Otra">Otra</option>
-                              </>
-                            )}
-                          </select>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {showComprobanteField ? (
-                      <div className={styles.formGroup}>
-                        <label htmlFor="payment-comprobante">Comprobante (opcional)</label>
-                        <label
-                          className={`${styles.comprobanteDropzone} ${loading ? styles.comprobanteDropzoneBusy : ''}`}
-                          htmlFor="payment-comprobante"
-                        >
-                          <input
-                            id="payment-comprobante"
-                            type="file"
-                            accept={COMPROBANTE_ACCEPT}
-                            multiple
-                            disabled={loading}
-                            onChange={(e) => {
-                              handleComprobanteChange(e.target.files);
-                              e.target.value = '';
-                            }}
-                          />
-                          <FiUpload aria-hidden="true" />
-                          {comprobanteFiles.length > 0
-                            ? `${comprobanteFiles.length} archivo${comprobanteFiles.length === 1 ? '' : 's'} listo${comprobanteFiles.length === 1 ? '' : 's'} — clic para cambiar`
-                            : 'Subir comprobante (JPG, PNG o PDF)'}
-                        </label>
-                        {comprobanteFiles.length > 0 && (
-                          <button
-                            type="button"
-                            className={styles.comprobanteClear}
-                            disabled={loading}
-                            onClick={() => setComprobanteFiles([])}
-                          >
-                            Quitar archivos
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                </section>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="payment-fecha">Fecha *</label>
-                  <input
-                    id="payment-fecha"
-                    type="date"
-                    value={formData.fecha}
-                    onChange={(e) => handleInputChange('fecha', e.target.value)}
-                    required
-                    disabled={loading}
-                    data-testid="payment-fecha"
-                  />
                 </div>
               </section>
 
@@ -2461,27 +2572,91 @@ const CobroForm = ({
                     data-testid="payment-manual-promos"
                   >
                     <p className={styles.discountTitle}>Valor al aplicar</p>
-                    {manualPromoSuggestions.map((s) => (
-                      <label key={s.id} className={styles.manualPromoRow}>
-                        <span className={styles.manualPromoLabel}>{s.label}</span>
-                        <span className={styles.manualPromoInputWrap}>
-                          <input
-                            type="number"
-                            min="0"
-                            step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
-                            className={styles.manualPromoInput}
-                            value={manualPromoValues[s.id] ?? ''}
-                            onChange={(e) => setManualPromoValue(s.id, e.target.value)}
-                            placeholder="—"
-                            aria-label={`Valor de ${s.label}`}
-                            disabled={loading}
-                          />
-                          <span className={styles.manualPromoUnit} aria-hidden="true">
-                            {benefitUnitLabel(s.benefitType)}
+                    {manualPromoSuggestions.map((s) => {
+                      const committed =
+                        manualPromoValues[s.id] ?? manualPromoValues[String(s.id)];
+                      const hasCommitted = committed != null && committed !== '';
+                      const editing =
+                        !hasCommitted ||
+                        Boolean(manualPromoEditingIds[s.id] || manualPromoEditingIds[String(s.id)]);
+                      const draft =
+                        manualPromoDrafts[s.id] ??
+                        manualPromoDrafts[String(s.id)] ??
+                        (hasCommitted ? committed : '');
+                      const unit = benefitUnitLabel(s.benefitType);
+
+                      if (!editing) {
+                        return (
+                          <div key={s.id} className={styles.manualPromoRow}>
+                            <span className={styles.manualPromoLabel}>{s.label}</span>
+                            <span className={styles.manualPromoInputWrap}>
+                              <span
+                                className={styles.manualPromoCommitted}
+                                data-testid={`payment-manual-promo-value-${s.id}`}
+                              >
+                                {committed}
+                                <span className={styles.manualPromoUnit} aria-hidden="true">
+                                  {unit}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                className={styles.manualPromoModifyBtn}
+                                onClick={() => startEditManualPromo(s.id)}
+                                disabled={loading}
+                                data-testid={`payment-manual-promo-modify-${s.id}`}
+                              >
+                                Modificar
+                              </button>
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={s.id} className={styles.manualPromoRow}>
+                          <label
+                            className={styles.manualPromoLabel}
+                            htmlFor={`payment-manual-promo-${s.id}`}
+                          >
+                            {s.label}
+                          </label>
+                          <span className={styles.manualPromoInputWrap}>
+                            <input
+                              id={`payment-manual-promo-${s.id}`}
+                              type="number"
+                              min="0"
+                              step={s.benefitType === 'FREE_NIGHTS' ? '1' : '0.01'}
+                              className={styles.manualPromoInput}
+                              value={draft}
+                              onChange={(e) => setManualPromoDraft(s.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  commitManualPromoValue(s.id);
+                                }
+                              }}
+                              placeholder="—"
+                              aria-label={`Valor de ${s.label}`}
+                              disabled={loading}
+                              data-testid={`payment-manual-promo-input-${s.id}`}
+                            />
+                            <span className={styles.manualPromoUnit} aria-hidden="true">
+                              {unit}
+                            </span>
+                            <button
+                              type="button"
+                              className={styles.manualPromoAcceptBtn}
+                              onClick={() => commitManualPromoValue(s.id)}
+                              disabled={loading}
+                              data-testid={`payment-manual-promo-accept-${s.id}`}
+                            >
+                              Aceptar
+                            </button>
                           </span>
-                        </span>
-                      </label>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -2579,90 +2754,27 @@ const CobroForm = ({
                 ) : null}
               </section>
 
-              {/* 4) Imputaciones auto */}
-              {!isDevolucion ? (
-                <section
-                  className={styles.sectionBlock}
-                  aria-label="Imputaciones"
-                  data-testid="payment-auto-imputaciones"
+              {!isEditMode ? (
+                <label
+                  className={styles.toggleInline}
+                  htmlFor="payment-billing-toggle"
+                  data-testid="payment-billing-toggle-row"
                 >
-                  <h3 className={styles.sectionTitle}>Imputaciones</h3>
-                  {autoImputaciones.length > 0 ? (
-                    <ul className={styles.autoImputaciones}>
-                      {autoImputaciones.map((row) => (
-                        <li key={row.optionKey || `${row.accountId}-${row.reservaId}`}>
-                          <span>{row.label}</span>
-                          <span>{formatMoneyArs(row.montoARS)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : isMultiAlloc ? (
-                    <p className={styles.helpText}>
-                      La distribución se hace en proporción al saldo pendiente de cada cuenta.
-                    </p>
-                  ) : (
-                    <p className={styles.helpText}>Ingresá un monto para ver la imputación.</p>
-                  )}
-                </section>
+                  <span id="payment-billing-label">Requiere facturación</span>
+                  <input
+                    id="payment-billing-toggle"
+                    type="checkbox"
+                    role="switch"
+                    checked={billingEnabled}
+                    disabled={billingForced || loading}
+                    aria-labelledby="payment-billing-label"
+                    onChange={(e) => setRequiereFacturacion(e.target.checked)}
+                  />
+                  <span aria-hidden="true">{billingEnabled ? 'Sí' : 'No'}</span>
+                </label>
               ) : null}
 
-              {/* 5) Datos adicionales */}
-              <details
-                className={styles.extrasDetails}
-                data-testid="payment-extras"
-                open={extrasOpen}
-                onToggle={(e) => setExtrasOpen(e.currentTarget.open)}
-              >
-                <summary>
-                  Datos adicionales
-                  <FiChevronDown aria-hidden="true" />
-                </summary>
-                <div className={styles.extrasBody}>
-                  <div className={styles.toggleStack}>
-                    {!isDevolucion && canUseSena ? (
-                      <div className={styles.formGroup}>
-                        <span className={styles.fieldLabel} id="payment-sena-label">
-                          Seña
-                        </span>
-                        <label className={styles.toggleLabel} htmlFor="payment-sena-toggle">
-                          <input
-                            id="payment-sena-toggle"
-                            type="checkbox"
-                            checked={esSena}
-                            disabled={loading}
-                            aria-labelledby="payment-sena-label"
-                            onChange={(e) => setEsSena(e.target.checked)}
-                          />
-                          <span aria-hidden="true">{esSena ? 'Sí' : 'No'}</span>
-                        </label>
-                      </div>
-                    ) : null}
-
-                    {!isEditMode ? (
-                      <div className={styles.formGroup}>
-                        <label className={styles.toggleLabel} htmlFor="payment-billing-toggle">
-                          <input
-                            id="payment-billing-toggle"
-                            type="checkbox"
-                            checked={billingEnabled}
-                            disabled={billingForced || loading}
-                            onChange={(e) => setRequiereFacturacion(e.target.checked)}
-                          />
-                          <span>Requiere facturación</span>
-                          {billingForced && (
-                            <span className={styles.helpText}>
-                              Obligatorio para este medio de pago
-                            </span>
-                          )}
-                        </label>
-                      </div>
-                    ) : null}
-                  </div>
-
-                </div>
-              </details>
-
-              {/* Billing: visible when enabled (below extras so fields stay fillable) */}
+              {/* Billing form: visible when enabled */}
               {!isEditMode && billingEnabled && (
                 <div className={`${styles.billingSection} ${styles.billingBelow}`}>
                   <div className={styles.invoiceTypeRow} role="group" aria-label="Tipo de factura">
@@ -2903,7 +3015,7 @@ const CobroForm = ({
                   <span className={styles.saldoValue}>{headerIngresadoDisplay}</span>
                 </div>
                 <div className={styles.saldoBlock}>
-                  <span className={styles.saldoLabel}>Monto descontado</span>
+                  <span className={styles.saldoLabel}>Monto bonificado</span>
                   <span className={styles.saldoValue}>{headerDescontadoDisplay}</span>
                 </div>
                 <div className={styles.saldoBlock}>
@@ -2923,27 +3035,79 @@ const CobroForm = ({
                   </div>
                 ) : null}
                 <div className={styles.saldoDivider} aria-hidden="true" />
-                <div className={styles.saldoBlock}>
-                  <span className={styles.saldoLabel}>Saldo original</span>
-                  <span className={styles.saldoValue}>
-                    {!isDevolucion && saldoTotalAsignado != null
-                      ? formatMoneyArs(saldoTotalAsignado)
-                      : '—'}
-                  </span>
-                </div>
-                {!isDevolucion && autoImputaciones.length > 0 ? (
-                  <div className={styles.summaryAllocList}>
-                    <span className={styles.saldoLabel}>Por cuenta</span>
-                    <ul className={styles.autoImputaciones}>
-                      {autoImputaciones.map((row) => (
-                        <li key={`sum-${row.optionKey || `${row.accountId}-${row.reservaId}`}`}>
-                          <span>{row.label}</span>
-                          <span>{formatMoneyArs(row.montoARS)}</span>
+                {showMultiAccountSummary ? (
+                  <div
+                    className={styles.summaryMultiAccounts}
+                    data-testid="payment-summary-multi-accounts"
+                  >
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-saldo-original"
+                    >
+                      <span className={styles.saldoLabel}>Saldo original</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`orig-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.saldoOriginal)}</span>
+                          </li>
+                        ))}
+                        <li className={styles.summaryTotalRow}>
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalOriginal)}</span>
                         </li>
-                      ))}
-                    </ul>
+                      </ul>
+                    </div>
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-monto-saldado"
+                    >
+                      <span className={styles.saldoLabel}>Monto saldado</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`sald-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.montoSaldado)}</span>
+                          </li>
+                        ))}
+                        <li className={styles.summaryTotalRow}>
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalSaldado)}</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div
+                      className={styles.summaryAllocList}
+                      data-testid="payment-summary-saldo-restante"
+                    >
+                      <span className={styles.saldoLabel}>Saldo restante</span>
+                      <ul className={styles.autoImputaciones}>
+                        {multiAccountSummary.rows.map((row) => (
+                          <li key={`rest-${row.optionKey}`}>
+                            <span>{row.label}</span>
+                            <span>{formatMoneyArs(row.saldoRestante)}</span>
+                          </li>
+                        ))}
+                        <li
+                          className={`${styles.summaryTotalRow} ${styles.summaryTotalHighlight}`}
+                          data-testid="summary-saldo"
+                        >
+                          <span>Total</span>
+                          <span>{formatMoneyArs(multiAccountSummary.totalRestante)}</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className={styles.saldoBlock}>
+                    <span className={styles.saldoLabel}>Saldo original</span>
+                    <span className={styles.saldoValue}>
+                      {!isDevolucion && saldoTotalAsignado != null
+                        ? formatMoneyArs(saldoTotalAsignado)
+                        : '—'}
+                    </span>
+                  </div>
+                )}
                 {excedenteARS > 0 ? (
                   <div className={styles.saldoBlock}>
                     <span className={styles.saldoLabel}>Excedente</span>
@@ -2958,16 +3122,17 @@ const CobroForm = ({
                     </span>
                   </div>
                 ) : null}
-                <div className={styles.saldoDivider} aria-hidden="true" />
-                <div
-                  className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
-                  data-testid="summary-saldo"
-                >
-                  <span className={styles.saldoLabel}>Nuevo saldo</span>
-                  <span className={styles.saldoValueLarge}>
-                    {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
-                  </span>
-                </div>
+                {!showMultiAccountSummary ? (
+                  <div
+                    className={`${styles.saldoBlock} ${styles.saldoBlockHighlight}`}
+                    data-testid="summary-saldo"
+                  >
+                    <span className={styles.saldoLabel}>Nuevo saldo</span>
+                    <span className={styles.saldoValueLarge}>
+                      {saldoProyectadoARS != null ? formatMoneyArs(saldoProyectadoARS) : '—'}
+                    </span>
+                  </div>
+                ) : null}
                 <div className={styles.summaryMeta}>
                   <span>Motivo: {motivoActual}</span>
                   {foreignCurrency && !isDevolucion && parseFloat(formData.tipoCambio) > 0 ? (
