@@ -157,17 +157,22 @@ describe('CobroForm facturación', () => {
     expect(screen.getByTestId('payment-fecha')).toHaveValue(todayLocalDateInputValue())
   })
 
-  it('layout: fecha arriba de reserva; método|moneda encima de montos; Comprobante sin (opcional)', async () => {
+  it('layout: fecha+reserva en fila; sin títulos Destino/Datos; método|moneda encima de montos', async () => {
     render(<CobroForm reservaId={22} onClose={vi.fn()} onSuccess={vi.fn()} />)
     await waitFor(() => expect(getClientBillingProfile).toHaveBeenCalled())
 
+    const row = screen.getByTestId('payment-fecha-destino-row')
     const fecha = screen.getByTestId('payment-fecha')
     const imputa = screen.getByTestId('payment-imputa-label')
     const metodoMoneda = screen.getByTestId('payment-metodo-moneda-row')
     const montos = screen.getByTestId('payment-montos-zone')
     const datos = screen.getByRole('region', { name: 'Datos del cobro' })
 
+    expect(row.contains(fecha)).toBe(true)
+    expect(row.contains(imputa)).toBe(true)
     expect(fecha.compareDocumentPosition(imputa) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /Destino del cobro/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Datos del cobro/i })).not.toBeInTheDocument()
     expect(datos.contains(metodoMoneda)).toBe(true)
     expect(datos.contains(montos)).toBe(true)
     expect(

@@ -1838,23 +1838,28 @@ const CobroForm = ({
                                         <div className={styles.formBody}>
           <div className={styles.workspace} data-testid="payment-workspace">
             <div className={styles.mainPane}>
-              <div className={styles.formGroup} data-testid="payment-fecha-lead">
-                <label htmlFor="payment-fecha">Fecha *</label>
-                <input
-                  id="payment-fecha"
-                  type="date"
-                  value={formData.fecha}
-                  onChange={(e) => handleInputChange('fecha', e.target.value)}
-                  required
-                  disabled={loading}
-                  data-testid="payment-fecha"
-                />
-              </div>
+              <div
+                className={styles.fechaDestinoRow}
+                data-testid="payment-fecha-destino-row"
+              >
+                <div className={`${styles.formGroup} ${styles.fechaLead}`} data-testid="payment-fecha-lead">
+                  <label htmlFor="payment-fecha">Fecha *</label>
+                  <input
+                    id="payment-fecha"
+                    type="date"
+                    value={formData.fecha}
+                    onChange={(e) => handleInputChange('fecha', e.target.value)}
+                    required
+                    disabled={loading}
+                    data-testid="payment-fecha"
+                  />
+                </div>
 
-              {/* 1) Destino del cobro */}
-              <section className={styles.sectionBlock} aria-label="Destino del cobro">
-                <h3 className={styles.sectionTitle}>Destino del cobro</h3>
-
+                {/* 1) Destino del cobro (sin título visible) */}
+                <section
+                  className={styles.destinoSlot}
+                  aria-label="Destino del cobro"
+                >
                 {showAllocationUi && (
                   <div className={styles.formGroup} ref={accountPickerRef}>
                     <div className={styles.allocationFieldHeader}>
@@ -2081,12 +2086,11 @@ const CobroForm = ({
                     </span>
                   </div>
                 )}
-              </section>
+                </section>
+              </div>
 
-              {/* 2) Datos del cobro */}
+              {/* 2) Datos del cobro (sin título visible) */}
               <section className={styles.sectionBlock} aria-label="Datos del cobro">
-                <h3 className={styles.sectionTitle}>Datos del cobro</h3>
-
                 <div
                   className={styles.formRow}
                   data-testid="payment-metodo-moneda-row"
