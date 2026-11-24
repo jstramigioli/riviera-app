@@ -53,11 +53,19 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
   const roomType = card.roomType || '—';
   const canOpenRoom = Boolean(card.roomId) && !hideRoomNumber;
   const roomName = card.room || '—';
+  const roomChipLabel = `Habitación: ${roomName} - ${roomType}`;
   const roomNameNode = (
     <RoomNameChip
-      name={roomName}
-      roomId={canOpenRoom ? card.roomId : null}
-      data-testid={canOpenRoom ? 'timeline-room-link' : undefined}
+      rooms={[
+        {
+          name: roomChipLabel,
+          roomId: canOpenRoom ? card.roomId : null
+        }
+      ]}
+      className={styles.roomChip}
+      data-testid={
+        canOpenRoom ? 'timeline-room-link' : 'timeline-room-chip'
+      }
       title={
         canOpenRoom ? `Ver perfil de habitación ${roomName}` : undefined
       }
@@ -72,7 +80,7 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
             roomType
           ) : (
             <>
-              Habitación: {roomNameNode} - {roomType}
+              {roomNameNode}
               {card.roomFixed ? (
                 <FiLock
                   className={styles.roomFixedIcon}

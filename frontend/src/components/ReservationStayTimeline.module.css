@@ -259,6 +259,19 @@
   word-break: break-word;
 }
 
+/* Chip con etiqueta completa («Habitación: 18 - Cuádruple»); permite wrap en cards angostas */
+.roomChip {
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
 .roomNameLink {
   color: inherit;
   font: inherit;
