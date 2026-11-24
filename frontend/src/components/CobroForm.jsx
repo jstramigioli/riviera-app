@@ -2060,9 +2060,6 @@ const CobroForm = ({
                         );
                       })}
                     </select>
-                    <span className={styles.helpText}>
-                      Obligatorio. Si el cobro tenía descuento, se revierte en la misma operación.
-                    </span>
                   </div>
                 )}
               </section>
