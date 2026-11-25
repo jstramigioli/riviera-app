@@ -11,9 +11,11 @@ const usePageTitle = () => {
       '/consultas-reservas': 'Consultas y Reservas',
       '/habitaciones': 'Habitaciones',
       '/clientes': 'Clientes',
+      '/comedor': 'Comedor',
       '/cobros': 'Estado de cuentas',
       '/estado-de-cuentas': 'Estado de cuentas',
       '/estadisticas': 'Estadísticas',
+      '/gastronomia': 'Gastronomía',
       '/configuracion': 'Configuración'
     };
 

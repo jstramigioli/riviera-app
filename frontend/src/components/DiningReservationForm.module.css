@@ -1,0 +1,200 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-dark);
+}
+
+.field input,
+.field textarea,
+.field select,
+.accountRow select {
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+  background: var(--color-bg-white, #fff);
+  color: var(--color-text-dark);
+  font: inherit;
+  font-size: var(--font-size-small);
+}
+
+.field input:disabled {
+  opacity: 0.7;
+  background: var(--color-bg, #f5f6f8);
+}
+
+.fieldset {
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+  padding: 10px 12px;
+}
+
+.fieldset legend {
+  padding: 0 6px;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+.radioRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.radioRow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.selectedClient {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+  background: var(--color-bg-white, #fff);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted, #6b7280);
+  padding: 2px;
+}
+
+.iconBtn:hover {
+  color: var(--color-text-dark);
+}
+
+.searchWrap {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.searchWrap input {
+  width: 100%;
+  padding-left: 32px;
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-right: 10px;
+  background: var(--color-bg-white, #fff);
+  font: inherit;
+  font-size: var(--font-size-small);
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b7280);
+  font-weight: 500;
+}
+
+.hits {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--color-bg-white, #fff);
+  border: 1px solid var(--color-border, #d8dde6);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hits button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: var(--font-size-small);
+  color: var(--color-text-dark);
+}
+
+.hits button:hover {
+  background: rgba(63, 95, 138, 0.08);
+}
+
+.accountRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.accountRow select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 14px;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  background: var(--color-primary, #3f5f8a);
+  color: #fff;
+  border: 1px solid var(--color-primary, #3f5f8a);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  background: var(--color-bg-white, #fff);
+  color: var(--color-text-dark);
+  border: 1px solid var(--color-border, #d8dde6);
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+}
