@@ -159,7 +159,17 @@ export async function updateReservationStatus(id, status) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
   });
-  if (!res.ok) throw new Error('Error updating reservation status');
+  if (!res.ok) {
+    // p. ej. 409 ROOM_NOT_AVAILABLE al reactivar: mostrar el motivo del backend
+    const body = await res.json().catch(() => null);
+    const err = new Error(
+      [body?.error, body?.message].filter(Boolean).join('. ') ||
+        'No se pudo actualizar el estado de la reserva'
+    );
+    err.code = body?.code;
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 

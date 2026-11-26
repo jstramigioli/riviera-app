@@ -480,8 +480,11 @@ const ReservationDetails = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar el estado de la reserva');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          [errorData.error, errorData.message].filter(Boolean).join('. ') ||
+            'Error al actualizar el estado de la reserva'
+        );
       }
 
       const updatedReservation = await response.json();
