@@ -3781,7 +3781,6 @@ export default function Consulta() {
                         {filteredClients.map((client) => (
                           <div key={client.id} className={styles.clientOption} onClick={() => handleClientSelect(client)}>
                             <strong>{client.firstName} {client.lastName}</strong>
-                            {client.email && <div>{client.email}</div>}
                             {client.phone && <div>{client.phone}</div>}
                           </div>
                         ))}

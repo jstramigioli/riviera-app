@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { FiX } from 'react-icons/fi';
 import ConfirmationModal from './ConfirmationModal';
+import ReservationIdChip from './ReservationIdChip';
 import styles from '../styles/QueriesTable.module.css';
 
 function QueriesTable({ queries, onDeleteQuery }) {
@@ -169,7 +170,18 @@ function QueriesTable({ queries, onDeleteQuery }) {
               className={styles.row}
               onClick={() => handleQueryClick(query)}
             >
-              <td className={styles.idCell}>#{query.id}</td>
+              <td className={styles.idCell}>
+                <ReservationIdChip
+                  id={query.id}
+                  variant="neutral"
+                  navigateToDetail={false}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleQueryClick(query);
+                  }}
+                  title={`Ver consulta #${query.id}`}
+                />
+              </td>
               <td className={styles.clientCell}>
                 {query.mainClient ? 
                   `${query.mainClient.firstName} ${query.mainClient.lastName}` : 

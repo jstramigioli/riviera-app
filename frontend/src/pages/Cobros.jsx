@@ -106,16 +106,42 @@ const STATUS_COLORS = {
 };
 
 const EMPTY_ACCOUNT_FILTERS = {
-  origen: '',
+  origen: [],
   cuenta: '',
-  estado: '',
+  estado: [],
   finalizacionFrom: '',
   finalizacionTo: '',
   cliente: '',
   saldoMin: '',
   saldoMax: '',
-  saldoEstado: 'PENDIENTE',
+  saldoEstado: ['PENDIENTE'],
 };
+
+const ORIGEN_OPTIONS = [
+  { value: 'reserva', label: 'Reserva' },
+  { value: 'externa', label: 'Externa' },
+];
+
+function sameStringSet(a, b) {
+  const left = Array.isArray(a) ? [...a].sort() : [];
+  const right = Array.isArray(b) ? [...b].sort() : [];
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function accountFilterIsSet(key, value) {
+  if (Array.isArray(EMPTY_ACCOUNT_FILTERS[key])) {
+    return Array.isArray(value) && value.length > 0;
+  }
+  return String(value || '').trim() !== '';
+}
+
+function accountFilterDiffersFromDefault(key, value) {
+  const empty = EMPTY_ACCOUNT_FILTERS[key];
+  if (Array.isArray(empty)) {
+    return !sameStringSet(value, empty);
+  }
+  return String(value ?? '') !== String(empty ?? '');
+}
 
 const ACCOUNT_COLUMN_KEYS = {
   origen: ['origen'],
@@ -272,9 +298,11 @@ const Cobros = () => {
   const initialSection =
     sectionParam === SECTIONS.facturacion && !canFacturacion
       ? SECTIONS.cuentas
-      : SECTIONS[sectionParam]
-        ? sectionParam
-        : SECTIONS.cuentas;
+      : sectionParam === 'cuentasFondo'
+        ? SECTIONS.cuentas
+        : SECTIONS[sectionParam]
+          ? sectionParam
+          : SECTIONS.cuentas;
 
   const [activeSection, setActiveSection] = useState(initialSection);
   const [reservationsWithBalances, setReservationsWithBalances] = useState([]);
@@ -311,6 +339,13 @@ const Cobros = () => {
   }, []);
 
   useEffect(() => {
+    if (sectionParam === 'cuentasFondo') {
+      if (activeSection !== SECTIONS.cuentas) setActiveSection(SECTIONS.cuentas);
+      const next = new URLSearchParams(searchParams);
+      next.set('section', SECTIONS.cuentas);
+      setSearchParams(next, { replace: true });
+      return;
+    }
     if (!SECTIONS[sectionParam]) return;
     if (sectionParam === SECTIONS.facturacion && !canFacturacion) {
       if (activeSection !== SECTIONS.cuentas) setActiveSection(SECTIONS.cuentas);
@@ -629,18 +664,28 @@ const Cobros = () => {
     setAccountFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const toggleAccountMultiFilter = (key, optionValue) => {
+    setAccountFilters((prev) => {
+      const current = Array.isArray(prev[key]) ? prev[key] : [];
+      const next = current.includes(optionValue)
+        ? current.filter((value) => value !== optionValue)
+        : [...current, optionValue];
+      return { ...prev, [key]: next };
+    });
+  };
+
   const isAccountColumnActive = useCallback(
     (column) =>
-      (ACCOUNT_COLUMN_KEYS[column] || []).some(
-        (key) => String(accountFilters[key] || '').trim() !== ''
+      (ACCOUNT_COLUMN_KEYS[column] || []).some((key) =>
+        accountFilterIsSet(key, accountFilters[key])
       ),
     [accountFilters]
   );
 
   const hasActiveAccountFilters = useMemo(
     () =>
-      Object.keys(EMPTY_ACCOUNT_FILTERS).some(
-        (key) => String(accountFilters[key] ?? '') !== String(EMPTY_ACCOUNT_FILTERS[key] ?? '')
+      Object.keys(EMPTY_ACCOUNT_FILTERS).some((key) =>
+        accountFilterDiffersFromDefault(key, accountFilters[key])
       ) || Boolean(clientIdParam),
     [accountFilters, clientIdParam]
   );
@@ -698,25 +743,29 @@ const Cobros = () => {
 
   const filteredAccounts = useMemo(() => {
     const clientId = clientIdParam ? Number(clientIdParam) : null;
-    const origen = String(accountFilters.origen || '').trim();
-    const estado = String(accountFilters.estado || '').trim();
-    const saldoEstado = String(accountFilters.saldoEstado || '').trim();
+    const origen = Array.isArray(accountFilters.origen) ? accountFilters.origen : [];
+    const estado = Array.isArray(accountFilters.estado) ? accountFilters.estado : [];
+    const saldoEstado = Array.isArray(accountFilters.saldoEstado)
+      ? accountFilters.saldoEstado
+      : [];
     const finalizacionFrom = startOfDay(accountFilters.finalizacionFrom);
     const finalizacionTo = endOfDay(accountFilters.finalizacionTo);
 
     return (reservationsWithBalances || []).filter((reservation) => {
       const isExterna = isExternalAccount(reservation);
 
-      if (origen === 'reserva' && isExterna) return false;
-      if (origen === 'externa' && !isExterna) return false;
-
-      if (estado) {
-        if (accountEstadoValue(reservation) !== estado) return false;
+      if (origen.length > 0) {
+        const kind = isExterna ? 'externa' : 'reserva';
+        if (!origen.includes(kind)) return false;
       }
 
-      if (saldoEstado) {
+      if (estado.length > 0) {
+        if (!estado.includes(accountEstadoValue(reservation))) return false;
+      }
+
+      if (saldoEstado.length > 0) {
         const payStatus = reservation.estadoCobro || 'PENDIENTE';
-        if (payStatus !== saldoEstado) return false;
+        if (!saldoEstado.includes(payStatus)) return false;
       }
 
       if (!includesNormalized(accountCuentaLabel(reservation), accountFilters.cuenta)) {
@@ -1210,9 +1259,6 @@ const Cobros = () => {
                               >
                                 {clientName || 'Sin cliente'}
                               </button>
-                              {client?.email && (
-                                <div className={styles.meta}>{client.email}</div>
-                              )}
                             </td>
                             <td className={styles.amountCell} style={{ color: statusColor }}>
                               {formatMoneyArs(reservation.saldo)}
@@ -1267,17 +1313,30 @@ const Cobros = () => {
                   }}
                 >
                   {openAccountColumn === 'origen' && (
-                    <select
-                      className={styles.columnFilter}
+                    <div
+                      className={styles.columnFilterStack}
+                      role="group"
                       aria-label="Filtrar por origen"
-                      autoFocus
-                      value={accountFilters.origen}
-                      onChange={(e) => setAccountFilter('origen', e.target.value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="reserva">Reserva</option>
-                      <option value="externa">Externa</option>
-                    </select>
+                      {ORIGEN_OPTIONS.map((opt) => {
+                        const checked = accountFilters.origen.includes(opt.value);
+                        return (
+                          <label
+                            key={opt.value}
+                            className={styles.filterOption}
+                            role="menuitemcheckbox"
+                            aria-checked={checked}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleAccountMultiFilter('origen', opt.value)}
+                            />
+                            <span>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   )}
                   {openAccountColumn === 'cuenta' && (
                     <input
@@ -1291,20 +1350,34 @@ const Cobros = () => {
                     />
                   )}
                   {openAccountColumn === 'estado' && (
-                    <select
-                      className={styles.columnFilter}
+                    <div
+                      className={styles.columnFilterStack}
+                      role="group"
                       aria-label="Filtrar por estado"
-                      autoFocus
-                      value={accountFilters.estado}
-                      onChange={(e) => setAccountFilter('estado', e.target.value)}
                     >
-                      <option value="">Todos</option>
-                      {accountEstadoOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      {accountEstadoOptions.length === 0 ? (
+                        <div className={styles.filterOptionEmpty}>Sin estados</div>
+                      ) : (
+                        accountEstadoOptions.map((opt) => {
+                          const checked = accountFilters.estado.includes(opt.value);
+                          return (
+                            <label
+                              key={opt.value}
+                              className={styles.filterOption}
+                              role="menuitemcheckbox"
+                              aria-checked={checked}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleAccountMultiFilter('estado', opt.value)}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
                   )}
                   {openAccountColumn === 'finalizacion' && (
                     <div className={styles.columnFilterStack}>
@@ -1364,20 +1437,32 @@ const Cobros = () => {
                     </div>
                   )}
                   {openAccountColumn === 'saldoEstado' && (
-                    <select
-                      className={styles.columnFilter}
+                    <div
+                      className={styles.columnFilterStack}
+                      role="group"
                       aria-label="Filtrar por saldo estado"
-                      autoFocus
-                      value={accountFilters.saldoEstado}
-                      onChange={(e) => setAccountFilter('saldoEstado', e.target.value)}
                     >
-                      <option value="">Todos</option>
-                      {SALDO_ESTADO_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      {SALDO_ESTADO_OPTIONS.map((opt) => {
+                        const checked = accountFilters.saldoEstado.includes(opt.value);
+                        return (
+                          <label
+                            key={opt.value}
+                            className={styles.filterOption}
+                            role="menuitemcheckbox"
+                            aria-checked={checked}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                toggleAccountMultiFilter('saldoEstado', opt.value)
+                              }
+                            />
+                            <span>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               ) : null}
