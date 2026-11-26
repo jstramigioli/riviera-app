@@ -309,6 +309,8 @@ model Reservation {
   @@index([createdAt])
   @@index([updatedAt])
   @@index([source])
+  /// Perfil de cliente: reservas del titular.
+  @@index([mainClientId])
 }
 
 enum AccountKind {
@@ -921,6 +923,10 @@ model ReservationSegment {
   room                 Room         @relation(fields: [roomId], references: [id])
   roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])
   virtualRoom          VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
+
+  /// Disponibilidad / Libro: tramos por habitación y rango; detalle por reserva.
+  @@index([roomId, startDate, endDate])
+  @@index([reservationId])
 }
 
 /// Ingreso de caja. El crédito de folio vive en CobroImputacion (1..N).
@@ -970,6 +976,8 @@ model Cobro {
   @@index([reservaId])
   @@index([paymentMethodConfigId])
   @@index([cobroOrigenId])
+  /// Caja / listados por fecha.
+  @@index([fecha])
 }
 
 /// Crédito de folio: parte de un Cobro imputada a un Account/reserva.
