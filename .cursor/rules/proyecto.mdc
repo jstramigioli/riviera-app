@@ -1,0 +1,12 @@
+---
+description: Reglas generales del proyecto Riviera App (fuente única en CLAUDE.md)
+globs:
+alwaysApply: true
+---
+Las instrucciones del proyecto están en `CLAUDE.md` (raíz del repo), compartido con Claude Code.
+Leelo y seguilo antes de cualquier tarea: metodología, reglas de base de datos y migraciones,
+comandos y línea base de tests, arquitectura, decisiones funcionales y guía de UI.
+
+@CLAUDE.md
+
+Si una instrucción de otra regla contradice `CLAUDE.md`, avisá a Julián antes de actuar.
