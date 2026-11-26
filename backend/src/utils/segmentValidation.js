@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const { OCCUPYING_STATUSES } = require('../middlewares/reservationStatusValidation');
 const {
   expandVirtualRoomSegments,
@@ -10,7 +9,7 @@ const {
   roomHasBlockingStatus,
   statusLabel
 } = require('./roomStatusPeriods');
-const prisma = new PrismaClient();
+const prisma = require('./prisma');
 
 /**
  * Verifica si hay superposición de segmentos en una habitación

@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // GET /api/tipo-cargo - Obtener todos los tipos de cargo
 const getTiposCargo = async (req, res) => {

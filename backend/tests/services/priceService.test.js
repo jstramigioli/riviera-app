@@ -8,6 +8,8 @@ const mockPrisma = {
 jest.mock('@prisma/client', () => ({
   PrismaClient: jest.fn(() => mockPrisma)
 }));
+// Los módulos usan el cliente compartido (src/utils/prisma)
+jest.mock('../../src/utils/prisma', () => mockPrisma);
 
 const priceService = require('../../src/services/priceService');
 

@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Tipos hardcoded permitidos (solo los que usan subcategorías personalizables)
 const TIPOS_HARDCODED = ['SERVICIO', 'CONSUMO', 'OTRO'];

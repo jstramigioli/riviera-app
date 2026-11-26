@@ -683,7 +683,6 @@ class DynamicPricingService {
   }
 }
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 module.exports = new DynamicPricingService(prisma);
 module.exports.DynamicPricingService = DynamicPricingService; 

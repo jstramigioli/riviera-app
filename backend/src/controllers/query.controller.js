@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const { normalizeReservationSource } = require('../constants/reservationSource');
 const { normalizeBedPreference } = require('../utils/bedConfig');
 const { normalizeVehicleRequirements } = require('../utils/vehicleRequirements');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 function bedPreferenceFields(source = {}) {
   const pref = normalizeBedPreference(source);

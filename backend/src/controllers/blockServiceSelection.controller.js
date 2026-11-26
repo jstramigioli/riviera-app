@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Obtener todas las selecciones de servicios de un bloque
 const getBlockServiceSelections = async (req, res) => {

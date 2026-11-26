@@ -1,6 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
 const { safeSyncPrestacionesComida } = require('../utils/prestacionesComida');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Obtener todos los segmentos de una reserva
 const getReservationSegments = async (req, res) => {

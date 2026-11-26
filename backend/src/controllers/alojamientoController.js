@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // GET /api/alojamiento/combinaciones - Obtener todas las combinaciones de roomType + serviceType
 const getCombinacionesAlojamiento = async (req, res) => {
