@@ -45,9 +45,42 @@ async function allocateNextCobroCodigo(db) {
   return formatCobroCodigo(nextIndex);
 }
 
+function isCodigoConflict(error) {
+  if (!error || error.code !== 'P2002') return false;
+  const target = error.meta?.target;
+  if (!target) return true;
+  return (Array.isArray(target) ? target : [String(target)]).some((t) =>
+    String(t).includes('codigo')
+  );
+}
+
+/**
+ * `allocateNextCobroCodigo` toma max+1: dos cobros simultáneos pueden calcular el mismo código
+ * y el segundo falla por UNIQUE (P2002). Reintenta la transacción completa (que vuelve a leer el
+ * máximo) en ese caso; cualquier otro error se propaga igual.
+ * @template T
+ * @param {() => Promise<T>} runTransaction
+ * @param {number} [attempts]
+ * @returns {Promise<T>}
+ */
+async function withCobroCodigoRetry(runTransaction, attempts = 3) {
+  let lastError;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await runTransaction();
+    } catch (error) {
+      if (!isCodigoConflict(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 module.exports = {
   formatCobroCodigo,
   parseCobroCodigo,
   allocateNextCobroCodigo,
+  withCobroCodigoRetry,
+  isCodigoConflict,
   CODIGO_RE,
 };

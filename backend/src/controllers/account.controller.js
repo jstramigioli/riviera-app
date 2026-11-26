@@ -2,7 +2,7 @@ const prisma = require('../utils/prisma');
 const { CARGO_COMANDA_INCLUDE } = require('../utils/comandas');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateAccountBalance } = require('../utils/accountBalance');
-const { allocateNextCobroCodigo } = require('../utils/cobroCodigo');
+const { allocateNextCobroCodigo, withCobroCodigoRetry } = require('../utils/cobroCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
@@ -777,7 +777,7 @@ exports.createAccountCobro = async (req, res) => {
         ? { accountId: account.id, reservaId: account.reservationId }
         : dualWriteExternalRefs(account);
 
-    const nuevoCobro = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await withCobroCodigoRetry(() => prisma.$transaction(async (tx) => {
       let cobroOrigen = null;
       if (isDev) {
         const origenId = parseInt(cobroOrigenId, 10);
@@ -912,7 +912,7 @@ exports.createAccountCobro = async (req, res) => {
         ...full,
         discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
       };
-    });
+    }));
 
     res.status(201).json(nuevoCobro);
   } catch (error) {

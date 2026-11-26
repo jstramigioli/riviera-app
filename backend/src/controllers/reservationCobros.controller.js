@@ -2,7 +2,7 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { calculateAccountBalance } = require('../utils/accountBalance');
-const { allocateNextCobroCodigo } = require('../utils/cobroCodigo');
+const { allocateNextCobroCodigo, withCobroCodigoRetry } = require('../utils/cobroCodigo');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
@@ -410,7 +410,7 @@ exports.createCobro = async (req, res) => {
     const fechaCobro = parseFechaInput(fecha, req);
     const montoARSAbs = tender.montoARSAbs;
 
-    const nuevoCobro = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await withCobroCodigoRetry(() => prisma.$transaction(async (tx) => {
       const account = await ensureReservationAccount(tx, reservaId);
       const financialRefs = dualWriteReservationRefs(account, reservaId);
 
@@ -556,7 +556,7 @@ exports.createCobro = async (req, res) => {
         ...full,
         discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
       };
-    });
+    }));
     res.status(201).json(nuevoCobro);
   } catch (error) {
     if (error.statusCode === 400) {
@@ -2070,7 +2070,7 @@ exports.createClientMultiCobro = async (req, res) => {
       bonificacionTotalARS: bonoTotal
     });
 
-    const nuevoCobro = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await withCobroCodigoRetry(() => prisma.$transaction(async (tx) => {
       const codigo = await allocateNextCobroCodigo(tx);
       const anchor = normalized.length === 1 ? normalized[0] : null;
       const cobro = await tx.cobro.create({
@@ -2154,7 +2154,7 @@ exports.createClientMultiCobro = async (req, res) => {
           ...PAGO_ADJUNTO_INCLUDE
         }
       });
-    });
+    }));
 
     res.status(201).json({
       ...nuevoCobro,
