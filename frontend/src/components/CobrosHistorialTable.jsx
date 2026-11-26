@@ -11,11 +11,22 @@ import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { MOTIVO_DEVOLUCION } from '../constants/billing';
 import { formatMoneyArs } from '../utils/formatMoney';
 import {
+  cobroClient,
+  cobroClientDisplayName,
+  cobroMatchesClientId,
+  cobroReservationSearchHaystack,
+  cobroReservations,
+  formatDisplayDateTime,
+  pagoMoneda,
+  paymentCodeLabel,
+} from '../utils/cobroDisplay';
+import {
   DEFAULT_PAGE_SIZE,
   clampPage,
   pageSlice,
   totalPagesFor,
 } from '../utils/tablePagination';
+import CobroDetailModal from './CobroDetailModal';
 import ReservationIdChip from './ReservationIdChip';
 import TablePager from './TablePager';
 import styles from '../pages/Cobros.module.css';
@@ -65,9 +76,7 @@ const PAY_COLUMNS = [
   { key: 'referencia', label: 'Comprobante' },
 ];
 
-export function pagoMoneda(cobro) {
-  return String(cobro?.moneda || 'ARS').toUpperCase();
-}
+export { pagoMoneda, paymentCodeLabel, formatDisplayDateTime };
 
 export function isTransferencia(metodo) {
   return String(metodo || '').trim().toLowerCase() === 'transferencia';
@@ -75,10 +84,6 @@ export function isTransferencia(metodo) {
 
 export function adjuntosOf(cobro, tipo) {
   return (cobro?.adjuntos || []).filter((a) => a.tipo === tipo);
-}
-
-export function paymentCodeLabel(cobro) {
-  return cobro?.codigo || (cobro?.id != null ? `Nº ${cobro.id}` : '—');
 }
 
 function foldAccents(value) {
@@ -91,18 +96,6 @@ function foldAccents(value) {
 function includesNormalized(haystack, needle) {
   if (!needle) return true;
   return foldAccents(haystack).includes(foldAccents(String(needle).trim()));
-}
-
-export function formatDisplayDateTime(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 function startOfDay(isoDate) {
@@ -134,6 +127,8 @@ export default function CobrosHistorialTable({
   onReservationClick,
   onEditCobro,
   onDeleteCobro,
+  /** false = sin columna Acciones (p.ej. Caja); Editar sigue disponible desde el modal de detalle. */
+  enableRowActions = null,
   testId = 'cobros-historial-table',
 }) {
   const { notify, noticeDialog } = useAppNotice();
@@ -141,7 +136,10 @@ export default function CobrosHistorialTable({
   const [internalFilters, setInternalFilters] = useState(EMPTY_PAY_FILTERS);
   const payFilters = controlledFilters ?? internalFilters;
   const setPayFilters = onPayFiltersChange ?? setInternalFilters;
-  const showRowActions = Boolean(onEditCobro || onDeleteCobro);
+  const showRowActions =
+    enableRowActions != null
+      ? Boolean(enableRowActions)
+      : Boolean(onEditCobro || onDeleteCobro);
 
   const [openPayColumn, setOpenPayColumn] = useState(null);
   const [payFilterMenuPos, setPayFilterMenuPos] = useState({ top: 0, left: 0 });
@@ -151,6 +149,7 @@ export default function CobrosHistorialTable({
   const [deletingAdjuntoId, setDeletingAdjuntoId] = useState(null);
   const [togglingRetiradoId, setTogglingRetiradoId] = useState(null);
   const [deletingCobroId, setDeletingCobroId] = useState(null);
+  const [detailCobro, setDetailCobro] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -249,10 +248,7 @@ export default function CobrosHistorialTable({
     return (payments || [])
       .filter((cobro) => {
         if (clientId != null && !Number.isNaN(clientId)) {
-          const matchesClient =
-            cobro.reserva?.mainClient?.id === clientId ||
-            Number(cobro.reserva?.mainClientId) === clientId;
-          if (!matchesClient) return false;
+          if (!cobroMatchesClientId(cobro, clientId)) return false;
         }
 
         if (codigoNeedle && !includesNormalized(paymentCodeLabel(cobro), codigoNeedle)) {
@@ -267,15 +263,12 @@ export default function CobrosHistorialTable({
         }
 
         if (reservaNeedle) {
-          const reservaId = String(cobro.reservaId || cobro.reserva?.id || '');
-          if (!includesNormalized(reservaId, reservaNeedle)) return false;
+          const haystack = cobroReservationSearchHaystack(cobro);
+          if (!includesNormalized(haystack, reservaNeedle)) return false;
         }
 
         if (clienteNeedle) {
-          const client = cobro.reserva?.mainClient;
-          const clientName = client
-            ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-            : 'Sin cliente';
+          const clientName = cobroClientDisplayName(cobro);
           if (!includesNormalized(clientName, clienteNeedle)) return false;
         }
 
@@ -558,10 +551,8 @@ export default function CobrosHistorialTable({
               </tr>
             ) : (
               pagedCobros.map((cobro) => {
-                const client = cobro.reserva?.mainClient;
-                const clientName = client
-                  ? `${client.firstName || ''} ${client.lastName || ''}`.trim()
-                  : 'Sin cliente';
+                const client = cobroClient(cobro);
+                const clientName = cobroClientDisplayName(cobro);
                 const amount = cobro.montoARS != null ? cobro.montoARS : cobro.monto;
                 const moneda = pagoMoneda(cobro);
                 const facturaFiles = adjuntosOf(cobro, ADJUNTO_FACTURA);
@@ -571,28 +562,46 @@ export default function CobrosHistorialTable({
                 const busyUpload = uploadingCobroId === cobro.id;
                 const codeLabel = paymentCodeLabel(cobro);
                 const busyDeleteCobro = deletingCobroId === cobro.id;
-                const reservaId = cobro.reservaId || cobro.reserva?.id || null;
+                const reservas = cobroReservations(cobro);
 
                 return (
                   <tr key={cobro.id} className={styles.row} data-testid={`cobro-row-${cobro.id}`}>
-                    <td className={styles.idCell}>{codeLabel}</td>
+                    <td className={styles.idCell}>
+                      <button
+                        type="button"
+                        className={styles.codigoChip}
+                        onClick={() => setDetailCobro(cobro)}
+                        title="Ver detalle del cobro"
+                        data-testid={`cobro-codigo-${cobro.id}`}
+                      >
+                        {codeLabel}
+                      </button>
+                    </td>
                     <td className={styles.metaCell}>
                       {formatDisplayDateTime(cobro.fecha)}
                     </td>
                     <td className={styles.idCell}>
-                      {reservaId != null ? (
-                        <ReservationIdChip
-                          id={reservaId}
-                          source={cobro.reserva?.source}
-                          status={cobro.reserva?.status}
-                          onClick={
-                            onReservationClick
-                              ? () => onReservationClick(reservaId, cobro)
-                              : undefined
-                          }
-                          title="Ver reserva"
-                          data-testid={`cobro-reserva-link-${cobro.id}`}
-                        />
+                      {reservas.length > 0 ? (
+                        <div
+                          className={styles.reservaChips}
+                          data-testid={`cobro-reservas-${cobro.id}`}
+                        >
+                          {reservas.map((r) => (
+                            <ReservationIdChip
+                              key={r.id}
+                              id={r.id}
+                              source={r.source}
+                              status={r.status}
+                              onClick={
+                                onReservationClick
+                                  ? () => onReservationClick(r.id, cobro)
+                                  : null
+                              }
+                              title="Ver reserva"
+                              data-testid={`cobro-reserva-link-${cobro.id}-${r.id}`}
+                            />
+                          ))}
+                        </div>
                       ) : (
                         '—'
                       )}
@@ -604,11 +613,14 @@ export default function CobrosHistorialTable({
                           className={styles.linkButton}
                           onClick={() => onClientClick(client)}
                           title="Ver cliente"
+                          data-testid={`cobro-cliente-${cobro.id}`}
                         >
                           {clientName || 'Sin cliente'}
                         </button>
                       ) : (
-                        <span>{clientName || 'Sin cliente'}</span>
+                        <span data-testid={`cobro-cliente-${cobro.id}`}>
+                          {clientName || 'Sin cliente'}
+                        </span>
                       )}
                     </td>
                     <td className={styles.amountCell}>{formatMoneyArs(amount)}</td>
@@ -918,6 +930,23 @@ export default function CobrosHistorialTable({
             />
           )}
         </div>
+      ) : null}
+
+      {detailCobro ? (
+        <CobroDetailModal
+          cobro={detailCobro}
+          onClose={() => setDetailCobro(null)}
+          onEdit={
+            onEditCobro
+              ? (cobro) => {
+                  setDetailCobro(null);
+                  onEditCobro(cobro);
+                }
+              : null
+          }
+          onClientClick={onClientClick}
+          onReservationClick={onReservationClick}
+        />
       ) : null}
 
       {noticeDialog}

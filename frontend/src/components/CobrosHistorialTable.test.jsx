@@ -43,6 +43,49 @@ function makeCobro({ id, moneda = 'ARS', metodo = 'Efectivo' }) {
   }
 }
 
+function makeMultiCobro() {
+  return {
+    id: 77,
+    codigo: 'A077',
+    fecha: '2026-11-24T12:00:00',
+    monto: 2000,
+    montoARS: 2000,
+    moneda: 'ARS',
+    metodo: 'Efectivo',
+    motivo: 'Cobro',
+    reservaId: null,
+    reserva: null,
+    accountId: null,
+    adjuntos: [],
+    imputaciones: [
+      {
+        id: 1,
+        ordenIndex: 0,
+        reservaId: 21,
+        montoARS: 1200,
+        reserva: {
+          id: 21,
+          source: 'MOSTRADOR',
+          status: 'CONFIRMADA',
+          mainClient: { id: 5, firstName: 'María', lastName: 'López' },
+        },
+      },
+      {
+        id: 2,
+        ordenIndex: 1,
+        reservaId: 22,
+        montoARS: 800,
+        reserva: {
+          id: 22,
+          source: 'WHATSAPP',
+          status: 'CONFIRMADA',
+          mainClient: { id: 5, firstName: 'María', lastName: 'López' },
+        },
+      },
+    ],
+  }
+}
+
 describe('CobrosHistorialTable — moneda', () => {
   it('muestra columna Moneda y filtra por ARS/USD', () => {
     render(
@@ -78,6 +121,45 @@ describe('CobrosHistorialTable — moneda', () => {
       .getAllByRole('option')
       .map((el) => el.value)
     expect(options).toEqual(expect.arrayContaining(['', 'ARS', 'USD']))
+  })
+})
+
+describe('CobrosHistorialTable — multi-imputación y detalle', () => {
+  it('muestra cliente y chips de reservas en cobro multi', () => {
+    render(
+      <CobrosHistorialTable
+        payments={[makeMultiCobro()]}
+        testId="cobros-multi-table"
+      />
+    )
+
+    expect(screen.getByTestId('cobro-cliente-77')).toHaveTextContent('María López')
+    expect(screen.getByTestId('cobro-reservas-77')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-reserva-link-77-21')).toHaveTextContent('#21')
+    expect(screen.getByTestId('cobro-reserva-link-77-22')).toHaveTextContent('#22')
+  })
+
+  it('abre modal de detalle al clic en código y dispara Editar', () => {
+    const onEdit = vi.fn()
+    render(
+      <CobrosHistorialTable
+        payments={[makeMultiCobro()]}
+        onEditCobro={onEdit}
+        enableRowActions={false}
+        testId="cobros-detail-table"
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('cobro-codigo-77'))
+    expect(screen.getByTestId('cobro-detail-modal')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-detail-reserva-21')).toBeInTheDocument()
+    expect(screen.getByTestId('cobro-detail-reserva-22')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('cobro-detail-edit'))
+    expect(onEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 77, codigo: 'A077' })
+    )
+    expect(screen.queryByTestId('cobro-detail-modal')).not.toBeInTheDocument()
   })
 })
 

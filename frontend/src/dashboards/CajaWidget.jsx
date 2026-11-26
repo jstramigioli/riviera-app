@@ -24,6 +24,7 @@ export default function CajaWidget({ refreshToken = 0, className = '' }) {
   const [error, setError] = useState(null);
   const [payFilters, setPayFilters] = useState(EMPTY_PAY_FILTERS);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [editingCobro, setEditingCobro] = useState(null);
 
   const load = async ({ quiet = false } = {}) => {
     if (!quiet) {
@@ -53,11 +54,18 @@ export default function CajaWidget({ refreshToken = 0, className = '' }) {
   );
 
   const openNew = () => {
+    setEditingCobro(null);
+    setPaymentOpen(true);
+  };
+
+  const openEdit = (cobro) => {
+    setEditingCobro(cobro || null);
     setPaymentOpen(true);
   };
 
   const closeForm = () => {
     setPaymentOpen(false);
+    setEditingCobro(null);
   };
 
   return (
@@ -118,6 +126,8 @@ export default function CajaWidget({ refreshToken = 0, className = '' }) {
             onReservationClick={(reservaId) => {
               if (reservaId != null) navigate(`/reservations/${reservaId}`);
             }}
+            onEditCobro={openEdit}
+            enableRowActions={false}
             testId="caja-cobros-table"
           />
         </div>
@@ -125,6 +135,23 @@ export default function CajaWidget({ refreshToken = 0, className = '' }) {
 
       {paymentOpen ? (
         <CobroForm
+          reservaId={
+            editingCobro
+              ? editingCobro.reservaId ||
+                editingCobro.reserva?.id ||
+                editingCobro.imputaciones?.[0]?.reservaId ||
+                editingCobro.imputaciones?.[0]?.reserva?.id ||
+                null
+              : null
+          }
+          accountId={
+            editingCobro
+              ? editingCobro.accountId ||
+                editingCobro.imputaciones?.[0]?.accountId ||
+                null
+              : null
+          }
+          initialCobro={editingCobro}
           onClose={closeForm}
           onSuccess={() => {
             closeForm();

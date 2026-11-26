@@ -188,7 +188,7 @@ describe('CobroForm facturación', () => {
     expect(screen.queryByLabelText(/Comprobante \(opcional\)/i)).not.toBeInTheDocument()
   })
 
-  it('en modo edición prefills y llama updateCobro', async () => {
+  it('en modo edición prefills, muestra imputación/facturación y llama updateCobro', async () => {
     const onSuccess = vi.fn()
     render(
       <CobroForm
@@ -199,7 +199,22 @@ describe('CobroForm facturación', () => {
           moneda: 'ARS',
           metodo: 'Efectivo',
           motivo: 'Cobro',
-          fecha: '2026-11-11T15:00:00.000Z'
+          fecha: '2026-11-11T15:00:00.000Z',
+          reservaId: 22,
+          accountId: 202,
+          requiereFacturacion: true,
+          factura: {
+            tipo: 'B',
+            fecha: '2026-11-11T12:00:00.000Z',
+            firstName: 'Ana',
+            lastName: 'Pérez',
+            documentType: 'DNI',
+            documentNumber: '30111222',
+            address: 'Calle 1'
+          },
+          imputaciones: [
+            { id: 1, accountId: 202, reservaId: 22, montoARS: 45000, ordenIndex: 0 }
+          ]
         }}
         onClose={vi.fn()}
         onSuccess={onSuccess}
@@ -209,6 +224,13 @@ describe('CobroForm facturación', () => {
     expect(screen.getByRole('heading', { name: /Editar cobro/i })).toBeInTheDocument()
     expect(screen.getByTestId('payment-fecha')).toHaveValue('2026-11-11')
     expect(screen.getByTestId('payment-monto-ingresado')).toHaveValue(45000)
+    expect(screen.getByTestId('payment-allocations')).toBeInTheDocument()
+    expect(screen.getByTestId('payment-billing-toggle-row')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Fecha de facturación/i)).toBeInTheDocument()
+
+    await waitFor(() =>
+      expect(screen.getByTestId('payment-allocations').textContent).toMatch(/202|Pérez/)
+    )
 
     fireEvent.change(screen.getByTestId('payment-monto-ingresado'), {
       target: { value: '40000' }
@@ -218,7 +240,16 @@ describe('CobroForm facturación', () => {
     await waitFor(() =>
       expect(updateCobro).toHaveBeenCalledWith(
         10,
-        expect.objectContaining({ monto: 40000, metodo: 'Efectivo', fecha: expect.any(String) })
+        expect.objectContaining({
+          monto: 40000,
+          metodo: 'Efectivo',
+          fecha: expect.any(String),
+          requiereFacturacion: true,
+          factura: expect.objectContaining({ tipo: 'B', documentNumber: '30111222' }),
+          imputaciones: expect.arrayContaining([
+            expect.objectContaining({ accountId: 202, reservaId: 22 })
+          ])
+        })
       )
     )
     expect(createCobro).not.toHaveBeenCalled()

@@ -605,6 +605,38 @@
   white-space: nowrap;
 }
 
+.codigoChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-primary, #3f5f8a);
+  border-radius: 4px;
+  background: var(--color-primary-light, #e8eef5);
+  color: var(--color-primary-dark, #334d70);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.codigoChip:hover {
+  background: var(--color-primary, #3f5f8a);
+  color: #fff;
+}
+
+.reservaChips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  max-width: 180px;
+}
+
 .amountCell {
   font-weight: 600;
   white-space: nowrap;
