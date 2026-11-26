@@ -1656,6 +1656,19 @@ export async function createConsumptionOrder(data) {
   return res.json();
 }
 
+/** Anula una comanda completa (elimina sus cargos; queda como registro). */
+export async function anularConsumptionOrder(comandaId) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}/anular`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al anular la comanda');
+  }
+  return res.json();
+}
+
 // ============================================
 // FUNCIONES DE CONFIGURACIÓN
 // ============================================

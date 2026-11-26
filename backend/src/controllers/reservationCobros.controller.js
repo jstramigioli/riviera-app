@@ -7,6 +7,11 @@ const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
 const {
+  CARGO_COMANDA_INCLUDE,
+  refreshAccountStatus,
+  removeComandaLineForCargo
+} = require('../utils/comandas');
+const {
   ensureReservationAccount,
   dualWriteReservationRefs,
   syncAccountStatusFromBalance
@@ -1096,7 +1101,8 @@ exports.getCargosByReserva = async (req, res) => {
         subcategoriaCargo: true,
         // Para alojamiento (campos directos)
         roomType: true,
-        serviceType: true
+        serviceType: true,
+        ...CARGO_COMANDA_INCLUDE
       },
       orderBy: { fecha: 'asc' } // Más antiguos primero
     });
@@ -1265,10 +1271,16 @@ exports.updateCargo = async (req, res) => {
     }
 
     const cargoExistente = await prisma.cargo.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: parseInt(id, 10) },
+      include: { comandaItem: { select: { comandaId: true } } }
     });
     if (!cargoExistente) {
       return res.status(404).json({ error: 'Cargo no encontrado' });
+    }
+    if (cargoExistente.comandaItem) {
+      return res.status(400).json({
+        error: `Este cargo pertenece a la comanda #${cargoExistente.comandaItem.comandaId}; quitá la línea o anulá la comanda`
+      });
     }
 
     const isLodging = !cargoExistente.subcategoriaCargoId;
@@ -1397,8 +1409,28 @@ exports.updateCargo = async (req, res) => {
 exports.deleteCargo = async (req, res) => {
   const { id } = req.params;
   try {
+    const cargoId = parseInt(id, 10);
+    const linked = await prisma.comandaItem.findUnique({
+      where: { cargoId },
+      select: { id: true }
+    });
+    if (linked) {
+      // Cargo de comanda: quitar la línea (antes de borrar el cargo) y recalcular saldo.
+      const comanda = await prisma.$transaction(async (tx) => {
+        const cargo = await tx.cargo.findUnique({ where: { id: cargoId } });
+        const result = await removeComandaLineForCargo(tx, cargoId);
+        await tx.cargo.delete({ where: { id: cargoId } });
+        await refreshAccountStatus(tx, cargo.accountId);
+        return result;
+      });
+      return res.json({
+        message: 'Línea quitada de la comanda',
+        comandaId: comanda?.id ?? null,
+        comandaEstado: comanda?.estado ?? null
+      });
+    }
     await prisma.cargo.delete({
-      where: { id: parseInt(id) }
+      where: { id: cargoId }
     });
     res.json({ message: 'Cargo eliminado exitosamente' });
   } catch (error) {
@@ -1431,7 +1463,8 @@ exports.getResumenFinanciero = async (req, res) => {
         include: {
           subcategoriaCargo: true,
           roomType: true,
-          serviceType: true
+          serviceType: true,
+          ...CARGO_COMANDA_INCLUDE
         }
       }),
       prisma.discountApplication.findMany({

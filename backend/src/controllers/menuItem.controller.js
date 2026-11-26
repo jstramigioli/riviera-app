@@ -10,7 +10,8 @@ const {
 const CATEGORY_LABELS = {
   BEBIDAS: 'Bebidas',
   MINUTAS: 'Minutas',
-  CAFETERIA: 'Cafetería'
+  CAFETERIA: 'Cafetería',
+  CENAS: 'Cenas'
 };
 
 const varietyInclude = {

@@ -302,6 +302,7 @@ model Reservation {
   onlineCheckIns      OnlineCheckIn[]
   /// Folio financiero 1:1 (Account kind=RESERVATION).
   account             Account?
+  comandas            Comanda[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -338,6 +339,7 @@ model Account {
   cobros                 Cobro[]
   imputaciones          CobroImputacion[]
   discountApplications  DiscountApplication[]
+  comandas              Comanda[]
 
   @@index([kind, status])
   @@index([clientId])
@@ -1072,6 +1074,8 @@ model Cargo {
   subcategoriaCargo   SubcategoriaCargo? @relation(fields: [subcategoriaCargoId], references: [id], onDelete: Restrict)
   roomType            RoomType?          @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   serviceType         ServiceType?       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  /// Línea de comanda que originó este cargo (consumos cargados por comanda).
+  comandaItem         ComandaItem?
   
   // Campos básicos
   descripcion         String
@@ -1193,6 +1197,7 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   varieties   MenuItemVariety[]
+  comandaItems ComandaItem[]
 
   @@index([category, isActive])
   @@index([category, subgroup])
@@ -1210,9 +1215,69 @@ model MenuItemVariety {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  comandaItems ComandaItem[]
 
   @@index([menuItemId])
   @@unique([menuItemId, name])
+}
+
+/// Sector donde se vendió la comanda completa (reportes por sector).
+enum AmbitoConsumo {
+  CENA
+  MINUTAS
+  CAFETERIA
+  FRIGOBAR
+}
+
+enum ComandaEstado {
+  ACTIVA
+  ANULADA
+}
+
+/// Comanda de consumos: agrupa las líneas cargadas juntas sobre una cuenta.
+/// Cada línea con cargo genera un Cargo (mecanismo económico único).
+model Comanda {
+  id            Int           @id @default(autoincrement())
+  ambito        AmbitoConsumo
+  estado        ComandaEstado @default(ACTIVA)
+  /// Fecha civil del consumo.
+  fecha         DateTime      @db.Date
+  accountId     Int
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  reservationId Int?
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  notas         String?
+  anuladaAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         ComandaItem[]
+
+  @@index([accountId])
+  @@index([reservationId])
+  @@index([ambito, fecha])
+  @@index([fecha])
+}
+
+/// Línea de comanda con precio copiado al momento de la carga (precio histórico).
+model ComandaItem {
+  id             Int              @id @default(autoincrement())
+  comandaId      Int
+  comanda        Comanda          @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  menuItemId     Int?
+  menuItem       MenuItem?        @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  varietyId      Int?
+  variety        MenuItemVariety? @relation(fields: [varietyId], references: [id], onDelete: SetNull)
+  descripcion    String
+  cantidad       Int
+  precioUnitario Decimal          @db.Decimal(10, 2)
+  subtotal       Decimal          @db.Decimal(10, 2)
+  cargoId        Int?             @unique
+  cargo          Cargo?           @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([comandaId])
+  @@index([menuItemId])
 }
 
 enum ServiceAdjustmentMode {

@@ -180,6 +180,11 @@
   flex-shrink: 0;
 }
 
+.comandaTag {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
 .breakdownActions {
   display: inline-flex;
   align-items: center;

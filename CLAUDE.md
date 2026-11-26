@@ -50,6 +50,9 @@ administración, gerencia y propietarios. Idioma del producto y del código de d
 4. Timestamp de carpeta **único** y posterior al último; archivo UTF-8 **sin BOM**.
 5. Aplicar con `npx prisma migrate deploy` (previo backup) y `npx prisma generate`.
 6. Nunca editar una migración ya aplicada; corregir con una migración nueva.
+   El historial **no se reproduce desde cero** (`20250101000000_add_block_service_types` corre antes que `init` y falla):
+   para probar una migración nueva, crear la DB descartable con `migrate diff --from-empty --to-schema-datamodel <schema anterior>`,
+   aplicar la migración con `psql` (dos veces, para verificar idempotencia) y comprobar drift con `migrate diff --from-url … --to-schema-datamodel`.
 7. Si el cambio toca la auditoría (entidad nueva clave) actualizar `backend/src/audit/entities.js`.
 
 ---
@@ -142,6 +145,15 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
 - Check-in online: formulario propio con datos personales estándar + patente; mismos campos que el perfil de cliente.
 
 **Gastronomía**
+- Comandas (`Comanda` + `ComandaItem`, `backend/src/utils/comandas.js`): cada comanda tiene un **ámbito** único (Cena / Minutas / Cafetería / Frigobar)
+  para reportes por sector; los productos no se duplican por ámbito. Cada línea copia el precio (histórico) y genera un `Cargo` con
+  subcategoría del grupo del producto (nunca `null`: la sincronización de alojamiento borra los cargos sin subcategoría).
+  Los cargos de comanda no se editan sueltos: se quita la línea o se anula la comanda. Frigobar solo en cuentas de reserva.
+- Cenas como productos comunes del grupo «Cenas» (habitual / buffet / Navidad / Año Nuevo × Alojado / Externo), sin reglas de precio.
+- Rediseño gastronómico en curso por etapas: 1) comandas y ámbito (hecha); 2) prestaciones de comida generadas por la reserva;
+  3) gestión de comensales y cenas manuales (crean su comanda de Cena); 4) beneficio «Almuerzo sin cargo» por cena cancelada
+  (bebidas con cargo, resto sin cargo; se anula al check-out y se restaura si se revierte); 5) reportes por ámbito.
+  Los servicios ofrecidos siguen siendo Solo alojamiento / Con desayuno / Media pensión: el régimen de comidas se maneja internamente sin cambiar esa UI.
 - Menús diarios: editan recepción, propietarios y admin; cocina no.
 - PDF menú diario: una hoja A5; tipografía ~16pt, auto-reducir si no entra; postres en 2 columnas en la misma hoja; espaciado fijo.
 - Logo oficial (`frontend/public/riviera-hotel-logo.png`) en PDF de menú y planillas de liquidación, sin deformar proporciones.

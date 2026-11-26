@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { CARGO_COMANDA_INCLUDE } = require('../utils/comandas');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateAccountBalance } = require('../utils/accountBalance');
 const { allocateNextCobroCodigo } = require('../utils/cobroCodigo');
@@ -529,7 +530,12 @@ exports.getAccountCargos = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const cargos = await prisma.cargo.findMany({
       where: { accountId: id },
-      include: { subcategoriaCargo: true, roomType: true, serviceType: true },
+      include: {
+        subcategoriaCargo: true,
+        roomType: true,
+        serviceType: true,
+        ...CARGO_COMANDA_INCLUDE
+      },
       orderBy: { fecha: 'asc' }
     });
     res.json(cargos);

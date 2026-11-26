@@ -84,6 +84,18 @@ function promoHintFromDiscount(d) {
   return discountLabel(d);
 }
 
+const AMBITO_LABELS = {
+  CENA: 'Cena',
+  MINUTAS: 'Minutas',
+  CAFETERIA: 'Cafetería',
+  FRIGOBAR: 'Frigobar',
+};
+
+/** Comanda a la que pertenece un cargo (null si es un cargo suelto). */
+function comandaOfCargo(cargo) {
+  return cargo?.comandaItem?.comanda || null;
+}
+
 const EstadoFinancieroTab = ({
   reservation,
   financialSummary,
@@ -227,11 +239,20 @@ const EstadoFinancieroTab = ({
 
   const handleDeleteCargo = async (cargo) => {
     if (!onDeleteCargo) return;
-    const ok = await confirm({
-      title: 'Eliminar cargo',
-      message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"?`,
-      confirmText: 'Eliminar',
-    });
+    const comanda = comandaOfCargo(cargo);
+    const ok = await confirm(
+      comanda
+        ? {
+            title: 'Quitar de la comanda',
+            message: `¿Quitar "${cargo.descripcion || 'Cargo'}" de la comanda #${comanda.id}? Si es la última línea, la comanda queda anulada.`,
+            confirmText: 'Quitar',
+          }
+        : {
+            title: 'Eliminar cargo',
+            message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"?`,
+            confirmText: 'Eliminar',
+          }
+    );
     if (!ok) return;
     await onDeleteCargo(cargo.id);
   };
@@ -404,20 +425,24 @@ const EstadoFinancieroTab = ({
       return null;
     }
 
+    const comanda = comandaOfCargo(item);
+
     return (
       <span className={styles.breakdownActions}>
-        <button
-          type="button"
-          className={styles.editIconButton}
-          onClick={(e) => {
-            e.stopPropagation();
-            openEditConsumo(item);
-          }}
-          title="Editar cargo"
-          data-testid={`btn-edit-cargo-${item.id}`}
-        >
-          <FaEdit />
-        </button>
+        {!comanda && (
+          <button
+            type="button"
+            className={styles.editIconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditConsumo(item);
+            }}
+            title="Editar cargo"
+            data-testid={`btn-edit-cargo-${item.id}`}
+          >
+            <FaEdit />
+          </button>
+        )}
         <button
           type="button"
           className={styles.deleteIconButton}
@@ -425,11 +450,21 @@ const EstadoFinancieroTab = ({
             e.stopPropagation();
             handleDeleteCargo(item);
           }}
-          title="Eliminar cargo"
+          title={comanda ? 'Quitar de la comanda' : 'Eliminar cargo'}
           data-testid={`btn-delete-cargo-${item.id}`}
         >
           <FaTimes />
         </button>
+      </span>
+    );
+  };
+
+  const renderComandaTag = (item) => {
+    const comanda = comandaOfCargo(item);
+    if (!comanda) return null;
+    return (
+      <span className={styles.comandaTag}>
+        {` · Comanda #${comanda.id} · ${AMBITO_LABELS[comanda.ambito] || comanda.ambito}`}
       </span>
     );
   };
@@ -531,6 +566,7 @@ const EstadoFinancieroTab = ({
                                   <span>
                                     {item.descripcion || 'Cargo'}
                                     {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
+                                    {renderComandaTag(item)}
                                   </span>
                                   {renderMonto(item)}
                                 </div>
@@ -545,6 +581,7 @@ const EstadoFinancieroTab = ({
                               <span>
                                 {item.descripcion || 'Cargo'}
                                 {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
+                                {renderComandaTag(item)}
                               </span>
                               {renderMonto(item)}
                             </li>

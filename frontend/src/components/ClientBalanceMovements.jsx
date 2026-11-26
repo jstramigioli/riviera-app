@@ -140,6 +140,14 @@ const ClientBalanceMovements = ({
   };
 
   const openEditCargo = (cargo) => {
+    if (cargo.comandaId) {
+      notify({
+        title: 'No editable',
+        message: `Este cargo pertenece a la comanda #${cargo.comandaId}. Para corregirlo, quitá la línea y volvé a cargarla.`,
+        type: 'warning'
+      });
+      return;
+    }
     if (!cargo.editable) {
       notify({
         title: 'No editable',
@@ -167,7 +175,7 @@ const ClientBalanceMovements = ({
 
   const handleDeleteCargo = async (cargo) => {
     if (!cargo?.id || deletingId === `cargo-${cargo.id}`) return;
-    if (!cargo.editable) {
+    if (!cargo.editable && !cargo.comandaId) {
       notify({
         title: 'No eliminable',
         message:
@@ -176,11 +184,19 @@ const ClientBalanceMovements = ({
       });
       return;
     }
-    const ok = await confirm({
-      title: 'Eliminar cargo',
-      message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"? Esta acción no se puede deshacer.`,
-      confirmText: 'Eliminar'
-    });
+    const ok = await confirm(
+      cargo.comandaId
+        ? {
+            title: 'Quitar de la comanda',
+            message: `¿Quitar "${cargo.descripcion || 'Cargo'}" de la comanda #${cargo.comandaId}? Si es la última línea, la comanda queda anulada.`,
+            confirmText: 'Quitar'
+          }
+        : {
+            title: 'Eliminar cargo',
+            message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"? Esta acción no se puede deshacer.`,
+            confirmText: 'Eliminar'
+          }
+    );
     if (!ok) return;
 
     setDeletingId(`cargo-${cargo.id}`);

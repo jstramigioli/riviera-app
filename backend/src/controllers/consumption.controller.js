@@ -1,5 +1,4 @@
 const prisma = require('../utils/prisma');
-const { Decimal } = require('@prisma/client/runtime/library');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { CATEGORY_LABELS } = require('./menuItem.controller');
 const {
@@ -11,10 +10,15 @@ const {
 const {
   ensureReservationAccount,
   dualWriteReservationRefs,
-  dualWriteExternalRefs,
-  syncAccountStatusFromBalance
+  dualWriteExternalRefs
 } = require('../utils/accountHelpers');
-const { calculateAccountBalance } = require('../utils/accountBalance');
+const {
+  AMBITO_LABELS,
+  parseAmbito,
+  buildComandaLines,
+  refreshAccountStatus,
+  anularComanda
+} = require('../utils/comandas');
 
 function parseCivilDateParam(raw, req) {
   if (raw == null || raw === '') return todayIsoLocal(req);
@@ -144,8 +148,10 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 
 /**
  * Carga una comanda de consumos sobre una reserva o cuenta externa.
- * Body: { reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD, notes? }
+ * Body: { ambito, reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD, notes? }
+ * ambito: CENA | MINUTAS | CAFETERIA | FRIGOBAR (de toda la comanda).
  * Si viene reservationId → Account 1:1. Si accountId EXTERNAL → sin reserva.
+ * Crea Comanda + líneas (precio histórico) + un Cargo por línea.
  */
 exports.createConsumptionOrder = async (req, res) => {
   try {
@@ -160,7 +166,14 @@ exports.createConsumptionOrder = async (req, res) => {
     const notes = req.body.notes ? String(req.body.notes).trim() : null;
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
     const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date, req);
+    const ambito = parseAmbito(req.body.ambito);
 
+    if (!ambito) {
+      return res.status(400).json({
+        success: false,
+        error: 'Elegí el ámbito de la comanda (Cena, Minutas, Cafetería o Frigobar)'
+      });
+    }
     if (!fechaCivil) {
       return res.status(400).json({
         success: false,
@@ -215,6 +228,12 @@ exports.createConsumptionOrder = async (req, res) => {
         return res.status(400).json({
           success: false,
           error: 'Para cuentas de reserva usá reservationId'
+        });
+      }
+      if (ambito === 'FRIGOBAR') {
+        return res.status(400).json({
+          success: false,
+          error: 'El frigobar solo se carga a cuentas de reserva'
         });
       }
       financialRefs = dualWriteExternalRefs(account);
@@ -312,52 +331,57 @@ exports.createConsumptionOrder = async (req, res) => {
     }
 
     const cargoFecha = toDateOnlyUtc(fechaCivil);
+    const lines = buildComandaLines(normalized, menuById);
 
-    const created = await prisma.$transaction(async (tx) => {
+    const { comanda, cargos: created } = await prisma.$transaction(async (tx) => {
+      const comanda = await tx.comanda.create({
+        data: {
+          ambito,
+          fecha: cargoFecha,
+          accountId: account.id,
+          reservationId: reservationId ?? account.reservationId ?? null,
+          notas: notes
+        }
+      });
+
       const cargos = [];
-      for (const row of normalized) {
-        const item = menuById.get(row.menuItemId);
-        const sub = subcatByCode.get(item.category);
-        const variety = row.variety || null;
-        const unit = new Decimal(variety ? variety.price : item.price);
-        const qty = row.quantity;
-        const monto = unit.mul(qty);
-        const label = variety ? `${item.name} (${variety.name})` : item.name;
-        const descripcion = qty === 1 ? label : `${label} x${qty}`;
-
+      for (const line of lines) {
+        const sub = subcatByCode.get(line.category);
         const cargo = await tx.cargo.create({
           data: {
             ...financialRefs,
             subcategoriaCargoId: sub.id,
-            descripcion,
-            monto,
+            descripcion: line.descripcion,
+            monto: line.subtotal,
             notas: notes,
             fecha: cargoFecha
           },
           include: { subcategoriaCargo: true }
         });
+        await tx.comandaItem.create({
+          data: {
+            comandaId: comanda.id,
+            menuItemId: line.menuItemId,
+            varietyId: line.varietyId,
+            descripcion: line.descripcion,
+            cantidad: line.cantidad,
+            precioUnitario: line.precioUnitario,
+            subtotal: line.subtotal,
+            cargoId: cargo.id
+          }
+        });
         cargos.push({
           ...cargo,
-          menuItemId: item.id,
-          varietyId: variety ? variety.id : null,
-          varietyName: variety ? variety.name : null,
-          quantity: qty,
-          unitPrice: unit
+          comandaId: comanda.id,
+          menuItemId: line.menuItemId,
+          varietyId: line.varietyId,
+          quantity: line.cantidad,
+          unitPrice: line.precioUnitario
         });
       }
 
-      const [allCargos, allCobros, allDiscounts] = await Promise.all([
-        tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
-        tx.cobro.findMany({ where: { accountId: account.id }, select: { montoARS: true } }),
-        tx.discountApplication.findMany({
-          where: { accountId: account.id },
-          select: { montoARS: true }
-        })
-      ]);
-      const { saldo } = calculateAccountBalance(allCargos, allCobros, allDiscounts);
-      await syncAccountStatusFromBalance(tx, account.id, saldo);
-
-      return cargos;
+      await refreshAccountStatus(tx, account.id);
+      return { comanda, cargos };
     });
 
     const total = created.reduce(
@@ -370,6 +394,9 @@ exports.createConsumptionOrder = async (req, res) => {
       data: {
         accountId: account.id,
         accountKind: account.kind,
+        comandaId: comanda.id,
+        ambito,
+        ambitoLabel: AMBITO_LABELS[ambito],
         reservationId: reservationId ?? account.reservationId ?? null,
         fecha: fechaCivil,
         clientName,
@@ -383,6 +410,31 @@ exports.createConsumptionOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error al cargar el consumo',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Anula una comanda completa: elimina sus cargos y la deja como registro.
+ * POST /api/consumptions/orders/:id/anular
+ */
+exports.anularConsumptionOrder = async (req, res) => {
+  try {
+    const comandaId = Number(req.params.id);
+    if (!Number.isInteger(comandaId) || comandaId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de comanda inválido' });
+    }
+    const comanda = await prisma.$transaction((tx) => anularComanda(tx, comandaId));
+    if (!comanda) {
+      return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+    }
+    res.json({ success: true, data: comanda });
+  } catch (error) {
+    console.error('Error anulando comanda:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al anular la comanda',
       details: error.message
     });
   }

@@ -7,7 +7,7 @@ import {
   fetchMenuItems,
   fetchMenuCategories,
   createConsumptionOrder,
-  deleteCargo
+  anularConsumptionOrder
 } from '../services/api';
 import { todayIsoLocal } from '../utils/calendarDates';
 import { formatMoneyArs } from '../utils/formatMoney';
@@ -22,6 +22,36 @@ const FALLBACK_CATEGORY_LABELS = {
 };
 
 const TOAST_MS = 5000;
+
+/** Ámbito de consumo: pertenece a toda la comanda (reportes por sector). */
+const AMBITOS_CONSUMO = [
+  { code: 'CENA', label: 'Cena' },
+  { code: 'MINUTAS', label: 'Minutas' },
+  { code: 'CAFETERIA', label: 'Cafetería' },
+  { code: 'FRIGOBAR', label: 'Frigobar' }
+];
+const AMBITO_STORAGE_KEY = 'riviera.comanda.ultimoAmbito';
+
+function readLastAmbito() {
+  try {
+    const v = window.localStorage.getItem(AMBITO_STORAGE_KEY);
+    return AMBITOS_CONSUMO.some((a) => a.code === v) ? v : '';
+  } catch {
+    return '';
+  }
+}
+
+function storeLastAmbito(code) {
+  try {
+    window.localStorage.setItem(AMBITO_STORAGE_KEY, code);
+  } catch {
+    /* sin storage: no recordar */
+  }
+}
+
+function ambitoLabel(code) {
+  return AMBITOS_CONSUMO.find((a) => a.code === code)?.label || code;
+}
 
 function formatMoney(value) {
   return formatMoneyArs(value, {
@@ -186,6 +216,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   const presetRef = useRef(preset);
 
   const [fecha, setFecha] = useState(() => todayIsoLocal());
+  const [ambito, setAmbito] = useState(() => preset?.ambito || readLastAmbito());
   const [reservations, setReservations] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [categoryMeta, setCategoryMeta] = useState({
@@ -307,6 +338,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         ? preset.fecha
         : todayIsoLocal();
     setFecha(initialFecha);
+    if (preset?.ambito) setAmbito(preset.ambito);
     resetOrder();
     dismissToast();
     setLoadingMeta(true);
@@ -552,9 +584,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open, lines]);
 
-  const showUndoToast = ({ message, cargoIds, snapshot }) => {
+  const showUndoToast = ({ message, comandaId, snapshot }) => {
     clearToastTimer();
-    pendingUndoRef.current = { cargoIds, snapshot };
+    pendingUndoRef.current = { comandaId, snapshot };
     setToast({ message });
     toastTimerRef.current = window.setTimeout(() => {
       pendingUndoRef.current = null;
@@ -576,10 +608,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     setError(null);
 
     try {
-      const ids = Array.isArray(pending.cargoIds) ? pending.cargoIds : [];
-      for (const id of ids) {
-        if (id != null) await deleteCargo(id);
-      }
+      if (pending.comandaId != null) await anularConsumptionOrder(pending.comandaId);
     } catch (err) {
       setError(err.message || 'No se pudo deshacer la comanda');
     }
@@ -590,6 +619,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         ? snap.lines.map((l) => cloneLine(l))
         : [newLine()];
       setFecha(snap.fecha);
+      if (snap.ambito) setAmbito(snap.ambito);
       setSelectionKey(snap.selectionKey);
       setLines(restored);
       focusItemInput(restored[0]?.key);
@@ -602,6 +632,15 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     const isExternal =
       selectedReservation?.accountKind === 'EXTERNAL' ||
       selectedReservation?.origen === 'EXTERNA';
+    if (!ambito) {
+      setError('Elegí el ámbito de la comanda');
+      return;
+    }
+    if (ambito === 'FRIGOBAR' && isExternal) {
+      setError('El frigobar solo se carga a cuentas de reserva');
+      reservationRef.current?.focus();
+      return;
+    }
     if (!isExternal && !selectedReservation?.reservationId) {
       setError('Seleccioná una reserva o cuenta externa');
       reservationRef.current?.focus();
@@ -626,6 +665,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
     const snapshot = {
       fecha,
+      ambito,
       selectionKey,
       lines: filledLines.map((l) => ({ ...l, dropdownOpen: false, highlight: 0 }))
     };
@@ -652,20 +692,20 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         ...(isExternal
           ? { accountId: selectedReservation.accountId }
           : { reservationId: selectedReservation.reservationId }),
+        ambito,
         fecha,
         items: [...merged.values()]
       });
+      storeLastAmbito(ambito);
 
       const label = reservationOptionLabel(selectedReservation);
-      const message = `Comanda cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`;
-      const cargoIds = (result?.data?.cargos || [])
-        .map((c) => c.id)
-        .filter((id) => id != null);
+      const message = `Comanda ${ambitoLabel(ambito)} cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`;
+      const comandaId = result?.data?.comandaId ?? null;
 
       onSaved?.(result);
 
       if (continueAfter) {
-        showUndoToast({ message, cargoIds, snapshot });
+        showUndoToast({ message, comandaId, snapshot });
         resetOrder();
         window.setTimeout(() => reservationRef.current?.focus(), 40);
       } else {
@@ -739,6 +779,35 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
           <div className={styles.body}>
             <aside className={styles.metaColumn}>
+              <div className={styles.row}>
+                <span className={styles.label} id={`${titleId}-ambito`}>
+                  Ámbito
+                </span>
+                <div
+                  className={styles.segmented}
+                  role="radiogroup"
+                  aria-labelledby={`${titleId}-ambito`}
+                >
+                  {AMBITOS_CONSUMO.map((a) => (
+                    <label
+                      key={a.code}
+                      className={`${styles.segment} ${ambito === a.code ? styles.segmentActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name={`${titleId}-ambito`}
+                        className={styles.segmentInput}
+                        value={a.code}
+                        checked={ambito === a.code}
+                        disabled={submitting}
+                        onChange={() => setAmbito(a.code)}
+                      />
+                      {a.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className={styles.row}>
                 <label className={styles.label} htmlFor="consumo-fecha">
                   Fecha
