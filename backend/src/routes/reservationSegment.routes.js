@@ -14,13 +14,13 @@ const {
 router.get('/reservation/:reservationId', getReservationSegments);
 router.post('/reservation/:reservationId/split', autoSplitReservation);
 
+// Rango de fechas: antes de '/:id' (si no, Express lo toma como id="by-date-range")
+router.get('/by-date-range', getSegmentsByDateRange);
+
 // Rutas para segmentos individuales
 router.get('/:id', getSegmentById);
 router.post('/', createSegment);
 router.put('/:id', updateSegment);
 router.delete('/:id', deleteSegment);
-
-// Ruta para obtener segmentos por rango de fechas
-router.get('/by-date-range', getSegmentsByDateRange);
 
 module.exports = router; 
