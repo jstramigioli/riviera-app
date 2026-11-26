@@ -9,7 +9,6 @@ const {
   updateQuery,
   deleteQuery,
   deleteAllQueries,
-  convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
   deleteQueryGuest,
@@ -50,9 +49,6 @@ router.delete('/multi-segment/:queryGroupId', async (req, res) => {
 });
 router.put('/:id', updateQuery);
 router.delete('/:id', deleteQuery);
-
-// Ruta para convertir consulta a reserva
-router.post('/:id/convert-to-reservation', convertQueryToReservation);
 
 // Rutas para huéspedes de consultas
 router.post('/:id/guests', addGuestToQuery);

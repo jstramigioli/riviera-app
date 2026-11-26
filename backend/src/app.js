@@ -24,7 +24,6 @@ const blockServiceSelectionRoutes = require('./routes/blockServiceSelection.rout
 const tariffCalculationRoutes = require('./routes/tariffCalculation.routes');
 const queryRoutes = require('./routes/query.routes');
 const reservationSegmentRoutes = require('./routes/reservationSegment.routes');
-const multiRoomReservationRoutes = require('./routes/multiRoomReservation.routes');
 const virtualRoomRoutes = require('./routes/virtualRoom.routes');
 const configuracionRoutes = require('./routes/configuracion.routes');
 const tipoCargoRoutes = require('./routes/tipoCargoRoutes');
@@ -113,7 +112,6 @@ app.use('/api/block-service-selections', tarifas, blockServiceSelectionRoutes);
 app.use('/api/tariff-calculations', tarifas, tariffCalculationRoutes);
 app.use('/api/queries', reservas, queryRoutes);
 app.use('/api/reservation-segments', reservas, reservationSegmentRoutes);
-app.use('/api/multi-room-reservations', reservas, multiRoomReservationRoutes);
 app.use('/api/virtual-rooms', settings, virtualRoomRoutes);
 app.use('/api/configuracion', settings, configuracionRoutes);
 app.use('/api/tipo-cargo', finanzas, tipoCargoRoutes);

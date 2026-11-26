@@ -666,123 +666,6 @@ const deleteAllQueries = async (req, res) => {
   }
 };
 
-// Convertir consulta a reserva
-const convertQueryToReservation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Obtener la consulta con todos sus datos
-    const query = await prisma.query.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        guests: {
-          include: {
-            payments: true
-          }
-        },
-        room: true,
-        mainClient: true,
-        nightRates: true
-      }
-    });
-
-    if (!query) {
-      return res.status(404).json({ error: 'Consulta no encontrada' });
-    }
-
-    // Validar que la consulta tenga los datos mínimos necesarios para una reserva
-    if (!query.roomId || !query.mainClientId || !query.checkIn || !query.checkOut || !query.totalAmount) {
-      return res.status(400).json({ 
-        error: 'La consulta no tiene todos los datos necesarios para convertirse en reserva',
-        missingFields: {
-          roomId: !query.roomId,
-          mainClientId: !query.mainClientId,
-          checkIn: !query.checkIn,
-          checkOut: !query.checkOut,
-          totalAmount: !query.totalAmount
-        }
-      });
-    }
-
-    // Crear la reserva usando los datos de la consulta
-    const reservation = await prisma.reservation.create({
-      data: {
-        roomId: query.roomId,
-        mainClientId: query.mainClientId,
-        checkIn: query.checkIn,
-        checkOut: query.checkOut,
-        totalAmount: query.totalAmount,
-        status: 'confirmada',
-        reservationType: query.reservationType || 'con_desayuno',
-        notes: query.notes,
-        fixed: query.fixed || false,
-        requiredGuests: query.requiredGuests || 1,
-        requiredRoomId: query.requiredRoomId,
-        requiredTags: query.requiredTags || [],
-        requirementsNotes: query.requirementsNotes,
-        guests: {
-          create: query.guests.map(guest => ({
-            firstName: guest.firstName || '',
-            lastName: guest.lastName || '',
-            documentType: guest.documentType || 'DNI',
-            documentNumber: guest.documentNumber,
-            phone: guest.phone,
-            email: guest.email,
-            address: guest.address,
-            city: guest.city
-          }))
-        },
-        nightRates: {
-          create: query.nightRates.map(rate => ({
-            date: rate.date || new Date(),
-            baseRate: rate.baseRate || 0,
-            dynamicRate: rate.dynamicRate || 0,
-            finalRate: rate.finalRate || 0,
-            serviceType: rate.serviceType || 'con_desayuno',
-            serviceRate: rate.serviceRate || 0,
-            occupancyScore: rate.occupancyScore,
-            isWeekend: rate.isWeekend || false,
-            isHoliday: rate.isHoliday || false,
-            gapPromotionApplied: rate.gapPromotionApplied || false,
-            gapPromotionRate: rate.gapPromotionRate,
-            manualOverride: rate.manualOverride || false,
-            basePrice: rate.basePrice || 0,
-            occupancyAdjustment: rate.occupancyAdjustment,
-            anticipationAdjustment: rate.anticipationAdjustment,
-            weekendAdjustment: rate.weekendAdjustment,
-            holidayAdjustment: rate.holidayAdjustment,
-            gapPromotionAmount: rate.gapPromotionAmount,
-            serviceAdjustment: rate.serviceAdjustment
-          }))
-        }
-      },
-      include: {
-        guests: {
-          include: {
-            payments: true
-          }
-        },
-        // room eliminado - ya no existe la relación
-        mainClient: true,
-        nightRates: true
-      }
-    });
-
-    // Eliminar la consulta original
-    await prisma.query.delete({
-      where: { id: parseInt(id) }
-    });
-
-    res.json({
-      message: 'Consulta convertida a reserva exitosamente',
-      reservation
-    });
-  } catch (error) {
-    console.error('Error al convertir consulta a reserva:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-};
-
 // Agregar huésped a una consulta
 const addGuestToQuery = async (req, res) => {
   try {
@@ -890,7 +773,6 @@ module.exports = {
   updateQuery,
   deleteQuery,
   deleteAllQueries,
-  convertQueryToReservation,
   addGuestToQuery,
   updateQueryGuest,
   deleteQueryGuest,

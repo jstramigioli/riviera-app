@@ -302,18 +302,16 @@ const ReservationDetails = () => {
     }
   };
 
+  // La confirmación la pide EstadoFinancieroTab (mensaje según cargo suelto / línea de comanda).
   const handleDeleteCargo = async (cargoId) => {
-    const ok = await confirm({
-      title: 'Eliminar consumo',
-      message: '¿Confirmás eliminar este cargo / consumo? Esta acción no se puede deshacer.',
-      confirmText: 'Eliminar',
-    });
-    if (!ok) return;
-
     try {
-      await deleteCargo(cargoId);
+      const result = await deleteCargo(cargoId);
       await loadFinancialData();
-      notify({ title: 'Consumo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
+      notify({
+        title: 'Cargo eliminado',
+        message: result?.message || 'El cargo se eliminó correctamente.',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error eliminando cargo:', error);
       notify({ title: 'Error', message: error.message, type: 'error' });

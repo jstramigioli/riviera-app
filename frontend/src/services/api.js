@@ -963,15 +963,6 @@ export async function deleteAllQueries() {
   return res.json();
 }
 
-export async function convertQueryToReservation(id) {
-  const res = await apiFetch(`${API_URL}/queries/${id}/convert-to-reservation`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  });
-  if (!res.ok) throw new Error('Error converting query to reservation');
-  return res.json();
-}
-
 // ============================================
 // API para Cobros y Cargos de Reservas
 // ============================================
@@ -1976,7 +1967,6 @@ export default {
   updateQuery,
   deleteQuery,
   deleteAllQueries,
-  convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
   getAllCobros,
