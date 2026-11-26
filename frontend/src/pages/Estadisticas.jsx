@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import ClientList from '../components/ClientList';
 import ClientStats from '../components/ClientStats';
+import VentasGastronomia from '../components/estadisticas/VentasGastronomia';
 import styles from '../styles/Estadisticas.module.css';
 
 function Estadisticas() {
@@ -118,6 +119,12 @@ function Estadisticas() {
             >
               Estadísticas de Clientes
             </button>
+            <button
+              className={`${styles.tabButton} ${activeTab === 'gastronomia' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('gastronomia')}
+            >
+              Ventas gastronómicas
+            </button>
           </div>
         </div>
 
@@ -133,6 +140,8 @@ function Estadisticas() {
           {activeTab === 'stats' && (
             <ClientStats clients={clients} />
           )}
+
+          {activeTab === 'gastronomia' && <VentasGastronomia />}
         </div>
       </div>
     </div>

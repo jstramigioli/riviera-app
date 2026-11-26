@@ -12,6 +12,7 @@ import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consulta
 import { sourceLabel } from '../constants/reservationSource';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { formatMoneyArs } from '../utils/formatMoney';
+import { fetchComidasDeReserva } from '../services/api';
 import ReservationIdChip from './ReservationIdChip';
 import styles from './ReservationDetailsPanel.module.css';
 
@@ -29,6 +30,22 @@ const ReservationDetailsPanel = ({
   const { notify, noticeDialog } = useAppNotice();
   const [serviceTypes, setServiceTypes] = useState([]);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [almuerzosDisponibles, setAlmuerzosDisponibles] = useState(0);
+
+  // Almuerzos sin cargo disponibles (por cena incluida cancelada).
+  useEffect(() => {
+    setAlmuerzosDisponibles(0);
+    if (!reservation?.id) return undefined;
+    let cancelled = false;
+    fetchComidasDeReserva(reservation.id)
+      .then((res) => {
+        if (!cancelled) setAlmuerzosDisponibles(Number(res?.data?.beneficiosDisponibles) || 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [reservation?.id, reservation?.status, reservation?.updatedAt]);
 
   useEffect(() => {
     const loadServiceTypes = async () => {
@@ -203,6 +220,23 @@ const ReservationDetailsPanel = ({
                 <td className={styles.tableLabel}>Reservado por:</td>
                 <td className={styles.tableValue}>{sourceLabel(reservation.source)}</td>
               </tr>
+              {almuerzosDisponibles > 0 ? (
+                <tr data-testid="panel-almuerzo-sin-cargo">
+                  <td className={styles.tableLabel}>Almuerzo sin cargo:</td>
+                  <td className={styles.tableValue}>
+                    <button
+                      type="button"
+                      className={styles.inlineLink}
+                      onClick={() =>
+                        navigate(`/reservations/${reservation.id}`, { state: { activeTab: 'comidas' } })
+                      }
+                      title="Ver comidas de la reserva"
+                    >
+                      {almuerzosDisponibles === 1 ? '1 disponible' : `${almuerzosDisponibles} disponibles`}
+                    </button>
+                  </td>
+                </tr>
+              ) : null}
               <tr>
                 <td className={styles.tableLabel}>Notas:</td>
                 <td className={styles.tableValue}>

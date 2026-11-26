@@ -33,6 +33,7 @@ const gastronomiaRoutes = require('./routes/gastronomia.routes');
 const consumptionRoutes = require('./routes/consumption.routes');
 const comidasRoutes = require('./routes/comidas.routes');
 const cenasRoutes = require('./routes/cenas.routes');
+const reportesRoutes = require('./routes/reportes.routes');
 const alojamientoRoutes = require('./routes/alojamientoRoutes');
 const calendarRoutes = require('./routes/calendar.routes');
 const authRoutes = require('./routes/auth.routes');
@@ -121,6 +122,7 @@ app.use('/api/gastronomia', ops, requirePermission('gastronomia'), gastronomiaRo
 app.use('/api/consumptions', finanzas, consumptionRoutes);
 app.use('/api/comidas', ops, comidasRoutes);
 app.use('/api/cenas', ops, cenasRoutes);
+app.use('/api/reportes', requireAuth, requirePermission('reportes'), reportesRoutes);
 app.use('/api/alojamiento', finanzas, alojamientoRoutes);
 app.use('/api/calendar', ops, calendarRoutes);
 app.use('/api/notifications', reservas, notificationRoutes);

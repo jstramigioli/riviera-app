@@ -1714,6 +1714,16 @@ export async function restaurarBeneficio(id) {
   return jsonOrThrow(res, 'No se pudo restaurar el beneficio');
 }
 
+/** Reporte de ventas gastronómicas por ámbito y producto. */
+export async function fetchVentasGastronomia({ desde, hasta } = {}) {
+  const params = new URLSearchParams();
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await apiFetch(`${API_URL}/reportes/ventas-gastronomia${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al generar el reporte');
+}
+
 /** Tipos de cena (producto con precio Alojado / Externo). */
 export async function fetchTiposCena({ includeInactive = false } = {}) {
   const qs = includeInactive ? '?includeInactive=1' : '';
