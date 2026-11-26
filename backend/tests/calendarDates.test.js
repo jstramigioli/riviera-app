@@ -11,6 +11,8 @@ const {
   parseFechaInput
 } = require('../src/utils/calendarDates');
 
+const ADMIN = { role: 'ADMIN' };
+
 describe('calendarDates (civil day)', () => {
   test('isoDate and shiftIso stay on civil calendar', () => {
     expect(isoDate('2026-10-29')).toBe('2026-10-29');
@@ -34,13 +36,21 @@ describe('calendarDates (civil day)', () => {
   });
 
   test('todayIsoLocal respeta X-Simulated-Today', () => {
-    const req = { headers: { [SIMULATED_TODAY_HEADER]: '2026-03-15' } };
+    const req = { user: ADMIN, headers: { [SIMULATED_TODAY_HEADER]: '2026-03-15' } };
     expect(todayIsoLocal(req)).toBe('2026-03-15');
     expect(todayIsoLocal({})).toBe(realTodayIsoLocal());
   });
 
+  test('X-Simulated-Today se ignora si el usuario no es ADMIN (o no hay sesión)', () => {
+    const headers = { [SIMULATED_TODAY_HEADER]: '2026-03-15' };
+    expect(todayIsoLocal({ headers, user: { role: 'RECEPCION' } })).toBe(realTodayIsoLocal());
+    expect(todayIsoLocal({ headers })).toBe(realTodayIsoLocal());
+    const n = nowLocal({ headers, user: { role: 'GERENCIA' } });
+    expect(Math.abs(n.getTime() - Date.now())).toBeLessThan(5000);
+  });
+
   test('nowLocal mapea reloj real sobre día simulado', () => {
-    const req = { headers: { [SIMULATED_TODAY_HEADER]: '2026-03-15' } };
+    const req = { user: ADMIN, headers: { [SIMULATED_TODAY_HEADER]: '2026-03-15' } };
     const n = nowLocal(req);
     expect(n.getFullYear()).toBe(2026);
     expect(n.getMonth()).toBe(2);
@@ -48,7 +58,7 @@ describe('calendarDates (civil day)', () => {
   });
 
   test('parseFechaInput usa día simulado si no hay fecha', () => {
-    const req = { headers: { [SIMULATED_TODAY_HEADER]: '2026-04-01' } };
+    const req = { user: ADMIN, headers: { [SIMULATED_TODAY_HEADER]: '2026-04-01' } };
     const d = parseFechaInput(null, req);
     expect(d.getFullYear()).toBe(2026);
     expect(d.getMonth()).toBe(3);
