@@ -121,6 +121,14 @@ function Header() {
               </div>
             </div>
           ) : null}
+          {can('reservas') ? (
+            <Link
+              to="/comedor"
+              className={`${styles.navLink} ${location.pathname.startsWith('/comedor') ? styles.active : ''}`}
+            >
+              Comedor
+            </Link>
+          ) : null}
           {can('finanzas') ? (
             <Link
               to="/estado-de-cuentas"

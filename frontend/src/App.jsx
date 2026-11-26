@@ -36,6 +36,7 @@ import ReservationDetails from './pages/ReservationDetails';
 import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
 import Clientes from './pages/Clientes';
+import Comedor from './pages/Comedor';
 import PublicCheckIn from './pages/PublicCheckIn';
 import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 import FakeReservationsDebugFab from './components/FakeReservationsDebugFab';
@@ -702,6 +703,14 @@ function App() {
               element={(
                 <ProtectedRoute permission="reportes">
                   <AppShell><EstadisticasView /></AppShell>
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/comedor"
+              element={(
+                <ProtectedRoute permission="reservas">
+                  <AppShell><Comedor /></AppShell>
                 </ProtectedRoute>
               )}
             />

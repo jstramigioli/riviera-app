@@ -38,9 +38,11 @@ describe('Header', () => {
     expect(screen.getByText('Reservas')).toBeInTheDocument()
     expect(screen.getByText('Habitaciones')).toBeInTheDocument()
     expect(screen.getByText('Clientes')).toBeInTheDocument()
+    expect(screen.getByText('Comedor')).toBeInTheDocument()
     expect(screen.getByText('Estado de cuentas')).toBeInTheDocument()
     expect(screen.getByText('Estadísticas')).toBeInTheDocument()
     expect(screen.queryByText('Consultas y Reservas')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Comedor' })).toHaveAttribute('href', '/comedor')
 
     // Menú por hover: display:none hasta hover (accesible con hidden:true)
     expect(

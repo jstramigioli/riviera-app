@@ -2,6 +2,7 @@
 const AUDITED_ENTITIES = new Set([
   'Reservation',
   'ReservationSegment',
+  'DiningReservation',
   'Client',
   'Guest',
   'Account',
@@ -70,6 +71,9 @@ const SUMMARY_FIELDS = [
   'kind',
   'label',
   'mainClientId',
+  'guestCount',
+  'serviceDate',
+  'serviceType',
   'role',
   'isActive',
   'isDraft'

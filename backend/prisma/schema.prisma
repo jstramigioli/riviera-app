@@ -192,6 +192,8 @@ model Client {
   queryGroups     QueryGroup[]  @relation("ClientQueryGroups")
   reservations    Reservation[]
   accounts        Account[]
+  /// Reservas de comedor donde este cliente es el responsable.
+  diningReservations DiningReservation[]
   /// Apariciones como huésped de una reserva (opcional; el titular usa mainClientId).
   guestStays      Guest[]
   /// Registros históricos de check-in online vinculados a este cliente.
@@ -314,6 +316,8 @@ model Reservation {
   onlineCheckIns      OnlineCheckIn[]
   /// Folio financiero 1:1 (Account kind=RESERVATION).
   account             Account?
+  /// Reservas de comedor vinculadas a esta estadía (cenas adicionales; no MP).
+  diningReservations  DiningReservation[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -350,6 +354,7 @@ model Account {
   cobros                 Cobro[]
   imputaciones          CobroImputacion[]
   discountApplications  DiscountApplication[]
+  diningReservations    DiningReservation[]
 
   @@index([kind, status])
   @@index([clientId])
@@ -1380,4 +1385,46 @@ model DailyMenuItem {
 
   @@index([dailyMenuId, section, sortOrder])
   @@index([dishCatalogId])
+}
+
+/// Tipo de servicio gastronómico de una reserva de comedor (inicialmente solo cena).
+enum DiningServiceType {
+  CENA
+}
+
+/// Estado operativo de reserva de comedor. Canceladas quedan en histórico y no computan.
+enum DiningReservationStatus {
+  CONFIRMADA
+  CANCELADA
+}
+
+/// Reserva de comedor independiente del alojamiento.
+/// - Huéspedes alojados sin media pensión: reservationId opcional + account de la estadía.
+/// - Clientes externos: sin reservationId; account externa opcional.
+/// Media pensión NO genera filas aquí: se deriva de reservas de alojamiento + régimen.
+model DiningReservation {
+  id              Int                      @id @default(autoincrement())
+  /// Día civil del servicio (medianoche UTC).
+  serviceDate     DateTime                 @db.Date
+  serviceType     DiningServiceType        @default(CENA)
+  clientId        Int
+  client          Client                   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  guestCount      Int
+  /// Vínculo opcional a reserva de alojamiento (cenas adicionales de huéspedes alojados).
+  reservationId   Int?
+  reservation     Reservation?             @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  /// Cuenta de cobro opcional (folio RESERVATION o EXTERNAL).
+  accountId       Int?
+  account         Account?                 @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  status          DiningReservationStatus  @default(CONFIRMADA)
+  notes           String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([serviceDate, serviceType, status])
+  @@index([clientId])
+  @@index([reservationId])
+  @@index([accountId])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
