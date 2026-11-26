@@ -14,6 +14,7 @@
  */
 const prisma = require('./prisma');
 const { civilFromDb, toDateOnlyUtc } = require('./calendarDates');
+const { reconcileBeneficios } = require('./beneficios');
 
 /** Estados de reserva que generan comidas previstas (incluye prerreservas). */
 const GENERATING_STATUSES = new Set(['PENDIENTE', 'CONFIRMADA', 'INGRESADA', 'FINALIZADA']);
@@ -239,8 +240,12 @@ async function syncPrestacionesComida(
     });
   }
 
+  // Beneficios (Almuerzo sin cargo): check-out, fechas fuera de la estadía, etc.
+  const beneficiosActualizados = dryRun ? 0 : await reconcileBeneficios(db, id);
+
   return {
     reservationId: id,
+    beneficios: beneficiosActualizados,
     created: plan.create.length,
     updated: plan.update.length,
     removed: plan.remove.length

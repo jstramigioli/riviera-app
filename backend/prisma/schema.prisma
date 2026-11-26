@@ -304,6 +304,7 @@ model Reservation {
   account             Account?
   comandas            Comanda[]
   prestacionesComida  PrestacionComida[]
+  beneficiosGastronomicos BeneficioGastronomico[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -1257,6 +1258,8 @@ model Comanda {
   items         ComandaItem[]
   /// Cena manual que originó esta comanda (si la hay).
   prestacion    PrestacionComida?
+  /// Almuerzo sin cargo aplicado en esta comanda (si lo hay).
+  beneficio     BeneficioGastronomico?
 
   @@index([accountId])
   @@index([reservationId])
@@ -1279,6 +1282,8 @@ model ComandaItem {
   subtotal       Decimal          @db.Decimal(10, 2)
   cargoId        Int?             @unique
   cargo          Cargo?           @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  /// Sin cargo por beneficio (Almuerzo sin cargo): no genera Cargo; subtotal queda como referencia.
+  bonificado     Boolean          @default(false)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -1466,9 +1471,57 @@ model PrestacionComida {
   /// MANUAL: comanda de Cena generada al registrar la cena (se le agregan bebidas).
   comandaId         Int?             @unique
   comanda           Comanda?         @relation(fields: [comandaId], references: [id], onDelete: SetNull)
+  /// Beneficio generado al cancelar esta cena incluida.
+  beneficio         BeneficioGastronomico?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
   @@unique([reservationId, fecha, tipo, origen])
   @@index([fecha, tipo])
+}
+
+enum TipoBeneficio {
+  ALMUERZO_SIN_CARGO
+}
+
+enum EstadoBeneficio {
+  DISPONIBLE
+  UTILIZADO
+  ANULADO
+}
+
+enum MotivoAnulacionBeneficio {
+  /// La reserva pasó a Finalizada (se restaura si se revierte).
+  CHECKOUT
+  /// Se reactivó la cena cancelada.
+  CENA_REACTIVADA
+  /// La fecha quedó fuera de la estadía o la reserva se canceló.
+  FUERA_DE_ESTADIA
+  /// Anulado a mano por el personal.
+  MANUAL
+}
+
+/// Beneficio gastronómico de una reserva (no es saldo monetario).
+/// «Almuerzo sin cargo»: se genera al cancelar una cena incluida y se usa en
+/// una comanda de Minutas (todo sin cargo salvo bebidas).
+model BeneficioGastronomico {
+  id              Int                       @id @default(autoincrement())
+  tipo            TipoBeneficio             @default(ALMUERZO_SIN_CARGO)
+  estado          EstadoBeneficio           @default(DISPONIBLE)
+  reservationId   Int
+  reservation     Reservation               @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  /// Cena cancelada que lo originó.
+  prestacionId    Int                       @unique
+  prestacion      PrestacionComida          @relation(fields: [prestacionId], references: [id], onDelete: Cascade)
+  /// Comanda en la que se usó.
+  comandaId       Int?                      @unique
+  comanda         Comanda?                  @relation(fields: [comandaId], references: [id], onDelete: SetNull)
+  utilizadoAt     DateTime?
+  anuladoAt       DateTime?
+  motivoAnulacion MotivoAnulacionBeneficio?
+  notas           String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([reservationId, estado])
 }

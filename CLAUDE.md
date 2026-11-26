@@ -156,14 +156,21 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
   (huésped que pasa esa noche o externo) y crea su comanda de Cena (tipo × comensales, precio según comensal, editable); las
   bebidas se agregan a esa comanda (`POST /api/consumptions/orders/:id/items`). Cancelar una cena manual quita solo la línea de la
   cena; cancelar una incluida no toca dinero y se puede reactivar. No se permite cena paga si la reserva ya la tiene incluida.
+- Almuerzo sin cargo (`BeneficioGastronomico`, `backend/src/utils/beneficios.js`): se genera al cancelar una cena incluida
+  (uno por reserva y noche); no es saldo ni equivale a platos. Se aplica en una comanda de Minutas de la reserva: todo queda
+  sin cargo (`ComandaItem.bonificado`, sin Cargo, subtotal de referencia) salvo bebidas (`GRUPOS_CON_CARGO`). Estados
+  DISPONIBLE / UTILIZADO (con su comanda) / ANULADO (motivo). `reconcileBeneficios` (en cada sync de reserva y al cancelar /
+  reactivar) anula por check-out y restaura si se revierte, anula si la fecha sale de la estadía o se reactiva la cena; la
+  anulación MANUAL solo se revierte a mano. Anular la comanda devuelve el beneficio; con el beneficio usado no se reactiva la cena.
+  Detalle de reserva → pestaña Comidas (beneficios + grilla de la estadía + dieta/notas).
 - Comidas previstas (`PrestacionComida`, `backend/src/utils/prestacionesComida.js`, `GET /api/comidas?fecha=`): por cada noche d con servicio S
   → cena el día d si S incluye cena y desayuno el día d+1 si incluye desayuno. Régimen interno en `ServiceType.incluyeDesayuno/incluyeCena`
   (sin UI). Generan PENDIENTE/CONFIRMADA/INGRESADA/FINALIZADA. Se sincronizan al crear/modificar reservas, tramos o estado
   (`safeSyncPrestacionesComida`); si una fecha sale de la estadía y tiene datos operativos (cancelación, pax manual, notas) queda `vigente=false`.
   Carga inicial / resincronización: `cd backend && npm run sync:comidas [-- --dry-run]` (con backup). Dashboard y panel del día leen la API.
 - Rediseño gastronómico en curso por etapas: 1) comandas y ámbito (hecha); 2) prestaciones de comida generadas por la reserva (hecha);
-  3) gestión de comensales, cenas manuales y tipos de cena (hecha); 4) beneficio «Almuerzo sin cargo» por cena cancelada
-  (bebidas con cargo, resto sin cargo; se anula al check-out y se restaura si se revierte); 5) reportes por ámbito.
+  3) gestión de comensales, cenas manuales y tipos de cena (hecha); 4) beneficio «Almuerzo sin cargo» (hecha);
+  5) reportes por ámbito.
   Los servicios ofrecidos siguen siendo Solo alojamiento / Con desayuno / Media pensión: el régimen de comidas se maneja internamente sin cambiar esa UI.
 - Menús diarios: editan recepción, propietarios y admin; cocina no.
 - PDF menú diario: una hoja A5; tipografía ~16pt, auto-reducir si no entra; postres en 2 columnas en la misma hoja; espaciado fijo.

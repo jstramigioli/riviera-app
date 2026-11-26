@@ -9,7 +9,8 @@ import {
   createConsumptionOrder,
   anularConsumptionOrder,
   fetchConsumptionOrder,
-  addItemsToConsumptionOrder
+  addItemsToConsumptionOrder,
+  fetchComidasDeReserva
 } from '../services/api';
 import { todayIsoLocal } from '../utils/calendarDates';
 import { formatMoneyArs } from '../utils/formatMoney';
@@ -49,6 +50,15 @@ function storeLastAmbito(code) {
   } catch {
     /* sin storage: no recordar */
   }
+}
+
+/** Grupos que se cobran aunque se aplique el Almuerzo sin cargo. */
+const GRUPOS_CON_CARGO = new Set(['BEBIDAS']);
+
+function fechaCorta(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  return `${d}/${m}`;
 }
 
 function ambitoLabel(code) {
@@ -252,9 +262,48 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     [lines]
   );
 
+  // Almuerzo sin cargo: disponible para la reserva elegida en comandas de Minutas.
+  const [beneficio, setBeneficio] = useState(null);
+  const [aplicarBeneficio, setAplicarBeneficio] = useState(false);
+  const beneficioReservationId =
+    open && !addMode && ambito === 'MINUTAS' && selectedReservation?.accountKind !== 'EXTERNAL'
+      ? selectedReservation?.reservationId ?? null
+      : null;
+
+  useEffect(() => {
+    setAplicarBeneficio(false);
+    if (!beneficioReservationId) {
+      setBeneficio(null);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchComidasDeReserva(beneficioReservationId)
+      .then((res) => {
+        if (cancelled) return;
+        const disponible = (res?.data?.beneficios || []).find((b) => b.estado === 'DISPONIBLE');
+        setBeneficio(disponible || null);
+      })
+      .catch(() => {
+        if (!cancelled) setBeneficio(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [beneficioReservationId]);
+
+  const beneficioActivo = Boolean(beneficio && aplicarBeneficio && beneficioReservationId);
+  const lineaSinCargo = useCallback(
+    (line) => beneficioActivo && !GRUPOS_CON_CARGO.has(line.category),
+    [beneficioActivo]
+  );
+
   const total = useMemo(
-    () => filledLines.reduce((sum, line) => sum + Number(line.price) * Number(line.quantity), 0),
-    [filledLines]
+    () =>
+      filledLines.reduce(
+        (sum, line) => (lineaSinCargo(line) ? sum : sum + Number(line.price) * Number(line.quantity)),
+        0
+      ),
+    [filledLines, lineaSinCargo]
   );
 
   const clearToastTimer = useCallback(() => {
@@ -722,12 +771,17 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
           : { reservationId: selectedReservation.reservationId }),
         ambito,
         fecha,
-        items: [...merged.values()]
+        items: [...merged.values()],
+        ...(beneficioActivo ? { beneficioId: beneficio.id } : {})
       });
       storeLastAmbito(ambito);
 
       const label = reservationOptionLabel(selectedReservation);
-      const message = `Comanda ${ambitoLabel(ambito)} cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`;
+      const message = `Comanda ${ambitoLabel(ambito)} cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}${beneficioActivo ? ' · almuerzo sin cargo aplicado' : ''}`;
+      if (beneficioActivo) {
+        setBeneficio(null);
+        setAplicarBeneficio(false);
+      }
       const comandaId = result?.data?.comandaId ?? null;
 
       onSaved?.(result);
@@ -919,6 +973,20 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
             )}
 
             <div className={styles.itemsZone}>
+              {beneficio && beneficioReservationId ? (
+                <label className={styles.beneficioBar}>
+                  <input
+                    type="checkbox"
+                    checked={aplicarBeneficio}
+                    onChange={(e) => setAplicarBeneficio(e.target.checked)}
+                    disabled={submitting}
+                  />
+                  <span>
+                    <strong>Aplicar almuerzo sin cargo</strong>
+                    {` · cena cancelada del ${fechaCorta(beneficio.cenaFecha)}. Las bebidas se cobran.`}
+                  </span>
+                </label>
+              ) : null}
               <div className={styles.linesHeader}>
                 <span className={styles.colQty}>Cant.</span>
                 <span className={styles.colItem}>Ítem</span>
@@ -1057,7 +1125,13 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                       </div>
 
                       <div className={styles.priceCell}>
-                        {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
+                        {!line.menuItemId ? (
+                          '—'
+                        ) : lineaSinCargo(line) ? (
+                          <span className={styles.sinCargo}>Sin cargo</span>
+                        ) : (
+                          formatMoney(line.price * line.quantity)
+                        )}
                       </div>
 
                       <button

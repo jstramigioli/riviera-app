@@ -11,7 +11,8 @@ vi.mock('../services/api', () => ({
   createConsumptionOrder: vi.fn(),
   anularConsumptionOrder: vi.fn(),
   fetchConsumptionOrder: vi.fn(),
-  addItemsToConsumptionOrder: vi.fn()
+  addItemsToConsumptionOrder: vi.fn(),
+  fetchComidasDeReserva: vi.fn()
 }));
 
 import {
@@ -22,7 +23,8 @@ import {
   createConsumptionOrder,
   anularConsumptionOrder,
   fetchConsumptionOrder,
-  addItemsToConsumptionOrder
+  addItemsToConsumptionOrder,
+  fetchComidasDeReserva
 } from '../services/api';
 
 const RESERVATION = {
@@ -62,6 +64,7 @@ describe('ConsumptionOrderModal — ámbito de la comanda', () => {
       data: { comandaId: 77, total: 1500, cargos: [{ id: 5 }] }
     });
     anularConsumptionOrder.mockResolvedValue({ data: { id: 77, estado: 'ANULADA' } });
+    fetchComidasDeReserva.mockResolvedValue({ data: { beneficios: [] } });
   });
 
   it('muestra los cuatro ámbitos y exige elegir uno', async () => {
@@ -156,5 +159,45 @@ describe('ConsumptionOrderModal — ámbito de la comanda', () => {
     );
     expect(createConsumptionOrder).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('almuerzo sin cargo: en Minutas, deja sin cargo todo salvo bebidas y envía el beneficio', async () => {
+    const user = userEvent.setup();
+    fetchMenuItems.mockResolvedValue({
+      data: [
+        { id: 1, name: 'Agua', price: 1500, category: 'BEBIDAS', isActive: true },
+        { id: 2, name: 'Milanesa', price: 12000, category: 'MINUTAS', isActive: true }
+      ]
+    });
+    fetchComidasDeReserva.mockResolvedValue({
+      data: { beneficios: [{ id: 5, estado: 'DISPONIBLE', cenaFecha: '2026-12-03' }] }
+    });
+    render(<ConsumptionOrderModal open onClose={vi.fn()} preset={{ reservationId: 40 }} />);
+
+    // En Cafetería no se ofrece
+    await user.click(screen.getByRole('radio', { name: 'Cafetería' }));
+    expect(screen.queryByRole('checkbox', { name: /almuerzo sin cargo/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Minutas' }));
+    const toggle = await screen.findByRole('checkbox', { name: /almuerzo sin cargo/i });
+    expect(fetchComidasDeReserva).toHaveBeenCalledWith(40);
+
+    const input = await screen.findByPlaceholderText('Buscar ítem del menú…');
+    await user.type(input, 'Milanesa');
+    await user.keyboard('{Enter}');
+    const second = screen.getAllByPlaceholderText('Buscar ítem del menú…').at(-1);
+    await user.type(second, 'Agua');
+    await user.keyboard('{Enter}');
+
+    await user.click(toggle);
+    expect(screen.getByText('Sin cargo')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => expect(createConsumptionOrder).toHaveBeenCalledTimes(1));
+    expect(createConsumptionOrder.mock.calls[0][0]).toMatchObject({
+      reservationId: 40,
+      ambito: 'MINUTAS',
+      beneficioId: 5
+    });
   });
 });

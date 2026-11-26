@@ -26,6 +26,7 @@ import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import RegimenTab from '../components/ReservationTabs/RegimenTab';
+import ComidasReservaPanel from '../components/ReservationTabs/ComidasReservaPanel';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import { FiMail, FiCopy, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -530,12 +531,19 @@ const ReservationDetails = () => {
         );
       case 'regimen':
         return (
+          <>
+          <ComidasReservaPanel
+            reservationId={reservation.id}
+            reservationStatus={reservation.status}
+            onChanged={loadFinancialData}
+          />
           <RegimenTab
             reservation={reservation}
             onSaved={(updated) => {
               setReservation((prev) => ({ ...prev, ...updated }));
             }}
           />
+          </>
         );
       default:
         return null;
@@ -731,7 +739,7 @@ const ReservationDetails = () => {
               onClick={() => setActiveTab('regimen')}
               data-testid="reservation-tab-regimen"
             >
-              Régimen
+              Comidas
             </button>
           </div>
         </div>

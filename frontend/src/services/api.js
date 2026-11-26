@@ -1698,6 +1698,22 @@ export async function reactivarComida(id) {
   return jsonOrThrow(res, 'No se pudo reactivar la comida');
 }
 
+/** Comidas de la estadía y beneficios (Almuerzo sin cargo) de una reserva. */
+export async function fetchComidasDeReserva(reservationId) {
+  const res = await apiFetch(`${API_URL}/comidas/reserva/${reservationId}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar las comidas de la reserva');
+}
+
+export async function anularBeneficio(id, data = {}) {
+  const res = await apiFetch(`${API_URL}/comidas/beneficios/${id}/anular`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo anular el beneficio');
+}
+
+export async function restaurarBeneficio(id) {
+  const res = await apiFetch(`${API_URL}/comidas/beneficios/${id}/restaurar`, jsonInit('POST', {}));
+  return jsonOrThrow(res, 'No se pudo restaurar el beneficio');
+}
+
 /** Tipos de cena (producto con precio Alojado / Externo). */
 export async function fetchTiposCena({ includeInactive = false } = {}) {
   const qs = includeInactive ? '?includeInactive=1' : '';

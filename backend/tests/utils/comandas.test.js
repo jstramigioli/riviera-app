@@ -27,6 +27,11 @@ function makeTx(overrides = {}) {
       delete: jest.fn().mockResolvedValue({}),
       count: jest.fn()
     },
+    beneficioGastronomico: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({})
+    },
+    reservation: { findUnique: jest.fn().mockResolvedValue(null) },
     ...overrides
   };
 }
@@ -93,6 +98,23 @@ describe('comandas — anular', () => {
     expect(tx.account.update).toHaveBeenCalledWith({
       where: { id: 7 },
       data: { status: 'CLOSED' }
+    });
+  });
+
+  it('si la comanda usó un Almuerzo sin cargo, el beneficio vuelve a estar disponible', async () => {
+    const tx = makeTx();
+    tx.comanda.findUnique.mockResolvedValue({
+      id: 5,
+      accountId: 7,
+      estado: 'ACTIVA',
+      items: [{ id: 1, cargoId: null }, { id: 2, cargoId: 11 }]
+    });
+    tx.beneficioGastronomico.findUnique.mockResolvedValue({ id: 3, reservationId: 40, comandaId: 5 });
+    await anularComanda(tx, 5);
+    expect(tx.cargo.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [11] } } });
+    expect(tx.beneficioGastronomico.update).toHaveBeenCalledWith({
+      where: { id: 3 },
+      data: { estado: 'DISPONIBLE', comandaId: null, utilizadoAt: null }
     });
   });
 

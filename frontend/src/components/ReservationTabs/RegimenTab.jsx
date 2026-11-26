@@ -53,7 +53,7 @@ export default function RegimenTab({ reservation, onSaved }) {
 
   return (
     <div className={styles.root} data-testid="regimen-tab">
-      <h3 className={styles.heading}>Régimen / Comidas</h3>
+      <h3 className={styles.heading}>Dieta y notas</h3>
       <p className={styles.hint}>
         Preferencias alimentarias de la estadía. Independiente de la edición general
         de la reserva.

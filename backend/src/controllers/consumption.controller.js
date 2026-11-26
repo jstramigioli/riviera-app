@@ -18,6 +18,7 @@ const {
   addLinesToComanda,
   anularComanda
 } = require('../utils/comandas');
+const { BeneficioError, prepararBeneficio, lineaBonificable } = require('../utils/beneficios');
 
 function parseCivilDateParam(raw, req) {
   if (raw == null || raw === '') return todayIsoLocal(req);
@@ -248,16 +249,46 @@ exports.createConsumptionOrder = async (req, res) => {
       throw err;
     }
 
-    const { comanda, cargos: created } = await prisma.$transaction((tx) =>
-      createComanda(tx, {
-        ambito,
-        fecha: toDateOnlyUtc(fechaCivil),
-        account,
-        notas: notes,
-        lines: resolved.lines,
-        subcatByCode: resolved.subcatByCode
-      })
-    );
+    // Almuerzo sin cargo: todo sin cargo salvo bebidas (solo Minutas en cuenta de reserva).
+    const beneficioId =
+      req.body.beneficioId != null && req.body.beneficioId !== '' ? Number(req.body.beneficioId) : null;
+    let lines = resolved.lines;
+    if (beneficioId != null) {
+      try {
+        ({ lines } = await prepararBeneficio(prisma, {
+          beneficioId,
+          ambito,
+          reservationId: account.reservationId ?? null,
+          lines
+        }));
+      } catch (err) {
+        if (err instanceof BeneficioError) {
+          return res.status(err.status).json({ success: false, error: err.message });
+        }
+        throw err;
+      }
+    }
+
+    let comanda;
+    let created;
+    try {
+      ({ comanda, cargos: created } = await prisma.$transaction((tx) =>
+        createComanda(tx, {
+          ambito,
+          fecha: toDateOnlyUtc(fechaCivil),
+          account,
+          notas: notes,
+          lines,
+          subcatByCode: resolved.subcatByCode,
+          beneficioId
+        })
+      ));
+    } catch (err) {
+      if (err instanceof BeneficioError) {
+        return res.status(err.status).json({ success: false, error: err.message });
+      }
+      throw err;
+    }
 
     const total = created.reduce(
       (sum, c) => sum + Number(c.monto),
@@ -272,6 +303,8 @@ exports.createConsumptionOrder = async (req, res) => {
         comandaId: comanda.id,
         ambito,
         ambitoLabel: AMBITO_LABELS[ambito],
+        beneficioId,
+        bonificadas: lines.filter((l) => l.bonificado).length,
         reservationId: reservationId ?? account.reservationId ?? null,
         fecha: fechaCivil,
         clientName,
@@ -325,7 +358,8 @@ async function loadComandaWithAccount(db, comandaId) {
       reservation: {
         select: { id: true, mainClient: { select: { id: true, firstName: true, lastName: true } } }
       },
-      items: { orderBy: { id: 'asc' } }
+      items: { orderBy: { id: 'asc' } },
+      beneficio: { select: { id: true, tipo: true, estado: true } }
     }
   });
 }
@@ -352,8 +386,10 @@ function comandaView(comanda) {
       cantidad: i.cantidad,
       precioUnitario: Number(i.precioUnitario),
       subtotal: Number(i.subtotal),
-      cargoId: i.cargoId
+      cargoId: i.cargoId,
+      bonificado: i.bonificado
     })),
+    beneficio: comanda.beneficio || null,
     total: comanda.items.reduce((sum, i) => sum + (i.cargoId ? Number(i.subtotal) : 0), 0)
   };
 }
@@ -401,11 +437,15 @@ exports.addItemsToConsumptionOrder = async (req, res) => {
     }
 
     const notes = req.body.notes ? String(req.body.notes).trim() : null;
+    // Comanda con Almuerzo sin cargo: lo agregado sigue la misma regla (bebidas con cargo).
+    const lines = comanda.beneficio
+      ? resolved.lines.map((l) => ({ ...l, bonificado: lineaBonificable(l) }))
+      : resolved.lines;
     const cargos = await prisma.$transaction((tx) =>
       addLinesToComanda(tx, {
         comanda,
         account: comanda.account,
-        lines: resolved.lines,
+        lines,
         subcatByCode: resolved.subcatByCode,
         notas: notes
       })

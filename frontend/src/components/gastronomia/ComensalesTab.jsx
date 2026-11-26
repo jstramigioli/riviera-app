@@ -107,7 +107,7 @@ export default function ComensalesTab() {
       title: 'Cancelar cena',
       message:
         item.origen === 'REGIMEN'
-          ? `¿Cancelar la cena incluida de ${item.guestName} (${item.pax})?`
+          ? `¿Cancelar la cena incluida de ${item.guestName} (${item.pax})? Se genera un almuerzo sin cargo.`
           : `¿Cancelar la cena de ${item.guestName}? Se quita la cena de su comanda; las bebidas ya cargadas se mantienen.`,
       confirmText: 'Cancelar cena',
       cancelText: 'Volver'

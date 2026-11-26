@@ -13,6 +13,7 @@ const {
   dualWriteExternalRefs
 } = require('./accountHelpers');
 const { calculateAccountBalance } = require('./accountBalance');
+const { consumirBeneficio, liberarBeneficioDeComanda } = require('./beneficios');
 
 const AMBITOS_CONSUMO = ['CENA', 'MINUTAS', 'CAFETERIA', 'FRIGOBAR'];
 
@@ -145,12 +146,28 @@ function financialRefsForAccount(account) {
 
 /**
  * Agrega líneas a una comanda: un Cargo por línea (con subcategoría del grupo
- * del producto, nunca null) + la línea con su precio. Devuelve los cargos.
+ * del producto, nunca null) + la línea con su precio. Las líneas bonificadas
+ * (Almuerzo sin cargo) no generan Cargo. Devuelve los cargos.
  */
 async function addLinesToComanda(tx, { comanda, account, lines, subcatByCode, notas = null }) {
   const financialRefs = financialRefsForAccount(account);
   const cargos = [];
   for (const line of lines) {
+    if (line.bonificado) {
+      await tx.comandaItem.create({
+        data: {
+          comandaId: comanda.id,
+          menuItemId: line.menuItemId,
+          varietyId: line.varietyId,
+          descripcion: line.descripcion,
+          cantidad: line.cantidad,
+          precioUnitario: line.precioUnitario,
+          subtotal: line.subtotal,
+          bonificado: true
+        }
+      });
+      continue;
+    }
     const sub = subcatByCode.get(line.category);
     const cargo = await tx.cargo.create({
       data: {
@@ -189,8 +206,14 @@ async function addLinesToComanda(tx, { comanda, account, lines, subcatByCode, no
   return cargos;
 }
 
-/** Crea una comanda con sus líneas y cargos. fecha: Date (día civil UTC). */
-async function createComanda(tx, { ambito, fecha, account, notas = null, lines, subcatByCode }) {
+/**
+ * Crea una comanda con sus líneas y cargos. fecha: Date (día civil UTC).
+ * beneficioId: Almuerzo sin cargo ya validado (líneas con `bonificado`); se consume acá.
+ */
+async function createComanda(
+  tx,
+  { ambito, fecha, account, notas = null, lines, subcatByCode, beneficioId = null }
+) {
   const comanda = await tx.comanda.create({
     data: {
       ambito,
@@ -201,6 +224,7 @@ async function createComanda(tx, { ambito, fecha, account, notas = null, lines, 
     }
   });
   const cargos = await addLinesToComanda(tx, { comanda, account, lines, subcatByCode, notas });
+  if (beneficioId) await consumirBeneficio(tx, beneficioId, comanda.id);
   return { comanda, cargos };
 }
 
@@ -236,6 +260,8 @@ async function anularComanda(tx, comandaId) {
     where: { id: comandaId },
     data: { estado: 'ANULADA', anuladaAt: new Date() }
   });
+  // Si usó un Almuerzo sin cargo, el beneficio vuelve a estar disponible.
+  await liberarBeneficioDeComanda(tx, comandaId);
   await refreshAccountStatus(tx, comanda.accountId);
   return updated;
 }

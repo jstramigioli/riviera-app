@@ -20,6 +20,7 @@ const {
 } = require('./comandas');
 const { CENAS_CATEGORY, resolveCenaVariety } = require('./cenas');
 const { GENERATING_STATUSES } = require('./prestacionesComida');
+const { ensureBeneficioParaCena, reconcileBeneficios } = require('./beneficios');
 
 class ComidaInputError extends Error {
   constructor(message, status = 400) {
@@ -219,7 +220,7 @@ async function cancelarPrestacion(db, id, { motivo } = {}) {
         await refreshAccountStatus(tx, comanda.accountId);
       }
     }
-    return tx.prestacionComida.update({
+    const updated = await tx.prestacionComida.update({
       where: { id },
       data: {
         estado: 'CANCELADA',
@@ -227,6 +228,12 @@ async function cancelarPrestacion(db, id, { motivo } = {}) {
         motivoCancelacion: cleanText(motivo, 300)
       }
     });
+    // Cena incluida cancelada → Almuerzo sin cargo (o lo restaura si se había anulado).
+    if (updated.origen === 'REGIMEN' && updated.tipo === 'CENA' && updated.reservationId) {
+      await ensureBeneficioParaCena(tx, updated);
+      await reconcileBeneficios(tx, updated.reservationId);
+    }
+    return updated;
   });
 }
 
@@ -237,9 +244,20 @@ async function reactivarPrestacion(db, id) {
   if (p.origen !== 'REGIMEN') {
     throw new ComidaInputError('Para una cena manual cancelada, volvé a cargarla');
   }
-  return db.prestacionComida.update({
-    where: { id },
-    data: { estado: 'PREVISTA', canceladaAt: null, motivoCancelacion: null }
+  const beneficio = await db.beneficioGastronomico.findUnique({ where: { prestacionId: id } });
+  if (beneficio?.estado === 'UTILIZADO') {
+    throw new ComidaInputError(
+      `El almuerzo sin cargo de esta cena ya se usó (comanda #${beneficio.comandaId}); anulá esa comanda para reactivar la cena`,
+      409
+    );
+  }
+  return db.$transaction(async (tx) => {
+    const updated = await tx.prestacionComida.update({
+      where: { id },
+      data: { estado: 'PREVISTA', canceladaAt: null, motivoCancelacion: null }
+    });
+    if (updated.reservationId) await reconcileBeneficios(tx, updated.reservationId);
+    return updated;
   });
 }
 

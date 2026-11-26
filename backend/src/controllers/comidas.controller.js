@@ -9,6 +9,11 @@ const {
   actualizarPrestacion
 } = require('../utils/comidasGestion');
 const { CenaInputError } = require('../utils/cenas');
+const {
+  BeneficioError,
+  anularBeneficioManual,
+  restaurarBeneficioManual
+} = require('../utils/beneficios');
 
 function parseFecha(raw, req) {
   if (raw == null || raw === '') return todayIsoLocal(req);
@@ -150,7 +155,11 @@ exports.getComidasDelDia = async (req, res) => {
 };
 
 function handleError(res, error, fallback) {
-  if (error instanceof ComidaInputError || error instanceof CenaInputError) {
+  if (
+    error instanceof ComidaInputError ||
+    error instanceof CenaInputError ||
+    error instanceof BeneficioError
+  ) {
     return res.status(error.status).json({ success: false, error: error.message });
   }
   console.error(fallback, error);
@@ -197,5 +206,108 @@ exports.reactivarComida = async (req, res) => {
     res.json({ success: true, data: await reactivarPrestacion(prisma, parseId(req)) });
   } catch (error) {
     handleError(res, error, 'Error al reactivar la comida');
+  }
+};
+
+function beneficioView(b) {
+  return {
+    id: b.id,
+    tipo: b.tipo,
+    estado: b.estado,
+    motivoAnulacion: b.motivoAnulacion,
+    notas: b.notas,
+    createdAt: b.createdAt,
+    utilizadoAt: b.utilizadoAt,
+    anuladoAt: b.anuladoAt,
+    cenaFecha: b.prestacion ? civilFromDb(b.prestacion.fecha) : null,
+    comanda: b.comanda
+      ? {
+          id: b.comanda.id,
+          fecha: civilFromDb(b.comanda.fecha),
+          estado: b.comanda.estado,
+          items: b.comanda.items.map((i) => ({
+            id: i.id,
+            descripcion: i.descripcion,
+            bonificado: i.bonificado,
+            subtotal: Number(i.subtotal)
+          }))
+        }
+      : null
+  };
+}
+
+/**
+ * Comidas y beneficios de una reserva (detalle de reserva → Comidas).
+ * GET /api/comidas/reserva/:reservationId
+ */
+exports.getComidasDeReserva = async (req, res) => {
+  try {
+    const reservationId = Number(req.params.reservationId);
+    if (!Number.isInteger(reservationId) || reservationId <= 0) {
+      throw new ComidaInputError('reserva inválida');
+    }
+    const [prestaciones, beneficios] = await Promise.all([
+      prisma.prestacionComida.findMany({
+        where: { reservationId, vigente: true },
+        include: { beneficio: { select: { id: true, estado: true } } },
+        orderBy: [{ fecha: 'asc' }, { tipo: 'asc' }]
+      }),
+      prisma.beneficioGastronomico.findMany({
+        where: { reservationId },
+        include: {
+          prestacion: { select: { fecha: true } },
+          comanda: {
+            select: {
+              id: true,
+              fecha: true,
+              estado: true,
+              items: { orderBy: { id: 'asc' } }
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      })
+    ]);
+    res.json({
+      success: true,
+      data: {
+        reservationId,
+        prestaciones: prestaciones.map((p) => ({
+          id: p.id,
+          fecha: civilFromDb(p.fecha),
+          tipo: p.tipo,
+          origen: p.origen,
+          estado: p.estado,
+          incluida: p.incluida,
+          pax: p.pax,
+          paxManual: p.paxManual,
+          notas: p.notas,
+          comandaId: p.comandaId,
+          beneficio: p.beneficio
+        })),
+        beneficios: beneficios.map(beneficioView),
+        beneficiosDisponibles: beneficios.filter((b) => b.estado === 'DISPONIBLE').length
+      }
+    });
+  } catch (error) {
+    handleError(res, error, 'Error al obtener las comidas de la reserva');
+  }
+};
+
+/** POST /api/comidas/beneficios/:id/anular — { notas? } */
+exports.anularBeneficio = async (req, res) => {
+  try {
+    res.json({ success: true, data: await anularBeneficioManual(prisma, parseId(req), req.body || {}) });
+  } catch (error) {
+    handleError(res, error, 'Error al anular el beneficio');
+  }
+};
+
+/** POST /api/comidas/beneficios/:id/restaurar */
+exports.restaurarBeneficio = async (req, res) => {
+  try {
+    res.json({ success: true, data: await restaurarBeneficioManual(prisma, parseId(req)) });
+  } catch (error) {
+    handleError(res, error, 'Error al restaurar el beneficio');
   }
 };
