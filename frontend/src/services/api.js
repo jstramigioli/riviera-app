@@ -1309,8 +1309,8 @@ export async function updateCobro(cobroId, data) {
     body: JSON.stringify(data)
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || 'Error updating cobro');
+    const error = await res.json().catch(() => ({}));
+    throw new Error(apiErrorMessage(error, 'Error updating cobro'));
   }
   return res.json();
 }

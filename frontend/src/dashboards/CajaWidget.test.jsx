@@ -160,10 +160,10 @@ describe('CajaWidget', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('cobro-reserva-link-1')).toBeInTheDocument()
+      expect(screen.getByTestId('cobro-reserva-link-1-10')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTestId('cobro-reserva-link-1'))
+    fireEvent.click(screen.getByTestId('cobro-reserva-link-1-10'))
 
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/reservations/10')
