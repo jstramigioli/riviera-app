@@ -78,8 +78,12 @@ cd frontend && npx vite build
 node scripts/verify-ui-emojis.mjs      # emojis en strings de UI (desde la raíz)
 ```
 
-**Línea base conocida (2026-11-26, commit ea65884)** — no hay suite en verde; verificar que no aparezcan fallos *nuevos*:
-- Backend: 132/312 tests fallan (12 suites viejas de controladores/servicios: 401 por auth agregada después y mocks sin modelos nuevos).
+**Línea base conocida (2026-11-26, rama `claude/auditoria-integral`)** — no hay suite en verde; verificar que no aparezcan fallos *nuevos*:
+- Backend: 131/379 tests fallan, siempre en las mismas 11 suites viejas de `tests/controllers/*` (401 por auth agregada después),
+  `tests/middlewares/validation.test.js` y `tests/services/dynamicPricingService.test.js`. Si fallan más suites con
+  `Cannot find module` (p. ej. `cookie-parser`, `pdfkit`), los `node_modules` locales están viejos: `npm install` en `backend/`.
+- npm 11 bloquea los install scripts de Prisma (`npm warn install-scripts`): después de instalar correr `npx prisma generate`.
+  No usar `npm audit fix` a ciegas en backend: sube Prisma de minor (6.13 → 6.19) junto con el resto.
 - Frontend: 50/502 fallan en 7 archivos (`api.test.js`, `useAppData`, `useSeasonBlock`, `SeasonBlockModal`, `DayEditPanel`, `roomTypeUtils`, `HotelConfigPanel`).
 - ESLint: 124 errores / 29 warnings. Build OK (aviso de chunk > 500 kB).
 - `verify-ui-emojis`: 1 falso positivo (`↔` en nombre de test de `CobroForm.test.jsx`).
@@ -99,6 +103,13 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
   reservados (no asignables aún): Camarero/a, Cocina, Mucama, Mantenimiento. Solo Admin gestiona usuarios. Detalle: `docs/seed-usuarios-auth.md`.
 - **Auditoría:** extensión Prisma + AsyncLocalStorage registra mutaciones con el usuario de la sesión (`docs/auditoria-cambios.md`).
   Entidades clave (reservas, consultas, clientes, cobros, cargos…) llevan `createdAt`/`updatedAt`.
+- **Prisma:** usar siempre el cliente compartido `require('../utils/prisma')`; **nunca** `new PrismaClient()` en un módulo
+  (se saltea la auditoría y abre otro pool de conexiones). En tests de backend, mockear `src/utils/prisma` (ver `tests/setup.js`).
+- **Operaciones de varias tablas** (tramos, cargos de alojamiento, cobros, borrados): dentro de `prisma.$transaction`;
+  calcular antes y escribir todo junto al final.
+- **Estado de reserva:** cancelar / reactivar va por `PATCH /api/reservations/:id/status` (desactiva tramos; al reactivar
+  enciende solo el último grupo desactivado y chequea disponibilidad → 409 `ROOM_NOT_AVAILABLE`). Los tramos nunca se borran:
+  editar la estadía o borrar un tramo los deja `isActive=false`. Una reserva con cobros imputados no se elimina (409 `RESERVATION_HAS_COBROS`).
 - **Frontend:** páginas en `src/pages/`, componentes en `src/components/` (CSS Modules `*.module.css`), llamadas HTTP en `src/services/api.js`,
   tokens en `src/styles/variables.css`. Tests junto al componente (`X.test.jsx`).
 - **Dominio en español:** `Cobro` (antes `Pago`, renombrado), `Cargo`, `Consulta`/`Query`, tramos = `ReservationSegment`, estado «Prerreserva» (antes «Pendiente»).
@@ -182,6 +193,7 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
 
 **Herramientas de debug (intencionales, solo ADMIN)**
 - FAB abajo-izquierda para simular la fecha del sistema (localStorage). Con debug activo, frontend **y** backend usan la fecha simulada como «hoy» (cobros, caja, dashboard, etc.).
+  El backend solo respeta el header `X-Simulated-Today` si la sesión es de rol ADMIN.
 - Simulación de rol en el FAB debug (sesión como ese rol en todo el sistema); no «previsualizar como» en el dashboard.
 - FAB de reservas ficticias para generar/limpiar datos de prueba.
 
