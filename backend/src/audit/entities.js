@@ -28,6 +28,7 @@ const AUDITED_ENTITIES = new Set([
   'MenuItemVariety',
   'Comanda',
   'ComandaItem',
+  'PrestacionComida',
   'Hotel',
   'DynamicPricingConfig',
   'User'

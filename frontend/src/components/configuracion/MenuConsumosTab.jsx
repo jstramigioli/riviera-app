@@ -15,6 +15,8 @@ import MenuTaxonomyPanel from './MenuTaxonomyPanel';
 import { formatMoneyArs } from '../../utils/formatMoney';
 import styles from './MenuConsumosTab.module.css';
 
+const CENAS_GROUP = 'CENAS';
+
 const FALLBACK_CATEGORIES = [
   { code: 'BEBIDAS', label: 'Bebidas' },
   { code: 'MINUTAS', label: 'Minutas' },
@@ -99,7 +101,10 @@ export default function MenuConsumosTab() {
         fetchMenuCategories(),
         fetchMenuSubgroups({})
       ]);
-      const nextCats = catRes.data?.length ? catRes.data : FALLBACK_CATEGORIES;
+      // Cenas tiene su propia sección (Configuración → Cenas).
+      const nextCats = (catRes.data?.length ? catRes.data : FALLBACK_CATEGORIES).filter(
+        (c) => c.code !== CENAS_GROUP
+      );
       setCategories(nextCats);
       setCatalogSubgroups(subRes.data || []);
       setForm((f) => {
@@ -116,7 +121,7 @@ export default function MenuConsumosTab() {
     setError(null);
     try {
       const res = await fetchMenuItems({});
-      setItems(res.data || []);
+      setItems((res.data || []).filter((i) => i.category !== CENAS_GROUP));
       await loadTaxonomy();
     } catch (err) {
       setError(err.message || 'Error al cargar el menú');

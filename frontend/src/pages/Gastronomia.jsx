@@ -30,6 +30,7 @@ import {
   deleteDish
 } from '../services/gastronomiaApi';
 import { todayIsoLocal } from '../utils/calendarDates';
+import ComensalesTab from '../components/gastronomia/ComensalesTab';
 import styles from './Gastronomia.module.css';
 
 const MESA_ENSALADAS = 'mesa de ensaladas';
@@ -69,6 +70,7 @@ const FIXED_SECTIONS = new Set(
 
 const TABS = [
   { id: 'week', label: 'Menús diarios' },
+  { id: 'comensales', label: 'Comensales' },
   { id: 'history', label: 'Historial' },
   { id: 'catalog', label: 'Catálogo' }
 ];
@@ -886,6 +888,8 @@ export default function Gastronomia() {
           </div>
         </div>
       ) : null}
+
+      {!editor && tab === 'comensales' ? <ComensalesTab /> : null}
 
       {!editor && tab === 'history' ? (
         <div className={styles.panel}>

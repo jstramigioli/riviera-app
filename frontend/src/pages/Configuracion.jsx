@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
+import CenasTab from '../components/configuracion/CenasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
@@ -98,6 +99,8 @@ function ConfiguracionView() {
         );
       case 'menu-consumos':
         return <MenuConsumosTab />;
+      case 'cenas':
+        return <CenasTab />;
       case 'calendario':
         return <CalendarioTab />;
       case 'tipo-cambio':

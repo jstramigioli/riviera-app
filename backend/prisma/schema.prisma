@@ -1255,6 +1255,8 @@ model Comanda {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   items         ComandaItem[]
+  /// Cena manual que originó esta comanda (si la hay).
+  prestacion    PrestacionComida?
 
   @@index([accountId])
   @@index([reservationId])
@@ -1458,6 +1460,12 @@ model PrestacionComida {
   canceladaAt       DateTime?
   motivoCancelacion String?
   notas             String?
+  /// MANUAL de externo: nombre y teléfono de contacto.
+  nombreExterno     String?
+  telefono          String?
+  /// MANUAL: comanda de Cena generada al registrar la cena (se le agregan bebidas).
+  comandaId         Int?             @unique
+  comanda           Comanda?         @relation(fields: [comandaId], references: [id], onDelete: SetNull)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 

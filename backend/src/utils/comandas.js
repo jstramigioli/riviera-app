@@ -7,7 +7,11 @@
  * precio para conservar el histórico aunque cambie el catálogo.
  */
 const { Decimal } = require('@prisma/client/runtime/library');
-const { syncAccountStatusFromBalance } = require('./accountHelpers');
+const {
+  syncAccountStatusFromBalance,
+  dualWriteReservationRefs,
+  dualWriteExternalRefs
+} = require('./accountHelpers');
 const { calculateAccountBalance } = require('./accountBalance');
 
 const AMBITOS_CONSUMO = ['CENA', 'MINUTAS', 'CAFETERIA', 'FRIGOBAR'];
@@ -53,6 +57,151 @@ function buildComandaLines(normalized, menuById) {
       subtotal: precioUnitario.mul(cantidad)
     };
   });
+}
+
+/** Error de validación de ítems de comanda (→ HTTP 400). */
+class ComandaInputError extends Error {}
+
+const GROUP_LABELS = {
+  BEBIDAS: 'Bebidas',
+  MINUTAS: 'Minutas',
+  CAFETERIA: 'Cafetería',
+  CENAS: 'Cenas'
+};
+
+/**
+ * Valida los ítems pedidos ({ menuItemId, quantity, varietyId? }) contra el
+ * catálogo activo y arma las líneas con precio vigente.
+ * Lanza ComandaInputError con un mensaje para el usuario.
+ */
+async function resolveOrderItems(db, rawItems) {
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    throw new ComandaInputError('Agregá al menos un ítem');
+  }
+  const normalized = [];
+  for (const row of rawItems) {
+    const menuItemId = Number(row.menuItemId);
+    const quantity = Number(row.quantity);
+    const varietyIdRaw = row.varietyId ?? row.menuItemVarietyId;
+    const varietyId = varietyIdRaw == null || varietyIdRaw === '' ? null : Number(varietyIdRaw);
+    if (!Number.isFinite(menuItemId) || !Number.isFinite(quantity) || quantity <= 0) {
+      throw new ComandaInputError('Cada ítem necesita menuItemId y quantity > 0');
+    }
+    if (varietyIdRaw != null && varietyIdRaw !== '' && !Number.isFinite(varietyId)) {
+      throw new ComandaInputError('varietyId inválido');
+    }
+    normalized.push({ menuItemId, varietyId, quantity: Math.min(999, Math.floor(quantity)) });
+  }
+
+  const menuIds = [...new Set(normalized.map((i) => i.menuItemId))];
+  const menuItems = await db.menuItem.findMany({
+    where: { id: { in: menuIds }, isActive: true },
+    include: { varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] } }
+  });
+  if (menuItems.length !== menuIds.length) {
+    throw new ComandaInputError('Uno o más ítems del menú no existen o están inactivos');
+  }
+  const menuById = new Map(menuItems.map((m) => [m.id, m]));
+
+  for (const row of normalized) {
+    const item = menuById.get(row.menuItemId);
+    const varieties = item.varieties || [];
+    if (varieties.length > 0) {
+      if (row.varietyId == null) {
+        throw new ComandaInputError(
+          `Elegí variedad para “${item.name}” (${varieties.map((v) => v.name).join(' / ')})`
+        );
+      }
+      const variety = varieties.find((v) => v.id === row.varietyId);
+      if (!variety) throw new ComandaInputError(`Variedad inválida para “${item.name}”`);
+      row.variety = variety;
+    } else if (row.varietyId != null) {
+      throw new ComandaInputError(`“${item.name}” no tiene variedades`);
+    }
+  }
+
+  const categories = [...new Set(menuItems.map((m) => m.category))];
+  const subcats = await db.subcategoriaCargo.findMany({
+    where: { tipo: 'CONSUMO', codigo: { in: categories }, esActivo: true }
+  });
+  const subcatByCode = new Map(subcats.map((sc) => [sc.codigo, sc]));
+  for (const code of categories) {
+    if (!subcatByCode.has(code)) {
+      throw new ComandaInputError(
+        `Falta subcategoría de consumo ${GROUP_LABELS[code] || code}. Configurala en Cargos.`
+      );
+    }
+  }
+
+  return { lines: buildComandaLines(normalized, menuById), subcatByCode };
+}
+
+/** Referencias financieras (dual-write) para crear cargos en la cuenta. */
+function financialRefsForAccount(account) {
+  return account.kind === 'RESERVATION'
+    ? dualWriteReservationRefs(account, account.reservationId)
+    : dualWriteExternalRefs(account);
+}
+
+/**
+ * Agrega líneas a una comanda: un Cargo por línea (con subcategoría del grupo
+ * del producto, nunca null) + la línea con su precio. Devuelve los cargos.
+ */
+async function addLinesToComanda(tx, { comanda, account, lines, subcatByCode, notas = null }) {
+  const financialRefs = financialRefsForAccount(account);
+  const cargos = [];
+  for (const line of lines) {
+    const sub = subcatByCode.get(line.category);
+    const cargo = await tx.cargo.create({
+      data: {
+        ...financialRefs,
+        subcategoriaCargoId: sub.id,
+        descripcion: line.descripcion,
+        monto: line.subtotal,
+        notas,
+        fecha: comanda.fecha
+      },
+      include: { subcategoriaCargo: true }
+    });
+    const item = await tx.comandaItem.create({
+      data: {
+        comandaId: comanda.id,
+        menuItemId: line.menuItemId,
+        varietyId: line.varietyId,
+        descripcion: line.descripcion,
+        cantidad: line.cantidad,
+        precioUnitario: line.precioUnitario,
+        subtotal: line.subtotal,
+        cargoId: cargo.id
+      }
+    });
+    cargos.push({
+      ...cargo,
+      comandaId: comanda.id,
+      comandaItemId: item.id,
+      menuItemId: line.menuItemId,
+      varietyId: line.varietyId,
+      quantity: line.cantidad,
+      unitPrice: line.precioUnitario
+    });
+  }
+  await refreshAccountStatus(tx, account.id);
+  return cargos;
+}
+
+/** Crea una comanda con sus líneas y cargos. fecha: Date (día civil UTC). */
+async function createComanda(tx, { ambito, fecha, account, notas = null, lines, subcatByCode }) {
+  const comanda = await tx.comanda.create({
+    data: {
+      ambito,
+      fecha,
+      accountId: account.id,
+      reservationId: account.reservationId ?? null,
+      notas
+    }
+  });
+  const cargos = await addLinesToComanda(tx, { comanda, account, lines, subcatByCode, notas });
+  return { comanda, cargos };
 }
 
 /** Recalcula saldo de la cuenta y actualiza su estado OPEN/CLOSED. */
@@ -127,6 +276,11 @@ const CARGO_COMANDA_INCLUDE = {
 };
 
 module.exports = {
+  ComandaInputError,
+  resolveOrderItems,
+  financialRefsForAccount,
+  addLinesToComanda,
+  createComanda,
   AMBITOS_CONSUMO,
   AMBITO_LABELS,
   parseAmbito,

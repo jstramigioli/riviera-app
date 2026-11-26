@@ -149,15 +149,20 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
   para reportes por sector; los productos no se duplican por ámbito. Cada línea copia el precio (histórico) y genera un `Cargo` con
   subcategoría del grupo del producto (nunca `null`: la sincronización de alojamiento borra los cargos sin subcategoría).
   Los cargos de comanda no se editan sueltos: se quita la línea o se anula la comanda. Frigobar solo en cuentas de reserva.
-- Cenas como productos comunes del grupo «Cenas» (habitual / buffet / Navidad / Año Nuevo × Alojado / Externo), sin reglas de precio.
+- Tipos de cena flexibles (Configuración → Cenas, `backend/src/utils/cenas.js`, `/api/cenas/tipos`): cada tipo es un producto del
+  grupo CENAS con dos variedades de precio, `Alojado` y `Externo` (nombres fijos del sistema). Se crean, renombran, desactivan
+  (o eliminan si nunca se usaron) solo desde esa sección; el menú genérico rechaza tocar CENAS y la pestaña Menú no lo muestra.
+- Gestión de comensales (Gastronomía → Comensales, `backend/src/utils/comidasGestion.js`): «+ Cena» registra una cena no incluida
+  (huésped que pasa esa noche o externo) y crea su comanda de Cena (tipo × comensales, precio según comensal, editable); las
+  bebidas se agregan a esa comanda (`POST /api/consumptions/orders/:id/items`). Cancelar una cena manual quita solo la línea de la
+  cena; cancelar una incluida no toca dinero y se puede reactivar. No se permite cena paga si la reserva ya la tiene incluida.
 - Comidas previstas (`PrestacionComida`, `backend/src/utils/prestacionesComida.js`, `GET /api/comidas?fecha=`): por cada noche d con servicio S
   → cena el día d si S incluye cena y desayuno el día d+1 si incluye desayuno. Régimen interno en `ServiceType.incluyeDesayuno/incluyeCena`
   (sin UI). Generan PENDIENTE/CONFIRMADA/INGRESADA/FINALIZADA. Se sincronizan al crear/modificar reservas, tramos o estado
   (`safeSyncPrestacionesComida`); si una fecha sale de la estadía y tiene datos operativos (cancelación, pax manual, notas) queda `vigente=false`.
   Carga inicial / resincronización: `cd backend && npm run sync:comidas [-- --dry-run]` (con backup). Dashboard y panel del día leen la API.
 - Rediseño gastronómico en curso por etapas: 1) comandas y ámbito (hecha); 2) prestaciones de comida generadas por la reserva (hecha);
-  3) gestión de comensales y cenas manuales (crean su comanda de Cena; precios de cenas en sección propia de Configuración,
-  guardados como productos del grupo Cenas, que deja de verse en la pestaña Menú); 4) beneficio «Almuerzo sin cargo» por cena cancelada
+  3) gestión de comensales, cenas manuales y tipos de cena (hecha); 4) beneficio «Almuerzo sin cargo» por cena cancelada
   (bebidas con cargo, resto sin cargo; se anula al check-out y se restaura si se revierte); 5) reportes por ámbito.
   Los servicios ofrecidos siguen siendo Solo alojamiento / Con desayuno / Media pensión: el régimen de comidas se maneja internamente sin cambiar esa UI.
 - Menús diarios: editan recepción, propietarios y admin; cocina no.

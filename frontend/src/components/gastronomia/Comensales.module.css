@@ -1,0 +1,371 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  font-family: var(--font-main);
+  color: var(--color-text-main);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pushRight {
+  margin-left: auto;
+}
+
+.dateLabel {
+  display: inline-block;
+  font-weight: 600;
+  margin: 0 0.35rem;
+}
+
+.dateLabel::first-letter {
+  text-transform: uppercase;
+}
+
+.dateInput,
+.input,
+.paxInput {
+  font-family: var(--font-main);
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  padding: 0.35rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.dateInput:focus,
+.input:focus,
+.paxInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 95, 138, 0.2);
+}
+
+.paxInput {
+  width: 4rem;
+  text-align: right;
+  padding: 0.2rem 0.35rem;
+}
+
+.btn,
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: var(--font-size-medium);
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+}
+
+.btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  color: var(--color-text-secondary);
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--color-primary-dark);
+  border-color: var(--color-primary);
+}
+
+.btnPrimary {
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: var(--color-text-light);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn:disabled,
+.btnPrimary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sections {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .sections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.section {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+  font-size: var(--font-size-large);
+  font-weight: 600;
+}
+
+.sectionTotal {
+  color: var(--color-primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-medium);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--color-border-light);
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.num,
+.table td.num {
+  text-align: right;
+  width: 4.5rem;
+}
+
+.rowCancelled td {
+  color: var(--color-text-muted);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.warn {
+  color: var(--color-danger-dark);
+  font-size: var(--font-size-small);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotOn {
+  background: var(--color-success);
+}
+
+.dotOff {
+  background: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.1rem;
+}
+
+.iconBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--color-bg-light);
+  color: var(--color-primary-dark);
+}
+
+.iconDanger:hover:not(:disabled) {
+  color: var(--color-danger);
+}
+
+.muted {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-light);
+  color: var(--color-danger-dark);
+  font-size: var(--font-size-small);
+}
+
+/* Modal «Nueva cena» */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(31, 41, 51, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal {
+  width: min(36rem, 100%);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-main);
+  color: var(--color-text-main);
+}
+
+.modalHeader,
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.modalHeader {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.modalFooter {
+  border-top: 1px solid var(--color-border-light);
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 700;
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  overflow: auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.fieldPax {
+  flex: 0 0 6rem;
+}
+
+.label {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.total {
+  font-size: var(--font-size-medium);
+  color: var(--color-text-secondary);
+}
+
+.total strong {
+  color: var(--color-text-dark);
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-white);
+}
+
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-medium);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.segment:last-child {
+  border-right: none;
+}
+
+.segmentActive {
+  background: var(--color-primary);
+  color: var(--color-text-light);
+}
+
+.segmentInput {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment:has(.segmentInput:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}

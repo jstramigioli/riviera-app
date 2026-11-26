@@ -641,3 +641,24 @@
     justify-content: center;
   }
 }
+
+/* Modo «agregar a comanda»: encabezado fijo de la comanda. */
+.comandaSummary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.comandaSummary dd {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+}
+
+.comandaItems {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}

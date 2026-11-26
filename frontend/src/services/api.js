@@ -1656,15 +1656,89 @@ export async function createConsumptionOrder(data) {
   return res.json();
 }
 
-/** Comidas previstas de un día (desayunos y cenas, desde las prestaciones del backend). */
-export async function fetchComidasDelDia(fecha) {
-  const qs = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
-  const res = await apiFetch(`${API_URL}/comidas${qs}`, { credentials: 'include' });
+async function jsonOrThrow(res, fallback) {
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || error.message || 'Error al cargar las comidas');
+    throw new Error(error.error || error.message || fallback);
   }
   return res.json();
+}
+
+function jsonInit(method, body) {
+  return {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  };
+}
+
+/**
+ * Comidas previstas de un día (desayunos y cenas, desde las prestaciones del backend).
+ * opts.incluirCanceladas: también las canceladas (gestión de comensales).
+ */
+export async function fetchComidasDelDia(fecha, { incluirCanceladas = false } = {}) {
+  const params = new URLSearchParams();
+  if (fecha) params.set('fecha', fecha);
+  if (incluirCanceladas) params.set('incluirCanceladas', '1');
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await apiFetch(`${API_URL}/comidas${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar las comidas');
+}
+
+/** Cena no incluida (huésped o externo): crea también su comanda de Cena. */
+export async function crearCenaManual(data) {
+  const res = await apiFetch(`${API_URL}/comidas/cenas`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo registrar la cena');
+}
+
+export async function actualizarComida(id, data) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}`, jsonInit('PATCH', data));
+  return jsonOrThrow(res, 'No se pudo actualizar la comida');
+}
+
+export async function cancelarComida(id, data = {}) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}/cancelar`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo cancelar la comida');
+}
+
+export async function reactivarComida(id) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}/reactivar`, jsonInit('POST', {}));
+  return jsonOrThrow(res, 'No se pudo reactivar la comida');
+}
+
+/** Tipos de cena (producto con precio Alojado / Externo). */
+export async function fetchTiposCena({ includeInactive = false } = {}) {
+  const qs = includeInactive ? '?includeInactive=1' : '';
+  const res = await apiFetch(`${API_URL}/cenas/tipos${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar los tipos de cena');
+}
+
+export async function createTipoCena(data) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo crear el tipo de cena');
+}
+
+export async function updateTipoCena(id, data) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos/${id}`, jsonInit('PUT', data));
+  return jsonOrThrow(res, 'No se pudo guardar el tipo de cena');
+}
+
+export async function deleteTipoCena(id) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow(res, 'No se pudo eliminar el tipo de cena');
+}
+
+/** Comanda existente (encabezado + líneas). */
+export async function fetchConsumptionOrder(comandaId) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'No se pudo cargar la comanda');
+}
+
+/** Agrega ítems a una comanda activa (p. ej. bebidas de una cena). */
+export async function addItemsToConsumptionOrder(comandaId, data) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}/items`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo agregar a la comanda');
 }
 
 /** Anula una comanda completa (elimina sus cargos; queda como registro). */

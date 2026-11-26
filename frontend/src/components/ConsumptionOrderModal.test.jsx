@@ -9,7 +9,9 @@ vi.mock('../services/api', () => ({
   fetchMenuItems: vi.fn(),
   fetchMenuCategories: vi.fn(),
   createConsumptionOrder: vi.fn(),
-  anularConsumptionOrder: vi.fn()
+  anularConsumptionOrder: vi.fn(),
+  fetchConsumptionOrder: vi.fn(),
+  addItemsToConsumptionOrder: vi.fn()
 }));
 
 import {
@@ -18,7 +20,9 @@ import {
   fetchMenuItems,
   fetchMenuCategories,
   createConsumptionOrder,
-  anularConsumptionOrder
+  anularConsumptionOrder,
+  fetchConsumptionOrder,
+  addItemsToConsumptionOrder
 } from '../services/api';
 
 const RESERVATION = {
@@ -120,5 +124,37 @@ describe('ConsumptionOrderModal — ámbito de la comanda', () => {
     await user.click(undo);
 
     await waitFor(() => expect(anularConsumptionOrder).toHaveBeenCalledWith(77));
+  });
+
+  it('agrega ítems a una comanda existente (ámbito, fecha y cuenta fijos)', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    fetchConsumptionOrder.mockResolvedValue({
+      data: {
+        id: 9,
+        ambito: 'CENA',
+        fecha: '2026-12-02',
+        clientName: 'Ana Pérez',
+        items: [{ id: 1, descripcion: 'Cena habitual (Alojado) x2' }]
+      }
+    });
+    addItemsToConsumptionOrder.mockResolvedValue({ data: { id: 9 } });
+    render(<ConsumptionOrderModal open onClose={onClose} preset={{ comandaId: 9 }} />);
+
+    expect(await screen.findByText('Cena habitual (Alojado) x2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Agregar a comanda #9' })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Ámbito' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Guardar y otra/ })).not.toBeInTheDocument();
+    expect(fetchOccupiedRoomsToday).not.toHaveBeenCalled();
+
+    await chooseAgua(user);
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() =>
+      expect(addItemsToConsumptionOrder).toHaveBeenCalledWith(9, {
+        items: [{ menuItemId: 1, varietyId: null, quantity: 1 }]
+      })
+    );
+    expect(createConsumptionOrder).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 });

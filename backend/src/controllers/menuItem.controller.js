@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { CENAS_CATEGORY } = require('../utils/cenas');
 const { Decimal } = require('@prisma/client/runtime/library');
 const {
   listMenuGroups,
@@ -13,6 +14,12 @@ const CATEGORY_LABELS = {
   CAFETERIA: 'Cafetería',
   CENAS: 'Cenas'
 };
+
+/** Las cenas se administran en Configuración → Cenas (tipos con precio alojado/externo). */
+const CENAS_MSG = 'Las cenas se configuran en Configuración → Cenas';
+function isCenasCategory(value) {
+  return String(value || '').trim().toUpperCase() === CENAS_CATEGORY;
+}
 
 const varietyInclude = {
   varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] }
@@ -149,6 +156,9 @@ exports.listMenuItems = async (req, res) => {
 
 exports.createMenuItem = async (req, res) => {
   try {
+    if (isCenasCategory(req.body.category)) {
+      return res.status(400).json({ success: false, error: CENAS_MSG });
+    }
     const category = await normalizeCategory(req.body.category);
     const name = String(req.body.name || '').trim();
     const subgroup = req.body.subgroup != null && String(req.body.subgroup).trim()
@@ -226,6 +236,9 @@ exports.updateMenuItem = async (req, res) => {
     const existing = await prisma.menuItem.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Ítem no encontrado' });
+    }
+    if (isCenasCategory(existing.category) || isCenasCategory(req.body.category)) {
+      return res.status(400).json({ success: false, error: CENAS_MSG });
     }
 
     const data = {};
@@ -315,6 +328,9 @@ exports.toggleMenuItem = async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Ítem no encontrado' });
     }
+    if (isCenasCategory(existing.category)) {
+      return res.status(400).json({ success: false, error: CENAS_MSG });
+    }
 
     const item = await prisma.menuItem.update({
       where: { id },
@@ -342,6 +358,9 @@ exports.deleteMenuItem = async (req, res) => {
     const existing = await prisma.menuItem.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Ítem no encontrado' });
+    }
+    if (isCenasCategory(existing.category)) {
+      return res.status(400).json({ success: false, error: CENAS_MSG });
     }
 
     const hard = String(req.query.hard || '').toLowerCase() === 'true';

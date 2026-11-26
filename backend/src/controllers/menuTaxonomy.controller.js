@@ -7,6 +7,7 @@ const {
   ensureCanonicalConsumoGroups,
   listMenuGroups
 } = require('../utils/menuGroups');
+const { CENAS_CATEGORY } = require('../utils/cenas');
 
 exports.listGroups = async (req, res) => {
   try {
@@ -121,6 +122,9 @@ exports.updateGroup = async (req, res) => {
     if (existing.codigo === LEGACY_SNACKS_CODE) {
       return res.status(400).json({ success: false, error: 'SNACKS no se puede editar como grupo de menú' });
     }
+    if (existing.codigo === CENAS_CATEGORY) {
+      return res.status(400).json({ success: false, error: 'Las cenas se configuran en Configuración → Cenas' });
+    }
 
     const data = {};
     if (req.body.nombre !== undefined || req.body.label !== undefined) {
@@ -213,6 +217,9 @@ exports.toggleGroup = async (req, res) => {
     }
     if (existing.codigo === LEGACY_SNACKS_CODE) {
       return res.status(400).json({ success: false, error: 'SNACKS no se puede reactivar' });
+    }
+    if (existing.codigo === CENAS_CATEGORY) {
+      return res.status(400).json({ success: false, error: 'Las cenas se configuran en Configuración → Cenas' });
     }
     if (
       existing.esActivo &&
@@ -348,6 +355,9 @@ exports.createSubgroup = async (req, res) => {
     const name = normalizeName(req.body.name);
     if (!category || category === LEGACY_SNACKS_CODE) {
       return res.status(400).json({ success: false, error: 'Grupo inválido' });
+    }
+    if (category === CENAS_CATEGORY) {
+      return res.status(400).json({ success: false, error: 'Las cenas se configuran en Configuración → Cenas' });
     }
     if (!name) {
       return res.status(400).json({ success: false, error: 'El nombre es requerido' });
