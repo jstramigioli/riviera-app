@@ -27,6 +27,11 @@ jest.mock('../../src/utils/reservationHelpers', () => ({
 jest.mock('../../src/utils/prestacionesComida', () => ({
   safeSyncPrestacionesComida: jest.fn().mockResolvedValue(undefined)
 }));
+const mockValidateReservationUpdate = jest.fn();
+jest.mock('../../src/utils/segmentValidation', () => ({
+  validateReservationCreation: jest.fn(),
+  validateReservationUpdate: (...args) => mockValidateReservationUpdate(...args)
+}));
 
 const controller = require('../../src/controllers/reservation.controller');
 
@@ -145,5 +150,38 @@ describe('deleteReservation', () => {
     const res = mockRes();
     await controller.deleteReservation({ params: { id: '10' }, query: { confirmFinancial: 'true' } }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe('updateReservation (PUT) — no cruza ocupación', () => {
+  test('rechaza cancelar por PUT (debe usar PATCH /status)', async () => {
+    mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CONFIRMADA' });
+    const res = mockRes();
+    await controller.updateReservation({ params: { id: '10' }, body: { status: 'CANCELADA' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json.mock.calls[0][0].code).toBe('STATUS_CHANGE_REQUIRES_PATCH');
+  });
+
+  test('rechaza reactivar por PUT', async () => {
+    mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CANCELADA' });
+    const res = mockRes();
+    await controller.updateReservation({ params: { id: '10' }, body: { status: 'CONFIRMADA' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});
+
+describe('updateReservation (PUT) con estadía completa', () => {
+  test('permite cambiar estado si viene segments (Consulta edición valida overlap)', async () => {
+    const helpers = require('../../src/utils/reservationHelpers');
+    mockValidateReservationUpdate.mockResolvedValue({ isValid: true, errors: [] });
+    helpers.updateReservationWithSegments.mockResolvedValue({ id: 10, status: 'CONFIRMADA' });
+    mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CANCELADA' });
+    const res = mockRes();
+    await controller.updateReservation(
+      { params: { id: '10' }, body: { status: 'CONFIRMADA', segments: [{ roomId: 1 }] } },
+      res
+    );
+    expect(res.status).not.toHaveBeenCalledWith(400);
+    expect(helpers.updateReservationWithSegments).toHaveBeenCalled();
   });
 });

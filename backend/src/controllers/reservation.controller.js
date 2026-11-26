@@ -277,6 +277,22 @@ exports.updateReservation = async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
+    // Cancelar / reactivar cambia qué tramos ocupan habitación: eso lo maneja PATCH /:id/status
+    // (desactiva tramos, chequea disponibilidad al reactivar). Por PUT solo se acepta si viene
+    // la estadía completa (Consulta en modo edición): ahí los tramos se recrean y se valida overlap.
+    if (
+      updateData?.status &&
+      !Array.isArray(updateData.segments) &&
+      updateData.status !== existingReservation.status &&
+      NON_OCCUPYING_STATUSES.includes(updateData.status) !==
+        NON_OCCUPYING_STATUSES.includes(existingReservation.status)
+    ) {
+      return res.status(400).json({
+        error: 'Para cancelar o reactivar una reserva usá el cambio de estado',
+        code: 'STATUS_CHANGE_REQUIRES_PATCH'
+      });
+    }
+
     // Validar la actualización antes de proceder
     const validation = await validateReservationUpdate(parseInt(id), updateData);
     if (!validation.isValid) {
