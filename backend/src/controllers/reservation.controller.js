@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { safeSyncPrestacionesComida } = require('../utils/prestacionesComida');
 const ReservationPricingService = require('../services/reservationPricingService');
 const reservationPricingService = new ReservationPricingService(prisma);
 const {
@@ -368,6 +369,9 @@ exports.updateReservationStatus = async (req, res) => {
         }
       }) || updated;
     });
+
+    // Cancelar / reactivar cambia las comidas previstas
+    await safeSyncPrestacionesComida(id);
 
     res.json(updatedReservation);
   } catch (error) {

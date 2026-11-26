@@ -150,8 +150,14 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
   subcategoría del grupo del producto (nunca `null`: la sincronización de alojamiento borra los cargos sin subcategoría).
   Los cargos de comanda no se editan sueltos: se quita la línea o se anula la comanda. Frigobar solo en cuentas de reserva.
 - Cenas como productos comunes del grupo «Cenas» (habitual / buffet / Navidad / Año Nuevo × Alojado / Externo), sin reglas de precio.
-- Rediseño gastronómico en curso por etapas: 1) comandas y ámbito (hecha); 2) prestaciones de comida generadas por la reserva;
-  3) gestión de comensales y cenas manuales (crean su comanda de Cena); 4) beneficio «Almuerzo sin cargo» por cena cancelada
+- Comidas previstas (`PrestacionComida`, `backend/src/utils/prestacionesComida.js`, `GET /api/comidas?fecha=`): por cada noche d con servicio S
+  → cena el día d si S incluye cena y desayuno el día d+1 si incluye desayuno. Régimen interno en `ServiceType.incluyeDesayuno/incluyeCena`
+  (sin UI). Generan PENDIENTE/CONFIRMADA/INGRESADA/FINALIZADA. Se sincronizan al crear/modificar reservas, tramos o estado
+  (`safeSyncPrestacionesComida`); si una fecha sale de la estadía y tiene datos operativos (cancelación, pax manual, notas) queda `vigente=false`.
+  Carga inicial / resincronización: `cd backend && npm run sync:comidas [-- --dry-run]` (con backup). Dashboard y panel del día leen la API.
+- Rediseño gastronómico en curso por etapas: 1) comandas y ámbito (hecha); 2) prestaciones de comida generadas por la reserva (hecha);
+  3) gestión de comensales y cenas manuales (crean su comanda de Cena; precios de cenas en sección propia de Configuración,
+  guardados como productos del grupo Cenas, que deja de verse en la pestaña Menú); 4) beneficio «Almuerzo sin cargo» por cena cancelada
   (bebidas con cargo, resto sin cargo; se anula al check-out y se restaura si se revierte); 5) reportes por ámbito.
   Los servicios ofrecidos siguen siendo Solo alojamiento / Con desayuno / Media pensión: el régimen de comidas se maneja internamente sin cambiar esa UI.
 - Menús diarios: editan recepción, propietarios y admin; cocina no.

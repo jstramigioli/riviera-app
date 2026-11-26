@@ -1656,6 +1656,17 @@ export async function createConsumptionOrder(data) {
   return res.json();
 }
 
+/** Comidas previstas de un día (desayunos y cenas, desde las prestaciones del backend). */
+export async function fetchComidasDelDia(fecha) {
+  const qs = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
+  const res = await apiFetch(`${API_URL}/comidas${qs}`, { credentials: 'include' });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al cargar las comidas');
+  }
+  return res.json();
+}
+
 /** Anula una comanda completa (elimina sus cargos; queda como registro). */
 export async function anularConsumptionOrder(comandaId) {
   const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}/anular`, {

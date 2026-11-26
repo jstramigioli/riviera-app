@@ -168,6 +168,7 @@ export default function ComidasHub({
   mealsDateIso,
   onMealsDateChange,
   meals,
+  mealsError = null,
   onOpenReservation,
   onOpenClient
 }) {
@@ -282,6 +283,11 @@ export default function ComidasHub({
 
       {detailMeal == null ? (
         <>
+          {mealsError ? (
+            <p className={styles.empty} role="alert" data-testid="comidas-error">
+              {mealsError}
+            </p>
+          ) : null}
           <div className={styles.comidasTotals} role="group" aria-label="Totales de comidas">
             <button
               type="button"

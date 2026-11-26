@@ -27,6 +27,7 @@ import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
+import { useComidasDelDia } from '../hooks/useComidasDelDia';
 import styles from './ReceptionDashboard.module.css';
 
 const NOTES_PLACEHOLDER = 'Agregar notas…';
@@ -298,6 +299,9 @@ export default function ReceptionDashboard() {
     [todayIso, mealsDateIso, rooms, reservations, serviceTypes, horizonDays]
   );
 
+  // Comidas previstas: vienen del backend (prestaciones según régimen); se recargan con las reservas.
+  const { comidas: meals, error: mealsError } = useComidasDelDia(mealsDateIso, reservations);
+
   const openReservation = (reservationId) => {
     if (reservationId == null) return;
     navigate(`/reservations/${reservationId}`);
@@ -423,7 +427,6 @@ export default function ReceptionDashboard() {
     );
   }
 
-  const { meals } = model;
   const dayTitle = formatDayTitle(todayIso);
 
   const renderSaldoCell = (reservationId) => {
@@ -757,6 +760,7 @@ export default function ReceptionDashboard() {
           mealsDateIso={mealsDateIso}
           onMealsDateChange={setMealsDateIso}
           meals={meals}
+          mealsError={mealsError}
           onOpenReservation={openReservation}
           onOpenClient={openClient}
         />

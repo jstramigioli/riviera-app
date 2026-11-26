@@ -22,6 +22,7 @@ const {
   dualWriteReservationRefs
 } = require('./accountHelpers');
 const { ensureHolderAsGuest } = require('./guestHelpers');
+const { safeSyncPrestacionesComida } = require('./prestacionesComida');
 const {
   loadActivePromotionRules,
   evaluateRateRules,
@@ -670,6 +671,9 @@ async function createReservationWithSegments(reservationData) {
   }
 
   // Retornar la reserva completa
+  // Comidas previstas según régimen (no hace fallar la operación)
+  await safeSyncPrestacionesComida(reservation.id);
+
   return getReservationWithData(reservation.id);
 }
 
@@ -795,6 +799,9 @@ async function createReservationWithSegment(reservationData) {
   }
 
   // Retornar la reserva completa
+  // Comidas previstas según régimen (no hace fallar la operación)
+  await safeSyncPrestacionesComida(reservation.id);
+
   return getReservationWithData(reservation.id);
 }
 
@@ -994,6 +1001,9 @@ async function updateReservationWithSegments(reservationId, updateData) {
   }
 
   // Retornar la reserva actualizada
+  // Comidas previstas según régimen (no hace fallar la operación)
+  await safeSyncPrestacionesComida(reservationId);
+
   return getReservationWithData(reservationId);
 }
 

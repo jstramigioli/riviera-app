@@ -303,6 +303,7 @@ model Reservation {
   /// Folio financiero 1:1 (Account kind=RESERVATION).
   account             Account?
   comandas            Comanda[]
+  prestacionesComida  PrestacionComida[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -854,6 +855,9 @@ model ServiceType {
   description            String?
   isActive               Boolean                 @default(true)
   orderIndex             Int                     @default(0)
+  /// Régimen de comidas (interno; no se edita desde la UI). Genera PrestacionComida.
+  incluyeDesayuno        Boolean                 @default(false)
+  incluyeCena            Boolean                 @default(false)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
@@ -1414,4 +1418,49 @@ model DailyMenuItem {
 
   @@index([dailyMenuId, section, sortOrder])
   @@index([dishCatalogId])
+}
+
+enum TipoComida {
+  DESAYUNO
+  CENA
+}
+
+enum OrigenPrestacion {
+  /// Generada desde el servicio contratado en la reserva.
+  REGIMEN
+  /// Cargada a mano (externos / huéspedes sin media pensión).
+  MANUAL
+}
+
+enum EstadoPrestacion {
+  PREVISTA
+  CANCELADA
+}
+
+/// Comida prevista para una fecha (recuento de comensales).
+/// Las de origen REGIMEN se sincronizan desde los tramos de la reserva
+/// (backend/src/utils/prestacionesComida.js) sin pisar datos operativos.
+model PrestacionComida {
+  id                Int              @id @default(autoincrement())
+  fecha             DateTime         @db.Date
+  tipo              TipoComida
+  origen            OrigenPrestacion @default(REGIMEN)
+  /// Incluida en el régimen contratado (no genera cargo).
+  incluida          Boolean          @default(true)
+  reservationId     Int?
+  reservation       Reservation?     @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  pax               Int
+  /// Comensales editados a mano: la sincronización no los pisa.
+  paxManual         Boolean          @default(false)
+  estado            EstadoPrestacion @default(PREVISTA)
+  /// false: la fecha quedó fuera de la estadía/régimen pero se conserva por tener datos operativos.
+  vigente           Boolean          @default(true)
+  canceladaAt       DateTime?
+  motivoCancelacion String?
+  notas             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([reservationId, fecha, tipo, origen])
+  @@index([fecha, tipo])
 }
