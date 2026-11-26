@@ -355,7 +355,9 @@ exports.updateReservationStatus = async (req, res) => {
         select: { id: true, isActive: true, updatedAt: true, roomId: true, startDate: true, endDate: true }
       });
       reactivateIds = selectSegmentIdsToReactivate(allSegments);
-      const toCheck = allSegments.filter((s) => reactivateIds.includes(s.id));
+      // Chequear todo lo que quedará ocupando: lo que se reactiva y lo que ya estaba activo
+      // (p. ej. estadía editada estando cancelada).
+      const toCheck = allSegments.filter((s) => s.isActive || reactivateIds.includes(s.id));
       const conflicts = [];
       for (const seg of toCheck) {
         const availability = await checkRoomAvailability(seg.roomId, seg.startDate, seg.endDate, id);

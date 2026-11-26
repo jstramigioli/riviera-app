@@ -185,3 +185,17 @@ describe('updateReservation (PUT) con estadía completa', () => {
     expect(helpers.updateReservationWithSegments).toHaveBeenCalled();
   });
 });
+
+describe('updateReservationStatus — tramos ya activos en una cancelada', () => {
+  test('chequea disponibilidad de los tramos activos aunque no haya nada que reactivar', async () => {
+    mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CANCELADA' });
+    mockPrisma.reservationSegment.findMany.mockResolvedValue([
+      { id: 4, isActive: true, updatedAt: T_CANCEL, roomId: 8, startDate: T_EDIT, endDate: T_CANCEL }
+    ]);
+    mockCheckRoomAvailability.mockResolvedValue({ available: false, conflicts: [{ reservationId: 50 }] });
+    const res = mockRes();
+    await controller.updateReservationStatus({ params: { id: '10' }, body: { status: 'CONFIRMADA' } }, res);
+    expect(mockCheckRoomAvailability.mock.calls[0][0]).toBe(8);
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+});
