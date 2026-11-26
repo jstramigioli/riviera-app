@@ -19,17 +19,17 @@ colors:
 typography:
   body:
     fontFamily: "Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.4
   label:
     fontFamily: "Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 600
     lineHeight: 1.3
   section:
     fontFamily: "Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif"
-    fontSize: "14px"
+    fontSize: "15px"
     fontWeight: 600
     lineHeight: 1.3
   page-title:
@@ -75,7 +75,7 @@ Pantallas de operación hotelera (Libro, consulta/reserva, cobros, config). Modo
 ## Foundations
 
 - **Color:** navy operativo `#3f5f8a` como único acento de acción/selección. Fondos neutros `#f4f5f7` / blanco. Semántica success/warning/danger solo para estado.
-- **Tipo:** una familia (Segoe UI). Escala fija densa: 12 / 13 / 14 / 16. Sin display faces ni Inter/Roboto como identidad.
+- **Tipo:** una familia (Segoe UI). Escala fija densa (tokens de `variables.css`): 12 / 13 / 14 / 15 / 16 / 18, body 14. Sin display faces ni Inter/Roboto como identidad.
 - **Espaciado:** 4 / 8 / 12 / 16 / 24. Grupos compactos; separación clara entre bloques de tarea.
 - **Radio / sombra:** 4–8px; sombras de una capa baja (`--shadow-sm/md`). Sin glass, glows ni gradientes violet.
 - **Iconos:** SVG (`react-icons`). Sin emojis en UI.

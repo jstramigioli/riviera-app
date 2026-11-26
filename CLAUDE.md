@@ -170,8 +170,8 @@ Referencias, en orden: `frontend/src/styles/variables.css` (tokens canónicos) �
 - Chips de reserva clickeables en toda la app → detalle de reserva. En tablas, el cliente se muestra solo con nombre (sin email debajo).
 - Aplanar secciones anidadas (p. ej. Config/Cargos y Tarifas).
 
-**Discrepancia abierta:** `DESIGN.md` y la guía estética indican body 13px (escala 11/12/13/14/16), pero `variables.css`
-tiene `--font-size-base: 14px` (12/13/14/15/16/18). Mandan los tokens del código; no cambiarlos sin decisión explícita.
+**Escala tipográfica (decidido 2026-11-26):** la de `variables.css` — base 14px; small 12, medium 13, large 15,
+xlarge 16, xxlarge 18. Usar siempre los tokens `--font-size-*`, no valores sueltos; no cambiar la escala sin decisión explícita.
 
 **Impeccable** (`.cursor/skills/impeccable/`): usarlo solo en tareas de UI, con el comando pertinente (sin auditorías inútiles);
 nunca en backend/DB/infra. Mantener coherencia con `DESIGN.md`/`PRODUCT.md` y preservar las decisiones visuales existentes.

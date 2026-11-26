@@ -3,8 +3,7 @@
 Referencia para páginas y componentes nuevos. Objetivo: UI operativa, densa y profesional (hotel / back-office), sin “vibe coding”.
 
 > Origen: guía del Project de Cursor, incorporada al repo el 2026-11-26.
-> Los tokens canónicos están en `frontend/src/styles/variables.css`. Los colores coinciden con esta guía;
-> la escala tipográfica del código difiere (ver nota en la sección Tipografía).
+> Los tokens canónicos están en `frontend/src/styles/variables.css`.
 
 ## Principios
 
@@ -16,18 +15,18 @@ Referencia para páginas y componentes nuevos. Objetivo: UI operativa, densa y p
 
 ## Tipografía
 
-| Token | Uso | Valor de referencia (guía) |
+| Token | Uso | Valor |
 |---|---|---|
 | `--font-main` | UI | `'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif` |
-| `--font-size-base` | cuerpo | 13px |
-| `--font-size-small` | meta / ayuda | ~11px (0.846rem) |
-| `--font-size-medium` | labels | ~12px (0.923rem) |
-| `--font-size-large` | subtítulos de sección | ~14px (1.077rem) |
-| `--font-size-xlarge` | títulos de página | ~16px (1.23rem) |
-| `--font-size-xxlarge` | hero interno (raro) | ~18px (1.385rem) |
+| `--font-size-base` | cuerpo | 14px |
+| `--font-size-small` | meta / ayuda | 12px |
+| `--font-size-medium` | labels | 13px |
+| `--font-size-large` | subtítulos de sección | 15px |
+| `--font-size-xlarge` | títulos de página | 16px |
+| `--font-size-xxlarge` | hero interno (raro) | 18px |
 
-> Nota (2026-11-26): `variables.css` define hoy base 14px, small 12px, medium 13px, large 15px, xlarge 16px, xxlarge 18px.
-> Mandan los tokens del código hasta que se decida lo contrario.
+> Escala tomada de `variables.css` (decisión 2026-11-26). La versión original de esta guía proponía
+> base 13px (11/12/13/14/16/18); se mantuvo la escala del código.
 
 - No mezclar un título enorme con body minúsculo.
 - No achicar textos ya compactos hasta ilegibles.
