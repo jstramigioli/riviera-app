@@ -29,6 +29,12 @@ administración, gerencia y propietarios. Idioma del producto y del código de d
 - **Dos líneas del programa:** v1 (este repo) y v2 (otro proyecto, otra máquina). **Nunca mezclar sus bases.**
   - v1 usa `riviera_v1` (o `riviera_legacy`) en `backend/.env`. Si `riviera` ya es de v2 en esa máquina, no usarla.
   - `backend/src/index.js` avisa al arrancar si `DATABASE_URL` no apunta a `riviera_v1`.
+- **Entorno local de Julián:** la DB que se usa es la del `.env` de la **raíz** (`riviera_v1`); `backend/.env` (versionado)
+  apunta a otra (`riviera`) y falla la autenticación. Para levantar el backend con la DB correcta, correrlo desde la raíz
+  (`node backend/src/index.js`: dotenv lee el `.env` del cwd). Backups locales en `C:\Users\julii\Documents\riviera-backups\` (fuera del repo).
+- **Ramas:** `origin/main` suele estar atrás de la línea real de trabajo (ramas `cursor/*` encadenadas, cada PR se mergea
+  sobre la anterior). Antes de empezar, partir de la rama más reciente de esa línea, no de `main`; si no, la DB local tiene
+  migraciones que el código no conoce (y al revés) y el merge posterior trae conflictos.
 - **Backup completo antes de cualquier operación que modifique la DB.** Preguntar: «¿Hay un backup reciente de la base de datos antes de proceder?»
 - **Prohibido sin backup y confirmación explícita:** `npx prisma db push`, `npx prisma migrate reset`, `npx prisma db pull`, o cualquier comando destructivo/estructural.
 - Nunca `db push` con datos importantes. Cambios de esquema **solo con migraciones**.
