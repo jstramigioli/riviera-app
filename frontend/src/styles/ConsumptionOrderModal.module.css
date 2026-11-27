@@ -656,11 +656,17 @@
   color: var(--color-text-main);
 }
 
-.comandaItems {
-  margin: 0;
-  padding-left: 1rem;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
+/* Líneas ya cargadas en la comanda (solo lectura) */
+.lineExistente {
+  min-height: 2rem;
+  font-size: var(--font-size-medium);
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.qtyExistente {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Almuerzo sin cargo (Minutas) */

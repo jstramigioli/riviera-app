@@ -10,6 +10,7 @@ import {
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { formatMoneyArs } from '../../utils/formatMoney';
+import ConsumptionOrderModal from '../ConsumptionOrderModal';
 import styles from './ComidasReservaPanel.module.css';
 
 const ESTADO_BENEFICIO = {
@@ -24,6 +25,8 @@ const MOTIVO_ANULACION = {
   FUERA_DE_ESTADIA: 'fuera de la estadía',
   MANUAL: 'manual'
 };
+
+const AMBITO_LABEL = { CENA: 'Cena', MINUTAS: 'Minutas', CAFETERIA: 'Cafetería', FRIGOBAR: 'Frigobar' };
 
 const RESERVA_ACTIVA = new Set(['PENDIENTE', 'CONFIRMADA', 'INGRESADA']);
 
@@ -59,6 +62,7 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [comandaAgregar, setComandaAgregar] = useState(null);
 
   const load = useCallback(async () => {
     if (!reservationId) return;
@@ -128,7 +132,17 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
     if (ok) run(() => anularConsumptionOrder(b.comanda.id));
   };
 
+  const anularComandaSuelta = async (c) => {
+    const ok = await confirm({
+      title: 'Anular comanda',
+      message: `¿Anular la comanda #${c.id} (${AMBITO_LABEL[c.ambito] || c.ambito}, ${fechaCorta(c.fecha)})? Se eliminan sus cargos.`,
+      confirmText: 'Anular comanda'
+    });
+    if (ok) run(() => anularConsumptionOrder(c.id));
+  };
+
   const beneficios = data?.beneficios || [];
+  const comandas = data?.comandas || [];
 
   return (
     <div className={styles.root} data-testid="comidas-reserva">
@@ -139,6 +153,141 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
         </p>
       ) : null}
 
+      <section className={styles.section} aria-label="Comidas de la estadía">
+        <h3 className={styles.heading}>Comidas de la estadía</h3>
+        {dias.length === 0 ? (
+          <p className={styles.muted}>El servicio contratado no incluye comidas.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Desayuno</th>
+                <th>Cena</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {dias.map((dia) => {
+                const cena = dia.CENA;
+                const cenaIncluida = cena?.origen === 'REGIMEN';
+                return (
+                  <tr key={dia.fecha}>
+                    <td className={styles.fecha}>{fechaLarga(dia.fecha)}</td>
+                    <td className={dia.DESAYUNO?.estado === 'CANCELADA' ? styles.cancelled : undefined}>
+                      {celdaTexto(dia.DESAYUNO)}
+                    </td>
+                    <td className={cena?.estado === 'CANCELADA' ? styles.cancelled : undefined}>
+                      {celdaTexto(cena)}
+                    </td>
+                    <td>
+                      {editable && cenaIncluida ? (
+                        <div className={styles.actions}>
+                          {cena.estado === 'PREVISTA' ? (
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              onClick={() => cancelarCena(cena)}
+                              disabled={busy}
+                              title="Cancelar cena"
+                              aria-label={`Cancelar cena del ${fechaCorta(dia.fecha)}`}
+                            >
+                              <FiXCircle aria-hidden="true" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.iconBtn}
+                              onClick={() => run(() => reactivarComida(cena.id))}
+                              disabled={busy}
+                              title="Reactivar cena"
+                              aria-label={`Reactivar cena del ${fechaCorta(dia.fecha)}`}
+                            >
+                              <FiRotateCcw aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className={styles.section} aria-label="Comandas">
+        <h3 className={styles.heading}>Comandas</h3>
+        {comandas.length === 0 ? (
+          <p className={styles.muted}>Sin comandas.</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Comanda</th>
+                <th>Fecha</th>
+                <th>Ámbito</th>
+                <th>Detalle</th>
+                <th className={styles.num}>Total</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {comandas.map((c) => {
+                const anulada = c.estado === 'ANULADA';
+                return (
+                  <tr key={c.id} className={anulada ? styles.cancelled : undefined}>
+                    <td>
+                      #{c.id}
+                      {anulada ? <span className={styles.muted}> · anulada</span> : null}
+                    </td>
+                    <td className={styles.fecha}>{fechaCorta(c.fecha)}</td>
+                    <td>{AMBITO_LABEL[c.ambito] || c.ambito}</td>
+                    <td>
+                      <ul className={styles.comandaItems}>
+                        {c.items.map((i) => (
+                          <li key={i.id}>
+                            <span>{i.descripcion}</span>
+                            <span className={styles.num}>
+                              {i.sinCargo ? (anulada ? formatMoneyArs(i.subtotal) : 'Sin cargo') : formatMoneyArs(i.subtotal)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td className={styles.num}>{anulada ? '—' : formatMoneyArs(c.total)}</td>
+                    <td>
+                      {!anulada ? (
+                        <div className={styles.actions}>
+                          <button
+                            type="button"
+                            className={styles.linkBtn}
+                            onClick={() => setComandaAgregar(c.id)}
+                            disabled={busy}
+                          >
+                            Agregar
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.linkBtn}
+                            onClick={() => anularComandaSuelta(c)}
+                            disabled={busy}
+                          >
+                            Anular
+                          </button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {beneficios.length > 0 ? (
       <section className={styles.section} aria-label="Almuerzos sin cargo">
         <h3 className={styles.heading}>
           Almuerzos sin cargo
@@ -146,9 +295,7 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
             <span className={styles.badgeCount}>{data.beneficiosDisponibles} disponible{data.beneficiosDisponibles > 1 ? 's' : ''}</span>
           ) : null}
         </h3>
-        {beneficios.length === 0 ? (
-          <p className={styles.muted}>Sin beneficios.</p>
-        ) : (
+        {(
           <table className={styles.table}>
             <thead>
               <tr>
@@ -215,70 +362,17 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
           </table>
         )}
       </section>
+      ) : null}
 
-      <section className={styles.section} aria-label="Comidas de la estadía">
-        <h3 className={styles.heading}>Comidas de la estadía</h3>
-        {dias.length === 0 ? (
-          <p className={styles.muted}>El servicio contratado no incluye comidas.</p>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Desayuno</th>
-                <th>Cena</th>
-                <th aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {dias.map((dia) => {
-                const cena = dia.CENA;
-                const cenaIncluida = cena?.origen === 'REGIMEN';
-                return (
-                  <tr key={dia.fecha}>
-                    <td className={styles.fecha}>{fechaLarga(dia.fecha)}</td>
-                    <td className={dia.DESAYUNO?.estado === 'CANCELADA' ? styles.cancelled : undefined}>
-                      {celdaTexto(dia.DESAYUNO)}
-                    </td>
-                    <td className={cena?.estado === 'CANCELADA' ? styles.cancelled : undefined}>
-                      {celdaTexto(cena)}
-                    </td>
-                    <td>
-                      {editable && cenaIncluida ? (
-                        <div className={styles.actions}>
-                          {cena.estado === 'PREVISTA' ? (
-                            <button
-                              type="button"
-                              className={styles.iconBtn}
-                              onClick={() => cancelarCena(cena)}
-                              disabled={busy}
-                              title="Cancelar cena"
-                              aria-label={`Cancelar cena del ${fechaCorta(dia.fecha)}`}
-                            >
-                              <FiXCircle aria-hidden="true" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={styles.iconBtn}
-                              onClick={() => run(() => reactivarComida(cena.id))}
-                              disabled={busy}
-                              title="Reactivar cena"
-                              aria-label={`Reactivar cena del ${fechaCorta(dia.fecha)}`}
-                            >
-                              <FiRotateCcw aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <ConsumptionOrderModal
+        open={comandaAgregar != null}
+        preset={comandaAgregar != null ? { comandaId: comandaAgregar } : null}
+        onClose={() => setComandaAgregar(null)}
+        onSaved={() => {
+          load();
+          onChanged?.();
+        }}
+      />
     </div>
   );
 }

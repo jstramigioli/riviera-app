@@ -878,18 +878,6 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                     <dt className={styles.label}>Cuenta</dt>
                     <dd>{targetComanda?.clientName || targetComanda?.accountLabel || '…'}</dd>
                   </div>
-                  {targetComanda?.items?.length ? (
-                    <div>
-                      <dt className={styles.label}>Ya en la comanda</dt>
-                      <dd>
-                        <ul className={styles.comandaItems}>
-                          {targetComanda.items.map((it) => (
-                            <li key={it.id}>{it.descripcion}</li>
-                          ))}
-                        </ul>
-                      </dd>
-                    </div>
-                  ) : null}
                 </dl>
               </aside>
             ) : (
@@ -996,6 +984,19 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
               </div>
 
               <ul className={styles.lines}>
+                {addMode
+                  ? (targetComanda?.items || []).map((it) => (
+                      <li key={`existente-${it.id}`} className={`${styles.line} ${styles.lineExistente}`}>
+                        <div className={styles.qtyExistente}>{it.cantidad}</div>
+                        <div className={styles.itemCell}>{it.descripcion}</div>
+                        <div className={styles.unitCell}>{formatMoney(it.precioUnitario)}</div>
+                        <div className={styles.priceCell}>
+                          {it.cargoId ? formatMoney(it.subtotal) : <span className={styles.sinCargo}>Sin cargo</span>}
+                        </div>
+                        <span className={styles.colRemove} aria-hidden="true" />
+                      </li>
+                    ))
+                  : null}
                 {lines.map((line) => {
                   const options = filterMenuItems(menuItems, line.query, categoryMeta);
                   return (
@@ -1166,7 +1167,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
           <footer className={styles.footer}>
             <div className={styles.total}>
               <span>Total</span>
-              <strong>{formatMoney(total)}</strong>
+              <strong>{formatMoney(total + (addMode ? Number(targetComanda?.total) || 0 : 0))}</strong>
             </div>
             <div className={styles.actions}>
               <button
