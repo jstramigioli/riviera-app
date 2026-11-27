@@ -95,7 +95,7 @@ node scripts/verify-ui-emojis.mjs      # emojis en strings de UI (desde la raíz
 - `verify-ui-emojis`: 1 falso positivo (`↔` en nombre de test de `CobroForm.test.jsx`).
 
 **Trampa de `.gitignore`:** ignora `*.test.js` y `test-*.js`. Los tests de backend existentes están forzados;
-un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del frontend no se ve afectado.)
+un test nuevo `*.test.js` (backend **o** frontend) hay que agregarlo con `git add -f`. (`*.test.jsx` no se ve afectado.)
 
 ---
 
@@ -157,6 +157,18 @@ un test nuevo `*.test.js` hay que agregarlo con `git add -f`. (`*.test.jsx` del 
 **Dashboard**
 - Ingresos = hoy + atrasados no ingresados. Egresos = pendientes de finalizar con checkout ≤ hoy (no futuros).
 - Minimizar acciones destructivas/accidentales (Caja sin editar/eliminar cobros); esas acciones van en Estado de cuentas, perfil y reserva.
+
+**Cobros y cancelaciones (decidido 2026-11-26)**
+- Cancelar una reserva no hace nada automático con la seña ni con los cargos: los cobros siguen imputados a esa reserva y
+  recepción decide a mano si genera una devolución (cobro con `cobroOrigenId`).
+- Una reserva con cobros imputados no se elimina (409 `RESERVATION_HAS_COBROS`): primero anular o devolver los cobros, o cancelarla.
+- Los cobros no se borran: se **anulan** (`DELETE /reservation-cobros/cobros/:id`, `backend/src/utils/cobrosAnulados.js`).
+  Queda la fila con `anuladoAt`, usuario, motivo y `anulacionSnapshot`; se quitan imputaciones y descuentos y se desvincula de
+  cuenta/reserva. Una extensión de Prisma excluye los anulados de `findMany/findFirst/count/aggregate/groupBy` de Cobro; para
+  incluirlos, poner `anuladoAt` en el `where`. Con devoluciones activas no se anula; uno anulado no se edita.
+- Códigos de cobro: A000…Z999 y después AA000…ZZ999 (los existentes no cambian).
+- Si al editar la estadía falla la regeneración de cargos de alojamiento, la estadía se guarda igual y la respuesta trae
+  `warnings: [{ code: 'LODGING_SYNC_FAILED' }]`; Consulta lo muestra.
 
 **Clientes y check-in**
 - Check-in online: formulario propio con datos personales estándar + patente; mismos campos que el perfil de cliente.
