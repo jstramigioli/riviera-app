@@ -252,8 +252,8 @@ export default function ComidasHub({
   );
   const menuDateLabel = formatMenuDate(dailyMenu?.date || mealsDateIso);
   const editPath = dailyMenu?.id
-    ? `/gastronomia?tab=week&id=${dailyMenu.id}`
-    : `/gastronomia?tab=week&date=${mealsDateIso}`;
+    ? `/comedor?tab=week&id=${dailyMenu.id}`
+    : `/comedor?tab=week&date=${mealsDateIso}`;
 
   return (
     <section

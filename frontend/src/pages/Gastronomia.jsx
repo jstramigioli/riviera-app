@@ -69,10 +69,10 @@ const FIXED_SECTIONS = new Set(
 );
 
 const TABS = [
-  { id: 'week', label: 'Menús diarios' },
   { id: 'comensales', label: 'Comensales' },
-  { id: 'history', label: 'Historial' },
-  { id: 'catalog', label: 'Catálogo' }
+  { id: 'week', label: 'Menús diarios' },
+  { id: 'history', label: 'Historial de menús' },
+  { id: 'catalog', label: 'Catálogo de platos' }
 ];
 
 function weekStartIso(iso) {
@@ -198,7 +198,7 @@ async function openPdf(menuId, mode) {
 
 export default function Gastronomia() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'week';
+  const tab = searchParams.get('tab') || (searchParams.get('id') || searchParams.get('date') ? 'week' : 'comensales');
   const editId = searchParams.get('id');
   const editDate = searchParams.get('date');
 
@@ -213,7 +213,6 @@ export default function Gastronomia() {
   const [catalogRows, setCatalogRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [notice, setNotice] = useState(null);
 
   const [editor, setEditor] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
@@ -419,7 +418,6 @@ export default function Gastronomia() {
     if (!editor) return;
     setSaving(true);
     setError(null);
-    setNotice(null);
     try {
       const payload = {
         date: editor.date,
@@ -438,11 +436,6 @@ export default function Gastronomia() {
       let saved;
       if (editor.id) saved = await updateDailyMenu(editor.id, payload);
       else saved = await createDailyMenu(payload);
-      const warn =
-        Array.isArray(saved.warnings) && saved.warnings.length
-          ? ` Aviso: ${saved.warnings.length} nombre(s) similares al catálogo.`
-          : '';
-      setNotice(`Menú guardado.${warn}`);
       setEditor({
         id: saved.id,
         date: saved.date,
@@ -480,11 +473,11 @@ export default function Gastronomia() {
           items: itemsFromMenu(source),
           dirty: true
         }));
-        setNotice(`Copiado desde ${prevDate} (aún no guardado).`);
+
       } else {
         const created = await copyDailyMenu(source.id, editor.date);
         openEditor({ id: created.id, date: created.date });
-        setNotice(`Menú creado copiando ${prevDate}.`);
+
       }
     } catch (err) {
       setError(
@@ -497,7 +490,6 @@ export default function Gastronomia() {
 
   const renderEditor = () => {
     if (!editor) return null;
-    const isPublished = editor.status === 'PUBLISHED';
     return (
       <div className={styles.panel} data-testid="gastronomia-editor">
         <div className={styles.toolbar}>
@@ -517,14 +509,7 @@ export default function Gastronomia() {
           </strong>
           <StatusBadge status={editor.status} />
         </div>
-        {isPublished ? (
-          <p className={styles.alert}>
-            Este menú está publicado. Podés editarlo; los cambios afectan lo que
-            se imprime.
-          </p>
-        ) : null}
         {error ? <p className={styles.error}>{error}</p> : null}
-        {notice ? <p className={styles.ok}>{notice}</p> : null}
 
         <div className={styles.editorLayout}>
           <div>
@@ -751,15 +736,17 @@ export default function Gastronomia() {
           </div>
 
           <aside className={styles.sideActions}>
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={saveEditor}
-              disabled={saving || !editor.date}
-              data-testid="gastronomia-save"
-            >
-              <FiSave /> {saving ? 'Guardando…' : 'Guardar'}
-            </button>
+            {!editor.id || editor.dirty || saving ? (
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={saveEditor}
+                disabled={saving || !editor.date}
+                data-testid="gastronomia-save"
+              >
+                <FiSave /> {saving ? 'Guardando…' : 'Guardar'}
+              </button>
+            ) : null}
             {editor.id ? (
               <>
                 <button
@@ -793,26 +780,26 @@ export default function Gastronomia() {
 
   return (
     <div className={styles.page} data-testid="gastronomia-page">
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Gastronomía</h1>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h2>Comedor</h2>
         </div>
-      </header>
+        <nav className={styles.sectionMenu} aria-label="Secciones de comedor">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`${styles.sectionButton} ${tab === t.id ? styles.sectionActive : ''}`}
+              aria-current={tab === t.id ? 'page' : undefined}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      <div className={styles.tabs} role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            className={`${styles.tab} ${tab === t.id && !editor ? styles.tabActive : ''}`}
-            aria-selected={tab === t.id && !editor}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <div className={styles.mainContent}>
 
       {editor ? renderEditor() : null}
 
@@ -973,11 +960,6 @@ export default function Gastronomia() {
           {!historyRows.length && !loading ? (
             <p className={styles.empty}>Sin menús en el rango.</p>
           ) : null}
-          {tab === 'history' && searchParams.get('copyTo') ? (
-            <p className={styles.alert}>
-              Abrí un menú y usá «Reutilizar» o, desde el editor, «Elegir del historial».
-            </p>
-          ) : null}
         </div>
       ) : null}
 
@@ -1099,7 +1081,7 @@ export default function Gastronomia() {
           ) : null}
         </div>
       ) : null}
-
+      </div>
     </div>
   );
 }

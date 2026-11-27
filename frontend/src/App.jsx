@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import LibroReservasBoard from './components/LibroReservasBoard';
@@ -36,7 +36,6 @@ import ReservationDetails from './pages/ReservationDetails';
 import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
 import Clientes from './pages/Clientes';
-import Comedor from './pages/Comedor';
 import PublicCheckIn from './pages/PublicCheckIn';
 import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 import FakeReservationsDebugFab from './components/FakeReservationsDebugFab';
@@ -54,6 +53,12 @@ function firstRoomIdFromReservation(reservation) {
 function RoomsToHabitacionesRedirect() {
   const { roomId } = useParams();
   return <Navigate to={`/habitaciones/${roomId}`} replace />;
+}
+
+/** Gastronomía se unificó en Comedor: conserva la pestaña (?tab=…) de los enlaces viejos. */
+function RedirectGastronomia() {
+  const { search } = useLocation();
+  return <Navigate to={`/comedor${search}`} replace />;
 }
 
 function ReservationsView() {
@@ -709,18 +714,14 @@ function App() {
             <Route
               path="/comedor"
               element={(
-                <ProtectedRoute permission="reservas">
-                  <AppShell><Comedor /></AppShell>
+                <ProtectedRoute permission="gastronomia">
+                  <AppShell><Gastronomia /></AppShell>
                 </ProtectedRoute>
               )}
             />
             <Route
               path="/gastronomia"
-              element={(
-                <ProtectedRoute permission="gastronomia">
-                  <AppShell><Gastronomia /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<RedirectGastronomia />}
             />
             <Route
               path="/auditoria"
