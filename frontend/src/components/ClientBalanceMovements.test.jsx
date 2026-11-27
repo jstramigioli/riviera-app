@@ -191,8 +191,8 @@ describe('ClientBalanceMovements', () => {
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Eliminar cobro',
-          confirmText: 'Eliminar'
+          title: 'Anular cobro',
+          confirmText: 'Anular'
         })
       )
     })

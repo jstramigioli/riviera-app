@@ -3,6 +3,7 @@ const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { calculateAccountBalance } = require('../utils/accountBalance');
 const { allocateNextCobroCodigo, withCobroCodigoRetry } = require('../utils/cobroCodigo');
+const { anularCobro } = require('../utils/cobrosAnulados');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
@@ -608,6 +609,10 @@ exports.updateCobro = async (req, res) => {
       return res.status(404).json({ error: 'Cobro no encontrado' });
     }
 
+    if (pagoActual.anuladoAt) {
+      return res.status(400).json({ error: `El cobro ${pagoActual.codigo} está anulado; no se puede editar` });
+    }
+
     if (isDevolucionMotivo(pagoActual.motivo)) {
       return res.status(400).json({
         error: 'No se puede editar una devolución desde este flujo'
@@ -921,50 +926,35 @@ exports.updateCobro = async (req, res) => {
 };
 
 // Eliminar un cobro (transaccional: cascade imputaciones + DA; sync todos los folios)
+/**
+ * DELETE /cobros/:id → ANULA el cobro (no lo borra): queda con fecha, usuario y motivo, deja de
+ * sumar en caja y saldos. Body opcional: { motivo }. Con devoluciones activas no se puede.
+ */
 exports.deleteCobro = async (req, res) => {
-  const { id } = req.params;
+  const cobroId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(cobroId)) {
+    return res.status(400).json({ error: 'Cobro inválido' });
+  }
   try {
-    const cobroId = parseInt(id, 10);
-    const existing = await prisma.cobro.findUnique({
-      where: { id: cobroId },
-      select: {
-        id: true,
-        accountId: true,
-        imputaciones: { select: { accountId: true } }
-      }
-    });
-    if (!existing) {
-      return res.status(404).json({ error: 'Cobro no encontrado' });
-    }
-
-    const accountIds = [
-      ...new Set(
-        [
-          existing.accountId,
-          ...(existing.imputaciones || []).map((i) => i.accountId)
-        ].filter(Boolean)
-      )
-    ];
-
-    await prisma.cobro.delete({ where: { id: cobroId } });
-
-    for (const accountId of accountIds) {
-      const { balance } = await loadAccountFinancialParts(prisma, accountId);
-      await syncAccountStatusFromBalance(prisma, accountId, balance.saldo);
-    }
-
-    res.json({ message: 'Cobro eliminado exitosamente' });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Cobro no encontrado' });
-    }
-    if (error.code === 'P2003') {
-      return res.status(400).json({
-        error: 'No se puede eliminar: hay devoluciones vinculadas a este cobro'
+    const { cobro } = await prisma.$transaction(async (tx) => {
+      const result = await anularCobro(tx, {
+        cobroId,
+        user: req.user,
+        motivo: req.body?.motivo
       });
+      for (const accountId of result.accountIds) {
+        const { balance } = await loadAccountFinancialParts(tx, accountId);
+        await syncAccountStatusFromBalance(tx, accountId, balance.saldo);
+      }
+      return result;
+    });
+    res.json({ message: `Cobro ${cobro.codigo} anulado`, cobro: { id: cobro.id, codigo: cobro.codigo, anuladoAt: cobro.anuladoAt } });
+  } catch (error) {
+    if (error.statusCode === 404 || error.statusCode === 400) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
-    console.error('Error eliminando cobro:', error);
-    res.status(500).json({ error: 'Error al eliminar el cobro', details: error.message });
+    console.error('Error anulando cobro:', error);
+    res.status(500).json({ error: 'Error al anular el cobro', details: error.message });
   }
 };
 

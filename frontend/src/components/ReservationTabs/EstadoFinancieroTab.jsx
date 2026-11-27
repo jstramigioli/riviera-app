@@ -277,9 +277,9 @@ const EstadoFinancieroTab = ({
   const handleDeleteCobro = async (cobro) => {
     if (!onDeleteCobro) return;
     const ok = await confirm({
-      title: 'Eliminar cobro',
-      message: `¿Eliminar el cobro ${cobro.codigo || `#${cobro.id}`}?`,
-      confirmText: 'Eliminar'
+      title: 'Anular cobro',
+      message: `¿Anular el cobro ${cobro.codigo || `#${cobro.id}`}? Queda registrado como anulado y deja de sumar en caja y saldos. No se puede revertir.`,
+      confirmText: 'Anular'
     });
     if (!ok) return;
     await onDeleteCobro(cobro.id);
@@ -700,7 +700,7 @@ const EstadoFinancieroTab = ({
                                           type="button"
                                           className={styles.deleteIconButton}
                                           onClick={() => handleDeleteCobro(cobro)}
-                                          title="Eliminar cobro"
+                                          title="Anular cobro"
                                           data-testid={`cobro-delete-${cobro.id}`}
                                           disabled={!onDeleteCobro}
                                         >

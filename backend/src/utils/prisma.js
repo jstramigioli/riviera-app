@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { createAuditExtension } = require('../audit/prismaExtension');
+const { createCobrosAnuladosExtension } = require('./cobrosAnulados');
 
 const basePrisma = new PrismaClient({
   log: [
@@ -16,8 +17,13 @@ basePrisma.$on('warn', (e) => {
   console.warn('Prisma warn:', e);
 });
 
-/** Cliente con auditoría automática de mutaciones. */
-const prisma = basePrisma.$extends(createAuditExtension(basePrisma));
+/**
+ * Cliente con auditoría automática de mutaciones y sin cobros anulados en las lecturas
+ * directas de Cobro (ver utils/cobrosAnulados.js).
+ */
+const prisma = basePrisma
+  .$extends(createAuditExtension(basePrisma))
+  .$extends(createCobrosAnuladosExtension());
 
 module.exports = prisma;
 module.exports.basePrisma = basePrisma;

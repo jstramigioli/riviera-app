@@ -425,9 +425,9 @@ export default function CobrosHistorialTable({
   const handleDeleteCobroClick = async (cobro) => {
     if (!onDeleteCobro || !cobro?.id || deletingCobroId === cobro.id) return;
     const ok = await confirm({
-      title: 'Eliminar cobro',
-      message: `¿Eliminar el cobro ${paymentCodeLabel(cobro)}?`,
-      confirmText: 'Eliminar',
+      title: 'Anular cobro',
+      message: `¿Anular el cobro ${paymentCodeLabel(cobro)}? Queda registrado como anulado y deja de sumar en caja y saldos. No se puede revertir.`,
+      confirmText: 'Anular',
       danger: true,
     });
     if (!ok) return;
@@ -437,8 +437,8 @@ export default function CobrosHistorialTable({
       await onDeleteCobro(cobro);
     } catch (err) {
       notify({
-        title: 'No se pudo eliminar',
-        message: err?.message || 'Error al eliminar el cobro',
+        title: 'No se pudo anular',
+        message: err?.message || 'Error al anular el cobro',
         type: 'error',
       });
     } finally {
@@ -720,8 +720,8 @@ export default function CobrosHistorialTable({
                               type="button"
                               className={`${styles.pagoIconBtn} ${styles.pagoIconBtnDanger}`}
                               onClick={() => handleDeleteCobroClick(cobro)}
-                              title="Eliminar"
-                              aria-label="Eliminar cobro"
+                              title="Anular"
+                              aria-label="Anular cobro"
                               data-testid={`cobro-delete-${cobro.id}`}
                               disabled={busyDeleteCobro}
                             >

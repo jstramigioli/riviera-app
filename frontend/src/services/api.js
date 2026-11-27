@@ -1302,13 +1302,16 @@ export async function updateCobro(cobroId, data) {
 }
 
 // Cobros - Eliminar un cobro
-export async function deleteCobro(cobroId) {
+/** Anula el cobro (no lo borra: queda registrado y deja de sumar en caja y saldos). */
+export async function deleteCobro(cobroId, { motivo } = {}) {
   const res = await apiFetch(`${API_URL}/reservation-cobros/cobros/${cobroId}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(motivo ? { motivo } : {})
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || 'Error deleting cobro');
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'No se pudo anular el cobro');
   }
   return res.json();
 }

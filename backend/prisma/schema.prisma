@@ -1000,6 +1000,13 @@ model Cobro {
   adjuntos                CobroAdjunto[]
   imputaciones            CobroImputacion[]
   discountApplications    DiscountApplication[]
+  /// Anulación (no se borra): fecha, quién, motivo y foto de dónde estaba imputado. Un cobro anulado
+  /// no tiene imputaciones ni descuentos, ni cuenta/reserva: no suma en caja ni en saldos.
+  anuladoAt               DateTime?
+  anuladoPorId            Int?
+  anuladoPorNombre        String?
+  motivoAnulacion         String?
+  anulacionSnapshot       Json?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 
@@ -1007,6 +1014,7 @@ model Cobro {
   @@index([reservaId])
   @@index([paymentMethodConfigId])
   @@index([cobroOrigenId])
+  @@index([anuladoAt])
   /// Caja / listados por fecha.
   @@index([fecha])
 }
