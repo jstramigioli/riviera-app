@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiRotateCcw, FiXCircle } from 'react-icons/fi';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { FiChevronDown, FiChevronRight, FiPlus, FiRotateCcw } from 'react-icons/fi';
 import {
   anularBeneficio,
   anularConsumptionOrder,
@@ -11,6 +11,7 @@ import {
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { formatMoneyArs } from '../../utils/formatMoney';
 import ConsumptionOrderModal from '../ConsumptionOrderModal';
+import { comandaPresetForReservation } from '../../utils/comandaPreset';
 import styles from './ComidasReservaPanel.module.css';
 
 const ESTADO_BENEFICIO = {
@@ -48,7 +49,7 @@ function fechaLarga(iso) {
 
 function celdaTexto(p) {
   if (!p) return '—';
-  if (p.estado === 'CANCELADA') return 'Cancelada';
+  if (p.estado === 'CANCELADA') return p.origen === 'REGIMEN' && p.tipo === 'CENA' ? 'Cambiada por almuerzo' : 'Cancelada';
   return `${p.origen === 'REGIMEN' ? 'Incluida' : 'Adicional'} · ${p.pax}`;
 }
 
@@ -57,12 +58,21 @@ function celdaTexto(p) {
  * reactivar cena incluida) y beneficios «Almuerzo sin cargo» con su estado,
  * historial y comanda en la que se usaron.
  */
-export default function ComidasReservaPanel({ reservationId, reservationStatus, onChanged }) {
+export default function ComidasReservaPanel({ reservationId, reservationStatus, reservation = null, onChanged }) {
   const { confirm, confirmDialog } = useConfirmDialog();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [comandaAgregar, setComandaAgregar] = useState(null);
+  /** Preset del modal de comanda: { comandaId } para agregar o el de la reserva para una nueva. */
+  const [comandaPreset, setComandaPreset] = useState(null);
+  const [abiertas, setAbiertas] = useState(() => new Set());
+  const toggleComanda = (id) =>
+    setAbiertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const load = useCallback(async () => {
     if (!reservationId) return;
@@ -106,9 +116,9 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
 
   const cancelarCena = async (p) => {
     const ok = await confirm({
-      title: 'Cancelar cena',
-      message: `¿Cancelar la cena incluida del ${fechaCorta(p.fecha)}? Se genera un almuerzo sin cargo.`,
-      confirmText: 'Cancelar cena',
+      title: 'Cambiar por almuerzo',
+      message: `La cena incluida del ${fechaCorta(p.fecha)} se cambia por un almuerzo sin cargo para usar en Minutas.`,
+      confirmText: 'Cambiar por almuerzo',
       cancelText: 'Volver'
     });
     if (ok) run(() => cancelarComida(p.id));
@@ -186,13 +196,12 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
                           {cena.estado === 'PREVISTA' ? (
                             <button
                               type="button"
-                              className={styles.iconBtn}
+                              className={styles.textBtn}
                               onClick={() => cancelarCena(cena)}
                               disabled={busy}
-                              title="Cancelar cena"
-                              aria-label={`Cancelar cena del ${fechaCorta(dia.fecha)}`}
+                              aria-label={`Cambiar por almuerzo la cena del ${fechaCorta(dia.fecha)}`}
                             >
-                              <FiXCircle aria-hidden="true" />
+                              Cambiar por almuerzo
                             </button>
                           ) : (
                             <button
@@ -218,7 +227,19 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
       </section>
 
       <section className={styles.section} aria-label="Comandas">
-        <h3 className={styles.heading}>Comandas</h3>
+        <div className={styles.headingRow}>
+          <h3 className={styles.heading}>Comandas</h3>
+          {reservation && editable ? (
+            <button
+              type="button"
+              className={styles.textBtn}
+              onClick={() => setComandaPreset(comandaPresetForReservation(reservation))}
+              disabled={busy}
+            >
+              <FiPlus aria-hidden="true" /> Nueva comanda
+            </button>
+          ) : null}
+        </div>
         {comandas.length === 0 ? (
           <p className={styles.muted}>Sin comandas.</p>
         ) : (
@@ -228,7 +249,6 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
                 <th>Comanda</th>
                 <th>Fecha</th>
                 <th>Ámbito</th>
-                <th>Detalle</th>
                 <th className={styles.num}>Total</th>
                 <th aria-label="Acciones" />
               </tr>
@@ -236,50 +256,74 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
             <tbody>
               {comandas.map((c) => {
                 const anulada = c.estado === 'ANULADA';
+                const abierta = abiertas.has(c.id);
                 return (
-                  <tr key={c.id} className={anulada ? styles.cancelled : undefined}>
-                    <td>
-                      #{c.id}
-                      {anulada ? <span className={styles.muted}> · anulada</span> : null}
-                    </td>
-                    <td className={styles.fecha}>{fechaCorta(c.fecha)}</td>
-                    <td>{AMBITO_LABEL[c.ambito] || c.ambito}</td>
-                    <td>
-                      <ul className={styles.comandaItems}>
-                        {c.items.map((i) => (
-                          <li key={i.id}>
-                            <span>{i.descripcion}</span>
-                            <span className={styles.num}>
-                              {i.sinCargo ? (anulada ? formatMoneyArs(i.subtotal) : 'Sin cargo') : formatMoneyArs(i.subtotal)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                    <td className={styles.num}>{anulada ? '—' : formatMoneyArs(c.total)}</td>
-                    <td>
-                      {!anulada ? (
-                        <div className={styles.actions}>
-                          <button
-                            type="button"
-                            className={styles.linkBtn}
-                            onClick={() => setComandaAgregar(c.id)}
-                            disabled={busy}
-                          >
-                            Agregar
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.linkBtn}
-                            onClick={() => anularComandaSuelta(c)}
-                            disabled={busy}
-                          >
-                            Anular
-                          </button>
-                        </div>
-                      ) : null}
-                    </td>
-                  </tr>
+                  <Fragment key={c.id}>
+                    <tr className={anulada ? styles.cancelled : undefined}>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.toggleBtn}
+                          onClick={() => toggleComanda(c.id)}
+                          aria-expanded={abierta}
+                          aria-label={`${abierta ? 'Ocultar' : 'Ver'} detalle de la comanda #${c.id}`}
+                        >
+                          {abierta ? <FiChevronDown aria-hidden="true" /> : <FiChevronRight aria-hidden="true" />}
+                          #{c.id}
+                          <span className={styles.muted}>
+                            {' '}
+                            · {c.items.length} {c.items.length === 1 ? 'ítem' : 'ítems'}
+                            {anulada ? ' · anulada' : ''}
+                          </span>
+                        </button>
+                      </td>
+                      <td className={styles.fecha}>{fechaCorta(c.fecha)}</td>
+                      <td>{AMBITO_LABEL[c.ambito] || c.ambito}</td>
+                      <td className={styles.num}>{anulada ? '—' : formatMoneyArs(c.total)}</td>
+                      <td>
+                        {!anulada ? (
+                          <div className={styles.actions}>
+                            <button
+                              type="button"
+                              className={styles.linkBtn}
+                              onClick={() => setComandaPreset({ comandaId: c.id })}
+                              disabled={busy}
+                            >
+                              Agregar
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.linkBtn}
+                              onClick={() => anularComandaSuelta(c)}
+                              disabled={busy}
+                            >
+                              Anular
+                            </button>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                    {abierta ? (
+                      <tr className={styles.detalleRow}>
+                        <td colSpan={5}>
+                          <ul className={styles.comandaItems}>
+                            {c.items.map((i) => (
+                              <li key={i.id}>
+                                <span>{i.descripcion}</span>
+                                <span className={styles.num}>
+                                  {i.sinCargo
+                                    ? anulada
+                                      ? formatMoneyArs(i.subtotal)
+                                      : 'Sin cargo'
+                                    : formatMoneyArs(i.subtotal)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -365,9 +409,9 @@ export default function ComidasReservaPanel({ reservationId, reservationStatus, 
       ) : null}
 
       <ConsumptionOrderModal
-        open={comandaAgregar != null}
-        preset={comandaAgregar != null ? { comandaId: comandaAgregar } : null}
-        onClose={() => setComandaAgregar(null)}
+        open={comandaPreset != null}
+        preset={comandaPreset}
+        onClose={() => setComandaPreset(null)}
         onSaved={() => {
           load();
           onChanged?.();

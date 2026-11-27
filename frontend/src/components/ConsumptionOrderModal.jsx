@@ -843,7 +843,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         >
           <header className={styles.header}>
             <h2 id={titleId} className={styles.title}>
-              {addMode ? `Agregar a comanda #${preset.comandaId}` : 'Nuevo consumo'}
+              {addMode ? `Agregar a comanda #${preset.comandaId}` : 'Nueva comanda'}
             </h2>
             <button
               type="button"

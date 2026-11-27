@@ -56,7 +56,7 @@ export default function FloatingActionButton({
     },
     {
       key: 'consumo',
-      label: '+ Consumo',
+      label: '+ Comanda',
       onSelect: onCreateConsumption
     },
     {

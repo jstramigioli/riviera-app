@@ -23,6 +23,7 @@ import { formatMoneyArs } from '../utils/formatMoney';
 import ReservationStatusButtons from '../components/ReservationStatusButtons';
 import ReservationStayTimeline from '../components/ReservationStayTimeline';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
+import { comandaPresetForReservation } from '../utils/comandaPreset';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import RegimenTab from '../components/ReservationTabs/RegimenTab';
@@ -35,12 +36,6 @@ import { useTags } from '../hooks/useTags';
 import { collectReservationPanelRequirements } from '../utils/reservationPanelRequirements';
 import styles from './ReservationDetails.module.css';
 
-function firstRoomIdFromReservation(reservation) {
-  const segments = reservation?.segments;
-  if (!Array.isArray(segments) || segments.length === 0) return null;
-  const withRoom = segments.find((s) => s?.roomId != null);
-  return withRoom?.roomId ?? null;
-}
 
 const resolveInitialTab = (activeTab) => {
   if (
@@ -78,7 +73,9 @@ const ReservationDetails = () => {
   const [pendingFinancialAction, setPendingFinancialAction] = useState(
     location.state?.financialAction || null
   );
-  const [consumptionOpen, setConsumptionOpen] = useState(
+  /** Modal de comanda: preset de la reserva (nueva) o { comandaId } (agregar a una existente). */
+  const [comandaPreset, setComandaPreset] = useState(null);
+  const [nuevaComandaPendiente, setNuevaComandaPendiente] = useState(
     location.state?.financialAction === 'add-consumo'
   );
 
@@ -250,11 +247,17 @@ const ReservationDetails = () => {
   }, [location.state?.isEditing]);
 
   useEffect(() => {
+    if (!nuevaComandaPendiente || !reservation) return;
+    setComandaPreset(comandaPresetForReservation(reservation));
+    setNuevaComandaPendiente(false);
+  }, [nuevaComandaPendiente, reservation]);
+
+  useEffect(() => {
     if (location.state?.activeTab === 'financiero' || location.state?.financialAction) {
       setActiveTab('financiero');
       const action = location.state?.financialAction || null;
       if (action === 'add-consumo') {
-        setConsumptionOpen(true);
+        setNuevaComandaPendiente(true);
         setPendingFinancialAction(null);
       } else if (action) {
         setPendingFinancialAction(action);
@@ -557,7 +560,8 @@ const ReservationDetails = () => {
             onDeleteCobro={handleDeleteCobro}
             pendingAction={pendingFinancialAction}
             onPendingActionHandled={() => setPendingFinancialAction(null)}
-            onRequestConsumo={() => setConsumptionOpen(true)}
+            onRequestConsumo={() => setComandaPreset(comandaPresetForReservation(reservation))}
+            onOpenComanda={(comandaId) => setComandaPreset({ comandaId })}
           />
         );
       case 'huespedes':
@@ -580,6 +584,7 @@ const ReservationDetails = () => {
             <ComidasReservaPanel
               reservationId={reservation.id}
               reservationStatus={reservation.status}
+              reservation={reservation}
               onChanged={loadFinancialData}
             />
             <RegimenTab reservation={reservation} />
@@ -845,16 +850,9 @@ const ReservationDetails = () => {
       </div>
 
       <ConsumptionOrderModal
-        open={consumptionOpen}
-        preset={
-          reservation
-            ? {
-                reservationId: reservation.id,
-                roomId: firstRoomIdFromReservation(reservation)
-              }
-            : null
-        }
-        onClose={() => setConsumptionOpen(false)}
+        open={comandaPreset != null}
+        preset={comandaPreset}
+        onClose={() => setComandaPreset(null)}
         onSaved={() => {
           loadFinancialData();
         }}

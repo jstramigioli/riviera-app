@@ -28,6 +28,7 @@ import { formatMoneyArs } from './utils/formatMoney';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
+import { comandaPresetForReservation } from './utils/comandaPreset';
 import ConsumptionOrderModal from './components/ConsumptionOrderModal';
 import CobroForm from './components/CobroForm';
 import NotificationModal from './components/NotificationModal';
@@ -43,12 +44,6 @@ import SimulatedRoleDebugFab from './components/SimulatedRoleDebugFab';
 import Dashboard from './pages/Dashboard';
 import Gastronomia from './pages/Gastronomia';
 
-function firstRoomIdFromReservation(reservation) {
-  const segments = reservation?.segments;
-  if (!Array.isArray(segments) || segments.length === 0) return null;
-  const withRoom = segments.find((s) => s?.roomId != null);
-  return withRoom?.roomId ?? null;
-}
 
 function RoomsToHabitacionesRedirect() {
   const { roomId } = useParams();
@@ -296,10 +291,7 @@ function ReservationsView() {
             onDelete={() => setShowDeleteModal(true)}
             onClose={closePanel}
             onAddConsumo={(res) => {
-              openConsumptionModal({
-                reservationId: res.id,
-                roomId: firstRoomIdFromReservation(res)
-              });
+              openConsumptionModal(comandaPresetForReservation(res));
             }}
             onOpenFullEdit={(id) => {
               closePanel();

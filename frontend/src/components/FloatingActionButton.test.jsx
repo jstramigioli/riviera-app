@@ -27,12 +27,12 @@ describe('FloatingActionButton hub', () => {
 
     const consulta = screen.getByRole('menuitem', { name: '+ Consulta' })
     const reserva = screen.getByRole('menuitem', { name: '+ Reserva' })
-    const consumo = screen.getByRole('menuitem', { name: '+ Consumo' })
+    const consumo = screen.getByRole('menuitem', { name: '+ Comanda' })
     const cobro = screen.getByRole('menuitem', { name: '+ Cobro' })
 
     expect(consulta).toHaveTextContent('+ Consulta')
     expect(reserva).toHaveTextContent('+ Reserva')
-    expect(consumo).toHaveTextContent('+ Consumo')
+    expect(consumo).toHaveTextContent('+ Comanda')
     expect(cobro).toHaveTextContent('+ Cobro')
     expect(consulta.querySelector('svg')).toBeNull()
     expect(reserva.querySelector('svg')).toBeNull()
@@ -47,7 +47,7 @@ describe('FloatingActionButton hub', () => {
     expect(onCreateReservation).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '+ Consumo' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '+ Comanda' }))
     expect(onCreateConsumption).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de altas' }))

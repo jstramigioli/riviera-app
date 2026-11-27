@@ -109,11 +109,13 @@ const EstadoFinancieroTab = ({
   onDeleteCobro,
   pendingAction = null,
   onPendingActionHandled,
-  onRequestConsumo
+  onRequestConsumo,
+  onOpenComanda
 }) => {
   const { confirm, confirmDialog } = useConfirmDialog();
   const { notify, noticeDialog } = useAppNotice();
-  const [expandedFinancialRow, setExpandedFinancialRow] = useState('cargos');
+  /** Filas desplegadas: `cargo:<CODIGO>` por tipo de cargo y `cobros`. Todo colapsado al entrar. */
+  const [expanded, setExpanded] = useState(() => new Set());
   const [showCobroForm, setShowCobroForm] = useState(false);
   const [editingCobro, setEditingCobro] = useState(null);
   const [showCargoModal, setShowCargoModal] = useState(false);
@@ -261,7 +263,7 @@ const EstadoFinancieroTab = ({
   const openEditCobroForm = (cobro) => {
     setEditingCobro(cobro);
     setShowCobroForm(true);
-    setExpandedFinancialRow('cobros');
+    setExpanded((prev) => new Set(prev).add('cobros'));
   };
 
   const closeCobroForm = () => {
@@ -410,8 +412,110 @@ const EstadoFinancieroTab = ({
 
   if (!reservation) return null;
 
-  const toggleFinancialRow = (row) => {
-    setExpandedFinancialRow((current) => (current === row ? null : row));
+  const toggleRow = (key) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const renderCargoItem = (item) => (
+    <li key={item.id} className={styles.finItem}>
+      <span className={styles.finItemDesc}>
+        {item.descripcion || 'Cargo'}
+        {item.fecha ? <span className={styles.finItemFecha}> · {formatDate(item.fecha)}</span> : null}
+        {renderComandaTag(item)}
+      </span>
+      {renderMonto(item)}
+    </li>
+  );
+
+  /** Fila colapsable: chevron + título (+ detalle) a la izquierda, total a la derecha. */
+  const renderToggle = (key, label, meta, total, testIds = {}) => {
+    const open = expanded.has(key);
+    return (
+      <button
+        type="button"
+        className={styles.finToggle}
+        onClick={() => toggleRow(key)}
+        aria-expanded={open}
+        data-testid={testIds.row}
+      >
+        <span className={styles.finToggleLabel}>
+          <span className={styles.finChevron} aria-hidden="true">
+            {open ? <FaChevronDown /> : <FaChevronRight />}
+          </span>
+          {label}
+          {meta ? (
+            <span className={styles.finMeta} data-testid={testIds.meta}>
+              {meta}
+            </span>
+          ) : null}
+        </span>
+        <span className={styles.finToggleTotal} data-testid={testIds.total}>
+          {formatCurrency(total)}
+        </span>
+      </button>
+    );
+  };
+
+  const cantidad = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
+
+  /**
+   * Ítems de un tipo de cargo agrupados por comanda: cada comanda es un chip que abre
+   * la comanda para editarla, con sus líneas debajo; los cargos sueltos (sin comanda,
+   * p. ej. consumos anteriores al sistema de comandas) van al final.
+   */
+  const renderGroupItems = (items) => {
+    const porComanda = new Map();
+    const sueltos = [];
+    for (const item of items) {
+      const comanda = comandaOfCargo(item);
+      if (!comanda) {
+        sueltos.push(item);
+        continue;
+      }
+      if (!porComanda.has(comanda.id)) porComanda.set(comanda.id, { comanda, items: [] });
+      porComanda.get(comanda.id).items.push(item);
+    }
+    return (
+      <ul className={styles.finItems}>
+        {[...porComanda.values()].map(({ comanda, items: lineas }) => (
+          <li key={`comanda-${comanda.id}`} className={styles.finComanda}>
+            <div className={styles.finComandaHead}>
+              <button
+                type="button"
+                className={styles.comandaChip}
+                onClick={() => onOpenComanda?.(comanda.id)}
+                disabled={typeof onOpenComanda !== 'function' || comanda.estado === 'ANULADA'}
+                title={`Abrir comanda #${comanda.id}`}
+                data-testid={`comanda-chip-${comanda.id}`}
+              >
+                Comanda #{comanda.id}
+              </button>
+              <span className={styles.finItemFecha}>
+                {AMBITO_LABELS[comanda.ambito] || comanda.ambito}
+                {comanda.fecha ? ` · ${String(comanda.fecha).slice(0, 10).split('-').reverse().join('/')}` : ''}
+              </span>
+              <span className={styles.finComandaTotal}>
+                {formatCurrency(lineas.reduce((sum, l) => sum + (Number(l.monto) || 0), 0))}
+              </span>
+            </div>
+            <ul className={styles.finComandaLines}>
+              {lineas.map((item) => (
+                <li key={item.id} className={styles.finItem}>
+                  <span className={styles.finItemDesc}>{item.descripcion || 'Cargo'}</span>
+                  {renderMonto(item)}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+        {sueltos.map(renderCargoItem)}
+      </ul>
+    );
   };
 
   const isLodgingCargo = (item) => !item.subcategoriaCargoId;
@@ -501,7 +605,7 @@ const EstadoFinancieroTab = ({
               onClick={onRequestConsumo}
               data-testid="btn-add-consumo"
             >
-              <FaPlus /> Consumo
+              <FaPlus /> Comanda
             </button>
           )}
           <button
@@ -520,206 +624,137 @@ const EstadoFinancieroTab = ({
       ) : financialSummary ? (
         <div className={styles.financialLayout} data-testid="estado-financiero">
           <div className={styles.financialMain}>
-            <div className={styles.financialAlert}>
-              <div className={styles.financialAlertBody}>
-                <div className={styles.financialRowBlock}>
-                  <button
-                    type="button"
-                    className={styles.financialRowToggle}
-                    onClick={() => toggleFinancialRow('cargos')}
-                    aria-expanded={expandedFinancialRow === 'cargos'}
-                    data-testid="financial-row-cargos"
-                  >
-                    <span className={styles.financialRowLabel}>
-                      <span className={styles.financialRowChevron} aria-hidden="true">
-                        {expandedFinancialRow === 'cargos' ? (
-                          <FaChevronDown />
-                        ) : (
-                          <FaChevronRight />
-                        )}
-                      </span>
-                      Cargos
-                    </span>
-                    <strong data-testid="financial-total-cargos">
-                      {formatCurrency(totalCargos)}
-                    </strong>
-                  </button>
-                  {expandedFinancialRow === 'cargos' && (
-                    <div
-                      className={styles.financialRowDetail}
-                      data-testid="financial-detail-cargos"
-                    >
-                      {tiposCargosOrdenados.length > 0 ? (
-                        <ul className={styles.breakdownList}>
-                          {tiposCargosOrdenados.map((tipo) => (
-                            <li key={tipo.codigo} className={styles.breakdownGroup}>
-                              <div className={styles.breakdownGroupHeader}>
-                                <span>{tipo.nombre}</span>
-                                <strong>{formatCurrency(tipo.total)}</strong>
-                              </div>
-                              {(tipo.items || []).map((item) => (
-                                <div key={item.id} className={styles.breakdownItem}>
-                                  <span>
-                                    {item.descripcion || 'Cargo'}
-                                    {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
-                                    {renderComandaTag(item)}
-                                  </span>
-                                  {renderMonto(item)}
-                                </div>
-                              ))}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : cargoItems.length > 0 ? (
-                        <ul className={styles.breakdownList}>
-                          {cargoItems.map((item) => (
-                            <li key={item.id} className={styles.breakdownItem}>
-                              <span>
-                                {item.descripcion || 'Cargo'}
-                                {item.fecha ? ` · ${formatDate(item.fecha)}` : ''}
-                                {renderComandaTag(item)}
-                              </span>
-                              {renderMonto(item)}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className={styles.breakdownEmpty}>Sin cargos registrados.</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className={styles.financialRowBlock}>
-                  <button
-                    type="button"
-                    className={styles.financialRowToggle}
-                    onClick={() => toggleFinancialRow('cobros')}
-                    aria-expanded={expandedFinancialRow === 'cobros'}
-                    data-testid="financial-row-cobros"
-                  >
-                    <span className={styles.financialRowLabel}>
-                      <span className={styles.financialRowChevron} aria-hidden="true">
-                        {expandedFinancialRow === 'cobros' ? (
-                          <FaChevronDown />
-                        ) : (
-                          <FaChevronRight />
-                        )}
-                      </span>
-                      Cobros
-                      <span
-                        className={styles.financialRowMeta}
-                        data-testid="financial-cobros-count"
-                      >
-                        {cobroItems.length} registro{cobroItems.length === 1 ? '' : 's'}
-                      </span>
-                    </span>
-                    <strong data-testid="financial-total-cobros">
-                      {formatCurrency(totalCobros)}
-                    </strong>
-                  </button>
-                  {expandedFinancialRow === 'cobros' && (
-                    <div
-                      className={styles.financialRowDetail}
-                      data-testid="financial-detail-cobros"
-                    >
-                      {cobroItems.length === 0 ? (
-                        <p className={styles.breakdownEmpty}>Sin cobros registrados.</p>
-                      ) : (
-                        <div
-                          className={`${styles.tableContainer} ${styles.cobrosTableScroll}`}
-                        >
-                          <table
-                            className={`${styles.dataTable} ${styles.cobrosTable}`}
-                            data-testid="financial-cobros-table"
-                          >
-                            <thead>
-                              <tr>
-                                <th className={styles.shortCell}>Código</th>
-                                <th>Fecha</th>
-                                <th className={styles.montoCell}>Monto</th>
-                                <th className={styles.shortCell}>Moneda</th>
-                                <th>Método</th>
-                                <th>Motivo</th>
-                                <th className={styles.montoCell}>Descuento</th>
-                                <th>Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {cobroItems.map((cobro) => {
-                                const disc = cobro.discountApplication;
-                                const codigo =
-                                  cobro.cobroCodigo || cobro.codigo || `#${cobro.id}`;
-                                return (
-                                  <tr
-                                    key={cobro.imputacionId || cobro.id}
-                                    data-testid={`financial-cobro-row-${cobro.imputacionId || cobro.id}`}
-                                  >
-                                    <td className={styles.shortCell}>
-                                      {codigo}
-                                      {cobro.esImputacionParcial
-                                        ? ` · parte de ${formatCurrency(cobro.pagoTotalARS)}`
-                                        : ''}
-                                    </td>
-                                    <td>{formatDate(cobro.fecha)}</td>
-                                    <td className={styles.montoCell}>
-                                      {cobro.moneda === 'USD'
-                                        ? formatMoneyUsd(cobro.monto)
-                                        : formatCurrency(cobro.montoARS ?? cobro.monto)}
-                                      {cobro.moneda === 'USD' && cobro.montoARS != null ? (
-                                        <div className={styles.arsEquivalent}>
-                                          ≈ {formatCurrency(cobro.montoARS)}
-                                        </div>
-                                      ) : null}
-                                    </td>
-                                    <td className={styles.shortCell}>{cobro.moneda || 'ARS'}</td>
-                                    <td>{cobro.metodo || '—'}</td>
-                                    <td>{cobro.motivo || 'Cobro'}</td>
-                                    <td className={styles.montoCell}>
-                                      {disc && Number(disc.montoARS) !== 0
-                                        ? formatCurrency(disc.montoARS)
-                                        : '—'}
-                                      {disc && Number(disc.montoARS) !== 0 ? (
-                                        <div className={styles.arsEquivalent}>
-                                          {promoHintFromDiscount(disc)}
-                                        </div>
-                                      ) : null}
-                                    </td>
-                                    <td>
-                                      <span className={styles.breakdownActions}>
-                                        <button
-                                          type="button"
-                                          className={styles.editIconButton}
-                                          onClick={() => openEditCobroForm(cobro)}
-                                          title="Editar cobro"
-                                          data-testid={`cobro-edit-${cobro.id}`}
-                                        >
-                                          <FaEdit />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className={styles.deleteIconButton}
-                                          onClick={() => handleDeleteCobro(cobro)}
-                                          title="Anular cobro"
-                                          data-testid={`cobro-delete-${cobro.id}`}
-                                          disabled={!onDeleteCobro}
-                                        >
-                                          <FaTrash />
-                                        </button>
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+            <section className={styles.finSection} aria-labelledby="fin-cargos-title">
+              <div className={styles.finSectionHead} data-testid="financial-row-cargos">
+                <h4 id="fin-cargos-title" className={styles.finSectionTitle}>
+                  Cargos
+                </h4>
+                <strong className={styles.finSectionTotal} data-testid="financial-total-cargos">
+                  {formatCurrency(totalCargos)}
+                </strong>
               </div>
-            </div>
+              {tiposCargosOrdenados.length > 0 ? (
+                <ul className={styles.finGroups} data-testid="financial-detail-cargos">
+                  {tiposCargosOrdenados.map((tipo) => {
+                    const key = `cargo:${tipo.codigo}`;
+                    const items = tipo.items || [];
+                    return (
+                      <li key={tipo.codigo} className={styles.finGroup}>
+                        {renderToggle(key, tipo.nombre, cantidad(items.length, 'cargo', 'cargos'), tipo.total, {
+                          row: `financial-group-${tipo.codigo}`
+                        })}
+                        {expanded.has(key) ? renderGroupItems(items) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : cargoItems.length > 0 ? (
+                <ul className={styles.finItems} data-testid="financial-detail-cargos">
+                  {cargoItems.map(renderCargoItem)}
+                </ul>
+              ) : (
+                <p className={styles.finEmpty}>Sin cargos registrados.</p>
+              )}
+            </section>
+
+            <section className={styles.finSection} aria-label="Cobros">
+              {renderToggle(
+                'cobros',
+                <span className={styles.finSectionTitle}>Cobros</span>,
+                cantidad(cobroItems.length, 'registro', 'registros'),
+                totalCobros,
+                { row: 'financial-row-cobros', meta: 'financial-cobros-count', total: 'financial-total-cobros' }
+              )}
+              {expanded.has('cobros') ? (
+                <div data-testid="financial-detail-cobros">
+                  {cobroItems.length === 0 ? (
+                    <p className={styles.finEmpty}>Sin cobros registrados.</p>
+                  ) : (
+                    <div className={styles.cobrosTableScroll}>
+                      <table
+                        className={`${styles.dataTable} ${styles.cobrosTable}`}
+                        data-testid="financial-cobros-table"
+                      >
+                        <thead>
+                          <tr>
+                            <th className={styles.shortCell}>Código</th>
+                            <th>Fecha</th>
+                            <th className={styles.montoCell}>Monto</th>
+                            <th className={styles.shortCell}>Moneda</th>
+                            <th>Método</th>
+                            <th>Motivo</th>
+                            <th className={styles.montoCell}>Descuento</th>
+                            <th aria-label="Acciones" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cobroItems.map((cobro) => {
+                            const disc = cobro.discountApplication;
+                            const codigo = cobro.cobroCodigo || cobro.codigo || `#${cobro.id}`;
+                            return (
+                              <tr
+                                key={cobro.imputacionId || cobro.id}
+                                data-testid={`financial-cobro-row-${cobro.imputacionId || cobro.id}`}
+                              >
+                                <td className={styles.shortCell}>
+                                  {codigo}
+                                  {cobro.esImputacionParcial
+                                    ? ` · parte de ${formatCurrency(cobro.pagoTotalARS)}`
+                                    : ''}
+                                </td>
+                                <td>{formatDate(cobro.fecha)}</td>
+                                <td className={styles.montoCell}>
+                                  {cobro.moneda === 'USD'
+                                    ? formatMoneyUsd(cobro.monto)
+                                    : formatCurrency(cobro.montoARS ?? cobro.monto)}
+                                  {cobro.moneda === 'USD' && cobro.montoARS != null ? (
+                                    <div className={styles.arsEquivalent}>≈ {formatCurrency(cobro.montoARS)}</div>
+                                  ) : null}
+                                </td>
+                                <td className={styles.shortCell}>{cobro.moneda || 'ARS'}</td>
+                                <td>{cobro.metodo || '—'}</td>
+                                <td>{cobro.motivo || 'Cobro'}</td>
+                                <td className={styles.montoCell}>
+                                  {disc && Number(disc.montoARS) !== 0 ? formatCurrency(disc.montoARS) : '—'}
+                                  {disc && Number(disc.montoARS) !== 0 ? (
+                                    <div className={styles.arsEquivalent}>{promoHintFromDiscount(disc)}</div>
+                                  ) : null}
+                                </td>
+                                <td>
+                                  <span className={styles.breakdownActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.editIconButton}
+                                      onClick={() => openEditCobroForm(cobro)}
+                                      title="Editar cobro"
+                                      aria-label={`Editar cobro ${codigo}`}
+                                      data-testid={`cobro-edit-${cobro.id}`}
+                                    >
+                                      <FaEdit />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.deleteIconButton}
+                                      onClick={() => handleDeleteCobro(cobro)}
+                                      title="Anular cobro"
+                                      aria-label={`Anular cobro ${codigo}`}
+                                      data-testid={`cobro-delete-${cobro.id}`}
+                                      disabled={!onDeleteCobro}
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </section>
           </div>
 
           <aside
@@ -735,19 +770,6 @@ const EstadoFinancieroTab = ({
                 {formatCurrency(totalCargos)}
               </strong>
             </div>
-            {tiposCargosOrdenados.length > 0 ? (
-              <ul className={styles.summaryPanelSublist} data-testid="summary-cargos-breakdown">
-                {tiposCargosOrdenados.map((tipo) => (
-                  <li key={tipo.codigo}>
-                    <span>{tipo.nombre}</span>
-                    <span>{formatCurrency(tipo.total)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <p className={styles.summaryPanelHint}>
-              Incluye tarifas con promociones de tarifa ya aplicadas en los cargos.
-            </p>
 
             <div className={styles.summaryPanelRow}>
               <span>Total de cobros</span>
@@ -778,9 +800,7 @@ const EstadoFinancieroTab = ({
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className={styles.summaryPanelHint}>Sin descuentos por medio de pago.</p>
-            )}
+            ) : null}
 
             <div
               className={`${styles.summaryPanelSaldo} ${styles[estadoCobro]}`}
