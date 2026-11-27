@@ -102,6 +102,13 @@ const SERVICE_NAME_ALIASES = {
   media_pension: ['Desayuno y Media Pensi├│n', 'Media Pensi├│n', 'Media pensi├│n'],
 };
 
+/** Régimen de comidas interno de cada servicio canónico (genera PrestacionComida). */
+const SERVICE_MEAL_FLAGS = {
+  solo_alojamiento: { incluyeDesayuno: false, incluyeCena: false },
+  desayuno_riviera: { incluyeDesayuno: true, incluyeCena: false },
+  media_pension: { incluyeDesayuno: true, incluyeCena: true },
+};
+
 function normalizeServiceName(name) {
   return String(name || '')
     .normalize('NFD')
@@ -223,6 +230,7 @@ async function ensureServiceTypes(hotelId, serviceTypes, dryRun) {
           description: st.description,
           orderIndex: st.orderIndex,
           isActive: true,
+          ...(SERVICE_MEAL_FLAGS[st.key] || {}),
         },
       });
       all.push(created);
@@ -247,6 +255,7 @@ async function ensureServiceTypes(hotelId, serviceTypes, dryRun) {
           description: st.description,
           orderIndex: st.orderIndex,
           isActive: true,
+          ...(SERVICE_MEAL_FLAGS[st.key] || {}),
         },
       });
       const idx = all.findIndex((row) => row.id === keep.id);

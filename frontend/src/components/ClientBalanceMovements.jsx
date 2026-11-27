@@ -140,6 +140,14 @@ const ClientBalanceMovements = ({
   };
 
   const openEditCargo = (cargo) => {
+    if (cargo.comandaId) {
+      notify({
+        title: 'No editable',
+        message: `Este cargo pertenece a la comanda #${cargo.comandaId}. Para corregirlo, quitá la línea y volvé a cargarla.`,
+        type: 'warning'
+      });
+      return;
+    }
     if (!cargo.editable) {
       notify({
         title: 'No editable',
@@ -166,7 +174,7 @@ const ClientBalanceMovements = ({
 
   const handleDeleteCargo = async (cargo) => {
     if (!cargo?.id || deletingId === `cargo-${cargo.id}`) return;
-    if (!cargo.editable) {
+    if (!cargo.editable && !cargo.comandaId) {
       notify({
         title: 'No eliminable',
         message:
@@ -175,11 +183,19 @@ const ClientBalanceMovements = ({
       });
       return;
     }
-    const ok = await confirm({
-      title: 'Eliminar cargo',
-      message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"? Esta acción no se puede deshacer.`,
-      confirmText: 'Eliminar'
-    });
+    const ok = await confirm(
+      cargo.comandaId
+        ? {
+            title: 'Quitar de la comanda',
+            message: `¿Quitar "${cargo.descripcion || 'Cargo'}" de la comanda #${cargo.comandaId}? Si es la última línea, la comanda queda anulada.`,
+            confirmText: 'Quitar'
+          }
+        : {
+            title: 'Eliminar cargo',
+            message: `¿Eliminar el cargo "${cargo.descripcion || 'Cargo'}"? Esta acción no se puede deshacer.`,
+            confirmText: 'Eliminar'
+          }
+    );
     if (!ok) return;
 
     setDeletingId(`cargo-${cargo.id}`);
@@ -204,9 +220,9 @@ const ClientBalanceMovements = ({
     if (!cobro?.id || deletingId === `cobro-${cobro.id}`) return;
     const codigo = cobro.codigo || `#${cobro.id}`;
     const ok = await confirm({
-      title: 'Eliminar cobro',
-      message: `¿Eliminar el cobro ${codigo}? Esta acción no se puede deshacer.`,
-      confirmText: 'Eliminar'
+      title: 'Anular cobro',
+      message: `¿Anular el cobro ${codigo}? Queda registrado como anulado y deja de sumar en caja y saldos. No se puede revertir.`,
+      confirmText: 'Anular'
     });
     if (!ok) return;
 
@@ -215,12 +231,12 @@ const ClientBalanceMovements = ({
       await deleteCobro(cobro.id);
       clearSelectionIf((s) => s.type === 'cobro' && s.id === cobro.id);
       if (editingCobro?.id === cobro.id) setEditingCobro(null);
-      notify({ title: 'Cobro eliminado', message: 'El cobro se eliminó correctamente.', type: 'success' });
+      notify({ title: 'Cobro anulado', message: `El cobro ${codigo} quedó anulado.`, type: 'success' });
       if (onChanged) await onChanged();
     } catch (err) {
       notify({
         title: 'No se pudo eliminar',
-        message: err?.message || 'Error al eliminar el cobro',
+        message: err?.message || 'Error al anular el cobro',
         type: 'error'
       });
     } finally {
@@ -403,8 +419,8 @@ const ClientBalanceMovements = ({
                             <button
                               type="button"
                               className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                              title="Eliminar cobro"
-                              aria-label="Eliminar cobro"
+                              title="Anular cobro"
+                              aria-label="Anular cobro"
                               data-testid={`client-cobro-delete-${cobro.id}`}
                               disabled={deletingId === `cobro-${cobro.id}`}
                               onClick={(e) => {
@@ -619,7 +635,7 @@ const ClientBalanceMovements = ({
                 data-testid="client-cobro-detail-delete"
                 disabled={deletingId === `cobro-${selectedCobro.id}`}
               >
-                <FaTrash aria-hidden="true" /> Eliminar cobro
+                <FaTrash aria-hidden="true" /> Anular cobro
               </button>
             </div>
           </dl>

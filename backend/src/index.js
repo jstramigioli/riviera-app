@@ -1,13 +1,12 @@
 require('dotenv').config();
 
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('./utils/prisma');
 const app = require('./app');
 
 const PORT = Number(process.env.PORT) || 3001;
 const isTest = process.env.NODE_ENV === 'test';
 const isDev = process.env.NODE_ENV !== 'production' && !isTest;
 
-const prisma = new PrismaClient();
 
 function describeDatabaseUrl(url = process.env.DATABASE_URL || '') {
   const m = String(url).match(/^"?postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^\s"'?]+)/);

@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const { normalizeDishName } = require('../utils/dishNameNorm');
 const {
   sectionToDishCategory,
@@ -10,7 +9,7 @@ const {
   MESA_ENSALADAS
 } = require('../services/dailyMenuPdf');
 
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 const VALID_KINDS = new Set(['CONVENTIONAL', 'BUFFET']);
 const VALID_STATUSES = new Set(['DRAFT', 'PUBLISHED']);

@@ -62,11 +62,15 @@ function realTodayIsoLocal() {
 }
 
 /**
+ * La fecha simulada es una herramienta de debug solo para ADMIN (CLAUDE.md §5).
+ * `req.user` lo setea requireAuth con el rol real de la sesión (la simulación de rol
+ * es solo del FE), así otro rol no puede fechar cobros/caja enviando el header.
  * @param {import('express').Request|null|undefined} req
  * @returns {string|null} yyyy-MM-dd
  */
 function getSimulatedTodayFromRequest(req) {
   if (!req || !req.headers) return null;
+  if (req.user?.role !== 'ADMIN') return null;
   const raw = req.headers[SIMULATED_TODAY_HEADER];
   if (raw == null || raw === '') return null;
   const iso = String(Array.isArray(raw) ? raw[0] : raw)

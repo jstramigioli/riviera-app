@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DayInfoSidePanel from './DayInfoSidePanel';
@@ -13,6 +13,12 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => navigateMock
   };
 });
+
+// Desayunos / cenas vienen del backend (/api/comidas).
+vi.mock('../services/api', () => ({
+  fetchComidasDelDia: vi.fn()
+}));
+import { fetchComidasDelDia } from '../services/api';
 
 vi.mock('./SidePanel', () => ({
   default: ({ children, title, open, onClose }) => {
@@ -73,6 +79,13 @@ describe('DayInfoSidePanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchComidasDelDia.mockResolvedValue({
+      data: {
+        fecha: '2024-01-02',
+        desayunos: { total: 5, items: [] },
+        cenas: { total: 3, items: [] }
+      }
+    });
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
@@ -123,7 +136,7 @@ describe('DayInfoSidePanel', () => {
     expect(screen.queryByText(/Información del/i)).not.toBeInTheDocument();
   });
 
-  it('muestra ingresos/egresos en columnas con habitación - huésped y ocupación', () => {
+  it('muestra ingresos/egresos en columnas con habitación - huésped y ocupación', async () => {
     const onClose = vi.fn();
     renderPanel(
       <DayInfoSidePanel
@@ -153,7 +166,7 @@ describe('DayInfoSidePanel', () => {
     expect(navigateMock).toHaveBeenCalledWith('/reservations/2');
 
     // Conteos del día (sin palabra «Total»)
-    // Día 2: noche Juan(2)+María(1)=3; habs 2; desayuno Juan(2)+Carlos(3)=5; cena=3
+    // Día 2: noche Juan(2)+María(1)=3; habs 2; desayuno 5 y cena 3 según el backend
     expect(screen.getByText('Pasajeros')).toBeInTheDocument();
     expect(screen.getByText('Habitaciones ocupadas')).toBeInTheDocument();
     expect(screen.getByText('Desayuno')).toBeInTheDocument();
@@ -164,8 +177,11 @@ describe('DayInfoSidePanel', () => {
     expect(screen.getByText('Habitaciones ocupadas').parentElement).toHaveTextContent(
       /^Habitaciones ocupadas\s*2$/
     );
-    expect(screen.getByText('Desayuno').parentElement).toHaveTextContent(/^Desayuno\s*5$/);
+    await waitFor(() =>
+      expect(screen.getByText('Desayuno').parentElement).toHaveTextContent(/^Desayuno\s*5$/)
+    );
     expect(screen.getByText('Cena').parentElement).toHaveTextContent(/^Cena\s*3$/);
+    expect(fetchComidasDelDia).toHaveBeenCalledWith('2024-01-02');
 
     // Barras de ocupación con %
     expect(screen.getByText('Ocupación habitaciones')).toBeInTheDocument();

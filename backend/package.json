@@ -19,7 +19,8 @@
     "seed:tarifas-2026-27:replace": "node prisma/seed-tarifas-2026-27.js --replace",
     "extract:tarifas-2026-27": "node scripts/extract-tarifas-2026-27.js",
     "seed:users": "node prisma/seed-users.js",
-    "seed:menu-consumos": "node prisma/seed-menu-consumos.js"
+    "seed:menu-consumos": "node prisma/seed-menu-consumos.js",
+    "sync:comidas": "node scripts/sync-prestaciones-comida.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

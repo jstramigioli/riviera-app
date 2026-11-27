@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const dynamicPricingService = require('./dynamicPricingService');
 
 class ReservationPricingService {

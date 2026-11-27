@@ -3436,7 +3436,7 @@ export default function Consulta() {
           return;
         }
 
-        await updateReservation(editingReservationId, {
+        const updatedReservation = await updateReservation(editingReservationId, {
           mainClientId: clientId,
           status: status || editingReservationStatus || 'PENDIENTE',
           notes: notes,
@@ -3453,6 +3453,16 @@ export default function Consulta() {
           deselectedRuleIds: reservationData.deselectedRuleIds,
           benefitValueByRuleId: reservationData.benefitValueByRuleId
         });
+        const saveWarnings = Array.isArray(updatedReservation?.warnings) ? updatedReservation.warnings : [];
+        if (saveWarnings.length) {
+          notify({
+            title: 'Reserva guardada con advertencias',
+            message: saveWarnings.map((w) => w.message).join(' '),
+            type: 'warning',
+            onClose: () => navigate(`/reservations/${editingReservationId}`),
+          });
+          return;
+        }
         notify({
           title: 'Reserva actualizada',
           message: applyRateChanges

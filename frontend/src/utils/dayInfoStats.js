@@ -7,10 +7,8 @@
  * - Pasajeros alojados: por reserva (colapsando secundarios de virtual).
  * - Ocupación pasajeros % = totalGuests / Σ maxPeople * 100
  * - Ingresos/salidas (pasajeros): tamaño del grupo que llega/sale ese día civil.
- * - Desayuno (fecha): start < day <= end (check-in NO; check-out SÍ).
- * - Cena (fecha): start <= day < end (check-in SÍ; check-out NO).
- * - Servicio: solo alojamiento → ninguna comida; solo desayuno → desayuno;
- *   media pensión → ambas (siempre ∩ reglas de fecha).
+ * - Desayunos y cenas: los calcula el backend (PrestacionComida, GET /api/comidas);
+ *   ver hooks/useComidasDelDia.js.
  */
 
 function civilOf(value) {
@@ -49,32 +47,6 @@ function segmentsCoveringDay(segments, dayIso) {
   });
 }
 
-function previousCivilDay(dayIso) {
-  const [y, m, d] = String(dayIso).split('-').map(Number);
-  if (![y, m, d].every(Number.isFinite)) return null;
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() - 1);
-  return dt.toISOString().slice(0, 10);
-}
-
-function normalizeServiceToken(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function buildServiceTypesById(serviceTypes) {
-  const map = new Map();
-  for (const st of serviceTypes || []) {
-    if (st?.id != null) map.set(String(st.id), st);
-  }
-  return map;
-}
-
 /** Ref de servicio de un segmento / reserva (ID, key o nombre). */
 export function primaryServiceRef(segs, reservation) {
   for (const seg of segs || []) {
@@ -87,66 +59,6 @@ export function primaryServiceRef(segs, reservation) {
     reservation?.serviceType ||
     (Array.isArray(reservation?.services) ? reservation.services[0] : null) ||
     null
-  );
-}
-
-/**
- * Flags de comida según servicio canónico / nombre.
- * - media pensión → desayuno + cena
- * - solo desayuno → desayuno
- * - solo alojamiento / sin desayuno → ninguna
- */
-export function mealFlagsFromServiceRef(ref, serviceTypesById = new Map()) {
-  if (ref == null || ref === '') {
-    return { breakfast: false, dinner: false };
-  }
-
-  const tokens = [String(ref)];
-  const st = serviceTypesById.get(String(ref));
-  if (st?.name) tokens.push(st.name);
-  if (st?.description) tokens.push(st.description);
-  if (st?.id) tokens.push(String(st.id));
-
-  const blob = tokens.map(normalizeServiceToken).filter(Boolean).join(' ');
-  if (!blob) return { breakfast: false, dinner: false };
-
-  // Media pensión primero (el nombre canónico incluye «desayuno»).
-  if (
-    blob.includes('media_pension') ||
-    blob.includes('half_board') ||
-    blob === 'half' ||
-    blob.includes('half')
-  ) {
-    return { breakfast: true, dinner: true };
-  }
-
-  if (
-    blob.includes('solo_alojamiento') ||
-    blob.includes('sin_desayuno') ||
-    blob === 'lodging' ||
-    blob === 'base' ||
-    (blob.includes('alojamiento') &&
-      !blob.includes('desayuno') &&
-      !blob.includes('pension'))
-  ) {
-    return { breakfast: false, dinner: false };
-  }
-
-  if (
-    blob.includes('desayuno') ||
-    blob.includes('breakfast') ||
-    blob.includes('con_desayuno')
-  ) {
-    return { breakfast: true, dinner: false };
-  }
-
-  return { breakfast: false, dinner: false };
-}
-
-function mealFlagsForSegments(segs, reservation, serviceTypesById) {
-  return mealFlagsFromServiceRef(
-    primaryServiceRef(segs, reservation),
-    serviceTypesById
   );
 }
 
@@ -363,19 +275,13 @@ function movementItem(reservation, segments, dayIso, kind, roomsById) {
   };
 }
 
-export function computeDayInfoStats(
-  dayIso,
-  rooms = [],
-  reservations = [],
-  serviceTypes = []
-) {
+export function computeDayInfoStats(dayIso, rooms = [], reservations = []) {
   const totalRooms = rooms?.length || 0;
   const totalGuestCapacity = (rooms || []).reduce(
     (sum, room) => sum + roomCapacity(room),
     0
   );
   const roomsById = buildRoomsById(rooms);
-  const serviceTypesById = buildServiceTypesById(serviceTypes);
 
   if (!dayIso) {
     return {
@@ -390,9 +296,7 @@ export function computeDayInfoStats(
       totalGuestCapacity,
       roomOccupancyPercentage: 0,
       totalGuests: 0,
-      guestOccupancyPercentage: 0,
-      breakfastGuests: 0,
-      dinnerGuests: 0
+      guestOccupancyPercentage: 0
     };
   }
 
@@ -400,12 +304,8 @@ export function computeDayInfoStats(
   let checkIns = 0;
   let checkOuts = 0;
   let totalGuests = 0;
-  let breakfastGuests = 0;
-  let dinnerGuests = 0;
   const checkInItems = [];
   const checkOutItems = [];
-  const prevDay = previousCivilDay(dayIso);
-
   for (const reservation of reservations || []) {
     if (NON_OCCUPYING.has(reservation.status)) continue;
 
@@ -419,48 +319,11 @@ export function computeDayInfoStats(
         if (seg.roomId != null) occupiedRoomIds.add(seg.roomId);
       }
       if (covering.length) {
-        const nightGuests = guestsForCoveringSegments(reservation, covering);
-        totalGuests += nightGuests;
-        const dinnerFlags = mealFlagsForSegments(
-          covering,
-          reservation,
-          serviceTypesById
-        );
-        if (dinnerFlags.dinner) dinnerGuests += nightGuests;
+        totalGuests += guestsForCoveringSegments(reservation, covering);
       }
     } else if (start && end && start <= dayIso && dayIso < end) {
       occupiedRoomIds.add(reservation.roomId || reservation.id);
-      const nightGuests = partySize(reservation, []);
-      totalGuests += nightGuests;
-      const dinnerFlags = mealFlagsForSegments([], reservation, serviceTypesById);
-      if (dinnerFlags.dinner) dinnerGuests += nightGuests;
-    }
-
-    // Desayuno: mañana del día civil (no check-in; sí check-out) ∩ servicio.
-    if (start && end && start < dayIso && dayIso <= end) {
-      const prevCovering = prevDay
-        ? segmentsCoveringDay(segments, prevDay)
-        : [];
-      const breakfastSegs = prevCovering.length
-        ? prevCovering
-        : segments.filter(
-            (s) => civilOf(s.endDate ?? s.checkOut) === dayIso
-          );
-      const breakfastFlags = mealFlagsForSegments(
-        breakfastSegs.length ? breakfastSegs : segments,
-        reservation,
-        serviceTypesById
-      );
-      if (breakfastFlags.breakfast) {
-        if (dayIso === end || !covering.length) {
-          breakfastGuests += partySize(
-            reservation,
-            breakfastSegs.length ? breakfastSegs : segments
-          );
-        } else {
-          breakfastGuests += guestsForCoveringSegments(reservation, covering);
-        }
-      }
+      totalGuests += partySize(reservation, []);
     }
 
     if (start === dayIso) {
@@ -496,8 +359,6 @@ export function computeDayInfoStats(
     totalGuestCapacity,
     roomOccupancyPercentage,
     totalGuests,
-    guestOccupancyPercentage,
-    breakfastGuests,
-    dinnerGuests
+    guestOccupancyPercentage
   };
 }

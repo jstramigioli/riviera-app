@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
+import CenasTab from '../components/configuracion/CenasTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
@@ -11,6 +12,7 @@ import PromocionesTab from '../components/configuracion/PromocionesTab';
 import UsuariosTab from '../components/configuracion/UsuariosTab';
 import Auditoria from './Auditoria';
 import { useAuth } from '../contexts/AuthContext';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { CARGOS_SUBTABS, filterConfigNav, getEnabledConfigNav } from './configNav';
 import styles from './Configuracion.module.css';
 
@@ -27,7 +29,9 @@ function readInitialCargosSub() {
 function ConfiguracionView() {
   const [searchParams] = useSearchParams();
   const { can } = useAuth();
+  const { confirm, confirmDialog } = useConfirmDialog();
   const [navQuery, setNavQuery] = useState('');
+  const cenasDirtyRef = useRef(false);
 
   const enabledNav = useMemo(() => getEnabledConfigNav(can), [can]);
   const visibleNav = useMemo(
@@ -47,6 +51,15 @@ function ConfiguracionView() {
   });
 
   const [cargosSubTab, setCargosSubTab] = useState(readInitialCargosSub);
+  const [cenasMounted, setCenasMounted] = useState(() => activeTab === 'cenas');
+
+  useEffect(() => {
+    if (activeTab === 'cenas') setCenasMounted(true);
+  }, [activeTab]);
+
+  const handleCenasDirtyChange = useCallback((dirty) => {
+    cenasDirtyRef.current = Boolean(dirty);
+  }, []);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -73,7 +86,21 @@ function ConfiguracionView() {
     localStorage.setItem('cargosTarifasActiveTab', cargosSubTab);
   }, [cargosSubTab]);
 
-  const selectSection = (sectionId, subId) => {
+  const selectSection = async (sectionId, subId) => {
+    if (
+      activeTab === 'cenas' &&
+      sectionId !== 'cenas' &&
+      cenasDirtyRef.current
+    ) {
+      const ok = await confirm({
+        title: 'Cambios sin guardar',
+        message:
+          'Hay precios de cenas sin guardar. Si salís ahora, los borradores se mantienen en esta sesión, pero no se guardaron en el servidor. ¿Continuar?',
+        confirmText: 'Continuar',
+        cancelText: 'Seguir editando'
+      });
+      if (!ok) return;
+    }
     setActiveTab(sectionId);
     if (sectionId === 'cargos-tarifas' && subId && CARGOS_SUB_IDS.has(subId)) {
       setCargosSubTab(subId);
@@ -84,50 +111,81 @@ function ConfiguracionView() {
   };
 
   const renderTabContent = () => {
+    let activePanel = null;
     switch (activeTab) {
       case 'hotel':
-        return <HotelConfigPanel />;
+        activePanel = <HotelConfigPanel />;
+        break;
       case 'habitaciones':
-        return <HabitacionesTab />;
+        activePanel = <HabitacionesTab />;
+        break;
       case 'cargos-tarifas':
-        return (
+        activePanel = (
           <CargosTarifasTab
             forcedSubTab={cargosSubTab}
             onSubTabChange={setCargosSubTab}
           />
         );
+        break;
       case 'menu-consumos':
-        return <MenuConsumosTab />;
+        activePanel = <MenuConsumosTab />;
+        break;
+      case 'cenas':
+        activePanel = null;
+        break;
       case 'calendario':
-        return <CalendarioTab />;
+        activePanel = <CalendarioTab />;
+        break;
       case 'tipo-cambio':
-        return <TipoCambioConfig />;
+        activePanel = <TipoCambioConfig />;
+        break;
       case 'medios-pago':
-        return <MediosPagoTab />;
+        activePanel = <MediosPagoTab />;
+        break;
       case 'promociones':
-        return <PromocionesTab />;
+        activePanel = <PromocionesTab />;
+        break;
       case 'usuarios':
-        return <UsuariosTab />;
+        activePanel = <UsuariosTab />;
+        break;
       case 'sistema':
-        return (
+        activePanel = (
           <div className={styles.placeholder}>
             <h3>Configuración del Sistema</h3>
             <p>Esta funcionalidad estará disponible próximamente.</p>
           </div>
         );
+        break;
       case 'auditoria':
-        return <Auditoria />;
+        activePanel = <Auditoria />;
+        break;
       default:
-        if (validTabIds.has('habitaciones')) return <HabitacionesTab />;
-        if (validTabIds.has('promociones')) return <PromocionesTab />;
-        if (validTabIds.has('medios-pago')) return <MediosPagoTab />;
-        if (validTabIds.has('auditoria')) return <Auditoria />;
-        return null;
+        if (validTabIds.has('habitaciones')) activePanel = <HabitacionesTab />;
+        else if (validTabIds.has('promociones')) activePanel = <PromocionesTab />;
+        else if (validTabIds.has('medios-pago')) activePanel = <MediosPagoTab />;
+        else if (validTabIds.has('auditoria')) activePanel = <Auditoria />;
+        else activePanel = null;
     }
+
+    return (
+      <>
+        {activeTab !== 'cenas' ? activePanel : null}
+        {cenasMounted ? (
+          <div
+            className={activeTab === 'cenas' ? undefined : styles.keepAliveHidden}
+            hidden={activeTab !== 'cenas'}
+            aria-hidden={activeTab !== 'cenas'}
+          >
+            <CenasTab onDirtyChange={handleCenasDirtyChange} />
+          </div>
+        ) : null}
+      </>
+    );
   };
 
   return (
     <div className={styles.newLayout}>
+      {confirmDialog}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <h2>Configuración</h2>

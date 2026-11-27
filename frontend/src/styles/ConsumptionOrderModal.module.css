@@ -77,6 +77,66 @@
   color: var(--color-text-secondary);
 }
 
+/* Ámbito: mismo patrón segmentado que Cobros (radio accesible). */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-white);
+}
+
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.4rem 0.35rem;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.segment:nth-child(2n) {
+  border-right: none;
+}
+
+.segment:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+.segment:hover:not(.segmentActive) {
+  background: var(--color-bg);
+  color: var(--color-text-dark);
+}
+
+.segmentActive {
+  background: var(--color-primary);
+  color: var(--color-text-light);
+}
+
+.segmentInput {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment:has(.segmentInput:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
 .select,
 .dateInput,
 .qty,
@@ -580,4 +640,48 @@
     flex: 1 1 auto;
     justify-content: center;
   }
+}
+
+/* Modo «agregar a comanda»: encabezado fijo de la comanda. */
+.comandaSummary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.comandaSummary dd {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-base);
+  color: var(--color-text-main);
+}
+
+.comandaItems {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+/* Almuerzo sin cargo (Minutas) */
+.beneficioBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  color: var(--color-text-dark);
+  font-size: var(--font-size-medium);
+  cursor: pointer;
+}
+
+.beneficioBar input {
+  accent-color: var(--color-primary);
+}
+
+.sinCargo {
+  color: var(--color-success-dark);
+  font-weight: 600;
 }

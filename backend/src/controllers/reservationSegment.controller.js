@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { safeSyncPrestacionesComida } = require('../utils/prestacionesComida');
+const prisma = require('../utils/prisma');
 
 // Obtener todos los segmentos de una reserva
 const getReservationSegments = async (req, res) => {
@@ -151,6 +151,7 @@ const createSegment = async (req, res) => {
       }
     });
 
+    await safeSyncPrestacionesComida(segment.reservationId);
     res.status(201).json(segment);
   } catch (error) {
     console.error('Error creating segment:', error);
@@ -258,6 +259,7 @@ const updateSegment = async (req, res) => {
       }
     });
 
+    await safeSyncPrestacionesComida(updatedSegment.reservationId);
     res.json(updatedSegment);
   } catch (error) {
     console.error('Error updating segment:', error);
@@ -284,6 +286,7 @@ const deleteSegment = async (req, res) => {
       data: { isActive: false }
     });
 
+    await safeSyncPrestacionesComida(segment.reservationId);
     res.json({ message: 'Segmento eliminado exitosamente' });
   } catch (error) {
     console.error('Error deleting segment:', error);
@@ -377,6 +380,7 @@ const autoSplitReservation = async (req, res) => {
       segments.push(segment);
     }
 
+    await safeSyncPrestacionesComida(reservationId);
     res.json(segments);
   } catch (error) {
     console.error('Error auto-splitting reservation:', error);

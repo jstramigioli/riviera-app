@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 // Obtener todos los tipos de servicio de un bloque específico
 const getBlockServiceTypes = async (req, res) => {

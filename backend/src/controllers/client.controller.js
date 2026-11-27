@@ -409,6 +409,9 @@ exports.getClientBalance = async (req, res) => {
                 serviceTypeId: true,
                 subcategoriaCargo: {
                   select: { id: true, nombre: true, tipo: true }
+                },
+                comandaItem: {
+                  select: { comanda: { select: { id: true, ambito: true } } }
                 }
               },
               orderBy: { fecha: 'desc' }
@@ -487,7 +490,10 @@ exports.getClientBalance = async (req, res) => {
             subcategoriaCargoId: cargo.subcategoriaCargoId || null,
             subcategoriaNombre: cargo.subcategoriaCargo?.nombre || null,
             tipoCargo: cargo.subcategoriaCargo?.tipo || (cargo.roomTypeId ? 'ALOJAMIENTO' : null),
-            editable: Boolean(cargo.subcategoriaCargoId)
+            comandaId: cargo.comandaItem?.comanda?.id ?? null,
+            comandaAmbito: cargo.comandaItem?.comanda?.ambito ?? null,
+            // Cargos de comanda: no se editan sueltos (se quitan de la comanda).
+            editable: Boolean(cargo.subcategoriaCargoId) && !cargo.comandaItem
           });
         }
         for (const imp of account.imputaciones || []) {

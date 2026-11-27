@@ -318,10 +318,15 @@ model Reservation {
   account             Account?
   /// Reservas de comedor vinculadas a esta estadía (cenas adicionales; no MP).
   diningReservations  DiningReservation[]
+  comandas            Comanda[]
+  prestacionesComida  PrestacionComida[]
+  beneficiosGastronomicos BeneficioGastronomico[]
 
   @@index([createdAt])
   @@index([updatedAt])
   @@index([source])
+  /// Perfil de cliente: reservas del titular.
+  @@index([mainClientId])
 }
 
 enum AccountKind {
@@ -355,6 +360,7 @@ model Account {
   imputaciones          CobroImputacion[]
   discountApplications  DiscountApplication[]
   diningReservations    DiningReservation[]
+  comandas              Comanda[]
 
   @@index([kind, status])
   @@index([clientId])
@@ -888,6 +894,9 @@ model ServiceType {
   description            String?
   isActive               Boolean                 @default(true)
   orderIndex             Int                     @default(0)
+  /// Régimen de comidas (interno; no se edita desde la UI). Genera PrestacionComida.
+  incluyeDesayuno        Boolean                 @default(false)
+  incluyeCena            Boolean                 @default(false)
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   blockServiceSelections BlockServiceSelection[]
@@ -950,6 +959,10 @@ model ReservationSegment {
   room                 Room         @relation(fields: [roomId], references: [id])
   roomType             RoomType?    @relation(fields: [roomTypeId], references: [id])
   virtualRoom          VirtualRoom? @relation(fields: [virtualRoomId], references: [id])
+
+  /// Disponibilidad / Libro: tramos por habitación y rango; detalle por reserva.
+  @@index([roomId, startDate, endDate])
+  @@index([reservationId])
 }
 
 /// Ingreso de caja. El crédito de folio vive en CobroImputacion (1..N).
@@ -992,6 +1005,13 @@ model Cobro {
   adjuntos                CobroAdjunto[]
   imputaciones            CobroImputacion[]
   discountApplications    DiscountApplication[]
+  /// Anulación (no se borra): fecha, quién, motivo y foto de dónde estaba imputado. Un cobro anulado
+  /// no tiene imputaciones ni descuentos, ni cuenta/reserva: no suma en caja ni en saldos.
+  anuladoAt               DateTime?
+  anuladoPorId            Int?
+  anuladoPorNombre        String?
+  motivoAnulacion         String?
+  anulacionSnapshot       Json?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 
@@ -999,6 +1019,9 @@ model Cobro {
   @@index([reservaId])
   @@index([paymentMethodConfigId])
   @@index([cobroOrigenId])
+  @@index([anuladoAt])
+  /// Caja / listados por fecha.
+  @@index([fecha])
 }
 
 /// Crédito de folio: parte de un Cobro imputada a un Account/reserva.
@@ -1108,6 +1131,8 @@ model Cargo {
   subcategoriaCargo   SubcategoriaCargo? @relation(fields: [subcategoriaCargoId], references: [id], onDelete: Restrict)
   roomType            RoomType?          @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   serviceType         ServiceType?       @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  /// Línea de comanda que originó este cargo (consumos cargados por comanda).
+  comandaItem         ComandaItem?
   
   // Campos básicos
   descripcion         String
@@ -1229,6 +1254,7 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   varieties   MenuItemVariety[]
+  comandaItems ComandaItem[]
 
   @@index([category, isActive])
   @@index([category, subgroup])
@@ -1246,9 +1272,75 @@ model MenuItemVariety {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  comandaItems ComandaItem[]
 
   @@index([menuItemId])
   @@unique([menuItemId, name])
+}
+
+/// Sector donde se vendió la comanda completa (reportes por sector).
+enum AmbitoConsumo {
+  CENA
+  MINUTAS
+  CAFETERIA
+  FRIGOBAR
+}
+
+enum ComandaEstado {
+  ACTIVA
+  ANULADA
+}
+
+/// Comanda de consumos: agrupa las líneas cargadas juntas sobre una cuenta.
+/// Cada línea con cargo genera un Cargo (mecanismo económico único).
+model Comanda {
+  id            Int           @id @default(autoincrement())
+  ambito        AmbitoConsumo
+  estado        ComandaEstado @default(ACTIVA)
+  /// Fecha civil del consumo.
+  fecha         DateTime      @db.Date
+  accountId     Int
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  reservationId Int?
+  reservation   Reservation?  @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  notas         String?
+  anuladaAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         ComandaItem[]
+  /// Cena manual que originó esta comanda (si la hay).
+  prestacion    PrestacionComida?
+  /// Almuerzo sin cargo aplicado en esta comanda (si lo hay).
+  beneficio     BeneficioGastronomico?
+
+  @@index([accountId])
+  @@index([reservationId])
+  @@index([ambito, fecha])
+  @@index([fecha])
+}
+
+/// Línea de comanda con precio copiado al momento de la carga (precio histórico).
+model ComandaItem {
+  id             Int              @id @default(autoincrement())
+  comandaId      Int
+  comanda        Comanda          @relation(fields: [comandaId], references: [id], onDelete: Cascade)
+  menuItemId     Int?
+  menuItem       MenuItem?        @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  varietyId      Int?
+  variety        MenuItemVariety? @relation(fields: [varietyId], references: [id], onDelete: SetNull)
+  descripcion    String
+  cantidad       Int
+  precioUnitario Decimal          @db.Decimal(10, 2)
+  subtotal       Decimal          @db.Decimal(10, 2)
+  cargoId        Int?             @unique
+  cargo          Cargo?           @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  /// Sin cargo por beneficio (Almuerzo sin cargo): no genera Cargo; subtotal queda como referencia.
+  bonificado     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([comandaId])
+  @@index([menuItemId])
 }
 
 enum ServiceAdjustmentMode {
@@ -1427,4 +1519,103 @@ model DiningReservation {
   @@index([accountId])
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+enum TipoComida {
+  DESAYUNO
+  CENA
+}
+
+enum OrigenPrestacion {
+  /// Generada desde el servicio contratado en la reserva.
+  REGIMEN
+  /// Cargada a mano (externos / huéspedes sin media pensión).
+  MANUAL
+}
+
+enum EstadoPrestacion {
+  PREVISTA
+  CANCELADA
+}
+
+/// Comida prevista para una fecha (recuento de comensales).
+/// Las de origen REGIMEN se sincronizan desde los tramos de la reserva
+/// (backend/src/utils/prestacionesComida.js) sin pisar datos operativos.
+model PrestacionComida {
+  id                Int              @id @default(autoincrement())
+  fecha             DateTime         @db.Date
+  tipo              TipoComida
+  origen            OrigenPrestacion @default(REGIMEN)
+  /// Incluida en el régimen contratado (no genera cargo).
+  incluida          Boolean          @default(true)
+  reservationId     Int?
+  reservation       Reservation?     @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  pax               Int
+  /// Comensales editados a mano: la sincronización no los pisa.
+  paxManual         Boolean          @default(false)
+  estado            EstadoPrestacion @default(PREVISTA)
+  /// false: la fecha quedó fuera de la estadía/régimen pero se conserva por tener datos operativos.
+  vigente           Boolean          @default(true)
+  canceladaAt       DateTime?
+  motivoCancelacion String?
+  notas             String?
+  /// MANUAL de externo: nombre y teléfono de contacto.
+  nombreExterno     String?
+  telefono          String?
+  /// MANUAL: comanda de Cena generada al registrar la cena (se le agregan bebidas).
+  comandaId         Int?             @unique
+  comanda           Comanda?         @relation(fields: [comandaId], references: [id], onDelete: SetNull)
+  /// Beneficio generado al cancelar esta cena incluida.
+  beneficio         BeneficioGastronomico?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([reservationId, fecha, tipo, origen])
+  @@index([fecha, tipo])
+}
+
+enum TipoBeneficio {
+  ALMUERZO_SIN_CARGO
+}
+
+enum EstadoBeneficio {
+  DISPONIBLE
+  UTILIZADO
+  ANULADO
+}
+
+enum MotivoAnulacionBeneficio {
+  /// La reserva pasó a Finalizada (se restaura si se revierte).
+  CHECKOUT
+  /// Se reactivó la cena cancelada.
+  CENA_REACTIVADA
+  /// La fecha quedó fuera de la estadía o la reserva se canceló.
+  FUERA_DE_ESTADIA
+  /// Anulado a mano por el personal.
+  MANUAL
+}
+
+/// Beneficio gastronómico de una reserva (no es saldo monetario).
+/// «Almuerzo sin cargo»: se genera al cancelar una cena incluida y se usa en
+/// una comanda de Minutas (todo sin cargo salvo bebidas).
+model BeneficioGastronomico {
+  id              Int                       @id @default(autoincrement())
+  tipo            TipoBeneficio             @default(ALMUERZO_SIN_CARGO)
+  estado          EstadoBeneficio           @default(DISPONIBLE)
+  reservationId   Int
+  reservation     Reservation               @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  /// Cena cancelada que lo originó.
+  prestacionId    Int                       @unique
+  prestacion      PrestacionComida          @relation(fields: [prestacionId], references: [id], onDelete: Cascade)
+  /// Comanda en la que se usó.
+  comandaId       Int?                      @unique
+  comanda         Comanda?                  @relation(fields: [comandaId], references: [id], onDelete: SetNull)
+  utilizadoAt     DateTime?
+  anuladoAt       DateTime?
+  motivoAnulacion MotivoAnulacionBeneficio?
+  notas           String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([reservationId, estado])
 }

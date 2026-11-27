@@ -40,7 +40,8 @@ export default function MenuTaxonomyPanel({ onChanged }) {
         fetchMenuGroups({ includeInactive: true }),
         fetchMenuSubgroups({})
       ]);
-      const nextGroups = gRes.data || [];
+      // Cenas se administra en Configuración → Cenas.
+      const nextGroups = (gRes.data || []).filter((g) => g.code !== 'CENAS');
       setGroups(nextGroups);
       setSubgroups(sRes.data || []);
       setSubForm((f) => ({

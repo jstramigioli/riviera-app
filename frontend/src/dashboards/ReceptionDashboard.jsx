@@ -28,6 +28,7 @@ import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
+import { useComidasDelDia } from '../hooks/useComidasDelDia';
 import styles from './ReceptionDashboard.module.css';
 
 const NOTES_PLACEHOLDER = 'Agregar notas…';
@@ -281,6 +282,9 @@ export default function ReceptionDashboard() {
     [todayIso, mealsDateIso, rooms, reservations, serviceTypes, horizonDays]
   );
 
+  // Comidas previstas: vienen del backend (prestaciones según régimen); se recargan con las reservas.
+  const { comidas: meals, error: mealsError } = useComidasDelDia(mealsDateIso, reservations);
+
   const openReservation = (reservationId) => {
     if (reservationId == null) return;
     navigate(`/reservations/${reservationId}`);
@@ -421,7 +425,6 @@ export default function ReceptionDashboard() {
     );
   }
 
-  const { meals } = model;
 
   const renderSaldoCell = (reservationId) => {
     const bal = balancesByReservationId.get(Number(reservationId));
@@ -515,11 +518,11 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableIn}`}>
                     <thead>
                       <tr>
-                        <th className={styles.colReserva}>Nº reserva</th>
+                        <th className={styles.colReserva} title="Número de reserva">Reserva</th>
                         <th className={styles.colName}>Nombre</th>
-                        <th className={styles.colGuests}>Huéspedes</th>
-                        <th className={styles.colRoom}>Habitación</th>
-                        <th className={styles.colService}>Tipo de servicio</th>
+                        <th className={styles.colGuests} title="Huéspedes">Pers.</th>
+                        <th className={styles.colRoom} title="Habitación">Hab.</th>
+                        <th className={styles.colService}>Servicio</th>
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>
@@ -662,10 +665,10 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
                     <thead>
                       <tr>
-                        <th className={styles.colReserva}>Nº reserva</th>
+                        <th className={styles.colReserva} title="Número de reserva">Reserva</th>
                         <th className={styles.colName}>Nombre</th>
-                        <th className={styles.colGuests}>Huéspedes</th>
-                        <th className={styles.colRoom}>Habitación</th>
+                        <th className={styles.colGuests} title="Huéspedes">Pers.</th>
+                        <th className={styles.colRoom} title="Habitación">Hab.</th>
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>
@@ -763,6 +766,7 @@ export default function ReceptionDashboard() {
           mealsDateIso={mealsDateIso}
           onMealsDateChange={setMealsDateIso}
           meals={meals}
+          mealsError={mealsError}
           onOpenReservation={openReservation}
           onOpenClient={openClient}
         />

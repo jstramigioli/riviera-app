@@ -5,8 +5,7 @@
  * Sin redondeo: el precio final es base + ajuste de servicio.
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 const CURRENCY = 'ARS';
 

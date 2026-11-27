@@ -184,7 +184,17 @@ export async function updateReservationStatus(id, status) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
   });
-  if (!res.ok) throw new Error('Error updating reservation status');
+  if (!res.ok) {
+    // p. ej. 409 ROOM_NOT_AVAILABLE al reactivar: mostrar el motivo del backend
+    const body = await res.json().catch(() => null);
+    const err = new Error(
+      [body?.error, body?.message].filter(Boolean).join('. ') ||
+        'No se pudo actualizar el estado de la reserva'
+    );
+    err.code = body?.code;
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
@@ -988,15 +998,6 @@ export async function deleteAllQueries() {
   return res.json();
 }
 
-export async function convertQueryToReservation(id) {
-  const res = await apiFetch(`${API_URL}/queries/${id}/convert-to-reservation`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  });
-  if (!res.ok) throw new Error('Error converting query to reservation');
-  return res.json();
-}
-
 // ============================================
 // API para Cobros y Cargos de Reservas
 // ============================================
@@ -1316,13 +1317,16 @@ export async function updateCobro(cobroId, data) {
 }
 
 // Cobros - Eliminar un cobro
-export async function deleteCobro(cobroId) {
+/** Anula el cobro (no lo borra: queda registrado y deja de sumar en caja y saldos). */
+export async function deleteCobro(cobroId, { motivo } = {}) {
   const res = await apiFetch(`${API_URL}/reservation-cobros/cobros/${cobroId}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(motivo ? { motivo } : {})
   });
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || 'Error deleting cobro');
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'No se pudo anular el cobro');
   }
   return res.json();
 }
@@ -1681,6 +1685,130 @@ export async function createConsumptionOrder(data) {
   return res.json();
 }
 
+async function jsonOrThrow(res, fallback) {
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || fallback);
+  }
+  return res.json();
+}
+
+function jsonInit(method, body) {
+  return {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  };
+}
+
+/**
+ * Comidas previstas de un día (desayunos y cenas, desde las prestaciones del backend).
+ * opts.incluirCanceladas: también las canceladas (gestión de comensales).
+ */
+export async function fetchComidasDelDia(fecha, { incluirCanceladas = false } = {}) {
+  const params = new URLSearchParams();
+  if (fecha) params.set('fecha', fecha);
+  if (incluirCanceladas) params.set('incluirCanceladas', '1');
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await apiFetch(`${API_URL}/comidas${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar las comidas');
+}
+
+/** Cena no incluida (huésped o externo): crea también su comanda de Cena. */
+export async function crearCenaManual(data) {
+  const res = await apiFetch(`${API_URL}/comidas/cenas`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo registrar la cena');
+}
+
+export async function actualizarComida(id, data) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}`, jsonInit('PATCH', data));
+  return jsonOrThrow(res, 'No se pudo actualizar la comida');
+}
+
+export async function cancelarComida(id, data = {}) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}/cancelar`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo cancelar la comida');
+}
+
+export async function reactivarComida(id) {
+  const res = await apiFetch(`${API_URL}/comidas/${id}/reactivar`, jsonInit('POST', {}));
+  return jsonOrThrow(res, 'No se pudo reactivar la comida');
+}
+
+/** Comidas de la estadía y beneficios (Almuerzo sin cargo) de una reserva. */
+export async function fetchComidasDeReserva(reservationId) {
+  const res = await apiFetch(`${API_URL}/comidas/reserva/${reservationId}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar las comidas de la reserva');
+}
+
+export async function anularBeneficio(id, data = {}) {
+  const res = await apiFetch(`${API_URL}/comidas/beneficios/${id}/anular`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo anular el beneficio');
+}
+
+export async function restaurarBeneficio(id) {
+  const res = await apiFetch(`${API_URL}/comidas/beneficios/${id}/restaurar`, jsonInit('POST', {}));
+  return jsonOrThrow(res, 'No se pudo restaurar el beneficio');
+}
+
+/** Reporte de ventas gastronómicas por ámbito y producto. */
+export async function fetchVentasGastronomia({ desde, hasta } = {}) {
+  const params = new URLSearchParams();
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  const qs = params.toString() ? `?${params}` : '';
+  const res = await apiFetch(`${API_URL}/reportes/ventas-gastronomia${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al generar el reporte');
+}
+
+/** Tipos de cena (producto con precio Alojado / Externo). */
+export async function fetchTiposCena({ includeInactive = false } = {}) {
+  const qs = includeInactive ? '?includeInactive=1' : '';
+  const res = await apiFetch(`${API_URL}/cenas/tipos${qs}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'Error al cargar los tipos de cena');
+}
+
+export async function createTipoCena(data) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo crear el tipo de cena');
+}
+
+export async function updateTipoCena(id, data) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos/${id}`, jsonInit('PUT', data));
+  return jsonOrThrow(res, 'No se pudo guardar el tipo de cena');
+}
+
+export async function deleteTipoCena(id) {
+  const res = await apiFetch(`${API_URL}/cenas/tipos/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow(res, 'No se pudo eliminar el tipo de cena');
+}
+
+/** Comanda existente (encabezado + líneas). */
+export async function fetchConsumptionOrder(comandaId) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}`, { credentials: 'include' });
+  return jsonOrThrow(res, 'No se pudo cargar la comanda');
+}
+
+/** Agrega ítems a una comanda activa (p. ej. bebidas de una cena). */
+export async function addItemsToConsumptionOrder(comandaId, data) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}/items`, jsonInit('POST', data));
+  return jsonOrThrow(res, 'No se pudo agregar a la comanda');
+}
+
+/** Anula una comanda completa (elimina sus cargos; queda como registro). */
+export async function anularConsumptionOrder(comandaId) {
+  const res = await apiFetch(`${API_URL}/consumptions/orders/${comandaId}/anular`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || error.message || 'Error al anular la comanda');
+  }
+  return res.json();
+}
+
 // ============================================
 // FUNCIONES DE CONFIGURACIÓN
 // ============================================
@@ -1903,7 +2031,6 @@ export default {
   updateQuery,
   deleteQuery,
   deleteAllQueries,
-  convertQueryToReservation,
   getReservationFinancialSummary,
   getReservationsWithBalances,
   getAllCobros,

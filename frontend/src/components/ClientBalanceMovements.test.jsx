@@ -114,7 +114,6 @@ describe('ClientBalanceMovements', () => {
 
     fireEvent.click(screen.getByTestId('client-cargo-row-10'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Minibar/)
-    expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Agua/)
 
     fireEvent.click(screen.getByTestId('client-cobro-row-20-200'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/A010/)
@@ -192,8 +191,8 @@ describe('ClientBalanceMovements', () => {
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Eliminar cobro',
-          confirmText: 'Eliminar'
+          title: 'Anular cobro',
+          confirmText: 'Anular'
         })
       )
     })

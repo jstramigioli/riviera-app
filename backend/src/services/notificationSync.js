@@ -312,12 +312,50 @@ async function syncOperationalNotifications(todayIso) {
     autoResolved = result.count;
   }
 
+  // PENDING_ARRIVAL / LATE_CHECKOUT ya no se generan, pero las abiertas de antes (o creadas con
+  // fecha simulada a futuro) quedaban para siempre: «Checkout atrasado» con fecha futura o de una
+  // reserva ya finalizada. Se resuelven las que hoy ya no se cumplen; no se crea ninguna nueva.
+  autoResolved += await resolveStaleOperationalNotifications(String(todayIso));
+
   return {
     upserted,
     autoResolved,
     active: payloads.length,
     type: 'GUEST_BIRTHDAY'
   };
+}
+
+const OPERATIONAL_TYPES = ['PENDING_ARRIVAL', 'LATE_CHECKOUT'];
+
+/** Ids de notificaciones abiertas cuya condición ya no aplica (dedupeKey fuera de las vigentes). */
+function staleOperationalIds(openNotifications, stillValidKeys) {
+  return (openNotifications || [])
+    .filter((n) => !n.dedupeKey || !stillValidKeys.has(n.dedupeKey))
+    .map((n) => n.id);
+}
+
+async function resolveStaleOperationalNotifications(todayIso) {
+  const open = await prisma.appNotification.findMany({
+    where: { source: 'SYSTEM', type: { in: OPERATIONAL_TYPES }, resolvedAt: null },
+    select: { id: true, dedupeKey: true }
+  });
+  if (!open.length) return 0;
+
+  const reservations = await prisma.reservation.findMany({
+    where: { status: { in: ['PENDIENTE', 'CONFIRMADA', 'INGRESADA'] } },
+    include: { mainClient: true, segments: true }
+  });
+  const stillValid = new Set(
+    buildOperationalPayloads(todayIso, reservations).map((p) => p.dedupeKey)
+  );
+  const ids = staleOperationalIds(open, stillValid);
+  if (!ids.length) return 0;
+
+  const result = await prisma.appNotification.updateMany({
+    where: { id: { in: ids } },
+    data: { resolvedAt: new Date(), resolvedById: null }
+  });
+  return result.count;
 }
 
 module.exports = {
@@ -328,5 +366,6 @@ module.exports = {
   monthDayOf,
   roomLabelForToday,
   BIRTHDAY_AUDIENCE_ROLES,
+  staleOperationalIds,
   syncOperationalNotifications
 };

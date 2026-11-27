@@ -7,7 +7,10 @@ import {
   fetchMenuItems,
   fetchMenuCategories,
   createConsumptionOrder,
-  deleteCargo
+  anularConsumptionOrder,
+  fetchConsumptionOrder,
+  addItemsToConsumptionOrder,
+  fetchComidasDeReserva
 } from '../services/api';
 import { todayIsoLocal } from '../utils/calendarDates';
 import { formatMoneyArs } from '../utils/formatMoney';
@@ -22,6 +25,45 @@ const FALLBACK_CATEGORY_LABELS = {
 };
 
 const TOAST_MS = 5000;
+
+/** Ámbito de consumo: pertenece a toda la comanda (reportes por sector). */
+const AMBITOS_CONSUMO = [
+  { code: 'CENA', label: 'Cena' },
+  { code: 'MINUTAS', label: 'Minutas' },
+  { code: 'CAFETERIA', label: 'Cafetería' },
+  { code: 'FRIGOBAR', label: 'Frigobar' }
+];
+const AMBITO_STORAGE_KEY = 'riviera.comanda.ultimoAmbito';
+
+function readLastAmbito() {
+  try {
+    const v = window.localStorage.getItem(AMBITO_STORAGE_KEY);
+    return AMBITOS_CONSUMO.some((a) => a.code === v) ? v : '';
+  } catch {
+    return '';
+  }
+}
+
+function storeLastAmbito(code) {
+  try {
+    window.localStorage.setItem(AMBITO_STORAGE_KEY, code);
+  } catch {
+    /* sin storage: no recordar */
+  }
+}
+
+/** Grupos que se cobran aunque se aplique el Almuerzo sin cargo. */
+const GRUPOS_CON_CARGO = new Set(['BEBIDAS']);
+
+function fechaCorta(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  return `${d}/${m}`;
+}
+
+function ambitoLabel(code) {
+  return AMBITOS_CONSUMO.find((a) => a.code === code)?.label || code;
+}
 
 function formatMoney(value) {
   return formatMoneyArs(value, {
@@ -172,7 +214,9 @@ function resolvePresetKey(list, preset) {
 
 /**
  * Modal POS de comanda: fecha → reservas ocupadas ese día → filas de ítems.
- * preset opcional: { reservationId, roomId?, fecha? } para abrir desde el panel.
+ * preset opcional: { reservationId, roomId?, fecha?, ambito? } para abrir desde el panel.
+ * Con preset.comandaId agrega ítems a esa comanda (ámbito, fecha y cuenta fijos),
+ * p. ej. las bebidas de una cena.
  */
 export default function ConsumptionOrderModal({ open, onClose, onSaved, preset = null }) {
   const titleId = useId();
@@ -186,6 +230,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   const presetRef = useRef(preset);
 
   const [fecha, setFecha] = useState(() => todayIsoLocal());
+  const [ambito, setAmbito] = useState(() => preset?.ambito || readLastAmbito());
+  const addMode = Boolean(preset?.comandaId);
+  const [targetComanda, setTargetComanda] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [categoryMeta, setCategoryMeta] = useState({
@@ -215,9 +262,48 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     [lines]
   );
 
+  // Almuerzo sin cargo: disponible para la reserva elegida en comandas de Minutas.
+  const [beneficio, setBeneficio] = useState(null);
+  const [aplicarBeneficio, setAplicarBeneficio] = useState(false);
+  const beneficioReservationId =
+    open && !addMode && ambito === 'MINUTAS' && selectedReservation?.accountKind !== 'EXTERNAL'
+      ? selectedReservation?.reservationId ?? null
+      : null;
+
+  useEffect(() => {
+    setAplicarBeneficio(false);
+    if (!beneficioReservationId) {
+      setBeneficio(null);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchComidasDeReserva(beneficioReservationId)
+      .then((res) => {
+        if (cancelled) return;
+        const disponible = (res?.data?.beneficios || []).find((b) => b.estado === 'DISPONIBLE');
+        setBeneficio(disponible || null);
+      })
+      .catch(() => {
+        if (!cancelled) setBeneficio(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [beneficioReservationId]);
+
+  const beneficioActivo = Boolean(beneficio && aplicarBeneficio && beneficioReservationId);
+  const lineaSinCargo = useCallback(
+    (line) => beneficioActivo && !GRUPOS_CON_CARGO.has(line.category),
+    [beneficioActivo]
+  );
+
   const total = useMemo(
-    () => filledLines.reduce((sum, line) => sum + Number(line.price) * Number(line.quantity), 0),
-    [filledLines]
+    () =>
+      filledLines.reduce(
+        (sum, line) => (lineaSinCargo(line) ? sum : sum + Number(line.price) * Number(line.quantity)),
+        0
+      ),
+    [filledLines, lineaSinCargo]
   );
 
   const clearToastTimer = useCallback(() => {
@@ -307,15 +393,25 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         ? preset.fecha
         : todayIsoLocal();
     setFecha(initialFecha);
+    if (preset?.ambito) setAmbito(preset.ambito);
     resetOrder();
     dismissToast();
     setLoadingMeta(true);
-    Promise.all([loadMenu(), loadReservations(initialFecha, { preferPreset: true })]).finally(
-      () => {
-        setLoadingMeta(false);
-      }
-    );
-    const hasPreset = Boolean(preset?.reservationId);
+    setTargetComanda(null);
+    const loadTarget = preset?.comandaId
+      ? fetchConsumptionOrder(preset.comandaId)
+          .then((res) => {
+            const c = res?.data || null;
+            setTargetComanda(c);
+            if (c?.ambito) setAmbito(c.ambito);
+            if (c?.fecha) setFecha(c.fecha);
+          })
+          .catch((err) => setError(err.message || 'No se pudo cargar la comanda'))
+      : loadReservations(initialFecha, { preferPreset: true });
+    Promise.all([loadMenu(), loadTarget]).finally(() => {
+      setLoadingMeta(false);
+    });
+    const hasPreset = Boolean(preset?.reservationId || preset?.comandaId);
     const t = window.setTimeout(() => {
       if (hasPreset) {
         const firstKey = Object.keys(itemInputRefs.current)[0];
@@ -552,9 +648,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open, lines]);
 
-  const showUndoToast = ({ message, cargoIds, snapshot }) => {
+  const showUndoToast = ({ message, comandaId, snapshot }) => {
     clearToastTimer();
-    pendingUndoRef.current = { cargoIds, snapshot };
+    pendingUndoRef.current = { comandaId, snapshot };
     setToast({ message });
     toastTimerRef.current = window.setTimeout(() => {
       pendingUndoRef.current = null;
@@ -576,10 +672,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     setError(null);
 
     try {
-      const ids = Array.isArray(pending.cargoIds) ? pending.cargoIds : [];
-      for (const id of ids) {
-        if (id != null) await deleteCargo(id);
-      }
+      if (pending.comandaId != null) await anularConsumptionOrder(pending.comandaId);
     } catch (err) {
       setError(err.message || 'No se pudo deshacer la comanda');
     }
@@ -590,6 +683,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         ? snap.lines.map((l) => cloneLine(l))
         : [newLine()];
       setFecha(snap.fecha);
+      if (snap.ambito) setAmbito(snap.ambito);
       setSelectionKey(snap.selectionKey);
       setLines(restored);
       focusItemInput(restored[0]?.key);
@@ -602,14 +696,27 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
     const isExternal =
       selectedReservation?.accountKind === 'EXTERNAL' ||
       selectedReservation?.origen === 'EXTERNA';
-    if (!isExternal && !selectedReservation?.reservationId) {
+    if (!ambito) {
+      setError('Elegí el ámbito de la comanda');
+      return;
+    }
+    if (!addMode && ambito === 'FRIGOBAR' && isExternal) {
+      setError('El frigobar solo se carga a cuentas de reserva');
+      reservationRef.current?.focus();
+      return;
+    }
+    if (!addMode && !isExternal && !selectedReservation?.reservationId) {
       setError('Seleccioná una reserva o cuenta externa');
       reservationRef.current?.focus();
       return;
     }
-    if (isExternal && !selectedReservation?.accountId) {
+    if (!addMode && isExternal && !selectedReservation?.accountId) {
       setError('Seleccioná una cuenta externa');
       reservationRef.current?.focus();
+      return;
+    }
+    if (addMode && !targetComanda) {
+      setError('No se pudo cargar la comanda');
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
@@ -626,6 +733,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
 
     const snapshot = {
       fecha,
+      ambito,
       selectionKey,
       lines: filledLines.map((l) => ({ ...l, dropdownOpen: false, highlight: 0 }))
     };
@@ -648,24 +756,38 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
         }
       }
 
+      if (addMode) {
+        const added = await addItemsToConsumptionOrder(preset.comandaId, {
+          items: [...merged.values()]
+        });
+        onSaved?.(added);
+        onClose?.();
+        return;
+      }
+
       const result = await createConsumptionOrder({
         ...(isExternal
           ? { accountId: selectedReservation.accountId }
           : { reservationId: selectedReservation.reservationId }),
+        ambito,
         fecha,
-        items: [...merged.values()]
+        items: [...merged.values()],
+        ...(beneficioActivo ? { beneficioId: beneficio.id } : {})
       });
+      storeLastAmbito(ambito);
 
       const label = reservationOptionLabel(selectedReservation);
-      const message = `Comanda cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}`;
-      const cargoIds = (result?.data?.cargos || [])
-        .map((c) => c.id)
-        .filter((id) => id != null);
+      const message = `Comanda ${ambitoLabel(ambito)} cargada en ${label} — ${formatMoney(result?.data?.total ?? total)}${beneficioActivo ? ' · almuerzo sin cargo aplicado' : ''}`;
+      if (beneficioActivo) {
+        setBeneficio(null);
+        setAplicarBeneficio(false);
+      }
+      const comandaId = result?.data?.comandaId ?? null;
 
       onSaved?.(result);
 
       if (continueAfter) {
-        showUndoToast({ message, cargoIds, snapshot });
+        showUndoToast({ message, comandaId, snapshot });
         resetOrder();
         window.setTimeout(() => reservationRef.current?.focus(), 40);
       } else {
@@ -682,7 +804,8 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
   if (!open) return null;
 
   const busy = loadingMeta || loadingReservations || submitting;
-  const itemsEnabled = Boolean(selectedReservation) && !submitting;
+  const hasTarget = addMode ? Boolean(targetComanda) : Boolean(selectedReservation);
+  const itemsEnabled = hasTarget && !submitting;
 
   const toastNode =
     toast &&
@@ -719,7 +842,9 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
           aria-labelledby={titleId}
         >
           <header className={styles.header}>
-            <h2 id={titleId} className={styles.title}>Nuevo consumo</h2>
+            <h2 id={titleId} className={styles.title}>
+              {addMode ? `Agregar a comanda #${preset.comandaId}` : 'Nuevo consumo'}
+            </h2>
             <button
               type="button"
               className={styles.iconBtn}
@@ -738,56 +863,130 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
           ) : null}
 
           <div className={styles.body}>
-            <aside className={styles.metaColumn}>
-              <div className={styles.row}>
-                <label className={styles.label} htmlFor="consumo-fecha">
-                  Fecha
-                </label>
-                <input
-                  id="consumo-fecha"
-                  ref={dateRef}
-                  className={styles.dateInput}
-                  type="date"
-                  value={fecha}
-                  disabled={submitting}
-                  onChange={(e) => onFechaChange(e.target.value)}
-                />
-              </div>
-
-              <div className={styles.row}>
-                <label className={styles.label} htmlFor="consumo-reserva">
-                  Reserva
-                </label>
-                <select
-                  id="consumo-reserva"
-                  ref={reservationRef}
-                  className={styles.select}
-                  value={selectionKey}
-                  disabled={busy}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectionKey(value);
-                    setLines((prev) => (prev.length ? prev : [newLine()]));
-                  }}
-                >
-                  <option value="">
-                    {loadingReservations
-                      ? 'Cargando reservas…'
-                      : reservations.length === 0
-                        ? 'Sin reservas ocupadas ese día'
-                        : 'Seleccionar reserva…'}
-                  </option>
-                  {reservations.map((r) => (
-                    <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
-                      {reservationOptionLabel(r)}
-                      {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
+            {addMode ? (
+              <aside className={styles.metaColumn}>
+                <dl className={styles.comandaSummary}>
+                  <div>
+                    <dt className={styles.label}>Ámbito</dt>
+                    <dd>{targetComanda ? ambitoLabel(targetComanda.ambito) : '…'}</dd>
+                  </div>
+                  <div>
+                    <dt className={styles.label}>Fecha</dt>
+                    <dd>{targetComanda?.fecha || '…'}</dd>
+                  </div>
+                  <div>
+                    <dt className={styles.label}>Cuenta</dt>
+                    <dd>{targetComanda?.clientName || targetComanda?.accountLabel || '…'}</dd>
+                  </div>
+                  {targetComanda?.items?.length ? (
+                    <div>
+                      <dt className={styles.label}>Ya en la comanda</dt>
+                      <dd>
+                        <ul className={styles.comandaItems}>
+                          {targetComanda.items.map((it) => (
+                            <li key={it.id}>{it.descripcion}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </aside>
+            ) : (
+              <aside className={styles.metaColumn}>
+                <div className={styles.row}>
+                  <span className={styles.label} id={`${titleId}-ambito`}>
+                    Ámbito
+                  </span>
+                  <div
+                    className={styles.segmented}
+                    role="radiogroup"
+                    aria-labelledby={`${titleId}-ambito`}
+                  >
+                    {AMBITOS_CONSUMO.map((a) => (
+                      <label
+                        key={a.code}
+                        className={`${styles.segment} ${ambito === a.code ? styles.segmentActive : ''}`}
+                      >
+                        <input
+                          type="radio"
+                          name={`${titleId}-ambito`}
+                          className={styles.segmentInput}
+                          value={a.code}
+                          checked={ambito === a.code}
+                          disabled={submitting}
+                          onChange={() => setAmbito(a.code)}
+                        />
+                        {a.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+  
+                <div className={styles.row}>
+                  <label className={styles.label} htmlFor="consumo-fecha">
+                    Fecha
+                  </label>
+                  <input
+                    id="consumo-fecha"
+                    ref={dateRef}
+                    className={styles.dateInput}
+                    type="date"
+                    value={fecha}
+                    disabled={submitting}
+                    onChange={(e) => onFechaChange(e.target.value)}
+                  />
+                </div>
+  
+                <div className={styles.row}>
+                  <label className={styles.label} htmlFor="consumo-reserva">
+                    Reserva
+                  </label>
+                  <select
+                    id="consumo-reserva"
+                    ref={reservationRef}
+                    className={styles.select}
+                    value={selectionKey}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectionKey(value);
+                      setLines((prev) => (prev.length ? prev : [newLine()]));
+                    }}
+                  >
+                    <option value="">
+                      {loadingReservations
+                        ? 'Cargando reservas…'
+                        : reservations.length === 0
+                          ? 'Sin reservas ocupadas ese día'
+                          : 'Seleccionar reserva…'}
                     </option>
-                  ))}
-                </select>
-              </div>
-            </aside>
+                    {reservations.map((r) => (
+                      <option key={reservationOptionKey(r)} value={reservationOptionKey(r)}>
+                        {reservationOptionLabel(r)}
+                        {r.status && r.status !== 'INGRESADA' ? ` (${r.status})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </aside>
+            )}
 
             <div className={styles.itemsZone}>
+              {beneficio && beneficioReservationId ? (
+                <label className={styles.beneficioBar}>
+                  <input
+                    type="checkbox"
+                    checked={aplicarBeneficio}
+                    onChange={(e) => setAplicarBeneficio(e.target.checked)}
+                    disabled={submitting}
+                  />
+                  <span>
+                    <strong>Aplicar almuerzo sin cargo</strong>
+                    {` · cena cancelada del ${fechaCorta(beneficio.cenaFecha)}. Las bebidas se cobran.`}
+                  </span>
+                </label>
+              ) : null}
               <div className={styles.linesHeader}>
                 <span className={styles.colQty}>Cant.</span>
                 <span className={styles.colItem}>Ítem</span>
@@ -852,7 +1051,7 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                           type="text"
                           autoComplete="off"
                           placeholder={
-                            selectedReservation
+                            hasTarget
                               ? 'Buscar ítem del menú…'
                               : 'Seleccioná una reserva primero'
                           }
@@ -926,7 +1125,13 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
                       </div>
 
                       <div className={styles.priceCell}>
-                        {line.menuItemId ? formatMoney(line.price * line.quantity) : '—'}
+                        {!line.menuItemId ? (
+                          '—'
+                        ) : lineaSinCargo(line) ? (
+                          <span className={styles.sinCargo}>Sin cargo</span>
+                        ) : (
+                          formatMoney(line.price * line.quantity)
+                        )}
                       </div>
 
                       <button
@@ -972,20 +1177,22 @@ export default function ConsumptionOrderModal({ open, onClose, onSaved, preset =
               >
                 Cancelar
               </button>
+              {!addMode && (
               <button
                 type="button"
                 className={styles.btnSecondary}
-                disabled={submitting || filledLines.length === 0 || !selectedReservation}
+                disabled={submitting || filledLines.length === 0 || !hasTarget}
                 onClick={() => submit({ continueAfter: true })}
                 title="Guardar y cargar otra reserva"
               >
                 <FiPlus aria-hidden="true" />
                 Guardar y otra
               </button>
+              )}
               <button
                 type="button"
                 className={styles.btnPrimary}
-                disabled={submitting || filledLines.length === 0 || !selectedReservation}
+                disabled={submitting || filledLines.length === 0 || !hasTarget}
                 onClick={() => submit({ continueAfter: false })}
               >
                 {submitting ? 'Guardando…' : 'Confirmar'}

@@ -71,7 +71,11 @@ export default function RegimenTab({ reservation }) {
 
   return (
     <div className={styles.root} data-testid="regimen-tab">
-      <h3 className={styles.heading}>Régimen / Comidas</h3>
+      <h3 className={styles.heading}>Dieta y notas</h3>
+      <p className={styles.hint}>
+        Resumen por huésped. Para cargar o cambiar dietas, usá la pestaña Huéspedes o el
+        check-in online.
+      </p>
 
       {guests.length === 0 ? (
         <p className={styles.empty} data-testid="regimen-empty">

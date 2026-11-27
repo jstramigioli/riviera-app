@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { safeSyncPrestacionesComida } = require('../utils/prestacionesComida');
 const ReservationPricingService = require('../services/reservationPricingService');
 const reservationPricingService = new ReservationPricingService(prisma);
 const {
@@ -8,6 +9,7 @@ const {
   updateReservationWithSegments,
   checkRoomAvailability
 } = require('../utils/reservationHelpers');
+const { selectSegmentIdsToReactivate } = require('../utils/segmentReactivation');
 const {
   validateReservationCreation,
   validateReservationUpdate
@@ -275,6 +277,22 @@ exports.updateReservation = async (req, res) => {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
+    // Cancelar / reactivar cambia qué tramos ocupan habitación: eso lo maneja PATCH /:id/status
+    // (desactiva tramos, chequea disponibilidad al reactivar). Por PUT solo se acepta si viene
+    // la estadía completa (Consulta en modo edición): ahí los tramos se recrean y se valida overlap.
+    if (
+      updateData?.status &&
+      !Array.isArray(updateData.segments) &&
+      updateData.status !== existingReservation.status &&
+      NON_OCCUPYING_STATUSES.includes(updateData.status) !==
+        NON_OCCUPYING_STATUSES.includes(existingReservation.status)
+    ) {
+      return res.status(400).json({
+        error: 'Para cancelar o reactivar una reserva usá el cambio de estado',
+        code: 'STATUS_CHANGE_REQUIRES_PATCH'
+      });
+    }
+
     // Validar la actualización antes de proceder
     const validation = await validateReservationUpdate(parseInt(id), updateData);
     if (!validation.isValid) {
@@ -326,6 +344,45 @@ exports.updateReservationStatus = async (req, res) => {
 
     const wasNonOccupying = NON_OCCUPYING_STATUSES.includes(existingReservation.status);
     const willBeNonOccupying = NON_OCCUPYING_STATUSES.includes(status);
+    const reactivating = !willBeNonOccupying && wasNonOccupying;
+
+    // Reactivar: solo el último grupo de tramos desactivado (no los reemplazados por ediciones
+    // anteriores) y solo si las habitaciones siguen libres.
+    let reactivateIds = [];
+    if (reactivating) {
+      const allSegments = await prisma.reservationSegment.findMany({
+        where: { reservationId: parseInt(id) },
+        select: { id: true, isActive: true, updatedAt: true, roomId: true, startDate: true, endDate: true }
+      });
+      reactivateIds = selectSegmentIdsToReactivate(allSegments);
+      // Chequear todo lo que quedará ocupando: lo que se reactiva y lo que ya estaba activo
+      // (p. ej. estadía editada estando cancelada).
+      const toCheck = allSegments.filter((s) => s.isActive || reactivateIds.includes(s.id));
+      const conflicts = [];
+      for (const seg of toCheck) {
+        const availability = await checkRoomAvailability(seg.roomId, seg.startDate, seg.endDate, id);
+        if (!availability.available) {
+          conflicts.push({
+            segmentId: seg.id,
+            roomId: seg.roomId,
+            startDate: seg.startDate,
+            endDate: seg.endDate,
+            reservationIds: (availability.conflicts || []).map((c) => c.reservationId),
+            blockedStatus: availability.blockedStatus
+          });
+        }
+      }
+      if (conflicts.length > 0) {
+        return res.status(409).json({
+          error: 'No se puede reactivar la reserva',
+          message:
+            'La habitación ya no está disponible para esas fechas (otra reserva o bloqueo). ' +
+            'Modificá la estadía antes de reactivarla.',
+          code: 'ROOM_NOT_AVAILABLE',
+          conflicts
+        });
+      }
+    }
 
     // Actualizar estado y liberar/reocupar segmentos según ocupación
     const updatedReservation = await prisma.$transaction(async (tx) => {
@@ -348,9 +405,9 @@ exports.updateReservationStatus = async (req, res) => {
           where: { reservationId: parseInt(id), isActive: true },
           data: { isActive: false }
         });
-      } else if (!willBeNonOccupying && wasNonOccupying) {
+      } else if (reactivating && reactivateIds.length > 0) {
         await tx.reservationSegment.updateMany({
-          where: { reservationId: parseInt(id), isActive: false },
+          where: { reservationId: parseInt(id), id: { in: reactivateIds } },
           data: { isActive: true }
         });
       }
@@ -369,6 +426,9 @@ exports.updateReservationStatus = async (req, res) => {
       }) || updated;
     });
 
+    // Cancelar / reactivar cambia las comidas previstas
+    await safeSyncPrestacionesComida(id);
+
     res.json(updatedReservation);
   } catch (error) {
     console.error('Error updating reservation status:', error);
@@ -376,7 +436,8 @@ exports.updateReservationStatus = async (req, res) => {
   }
 };
 
-// Eliminar una reserva (cascade Account → cargos/cobros). Warning si hay folio financiero.
+// Eliminar una reserva (cascade Account → cargos). Con cobros imputados → 409 (no se borran).
+// Con cargos sin cobros → 409 de confirmación (confirmFinancial=true para borrar igual).
 exports.deleteReservation = async (req, res) => {
   const { id } = req.params;
   const reservationId = parseInt(id, 10);
@@ -407,33 +468,46 @@ exports.deleteReservation = async (req, res) => {
       financial = { cargos, cobros, hasFinancials: cargos > 0 || cobros > 0 };
     }
 
+    // Los cobros no se borran en cascada (CobroImputacion → Account/Reservation es RESTRICT):
+    // antes el borrado fallaba a mitad de camino (500) dejando la reserva sin huéspedes ni tarifas.
+    const imputaciones = await prisma.cobroImputacion.count({
+      where: {
+        OR: [
+          { reservaId: reservationId },
+          ...(account ? [{ accountId: account.id }] : [])
+        ]
+      }
+    });
+    if (imputaciones > 0) {
+      return res.status(409).json({
+        error:
+          `La reserva tiene ${imputaciones} cobro(s) imputado(s) y no se puede eliminar. ` +
+          'Eliminá o devolvé esos cobros desde el estado financiero, o cancelá la reserva.',
+        code: 'RESERVATION_HAS_COBROS',
+        financial: { ...financial, imputaciones }
+      });
+    }
+
     if (financial.hasFinancials && !confirmFinancialWipe) {
       return res.status(409).json({
         error: 'La reserva tiene cobros o cargos en su cuenta',
         code: 'ACCOUNT_HAS_FINANCIALS',
         warning:
-          `Al eliminar se borrará la cuenta y ${financial.cargos} cargo(s) / ${financial.cobros} cobro(s).`,
+          `Al eliminar se borrará la cuenta y ${financial.cargos} cargo(s).`,
         financial,
         accountId: account?.id || null,
         requiresConfirm: true
       });
     }
 
-    // Primero eliminar las tarifas por noche relacionadas
-    await prisma.reservationNightRate.deleteMany({
-      where: { reservationId }
+    // Todo o nada: si falla el borrado de la reserva no quedan huéspedes/tarifas borrados sueltos.
+    await prisma.$transaction(async (tx) => {
+      await tx.reservationNightRate.deleteMany({ where: { reservationId } });
+      await tx.guest.deleteMany({ where: { reservationId } });
+      // Cascade: Reservation → Account → Cargo (sin cobros, verificado arriba)
+      await tx.reservation.delete({ where: { id: reservationId } });
     });
 
-    // Luego eliminar los huéspedes relacionados
-    await prisma.guest.deleteMany({
-      where: { reservationId }
-    });
-
-    // Cascade: Reservation → Account → Cargo/Cobro
-    await prisma.reservation.delete({
-      where: { id: reservationId }
-    });
-    
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting reservation:', error);

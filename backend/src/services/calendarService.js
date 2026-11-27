@@ -1,4 +1,3 @@
-const { PrismaClient } = require('@prisma/client');
 const {
   toDateOnlyUtc,
   isoDate,
@@ -13,7 +12,7 @@ const {
   statusLabel
 } = require('../utils/roomStatusPeriods');
 
-const prisma = new PrismaClient();
+const prisma = require('../utils/prisma');
 
 /**
  * Temporadas abiertas: SeasonBlock no-draft (OperationalPeriod ya no está en schema).

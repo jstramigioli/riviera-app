@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -7,6 +7,7 @@ import SidePanel from './SidePanel';
 import styles from '../styles/DayInfoSidePanel.module.css';
 import { isoDate } from '../utils/calendarDates';
 import { computeDayInfoStats } from '../utils/dayInfoStats';
+import { useComidasDelDia } from '../hooks/useComidasDelDia';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -75,36 +76,9 @@ export default function DayInfoSidePanel({
   rooms,
   reservations,
   isOpen,
-  onClose,
-  serviceTypes: serviceTypesProp
+  onClose
 }) {
   const navigate = useNavigate();
-  const [serviceTypesLoaded, setServiceTypesLoaded] = useState([]);
-
-  useEffect(() => {
-    if (serviceTypesProp != null || !isOpen) return undefined;
-    let cancelled = false;
-    const loadServiceTypes = async () => {
-      try {
-        const response = await fetch(
-          `${API_URL}/service-types?hotelId=default-hotel`
-        );
-        if (!response.ok) return;
-        const data = await response.json();
-        if (!cancelled) setServiceTypesLoaded(data.data || []);
-      } catch (error) {
-        console.error('Error loading service types for day info:', error);
-      }
-    };
-    loadServiceTypes();
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, serviceTypesProp]);
-
-  const serviceTypes =
-    serviceTypesProp != null ? serviceTypesProp : serviceTypesLoaded;
-
   const dayIso = useMemo(() => {
     if (!selectedDate) return null;
     if (typeof selectedDate === 'string') return selectedDate.slice(0, 10);
@@ -116,9 +90,11 @@ export default function DayInfoSidePanel({
   }, [selectedDate]);
 
   const stats = useMemo(
-    () => computeDayInfoStats(dayIso, rooms, reservations, serviceTypes),
-    [dayIso, rooms, reservations, serviceTypes]
+    () => computeDayInfoStats(dayIso, rooms, reservations),
+    [dayIso, rooms, reservations]
   );
+  // Desayunos / cenas: desde las prestaciones del backend (solo con el panel abierto).
+  const { comidas } = useComidasDelDia(isOpen ? dayIso : null, reservations);
 
   const openReservation = (reservationId) => {
     if (reservationId == null) return;
@@ -172,11 +148,11 @@ export default function DayInfoSidePanel({
             </div>
             <div className={styles.countItem}>
               <span className={styles.countLabel}>Desayuno</span>
-              <span className={styles.countValue}>{stats.breakfastGuests}</span>
+              <span className={styles.countValue}>{comidas ? comidas.breakfastGuests : '—'}</span>
             </div>
             <div className={styles.countItem}>
               <span className={styles.countLabel}>Cena</span>
-              <span className={styles.countValue}>{stats.dinnerGuests}</span>
+              <span className={styles.countValue}>{comidas ? comidas.dinnerGuests : '—'}</span>
             </div>
           </div>
         </div>

@@ -2,10 +2,16 @@ const prisma = require('../utils/prisma');
 const { Decimal } = require('@prisma/client/runtime/library');
 const { calculateReservationBalance } = require('../utils/reservationBalance');
 const { calculateAccountBalance } = require('../utils/accountBalance');
-const { allocateNextCobroCodigo } = require('../utils/cobroCodigo');
+const { allocateNextCobroCodigo, withCobroCodigoRetry } = require('../utils/cobroCodigo');
+const { anularCobro } = require('../utils/cobrosAnulados');
 const { roleHasPermission } = require('../auth/permissions');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
 const { civilFromDb, parseFechaInput } = require('../utils/calendarDates');
+const {
+  CARGO_COMANDA_INCLUDE,
+  refreshAccountStatus,
+  removeComandaLineForCargo
+} = require('../utils/comandas');
 const {
   ensureReservationAccount,
   dualWriteReservationRefs,
@@ -444,7 +450,7 @@ exports.createCobro = async (req, res) => {
     const fechaCobro = parseFechaInput(fecha, req);
     const montoARSAbs = tender.montoARSAbs;
 
-    const nuevoCobro = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await withCobroCodigoRetry(() => prisma.$transaction(async (tx) => {
       const account = await ensureReservationAccount(tx, reservaId);
       const financialRefs = dualWriteReservationRefs(account, reservaId);
 
@@ -589,7 +595,7 @@ exports.createCobro = async (req, res) => {
         ...full,
         discountApplication: (full.discountApplications && full.discountApplications[0]) || da || null
       };
-    });
+    }));
     res.status(201).json(nuevoCobro);
   } catch (error) {
     if (error.statusCode === 400) {
@@ -643,6 +649,10 @@ exports.updateCobro = async (req, res) => {
 
     if (!pagoActual) {
       return res.status(404).json({ error: 'Cobro no encontrado' });
+    }
+
+    if (pagoActual.anuladoAt) {
+      return res.status(400).json({ error: `El cobro ${pagoActual.codigo} está anulado; no se puede editar` });
     }
 
     if (isDevolucionMotivo(pagoActual.motivo)) {
@@ -1115,50 +1125,35 @@ exports.updateCobro = async (req, res) => {
 };
 
 // Eliminar un cobro (transaccional: cascade imputaciones + DA; sync todos los folios)
+/**
+ * DELETE /cobros/:id → ANULA el cobro (no lo borra): queda con fecha, usuario y motivo, deja de
+ * sumar en caja y saldos. Body opcional: { motivo }. Con devoluciones activas no se puede.
+ */
 exports.deleteCobro = async (req, res) => {
-  const { id } = req.params;
+  const cobroId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(cobroId)) {
+    return res.status(400).json({ error: 'Cobro inválido' });
+  }
   try {
-    const cobroId = parseInt(id, 10);
-    const existing = await prisma.cobro.findUnique({
-      where: { id: cobroId },
-      select: {
-        id: true,
-        accountId: true,
-        imputaciones: { select: { accountId: true } }
-      }
-    });
-    if (!existing) {
-      return res.status(404).json({ error: 'Cobro no encontrado' });
-    }
-
-    const accountIds = [
-      ...new Set(
-        [
-          existing.accountId,
-          ...(existing.imputaciones || []).map((i) => i.accountId)
-        ].filter(Boolean)
-      )
-    ];
-
-    await prisma.cobro.delete({ where: { id: cobroId } });
-
-    for (const accountId of accountIds) {
-      const { balance } = await loadAccountFinancialParts(prisma, accountId);
-      await syncAccountStatusFromBalance(prisma, accountId, balance.saldo);
-    }
-
-    res.json({ message: 'Cobro eliminado exitosamente' });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Cobro no encontrado' });
-    }
-    if (error.code === 'P2003') {
-      return res.status(400).json({
-        error: 'No se puede eliminar: hay devoluciones vinculadas a este cobro'
+    const { cobro } = await prisma.$transaction(async (tx) => {
+      const result = await anularCobro(tx, {
+        cobroId,
+        user: req.user,
+        motivo: req.body?.motivo
       });
+      for (const accountId of result.accountIds) {
+        const { balance } = await loadAccountFinancialParts(tx, accountId);
+        await syncAccountStatusFromBalance(tx, accountId, balance.saldo);
+      }
+      return result;
+    });
+    res.json({ message: `Cobro ${cobro.codigo} anulado`, cobro: { id: cobro.id, codigo: cobro.codigo, anuladoAt: cobro.anuladoAt } });
+  } catch (error) {
+    if (error.statusCode === 404 || error.statusCode === 400) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
-    console.error('Error eliminando cobro:', error);
-    res.status(500).json({ error: 'Error al eliminar el cobro', details: error.message });
+    console.error('Error anulando cobro:', error);
+    res.status(500).json({ error: 'Error al anular el cobro', details: error.message });
   }
 };
 
@@ -1293,7 +1288,8 @@ exports.getCargosByReserva = async (req, res) => {
         subcategoriaCargo: true,
         // Para alojamiento (campos directos)
         roomType: true,
-        serviceType: true
+        serviceType: true,
+        ...CARGO_COMANDA_INCLUDE
       },
       orderBy: { fecha: 'asc' } // Más antiguos primero
     });
@@ -1461,10 +1457,16 @@ exports.updateCargo = async (req, res) => {
     }
 
     const cargoExistente = await prisma.cargo.findUnique({
-      where: { id: parseInt(id, 10) }
+      where: { id: parseInt(id, 10) },
+      include: { comandaItem: { select: { comandaId: true } } }
     });
     if (!cargoExistente) {
       return res.status(404).json({ error: 'Cargo no encontrado' });
+    }
+    if (cargoExistente.comandaItem) {
+      return res.status(400).json({
+        error: `Este cargo pertenece a la comanda #${cargoExistente.comandaItem.comandaId}; quitá la línea o anulá la comanda`
+      });
     }
 
     const isLodging = !cargoExistente.subcategoriaCargoId;
@@ -1592,8 +1594,28 @@ exports.updateCargo = async (req, res) => {
 exports.deleteCargo = async (req, res) => {
   const { id } = req.params;
   try {
+    const cargoId = parseInt(id, 10);
+    const linked = await prisma.comandaItem.findUnique({
+      where: { cargoId },
+      select: { id: true }
+    });
+    if (linked) {
+      // Cargo de comanda: quitar la línea (antes de borrar el cargo) y recalcular saldo.
+      const comanda = await prisma.$transaction(async (tx) => {
+        const cargo = await tx.cargo.findUnique({ where: { id: cargoId } });
+        const result = await removeComandaLineForCargo(tx, cargoId);
+        await tx.cargo.delete({ where: { id: cargoId } });
+        await refreshAccountStatus(tx, cargo.accountId);
+        return result;
+      });
+      return res.json({
+        message: 'Línea quitada de la comanda',
+        comandaId: comanda?.id ?? null,
+        comandaEstado: comanda?.estado ?? null
+      });
+    }
     await prisma.cargo.delete({
-      where: { id: parseInt(id) }
+      where: { id: cargoId }
     });
     res.json({ message: 'Cargo eliminado exitosamente' });
   } catch (error) {
@@ -1626,7 +1648,8 @@ exports.getResumenFinanciero = async (req, res) => {
         include: {
           subcategoriaCargo: true,
           roomType: true,
-          serviceType: true
+          serviceType: true,
+          ...CARGO_COMANDA_INCLUDE
         }
       }),
       prisma.discountApplication.findMany({
@@ -2232,7 +2255,7 @@ exports.createClientMultiCobro = async (req, res) => {
       bonificacionTotalARS: bonoTotal
     });
 
-    const nuevoCobro = await prisma.$transaction(async (tx) => {
+    const nuevoCobro = await withCobroCodigoRetry(() => prisma.$transaction(async (tx) => {
       const codigo = await allocateNextCobroCodigo(tx);
       const anchor = normalized.length === 1 ? normalized[0] : null;
       const cobro = await tx.cobro.create({
@@ -2315,7 +2338,7 @@ exports.createClientMultiCobro = async (req, res) => {
           ...PAGO_ADJUNTO_INCLUDE
         }
       });
-    });
+    }));
 
     res.status(201).json({
       ...nuevoCobro,

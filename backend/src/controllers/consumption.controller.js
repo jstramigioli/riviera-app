@@ -1,7 +1,5 @@
 const prisma = require('../utils/prisma');
-const { Decimal } = require('@prisma/client/runtime/library');
 const { OCCUPYING_STATUSES } = require('../constants/reservationStatus');
-const { CATEGORY_LABELS } = require('./menuItem.controller');
 const {
   civilFromDb,
   isoDate,
@@ -9,12 +7,18 @@ const {
   todayIsoLocal
 } = require('../utils/calendarDates');
 const {
-  ensureReservationAccount,
-  dualWriteReservationRefs,
-  dualWriteExternalRefs,
-  syncAccountStatusFromBalance
+  ensureReservationAccount
 } = require('../utils/accountHelpers');
-const { calculateAccountBalance } = require('../utils/accountBalance');
+const {
+  AMBITO_LABELS,
+  ComandaInputError,
+  parseAmbito,
+  resolveOrderItems,
+  createComanda,
+  addLinesToComanda,
+  anularComanda
+} = require('../utils/comandas');
+const { BeneficioError, prepararBeneficio, lineaBonificable } = require('../utils/beneficios');
 
 function parseCivilDateParam(raw, req) {
   if (raw == null || raw === '') return todayIsoLocal(req);
@@ -144,8 +148,10 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 
 /**
  * Carga una comanda de consumos sobre una reserva o cuenta externa.
- * Body: { reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD }
+ * Body: { ambito, reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD }
+ * ambito: CENA | MINUTAS | CAFETERIA | FRIGOBAR (de toda la comanda).
  * Si viene reservationId → Account 1:1. Si accountId EXTERNAL → sin reserva.
+ * Crea Comanda + líneas (precio histórico) + un Cargo por línea.
  */
 exports.createConsumptionOrder = async (req, res) => {
   try {
@@ -159,7 +165,14 @@ exports.createConsumptionOrder = async (req, res) => {
       accountIdRaw == null || accountIdRaw === '' ? null : Number(accountIdRaw);
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
     const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date, req);
+    const ambito = parseAmbito(req.body.ambito);
 
+    if (!ambito) {
+      return res.status(400).json({
+        success: false,
+        error: 'Elegí el ámbito de la comanda (Cena, Minutas, Cafetería o Frigobar)'
+      });
+    }
     if (!fechaCivil) {
       return res.status(400).json({
         success: false,
@@ -184,7 +197,6 @@ exports.createConsumptionOrder = async (req, res) => {
 
     let reservation = null;
     let account = null;
-    let financialRefs = null;
     let clientName = '';
 
     if (reservationId != null) {
@@ -198,7 +210,6 @@ exports.createConsumptionOrder = async (req, res) => {
         return res.status(404).json({ success: false, error: 'Reserva no encontrada' });
       }
       account = await ensureReservationAccount(prisma, reservationId, reservation.mainClientId);
-      financialRefs = dualWriteReservationRefs(account, reservationId);
       clientName = clientDisplayName(reservation.mainClient);
     } else {
       account = await prisma.account.findUnique({
@@ -216,147 +227,66 @@ exports.createConsumptionOrder = async (req, res) => {
           error: 'Para cuentas de reserva usá reservationId'
         });
       }
-      financialRefs = dualWriteExternalRefs(account);
+      if (ambito === 'FRIGOBAR') {
+        return res.status(400).json({
+          success: false,
+          error: 'El frigobar solo se carga a cuentas de reserva'
+        });
+      }
       clientName = account.client
         ? clientDisplayName(account.client)
         : account.label || `Cuenta #${account.id}`;
     }
 
-    const normalized = [];
-    for (const row of rawItems) {
-      const menuItemId = Number(row.menuItemId);
-      const quantity = Number(row.quantity);
-      const varietyIdRaw = row.varietyId ?? row.menuItemVarietyId;
-      const varietyId =
-        varietyIdRaw == null || varietyIdRaw === ''
-          ? null
-          : Number(varietyIdRaw);
-      if (!Number.isFinite(menuItemId) || !Number.isFinite(quantity) || quantity <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Cada ítem necesita menuItemId y quantity > 0'
-        });
+    let resolved;
+    try {
+      resolved = await resolveOrderItems(prisma, rawItems);
+    } catch (err) {
+      if (err instanceof ComandaInputError) {
+        return res.status(400).json({ success: false, error: err.message });
       }
-      if (varietyIdRaw != null && varietyIdRaw !== '' && !Number.isFinite(varietyId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'varietyId inválido'
-        });
-      }
-      normalized.push({
-        menuItemId,
-        varietyId,
-        quantity: Math.min(999, Math.floor(quantity))
-      });
+      throw err;
     }
 
-    const menuIds = [...new Set(normalized.map((i) => i.menuItemId))];
-    const menuItems = await prisma.menuItem.findMany({
-      where: { id: { in: menuIds }, isActive: true },
-      include: {
-        varieties: { orderBy: [{ ordenIndex: 'asc' }, { name: 'asc' }] }
-      }
-    });
-    if (menuItems.length !== menuIds.length) {
-      return res.status(400).json({
-        success: false,
-        error: 'Uno o más ítems del menú no existen o están inactivos'
-      });
-    }
-    const menuById = new Map(menuItems.map((m) => [m.id, m]));
-
-    for (const row of normalized) {
-      const item = menuById.get(row.menuItemId);
-      const varieties = item.varieties || [];
-      if (varieties.length > 0) {
-        if (row.varietyId == null) {
-          return res.status(400).json({
-            success: false,
-            error: `Elegí variedad para “${item.name}” (${varieties.map((v) => v.name).join(' / ')})`
-          });
+    // Almuerzo sin cargo: todo sin cargo salvo bebidas (solo Minutas en cuenta de reserva).
+    const beneficioId =
+      req.body.beneficioId != null && req.body.beneficioId !== '' ? Number(req.body.beneficioId) : null;
+    let lines = resolved.lines;
+    if (beneficioId != null) {
+      try {
+        ({ lines } = await prepararBeneficio(prisma, {
+          beneficioId,
+          ambito,
+          reservationId: account.reservationId ?? null,
+          lines
+        }));
+      } catch (err) {
+        if (err instanceof BeneficioError) {
+          return res.status(err.status).json({ success: false, error: err.message });
         }
-        const variety = varieties.find((v) => v.id === row.varietyId);
-        if (!variety) {
-          return res.status(400).json({
-            success: false,
-            error: `Variedad inválida para “${item.name}”`
-          });
-        }
-        row.variety = variety;
-      } else if (row.varietyId != null) {
-        return res.status(400).json({
-          success: false,
-          error: `“${item.name}” no tiene variedades`
-        });
+        throw err;
       }
     }
 
-    const categories = [...new Set(menuItems.map((m) => m.category))];
-    const subcats = await prisma.subcategoriaCargo.findMany({
-      where: {
-        tipo: 'CONSUMO',
-        codigo: { in: categories },
-        esActivo: true
-      }
-    });
-    const subcatByCode = new Map(subcats.map((s) => [s.codigo, s]));
-
-    for (const code of categories) {
-      if (!subcatByCode.has(code)) {
-        return res.status(400).json({
-          success: false,
-          error: `Falta subcategoría de consumo ${CATEGORY_LABELS[code] || code}. Configurala en Cargos.`
-        });
-      }
-    }
-
-    const cargoFecha = toDateOnlyUtc(fechaCivil);
-
-    const created = await prisma.$transaction(async (tx) => {
-      const cargos = [];
-      for (const row of normalized) {
-        const item = menuById.get(row.menuItemId);
-        const sub = subcatByCode.get(item.category);
-        const variety = row.variety || null;
-        const unit = new Decimal(variety ? variety.price : item.price);
-        const qty = row.quantity;
-        const monto = unit.mul(qty);
-        const label = variety ? `${item.name} (${variety.name})` : item.name;
-        const descripcion = qty === 1 ? label : `${label} x${qty}`;
-
-        const cargo = await tx.cargo.create({
-          data: {
-            ...financialRefs,
-            subcategoriaCargoId: sub.id,
-            descripcion,
-            monto,
-            fecha: cargoFecha
-          },
-          include: { subcategoriaCargo: true }
-        });
-        cargos.push({
-          ...cargo,
-          menuItemId: item.id,
-          varietyId: variety ? variety.id : null,
-          varietyName: variety ? variety.name : null,
-          quantity: qty,
-          unitPrice: unit
-        });
-      }
-
-      const [allCargos, allCobros, allDiscounts] = await Promise.all([
-        tx.cargo.findMany({ where: { accountId: account.id }, select: { monto: true } }),
-        tx.cobro.findMany({ where: { accountId: account.id }, select: { montoARS: true } }),
-        tx.discountApplication.findMany({
-          where: { accountId: account.id },
-          select: { montoARS: true }
+    let comanda;
+    let created;
+    try {
+      ({ comanda, cargos: created } = await prisma.$transaction((tx) =>
+        createComanda(tx, {
+          ambito,
+          fecha: toDateOnlyUtc(fechaCivil),
+          account,
+          lines,
+          subcatByCode: resolved.subcatByCode,
+          beneficioId
         })
-      ]);
-      const { saldo } = calculateAccountBalance(allCargos, allCobros, allDiscounts);
-      await syncAccountStatusFromBalance(tx, account.id, saldo);
-
-      return cargos;
-    });
+      ));
+    } catch (err) {
+      if (err instanceof BeneficioError) {
+        return res.status(err.status).json({ success: false, error: err.message });
+      }
+      throw err;
+    }
 
     const total = created.reduce(
       (sum, c) => sum + Number(c.monto),
@@ -368,6 +298,11 @@ exports.createConsumptionOrder = async (req, res) => {
       data: {
         accountId: account.id,
         accountKind: account.kind,
+        comandaId: comanda.id,
+        ambito,
+        ambitoLabel: AMBITO_LABELS[ambito],
+        beneficioId,
+        bonificadas: lines.filter((l) => l.bonificado).length,
         reservationId: reservationId ?? account.reservationId ?? null,
         fecha: fechaCivil,
         clientName,
@@ -383,5 +318,147 @@ exports.createConsumptionOrder = async (req, res) => {
       error: 'Error al cargar el consumo',
       details: error.message
     });
+  }
+};
+
+/**
+ * Anula una comanda completa: elimina sus cargos y la deja como registro.
+ * POST /api/consumptions/orders/:id/anular
+ */
+exports.anularConsumptionOrder = async (req, res) => {
+  try {
+    const comandaId = Number(req.params.id);
+    if (!Number.isInteger(comandaId) || comandaId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de comanda inválido' });
+    }
+    const comanda = await prisma.$transaction((tx) => anularComanda(tx, comandaId));
+    if (!comanda) {
+      return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+    }
+    res.json({ success: true, data: comanda });
+  } catch (error) {
+    console.error('Error anulando comanda:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al anular la comanda',
+      details: error.message
+    });
+  }
+};
+
+async function loadComandaWithAccount(db, comandaId) {
+  return db.comanda.findUnique({
+    where: { id: comandaId },
+    include: {
+      account: {
+        include: { client: { select: { id: true, firstName: true, lastName: true } } }
+      },
+      reservation: {
+        select: { id: true, mainClient: { select: { id: true, firstName: true, lastName: true } } }
+      },
+      items: { orderBy: { id: 'asc' } },
+      beneficio: { select: { id: true, tipo: true, estado: true } }
+    }
+  });
+}
+
+function comandaView(comanda) {
+  const titular = comanda.reservation?.mainClient || comanda.account?.client || null;
+  return {
+    id: comanda.id,
+    ambito: comanda.ambito,
+    ambitoLabel: AMBITO_LABELS[comanda.ambito],
+    estado: comanda.estado,
+    fecha: isoDate(comanda.fecha),
+    accountId: comanda.accountId,
+    accountKind: comanda.account?.kind || null,
+    accountLabel: comanda.account?.label || null,
+    reservationId: comanda.reservationId,
+    clientName: titular ? clientDisplayName(titular) : comanda.account?.label || null,
+    notas: comanda.notas,
+    items: comanda.items.map((i) => ({
+      id: i.id,
+      menuItemId: i.menuItemId,
+      varietyId: i.varietyId,
+      descripcion: i.descripcion,
+      cantidad: i.cantidad,
+      precioUnitario: Number(i.precioUnitario),
+      subtotal: Number(i.subtotal),
+      cargoId: i.cargoId,
+      bonificado: i.bonificado
+    })),
+    beneficio: comanda.beneficio || null,
+    total: comanda.items.reduce((sum, i) => sum + (i.cargoId ? Number(i.subtotal) : 0), 0)
+  };
+}
+
+/** GET /api/consumptions/orders/:id */
+exports.getConsumptionOrder = async (req, res) => {
+  try {
+    const comandaId = Number(req.params.id);
+    if (!Number.isInteger(comandaId) || comandaId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de comanda inválido' });
+    }
+    const comanda = await loadComandaWithAccount(prisma, comandaId);
+    if (!comanda) return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+    res.json({ success: true, data: comandaView(comanda) });
+  } catch (error) {
+    console.error('Error obteniendo comanda:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener la comanda', details: error.message });
+  }
+};
+
+/**
+ * Agrega ítems a una comanda activa (mismo ámbito, cuenta y fecha).
+ * POST /api/consumptions/orders/:id/items  Body: { items: [...] }
+ */
+exports.addItemsToConsumptionOrder = async (req, res) => {
+  try {
+    const comandaId = Number(req.params.id);
+    if (!Number.isInteger(comandaId) || comandaId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de comanda inválido' });
+    }
+    const comanda = await loadComandaWithAccount(prisma, comandaId);
+    if (!comanda) return res.status(404).json({ success: false, error: 'Comanda no encontrada' });
+    if (comanda.estado !== 'ACTIVA') {
+      return res.status(400).json({ success: false, error: 'La comanda está anulada' });
+    }
+
+    let resolved;
+    try {
+      resolved = await resolveOrderItems(prisma, req.body.items);
+    } catch (err) {
+      if (err instanceof ComandaInputError) {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      throw err;
+    }
+
+    const notes = req.body.notes ? String(req.body.notes).trim() : null;
+    // Comanda con Almuerzo sin cargo: lo agregado sigue la misma regla (bebidas con cargo).
+    const lines = comanda.beneficio
+      ? resolved.lines.map((l) => ({ ...l, bonificado: lineaBonificable(l) }))
+      : resolved.lines;
+    const cargos = await prisma.$transaction((tx) =>
+      addLinesToComanda(tx, {
+        comanda,
+        account: comanda.account,
+        lines,
+        subcatByCode: resolved.subcatByCode,
+        notas: notes
+      })
+    );
+    const updated = await loadComandaWithAccount(prisma, comandaId);
+    res.status(201).json({
+      success: true,
+      data: {
+        ...comandaView(updated),
+        added: cargos.map((c) => ({ cargoId: c.id, comandaItemId: c.comandaItemId })),
+        addedTotal: cargos.reduce((sum, c) => sum + Number(c.monto), 0)
+      }
+    });
+  } catch (error) {
+    console.error('Error agregando ítems a comanda:', error);
+    res.status(500).json({ success: false, error: 'Error al agregar a la comanda', details: error.message });
   }
 };

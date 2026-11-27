@@ -734,6 +734,8 @@ function App() {
                 </ProtectedRoute>
               )}
             />
+            {/* URL desconocida (link viejo, typo): al inicio en vez de pantalla en blanco sin menú */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <SimulatedTodayDebugFab />
           <FakeReservationsDebugFab />

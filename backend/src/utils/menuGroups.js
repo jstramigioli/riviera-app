@@ -22,6 +22,13 @@ const CANONICAL_CONSUMO_GROUPS = [
     descripcion: 'Consumos de cafetería',
     color: '#6b7280',
     ordenIndex: 30
+  },
+  {
+    codigo: 'CENAS',
+    nombre: 'Cenas',
+    descripcion: 'Cenas (habitual, buffet, fiestas)',
+    color: '#334d70',
+    ordenIndex: 40
   }
 ];
 
@@ -41,7 +48,7 @@ function normalizeName(value) {
 }
 
 /**
- * Asegura BEBIDAS/MINUTAS/CAFETERIA y desactiva SNACKS.
+ * Asegura BEBIDAS/MINUTAS/CAFETERIA/CENAS y desactiva SNACKS.
  * Idempotente; se llama al listar/mutar grupos de menú.
  */
 async function ensureCanonicalConsumoGroups(tx = prisma) {

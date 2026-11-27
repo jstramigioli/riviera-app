@@ -26,6 +26,7 @@ import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import EstadoFinancieroTab from '../components/ReservationTabs/EstadoFinancieroTab';
 import HuespedesTab from '../components/ReservationTabs/HuespedesTab';
 import RegimenTab from '../components/ReservationTabs/RegimenTab';
+import ComidasReservaPanel from '../components/ReservationTabs/ComidasReservaPanel';
 import { FaPen, FaTimes, FaSave } from 'react-icons/fa';
 import { FiMail, FiCopy, FiCheck, FiInfo, FiLock } from 'react-icons/fi';
 import { useConfirmDialog } from '../hooks/useConfirmDialog';
@@ -320,18 +321,16 @@ const ReservationDetails = () => {
     }
   };
 
+  // La confirmación la pide EstadoFinancieroTab (mensaje según cargo suelto / línea de comanda).
   const handleDeleteCargo = async (cargoId) => {
-    const ok = await confirm({
-      title: 'Eliminar consumo',
-      message: '¿Confirmás eliminar este cargo / consumo? Esta acción no se puede deshacer.',
-      confirmText: 'Eliminar',
-    });
-    if (!ok) return;
-
     try {
-      await deleteCargo(cargoId);
+      const result = await deleteCargo(cargoId);
       await loadFinancialData();
-      notify({ title: 'Consumo eliminado', message: 'El cargo se eliminó correctamente.', type: 'success' });
+      notify({
+        title: 'Cargo eliminado',
+        message: result?.message || 'El cargo se eliminó correctamente.',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error eliminando cargo:', error);
       notify({ title: 'Error', message: error.message, type: 'error' });
@@ -521,8 +520,11 @@ const ReservationDetails = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al actualizar el estado de la reserva');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          [errorData.error, errorData.message].filter(Boolean).join('. ') ||
+            'Error al actualizar el estado de la reserva'
+        );
       }
 
       const updatedReservation = await response.json();
@@ -573,7 +575,16 @@ const ReservationDetails = () => {
           />
         );
       case 'regimen':
-        return <RegimenTab reservation={reservation} />;
+        return (
+          <>
+            <ComidasReservaPanel
+              reservationId={reservation.id}
+              reservationStatus={reservation.status}
+              onChanged={loadFinancialData}
+            />
+            <RegimenTab reservation={reservation} />
+          </>
+        );
       default:
         return null;
     }
@@ -787,7 +798,7 @@ const ReservationDetails = () => {
               onClick={() => setActiveTab('regimen')}
               data-testid="reservation-tab-regimen"
             >
-              Régimen
+              Comidas
             </button>
           </div>
         </div>

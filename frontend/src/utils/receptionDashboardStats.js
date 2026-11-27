@@ -7,7 +7,6 @@ import {
   computeDayInfoStats,
   mainClientDisplayName,
   mainClientIdOf,
-  mealFlagsFromServiceRef,
   movementListLabel,
   movementRoomEntries,
   movementRoomLabel,
@@ -67,10 +66,6 @@ function segmentsCoveringDay(segments, dayIso) {
     const end = civilOf(seg.endDate ?? seg.checkOut);
     return start && end && start <= dayIso && dayIso < end;
   });
-}
-
-function previousCivilDay(dayIso) {
-  return shiftIso(dayIso, -1);
 }
 
 function buildRoomsById(rooms) {
@@ -379,82 +374,6 @@ function enrichMovementItemsWithStatus(items, reservations) {
   });
 }
 
-function mealDetailItems(dayIso, rooms, reservations, serviceTypes, meal) {
-  const roomsById = buildRoomsById(rooms);
-  const serviceTypesById = buildServiceTypesById(serviceTypes);
-  const prevDay = previousCivilDay(dayIso);
-  const items = [];
-
-  for (const reservation of reservations || []) {
-    if (
-      reservation?.status === 'CANCELADA' ||
-      reservation?.status === 'NO_PRESENTADA' ||
-      reservation?.status === 'cancelled' ||
-      reservation?.status === 'no_show'
-    ) {
-      continue;
-    }
-    const segments = activeSegments(reservation);
-    const { start, end } = stayBounds(reservation);
-    if (!start || !end) continue;
-
-    let segsForMeal = [];
-    if (meal === 'breakfast') {
-      if (!(start < dayIso && dayIso <= end)) continue;
-      const prevCovering = prevDay ? segmentsCoveringDay(segments, prevDay) : [];
-      segsForMeal = prevCovering.length
-        ? prevCovering
-        : segments.filter((s) => civilOf(s.endDate ?? s.checkOut) === dayIso);
-      if (!segsForMeal.length) segsForMeal = segments;
-    } else {
-      if (!(start <= dayIso && dayIso < end)) continue;
-      segsForMeal = segmentsCoveringDay(segments, dayIso);
-      if (!segsForMeal.length) segsForMeal = segments;
-    }
-
-    const flags = mealFlagsFromServiceRef(
-      primaryServiceRef(segsForMeal, reservation),
-      serviceTypesById
-    );
-    if (meal === 'breakfast' && !flags.breakfast) continue;
-    if (meal === 'dinner' && !flags.dinner) continue;
-
-    const guestName = mainClientDisplayName(reservation);
-    const roomEntries = movementRoomEntries(
-      reservation,
-      segments,
-      dayIso,
-      meal === 'breakfast' ? 'out' : 'in',
-      roomsById
-    );
-    const room = roomEntries.length
-      ? roomEntries.map((e) => e.name).join('/')
-      : movementRoomLabel(
-          reservation,
-          segments,
-          dayIso,
-          meal === 'breakfast' ? 'out' : 'in',
-          roomsById
-        );
-    const guests =
-      Number(reservation.requiredGuests) ||
-      segsForMeal.reduce((sum, s) => sum + (Number(s.guestCount) || 0), 0) ||
-      1;
-
-    items.push({
-      reservationId: reservation.id,
-      clientId: mainClientIdOf(reservation),
-      roomLabel: room,
-      rooms: roomEntries,
-      guestName,
-      guests,
-      label: `${movementListLabel(room, guestName)} (${guests})`
-    });
-  }
-
-  return items;
-}
-
 /**
  * @param {{ todayIso: string, mealsDateIso?: string, rooms: any[], reservations: any[], serviceTypes?: any[], horizonDays?: number }} args
  */
@@ -472,9 +391,8 @@ export function buildReceptionDashboardModel({
   const tomorrowIso = shiftIso(todayIso, 1);
   const panelOptions = { horizonDays, serviceTypes };
 
-  const today = computeDayInfoStats(todayIso, capacityRooms, reservations, serviceTypes);
-  const tomorrow = computeDayInfoStats(tomorrowIso, capacityRooms, reservations, serviceTypes);
-  const meals = computeDayInfoStats(mealsIso, capacityRooms, reservations, serviceTypes);
+  const today = computeDayInfoStats(todayIso, capacityRooms, reservations);
+  const tomorrow = computeDayInfoStats(tomorrowIso, capacityRooms, reservations);
 
   const checkInItems = buildCheckInPanelItems(
     todayIso,
@@ -510,11 +428,6 @@ export function buildReceptionDashboardModel({
       lateCheckouts: lateItems
     },
     tomorrow,
-    meals: {
-      ...meals,
-      breakfastItems: mealDetailItems(mealsIso, capacityRooms, reservations, serviceTypes, 'breakfast'),
-      dinnerItems: mealDetailItems(mealsIso, capacityRooms, reservations, serviceTypes, 'dinner')
-    },
     occupancyByType: byType,
     notifications
   };
