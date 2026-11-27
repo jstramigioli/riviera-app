@@ -140,6 +140,7 @@ export default function ComensalesTab() {
               <tr>
                 <th>Reserva</th>
                 <th>Nombre</th>
+                <th>Dieta</th>
                 <th>Hab.</th>
                 <th className={styles.num}>Pers.</th>
                 <th>Origen</th>
@@ -169,6 +170,13 @@ export default function ComensalesTab() {
                     <td>
                       {item.guestName}
                       {item.notas ? <span className={styles.note}> · {item.notas}</span> : null}
+                    </td>
+                    <td>
+                      {item.dietas?.length ? (
+                        item.dietas.join(' · ')
+                      ) : (
+                        <span className={styles.muted}>—</span>
+                      )}
                     </td>
                     <td>{item.roomLabel}</td>
                     <td className={styles.num}>

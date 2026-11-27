@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma');
+const { resumenDietas, DIETA_GUEST_SELECT } = require('../utils/dietas');
 const { civilFromDb, toDateOnlyUtc, isoDate, todayIsoLocal } = require('../utils/calendarDates');
 const { GENERATING_STATUSES } = require('../utils/prestacionesComida');
 const {
@@ -75,6 +76,8 @@ function toItem(row) {
     comandaEstado: row.comanda?.estado || null,
     reservationId: row.reservationId,
     reservationStatus: reservation?.status || null,
+    // Dietas de los huéspedes de la reserva (para cocina)
+    dietas: reservation ? resumenDietas(reservation.guests) : [],
     clientId: reservation?.mainClient?.id ?? null,
     guestName,
     roomLabel,
@@ -116,6 +119,7 @@ exports.getComidasDelDia = async (req, res) => {
             id: true,
             status: true,
             mainClient: { select: { id: true, firstName: true, lastName: true } },
+            guests: { select: DIETA_GUEST_SELECT },
             segments: {
               select: {
                 startDate: true,

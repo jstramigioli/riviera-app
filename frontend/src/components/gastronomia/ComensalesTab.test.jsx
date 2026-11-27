@@ -41,7 +41,7 @@ describe('ComensalesTab', () => {
         cenas: {
           total: 6,
           items: [
-            item({}),
+            item({ dietas: ['Celíaco ×1', 'Vegetariano ×2'] }),
             item({ id: 2, origen: 'MANUAL', esExterno: true, reservationId: null, guestName: 'Familia Ruiz', roomLabel: 'Externo', pax: 4, comandaId: 9, comandaEstado: 'ACTIVA' }),
             item({ id: 3, estado: 'CANCELADA', guestName: 'Luis Gómez', roomLabel: '14' })
           ]
@@ -93,5 +93,10 @@ describe('ComensalesTab', () => {
     await user.click(botones[0]);
     expect(screen.getByTestId('comanda-modal')).toHaveTextContent('"reservationId":40');
     expect(screen.getByTestId('comanda-modal')).toHaveTextContent('"ambito":"CENA"');
+  });
+
+  it('muestra las dietas de los huéspedes para cocina', async () => {
+    renderTab();
+    expect(await screen.findByText('Celíaco ×1 · Vegetariano ×2')).toBeInTheDocument();
   });
 });
