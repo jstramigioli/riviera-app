@@ -4,6 +4,7 @@ import HabitacionesTab from '../components/configuracion/HabitacionesTab';
 import CargosTarifasTab from '../components/configuracion/CargosTarifasTab';
 import MenuConsumosTab from '../components/configuracion/MenuConsumosTab';
 import CenasTab from '../components/configuracion/CenasTab';
+import CatalogoPlatosTab from '../components/configuracion/CatalogoPlatosTab';
 import HotelConfigPanel from '../components/configuracion/HotelConfigPanel';
 import CalendarioTab from '../components/configuracion/CalendarioTab';
 import TipoCambioConfig from '../components/TipoCambioConfig';
@@ -132,6 +133,9 @@ function ConfiguracionView() {
         break;
       case 'cenas':
         activePanel = null;
+        break;
+      case 'platos':
+        activePanel = <CatalogoPlatosTab />;
         break;
       case 'calendario':
         activePanel = <CalendarioTab />;

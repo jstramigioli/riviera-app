@@ -8,16 +8,38 @@ const DIETAS = [
   { key: 'dietVegetariano', label: 'Vegetariano' }
 ];
 
-/** @param {Array<{dietCeliaco?: boolean, dietVegano?: boolean, dietVegetariano?: boolean}>} guests */
+/** Texto libre de «otra» preferencia, normalizado para agrupar («sin sal» = «Sin sal»). */
+function dietaOtra(g) {
+  const t = typeof g?.dietOtra === 'string' ? g.dietOtra.trim() : '';
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : null;
+}
+
+/** @param {Array<{dietCeliaco?: boolean, dietVegano?: boolean, dietVegetariano?: boolean, dietOtra?: string}>} guests */
 function resumenDietas(guests) {
   const out = [];
+  const list = (guests || []).filter(Boolean);
   for (const { key, label } of DIETAS) {
-    const n = (guests || []).filter((g) => g && g[key]).length;
+    const n = list.filter((g) => g[key]).length;
     if (n > 0) out.push(`${label} ×${n}`);
   }
+  const otras = new Map();
+  for (const g of list) {
+    const t = dietaOtra(g);
+    if (!t) continue;
+    const k = t.toLowerCase();
+    otras.set(k, { label: otras.get(k)?.label || t, n: (otras.get(k)?.n || 0) + 1 });
+  }
+  for (const { label, n } of otras.values()) out.push(`${label} ×${n}`);
   return out;
 }
 
-const DIETA_GUEST_SELECT = { dietCeliaco: true, dietVegano: true, dietVegetariano: true };
+/** Personas con al menos una preferencia alimentaria. */
+function contarConDieta(guests) {
+  return (guests || []).filter(
+    (g) => g && (DIETAS.some(({ key }) => g[key]) || dietaOtra(g))
+  ).length;
+}
 
-module.exports = { resumenDietas, DIETA_GUEST_SELECT };
+const DIETA_GUEST_SELECT = { dietCeliaco: true, dietVegano: true, dietVegetariano: true, dietOtra: true };
+
+module.exports = { resumenDietas, contarConDieta, dietaOtra, DIETA_GUEST_SELECT };

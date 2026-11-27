@@ -27,6 +27,7 @@ const item = (overrides) => ({
   reservationStatus: 'INGRESADA',
   guestName: 'Ana Pérez',
   roomLabel: '12',
+  rooms: [{ roomId: 5, name: '12' }],
   comandaId: null,
   comandaEstado: null,
   ...overrides
@@ -40,9 +41,12 @@ describe('ComensalesTab', () => {
         fecha: '2026-12-02',
         cenas: {
           total: 6,
+          porOrigen: { incluida: 2, adicional: 0, externo: 4 },
+          conDieta: 3,
+          dietas: ['Celíaco ×1', 'Vegetariano ×2'],
           items: [
             item({ dietas: ['Celíaco ×1', 'Vegetariano ×2'] }),
-            item({ id: 2, origen: 'MANUAL', esExterno: true, reservationId: null, guestName: 'Familia Ruiz', roomLabel: 'Externo', pax: 4, comandaId: 9, comandaEstado: 'ACTIVA' }),
+            item({ id: 2, origen: 'MANUAL', esExterno: true, reservationId: null, guestName: 'Familia Ruiz', roomLabel: 'Externo', rooms: [], pax: 4, comandaId: 9, comandaEstado: 'ACTIVA' }),
             item({ id: 3, estado: 'CANCELADA', guestName: 'Luis Gómez', roomLabel: '14' })
           ]
         },
@@ -53,35 +57,55 @@ describe('ComensalesTab', () => {
     reactivarComida.mockResolvedValue({});
   });
 
-  function renderTab() {
+  function renderTab(tipo = 'CENA') {
     return render(
       <MemoryRouter>
-        <ComensalesTab />
+        <ComensalesTab tipo={tipo} />
       </MemoryRouter>
     );
   }
 
-  it('muestra cenas y desayunos con totales, origen y estado', async () => {
+  it('cena: tablero del día y del siguiente, tabla con origen, estado y chip de habitación', async () => {
     renderTab();
     const cenas = await screen.findByRole('region', { name: 'Cenas' });
     expect(fetchComidasDelDia.mock.calls[0][1]).toEqual({ incluirCanceladas: true });
-    expect(within(cenas).getByText('6')).toBeInTheDocument();
+    expect(fetchComidasDelDia).toHaveBeenCalledTimes(2);
+    const hoy = screen.getByLabelText('Resumen Hoy');
+    expect(within(hoy).getByText('6')).toBeInTheDocument();
+    expect(within(hoy).getByText('Externos')).toBeInTheDocument();
+    expect(within(hoy).getByText('Celíaco ×1 · Vegetariano ×2')).toBeInTheDocument();
+    expect(screen.getByLabelText('Resumen Mañana')).toBeInTheDocument();
     expect(within(cenas).getAllByText('Incluida')).toHaveLength(2);
-    // Habitación y origen de la fila externa
-    expect(within(cenas).getAllByText('Externo', { selector: 'td' })).toHaveLength(2);
-    expect(within(cenas).getByText('Cancelada')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Desayunos' })).toHaveTextContent('Ana Pérez');
+    expect(within(cenas).getByText('Externo', { selector: 'td' })).toBeInTheDocument();
+    expect(within(cenas).getAllByTitle('Ver habitación 12')).toHaveLength(2);
+    expect(within(cenas).getByText('Cambiada por almuerzo')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Desayunos' })).not.toBeInTheDocument();
+  });
+
+  it('desayuno: solo la tabla de desayunos, sin «+ Cena»', async () => {
+    renderTab('DESAYUNO');
+    expect(await screen.findByRole('region', { name: 'Desayunos' })).toHaveTextContent('Ana Pérez');
+    expect(screen.queryByRole('button', { name: /Cena/ })).not.toBeInTheDocument();
   });
 
   it('cancelar pide confirmación y llama a la API; reactivar solo en incluidas canceladas', async () => {
     const user = userEvent.setup();
     renderTab();
-    await user.click(await screen.findByRole('button', { name: 'Cancelar cena de Ana Pérez' }));
-    await user.click(await screen.findByRole('button', { name: 'Cancelar cena' }));
+    await user.click(await screen.findByRole('button', { name: 'Cambiar por almuerzo la cena de Ana Pérez' }));
+    await user.click(await screen.findByRole('button', { name: 'Cambiar por almuerzo' }));
     await waitFor(() => expect(cancelarComida).toHaveBeenCalledWith(1));
 
     await user.click(screen.getByRole('button', { name: 'Reactivar cena de Luis Gómez' }));
     await waitFor(() => expect(reactivarComida).toHaveBeenCalledWith(3));
+  });
+
+  it('la cantidad no se edita en la tabla: la adicional se edita con el modal, la incluida se cambia por almuerzo', async () => {
+    renderTab();
+    const cenas = await screen.findByRole('region', { name: 'Cenas' });
+    expect(within(cenas).queryAllByRole('spinbutton')).toHaveLength(0);
+    expect(within(cenas).getByRole('button', { name: 'Editar cena de Familia Ruiz' })).toBeInTheDocument();
+    expect(within(cenas).queryByRole('button', { name: 'Cambiar por almuerzo la cena de Familia Ruiz' })).not.toBeInTheDocument();
+    expect(within(cenas).queryByRole('button', { name: 'Editar cena de Ana Pérez' })).not.toBeInTheDocument();
   });
 
   it('consumos: agrega a la comanda de la cena manual o abre una comanda de Cena para el huésped', async () => {
@@ -97,6 +121,7 @@ describe('ComensalesTab', () => {
 
   it('muestra las dietas de los huéspedes para cocina', async () => {
     renderTab();
-    expect(await screen.findByText('Celíaco ×1 · Vegetariano ×2')).toBeInTheDocument();
+    const cenas = await screen.findByRole('region', { name: 'Cenas' });
+    expect(within(cenas).getByText('Celíaco ×1 · Vegetariano ×2')).toBeInTheDocument();
   });
 });

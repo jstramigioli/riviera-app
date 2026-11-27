@@ -283,7 +283,9 @@ export default function ReceptionDashboard() {
   );
 
   // Comidas previstas: vienen del backend (prestaciones según régimen); se recargan con las reservas.
-  const { comidas: meals, error: mealsError } = useComidasDelDia(mealsDateIso, reservations);
+  const [mealsVersion, setMealsVersion] = useState(0);
+  const mealsRefreshKey = useMemo(() => [reservations, mealsVersion], [reservations, mealsVersion]);
+  const { comidas: meals, error: mealsError } = useComidasDelDia(mealsDateIso, mealsRefreshKey);
 
   const openReservation = (reservationId) => {
     if (reservationId == null) return;
@@ -769,6 +771,7 @@ export default function ReceptionDashboard() {
           mealsError={mealsError}
           onOpenReservation={openReservation}
           onOpenClient={openClient}
+          onMealsChanged={() => setMealsVersion((v) => v + 1)}
         />
 
         <NotificationsPanel todayIso={todayIso} />

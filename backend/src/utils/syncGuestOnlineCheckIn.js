@@ -49,6 +49,7 @@ async function syncGuestOnlineCheckInCompleted(prisma, guest, body = {}, resolve
     ),
     dietVegano: Boolean(body.dietVegano !== undefined ? body.dietVegano : guest.dietVegano),
     dietCeliaco: Boolean(body.dietCeliaco !== undefined ? body.dietCeliaco : guest.dietCeliaco),
+    dietOtra: normalizeText(body.dietOtra !== undefined ? body.dietOtra : guest.dietOtra)?.slice(0, 120) || null,
     needsManualReview: Boolean(resolveMeta?.needsManualReview),
     identityConflictNote: resolveMeta?.identityConflictNote || null
   };

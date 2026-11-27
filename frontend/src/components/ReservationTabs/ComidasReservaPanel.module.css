@@ -134,3 +134,90 @@
   color: var(--color-danger-dark);
   font-size: var(--font-size-small);
 }
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.comandaItems {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comandaItems li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.textBtn {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.textBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.headingRow .heading {
+  margin: 0;
+}
+
+.textBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.toggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  cursor: pointer;
+}
+
+.toggleBtn:hover {
+  color: var(--color-primary-dark);
+}
+
+.toggleBtn svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.detalleRow td {
+  padding-top: 0;
+  padding-left: 1.6rem;
+  background: var(--color-bg-light);
+}
+
+.detalleRow .comandaItems {
+  max-width: 32rem;
+  padding: 0.35rem 0;
+}

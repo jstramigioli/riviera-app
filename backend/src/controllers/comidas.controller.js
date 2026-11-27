@@ -1,5 +1,5 @@
 const prisma = require('../utils/prisma');
-const { resumenDietas, DIETA_GUEST_SELECT } = require('../utils/dietas');
+const { resumenDietas, contarConDieta, DIETA_GUEST_SELECT } = require('../utils/dietas');
 const { civilFromDb, toDateOnlyUtc, isoDate, todayIsoLocal } = require('../utils/calendarDates');
 const { GENERATING_STATUSES } = require('../utils/prestacionesComida');
 const {
@@ -35,26 +35,42 @@ function clientName(client) {
   return `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Sin nombre';
 }
 
-/** Habitación(es) de la noche a la que corresponde la comida. */
-function roomLabelForNight(segments, nightIso) {
-  const labels = [];
+/** Habitación(es) de la noche a la que corresponde la comida: [{ roomId, name }]. */
+function roomsForNight(segments, nightIso) {
+  const rooms = [];
   for (const seg of segments || []) {
     if (seg.isActive === false) continue;
     const start = civilFromDb(seg.startDate);
     const end = civilFromDb(seg.endDate);
     if (!(start <= nightIso && nightIso < end)) continue;
-    const label = seg.virtualRoom?.name || seg.room?.name || (seg.roomId != null ? String(seg.roomId) : null);
-    if (label && !labels.includes(label)) labels.push(label);
+    const name = seg.virtualRoom?.name || seg.room?.name || (seg.roomId != null ? String(seg.roomId) : null);
+    if (name && !rooms.some((r) => r.name === name)) {
+      rooms.push({ roomId: seg.virtualRoom ? null : seg.roomId ?? null, name });
+    }
   }
-  return labels.length ? labels.join('/') : '—';
+  return rooms;
+}
+
+const EDAD_LABELS = { NINO: '5 a 10 años', MENOR: 'Menor de 5' };
+
+/** «5 a 10 años ×1 · Menor de 5 ×2» (los adultos no se detallan). */
+function resumenEdades(detalle) {
+  return Object.entries(EDAD_LABELS)
+    .map(([edad, label]) => [label, detalle.filter((c) => c.edad === edad).length])
+    .filter(([, n]) => n > 0)
+    .map(([label, n]) => `${label} ×${n}`);
 }
 
 function toItem(row) {
+  const detalle = Array.isArray(row.comensales?.detalle) ? row.comensales.detalle : null;
   const fecha = civilFromDb(row.fecha);
   // El desayuno corresponde a la noche anterior; la cena, a la noche del día.
   const night = row.tipo === 'DESAYUNO' ? addDaysIso(fecha, -1) : fecha;
   const reservation = row.reservation;
-  const roomLabel = reservation ? roomLabelForNight(reservation.segments, night) : 'Externo';
+  const rooms = reservation ? roomsForNight(reservation.segments, night) : [];
+  const roomLabel = reservation ? rooms.map((r) => r.name).join('/') || '—' : 'Externo';
+  // Personas para el resumen de dietas: las de la cena manual o los huéspedes de la reserva.
+  const personas = detalle || reservation?.guests || [];
   const guestName = reservation
     ? clientName(reservation.mainClient)
     : row.nombreExterno || row.comanda?.account?.label || 'Sin nombre';
@@ -76,11 +92,16 @@ function toItem(row) {
     comandaEstado: row.comanda?.estado || null,
     reservationId: row.reservationId,
     reservationStatus: reservation?.status || null,
-    // Dietas de los huéspedes de la reserva (para cocina)
-    dietas: reservation ? resumenDietas(reservation.guests) : [],
-    clientId: reservation?.mainClient?.id ?? null,
+    // Dietas para cocina: las cargadas en la cena manual o, si no, las de los huéspedes de la reserva.
+    dietas: resumenDietas(personas),
+    conDieta: contarConDieta(personas),
+    comensales: detalle,
+    edades: detalle ? resumenEdades(detalle) : [],
+    precioBase: row.comensales?.precioBase ?? null,
+    clientId: reservation?.mainClient?.id ?? row.comanda?.account?.clientId ?? null,
     guestName,
     roomLabel,
+    rooms,
     label: `${roomLabel} - ${guestName} (${row.pax})`
   };
 }
@@ -113,7 +134,7 @@ exports.getComidasDelDia = async (req, res) => {
         ...(incluirCanceladas ? {} : { estado: 'PREVISTA' })
       },
       include: {
-        comanda: { select: { id: true, estado: true, account: { select: { label: true } } } },
+        comanda: { select: { id: true, estado: true, account: { select: { label: true, clientId: true } } } },
         reservation: {
           select: {
             id: true,
@@ -136,16 +157,30 @@ exports.getComidasDelDia = async (req, res) => {
     });
 
     // Cenas manuales de reservas canceladas no cuentan (las de régimen ya se sincronizan).
-    const items = rows
-      .filter((r) => !r.reservation || GENERATING_STATUSES.has(r.reservation.status))
-      .map(toItem)
-      .sort(compareItems);
+    const vigentes = rows.filter((r) => !r.reservation || GENERATING_STATUSES.has(r.reservation.status));
+    const items = vigentes.map(toItem).sort(compareItems);
+    const personasPorId = new Map(
+      vigentes.map((r) => [
+        r.id,
+        Array.isArray(r.comensales?.detalle) ? r.comensales.detalle : r.reservation?.guests || []
+      ])
+    );
     const group = (tipo) => {
       const list = items.filter((i) => i.tipo === tipo);
-      const total = list
-        .filter((i) => i.estado === 'PREVISTA')
-        .reduce((sum, i) => sum + i.pax, 0);
-      return { total, items: list };
+      const previstas = list.filter((i) => i.estado === 'PREVISTA');
+      const sumPax = (arr) => arr.reduce((sum, i) => sum + i.pax, 0);
+      return {
+        total: sumPax(previstas),
+        // Resumen para el tablero: origen de los comensales y personas con régimen especial.
+        porOrigen: {
+          incluida: sumPax(previstas.filter((i) => i.origen === 'REGIMEN')),
+          adicional: sumPax(previstas.filter((i) => i.origen === 'MANUAL' && !i.esExterno)),
+          externo: sumPax(previstas.filter((i) => i.origen === 'MANUAL' && i.esExterno))
+        },
+        conDieta: previstas.reduce((sum, i) => sum + i.conDieta, 0),
+        dietas: resumenDietas(previstas.flatMap((i) => personasPorId.get(i.id) || [])),
+        items: list
+      };
     };
 
     res.json({
@@ -186,7 +221,7 @@ exports.crearCenaManual = async (req, res) => {
   }
 };
 
-/** PATCH /api/comidas/:id — { pax?, notas? } */
+/** PATCH /api/comidas/:id — { pax?, comensales?, notas? } */
 exports.actualizarComida = async (req, res) => {
   try {
     res.json({ success: true, data: await actualizarPrestacion(prisma, parseId(req), req.body || {}) });
@@ -244,13 +279,34 @@ function beneficioView(b) {
  * Comidas y beneficios de una reserva (detalle de reserva → Comidas).
  * GET /api/comidas/reserva/:reservationId
  */
+/** Comanda con sus líneas; el total suma solo lo facturado (líneas con cargo). */
+function comandaResumen(c) {
+  const items = c.items.map((i) => ({
+    id: i.id,
+    descripcion: i.descripcion,
+    cantidad: i.cantidad,
+    precioUnitario: Number(i.precioUnitario),
+    subtotal: Number(i.subtotal),
+    sinCargo: !i.cargoId
+  }));
+  return {
+    id: c.id,
+    fecha: civilFromDb(c.fecha),
+    ambito: c.ambito,
+    estado: c.estado,
+    notas: c.notas,
+    items,
+    total: items.reduce((sum, i) => sum + (i.sinCargo ? 0 : i.subtotal), 0)
+  };
+}
+
 exports.getComidasDeReserva = async (req, res) => {
   try {
     const reservationId = Number(req.params.reservationId);
     if (!Number.isInteger(reservationId) || reservationId <= 0) {
       throw new ComidaInputError('reserva inválida');
     }
-    const [prestaciones, beneficios] = await Promise.all([
+    const [prestaciones, beneficios, comandas] = await Promise.all([
       prisma.prestacionComida.findMany({
         where: { reservationId, vigente: true },
         include: { beneficio: { select: { id: true, estado: true } } },
@@ -270,6 +326,11 @@ exports.getComidasDeReserva = async (req, res) => {
           }
         },
         orderBy: { createdAt: 'asc' }
+      }),
+      prisma.comanda.findMany({
+        where: { reservationId },
+        include: { items: { orderBy: { id: 'asc' } } },
+        orderBy: [{ fecha: 'desc' }, { id: 'desc' }]
       })
     ]);
     res.json({
@@ -290,7 +351,8 @@ exports.getComidasDeReserva = async (req, res) => {
           beneficio: p.beneficio
         })),
         beneficios: beneficios.map(beneficioView),
-        beneficiosDisponibles: beneficios.filter((b) => b.estado === 'DISPONIBLE').length
+        beneficiosDisponibles: beneficios.filter((b) => b.estado === 'DISPONIBLE').length,
+        comandas: comandas.map(comandaResumen)
       }
     });
   } catch (error) {

@@ -8,11 +8,12 @@
  *   ya cargadas no se tocan).
  * - Cena incluida (REGIMEN): cancelar no toca dinero; se puede reactivar.
  */
+const { Decimal } = require('@prisma/client/runtime/library');
 const { toDateOnlyUtc, civilFromDb } = require('./calendarDates');
 const { ensureReservationAccount, createExternalAccount } = require('./accountHelpers');
 const { ensureCanonicalConsumoGroups } = require('./menuGroups');
 const {
-  buildComandaLines,
+  addLinesToComanda,
   createComanda,
   lineDescription,
   refreshAccountStatus,
@@ -72,14 +73,89 @@ async function cenasSubcatByCode(db) {
   return new Map([[CENAS_CATEGORY, sub]]);
 }
 
+/** Edad del comensal: NINO (5 a 10) paga la mitad; MENOR (menos de 5) no paga. */
+const EDADES = ['ADULTO', 'NINO', 'MENOR'];
+const EDAD_SUFIJO = { ADULTO: null, NINO: '5 a 10 años', MENOR: 'menor de 5' };
+const DIETA_KEYS = ['dietVegetariano', 'dietVegano', 'dietCeliaco'];
+
+function adultoSinDieta() {
+  return { edad: 'ADULTO', dietVegetariano: false, dietVegano: false, dietCeliaco: false };
+}
+
+/**
+ * Detalle por comensal: [{ edad, dietVegetariano, dietVegano, dietCeliaco }].
+ * Sin detalle: `pax` adultos sin dieta.
+ */
+function parseComensales(raw, paxFallback) {
+  if (raw == null) {
+    return Array.from({ length: parsePax(paxFallback) }, adultoSinDieta);
+  }
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 99) {
+    throw new ComidaInputError('Cantidad de comensales inválida (1 a 99)');
+  }
+  return raw.map((c) => {
+    const edad = EDADES.includes(c?.edad) ? c.edad : null;
+    if (!edad) throw new ComidaInputError('Edad de comensal inválida');
+    const out = { edad };
+    for (const k of DIETA_KEYS) out[k] = Boolean(c?.[k]);
+    const otra = typeof c?.dietOtra === 'string' ? c.dietOtra.trim().slice(0, 120) : '';
+    if (otra) out.dietOtra = otra;
+    return out;
+  });
+}
+
+/**
+ * Líneas de la cena según el detalle: una por edad presente. Adultos al precio
+ * base, de 5 a 10 años a la mitad, menores de 5 sin cargo (línea bonificada).
+ */
+function cenaLinesFromComensales({ item, varietyId, varietyName, precioBase }, detalle) {
+  const base = new Decimal(precioBase);
+  const lines = [];
+  for (const edad of EDADES) {
+    const n = detalle.filter((c) => c.edad === edad).length;
+    if (!n) continue;
+    const precioUnitario =
+      edad === 'ADULTO' ? base : edad === 'NINO' ? base.div(2).toDecimalPlaces(2) : new Decimal(0);
+    const variedadLabel = [varietyName, EDAD_SUFIJO[edad]].filter(Boolean).join(' · ') || null;
+    lines.push({
+      menuItemId: item.id,
+      varietyId,
+      category: CENAS_CATEGORY,
+      descripcion: lineDescription(item.name, variedadLabel, n),
+      cantidad: n,
+      precioUnitario,
+      subtotal: precioUnitario.mul(n),
+      ...(edad === 'MENOR' ? { bonificado: true } : {})
+    });
+  }
+  return lines;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Cliente nuevo para una cena externa: nombre, apellido y al menos un contacto. */
+function parseClienteNuevo(raw) {
+  const c = raw && typeof raw === 'object' ? raw : {};
+  const firstName = cleanText(c.firstName, 80);
+  const lastName = cleanText(c.lastName, 80);
+  const phone = cleanText(c.phone, 40);
+  const email = cleanText(c.email, 120);
+  if (!firstName || !lastName) throw new ComidaInputError('Ingresá nombre y apellido del cliente');
+  if (!phone && !email) throw new ComidaInputError('Ingresá un teléfono o un email de contacto');
+  if (email && !EMAIL_RE.test(email)) throw new ComidaInputError('El email no es válido');
+  return { firstName, lastName, phone, email: email ? email.toLowerCase() : null };
+}
+
 /**
  * Registra una cena no incluida en el régimen y crea su comanda de Cena.
  * body: { fecha, menuItemId, variedad?: 'ALOJADO'|'EXTERNO', pax, notas?,
- *         reservationId? | nombreExterno?, telefono?, accountId? }
+ *         reservationId? | clientId? | cliente?: { firstName, lastName, phone?, email? } | accountId? }
+ * Externo: cliente existente (clientId) o uno nuevo que se crea con la cena.
  */
 async function registrarCenaManual(db, body = {}) {
   const fecha = parseFechaCivil(body.fecha);
-  const pax = parsePax(body.pax);
+  const detalle = parseComensales(body.comensales, body.pax);
+  const pax = detalle.length;
   const notas = cleanText(body.notas, 500);
   const menuItemId = Number(body.menuItemId);
   if (!Number.isInteger(menuItemId)) throw new ComidaInputError('Elegí el tipo de cena');
@@ -129,28 +205,55 @@ async function registrarCenaManual(db, body = {}) {
     variedad = variedad || 'ALOJADO';
   } else {
     const accountId = body.accountId != null && body.accountId !== '' ? Number(body.accountId) : null;
-    const nombre = cleanText(body.nombreExterno, 120);
+    const clientId = body.clientId != null && body.clientId !== '' ? Number(body.clientId) : null;
     if (accountId != null) {
       account = await db.account.findUnique({ where: { id: accountId } });
       if (!account || account.kind !== 'EXTERNAL') {
         throw new ComidaInputError('Cuenta externa inválida');
       }
-    } else if (!nombre) {
-      throw new ComidaInputError('Ingresá el nombre del comensal externo');
+      externo = { nombre: account.label || null, telefono: null, clientId: account.clientId || null };
+    } else if (clientId != null) {
+      const client = await db.client.findUnique({
+        where: { id: clientId },
+        select: { id: true, firstName: true, lastName: true, phone: true, email: true }
+      });
+      if (!client) throw new ComidaInputError('Cliente no encontrado', 404);
+      externo = {
+        nombre: `${client.firstName} ${client.lastName}`.trim(),
+        telefono: client.phone || client.email || null,
+        clientId: client.id
+      };
+    } else {
+      const nuevo = parseClienteNuevo(body.cliente);
+      externo = {
+        nombre: `${nuevo.firstName} ${nuevo.lastName}`,
+        telefono: nuevo.phone || nuevo.email,
+        clienteNuevo: nuevo
+      };
     }
-    externo = { nombre: nombre || account?.label || null, telefono: cleanText(body.telefono, 40) };
     variedad = variedad || 'EXTERNO';
   }
 
   const { item, variety } = await resolveCenaVariety(db, menuItemId, variedad);
   const subcatByCode = await cenasSubcatByCode(db);
-  const lines = buildComandaLines(
-    [{ menuItemId: item.id, quantity: pax, variety }],
-    new Map([[item.id, item]])
-  );
+  const cenaInfo = {
+    menuItemId: item.id,
+    varietyId: variety.id,
+    varietyName: variety.name,
+    precioBase: Number(variety.price)
+  };
+  const lines = cenaLinesFromComensales({ ...cenaInfo, item }, detalle);
 
   return db.$transaction(async (tx) => {
-    const cuenta = account || (await createExternalAccount(tx, { label: externo.nombre }));
+    let cuenta = account;
+    if (!cuenta) {
+      let clientIdCuenta = externo.clientId || null;
+      if (externo.clienteNuevo) {
+        const creado = await tx.client.create({ data: externo.clienteNuevo });
+        clientIdCuenta = creado.id;
+      }
+      cuenta = await createExternalAccount(tx, { label: externo.nombre, clientId: clientIdCuenta });
+    }
     const { comanda } = await createComanda(tx, {
       ambito: 'CENA',
       fecha: toDateOnlyUtc(fecha),
@@ -167,6 +270,7 @@ async function registrarCenaManual(db, body = {}) {
       canceladaAt: null,
       motivoCancelacion: null,
       notas,
+      comensales: { ...cenaInfo, detalle },
       comandaId: comanda.id
     };
     const prestacion = reuse
@@ -209,14 +313,7 @@ async function cancelarPrestacion(db, id, { motivo } = {}) {
     if (p.origen === 'MANUAL' && p.comandaId) {
       const comanda = await tx.comanda.findUnique({ where: { id: p.comandaId } });
       if (comanda && comanda.estado === 'ACTIVA') {
-        for (const line of await cenaLines(tx, p.comandaId)) {
-          if (line.cargoId) {
-            await removeComandaLineForCargo(tx, line.cargoId);
-            await tx.cargo.delete({ where: { id: line.cargoId } });
-          } else {
-            await tx.comandaItem.delete({ where: { id: line.id } });
-          }
-        }
+        await quitarLineasDeCena(tx, p.comandaId);
         await refreshAccountStatus(tx, comanda.accountId);
       }
     }
@@ -270,28 +367,41 @@ async function actualizarPrestacion(db, id, body = {}) {
   const p = await findPrestacion(db, id);
   const data = {};
   if (body.notas !== undefined) data.notas = cleanText(body.notas, 500);
-  const pax = body.pax !== undefined ? parsePax(body.pax) : undefined;
-  if (pax !== undefined) {
-    data.pax = pax;
-    if (p.origen === 'REGIMEN') data.paxManual = true;
+
+  let detalle;
+  if (body.comensales !== undefined) {
+    if (p.origen !== 'MANUAL') throw new ComidaInputError('Solo las cenas adicionales tienen detalle por comensal');
+    detalle = parseComensales(body.comensales);
+  } else if (body.pax !== undefined) {
+    const pax = parsePax(body.pax);
+    if (p.origen === 'MANUAL') {
+      // Sin detalle: conserva los comensales actuales y agrega/quita adultos al final.
+      const actual = Array.isArray(p.comensales?.detalle) ? p.comensales.detalle : parseComensales(null, p.pax);
+      detalle = actual.slice(0, pax);
+      while (detalle.length < pax) detalle.push(adultoSinDieta());
+    } else {
+      // Las incluidas siguen a la reserva: no se cambia su cantidad a mano
+      // (para no cenar se cambia por almuerzo; para sumar gente, una cena adicional).
+      throw new ComidaInputError('La cantidad de una comida incluida sigue a la reserva');
+    }
   }
+  if (detalle) data.pax = detalle.length;
 
   return db.$transaction(async (tx) => {
-    if (pax !== undefined && p.origen === 'MANUAL' && p.comandaId && p.estado === 'PREVISTA') {
-      const comanda = await tx.comanda.findUnique({ where: { id: p.comandaId } });
-      if (comanda && comanda.estado === 'ACTIVA') {
-        for (const line of await cenaLines(tx, p.comandaId)) {
-          const subtotal = line.precioUnitario.mul(pax);
-          const descripcion = lineDescription(line.menuItem?.name || 'Cena', line.variety?.name, pax);
-          await tx.comandaItem.update({
-            where: { id: line.id },
-            data: { cantidad: pax, subtotal, descripcion }
-          });
-          if (line.cargoId) {
-            await tx.cargo.update({ where: { id: line.cargoId }, data: { monto: subtotal, descripcion } });
-          }
-        }
-        await refreshAccountStatus(tx, comanda.accountId);
+    if (detalle) {
+      const cenaInfo = await cenaInfoDePrestacion(tx, p);
+      data.comensales = { ...cenaInfo, detalle };
+      const comanda = p.comandaId ? await tx.comanda.findUnique({ where: { id: p.comandaId } }) : null;
+      if (comanda && comanda.estado === 'ACTIVA' && p.estado === 'PREVISTA') {
+        await quitarLineasDeCena(tx, p.comandaId, { reemplazo: true });
+        const item = await tx.menuItem.findUnique({ where: { id: cenaInfo.menuItemId } });
+        const account = await tx.account.findUnique({ where: { id: comanda.accountId } });
+        await addLinesToComanda(tx, {
+          comanda,
+          account,
+          lines: cenaLinesFromComensales({ ...cenaInfo, item }, detalle),
+          subcatByCode: await cenasSubcatByCode(tx)
+        });
       }
     }
     return Object.keys(data).length
@@ -300,11 +410,48 @@ async function actualizarPrestacion(db, id, body = {}) {
   });
 }
 
+/** Tipo, variedad y precio base de la cena (guardados o, en cenas viejas, desde la línea adulta). */
+async function cenaInfoDePrestacion(tx, p) {
+  if (p.comensales?.menuItemId) {
+    const { menuItemId, varietyId, varietyName, precioBase } = p.comensales;
+    return { menuItemId, varietyId, varietyName, precioBase };
+  }
+  const lines = p.comandaId ? await cenaLines(tx, p.comandaId) : [];
+  const line = lines.find((l) => !l.bonificado) || lines[0];
+  if (!line) throw new ComidaInputError('La cena no tiene línea en su comanda');
+  return {
+    menuItemId: line.menuItemId,
+    varietyId: line.varietyId,
+    varietyName: line.variety?.name || null,
+    precioBase: Number(line.precioUnitario)
+  };
+}
+
+/**
+ * Quita las líneas de cena (grupo CENAS) de una comanda, con sus cargos.
+ * reemplazo: se vuelven a cargar enseguida, así que la comanda no se anula aunque quede vacía.
+ */
+async function quitarLineasDeCena(tx, comandaId, { reemplazo = false } = {}) {
+  for (const line of await cenaLines(tx, comandaId)) {
+    if (reemplazo) {
+      await tx.comandaItem.delete({ where: { id: line.id } });
+      if (line.cargoId) await tx.cargo.delete({ where: { id: line.cargoId } });
+    } else if (line.cargoId) {
+      await removeComandaLineForCargo(tx, line.cargoId);
+      await tx.cargo.delete({ where: { id: line.cargoId } });
+    } else {
+      await tx.comandaItem.delete({ where: { id: line.id } });
+    }
+  }
+}
+
 module.exports = {
   ComidaInputError,
   isNightOfStay,
   registrarCenaManual,
   cancelarPrestacion,
   reactivarPrestacion,
-  actualizarPrestacion
+  actualizarPrestacion,
+  parseComensales,
+  cenaLinesFromComensales
 };

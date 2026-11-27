@@ -7,6 +7,16 @@ import ReservationIdChip from './ReservationIdChip';
 import RoomNameChip from './RoomNameChip';
 import GuestCheckInStatusCell from './GuestCheckInStatusCell';
 import ReservationStatusPlain from './ReservationStatusPlain';
+import ColumnFilter from './ColumnFilter';
+import { DateRangeFilter, NumberRangeFilter, OptionsFilter, TextFilter } from './ColumnFilterControls';
+import { getStatusLabel } from '../utils/reservationStatusUtils';
+import {
+  inDateRange,
+  inNumberRange,
+  isFilterActive,
+  matchesOptions,
+  matchesText
+} from '../utils/columnFilters';
 import styles from '../styles/ReservationsTable.module.css';
 
 export default function ReservationsTable({ 
@@ -26,7 +36,10 @@ export default function ReservationsTable({
   };
   const [sortField, setSortField] = useState('checkIn');
   const [sortDirection, setSortDirection] = useState('asc');
-  const [filterStatus, setFilterStatus] = useState('all');
+  /** Filtros por columna: texto, rangos de fechas/montos y opciones (estado, servicio). */
+  const [filters, setFilters] = useState({});
+  const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const hasFilters = Object.values(filters).some(isFilterActive);
   const [searchTerm, setSearchTerm] = useState('');
   const [serviceTypes, setServiceTypes] = useState([]);
 
@@ -104,10 +117,19 @@ export default function ReservationsTable({
   const filterReservations = (reservations) => {
     let filtered = reservations;
 
-    // Filtrar por estado
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(reservation => reservation.status === filterStatus);
-    }
+    filtered = filtered.filter((r) => {
+      const clientName = `${r.mainClient?.firstName || ''} ${r.mainClient?.lastName || ''}`;
+      return (
+        matchesText(String(r.id), String(filters.id || '').replace(/^#/, '')) &&
+        matchesText(r.room?.name, filters.room) &&
+        matchesText(clientName, filters.client) &&
+        inDateRange(r.checkIn, filters.checkIn) &&
+        inDateRange(r.checkOut, filters.checkOut) &&
+        inNumberRange(r.totalAmount, filters.amount) &&
+        matchesOptions(getReservationServiceNames(r), filters.service) &&
+        matchesOptions(r.status, filters.status)
+      );
+    });
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
@@ -172,6 +194,59 @@ export default function ReservationsTable({
     return getServiceTypeName(firstService);
   };
 
+  /** Servicios de todos los tramos activos (una reserva puede combinar regímenes). */
+  const getReservationServiceNames = (reservation) => {
+    const names = new Set();
+    for (const seg of reservation.segments || []) {
+      if (seg.isActive === false) continue;
+      for (const sid of seg.services || []) names.add(getServiceTypeName(sid));
+    }
+    return names.size ? [...names] : ['No especificado'];
+  };
+
+  const serviceOptions = [...new Set(reservations.flatMap(getReservationServiceNames))].sort((a, b) =>
+    a.localeCompare(b, 'es')
+  );
+  const statusOptions = [...new Set(reservations.map((r) => r.status).filter(Boolean))].map((st) => ({
+    value: st,
+    label: getStatusLabel(st)
+  }));
+
+  const renderHeader = (field, label, filter) => (
+    <th onClick={() => handleSort(field)} className={styles.sortableHeader}>
+      {label}
+      {sortField === field && (
+        <span className={styles.sortIndicator}>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+      )}
+      {filter ? (
+        <ColumnFilter label={label} active={isFilterActive(filters[filter.key])}>
+          {filter.render(filters[filter.key], setFilter(filter.key), label)}
+        </ColumnFilter>
+      ) : null}
+    </th>
+  );
+
+  const text = (key, placeholder) => ({
+    key,
+    render: (value, onChange, label) => (
+      <TextFilter label={label} value={value} onChange={onChange} placeholder={placeholder} />
+    )
+  });
+  const dates = (key) => ({
+    key,
+    render: (value, onChange, label) => <DateRangeFilter label={label} value={value} onChange={onChange} />
+  });
+  const numbers = (key) => ({
+    key,
+    render: (value, onChange, label) => <NumberRangeFilter label={label} value={value} onChange={onChange} />
+  });
+  const opciones = (key, options) => ({
+    key,
+    render: (value, onChange, label) => (
+      <OptionsFilter label={label} options={options} value={value} onChange={onChange} />
+    )
+  });
+
   // Función para manejar el clic en el nombre del cliente
   const handleClientClick = (e, clientId) => {
     e.stopPropagation(); // Evitar que se active el clic de la fila
@@ -195,21 +270,11 @@ export default function ReservationsTable({
           />
         </div>
         
-        <div className={styles.filterContainer}>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className={styles.filterSelect}
-          >
-            <option value="all"> Todos los estados</option>
-                <option value="PENDIENTE"> Prerreservas</option>
-                <option value="CONFIRMADA"> Confirmadas</option>
-                <option value="INGRESADA"> Ingresadas</option>
-                <option value="FINALIZADA"> Finalizadas</option>
-                <option value="CANCELADA"> Canceladas</option>
-                <option value="NO_PRESENTADA"> No presentadas</option>
-          </select>
-        </div>
+        {hasFilters ? (
+          <button type="button" className={styles.clearFilters} onClick={() => setFilters({})}>
+            Quitar filtros
+          </button>
+        ) : null}
       </div>
 
       {/* Tabla de reservas */}
@@ -217,70 +282,14 @@ export default function ReservationsTable({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th onClick={() => handleSort('id')} className={styles.sortableHeader}>
-                ID
-                {sortField === 'id' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('roomName')} className={styles.sortableHeader}>
-                Habitación
-                {sortField === 'roomName' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('clientName')} className={styles.sortableHeader}>
-                Cliente
-                {sortField === 'clientName' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('checkIn')} className={styles.sortableHeader}>
-                Ingreso
-                {sortField === 'checkIn' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('checkOut')} className={styles.sortableHeader}>
-                Egreso
-                {sortField === 'checkOut' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('totalAmount')} className={styles.sortableHeader}>
-                Monto
-                {sortField === 'totalAmount' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('reservationType')} className={styles.sortableHeader}>
-                Tipo
-                {sortField === 'reservationType' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
-              <th onClick={() => handleSort('status')} className={styles.sortableHeader}>
-                Estado
-                {sortField === 'status' && (
-                  <span className={styles.sortIndicator}>
-                    {sortDirection === 'asc' ? '↑' : '↓'}
-                  </span>
-                )}
-              </th>
+              {renderHeader('id', 'ID', text('id', '# reserva'))}
+              {renderHeader('roomName', 'Habitación', text('room'))}
+              {renderHeader('clientName', 'Cliente', text('client'))}
+              {renderHeader('checkIn', 'Ingreso', dates('checkIn'))}
+              {renderHeader('checkOut', 'Egreso', dates('checkOut'))}
+              {renderHeader('totalAmount', 'Monto', numbers('amount'))}
+              {renderHeader('reservationType', 'Tipo', opciones('service', serviceOptions))}
+              {renderHeader('status', 'Estado', opciones('status', statusOptions))}
               <th className={styles.sortableHeader}>Check-in</th>
             </tr>
           </thead>

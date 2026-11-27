@@ -92,7 +92,7 @@ describe('ComidasHub', () => {
     expect(ensalada.querySelector('h4')).toBeNull()
 
     const edit = screen.getByTestId('comidas-menu-edit-link')
-    expect(edit).toHaveAttribute('href', '/gastronomia?tab=week&id=9')
+    expect(edit).toHaveAttribute('href', '/comedor?tab=week&id=9')
     expect(edit).toHaveAttribute('aria-label', 'Editar menú')
     expect(edit).not.toHaveTextContent(/Editar|Crear/)
 

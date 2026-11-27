@@ -4,7 +4,13 @@ const {
   deleteTipoCena,
   CenaInputError
 } = require('../../src/utils/cenas');
-const { isNightOfStay, registrarCenaManual } = require('../../src/utils/comidasGestion');
+const {
+  isNightOfStay,
+  registrarCenaManual,
+  parseComensales,
+  cenaLinesFromComensales,
+  actualizarPrestacion
+} = require('../../src/utils/comidasGestion');
 
 function tipoItem(overrides = {}) {
   return {
@@ -121,5 +127,64 @@ describe('cenas manuales — validaciones', () => {
     await expect(
       registrarCenaManual(db, { fecha: '2026-12-04', menuItemId: 5, pax: 2, reservationId: 9 })
     ).rejects.toThrow('noche de la estadía');
+  });
+
+  it('externo nuevo: exige nombre, apellido y un contacto válido', async () => {
+    const db = dbConReserva([]);
+    const base = { fecha: '2026-12-02', menuItemId: 5, pax: 2 };
+    await expect(registrarCenaManual(db, { ...base, cliente: { firstName: 'Ana' } })).rejects.toThrow('apellido');
+    await expect(
+      registrarCenaManual(db, { ...base, cliente: { firstName: 'Ana', lastName: 'Ruiz' } })
+    ).rejects.toThrow('teléfono o un email');
+    await expect(
+      registrarCenaManual(db, { ...base, cliente: { firstName: 'Ana', lastName: 'Ruiz', email: 'ana' } })
+    ).rejects.toThrow('email no es válido');
+  });
+
+  it('externo existente: rechaza un cliente inexistente', async () => {
+    const db = { ...dbConReserva([]), client: { findUnique: jest.fn().mockResolvedValue(null) } };
+    await expect(
+      registrarCenaManual(db, { fecha: '2026-12-02', menuItemId: 5, pax: 2, clientId: 77 })
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('líneas de cena por edad: adulto precio base, 5 a 10 la mitad, menor de 5 sin cargo', () => {
+    const detalle = parseComensales([
+      { edad: 'ADULTO', dietCeliaco: true },
+      { edad: 'ADULTO' },
+      { edad: 'NINO' },
+      { edad: 'MENOR' }
+    ]);
+    const lines = cenaLinesFromComensales(
+      { item: { id: 5, name: 'Cena' }, varietyId: 7, varietyName: 'Externo', precioBase: 25001 },
+      detalle
+    );
+    expect(lines.map((l) => [l.descripcion, l.cantidad, Number(l.precioUnitario), Number(l.subtotal), Boolean(l.bonificado)])).toEqual([
+      ['Cena (Externo) x2', 2, 25001, 50002, false],
+      ['Cena (Externo · 5 a 10 años)', 1, 12500.5, 12500.5, false],
+      ['Cena (Externo · menor de 5)', 1, 0, 0, true]
+    ]);
+  });
+
+  it('sin detalle usa pax adultos; valida edades', () => {
+    expect(parseComensales(undefined, 2)).toEqual([
+      { edad: 'ADULTO', dietVegetariano: false, dietVegano: false, dietCeliaco: false },
+      { edad: 'ADULTO', dietVegetariano: false, dietVegano: false, dietCeliaco: false }
+    ]);
+    expect(parseComensales([{ edad: 'ADULTO', dietOtra: '  sin sal ' }])[0].dietOtra).toBe('sin sal');
+    expect(parseComensales([{ edad: 'ADULTO', dietOtra: '   ' }])[0]).not.toHaveProperty('dietOtra');
+    expect(() => parseComensales([{ edad: 'BEBE' }])).toThrow('Edad');
+    expect(() => parseComensales([])).toThrow('comensales');
+  });
+});
+
+describe('actualizarPrestacion', () => {
+  it('no cambia a mano la cantidad de una comida incluida (sigue a la reserva)', async () => {
+    const db = {
+      prestacionComida: { findUnique: jest.fn().mockResolvedValue({ id: 9, origen: 'REGIMEN', tipo: 'CENA', pax: 2 }) },
+      $transaction: jest.fn()
+    };
+    await expect(actualizarPrestacion(db, 9, { pax: 1 })).rejects.toMatchObject({ status: 400 });
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });

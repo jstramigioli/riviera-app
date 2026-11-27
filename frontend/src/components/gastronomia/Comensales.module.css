@@ -95,16 +95,9 @@
 }
 
 .sections {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .sections {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .section {
@@ -246,7 +239,7 @@
 }
 
 .modal {
-  width: min(36rem, 100%);
+  width: min(42rem, 100%);
   max-height: calc(100vh - 2rem);
   display: flex;
   flex-direction: column;
@@ -312,13 +305,88 @@
   color: var(--color-text-secondary);
 }
 
-.total {
-  font-size: var(--font-size-medium);
+.totalDestacado {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: var(--font-size-large);
   color: var(--color-text-secondary);
 }
 
-.total strong {
+.totalDestacado strong {
+  font-size: var(--font-size-xxlarge);
+  font-weight: 700;
   color: var(--color-text-dark);
+}
+
+.comensalesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-medium);
+}
+
+.comensalesTable th,
+.comensalesTable td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--color-border-light);
+  text-align: left;
+}
+
+.comensalesTable th {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.center,
+.comensalesTable th.center,
+.comensalesTable td.center {
+  text-align: center;
+}
+
+.inputSm {
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  font: inherit;
+}
+
+.linkBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+.textBtn {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.textBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.textBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .footerActions {
@@ -368,4 +436,204 @@
 .segment:has(.segmentInput:focus-visible) {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
+}
+
+.clienteBuscar {
+  position: relative;
+}
+
+.sugerencias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+}
+
+.sugerencia {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: var(--font-size-medium);
+  cursor: pointer;
+}
+
+.sugerencia:hover,
+.sugerencia:focus-visible {
+  background: var(--color-bg-light);
+}
+
+.clienteSel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-medium);
+}
+
+.cantidad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 6rem;
+}
+
+.inputOtra {
+  width: 100%;
+  min-width: 7rem;
+  box-sizing: border-box;
+}
+
+/* Tablero del día (Desayuno / Cena) */
+.tablero {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-white);
+}
+
+.resumenGrande {
+  border-color: var(--color-border);
+}
+
+.resumenChico {
+  background: var(--color-bg-light);
+}
+
+.resumenHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.resumenDia {
+  font-size: var(--font-size-large);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+
+.resumenFecha {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.resumenTotal {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  color: var(--color-text-secondary);
+}
+
+.resumenTotal strong {
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-text-dark);
+}
+
+.resumenGrande .resumenTotal strong {
+  font-size: 2.75rem;
+}
+
+.resumenChico .resumenTotal strong {
+  font-size: 1.75rem;
+}
+
+.barra {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--color-border-light);
+}
+
+.barraSeg {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.segIncluida {
+  background: var(--color-primary);
+}
+
+.segAdicional {
+  background: #8aa3c2;
+}
+
+.segExterno {
+  background: var(--color-text-accent);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-medium);
+  color: var(--color-text-secondary);
+}
+
+.leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.leyenda strong,
+.resumenDieta strong {
+  color: var(--color-text-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.leyendaDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.resumenDieta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--color-border-light);
+  font-size: var(--font-size-medium);
+  color: var(--color-text-secondary);
+}
+
+.dietasLista {
+  color: var(--color-text-main);
+}
+
+@media (max-width: 900px) {
+  .tablero {
+    grid-template-columns: 1fr;
+  }
 }

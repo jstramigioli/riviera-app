@@ -14,7 +14,6 @@ const ROUTE_TITLES = {
   '/cobros': 'Estado de cuentas',
   '/estado-de-cuentas': 'Estado de cuentas',
   '/estadisticas': 'Estadísticas',
-  '/gastronomia': 'Gastronomía',
   '/configuracion': 'Configuración'
 };
 

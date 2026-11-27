@@ -121,7 +121,7 @@ function Header() {
               </div>
             </div>
           ) : null}
-          {can('reservas') ? (
+          {can('gastronomia') ? (
             <Link
               to="/comedor"
               className={`${styles.navLink} ${location.pathname.startsWith('/comedor') ? styles.active : ''}`}
@@ -143,14 +143,6 @@ function Header() {
               className={`${styles.navLink} ${location.pathname === '/estadisticas' ? styles.active : ''}`}
             >
               Estadísticas
-            </Link>
-          ) : null}
-          {can('gastronomia') ? (
-            <Link
-              to="/gastronomia"
-              className={`${styles.navLink} ${location.pathname.startsWith('/gastronomia') ? styles.active : ''}`}
-            >
-              Gastronomía
             </Link>
           ) : null}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { useAppData } from '../hooks/useAppData';
 import { useSidePanel } from '../hooks/useSidePanel';
@@ -8,7 +8,7 @@ import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { format } from 'date-fns';
 import { updateReservationOnServer, updateClientOnServer } from '../utils/apiUtils';
-import { deleteQuery, deleteAllQueries } from '../services/api';
+import { deleteQuery } from '../services/api';
 import { deleteReservationWithWarning } from '../utils/deleteReservationWithWarning';
 import { validateReservationDates, validateReservationConflict, showConflictNotification } from '../utils/reservationUtils';
 import {
@@ -33,7 +33,6 @@ function ConsultasReservasView() {
   const sectionParam = searchParams.get('section') === 'reservas' ? 'reservas' : 'consultas';
   const [activeSection, setActiveSection] = useState(sectionParam);
   const [serviceTypes, setServiceTypes] = useState([]);
-  const [clearingAll, setClearingAll] = useState(false);
 
   useEffect(() => {
     if (sectionParam !== activeSection) {
@@ -197,35 +196,6 @@ function ConsultasReservasView() {
     }
   };
 
-  const handleClearAllQueries = async () => {
-    if (!queries.length || clearingAll) return;
-
-    const ok = await confirm({
-      title: 'Limpiar todas las consultas',
-      message: `¿Confirmás eliminar las ${queries.length} consultas almacenadas? Esta acción no se puede deshacer.`,
-      confirmText: 'Limpiar todas',
-      cancelText: 'Cancelar',
-      type: 'danger',
-    });
-    if (!ok) return;
-
-    try {
-      setClearingAll(true);
-      await deleteAllQueries();
-      setQueries([]);
-    } catch (error) {
-      console.error('Error clearing queries:', error);
-      notify({
-        title: 'Error',
-        message: error.message || 'Error al limpiar las consultas',
-        type: 'error',
-      });
-    } finally {
-      setClearingAll(false);
-    }
-  };
-
-
   if (loading) return <div className={styles.loading}>Cargando datos...</div>;
   if (error) return <ErrorDisplay error={error} onRetry={() => window.location.reload()} />;
 
@@ -265,16 +235,6 @@ function ConsultasReservasView() {
               <div className={styles.sectionHeader}>
                 <h2>Consultas</h2>
                 <div className={styles.sectionActions}>
-                  <button
-                    type="button"
-                    className={styles.clearAllButton}
-                    onClick={handleClearAllQueries}
-                    disabled={!queries.length || clearingAll}
-                    title="Eliminar todas las consultas almacenadas"
-                  >
-                    <FiTrash2 aria-hidden="true" />
-                    {clearingAll ? 'Limpiando…' : 'Limpiar todas'}
-                  </button>
                   <button 
                     type="button"
                     className={styles.createButton}

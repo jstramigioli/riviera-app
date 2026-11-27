@@ -1755,3 +1755,198 @@
 }
 
 
+
+/* Estado financiero: secciones planas sobre blanco, filas colapsables por tipo. */
+.finSection {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border);
+}
+
+.finSectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 4px 6px;
+}
+
+.finSectionTitle {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.finSectionTotal {
+  font-size: var(--font-size-large);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-dark);
+}
+
+.finGroups,
+.finItems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.finGroup + .finGroup {
+  border-top: 1px solid var(--color-border-light);
+}
+
+.finToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-main);
+  font: inherit;
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: pointer;
+}
+
+.finToggle:hover {
+  background: var(--color-bg-light);
+}
+
+.finToggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.finToggleLabel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.finChevron {
+  display: inline-flex;
+  align-self: center;
+  width: 14px;
+  color: var(--color-text-muted);
+}
+
+.finChevron svg {
+  width: 11px;
+  height: 11px;
+}
+
+.finMeta {
+  font-size: var(--font-size-small);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.finToggleTotal {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.finItems {
+  padding: 0 4px 8px 26px;
+}
+
+.finItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: var(--font-size-medium);
+  color: var(--color-text-main);
+}
+
+.finItem + .finItem {
+  border-top: 1px dashed var(--color-border-light);
+}
+
+.finItemFecha {
+  color: var(--color-text-muted);
+}
+
+.finItem .breakdownMonto {
+  font-variant-numeric: tabular-nums;
+}
+
+.finItem .editIconButton,
+.finItem .deleteIconButton {
+  padding: 2px 5px;
+  color: var(--color-text-muted);
+}
+
+.finEmpty {
+  margin: 4px 4px 10px;
+  font-size: var(--font-size-medium);
+  color: var(--color-text-muted);
+}
+
+.finSection .cobrosTableScroll {
+  margin: 0 0 10px;
+  background: transparent;
+  border-radius: 0;
+}
+
+.finComanda + .finComanda,
+.finComanda + .finItem {
+  border-top: 1px dashed var(--color-border-light);
+}
+
+.finComandaHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 2px;
+  font-size: var(--font-size-medium);
+}
+
+.finComandaTotal {
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding-right: 52px;
+}
+
+.comandaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-white);
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.comandaChip:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.comandaChip:disabled {
+  cursor: default;
+  color: var(--color-text-muted);
+}
+
+.finComandaLines {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px 14px;
+}
+
+.finComandaLines .finItem {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}

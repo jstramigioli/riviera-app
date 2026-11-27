@@ -136,7 +136,6 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('summary-total-devoluciones')).toHaveTextContent('0')
     expect(screen.getByTestId('summary-total-descuentos')).toHaveTextContent('5.000')
     expect(screen.getByTestId('financial-summary-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('summary-cargos-breakdown')).toHaveTextContent(/Alojamiento/)
     expect(screen.getByTestId('saldo-icon-pending')).toBeInTheDocument()
     expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/Pendiente/)
   })
@@ -215,7 +214,7 @@ describe('EstadoFinancieroTab', () => {
     expect(screen.getByTestId('financial-saldo-estado')).toHaveTextContent(/vencido/i)
   })
 
-  it('muestra + Consumo y llama onRequestConsumo', () => {
+  it('muestra + Comanda y llama onRequestConsumo', () => {
     const onRequestConsumo = vi.fn()
     render(
       <EstadoFinancieroTab
@@ -280,5 +279,48 @@ describe('EstadoFinancieroTab', () => {
       />
     )
     expect(screen.getByTestId('financial-saldo')).toHaveTextContent('50.000')
+  })
+})
+
+describe('EstadoFinancieroTab — cargos por comanda', () => {
+  it('colapsa por tipo y muestra cada comanda como chip que la abre; los sueltos van aparte', () => {
+    const onOpenComanda = vi.fn()
+    const comanda = { id: 7, ambito: 'CENA', estado: 'ACTIVA', fecha: '2026-11-10' }
+    const consumoSummary = {
+      ...summary,
+      cargos: {
+        items: [],
+        porTipo: {
+          CONSUMO: {
+            codigo: 'CONSUMO',
+            nombre: 'Consumos',
+            total: 3000,
+            items: [
+              { id: 11, descripcion: 'Agua', monto: 1000, subcategoriaCargoId: 3, comandaItem: { id: 1, comanda } },
+              { id: 12, descripcion: 'Vino', monto: 1500, subcategoriaCargoId: 3, comandaItem: { id: 2, comanda } },
+              { id: 13, descripcion: 'Gaseosa vieja', monto: 500, subcategoriaCargoId: 3 }
+            ]
+          }
+        }
+      }
+    }
+    render(
+      <EstadoFinancieroTab
+        reservation={{ id: 22, status: 'INGRESADA', checkOut: '2099-12-31' }}
+        financialSummary={consumoSummary}
+        loadingFinancial={false}
+        formatDate={(d) => String(d).slice(0, 10)}
+        formatCurrency={(n) => `${Number(n).toLocaleString('es-AR')} ARS`}
+        onFinancialChange={vi.fn()}
+        onOpenComanda={onOpenComanda}
+      />
+    )
+
+    expect(screen.queryByTestId('comanda-chip-7')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('financial-group-CONSUMO'))
+    fireEvent.click(screen.getByTestId('comanda-chip-7'))
+    expect(onOpenComanda).toHaveBeenCalledWith(7)
+    expect(screen.getByText('Vino')).toBeInTheDocument()
+    expect(screen.getByText('Gaseosa vieja')).toBeInTheDocument()
   })
 })

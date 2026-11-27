@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getStatusLabel } from "./utils/reservationStatusUtils";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import Header from './components/Header';
 import LibroReservasBoard from './components/LibroReservasBoard';
@@ -28,6 +28,7 @@ import { formatMoneyArs } from './utils/formatMoney';
 import styles from './styles/App.module.css';
 import './index.css';
 import ReservationDetailsPanel from './components/ReservationDetailsPanel';
+import { comandaPresetForReservation } from './utils/comandaPreset';
 import ConsumptionOrderModal from './components/ConsumptionOrderModal';
 import CobroForm from './components/CobroForm';
 import NotificationModal from './components/NotificationModal';
@@ -36,7 +37,6 @@ import ReservationDetails from './pages/ReservationDetails';
 import Habitaciones from './pages/Habitaciones';
 import RoomDetails from './pages/RoomDetails';
 import Clientes from './pages/Clientes';
-import Comedor from './pages/Comedor';
 import PublicCheckIn from './pages/PublicCheckIn';
 import SimulatedTodayDebugFab from './components/SimulatedTodayDebugFab';
 import FakeReservationsDebugFab from './components/FakeReservationsDebugFab';
@@ -44,16 +44,16 @@ import SimulatedRoleDebugFab from './components/SimulatedRoleDebugFab';
 import Dashboard from './pages/Dashboard';
 import Gastronomia from './pages/Gastronomia';
 
-function firstRoomIdFromReservation(reservation) {
-  const segments = reservation?.segments;
-  if (!Array.isArray(segments) || segments.length === 0) return null;
-  const withRoom = segments.find((s) => s?.roomId != null);
-  return withRoom?.roomId ?? null;
-}
 
 function RoomsToHabitacionesRedirect() {
   const { roomId } = useParams();
   return <Navigate to={`/habitaciones/${roomId}`} replace />;
+}
+
+/** Gastronomía se unificó en Comedor: conserva la pestaña (?tab=…) de los enlaces viejos. */
+function RedirectGastronomia() {
+  const { search } = useLocation();
+  return <Navigate to={`/comedor${search}`} replace />;
 }
 
 function ReservationsView() {
@@ -291,10 +291,7 @@ function ReservationsView() {
             onDelete={() => setShowDeleteModal(true)}
             onClose={closePanel}
             onAddConsumo={(res) => {
-              openConsumptionModal({
-                reservationId: res.id,
-                roomId: firstRoomIdFromReservation(res)
-              });
+              openConsumptionModal(comandaPresetForReservation(res));
             }}
             onOpenFullEdit={(id) => {
               closePanel();
@@ -709,18 +706,14 @@ function App() {
             <Route
               path="/comedor"
               element={(
-                <ProtectedRoute permission="reservas">
-                  <AppShell><Comedor /></AppShell>
+                <ProtectedRoute permission="gastronomia">
+                  <AppShell><Gastronomia /></AppShell>
                 </ProtectedRoute>
               )}
             />
             <Route
               path="/gastronomia"
-              element={(
-                <ProtectedRoute permission="gastronomia">
-                  <AppShell><Gastronomia /></AppShell>
-                </ProtectedRoute>
-              )}
+              element={<RedirectGastronomia />}
             />
             <Route
               path="/auditoria"

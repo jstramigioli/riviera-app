@@ -250,6 +250,8 @@ model Guest {
   dietVegetariano Boolean     @default(false)
   dietVegano      Boolean     @default(false)
   dietCeliaco     Boolean     @default(false)
+  /// Otra preferencia alimentaria en texto libre (p. ej. «Sin sal»).
+  dietOtra        String?
   reservationId  Int?
   /// Vínculo opcional a Client (titular u otro cliente de la agenda).
   clientId       Int?
@@ -605,6 +607,7 @@ model OnlineCheckIn {
   dietVegetariano Boolean            @default(false)
   dietVegano      Boolean            @default(false)
   dietCeliaco     Boolean            @default(false)
+  dietOtra        String?
   /// Momento en que el huésped subió frente/dorso en este check-in (fotos siempre nuevas).
   documentFrontUploadedAt DateTime?
   documentBackUploadedAt  DateTime?
@@ -1562,6 +1565,9 @@ model PrestacionComida {
   /// MANUAL de externo: nombre y teléfono de contacto.
   nombreExterno     String?
   telefono          String?
+  /// MANUAL: detalle por comensal { precioBase, menuItemId, varietyId, detalle: [{ edad: ADULTO|NINO|MENOR,
+  /// dietVegetariano, dietVegano, dietCeliaco, dietOtra }] }. NINO (5 a 10) paga la mitad; MENOR (menos de 5) sin cargo.
+  comensales        Json?
   /// MANUAL: comanda de Cena generada al registrar la cena (se le agregan bebidas).
   comandaId         Int?             @unique
   comanda           Comanda?         @relation(fields: [comandaId], references: [id], onDelete: SetNull)
