@@ -1562,6 +1562,9 @@ model PrestacionComida {
   /// MANUAL de externo: nombre y teléfono de contacto.
   nombreExterno     String?
   telefono          String?
+  /// MANUAL: detalle por comensal { precioBase, menuItemId, varietyId, detalle: [{ edad: ADULTO|NINO|MENOR,
+  /// dietVegetariano, dietVegano, dietCeliaco }] }. NINO (5 a 10) paga la mitad; MENOR (menos de 5) sin cargo.
+  comensales        Json?
   /// MANUAL: comanda de Cena generada al registrar la cena (se le agregan bebidas).
   comandaId         Int?             @unique
   comanda           Comanda?         @relation(fields: [comandaId], references: [id], onDelete: SetNull)

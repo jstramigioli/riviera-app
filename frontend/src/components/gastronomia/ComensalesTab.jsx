@@ -57,7 +57,7 @@ function PaxCell({ item, editable, onSave }) {
 }
 
 /**
- * Gastronomía → Comensales: desayunos y cenas previstos del día. Las incluidas
+ * Comedor → Comensales: desayunos y cenas previstos del día. Las incluidas
  * vienen del régimen de la reserva; las adicionales/externas se cargan con
  * «+ Cena» y generan su comanda de Cena (a la que se suman las bebidas).
  */
@@ -71,6 +71,7 @@ export default function ComensalesTab() {
   const [busyId, setBusyId] = useState(null);
   const [nuevaCenaOpen, setNuevaCenaOpen] = useState(false);
   const [comandaPreset, setComandaPreset] = useState(null);
+  const [cenaEditando, setCenaEditando] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,7 +169,18 @@ export default function ComensalesTab() {
                       )}
                     </td>
                     <td>
-                      {item.guestName}
+                      {item.clientId ? (
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => navigate(`/clients/${item.clientId}`)}
+                        >
+                          {item.guestName}
+                        </button>
+                      ) : (
+                        item.guestName
+                      )}
+                      {item.edades?.length ? <span className={styles.note}> · {item.edades.join(' · ')}</span> : null}
                       {item.notas ? <span className={styles.note}> · {item.notas}</span> : null}
                     </td>
                     <td>
@@ -180,11 +192,23 @@ export default function ComensalesTab() {
                     </td>
                     <td>{item.roomLabel}</td>
                     <td className={styles.num}>
-                      <PaxCell
-                        item={item}
-                        editable={tipo === 'CENA' && !cancelada && !busy}
-                        onSave={(n) => run(item, () => actualizarComida(item.id, { pax: n }))}
-                      />
+                      {item.origen === 'MANUAL' ? (
+                        <button
+                          type="button"
+                          className={styles.paxBtn}
+                          disabled={cancelada || busy}
+                          onClick={() => setCenaEditando(item)}
+                          aria-label={`Comensales de ${item.guestName}`}
+                        >
+                          {item.pax}
+                        </button>
+                      ) : (
+                        <PaxCell
+                          item={item}
+                          editable={tipo === 'CENA' && !cancelada && !busy}
+                          onSave={(n) => run(item, () => actualizarComida(item.id, { pax: n }))}
+                        />
+                      )}
                     </td>
                     <td>
                       {origenLabel(item)}
@@ -287,8 +311,8 @@ export default function ComensalesTab() {
 
       {data ? (
         <div className={styles.sections}>
-          {renderSection('Cenas', data.cenas, 'CENA')}
           {renderSection('Desayunos', data.desayunos, 'DESAYUNO')}
+          {renderSection('Cenas', data.cenas, 'CENA')}
         </div>
       ) : null}
 
@@ -296,6 +320,13 @@ export default function ComensalesTab() {
         open={nuevaCenaOpen}
         fecha={fecha}
         onClose={() => setNuevaCenaOpen(false)}
+        onSaved={load}
+      />
+      <NuevaCenaModal
+        open={Boolean(cenaEditando)}
+        fecha={fecha}
+        cena={cenaEditando}
+        onClose={() => setCenaEditando(null)}
         onSaved={load}
       />
       <ConsumptionOrderModal
