@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaPen } from 'react-icons/fa';
 import { FiCopy, FiCheck } from 'react-icons/fi';
 import ReservationStatusButtons from './ReservationStatusButtons';
-import ReservationPanelMoreMenu from './ReservationPanelMoreMenu';
+import ReservationPanelActions from './ReservationPanelActions';
 import ClientContactLinks from './ClientContactLinks';
 import ReservationStayTimeline from './ReservationStayTimeline';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
@@ -129,8 +129,6 @@ const ReservationDetailsPanel = ({
 
   const clientName = stayHeader?.clientName || '—';
   const clientId = stayHeader?.clientId || reservation.mainClient?.id || null;
-  const totalLabel =
-    stayHeader?.totalAmount > 0 ? formatCurrency(stayHeader.totalAmount) : '—';
   const canOpenClient = Boolean(clientId);
 
   return (
@@ -214,24 +212,6 @@ const ReservationDetailsPanel = ({
               email={reservation.mainClient?.email}
             />
           </div>
-          <div className={styles.guestTotal} data-testid="panel-guest-total">
-            <span className={styles.guestTotalLabel}>Total</span>
-            <span className={styles.guestTotalAmount}>{totalLabel}</span>
-            {saldo != null ? (
-              <span
-                className={`${styles.guestSaldo} ${
-                  saldo > 0.009 ? styles.guestSaldoPendiente : styles.guestSaldoOk
-                }`}
-                data-testid="panel-guest-saldo"
-              >
-                {saldo > 0.009
-                  ? `Saldo ${formatCurrency(saldo)}`
-                  : saldo < -0.009
-                    ? `A favor ${formatCurrency(Math.abs(saldo))}`
-                    : 'Pagado'}
-              </span>
-            ) : null}
-          </div>
         </div>
 
         <ReservationStayTimeline
@@ -275,10 +255,26 @@ const ReservationDetailsPanel = ({
             </tbody>
           </table>
         </div>
+
+        {saldo != null ? (
+          <div
+            className={`${styles.saldo} ${saldo > 0.009 ? styles.saldoPendiente : styles.saldoOk}`}
+            data-testid="panel-guest-saldo"
+          >
+            <span className={styles.saldoLabel}>{saldo < -0.009 ? 'A favor' : 'Saldo'}</span>
+            <span className={styles.saldoValue}>
+              {saldo > 0.009
+                ? formatCurrency(saldo)
+                : saldo < -0.009
+                  ? formatCurrency(Math.abs(saldo))
+                  : 'Pagado'}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.actionsRow}>
-        <ReservationPanelMoreMenu
+        <ReservationPanelActions
           reservation={reservation}
           onAddConsumo={onAddConsumo}
         />

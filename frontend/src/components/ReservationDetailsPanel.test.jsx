@@ -72,7 +72,7 @@ describe('ReservationDetailsPanel — saldo', () => {
     fetchComidasDeReserva.mockResolvedValue({ data: { beneficiosDisponibles: 0 } });
   });
 
-  it('muestra el saldo pendiente bajo el total', async () => {
+  it('muestra el saldo pendiente bajo las notas', async () => {
     getReservationFinancialSummary.mockResolvedValueOnce({ resumen: { saldo: 30000 } });
     renderPanel();
     expect(await screen.findByTestId('panel-guest-saldo')).toHaveTextContent(/Saldo/);
