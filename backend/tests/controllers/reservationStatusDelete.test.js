@@ -91,6 +91,17 @@ describe('updateReservationStatus — reactivar reserva cancelada', () => {
     expect(mockPrisma.reservationSegment.updateMany).not.toHaveBeenCalled();
   });
 
+  test('cancelar no toca cobros, imputaciones ni cargos (la seña queda en la reserva)', async () => {
+    mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CONFIRMADA' });
+    const res = mockRes();
+    await controller.updateReservationStatus({ params: { id: '10' }, body: { status: 'CANCELADA' } }, res);
+    expect(mockPrisma.cobro.count).not.toHaveBeenCalled();
+    expect(mockPrisma.cobroImputacion.count).not.toHaveBeenCalled();
+    expect(mockPrisma.cargo.count).not.toHaveBeenCalled();
+    // el mock no tiene update/delete de cobros ni cargos: cualquier escritura fallaría el test
+    expect(res.status).not.toHaveBeenCalledWith(500);
+  });
+
   test('cancelar desactiva los tramos activos sin chequear disponibilidad', async () => {
     mockPrisma.reservation.findUnique.mockResolvedValue({ id: 10, status: 'CONFIRMADA' });
     const res = mockRes();

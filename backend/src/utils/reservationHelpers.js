@@ -985,6 +985,7 @@ async function updateReservationWithSegments(reservationId, updateData) {
   }, { timeout: 20000 });
 
   // Sincronizar cargos de alojamiento si cambió la estadía
+  const warnings = [];
   if (resolvedSegments) {
     const shouldApplyRates = applyRateChanges !== false && applyRateChanges !== 'false';
     const needsSync = shouldApplyRates && await lodgingNeedsSync(id, previousActive, createdSegments);
@@ -998,7 +999,14 @@ async function updateReservationWithSegments(reservationId, updateData) {
         );
       } catch (cargoError) {
         console.error(`❌ Error sincronizando cargos/night rates de reserva #${id}:`, cargoError);
-        // No revertir el update de segmentos si falla la sync financiera
+        // No revertir la estadía si falla la sync financiera, pero avisar: los cargos quedan
+        // los de antes (la sync es atómica) y no reflejan la estadía nueva.
+        warnings.push({
+          code: 'LODGING_SYNC_FAILED',
+          message:
+            'La estadía se guardó, pero no se pudieron recalcular los cargos de alojamiento: ' +
+            'siguen los montos anteriores. Revisá el estado financiero de la reserva.'
+        });
       }
     }
   }
@@ -1007,7 +1015,8 @@ async function updateReservationWithSegments(reservationId, updateData) {
   // Comidas previstas según régimen (no hace fallar la operación)
   await safeSyncPrestacionesComida(reservationId);
 
-  return getReservationWithData(reservationId);
+  const result = await getReservationWithData(reservationId);
+  return warnings.length ? { ...result, warnings } : result;
 }
 
 /** Compara fechas / habitación / servicio / tarifa base para decidir regenerar cargos. */
