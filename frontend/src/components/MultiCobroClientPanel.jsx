@@ -195,9 +195,9 @@ function MultiCobroClientPanel({
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--color-border)' }}>
               <th style={{ padding: 8 }} />
-              <th style={{ padding: 8 }}>Reserva</th>
-              <th style={{ padding: 8 }}>Saldo</th>
-              <th style={{ padding: 8 }}>Imputar</th>
+              <th style={{ padding: 8, textAlign: 'center' }}>Reserva</th>
+              <th style={{ padding: 8, textAlign: 'right' }}>Saldo</th>
+              <th style={{ padding: 8, textAlign: 'right' }}>Imputar</th>
             </tr>
           </thead>
           <tbody>
@@ -210,12 +210,12 @@ function MultiCobroClientPanel({
                     onChange={() => toggle(c.reservationId)}
                   />
                 </td>
-                <td style={{ padding: 8 }}>
+                <td style={{ padding: 8, textAlign: 'center' }}>
                   {c.label}
                   <span style={{ color: 'var(--color-text-muted)', marginLeft: 6 }}>({c.status})</span>
                 </td>
-                <td style={{ padding: 8 }}>{formatMoneyArs(c.saldo)}</td>
-                <td style={{ padding: 8 }}>
+                <td style={{ padding: 8, textAlign: 'right' }}>{formatMoneyArs(c.saldo)}</td>
+                <td style={{ padding: 8, textAlign: 'right' }}>
                   <input
                     type="number"
                     min="0"
@@ -232,6 +232,7 @@ function MultiCobroClientPanel({
                       width: 110,
                       padding: '6px 8px',
                       borderRadius: 6,
+                      textAlign: 'right',
                       border: '1px solid var(--color-border)'
                     }}
                     placeholder="0"

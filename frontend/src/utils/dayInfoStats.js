@@ -151,6 +151,14 @@ function buildRoomsById(rooms) {
   return map;
 }
 
+function segmentRoomId(seg) {
+  if (!seg) return null;
+  if (seg.room?.id != null) return seg.room.id;
+  if (seg.roomId != null) return seg.roomId;
+  if (seg.uiRoomId != null) return seg.uiRoomId;
+  return null;
+}
+
 function segmentRoomLabel(seg, roomsById) {
   if (!seg) return null;
   if (seg.uiRoomName) {
@@ -166,11 +174,24 @@ function segmentRoomLabel(seg, roomsById) {
   return null;
 }
 
+function segmentRoomEntry(seg, roomsById) {
+  const name = segmentRoomLabel(seg, roomsById);
+  if (!name) return null;
+  return { name, roomId: segmentRoomId(seg) };
+}
+
 /**
- * Habitación(es) del movimiento: ingresos = segmentos que empiezan ese día;
- * salidas = segmentos que terminan ese día.
+ * Habitación(es) del movimiento con id: ingresos = segmentos que empiezan
+ * ese día; salidas = segmentos que terminan ese día.
+ * @returns {{ name: string, roomId: number|string|null }[]}
  */
-export function movementRoomLabel(reservation, segments, dayIso, kind, roomsById) {
+export function movementRoomEntries(
+  reservation,
+  segments,
+  dayIso,
+  kind,
+  roomsById
+) {
   const segs = Array.isArray(segments) ? segments : [];
   let relevant = [];
   if (kind === 'in') {
@@ -186,27 +207,47 @@ export function movementRoomLabel(reservation, segments, dayIso, kind, roomsById
     );
   }
 
-  const labels = [];
+  const entries = [];
   const seen = new Set();
   for (const seg of relevant) {
-    const label = segmentRoomLabel(seg, roomsById);
-    if (label && !seen.has(label)) {
-      seen.add(label);
-      labels.push(label);
+    const entry = segmentRoomEntry(seg, roomsById);
+    if (entry && !seen.has(entry.name)) {
+      seen.add(entry.name);
+      entries.push(entry);
     }
   }
 
-  if (!labels.length) {
+  if (!entries.length) {
     const legacyId = reservation?.roomId;
     if (legacyId != null) {
       const fromList = roomsById.get(legacyId);
-      if (fromList?.name) return String(fromList.name);
-      return String(legacyId);
+      return [
+        {
+          name: fromList?.name ? String(fromList.name) : String(legacyId),
+          roomId: legacyId
+        }
+      ];
     }
-    return '—';
+    return [];
   }
 
-  return labels.join('/');
+  return entries;
+}
+
+/**
+ * Habitación(es) del movimiento: ingresos = segmentos que empiezan ese día;
+ * salidas = segmentos que terminan ese día.
+ */
+export function movementRoomLabel(reservation, segments, dayIso, kind, roomsById) {
+  const entries = movementRoomEntries(
+    reservation,
+    segments,
+    dayIso,
+    kind,
+    roomsById
+  );
+  if (!entries.length) return '—';
+  return entries.map((e) => e.name).join('/');
 }
 
 export function movementListLabel(roomLabel, guestName) {
@@ -215,16 +256,20 @@ export function movementListLabel(roomLabel, guestName) {
 
 function movementItem(reservation, segments, dayIso, kind, roomsById) {
   const guestName = mainClientDisplayName(reservation);
-  const room = movementRoomLabel(
+  const roomEntries = movementRoomEntries(
     reservation,
     segments,
     dayIso,
     kind,
     roomsById
   );
+  const room = roomEntries.length
+    ? roomEntries.map((e) => e.name).join('/')
+    : '—';
   return {
     reservationId: reservation.id,
     roomLabel: room,
+    rooms: roomEntries,
     guestName,
     label: movementListLabel(room, guestName)
   };

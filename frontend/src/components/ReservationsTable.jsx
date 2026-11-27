@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStatusLabel } from "../utils/reservationStatusUtils";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatMoneyArs } from '../utils/formatMoney';
 import ReservationIdChip from './ReservationIdChip';
+import RoomNameChip from './RoomNameChip';
+import GuestCheckInStatusCell from './GuestCheckInStatusCell';
+import ReservationStatusPlain from './ReservationStatusPlain';
 import styles from '../styles/ReservationsTable.module.css';
 
 export default function ReservationsTable({ 
@@ -15,6 +17,13 @@ export default function ReservationsTable({
   operationalPeriods = [] 
 }) {
   const navigate = useNavigate();
+
+  const openInternalGuestCheckIn = (reservation) => {
+    if (!reservation?.id) return;
+    navigate(`/reservations/${reservation.id}`, {
+      state: { activeTab: 'huespedes', openGuestForm: true }
+    });
+  };
   const [sortField, setSortField] = useState('checkIn');
   const [sortDirection, setSortDirection] = useState('asc');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -153,9 +162,6 @@ export default function ReservationsTable({
     return serviceType ? serviceType.name : serviceTypeId;
   }, [serviceTypes]);
 
-  // Función para obtener el estado en español
-  const getStatusText = (status) => getStatusLabel(status);
-
   // Función para obtener el tipo de reserva en español (desde segments)
   const getReservationTypeText = (reservation) => {
     if (!reservation.segments || reservation.segments.length === 0) {
@@ -164,22 +170,6 @@ export default function ReservationsTable({
     // Obtener el primer servicio del primer segmento
     const firstService = reservation.segments[0].services?.[0];
     return getServiceTypeName(firstService);
-  };
-
-  // Función para obtener la clase de estado
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'active': return styles.statusActive;
-      case 'finished': return styles.statusFinished;
-      case 'cancelled': return styles.statusCancelled;
-      default: return styles.statusDefault;
-    }
-  };
-
-  // Función para manejar el clic en el nombre de habitación
-  const handleRoomClick = (e, roomId) => {
-    e.stopPropagation(); // Evitar que se active el clic de la fila
-    navigate(`/habitaciones/${roomId}`);
   };
 
   // Función para manejar el clic en el nombre del cliente
@@ -252,7 +242,7 @@ export default function ReservationsTable({
                 )}
               </th>
               <th onClick={() => handleSort('checkIn')} className={styles.sortableHeader}>
-                Check-in
+                Ingreso
                 {sortField === 'checkIn' && (
                   <span className={styles.sortIndicator}>
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -260,7 +250,7 @@ export default function ReservationsTable({
                 )}
               </th>
               <th onClick={() => handleSort('checkOut')} className={styles.sortableHeader}>
-                Check-out
+                Egreso
                 {sortField === 'checkOut' && (
                   <span className={styles.sortIndicator}>
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -291,6 +281,7 @@ export default function ReservationsTable({
                   </span>
                 )}
               </th>
+              <th className={styles.sortableHeader}>Check-in</th>
             </tr>
           </thead>
           <tbody>
@@ -317,12 +308,10 @@ export default function ReservationsTable({
                     />
                   </td>
                   <td className={styles.cell}>
-                    <span 
-                      className={styles.roomName}
-                      onClick={(e) => handleRoomClick(e, reservation.room?.id)}
-                    >
-                      {reservation.room?.name}
-                    </span>
+                    <RoomNameChip
+                      name={reservation.room?.name}
+                      roomId={reservation.room?.id}
+                    />
                   </td>
                   <td className={styles.cell}>
                     <div className={styles.clientInfo}>
@@ -355,9 +344,13 @@ export default function ReservationsTable({
                     </span>
                   </td>
                   <td className={styles.cell}>
-                    <span className={`${styles.status} ${getStatusClass(reservation.status)}`}>
-                      {getStatusText(reservation.status)}
-                    </span>
+                    <ReservationStatusPlain status={reservation.status} />
+                  </td>
+                  <td className={styles.cell}>
+                    <GuestCheckInStatusCell
+                      reservation={reservation}
+                      onOpenInternalForm={openInternalGuestCheckIn}
+                    />
                   </td>
                 </tr>
               );

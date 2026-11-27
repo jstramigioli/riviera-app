@@ -461,7 +461,7 @@ export default function MenuConsumosTab() {
                     Nombre{sortIndicator('name')}
                   </button>
                 </th>
-                <th>
+                <th className={styles.money}>
                   <button
                     type="button"
                     className={styles.sortableHeader}
@@ -493,7 +493,7 @@ export default function MenuConsumosTab() {
                     Estado{sortIndicator('estado')}
                   </button>
                 </th>
-                <th>
+                <th className={styles.short}>
                   <button
                     type="button"
                     className={styles.sortableHeader}
@@ -538,13 +538,13 @@ export default function MenuConsumosTab() {
                           <div className={styles.desc}>{item.description}</div>
                         ) : null}
                       </td>
-                      <td className={styles.num}>{formatPriceCell(item)}</td>
+                      <td className={styles.money}>{formatPriceCell(item)}</td>
                       <td>
                         <span className={item.isActive ? styles.badgeOn : styles.badgeOff}>
                           {item.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className={styles.num}>{item.ordenIndex}</td>
+                      <td className={`${styles.num} ${styles.short}`}>{item.ordenIndex}</td>
                       <td className={styles.actions}>
                         <button
                           type="button"

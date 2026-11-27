@@ -264,22 +264,12 @@ async function syncLodgingChargesAndNightRates(
       month: 'short'
     });
 
-    const promoNote =
-      promoDiscount > 0 && promoRuleId
-        ? isFreeNight
-          ? ` | Promo#${promoRuleId} noche sin cargo −$${promoDiscount}`
-          : ` | Promo#${promoRuleId} −$${promoDiscount}`
-        : '';
-
     cargoRows.push({
       ...financialRefs,
       roomTypeId: roomTypeId ? parseInt(roomTypeId, 10) : null,
       serviceTypeId: serviceTypeId || null,
       descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
       monto: pricedAmount,
-      notas:
-        `Noche ${localIndex + 1} de ${segmentDays} - Habitación ${segment.room?.name || 'N/A'}` +
-        promoNote,
       fecha: currentDate
     });
 
@@ -405,7 +395,11 @@ function getReservationData(reservation) {
     parentReservationId: reservation.parentReservationId,
     createdAt: reservation.createdAt,
     updatedAt: reservation.updatedAt,
-    
+    checkInToken: reservation.checkInToken || null,
+    checkInTokenSentAt: reservation.checkInTokenSentAt || null,
+    checkInTokenExpiresAt: reservation.checkInTokenExpiresAt || null,
+    vehiclePlate: reservation.vehiclePlate || null,
+
     // Datos del primer segmento (como referencia)
     roomId: virtualRoom ? `virtual_${virtualRoom.id}` : firstSegment.roomId,
     virtualRoomId: firstSegment.virtualRoomId || virtualRoom?.id || null,
@@ -419,6 +413,7 @@ function getReservationData(reservation) {
     // Relaciones — incluir inactivos si no hay activos (historial canceladas)
     mainClient: reservation.mainClient,
     guests: reservation.guests,
+    onlineCheckIns: reservation.onlineCheckIns || [],
     segments: displaySegments,
     childReservations: reservation.childReservations,
     virtualRoom,
@@ -438,6 +433,7 @@ async function getReservationWithData(reservationId) {
       guests: {
         include: { client: true }
       },
+      onlineCheckIns: true,
       // Incluir activos e inactivos: canceladas liberan isActive=false pero deben verse
       segments: {
         include: {
@@ -487,6 +483,7 @@ async function getAllReservationsWithData() {
     include: {
       mainClient: true,
       guests: true,
+      onlineCheckIns: true,
       segments: {
         include: {
           room: { include: { beds: { orderBy: { orderIndex: 'asc' } }, tags: true, roomType: true } },
@@ -773,7 +770,6 @@ async function createReservationWithSegment(reservationData) {
           serviceTypeId: serviceType?.id || null,
           descripcion: `Alojamiento - ${dateStr} (${serviceTypeLabel})`,
           monto: baseRate,
-          notas: `Noche ${i + 1} de ${days}`,
           fecha: currentDate
         }
       });
@@ -822,10 +818,6 @@ async function updateReservationWithSegments(reservationId, updateData) {
   const {
     status,
     notes,
-    notaComidas,
-    dietVegetariano,
-    dietVegano,
-    dietCeliaco,
     requiereCuna,
     requiereEstacionamiento,
     vehicleCount,
@@ -894,12 +886,6 @@ async function updateReservationWithSegments(reservationId, updateData) {
       data: {
         status: status || undefined,
         notes: notes !== undefined ? notes : undefined,
-        ...(notaComidas !== undefined ? { notaComidas } : {}),
-        ...(dietVegetariano !== undefined
-          ? { dietVegetariano: Boolean(dietVegetariano) }
-          : {}),
-        ...(dietVegano !== undefined ? { dietVegano: Boolean(dietVegano) } : {}),
-        ...(dietCeliaco !== undefined ? { dietCeliaco: Boolean(dietCeliaco) } : {}),
         ...(nextRequiereCuna !== undefined ? { requiereCuna: nextRequiereCuna } : {}),
         ...(nextVehicle
           ? {

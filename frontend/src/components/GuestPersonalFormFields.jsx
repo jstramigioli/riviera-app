@@ -4,7 +4,8 @@ import DocumentPhotoSlot from './DocumentPhotoSlot';
 import {
   BIRTH_DATE_LABEL_OPTIONAL,
   BIRTH_DATE_LABEL_REQUIRED,
-  CLIENT_DOCUMENT_TYPES
+  CLIENT_DOCUMENT_TYPES,
+  DOCUMENT_ISSUING_COUNTRIES
 } from '../constants/clientFormFields';
 import styles from '../pages/PublicCheckIn.module.css';
 
@@ -16,12 +17,16 @@ export const EMPTY_GUEST_PERSONAL_FIELDS = {
   phone: '',
   documentType: 'DNI',
   documentNumber: '',
+  documentIssuingCountry: 'AR',
   birthDate: '',
   country: 'AR',
   province: '',
   city: '',
   address: '',
-  wantsPromotions: false
+  wantsPromotions: false,
+  dietVegetariano: false,
+  dietVegano: false,
+  dietCeliaco: false
 };
 
 /**
@@ -144,6 +149,22 @@ export default function GuestPersonalFormFields({
               disabled={disabled}
             />
           </label>
+          <label className={styles.field}>
+            <span>País emisor</span>
+            <select
+              name="documentIssuingCountry"
+              value={fields.documentIssuingCountry || 'AR'}
+              onChange={handleChange}
+              disabled={disabled}
+              data-testid={`${photoTestIdPrefix}-issuing-country`}
+            >
+              {DOCUMENT_ISSUING_COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {showPhotos && (
           <>
@@ -214,6 +235,44 @@ export default function GuestPersonalFormFields({
             disabled={disabled}
             autoComplete="street-address"
           />
+        </label>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Régimen alimentario</h2>
+        <p className={styles.hint}>Preferencias del huésped para cocina / recepción.</p>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietVegetariano"
+            checked={Boolean(fields.dietVegetariano)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-vegetariano"
+          />
+          Vegetariano
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietVegano"
+            checked={Boolean(fields.dietVegano)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-vegano"
+          />
+          Vegano
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            name="dietCeliaco"
+            checked={Boolean(fields.dietCeliaco)}
+            onChange={handleChange}
+            disabled={disabled}
+            data-testid="guest-diet-celiaco"
+          />
+          Celíaco
         </label>
       </section>
 

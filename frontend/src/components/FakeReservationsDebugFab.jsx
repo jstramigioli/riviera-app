@@ -36,7 +36,8 @@ function defaultRange() {
 export default function FakeReservationsDebugFab() {
   const { realUser } = useAuth();
   const [open, setOpen] = useState(false);
-  const [enabled, setEnabled] = useState(false);
+  const [apiReady, setApiReady] = useState(false);
+  const [gateError, setGateError] = useState('');
   const [scenarios, setScenarios] = useState([]);
   const [selected, setSelected] = useState(() => new Set(['arrival_today', 'depart_today']));
   const [range, setRange] = useState(defaultRange);
@@ -56,10 +57,17 @@ export default function FakeReservationsDebugFab() {
       try {
         const meta = await fetchFakeReservationsMeta();
         if (cancelled) return;
-        setEnabled(true);
+        setApiReady(true);
+        setGateError('');
         setScenarios(meta.scenarios || Object.keys(SCENARIO_LABELS));
-      } catch {
-        if (!cancelled) setEnabled(false);
+      } catch (err) {
+        if (!cancelled) {
+          setApiReady(false);
+          setGateError(
+            err?.message ||
+              'API debug no disponible (ENABLE_DEBUG_FAKE_RESERVATIONS / reiniciar backend)'
+          );
+        }
       }
     })();
     return () => {
@@ -85,7 +93,8 @@ export default function FakeReservationsDebugFab() {
     };
   }, [open]);
 
-  if (!isAdmin || !enabled) return null;
+  /** FAB visible para ADMIN aunque meta falle; el panel avisa si la API está off. */
+  if (!isAdmin) return null;
 
   const toggleScenario = (key) => {
     setSelected((prev) => {
@@ -182,6 +191,11 @@ export default function FakeReservationsDebugFab() {
             Hoy operativo: <strong>{todayIsoLocal()}</strong>. Estancias dentro del
             rango. Marcador: DEBUG batch=…
           </p>
+          {!apiReady && gateError ? (
+            <p className={styles.status} role="alert">
+              {gateError}
+            </p>
+          ) : null}
 
           <div className={localStyles.rangeRow}>
             <label className={styles.field} htmlFor="fake-from">
@@ -234,7 +248,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy || rangeInvalid}
+              disabled={!apiReady || busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'recepcion' })}
             >
               Pack recepción
@@ -242,7 +256,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy || rangeInvalid}
+              disabled={!apiReady || busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'hotel_almost_full' })}
             >
               Casi lleno
@@ -250,7 +264,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy || rangeInvalid}
+              disabled={!apiReady || busy || rangeInvalid}
               onClick={() => onGenerate({ pack: 'hotel_full' })}
             >
               Hotel lleno
@@ -261,7 +275,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy || rangeInvalid}
+              disabled={!apiReady || busy || rangeInvalid}
               onClick={onPreview}
             >
               Preview
@@ -269,7 +283,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.primaryBtn}
-              disabled={busy || rangeInvalid || selected.size === 0}
+              disabled={!apiReady || busy || rangeInvalid || selected.size === 0}
               onClick={() => onGenerate()}
             >
               Generar
@@ -280,7 +294,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy || !lastBatchId}
+              disabled={!apiReady || busy || !lastBatchId}
               onClick={onCleanBatch}
             >
               Limpiar lote
@@ -288,7 +302,7 @@ export default function FakeReservationsDebugFab() {
             <button
               type="button"
               className={styles.secondaryBtn}
-              disabled={busy}
+              disabled={!apiReady || busy}
               onClick={onCleanAll}
             >
               Limpiar todos DEBUG

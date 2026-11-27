@@ -3,6 +3,7 @@ import { fetchVirtualRooms, fetchRooms, fetchRoomTypes, createVirtualRoom, updat
 import { getRoomTypeCapacity, getRoomTypeLabel } from '../../utils/roomTypeUtils';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
+import RoomNameChip from '../RoomNameChip';
 
 function VirtualRoomsPanel() {
   const { confirm, confirmDialog } = useConfirmDialog();
@@ -234,22 +235,14 @@ function VirtualRoomsPanel() {
 
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-        {components.map(component => {
+        {components.map((component) => {
           const room = getRoomById(component.roomId);
           return (
-            <span
+            <RoomNameChip
               key={component.roomId}
-              style={{
-                padding: '2px 6px',
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-text-light)',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: '500'
-              }}
-            >
-              {room ? room.name : `Hab ${component.roomId}`}
-            </span>
+              name={room ? room.name : `Hab ${component.roomId}`}
+              roomId={component.roomId}
+            />
           );
         })}
       </div>
@@ -420,7 +413,7 @@ function VirtualRoomsPanel() {
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: 'var(--font-size-small)' }}>{virtualRoom.name}</strong>
+                          <RoomNameChip name={virtualRoom.name} />
                         )}
                       </td>
                       <td style={{ padding: '12px' }}>

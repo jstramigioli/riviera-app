@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchReservations, fetchRooms } from '../services/api';
 import { occupancyLabel } from '../utils/roomOccupancy';
+import RoomNameChip from '../components/RoomNameChip';
 import styles from './Habitaciones.module.css';
 
 function Habitaciones() {
@@ -131,7 +132,9 @@ function Habitaciones() {
                           tabIndex={0}
                           role="link"
                         >
-                          <td>{room.name}</td>
+                          <td>
+                            <RoomNameChip name={room.name} roomId={room.id} />
+                          </td>
                           <td>{room.roomType?.name || 'Sin tipo'}</td>
                           <td>{room.maxPeople ?? '—'}</td>
                           <td>

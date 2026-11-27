@@ -483,6 +483,23 @@
 .amountCell {
   font-weight: 600;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.shortCell {
+  white-space: nowrap;
+}
+
+.table th.amountCell,
+.table td.amountCell {
+  text-align: right;
+}
+
+.table th.idCell,
+.table td.idCell,
+.table th.shortCell,
+.table td.shortCell {
+  text-align: center;
 }
 
 .metaCell {

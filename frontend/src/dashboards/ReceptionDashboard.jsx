@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { FiArrowDown, FiArrowUp, FiCheck, FiX } from 'react-icons/fi';
 import {
   subscribeSimulatedToday,
@@ -22,6 +20,9 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import ConsumptionOrderModal from '../components/ConsumptionOrderModal';
 import CobroForm from '../components/CobroForm';
 import ReservationIdChip from '../components/ReservationIdChip';
+import RoomNameChip from '../components/RoomNameChip';
+import ReservationStatusPlain from '../components/ReservationStatusPlain';
+import GuestCheckInStatusCell from '../components/GuestCheckInStatusCell';
 import NotificationsPanel from './NotificationsPanel';
 import ComidasHub from './ComidasHub';
 import CajaWidget from './CajaWidget';
@@ -34,6 +35,7 @@ const NOTES_PLACEHOLDER = 'Agregar notas…';
 
 const RANGE_OPTIONS = [
   { days: 1, label: 'Hoy' },
+  { days: 2, label: 'Mañana' },
   { days: 3, label: '3 días' },
   { days: 7, label: '7 días' }
 ];
@@ -67,25 +69,6 @@ export function creditSaldoAmount(row) {
   const saldo = Number(row.saldo);
   if (!Number.isFinite(saldo) || saldo >= 0) return null;
   return Math.abs(saldo);
-}
-
-function statusLabel(status) {
-  if (!status) return '—';
-  if (status === 'INGRESADA') return 'Ingresada';
-  if (status === 'PENDIENTE') return 'Prerreserva';
-  if (status === 'CONFIRMADA') return 'Confirmada';
-  if (status === 'FINALIZADA') return 'Finalizada';
-  return status;
-}
-
-function civilLocalDate(dayIso) {
-  const [y, m, d] = String(dayIso).split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function formatDayTitle(dayIso) {
-  const raw = format(civilLocalDate(dayIso), "EEEE d 'de' MMMM", { locale: es });
-  return raw.charAt(0).toLowerCase() + raw.slice(1);
 }
 
 function RangeFilter({ value, onChange, labelledBy }) {
@@ -307,6 +290,21 @@ export default function ReceptionDashboard() {
     navigate(`/reservations/${reservationId}`);
   };
 
+  const openInternalGuestCheckIn = (reservationId) => {
+    if (reservationId == null) return;
+    navigate(`/reservations/${reservationId}`, {
+      state: { activeTab: 'huespedes', openGuestForm: true }
+    });
+  };
+
+  const reservationById = useMemo(() => {
+    const map = new Map();
+    for (const r of reservations || []) {
+      if (r?.id != null) map.set(Number(r.id), r);
+    }
+    return map;
+  }, [reservations]);
+
   const openClient = (clientId) => {
     if (clientId == null) return;
     navigate(`/clients/${clientId}`);
@@ -427,7 +425,6 @@ export default function ReceptionDashboard() {
     );
   }
 
-  const dayTitle = formatDayTitle(todayIso);
 
   const renderSaldoCell = (reservationId) => {
     const bal = balancesByReservationId.get(Number(reservationId));
@@ -478,7 +475,7 @@ export default function ReceptionDashboard() {
   return (
     <div className={styles.page}>
       <header className={styles.toolbar}>
-        <h1 className={styles.pageTitle}>{dayTitle}</h1>
+        <h1 className={styles.pageTitle}>Dashboard</h1>
       </header>
 
       {error ? (
@@ -529,14 +526,21 @@ export default function ReceptionDashboard() {
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>
+                        <th className={styles.colGuestCheckIn}>Check-in</th>
                         <th className={styles.checkCol}>
-                          <span className={styles.srOnly}>Check-in</span>
+                          <span className={styles.srOnly}>Marcar ingreso</span>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {checkInRows.map((item) => {
                         const canCheckIn = Boolean(item.pending);
+                        const reservation =
+                          reservationById.get(Number(item.reservationId)) || {
+                            id: item.reservationId,
+                            guests: [],
+                            onlineCheckIns: []
+                          };
                         return (
                           <tr key={`in-${item.reservationId}`}>
                             <td className={styles.colReserva}>
@@ -582,7 +586,10 @@ export default function ReceptionDashboard() {
                               {item.guests ?? '—'}
                             </td>
                             <td className={styles.colRoom}>
-                              {item.roomLabel || '—'}
+                              <RoomNameChip
+                                name={item.roomLabel}
+                                rooms={item.rooms}
+                              />
                             </td>
                             <td className={styles.colService}>
                               <span className={styles.cellClamp}>
@@ -596,17 +603,15 @@ export default function ReceptionDashboard() {
                               {renderSaldoCell(item.reservationId)}
                             </td>
                             <td className={styles.colStatus}>
-                              <span
-                                className={
-                                  item.pending
-                                    ? styles.statusPending
-                                    : item.status === 'INGRESADA'
-                                      ? styles.statusDone
-                                      : styles.statusMuted
+                              <ReservationStatusPlain status={item.status} />
+                            </td>
+                            <td className={styles.colGuestCheckIn}>
+                              <GuestCheckInStatusCell
+                                reservation={reservation}
+                                onOpenInternalForm={() =>
+                                  openInternalGuestCheckIn(item.reservationId)
                                 }
-                              >
-                                {statusLabel(item.status)}
-                              </span>
+                              />
                             </td>
                             <td className={styles.checkCol}>
                               {canCheckIn ? (
@@ -654,7 +659,7 @@ export default function ReceptionDashboard() {
                 Egresos
               </h3>
               {checkoutRows.length === 0 ? (
-                <p className={styles.empty}>Sin egresos en el rango.</p>
+                <p className={styles.empty}>Sin egresos.</p>
               ) : (
                 <div className={styles.tableScroll}>
                   <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
@@ -717,7 +722,10 @@ export default function ReceptionDashboard() {
                             {item.guests ?? '—'}
                           </td>
                           <td className={styles.colRoom}>
-                            {item.roomLabel || '—'}
+                            <RoomNameChip
+                              name={item.roomLabel}
+                              rooms={item.rooms}
+                            />
                           </td>
                           <td className={styles.colNotes}>
                             {renderNotesCell(item)}
@@ -726,9 +734,7 @@ export default function ReceptionDashboard() {
                             {renderSaldoCell(item.reservationId)}
                           </td>
                           <td className={styles.colStatus}>
-                            <span className={styles.statusMuted}>
-                              {statusLabel(item.status)}
-                            </span>
+                            <ReservationStatusPlain status={item.status} />
                           </td>
                           <td className={styles.colActions}>
                             <button

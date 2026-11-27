@@ -45,7 +45,7 @@ const ClientBalanceMovements = ({
   const [selected, setSelected] = useState(null); // { type: 'cargo'|'cobro', id, imputacionId? }
   const [editingCobro, setEditingCobro] = useState(null);
   const [editingCargo, setEditingCargo] = useState(null);
-  const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '', notas: '' });
+  const [cargoDraft, setCargoDraft] = useState({ descripcion: '', monto: '' });
   const [savingCargo, setSavingCargo] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [cobroComprobantes, setCobroComprobantes] = useState([]);
@@ -160,8 +160,7 @@ const ClientBalanceMovements = ({
     setEditingCargo(cargo);
     setCargoDraft({
       descripcion: cargo.descripcion || '',
-      monto: String(cargo.monto ?? ''),
-      notas: cargo.notas || ''
+      monto: String(cargo.monto ?? '')
     });
   };
 
@@ -262,7 +261,6 @@ const ClientBalanceMovements = ({
       await updateCargo(editingCargo.id, {
         descripcion: cargoDraft.descripcion.trim(),
         monto,
-        notas: cargoDraft.notas?.trim() || null,
         subcategoriaCargoId: editingCargo.subcategoriaCargoId
       });
       setEditingCargo(null);
@@ -298,7 +296,7 @@ const ClientBalanceMovements = ({
                     <th>Fecha</th>
                     <th>Descripción</th>
                     <th>Cuenta</th>
-                    <th>Monto</th>
+                    <th className={styles.montoCell}>Monto</th>
                     <th />
                   </tr>
                 </thead>
@@ -372,10 +370,10 @@ const ClientBalanceMovements = ({
               <table className={styles.dataTable} data-testid="client-cobros-table">
                 <thead>
                   <tr>
-                    <th>Código</th>
+                    <th className={styles.shortCell}>Código</th>
                     <th>Fecha</th>
                     <th>Cuenta</th>
-                    <th>Monto</th>
+                    <th className={styles.montoCell}>Monto</th>
                     <th />
                   </tr>
                 </thead>
@@ -395,7 +393,7 @@ const ClientBalanceMovements = ({
                         data-testid={`client-cobro-row-${rowKey}`}
                         aria-selected={isSelected}
                       >
-                        <td>
+                        <td className={styles.shortCell}>
                           {codigo}
                           {cobro.esImputacionParcial ? ' · parcial' : ''}
                         </td>
@@ -482,10 +480,6 @@ const ClientBalanceMovements = ({
                   selectedCargo.tipoCargo ||
                   (selectedCargo.editable ? '—' : 'Alojamiento')}
               </dd>
-            </div>
-            <div>
-              <dt>Notas</dt>
-              <dd>{selectedCargo.notas || '—'}</dd>
             </div>
             <div className={styles.detailActions}>
               <button
@@ -586,10 +580,6 @@ const ClientBalanceMovements = ({
             <div>
               <dt>Cuenta</dt>
               <dd>{selectedCobro.accountLabel || '—'}</dd>
-            </div>
-            <div>
-              <dt>Notas</dt>
-              <dd>{selectedCobro.notas || '—'}</dd>
             </div>
             <div className={styles.detailComprobantes} data-testid="client-cobro-comprobantes">
               <dt>Comprobante</dt>
@@ -706,15 +696,6 @@ const ClientBalanceMovements = ({
                   onChange={(e) => setCargoDraft((d) => ({ ...d, monto: e.target.value }))}
                   disabled={savingCargo}
                   data-testid="client-cargo-edit-monto"
-                />
-              </label>
-              <label>
-                Notas
-                <textarea
-                  rows={3}
-                  value={cargoDraft.notas}
-                  onChange={(e) => setCargoDraft((d) => ({ ...d, notas: e.target.value }))}
-                  disabled={savingCargo}
                 />
               </label>
               <div className={styles.modalActions}>

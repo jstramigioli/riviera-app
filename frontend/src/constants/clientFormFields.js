@@ -13,6 +13,7 @@ export const CLIENT_PROFILE_FIELD_KEYS = [
   'phone',
   'documentType',
   'documentNumber',
+  'documentIssuingCountry',
   'birthDate',
   'country',
   'province',
@@ -20,6 +21,21 @@ export const CLIENT_PROFILE_FIELD_KEYS = [
   'address',
   'vehiclePlate',
   'wantsPromotions'
+];
+
+/** Países emisores frecuentes (mismo set que ubicación / facturación T). */
+export const DOCUMENT_ISSUING_COUNTRIES = [
+  { code: 'AR', name: 'Argentina' },
+  { code: 'BR', name: 'Brasil' },
+  { code: 'CL', name: 'Chile' },
+  { code: 'PY', name: 'Paraguay' },
+  { code: 'UY', name: 'Uruguay' },
+  { code: 'BO', name: 'Bolivia' },
+  { code: 'PE', name: 'Perú' },
+  { code: 'US', name: 'Estados Unidos' },
+  { code: 'ES', name: 'España' },
+  { code: 'IT', name: 'Italia' },
+  { code: 'OTHER', name: 'Otro' }
 ];
 
 /** Label y ayuda compartidos entre check-in y EditClientModal. */

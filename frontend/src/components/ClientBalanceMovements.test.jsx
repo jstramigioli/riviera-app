@@ -54,7 +54,6 @@ describe('ClientBalanceMovements', () => {
       descripcion: 'Minibar',
       monto: 1500,
       fecha: '2026-01-05T00:00:00.000Z',
-      notas: 'Agua',
       accountLabel: 'Reserva #9',
       editable: true,
       subcategoriaCargoId: 3,
@@ -115,7 +114,6 @@ describe('ClientBalanceMovements', () => {
 
     fireEvent.click(screen.getByTestId('client-cargo-row-10'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Minibar/)
-    expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/Agua/)
 
     fireEvent.click(screen.getByTestId('client-cobro-row-20-200'))
     expect(screen.getByTestId('client-balance-detail')).toHaveTextContent(/A010/)

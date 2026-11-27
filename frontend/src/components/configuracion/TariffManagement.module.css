@@ -321,20 +321,22 @@
 .pricesTable th {
   background: var(--color-bg);
   padding: 10px 12px;
-  text-align: center;
+  text-align: right;
   font-weight: 600;
   color: var(--color-text-main);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
   font-size: var(--font-size-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .pricesTable td {
   padding: 10px 12px;
-  text-align: center;
+  text-align: right;
   border-bottom: 1px solid var(--color-border-light);
   vertical-align: middle;
   font-size: var(--font-size-base);
+  font-variant-numeric: tabular-nums;
 }
 
 .roomTypeCell {

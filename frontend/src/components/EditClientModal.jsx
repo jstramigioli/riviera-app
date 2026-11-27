@@ -4,6 +4,7 @@ import LocationSelector from './LocationSelector';
 import {
   BIRTH_DATE_LABEL_OPTIONAL,
   CLIENT_DOCUMENT_TYPES,
+  DOCUMENT_ISSUING_COUNTRIES,
   VEHICLE_PLATE_HINT,
   VEHICLE_PLATE_LABEL,
   birthDateInputToPayload,
@@ -27,6 +28,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
     phone: '',
     documentType: 'DNI',
     documentNumber: '',
+    documentIssuingCountry: 'AR',
     birthDate: '',
     country: 'AR',
     province: '',
@@ -48,6 +50,8 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         phone: client.phone || '',
         documentType: client.documentType || 'DNI',
         documentNumber: client.documentNumber || '',
+        documentIssuingCountry:
+          client.documentIssuingCountry || client.country || 'AR',
         birthDate: birthDateToInputValue(client.birthDate),
         country: client.country || 'AR',
         province: client.province || '',
@@ -91,6 +95,7 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
         phone: formData.phone,
         documentType: formData.documentType,
         documentNumber: formData.documentNumber,
+        documentIssuingCountry: formData.documentIssuingCountry || formData.country || 'AR',
         birthDate: birthDateInputToPayload(formData.birthDate),
         country: formData.country,
         province: formData.province,
@@ -224,6 +229,23 @@ const EditClientModal = ({ client, isOpen, onClose, onClientUpdated }) => {
                   onChange={handleInputChange}
                   className={styles.input}
                 />
+              </div>
+
+              <div className={styles.fieldGroup}>
+                <label htmlFor="documentIssuingCountry">País emisor</label>
+                <select
+                  id="documentIssuingCountry"
+                  name="documentIssuingCountry"
+                  value={formData.documentIssuingCountry || 'AR'}
+                  onChange={handleInputChange}
+                  className={styles.select}
+                >
+                  {DOCUMENT_ISSUING_COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

@@ -148,7 +148,7 @@ exports.getOccupiedRoomsToday = async (req, res) => {
 
 /**
  * Carga una comanda de consumos sobre una reserva o cuenta externa.
- * Body: { ambito, reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD, notes? }
+ * Body: { ambito, reservationId?, accountId?, items: [...], fecha?: YYYY-MM-DD }
  * ambito: CENA | MINUTAS | CAFETERIA | FRIGOBAR (de toda la comanda).
  * Si viene reservationId → Account 1:1. Si accountId EXTERNAL → sin reserva.
  * Crea Comanda + líneas (precio histórico) + un Cargo por línea.
@@ -163,7 +163,6 @@ exports.createConsumptionOrder = async (req, res) => {
         : Number(reservationIdRaw);
     const accountId =
       accountIdRaw == null || accountIdRaw === '' ? null : Number(accountIdRaw);
-    const notes = req.body.notes ? String(req.body.notes).trim() : null;
     const rawItems = Array.isArray(req.body.items) ? req.body.items : [];
     const fechaCivil = parseCivilDateParam(req.body.fecha ?? req.body.date, req);
     const ambito = parseAmbito(req.body.ambito);
@@ -277,7 +276,6 @@ exports.createConsumptionOrder = async (req, res) => {
           ambito,
           fecha: toDateOnlyUtc(fechaCivil),
           account,
-          notas: notes,
           lines,
           subcatByCode: resolved.subcatByCode,
           beneficioId

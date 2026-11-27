@@ -349,11 +349,12 @@
 .basePriceHeader {
   min-width: 120px;
   background: #e8f5e8;
+  text-align: right;
 }
 
 .serviceHeader {
   min-width: 120px;
-  text-align: center;
+  text-align: right;
 }
 
 .roomTypeCell {
@@ -364,10 +365,13 @@
 
 .basePriceCell {
   background: #f8fff9;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .serviceCell {
-  text-align: center;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .priceInput {

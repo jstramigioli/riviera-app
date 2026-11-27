@@ -82,6 +82,7 @@ describe('computeDayInfoStats', () => {
       {
         reservationId: 1,
         roomLabel: '1',
+        rooms: [{ name: '1', roomId: 1 }],
         guestName: 'Ana Ruiz',
         label: '1 - Ana Ruiz'
       }
@@ -90,6 +91,7 @@ describe('computeDayInfoStats', () => {
       {
         reservationId: 2,
         roomLabel: '3',
+        rooms: [{ name: '3', roomId: 3 }],
         guestName: 'Luis Mora',
         label: '3 - Luis Mora'
       }

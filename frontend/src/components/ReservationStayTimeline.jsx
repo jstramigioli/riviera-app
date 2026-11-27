@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { FiLock } from 'react-icons/fi';
 import { buildReservationStayTimeline } from '../utils/reservationStayTimeline';
 import { formatMoneyArs } from '../utils/formatMoney';
 import { sourceLabel } from '../constants/reservationSource';
+import RoomNameChip from './RoomNameChip';
 import styles from './ReservationStayTimeline.module.css';
 
 const NARROW_MQ = '(max-width: 720px)';
@@ -53,17 +53,23 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
   const roomType = card.roomType || '—';
   const canOpenRoom = Boolean(card.roomId) && !hideRoomNumber;
   const roomName = card.room || '—';
-  const roomNameNode = canOpenRoom ? (
-    <Link
-      to={`/habitaciones/${card.roomId}`}
-      className={styles.roomNameLink}
-      title={`Ver perfil de habitación ${roomName}`}
-      data-testid="timeline-room-link"
-    >
-      {roomName}
-    </Link>
-  ) : (
-    roomName
+  const roomChipLabel = `Habitación: ${roomName} - ${roomType}`;
+  const roomNameNode = (
+    <RoomNameChip
+      rooms={[
+        {
+          name: roomChipLabel,
+          roomId: canOpenRoom ? card.roomId : null
+        }
+      ]}
+      className={styles.roomChip}
+      data-testid={
+        canOpenRoom ? 'timeline-room-link' : 'timeline-room-chip'
+      }
+      title={
+        canOpenRoom ? `Ver perfil de habitación ${roomName}` : undefined
+      }
+    />
   );
   return (
     <div className={styles.segmentStack}>
@@ -74,7 +80,7 @@ const SegmentCard = ({ card, vertical, hideRoomNumber = false }) => {
             roomType
           ) : (
             <>
-              Habitación: {roomNameNode} - {roomType}
+              {roomNameNode}
               {card.roomFixed ? (
                 <FiLock
                   className={styles.roomFixedIcon}

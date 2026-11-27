@@ -123,8 +123,7 @@ const EstadoFinancieroTab = ({
   const [newCargo, setNewCargo] = useState({
     descripcion: '',
     monto: '',
-    subcategoriaCargoId: null,
-    notas: ''
+    subcategoriaCargoId: null
   });
   const printRef = useRef(null);
   const pendingHandledRef = useRef(null);
@@ -180,8 +179,7 @@ const EstadoFinancieroTab = ({
     setNewCargo({
       descripcion: '',
       monto: '',
-      subcategoriaCargoId: defaultSubcategoriaId(),
-      notas: ''
+      subcategoriaCargoId: defaultSubcategoriaId()
     });
     setEditingCargo(null);
   };
@@ -203,8 +201,7 @@ const EstadoFinancieroTab = ({
     setNewCargo({
       descripcion: cargo.descripcion || '',
       monto: String(cargo.monto ?? ''),
-      subcategoriaCargoId: cargo.subcategoriaCargoId,
-      notas: cargo.notas || ''
+      subcategoriaCargoId: cargo.subcategoriaCargoId
     });
     setShowCargoModal(true);
   };
@@ -212,8 +209,7 @@ const EstadoFinancieroTab = ({
   const buildCargoPayload = () => {
     const base = {
       descripcion: newCargo.descripcion,
-      monto: parseFloat(newCargo.monto),
-      notas: newCargo.notas || null
+      monto: parseFloat(newCargo.monto)
     };
     const subId = newCargo.subcategoriaCargoId || defaultSubcategoriaId();
     if (subId) {
@@ -639,14 +635,13 @@ const EstadoFinancieroTab = ({
                           >
                             <thead>
                               <tr>
-                                <th>Código</th>
+                                <th className={styles.shortCell}>Código</th>
                                 <th>Fecha</th>
-                                <th>Monto</th>
-                                <th>Moneda</th>
+                                <th className={styles.montoCell}>Monto</th>
+                                <th className={styles.shortCell}>Moneda</th>
                                 <th>Método</th>
                                 <th>Motivo</th>
-                                <th>Descuento</th>
-                                <th>Notas</th>
+                                <th className={styles.montoCell}>Descuento</th>
                                 <th>Acciones</th>
                               </tr>
                             </thead>
@@ -660,7 +655,7 @@ const EstadoFinancieroTab = ({
                                     key={cobro.imputacionId || cobro.id}
                                     data-testid={`financial-cobro-row-${cobro.imputacionId || cobro.id}`}
                                   >
-                                    <td>
+                                    <td className={styles.shortCell}>
                                       {codigo}
                                       {cobro.esImputacionParcial
                                         ? ` · parte de ${formatCurrency(cobro.pagoTotalARS)}`
@@ -677,10 +672,10 @@ const EstadoFinancieroTab = ({
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td>{cobro.moneda || 'ARS'}</td>
+                                    <td className={styles.shortCell}>{cobro.moneda || 'ARS'}</td>
                                     <td>{cobro.metodo || '—'}</td>
                                     <td>{cobro.motivo || 'Cobro'}</td>
-                                    <td>
+                                    <td className={styles.montoCell}>
                                       {disc && Number(disc.montoARS) !== 0
                                         ? formatCurrency(disc.montoARS)
                                         : '—'}
@@ -690,7 +685,6 @@ const EstadoFinancieroTab = ({
                                         </div>
                                       ) : null}
                                     </td>
-                                    <td className={styles.notasCell}>{cobro.notas || '—'}</td>
                                     <td>
                                       <span className={styles.breakdownActions}>
                                         <button
@@ -886,15 +880,6 @@ const EstadoFinancieroTab = ({
                   onChange={(e) => setNewCargo({ ...newCargo, monto: e.target.value })}
                   placeholder="0.00"
                   data-testid="input-cargo-monto"
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Notas</label>
-                <textarea
-                  value={newCargo.notas}
-                  onChange={(e) => setNewCargo({ ...newCargo, notas: e.target.value })}
-                  placeholder="Observaciones opcionales"
-                  rows="3"
                 />
               </div>
               <div className={styles.modalActions}>

@@ -72,6 +72,9 @@ const ReservationDetails = () => {
   const [activeTab, setActiveTab] = useState(
     resolveInitialTab(location.state?.activeTab)
   );
+  const [openGuestForm, setOpenGuestForm] = useState(
+    Boolean(location.state?.openGuestForm)
+  );
   const [pendingFinancialAction, setPendingFinancialAction] = useState(
     location.state?.financialAction || null
   );
@@ -83,6 +86,8 @@ const ReservationDetails = () => {
   const [sendingCheckIn, setSendingCheckIn] = useState(false);
   const [copiedCheckInLink, setCopiedCheckInLink] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
 
   // Estado financiero
   const [financialSummary, setFinancialSummary] = useState(null);
@@ -116,6 +121,7 @@ const ReservationDetails = () => {
 
       setReservation(foundReservation);
       setEditData(foundReservation);
+      setNotesDraft(foundReservation.notes || '');
       setAllReservations(reservationsData);
       setServiceTypes(serviceTypesResponse.data || []);
 
@@ -255,8 +261,20 @@ const ReservationDetails = () => {
       }
       // Limpiar state para no re-disparar al volver con el historial
       navigate(location.pathname, { replace: true, state: {} });
+      return;
     }
-  }, [location.state?.activeTab, location.state?.financialAction, location.pathname, navigate]);
+    if (location.state?.activeTab === 'huespedes' || location.state?.openGuestForm) {
+      setActiveTab('huespedes');
+      if (location.state?.openGuestForm) setOpenGuestForm(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state?.activeTab,
+    location.state?.financialAction,
+    location.state?.openGuestForm,
+    location.pathname,
+    navigate
+  ]);
 
   // Cargar datos financieros en la pestaña Estado financiero
   useEffect(() => {
@@ -390,6 +408,28 @@ const ReservationDetails = () => {
 
   const handleEditChange = (field, value) => {
     setEditData((prev) => ({ ...(prev || reservation), [field]: value }));
+  };
+
+  const handleSaveNotes = async () => {
+    if (!reservation?.id || notesSaving) return;
+    const nextNotes = String(notesDraft || '').trim() || null;
+    const current = reservation.notes || null;
+    if (nextNotes === current) return;
+    setNotesSaving(true);
+    try {
+      const updated = await updateReservation(reservation.id, { notes: nextNotes });
+      setReservation((prev) => ({ ...prev, ...updated, notes: nextNotes }));
+      setNotesDraft(nextNotes || '');
+      notify({ message: 'Notas guardadas', type: 'success', autoDismiss: true });
+    } catch (err) {
+      notify({
+        title: 'Error',
+        message: err?.message || 'No se pudieron guardar las notas',
+        type: 'error'
+      });
+    } finally {
+      setNotesSaving(false);
+    }
   };
 
   const handleEditToggle = () => {
@@ -526,6 +566,8 @@ const ReservationDetails = () => {
             reservation={reservation}
             onClientClick={handleClientClick}
             checkInGuests={checkInInfo?.guests || []}
+            openGuestFormOnMount={openGuestForm}
+            onOpenGuestFormConsumed={() => setOpenGuestForm(false)}
             onGuestUpdate={() => {
               loadReservationData();
               refreshCheckInInfo();
@@ -535,17 +577,12 @@ const ReservationDetails = () => {
       case 'regimen':
         return (
           <>
-          <ComidasReservaPanel
-            reservationId={reservation.id}
-            reservationStatus={reservation.status}
-            onChanged={loadFinancialData}
-          />
-          <RegimenTab
-            reservation={reservation}
-            onSaved={(updated) => {
-              setReservation((prev) => ({ ...prev, ...updated }));
-            }}
-          />
+            <ComidasReservaPanel
+              reservationId={reservation.id}
+              reservationStatus={reservation.status}
+              onChanged={loadFinancialData}
+            />
+            <RegimenTab reservation={reservation} />
           </>
         );
       default:
@@ -720,6 +757,25 @@ const ReservationDetails = () => {
                   : null}
               </div>
             )}
+
+            <div className={styles.reservationNotesBlock} data-testid="reservation-notes">
+              <label className={styles.reservationNotesLabel} htmlFor="reservation-notes-field">
+                Notas
+              </label>
+              <textarea
+                id="reservation-notes-field"
+                className={styles.reservationNotesTextarea}
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                onBlur={handleSaveNotes}
+                rows={4}
+                placeholder="Notas de la reserva…"
+                disabled={notesSaving}
+              />
+              {notesSaving ? (
+                <span className={styles.reservationNotesSaving}>Guardando…</span>
+              ) : null}
+            </div>
           </div>
         </div>
 

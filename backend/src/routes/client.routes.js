@@ -13,6 +13,9 @@ const uploadDocumentPhoto = multer({
 // GET /api/clients - Listar todos los clientes
 router.get('/', clientController.getAllClients);
 
+// GET /api/clients/search?q= — sugerencias (antes de /:id)
+router.get('/search', clientController.searchClients);
+
 // POST /api/clients - Crear un nuevo cliente
 router.post('/', validateClient, clientController.createClient);
 

@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: 0;
   margin: 0;
-  padding: 10px 16px 8px;
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-white);
   flex-shrink: 0;
@@ -158,8 +158,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid rgba(51, 77, 112, 0.18);
   background: rgba(255, 255, 255, 0.45);
 }
@@ -219,7 +219,7 @@
 }
 
 .sideStayQuiet {
-  padding: 8px 10px;
+  padding: 12px 16px;
 }
 
 .sideCompareColCurrent .sideBalance {
@@ -228,7 +228,7 @@
 
 .sideStay {
   flex: 0 0 auto;
-  padding: 12px 14px;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(51, 77, 112, 0.18);
 }
 
@@ -439,7 +439,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 20px;
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border);
   cursor: default;
@@ -496,7 +496,7 @@
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -965,14 +965,14 @@
 }
 
 .clientContent {
-  padding: 16px;
+  padding: 20px;
 }
 
 .topFieldsRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  padding: 8px 12px;
+  gap: 12px 16px;
+  padding: 12px 16px;
   background: var(--color-bg-white);
   border-bottom: 1px solid var(--color-border);
   align-items: flex-end;
@@ -1006,8 +1006,8 @@
   font-size: var(--font-size-large);
   font-weight: 600;
   color: var(--color-text-dark);
-  margin: 8px 0 12px;
-  padding: 0 0 8px;
+  margin: 12px 0 14px;
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
@@ -1021,7 +1021,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 20px;
   background: var(--color-bg-white);
   border: none;
   border-top: 1px solid var(--color-border);
@@ -1129,7 +1129,7 @@
 .selectedClientContainer .formGroup,
 .bedsFieldContainer .formGroup {
   margin: 0;
-  gap: 4px;
+  gap: 6px;
 }
 
 .clientFieldContainer label,
@@ -1257,7 +1257,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: transparent;
   border: none;
   border-right: 1px solid var(--color-border);
@@ -1358,7 +1358,7 @@
 
 /* Contenido de pestaña */
 .tabContent {
-  padding: 16px;
+  padding: 20px;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1367,17 +1367,17 @@
 }
 
 .blockForm {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex-shrink: 0;
 }
 
 .formRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 16px;
+  gap: 16px 20px;
   margin-bottom: 0;
 }
 
@@ -1399,7 +1399,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 16px;
   background: var(--color-bg);
   border: none;
   cursor: pointer;
@@ -1431,7 +1431,7 @@
 }
 
 .expandableContent {
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--color-bg-white);
   border-top: 1px solid var(--color-border);
 }
@@ -1494,8 +1494,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 14px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: background-color 0.15s, box-shadow 0.15s;
   background: var(--color-bg-white);

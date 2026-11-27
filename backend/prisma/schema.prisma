@@ -158,6 +158,10 @@ model Client {
   phone           String?
   documentType    String        @default("DNI")
   documentNumber  String?
+  /// País emisor del documento (ISO-ish; clave de unicidad junto a tipo + nro normalizado).
+  documentIssuingCountry String?
+  /// Número de documento normalizado (sin espacios/puntos/guiones); para match/unicidad.
+  documentNumberNormalized String?
   /// Fecha de nacimiento del cliente (check-in online la exige; perfil/CRUD opcional).
   birthDate       DateTime?
   country         String?
@@ -168,6 +172,8 @@ model Client {
   vehiclePlate    String?
   wantsPromotions Boolean       @default(false)
   esFicticio      Boolean       @default(false)
+  /// Match de documento con nombre/apellido discrepantes: no overwrite automático.
+  needsIdentityReview Boolean   @default(false)
   /// Foto frente del documento (archivo en uploads/client-document-photos/{id}/).
   documentPhotoFrontStoredName   String?
   documentPhotoFrontOriginalName String?
@@ -193,6 +199,9 @@ model Client {
   /// Datos de facturación aparte del perfil (reutilizables en próximos cobros).
   billingProfile  ClientBillingProfile?
 
+  @@unique([documentType, documentIssuingCountry, documentNumberNormalized])
+  @@index([documentNumberNormalized])
+  @@index([lastName, firstName])
   @@index([createdAt])
   @@index([updatedAt])
 }
@@ -229,10 +238,16 @@ model Guest {
   lastName       String
   documentType   String       @default("DNI")
   documentNumber String?
+  /// País emisor del documento (misma semántica que Client).
+  documentIssuingCountry String?
   phone          String?
   email          String?
   address        String?
   city           String?
+  /// Preferencias alimentarias del huésped (check-in / form manual).
+  dietVegetariano Boolean     @default(false)
+  dietVegano      Boolean     @default(false)
+  dietCeliaco     Boolean     @default(false)
   reservationId  Int?
   /// Vínculo opcional a Client (titular u otro cliente de la agenda).
   clientId       Int?
@@ -261,11 +276,8 @@ model Reservation {
   mainClientId        Int
   status              ReservationStatus      @default(PENDIENTE)
   notes               String?
-  /// Notas de comidas / régimen alimentario (cocina-recepción).
+  /// Notas de comidas / régimen alimentario (legacy; UI retirada).
   notaComidas         String?
-  dietVegetariano     Boolean                @default(false)
-  dietVegano          Boolean                @default(false)
-  dietCeliaco         Boolean                @default(false)
   /// Requerimiento operativo: necesita cuna en la habitación.
   requiereCuna        Boolean                @default(false)
   /// Requerimiento operativo: necesita lugar de estacionamiento.
@@ -576,15 +588,33 @@ model OnlineCheckIn {
   phone          String?
   documentType   String?
   documentNumber String?
+  documentIssuingCountry String?
+  documentNumberNormalized String?
   birthDate      DateTime?
   country        String?
   province       String?
   city           String?
   address        String?
   vehiclePlate   String?
+  /// Preferencias alimentarias snapshot de esta estadía.
+  dietVegetariano Boolean            @default(false)
+  dietVegano      Boolean            @default(false)
+  dietCeliaco     Boolean            @default(false)
   /// Momento en que el huésped subió frente/dorso en este check-in (fotos siempre nuevas).
   documentFrontUploadedAt DateTime?
   documentBackUploadedAt  DateTime?
+  /// Snapshot de fotos de esta estadía (no se reescribe al actualizar la ficha Client).
+  documentPhotoFrontStoredName   String?
+  documentPhotoFrontOriginalName String?
+  documentPhotoFrontMimeType     String?
+  documentPhotoFrontSizeBytes    Int?
+  documentPhotoBackStoredName    String?
+  documentPhotoBackOriginalName  String?
+  documentPhotoBackMimeType      String?
+  documentPhotoBackSizeBytes     Int?
+  /// Match de documento con nombre/apellido distintos a la ficha: no overwrite; revisión manual.
+  needsManualReview Boolean      @default(false)
+  identityConflictNote String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   reservation    Reservation         @relation(fields: [reservationId], references: [id], onDelete: Cascade)
@@ -596,6 +626,7 @@ model OnlineCheckIn {
   @@index([guestId])
   @@index([clientId])
   @@index([status])
+  @@index([needsManualReview])
 }
 
 model QueryGroup {

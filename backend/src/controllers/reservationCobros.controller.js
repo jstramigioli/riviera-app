@@ -459,7 +459,6 @@ exports.createCobro = async (req, res) => {
             ? numeroTarjeta
             : null,
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal) ? empresa : null,
-          notas: notas || null,
           motivo: motivoCobro,
           fecha: fechaCobro,
           requiereFacturacion: wantsBilling,
@@ -712,7 +711,6 @@ exports.updateCobro = async (req, res) => {
     if (metodo !== undefined) dataToUpdate.metodo = metodo;
     if (numeroTarjeta !== undefined) dataToUpdate.numeroTarjeta = numeroTarjeta;
     if (empresa !== undefined) dataToUpdate.empresa = empresa;
-    if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
 
     let motivoFinal = pagoActual.motivo;
@@ -1147,7 +1145,6 @@ exports.createCargo = async (req, res) => {
     ...financialRefs,
     descripcion,
     monto: new Decimal(monto),
-    notas: notas || null,
     fecha: parseFechaInput(fecha, req)
   };
 
@@ -1299,7 +1296,6 @@ exports.updateCargo = async (req, res) => {
       }
       dataToUpdate.monto = new Decimal(monto);
     }
-    if (notas !== undefined) dataToUpdate.notas = notas;
     if (fecha !== undefined) dataToUpdate.fecha = parseFechaInput(fecha, req);
     
     // Enfoque híbrido para actualización:
@@ -2092,7 +2088,6 @@ exports.createClientMultiCobro = async (req, res) => {
           empresa: ['Tarjeta Debito', 'Tarjeta Credito'].includes(metodoFinal)
             ? req.body.empresa
             : null,
-          notas: notas || null,
           motivo: motivoCobro,
           fecha: fechaCobro,
           requiereFacturacion: wantsBilling,

@@ -259,6 +259,19 @@
   word-break: break-word;
 }
 
+/* Chip con etiqueta completa («Habitación: 18 - Cuádruple»); permite wrap en cards angostas */
+.roomChip {
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
 .roomNameLink {
   color: inherit;
   font: inherit;
@@ -353,6 +366,27 @@
   background: transparent;
   border: 1px solid rgba(51, 77, 112, 0.22);
   box-shadow: none;
+}
+
+/* Consulta (nueva reserva): un poco más de aire en el timeline embebido */
+.timelineEmbedded.timelineVertical .header {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  gap: 14px;
+}
+
+.timelineEmbedded.timelineVertical .itemNode {
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.timelineEmbedded.timelineVertical .itemEdge {
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.timelineEmbedded.timelineVertical .segmentCard {
+  padding: 12px 14px;
 }
 
 /* ——— Vertical layout (móvil / panel Libro) ——— */

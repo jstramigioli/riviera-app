@@ -7,6 +7,7 @@ import RoomTypesPanel from './RoomTypesPanel';
 import EtiquetasTab from './EtiquetasTab';
 import VirtualRoomsPanel from './VirtualRoomsPanel';
 import RoomBedsEditor from './RoomBedsEditor';
+import RoomNameChip from '../RoomNameChip';
 import '../../styles/variables.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { useAppNotice } from '../../hooks/useAppNotice';
@@ -489,7 +490,7 @@ function HabitacionesTab() {
                             }}
                           />
                         ) : (
-                          <strong style={{ fontSize: 'var(--font-size-small)' }}>{room.name}</strong>
+                          <RoomNameChip name={room.name} roomId={room.id} />
                         )}
                       </td>
                       <td style={{ padding: '12px' }}>

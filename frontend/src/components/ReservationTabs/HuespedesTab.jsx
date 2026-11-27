@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FaPlus, FaTrash, FaEdit, FaUser, FaTimes, FaUserPlus } from 'react-icons/fa';
 import {
   API_URL,
   getClientDocumentPhotos,
-  uploadClientDocumentPhoto
+  uploadClientDocumentPhoto,
+  searchClients
 } from '../../services/api';
 import styles from './ReservationTabs.module.css';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
@@ -35,7 +36,14 @@ function checkInStatusLabel(displayStatus) {
   }
 }
 
-const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests = [] }) => {
+const HuespedesTab = ({
+  reservation,
+  onClientClick,
+  onGuestUpdate,
+  checkInGuests = [],
+  openGuestFormOnMount = false,
+  onOpenGuestFormConsumed
+}) => {
   const checkInByGuestId = useMemo(() => {
     const map = new Map();
     (checkInGuests || []).forEach((g) => {
@@ -57,12 +65,35 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
   });
   const [photoBusy, setPhotoBusy] = useState(false);
   const [editingClientId, setEditingClientId] = useState(null);
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const searchAbortRef = useRef(null);
 
   useEffect(() => {
     if (reservation?.guests) {
       setGuests(reservation.guests);
     }
   }, [reservation]);
+
+  useEffect(() => {
+    if (!openGuestFormOnMount) return undefined;
+    // Abrir form interno (agregar) desde dashboard / tabla reservas.
+    setEditingGuest(null);
+    setEditingClientId(null);
+    setFormData({ ...EMPTY_GUEST_PERSONAL_FIELDS });
+    setPhotos({
+      front: { uploaded: false, name: null },
+      back: { uploaded: false, name: null }
+    });
+    setClientSearch('');
+    setClientSuggestions([]);
+    setShowModal(true);
+    if (typeof onOpenGuestFormConsumed === 'function') {
+      onOpenGuestFormConsumed();
+    }
+    return undefined;
+  }, [openGuestFormOnMount, onOpenGuestFormConsumed]);
 
   const displaySegments = useMemo(
     () => getDisplaySegments(reservation?.segments || []),
@@ -93,14 +124,66 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
       phone: guest.phone || client.phone || '',
       documentType: guest.documentType || client.documentType || 'DNI',
       documentNumber: guest.documentNumber || client.documentNumber || '',
+      documentIssuingCountry:
+        guest.documentIssuingCountry ||
+        client.documentIssuingCountry ||
+        client.country ||
+        'AR',
       birthDate: birthDateToInputValue(client.birthDate),
       country: client.country || 'AR',
       province: client.province || '',
       city: guest.city || client.city || '',
       address: guest.address || getAddressFromNotes(client.notes) || '',
-      wantsPromotions: Boolean(client.wantsPromotions)
+      wantsPromotions: Boolean(client.wantsPromotions),
+      dietVegetariano: Boolean(guest.dietVegetariano),
+      dietVegano: Boolean(guest.dietVegano),
+      dietCeliaco: Boolean(guest.dietCeliaco)
     };
   };
+
+  const fieldsFromClient = (client) => ({
+    ...EMPTY_GUEST_PERSONAL_FIELDS,
+    firstName: client.firstName || '',
+    lastName: client.lastName || '',
+    email: client.email || '',
+    phone: client.phone || '',
+    documentType: client.documentType || 'DNI',
+    documentNumber: client.documentNumber || '',
+    documentIssuingCountry: client.documentIssuingCountry || client.country || 'AR',
+    birthDate: birthDateToInputValue(client.birthDate),
+    country: client.country || 'AR',
+    province: client.province || '',
+    city: client.city || '',
+    address: getAddressFromNotes(client.notes) || '',
+    wantsPromotions: Boolean(client.wantsPromotions)
+  });
+
+  useEffect(() => {
+    if (!showModal) return undefined;
+    const q = clientSearch.trim();
+    if (q.length < 2) {
+      setClientSuggestions([]);
+      return undefined;
+    }
+    if (searchAbortRef.current) searchAbortRef.current.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    const timer = setTimeout(async () => {
+      setSearchBusy(true);
+      try {
+        const list = await searchClients(q, { signal: controller.signal });
+        setClientSuggestions(Array.isArray(list) ? list : []);
+      } catch (err) {
+        if (err?.name !== 'AbortError') setClientSuggestions([]);
+      } finally {
+        setSearchBusy(false);
+      }
+    }, 220);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [clientSearch, showModal]);
 
   const loadPhotosForClient = async (clientId) => {
     if (!clientId) {
@@ -130,6 +213,11 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
     }
   };
 
+  const resetClientSearch = () => {
+    setClientSearch('');
+    setClientSuggestions([]);
+  };
+
   const handleAddClick = () => {
     setEditingGuest(null);
     setEditingClientId(null);
@@ -138,7 +226,16 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
       front: { uploaded: false, name: null },
       back: { uploaded: false, name: null }
     });
+    resetClientSearch();
     setShowModal(true);
+  };
+
+  const handleSelectSuggestedClient = async (client) => {
+    if (!client) return;
+    setFormData(fieldsFromClient(client));
+    setEditingClientId(client.id);
+    resetClientSearch();
+    await loadPhotosForClient(client.id);
   };
 
   const handleEditClick = async (guest, index) => {
@@ -146,6 +243,7 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
     setFormData(fieldsFromGuest(guest));
     let cid = guest.clientId || guest.client?.id || null;
     setEditingClientId(cid);
+    resetClientSearch();
     setShowModal(true);
     // Si la reserva no traía client embebido, refrescar el huésped.
     if (!guest.client && guest.id) {
@@ -242,7 +340,8 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
       const payload = {
         ...formData,
         birthDate: birthDateInputToPayload(formData.birthDate),
-        syncClient: true
+        syncClient: true,
+        clientId: editingClientId || undefined
       };
 
       if (editingGuest === null) {
@@ -260,7 +359,13 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
 
         setGuests([...guests, data]);
         setEditingClientId(data.clientId || data.client?.id || null);
-        notify({ title: 'Listo', message: 'Huésped agregado exitosamente', type: 'success' });
+        notify({
+          title: 'Listo',
+          message: data.needsManualReview
+            ? 'Huésped agregado. Revisá identidad: el documento coincide con otro nombre.'
+            : 'Huésped agregado exitosamente',
+          type: data.needsManualReview ? 'warning' : 'success'
+        });
       } else {
         const guestId = guests[editingGuest]?.id;
         if (!guestId) return;
@@ -278,7 +383,13 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
         updatedGuests[editingGuest] = data;
         setGuests(updatedGuests);
         setEditingClientId(data.clientId || data.client?.id || null);
-        notify({ title: 'Listo', message: 'Huésped actualizado exitosamente', type: 'success' });
+        notify({
+          title: 'Listo',
+          message: data.needsManualReview
+            ? 'Huésped actualizado. Revisá identidad: el documento coincide con otro nombre.'
+            : 'Huésped actualizado exitosamente',
+          type: data.needsManualReview ? 'warning' : 'success'
+        });
       }
 
       setShowModal(false);
@@ -535,6 +646,18 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
                     <strong>Tel:</strong> {guest.phone}
                   </div>
                 )}
+                {(guest.dietVegetariano || guest.dietVegano || guest.dietCeliaco) && (
+                  <div className={styles.guestDetail} data-testid="guest-diet-summary">
+                    <strong>Dieta:</strong>{' '}
+                    {[
+                      guest.dietVegetariano ? 'Vegetariano' : null,
+                      guest.dietVegano ? 'Vegano' : null,
+                      guest.dietCeliaco ? 'Celíaco' : null
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -573,6 +696,63 @@ const HuespedesTab = ({ reservation, onClientClick, onGuestUpdate, checkInGuests
             </div>
 
             <form onSubmit={handleSubmit} className={styles.modalForm}>
+              <div className={styles.guestClientSearch} data-testid="guest-client-search">
+                <label className={styles.guestClientSearchLabel} htmlFor="guest-client-search-input">
+                  Buscar cliente existente (opcional)
+                </label>
+                <input
+                  id="guest-client-search-input"
+                  type="search"
+                  className={styles.guestClientSearchInput}
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  placeholder="Nombre, apellido o documento…"
+                  autoComplete="off"
+                  disabled={loading || photoBusy}
+                />
+                {editingClientId && (
+                  <p className={styles.guestClientSearchHint}>
+                    Cliente vinculado #{editingClientId}. Podés editar los campos abajo.
+                    <button
+                      type="button"
+                      className={styles.guestClientClearLink}
+                      onClick={() => {
+                        setEditingClientId(null);
+                        setFormData({ ...EMPTY_GUEST_PERSONAL_FIELDS });
+                        setPhotos({
+                          front: { uploaded: false, name: null },
+                          back: { uploaded: false, name: null }
+                        });
+                      }}
+                    >
+                      Limpiar vínculo
+                    </button>
+                  </p>
+                )}
+                {searchBusy && <p className={styles.guestClientSearchHint}>Buscando…</p>}
+                {clientSuggestions.length > 0 && (
+                  <ul className={styles.guestClientSuggestions} role="listbox">
+                    {clientSuggestions.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          className={styles.guestClientSuggestion}
+                          onClick={() => handleSelectSuggestedClient(c)}
+                        >
+                          <span className={styles.guestClientSuggestionName}>
+                            {c.firstName} {c.lastName}
+                          </span>
+                          <span className={styles.guestClientSuggestionDoc}>
+                            {c.documentType || 'DNI'} {c.documentNumber || '—'}
+                            {c.documentIssuingCountry ? ` · ${c.documentIssuingCountry}` : ''}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
               <GuestPersonalFormFields
                 fields={formData}
                 onChange={handleInputChange}
