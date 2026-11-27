@@ -157,6 +157,11 @@
   min-height: 100%;
 }
 
+/* Keep-alive de Cenas: no desmontar al cambiar de sección (conserva drafts). */
+.keepAliveHidden {
+  display: none;
+}
+
 .placeholder {
   padding: 24px 16px;
   text-align: center;

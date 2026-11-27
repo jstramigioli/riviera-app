@@ -7,9 +7,11 @@ import {
   updateTipoCena
 } from '../../services/api';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
+import { useAppNotice } from '../../hooks/useAppNotice';
 import styles from './CenasTab.module.css';
 
 const NEW_KEY = 'nuevo';
+const DRAFTS_STORAGE_KEY = 'riviera.config.cenas.drafts';
 
 function toDraft(tipo) {
   return {
@@ -28,17 +30,46 @@ function isDirty(tipo, draft) {
   );
 }
 
+function readStoredDrafts() {
+  if (typeof sessionStorage === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(DRAFTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredDrafts(drafts) {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    const entries = Object.entries(drafts || {});
+    if (!entries.length) {
+      sessionStorage.removeItem(DRAFTS_STORAGE_KEY);
+      return;
+    }
+    sessionStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 /**
  * Configuración → Cenas: tipos de cena (habitual, buffet, fiestas…) con su
  * precio para alojados y externos. Se usan al cargar cenas y comandas.
  */
-export default function CenasTab() {
+export default function CenasTab({ onDirtyChange } = {}) {
   const { confirm, confirmDialog } = useConfirmDialog();
+  const { notify, noticeDialog } = useAppNotice();
   const [tipos, setTipos] = useState([]);
-  const [drafts, setDrafts] = useState({});
+  const [drafts, setDrafts] = useState(() => readStoredDrafts());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [savingKey, setSavingKey] = useState(null);
+  const [savingAll, setSavingAll] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,7 +78,27 @@ export default function CenasTab() {
       const res = await fetchTiposCena({ includeInactive: true });
       const list = res.data || [];
       setTipos(list);
-      setDrafts(Object.fromEntries(list.map((t) => [t.id, toDraft(t)])));
+      setDrafts((prev) => {
+        const stored = readStoredDrafts();
+        const merged = {};
+        for (const t of list) {
+          const candidate = prev[t.id] || stored[t.id];
+          merged[t.id] = candidate && isDirty(t, candidate) ? candidate : toDraft(t);
+        }
+        if (prev[NEW_KEY] || stored[NEW_KEY]) {
+          merged[NEW_KEY] = prev[NEW_KEY] || stored[NEW_KEY];
+        }
+        writeStoredDrafts(
+          Object.fromEntries(
+            Object.entries(merged).filter(([key, draft]) => {
+              if (key === NEW_KEY) return true;
+              const tipo = list.find((t) => String(t.id) === String(key));
+              return tipo ? isDirty(tipo, draft) : false;
+            })
+          )
+        );
+        return merged;
+      });
     } catch (err) {
       setError(err.message || 'No se pudieron cargar los tipos de cena');
     } finally {
@@ -65,6 +116,31 @@ export default function CenasTab() {
     return list;
   }, [tipos, drafts]);
 
+  const dirtyKeys = useMemo(
+    () =>
+      rows
+        .filter(({ key, tipo }) => {
+          const draft = drafts[key] || toDraft(tipo);
+          return key === NEW_KEY || isDirty(tipo, draft);
+        })
+        .map(({ key }) => key),
+    [rows, drafts]
+  );
+
+  const hasDirty = dirtyKeys.length > 0;
+
+  useEffect(() => {
+    onDirtyChange?.(hasDirty);
+  }, [hasDirty, onDirtyChange]);
+
+  useEffect(() => {
+    const dirtyOnly = {};
+    for (const key of dirtyKeys) {
+      if (drafts[key]) dirtyOnly[key] = drafts[key];
+    }
+    writeStoredDrafts(dirtyOnly);
+  }, [drafts, dirtyKeys]);
+
   const setDraft = (key, field, value) => {
     setDrafts((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
   };
@@ -80,8 +156,16 @@ export default function CenasTab() {
 
   const saveRow = async (key, tipo) => {
     const draft = drafts[key];
+    if (!draft?.nombre?.trim()) {
+      notify({
+        title: 'Nombre requerido',
+        message: 'Ingresá el nombre del tipo de cena.',
+        type: 'warning'
+      });
+      return false;
+    }
     const payload = {
-      nombre: draft.nombre,
+      nombre: draft.nombre.trim(),
       precioAlojado: Number(draft.precioAlojado || 0),
       precioExterno: Number(draft.precioExterno || 0)
     };
@@ -90,11 +174,67 @@ export default function CenasTab() {
     try {
       if (key === NEW_KEY) await createTipoCena(payload);
       else await updateTipoCena(tipo.id, payload);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       await load();
+      return true;
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar');
+      return false;
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const saveAllDirty = async () => {
+    const pending = dirtyKeys
+      .map((key) => {
+        const row = rows.find((r) => r.key === key);
+        const draft = drafts[key];
+        return row && draft ? { key, tipo: row.tipo, draft } : null;
+      })
+      .filter(Boolean);
+    if (!pending.length) return;
+
+    for (const item of pending) {
+      if (!item.draft.nombre?.trim()) {
+        notify({
+          title: 'Nombre requerido',
+          message: 'Ingresá el nombre del tipo de cena antes de guardar.',
+          type: 'warning'
+        });
+        return;
+      }
+    }
+
+    setSavingAll(true);
+    setError(null);
+    try {
+      for (const item of pending) {
+        const payload = {
+          nombre: item.draft.nombre.trim(),
+          precioAlojado: Number(item.draft.precioAlojado || 0),
+          precioExterno: Number(item.draft.precioExterno || 0)
+        };
+        if (item.key === NEW_KEY) await createTipoCena(payload);
+        else await updateTipoCena(item.tipo.id, payload);
+      }
+      writeStoredDrafts({});
+      setDrafts({});
+      await load();
+      notify({
+        title: 'Guardado',
+        message: 'Precios de cenas actualizados.',
+        type: 'success',
+        autoDismiss: true
+      });
     } catch (err) {
       setError(err.message || 'No se pudo guardar');
     } finally {
-      setSavingKey(null);
+      setSavingAll(false);
     }
   };
 
@@ -121,6 +261,11 @@ export default function CenasTab() {
     setError(null);
     try {
       await deleteTipoCena(tipo.id);
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[tipo.id];
+        return next;
+      });
       await load();
     } catch (err) {
       setError(err.message || 'No se pudo eliminar');
@@ -131,21 +276,44 @@ export default function CenasTab() {
     setDrafts((prev) => (prev[NEW_KEY] ? prev : { ...prev, [NEW_KEY]: toDraft(null) }));
   };
 
+  const busyAny = savingAll || savingKey != null;
+
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} data-testid="cenas-tab">
       {confirmDialog}
+      {noticeDialog}
       <div className={styles.toolbar}>
         <h2 className={styles.title}>Cenas</h2>
-        <button
-          type="button"
-          className={styles.primaryBtn}
-          onClick={addRow}
-          disabled={Boolean(drafts[NEW_KEY])}
-        >
-          <FiPlus aria-hidden="true" />
-          Tipo de cena
-        </button>
+        <div className={styles.toolbarActions}>
+          {hasDirty ? (
+            <button
+              type="button"
+              className={styles.primaryBtn}
+              onClick={saveAllDirty}
+              disabled={busyAny}
+              data-testid="cenas-save-all"
+            >
+              <FiCheck aria-hidden="true" />
+              {savingAll ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={addRow}
+            disabled={Boolean(drafts[NEW_KEY]) || busyAny}
+          >
+            <FiPlus aria-hidden="true" />
+            Tipo de cena
+          </button>
+        </div>
       </div>
+
+      {hasDirty ? (
+        <p className={styles.dirtyHint} role="status">
+          Hay cambios sin guardar. Usá Guardar en la fila o Guardar cambios arriba.
+        </p>
+      ) : null}
 
       {error ? (
         <div className={styles.error} role="alert">
@@ -170,7 +338,7 @@ export default function CenasTab() {
               {rows.map(({ key, tipo }) => {
                 const draft = drafts[key] || toDraft(tipo);
                 const dirty = key === NEW_KEY || isDirty(tipo, draft);
-                const busy = savingKey === key;
+                const busy = savingKey === key || savingAll;
                 const inactive = tipo && !tipo.activo;
                 return (
                   <tr key={key} className={inactive ? styles.rowInactive : undefined}>
@@ -233,23 +401,24 @@ export default function CenasTab() {
                           <>
                             <button
                               type="button"
-                              className={styles.iconBtn}
+                              className={styles.saveBtn}
                               onClick={() => saveRow(key, tipo)}
                               disabled={busy || !draft.nombre.trim()}
-                              title="Guardar"
                               aria-label="Guardar"
+                              data-testid={`cenas-save-row-${key}`}
                             >
                               <FiCheck aria-hidden="true" />
+                              {busy && savingKey === key ? 'Guardando…' : 'Guardar'}
                             </button>
                             <button
                               type="button"
-                              className={styles.iconBtn}
+                              className={styles.cancelBtn}
                               onClick={() => cancelRow(key, tipo)}
                               disabled={busy}
-                              title="Cancelar"
                               aria-label="Cancelar"
                             >
                               <FiX aria-hidden="true" />
+                              Cancelar
                             </button>
                           </>
                         ) : null}
@@ -261,7 +430,7 @@ export default function CenasTab() {
                             title="Eliminar"
                             aria-label={`Eliminar ${tipo.nombre}`}
                           >
-                            <FiTrash2 aria-hidden="true" />
+                            <FiTrash2 />
                           </button>
                         ) : null}
                       </div>
