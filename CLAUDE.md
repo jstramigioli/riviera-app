@@ -128,7 +128,9 @@ un test nuevo `*.test.js` (backend **o** frontend) hay que agregarlo con `git ad
 
 **Navegación**
 - Menú superior sin Tarifas, Precios inteligentes ni Auditoría. Tarifas y Auditoría solo desde Configuración; las rutas viejas redirigen.
-- Libro como hub: Hoy + Más (consulta / reserva / consumo). Consumos: modal comanda + menú en Config (bebidas/minutas/cafetería), teclado-first.
+- Libro como hub: Hoy + Más (consulta / reserva / consumo).
+- Comedor (`/comedor`, permiso `gastronomia`) unifica la ex Gastronomía: Menús diarios, Comensales, Historial, Catálogo; `/gastronomia` redirige.
+  La agenda de `DiningReservation` (Cursor, PR #200) se retiró de la UI (decidido 2026-11-27): las cenas se cargan por Comensales; la tabla y su API quedan. Consumos: modal comanda + menú en Config (bebidas/minutas/cafetería), teclado-first.
 
 **Libro de Reservas y Calendario**
 - Libro rehecho (`LibroReservasBoard`): estructura tipo v2, look v1, **sin drag/resize**, ancho de celda como v2.
@@ -181,10 +183,14 @@ un test nuevo `*.test.js` (backend **o** frontend) hay que agregarlo con `git ad
 - Tipos de cena flexibles (Configuración → Cenas, `backend/src/utils/cenas.js`, `/api/cenas/tipos`): cada tipo es un producto del
   grupo CENAS con dos variedades de precio, `Alojado` y `Externo` (nombres fijos del sistema). Se crean, renombran, desactivan
   (o eliminan si nunca se usaron) solo desde esa sección; el menú genérico rechaza tocar CENAS y la pestaña Menú no lo muestra.
-- Gestión de comensales (Gastronomía → Comensales, `backend/src/utils/comidasGestion.js`): «+ Cena» registra una cena no incluida
+- Gestión de comensales (Comedor → Comensales, `backend/src/utils/comidasGestion.js`): «+ Cena» registra una cena no incluida
   (huésped que pasa esa noche o externo) y crea su comanda de Cena (tipo × comensales, precio según comensal, editable); las
   bebidas se agregan a esa comanda (`POST /api/consumptions/orders/:id/items`). Cancelar una cena manual quita solo la línea de la
   cena; cancelar una incluida no toca dinero y se puede reactivar. No se permite cena paga si la reserva ya la tiene incluida.
+  Externo = cliente (existente o nuevo con nombre, apellido y teléfono o email) ligado a la cuenta externa. Cada cena manual guarda el
+  detalle por comensal (`PrestacionComida.comensales`: edad y dietas, decidido 2026-11-27): adulto paga el precio, de 5 a 10 años la mitad,
+  menor de 5 sin cargo (línea bonificada); editar los comensales regenera las líneas de cena de la comanda. Las comandas de una reserva
+  se ven en su pestaña Comidas (agregar / anular); los consumos se cargan siempre por comanda.
 - Almuerzo sin cargo (`BeneficioGastronomico`, `backend/src/utils/beneficios.js`): se genera al cancelar una cena incluida
   (uno por reserva y noche); no es saldo ni equivale a platos. Se aplica en una comanda de Minutas de la reserva: todo queda
   sin cargo (`ComandaItem.bonificado`, sin Cargo, subtotal de referencia) salvo bebidas (`GRUPOS_CON_CARGO`). Estados
