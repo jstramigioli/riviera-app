@@ -518,11 +518,11 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableIn}`}>
                     <thead>
                       <tr>
-                        <th className={styles.colReserva}>Nº reserva</th>
+                        <th className={styles.colReserva} title="Número de reserva">Reserva</th>
                         <th className={styles.colName}>Nombre</th>
-                        <th className={styles.colGuests}>Huéspedes</th>
-                        <th className={styles.colRoom}>Habitación</th>
-                        <th className={styles.colService}>Tipo de servicio</th>
+                        <th className={styles.colGuests} title="Huéspedes">Pers.</th>
+                        <th className={styles.colRoom} title="Habitación">Hab.</th>
+                        <th className={styles.colService}>Servicio</th>
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>
@@ -665,10 +665,10 @@ export default function ReceptionDashboard() {
                   <table className={`${styles.dataTable} ${styles.dataTableOut}`}>
                     <thead>
                       <tr>
-                        <th className={styles.colReserva}>Nº reserva</th>
+                        <th className={styles.colReserva} title="Número de reserva">Reserva</th>
                         <th className={styles.colName}>Nombre</th>
-                        <th className={styles.colGuests}>Huéspedes</th>
-                        <th className={styles.colRoom}>Habitación</th>
+                        <th className={styles.colGuests} title="Huéspedes">Pers.</th>
+                        <th className={styles.colRoom} title="Habitación">Hab.</th>
                         <th className={styles.colNotes}>Notas</th>
                         <th className={styles.colSaldo}>Saldo</th>
                         <th className={styles.colStatus}>Estado</th>

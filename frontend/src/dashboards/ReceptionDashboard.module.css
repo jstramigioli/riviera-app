@@ -225,7 +225,7 @@
 
 .notesCell,
 .colNotes {
-  min-width: 120px;
+  min-width: 96px;
   max-width: 200px;
 }
 
@@ -498,7 +498,7 @@
 
 .dataTable th,
 .dataTable td {
-  padding: 8px 10px;
+  padding: 8px 8px;
   text-align: left;
   border-bottom: 1px solid #eef1f5;
   vertical-align: middle;
@@ -518,29 +518,29 @@
 }
 
 .colReserva {
-  width: 88px;
+  width: 64px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .colName {
-  min-width: 140px;
+  min-width: 128px;
 }
 
 .colGuests {
-  width: 72px;
+  width: 48px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .colRoom {
-  min-width: 88px;
+  min-width: 56px;
   white-space: nowrap;
 }
 
 .colService {
-  min-width: 120px;
-  max-width: 180px;
+  min-width: 96px;
+  max-width: 160px;
 }
 
 .colSaldo {
@@ -565,12 +565,12 @@
 }
 
 .colStatus {
-  width: 110px;
+  width: 100px;
   white-space: nowrap;
 }
 
 .colGuestCheckIn {
-  width: 96px;
+  width: 88px;
   white-space: nowrap;
 }
 
