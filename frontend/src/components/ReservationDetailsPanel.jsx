@@ -12,7 +12,11 @@ import { buildConsultaEditPath, buildConsultaEditState } from '../utils/consulta
 import { sourceLabel } from '../constants/reservationSource';
 import { useAppNotice } from '../hooks/useAppNotice';
 import { formatMoneyArs } from '../utils/formatMoney';
-import { fetchComidasDeReserva } from '../services/api';
+import {
+  fetchComidasDeReserva,
+  fetchServiceTypes,
+  getReservationFinancialSummary
+} from '../services/api';
 import ReservationIdChip from './ReservationIdChip';
 import styles from './ReservationDetailsPanel.module.css';
 
@@ -31,6 +35,23 @@ const ReservationDetailsPanel = ({
   const [serviceTypes, setServiceTypes] = useState([]);
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [almuerzosDisponibles, setAlmuerzosDisponibles] = useState(0);
+  /** Saldo de la cuenta de la reserva (cargos − cobros − descuentos); null mientras carga o si falla. */
+  const [saldo, setSaldo] = useState(null);
+
+  useEffect(() => {
+    setSaldo(null);
+    if (!reservation?.id) return undefined;
+    let cancelled = false;
+    getReservationFinancialSummary(reservation.id)
+      .then((res) => {
+        const value = Number(res?.resumen?.saldo);
+        if (!cancelled && Number.isFinite(value)) setSaldo(value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [reservation?.id, reservation?.status, reservation?.updatedAt]);
 
   // Almuerzos sin cargo disponibles (por cena incluida cancelada).
   useEffect(() => {
@@ -50,13 +71,7 @@ const ReservationDetailsPanel = ({
   useEffect(() => {
     const loadServiceTypes = async () => {
       try {
-        const response = await fetch(
-          'http://localhost:3001/api/service-types?hotelId=default-hotel'
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setServiceTypes(data.data || []);
-        }
+        setServiceTypes(await fetchServiceTypes());
       } catch (error) {
         console.error('Error loading service types:', error);
       }
@@ -202,6 +217,20 @@ const ReservationDetailsPanel = ({
           <div className={styles.guestTotal} data-testid="panel-guest-total">
             <span className={styles.guestTotalLabel}>Total</span>
             <span className={styles.guestTotalAmount}>{totalLabel}</span>
+            {saldo != null ? (
+              <span
+                className={`${styles.guestSaldo} ${
+                  saldo > 0.009 ? styles.guestSaldoPendiente : styles.guestSaldoOk
+                }`}
+                data-testid="panel-guest-saldo"
+              >
+                {saldo > 0.009
+                  ? `Saldo ${formatCurrency(saldo)}`
+                  : saldo < -0.009
+                    ? `A favor ${formatCurrency(Math.abs(saldo))}`
+                    : 'Pagado'}
+              </span>
+            ) : null}
           </div>
         </div>
 

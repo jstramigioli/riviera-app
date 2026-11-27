@@ -193,6 +193,21 @@
   white-space: nowrap;
 }
 
+/* Saldo pendiente bajo el total: color + texto (no solo color). */
+.guestSaldo {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.guestSaldoPendiente {
+  color: var(--color-danger-dark);
+}
+
+.guestSaldoOk {
+  color: var(--color-success-dark);
+}
+
 .metaSection {
   margin-top: 4px;
 }
