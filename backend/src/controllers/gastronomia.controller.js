@@ -86,7 +86,13 @@ function serializeMenuSummary(menu) {
     publishedAt: full.publishedAt,
     updatedAt: full.updatedAt,
     itemCount: (full.items || []).length,
-    preview: previewFromItems(full.items, full.kind)
+    preview: previewFromItems(full.items, full.kind),
+    // Menú completo para las tarjetas de la semana (sin descripciones).
+    items: (full.items || []).map((i) => ({
+      section: i.section,
+      sortOrder: i.sortOrder,
+      nameSnapshot: i.nameSnapshot
+    }))
   };
 }
 

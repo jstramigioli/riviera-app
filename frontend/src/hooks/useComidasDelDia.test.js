@@ -38,6 +38,8 @@ describe('mapComidasResponse', () => {
     expect(mapComidasResponse(null)).toEqual({
       breakfastGuests: 0,
       dinnerGuests: 0,
+      breakfastResumen: { conDieta: 0, dietas: [], porOrigen: null },
+      dinnerResumen: { conDieta: 0, dietas: [], porOrigen: null },
       breakfastItems: [],
       dinnerItems: []
     });

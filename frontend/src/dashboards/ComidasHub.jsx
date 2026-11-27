@@ -12,6 +12,8 @@ import {
   getDailyMenuByDate
 } from '../services/gastronomiaApi';
 import RoomNameChip from '../components/RoomNameChip';
+import NuevaCenaModal from '../components/gastronomia/NuevaCenaModal';
+import { buildMenuPreviewSections } from '../utils/menuPreview';
 import styles from './ReceptionDashboard.module.css';
 
 function sumGuests(items) {
@@ -79,29 +81,6 @@ async function openMenuPdf(menuId, mode) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-const MESA_ENSALADAS = 'mesa de ensaladas';
-
-const SECTION_LABELS = {
-  ENTRADA: 'Entrada',
-  ENSALADA: 'Ensaladas',
-  SOPA: 'Sopa',
-  PRIMER_PLATO: 'Primer plato',
-  SEGUNDO_PLATO: 'Segundo plato',
-  PLATO_INFANTIL: 'Plato infantil',
-  POSTRE: 'Postres',
-  BUFFET: 'Buffet'
-};
-
-const CONVENTIONAL_ORDER = [
-  'ENTRADA',
-  'ENSALADA',
-  'SOPA',
-  'PRIMER_PLATO',
-  'SEGUNDO_PLATO',
-  'PLATO_INFANTIL',
-  'POSTRE'
-];
-
 function formatMenuDate(dateValue) {
   if (!dateValue) return '';
   const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
@@ -115,51 +94,15 @@ function formatMenuDate(dateValue) {
   }).format(d);
 }
 
-/**
- * Mini menú estilo PDF A5: secciones con título + todos los ítems (sin logo).
- * ENSALADA: solo título «mesa de ensaladas» (misma tipografía que secciones; sin ítems).
- */
-function buildMenuPreviewSections(menu) {
-  if (!menu) return [];
-  const bySection = new Map();
-  for (const item of menu.items || []) {
-    const key = item.section || 'BUFFET';
-    if (!bySection.has(key)) bySection.set(key, []);
-    bySection.get(key).push(item);
-  }
-  for (const list of bySection.values()) {
-    list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  }
-
-  if (menu.kind === 'BUFFET') {
-    const list = bySection.get('BUFFET') || [];
-    const names = list.map((it) => it.nameSnapshot).filter(Boolean);
-    return names.length ? [{ key: 'BUFFET', title: null, items: names }] : [];
-  }
-
-  const sections = [];
-  for (const section of CONVENTIONAL_ORDER) {
-    if (section === 'ENSALADA') {
-      // Solo título tipográfico; sin sección «Ensaladas» + ítems.
-      sections.push({
-        key: section,
-        title: MESA_ENSALADAS,
-        items: [],
-        titleOnly: true
-      });
-      continue;
-    }
-    const list = bySection.get(section) || [];
-    const names = list.map((it) => it.nameSnapshot).filter(Boolean);
-    if (!names.length) continue;
-    sections.push({
-      key: section,
-      title: SECTION_LABELS[section] || section,
-      items: names,
-      titleOnly: false
-    });
-  }
-  return sections;
+/** Personas con régimen especial y detalle («Celíaco ×1 · Sin sal ×2»). */
+function DietasResumen({ resumen }) {
+  if (!resumen?.conDieta) return null;
+  return (
+    <span className={styles.comidasDietas}>
+      <strong>{resumen.conDieta}</strong> con régimen especial
+      {resumen.dietas?.length ? <span className={styles.comidasDietasList}>{resumen.dietas.join(' · ')}</span> : null}
+    </span>
+  );
 }
 
 /**
@@ -172,8 +115,10 @@ export default function ComidasHub({
   meals,
   mealsError = null,
   onOpenReservation,
-  onOpenClient
+  onOpenClient,
+  onMealsChanged
 }) {
+  const [nuevaCenaOpen, setNuevaCenaOpen] = useState(false);
   const [detailMeal, setDetailMeal] = useState(null);
   const [selectedBreakfast, setSelectedBreakfast] = useState(() => new Set());
   const [selectedDinner, setSelectedDinner] = useState(() => new Set());
@@ -280,6 +225,15 @@ export default function ComidasHub({
             aria-label="Fecha de comidas"
             data-testid="comidas-date"
           />
+          <button
+            type="button"
+            className={styles.actionBtn}
+            onClick={() => setNuevaCenaOpen(true)}
+            data-testid="comidas-nueva-cena"
+          >
+            <FiPlus aria-hidden="true" />
+            Cena
+          </button>
         </div>
       </div>
 
@@ -301,6 +255,7 @@ export default function ComidasHub({
               <span className={styles.comidasTotalLabel}>Desayuno</span>
               <span className={styles.comidasTotalValue}>{breakfastTotal}</span>
               <span className={styles.comidasTotalHint}>personas</span>
+              <DietasResumen resumen={meals?.breakfastResumen} />
             </button>
             <button
               type="button"
@@ -312,6 +267,7 @@ export default function ComidasHub({
               <span className={styles.comidasTotalLabel}>Cena</span>
               <span className={styles.comidasTotalValue}>{dinnerTotal}</span>
               <span className={styles.comidasTotalHint}>personas</span>
+              <DietasResumen resumen={meals?.dinnerResumen} />
             </button>
           </div>
 
@@ -476,6 +432,7 @@ export default function ComidasHub({
                   <th className={styles.checkCol} />
                   <th>Nombre</th>
                   <th className={styles.colRoom}>Habitación</th>
+                  <th>Dieta</th>
                   <th className={styles.colGuests}>Huéspedes</th>
                 </tr>
               </thead>
@@ -514,6 +471,7 @@ export default function ComidasHub({
                         rooms={item.rooms}
                       />
                     </td>
+                    <td>{item.dietas?.length ? item.dietas.join(' · ') : '—'}</td>
                     <td className={styles.colGuests}>{item.guests ?? '—'}</td>
                   </tr>
                 ))}
@@ -522,6 +480,12 @@ export default function ComidasHub({
           )}
         </div>
       )}
+      <NuevaCenaModal
+        open={nuevaCenaOpen}
+        fecha={mealsDateIso}
+        onClose={() => setNuevaCenaOpen(false)}
+        onSaved={() => onMealsChanged?.()}
+      />
     </section>
   );
 }

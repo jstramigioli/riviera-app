@@ -1122,3 +1122,20 @@ a.actionBtnPrimary {
     justify-content: flex-start;
   }
 }
+
+.comidasDietas {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--dash-muted);
+}
+
+.comidasDietas strong {
+  color: var(--dash-text-dark);
+}
+
+.comidasDietasList {
+  color: var(--dash-text-dark);
+}

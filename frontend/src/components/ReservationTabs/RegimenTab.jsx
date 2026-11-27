@@ -1,18 +1,9 @@
 import styles from './RegimenTab.module.css';
-
-const DIET_LABELS = [
-  { key: 'dietVegetariano', label: 'Vegetariano' },
-  { key: 'dietVegano', label: 'Vegano' },
-  { key: 'dietCeliaco', label: 'Celíaco' }
-];
-
-function guestDietLabels(guest) {
-  return DIET_LABELS.filter((d) => Boolean(guest?.[d.key])).map((d) => d.label);
-}
+import { dietasDe } from '../../utils/dietas';
 
 /**
  * Resumen de dietas por huésped (solo lectura).
- * Las cenas adicionales se cargan desde Comedor → Comensales.
+ * Las cenas adicionales se cargan desde Comedor → Cena.
  */
 export default function RegimenTab({ reservation }) {
   const guests = Array.isArray(reservation?.guests) ? reservation.guests : [];
@@ -28,7 +19,7 @@ export default function RegimenTab({ reservation }) {
       ) : (
         <ul className={styles.guestList} data-testid="regimen-guest-list">
           {guests.map((guest) => {
-            const diets = guestDietLabels(guest);
+            const diets = dietasDe(guest);
             const name = [guest.firstName, guest.lastName].filter(Boolean).join(' ') || 'Huésped';
             return (
               <li key={guest.id} className={styles.guestRow}>

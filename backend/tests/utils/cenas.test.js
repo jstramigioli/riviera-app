@@ -8,7 +8,8 @@ const {
   isNightOfStay,
   registrarCenaManual,
   parseComensales,
-  cenaLinesFromComensales
+  cenaLinesFromComensales,
+  actualizarPrestacion
 } = require('../../src/utils/comidasGestion');
 
 function tipoItem(overrides = {}) {
@@ -170,7 +171,20 @@ describe('cenas manuales — validaciones', () => {
       { edad: 'ADULTO', dietVegetariano: false, dietVegano: false, dietCeliaco: false },
       { edad: 'ADULTO', dietVegetariano: false, dietVegano: false, dietCeliaco: false }
     ]);
+    expect(parseComensales([{ edad: 'ADULTO', dietOtra: '  sin sal ' }])[0].dietOtra).toBe('sin sal');
+    expect(parseComensales([{ edad: 'ADULTO', dietOtra: '   ' }])[0]).not.toHaveProperty('dietOtra');
     expect(() => parseComensales([{ edad: 'BEBE' }])).toThrow('Edad');
     expect(() => parseComensales([])).toThrow('comensales');
+  });
+});
+
+describe('actualizarPrestacion', () => {
+  it('no cambia a mano la cantidad de una comida incluida (sigue a la reserva)', async () => {
+    const db = {
+      prestacionComida: { findUnique: jest.fn().mockResolvedValue({ id: 9, origen: 'REGIMEN', tipo: 'CENA', pax: 2 }) },
+      $transaction: jest.fn()
+    };
+    await expect(actualizarPrestacion(db, 9, { pax: 1 })).rejects.toMatchObject({ status: 400 });
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });

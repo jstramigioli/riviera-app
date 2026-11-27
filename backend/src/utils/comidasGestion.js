@@ -98,6 +98,8 @@ function parseComensales(raw, paxFallback) {
     if (!edad) throw new ComidaInputError('Edad de comensal inválida');
     const out = { edad };
     for (const k of DIETA_KEYS) out[k] = Boolean(c?.[k]);
+    const otra = typeof c?.dietOtra === 'string' ? c.dietOtra.trim().slice(0, 120) : '';
+    if (otra) out.dietOtra = otra;
     return out;
   });
 }
@@ -378,8 +380,9 @@ async function actualizarPrestacion(db, id, body = {}) {
       detalle = actual.slice(0, pax);
       while (detalle.length < pax) detalle.push(adultoSinDieta());
     } else {
-      data.pax = pax;
-      data.paxManual = true;
+      // Las incluidas siguen a la reserva: no se cambia su cantidad a mano
+      // (para no cenar se cambia por almuerzo; para sumar gente, una cena adicional).
+      throw new ComidaInputError('La cantidad de una comida incluida sigue a la reserva');
     }
   }
   if (detalle) data.pax = detalle.length;

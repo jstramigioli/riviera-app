@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addDays, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { FiChevronLeft, FiChevronRight, FiPlus, FiRotateCcw, FiShoppingBag, FiXCircle } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiEdit2, FiPlus, FiRotateCcw, FiShoppingBag, FiXCircle } from 'react-icons/fi';
 import {
-  actualizarComida,
   cancelarComida,
   fetchComidasDelDia,
   reactivarComida
@@ -12,6 +11,7 @@ import {
 import { todayIsoLocal } from '../../utils/calendarDates';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import ReservationIdChip from '../ReservationIdChip';
+import RoomNameChip from '../RoomNameChip';
 import ConsumptionOrderModal from '../ConsumptionOrderModal';
 import NuevaCenaModal from './NuevaCenaModal';
 import styles from './Comensales.module.css';
@@ -25,47 +25,83 @@ function shiftIso(iso, days) {
   return format(addDays(parseISO(iso), days), 'yyyy-MM-dd');
 }
 
-/** Comensales de una comida: input que guarda al salir o con Enter. */
-function PaxCell({ item, editable, onSave }) {
-  const [value, setValue] = useState(String(item.pax));
-  useEffect(() => setValue(String(item.pax)), [item.pax]);
-  if (!editable) return <span className={styles.num}>{item.pax}</span>;
-  const commit = () => {
-    const n = Number(value);
-    if (!Number.isInteger(n) || n < 1 || n > 99) {
-      setValue(String(item.pax));
-      return;
-    }
-    if (n !== item.pax) onSave(n);
-  };
+const ORIGENES = [
+  { key: 'incluida', label: 'Incluidos', className: 'segIncluida' },
+  { key: 'adicional', label: 'Adicionales', className: 'segAdicional' },
+  { key: 'externo', label: 'Externos', className: 'segExterno' }
+];
+
+function diaLabel(iso) {
+  const hoy = todayIsoLocal();
+  if (iso === hoy) return 'Hoy';
+  if (iso === shiftIso(hoy, 1)) return 'Mañana';
+  if (iso === shiftIso(hoy, -1)) return 'Ayer';
+  return format(parseISO(iso), 'EEE d/M', { locale: es });
+}
+
+/** Tablero del día: total grande, barra por origen y personas con régimen especial. */
+function ResumenDia({ fecha, grupo, grande = false }) {
+  const total = grupo?.total ?? 0;
+  const origen = grupo?.porOrigen || {};
+  const conDieta = grupo?.conDieta ?? 0;
+  const dietas = grupo?.dietas || [];
+  const partes = ORIGENES.filter((o) => (origen[o.key] || 0) > 0);
   return (
-    <input
-      className={styles.paxInput}
-      type="number"
-      min="1"
-      max="99"
-      value={value}
-      aria-label="Comensales"
-      title={item.paxManual ? 'Comensales editados a mano' : 'Comensales'}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur();
-      }}
-    />
+    <div
+      className={`${styles.resumen} ${grande ? styles.resumenGrande : styles.resumenChico}`}
+      aria-label={`Resumen ${diaLabel(fecha)}`}
+    >
+      <div className={styles.resumenHead}>
+        <span className={styles.resumenDia}>{diaLabel(fecha)}</span>
+        <span className={styles.resumenFecha}>{format(parseISO(fecha), "d 'de' MMMM", { locale: es })}</span>
+      </div>
+      <div className={styles.resumenTotal}>
+        <strong>{total}</strong>
+        <span>comensales</span>
+      </div>
+      {grande && total > 0 ? (
+        <div className={styles.barra} role="img" aria-label={partes.map((o) => `${o.label} ${origen[o.key]}`).join(', ')}>
+          {partes.map((o) => (
+            <span
+              key={o.key}
+              className={`${styles.barraSeg} ${styles[o.className]}`}
+              style={{ flexGrow: origen[o.key] }}
+            />
+          ))}
+        </div>
+      ) : null}
+      <ul className={styles.leyenda}>
+        {partes.map((o) => (
+          <li key={o.key}>
+            {grande ? <span className={`${styles.leyendaDot} ${styles[o.className]}`} aria-hidden="true" /> : null}
+            {o.label} <strong>{origen[o.key]}</strong>
+          </li>
+        ))}
+        {!partes.length ? <li className={styles.muted}>Sin comensales</li> : null}
+      </ul>
+      <div className={styles.resumenDieta}>
+        <span>
+          Régimen especial <strong>{conDieta}</strong>
+        </span>
+        {grande && dietas.length ? <span className={styles.dietasLista}>{dietas.join(' · ')}</span> : null}
+      </div>
+    </div>
   );
 }
 
 /**
- * Comedor → Comensales: desayunos y cenas previstos del día. Las incluidas
- * vienen del régimen de la reserva; las adicionales/externas se cargan con
- * «+ Cena» y generan su comanda de Cena (a la que se suman las bebidas).
+ * Comedor → Desayuno / Cena: tablero del día y del siguiente + comensales previstos.
+ * Las incluidas vienen del régimen de la reserva; las cenas adicionales/externas se
+ * cargan con «+ Cena» y generan su comanda de Cena (a la que se suman las bebidas).
  */
-export default function ComensalesTab() {
+export default function ComensalesTab({ tipo = 'CENA' }) {
+  const esCena = tipo === 'CENA';
+  const grupoKey = esCena ? 'cenas' : 'desayunos';
   const navigate = useNavigate();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [fecha, setFecha] = useState(() => todayIsoLocal());
   const [data, setData] = useState(null);
+  const [siguiente, setSiguiente] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -77,8 +113,12 @@ export default function ComensalesTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchComidasDelDia(fecha, { incluirCanceladas: true });
+      const [res, resSig] = await Promise.all([
+        fetchComidasDelDia(fecha, { incluirCanceladas: true }),
+        fetchComidasDelDia(shiftIso(fecha, 1))
+      ]);
       setData(res.data);
+      setSiguiente(resSig?.data || null);
     } catch (err) {
       setError(err.message || 'No se pudieron cargar las comidas');
     } finally {
@@ -103,13 +143,21 @@ export default function ComensalesTab() {
     }
   };
 
+  const cambiarPorAlmuerzo = async (item) => {
+    const ok = await confirm({
+      title: 'Cambiar por almuerzo',
+      message: `La cena incluida de ${item.guestName} (${item.pax}) se cambia por un almuerzo sin cargo para usar en Minutas.`,
+      confirmText: 'Cambiar por almuerzo',
+      cancelText: 'Volver'
+    });
+    if (!ok) return;
+    run(item, () => cancelarComida(item.id));
+  };
+
   const cancelar = async (item) => {
     const ok = await confirm({
       title: 'Cancelar cena',
-      message:
-        item.origen === 'REGIMEN'
-          ? `¿Cancelar la cena incluida de ${item.guestName} (${item.pax})? Se genera un almuerzo sin cargo.`
-          : `¿Cancelar la cena de ${item.guestName}? Se quita la cena de su comanda; las bebidas ya cargadas se mantienen.`,
+      message: `¿Cancelar la cena de ${item.guestName}? Se quita la cena de su comanda; las bebidas ya cargadas se mantienen.`,
       confirmText: 'Cancelar cena',
       cancelText: 'Volver'
     });
@@ -129,10 +177,6 @@ export default function ComensalesTab() {
     const items = group?.items || [];
     return (
       <section className={styles.section} aria-label={title}>
-        <h3 className={styles.sectionTitle}>
-          {title}
-          <span className={styles.sectionTotal}>{group?.total ?? 0}</span>
-        </h3>
         {items.length === 0 ? (
           <p className={styles.muted}>Sin comensales previstos.</p>
         ) : (
@@ -190,26 +234,14 @@ export default function ComensalesTab() {
                         <span className={styles.muted}>—</span>
                       )}
                     </td>
-                    <td>{item.roomLabel}</td>
-                    <td className={styles.num}>
-                      {item.origen === 'MANUAL' ? (
-                        <button
-                          type="button"
-                          className={styles.paxBtn}
-                          disabled={cancelada || busy}
-                          onClick={() => setCenaEditando(item)}
-                          aria-label={`Comensales de ${item.guestName}`}
-                        >
-                          {item.pax}
-                        </button>
+                    <td>
+                      {item.rooms?.length ? (
+                        <RoomNameChip rooms={item.rooms} />
                       ) : (
-                        <PaxCell
-                          item={item}
-                          editable={tipo === 'CENA' && !cancelada && !busy}
-                          onSave={(n) => run(item, () => actualizarComida(item.id, { pax: n }))}
-                        />
+                        <span className={styles.muted}>—</span>
                       )}
                     </td>
+                    <td className={styles.num}>{item.pax}</td>
                     <td>
                       {origenLabel(item)}
                       {sinComanda ? <span className={styles.warn}> · sin comanda</span> : null}
@@ -220,7 +252,7 @@ export default function ComensalesTab() {
                           className={`${styles.dot} ${cancelada ? styles.dotOff : styles.dotOn}`}
                           aria-hidden="true"
                         />
-                        {cancelada ? 'Cancelada' : 'Prevista'}
+                        {cancelada ? (item.origen === 'REGIMEN' ? 'Cambiada por almuerzo' : 'Cancelada') : 'Prevista'}
                       </span>
                     </td>
                     {tipo === 'CENA' ? (
@@ -238,16 +270,38 @@ export default function ComensalesTab() {
                               <FiShoppingBag aria-hidden="true" />
                             </button>
                           ) : null}
-                          {!cancelada ? (
+                          {!cancelada && item.origen === 'MANUAL' ? (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                onClick={() => setCenaEditando(item)}
+                                disabled={busy}
+                                title="Editar cena"
+                                aria-label={`Editar cena de ${item.guestName}`}
+                              >
+                                <FiEdit2 aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.iconBtn} ${styles.iconDanger}`}
+                                onClick={() => cancelar(item)}
+                                disabled={busy}
+                                title="Cancelar cena"
+                                aria-label={`Cancelar cena de ${item.guestName}`}
+                              >
+                                <FiXCircle aria-hidden="true" />
+                              </button>
+                            </>
+                          ) : !cancelada ? (
                             <button
                               type="button"
-                              className={`${styles.iconBtn} ${styles.iconDanger}`}
-                              onClick={() => cancelar(item)}
+                              className={styles.textBtn}
+                              onClick={() => cambiarPorAlmuerzo(item)}
                               disabled={busy}
-                              title="Cancelar cena"
-                              aria-label={`Cancelar cena de ${item.guestName}`}
+                              aria-label={`Cambiar por almuerzo la cena de ${item.guestName}`}
                             >
-                              <FiXCircle aria-hidden="true" />
+                              Cambiar por almuerzo
                             </button>
                           ) : item.origen === 'REGIMEN' ? (
                             <button
@@ -297,9 +351,11 @@ export default function ComensalesTab() {
         <button type="button" className={styles.btn} onClick={() => setFecha(todayIsoLocal())}>
           Hoy
         </button>
-        <button type="button" className={`${styles.btnPrimary} ${styles.pushRight}`} onClick={() => setNuevaCenaOpen(true)}>
-          <FiPlus aria-hidden="true" /> Cena
-        </button>
+        {esCena ? (
+          <button type="button" className={`${styles.btnPrimary} ${styles.pushRight}`} onClick={() => setNuevaCenaOpen(true)}>
+            <FiPlus aria-hidden="true" /> Cena
+          </button>
+        ) : null}
       </div>
 
       {error ? (
@@ -310,31 +366,38 @@ export default function ComensalesTab() {
       {loading && !data ? <p className={styles.muted}>Cargando…</p> : null}
 
       {data ? (
-        <div className={styles.sections}>
-          {renderSection('Desayunos', data.desayunos, 'DESAYUNO')}
-          {renderSection('Cenas', data.cenas, 'CENA')}
-        </div>
+        <>
+          <div className={styles.tablero}>
+            <ResumenDia fecha={fecha} grupo={data[grupoKey]} grande />
+            <ResumenDia fecha={shiftIso(fecha, 1)} grupo={siguiente?.[grupoKey]} />
+          </div>
+          {renderSection(esCena ? 'Cenas' : 'Desayunos', data[grupoKey], tipo)}
+        </>
       ) : null}
 
-      <NuevaCenaModal
-        open={nuevaCenaOpen}
-        fecha={fecha}
-        onClose={() => setNuevaCenaOpen(false)}
-        onSaved={load}
-      />
-      <NuevaCenaModal
-        open={Boolean(cenaEditando)}
-        fecha={fecha}
-        cena={cenaEditando}
-        onClose={() => setCenaEditando(null)}
-        onSaved={load}
-      />
-      <ConsumptionOrderModal
-        open={Boolean(comandaPreset)}
-        preset={comandaPreset}
-        onClose={() => setComandaPreset(null)}
-        onSaved={load}
-      />
+      {esCena ? (
+        <>
+          <NuevaCenaModal
+            open={nuevaCenaOpen}
+            fecha={fecha}
+            onClose={() => setNuevaCenaOpen(false)}
+            onSaved={load}
+          />
+          <NuevaCenaModal
+            open={Boolean(cenaEditando)}
+            fecha={fecha}
+            cena={cenaEditando}
+            onClose={() => setCenaEditando(null)}
+            onSaved={load}
+          />
+          <ConsumptionOrderModal
+            open={Boolean(comandaPreset)}
+            preset={comandaPreset}
+            onClose={() => setComandaPreset(null)}
+            onSaved={load}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

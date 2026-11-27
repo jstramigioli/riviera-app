@@ -9,6 +9,7 @@ import {
 } from '../../services/api';
 import { formatMoneyArs } from '../../utils/formatMoney';
 import { useOverlayDismiss } from '../../hooks/useOverlayDismiss';
+import { DIETAS } from '../../utils/dietas';
 import styles from './Comensales.module.css';
 
 const COMENSAL = { HUESPED: 'HUESPED', EXTERNO: 'EXTERNO' };
@@ -20,11 +21,6 @@ const EDADES = [
   { value: 'ADULTO', label: 'Adulto', factor: 1 },
   { value: 'NINO', label: '5 a 10 años', factor: 0.5 },
   { value: 'MENOR', label: 'Menor de 5', factor: 0 }
-];
-const DIETAS = [
-  { key: 'dietVegetariano', label: 'Vegetariano' },
-  { key: 'dietVegano', label: 'Vegano' },
-  { key: 'dietCeliaco', label: 'Celíaco' }
 ];
 
 function nuevoComensal() {
@@ -78,6 +74,7 @@ function ComensalesTable({ comensales, onChange, disabled }) {
               {d.label}
             </th>
           ))}
+          <th>Otra</th>
         </tr>
       </thead>
       <tbody>
@@ -110,6 +107,16 @@ function ComensalesTable({ comensales, onChange, disabled }) {
                 />
               </td>
             ))}
+            <td>
+              <input
+                className={`${styles.inputSm} ${styles.inputOtra}`}
+                value={c.dietOtra || ''}
+                maxLength={120}
+                disabled={disabled}
+                aria-label={`Otra dieta, comensal ${idx + 1}`}
+                onChange={(e) => set(idx, { dietOtra: e.target.value })}
+              />
+            </td>
           </tr>
         ))}
       </tbody>
@@ -279,7 +286,7 @@ export default function NuevaCenaModal({ open, fecha, cena = null, onClose, onSa
       <form className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={submit}>
         <header className={styles.modalHeader}>
           <h2 id={titleId} className={styles.modalTitle}>
-            {editing ? `Cena · ${cena.guestName}` : `Nueva cena · ${fecha}`}
+            {editing ? `Editar cena · ${cena.guestName}` : `Nueva cena · ${fecha}`}
           </h2>
           <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="Cerrar" title="Cerrar">
             <FiX aria-hidden="true" />

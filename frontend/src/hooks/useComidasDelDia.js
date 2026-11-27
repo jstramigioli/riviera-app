@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import { fetchComidasDelDia } from '../services/api';
 
+function resumen(group) {
+  return {
+    conDieta: Number(group?.conDieta) || 0,
+    dietas: group?.dietas || [],
+    porOrigen: group?.porOrigen || null
+  };
+}
+
 function toMealItem(row) {
   return {
     id: row.id,
     reservationId: row.reservationId,
     clientId: row.clientId,
     roomLabel: row.roomLabel,
+    rooms: row.rooms || [],
+    dietas: row.dietas || [],
     guestName: row.guestName,
     guests: row.pax,
     origen: row.origen,
@@ -21,6 +31,8 @@ export function mapComidasResponse(data) {
   return {
     breakfastGuests: Number(desayunos.total) || 0,
     dinnerGuests: Number(cenas.total) || 0,
+    breakfastResumen: resumen(desayunos),
+    dinnerResumen: resumen(cenas),
     breakfastItems: (desayunos.items || []).map(toMealItem),
     dinnerItems: (cenas.items || []).map(toMealItem)
   };

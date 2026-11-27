@@ -60,6 +60,12 @@ export const CONFIG_NAV = [
     keywords: ['cena', 'buffet', 'navidad', 'año nuevo', 'externo', 'alojado', 'gastronomia']
   },
   {
+    id: 'platos',
+    label: 'Catálogo de platos',
+    permission: 'settings',
+    keywords: ['plato', 'platos', 'menu diario', 'menú diario', 'comedor', 'catalogo']
+  },
+  {
     id: 'calendario',
     label: 'Calendario',
     permission: 'settings',

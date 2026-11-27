@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import {
   FiChevronLeft,
   FiChevronRight,
+  FiCopy,
   FiDownload,
+  FiEdit2,
   FiPlus,
   FiPrinter,
   FiSave,
-  FiTrash2,
   FiX
 } from 'react-icons/fi';
 import {
@@ -25,13 +26,15 @@ import {
   updateDailyMenu,
   copyDailyMenu,
   fetchDailyMenuPdfBlob,
-  searchDishes,
-  renameDish,
-  deleteDish
+  searchDishes
 } from '../services/gastronomiaApi';
 import { todayIsoLocal } from '../utils/calendarDates';
+import { CATALOG_CATEGORIES } from '../constants/catalogoPlatos';
+import { buildMenuPreviewSections } from '../utils/menuPreview';
 import ComensalesTab from '../components/gastronomia/ComensalesTab';
+import { useOverlayDismiss } from '../hooks/useOverlayDismiss';
 import styles from './Gastronomia.module.css';
+import modalStyles from '../components/gastronomia/Comensales.module.css';
 
 const MESA_ENSALADAS = 'mesa de ensaladas';
 
@@ -43,17 +46,6 @@ const SECTIONS = [
   { id: 'SEGUNDO_PLATO', label: 'Segundo plato' },
   { id: 'PLATO_INFANTIL', label: 'Plato infantil' },
   { id: 'POSTRE', label: 'Postres' }
-];
-
-/** Catálogo: 1º y 2º plato comparten «Plato principal». */
-const CATALOG_CATEGORIES = [
-  { id: 'ENTRADA', label: 'Entrada' },
-  { id: 'ENSALADA', label: 'Ensaladas' },
-  { id: 'SOPA', label: 'Sopa' },
-  { id: 'PLATO_PRINCIPAL', label: 'Plato principal' },
-  { id: 'PLATO_INFANTIL', label: 'Plato infantil' },
-  { id: 'POSTRE', label: 'Postres' },
-  { id: 'BUFFET', label: 'Buffet' }
 ];
 
 function sectionToDishCategory(section) {
@@ -69,11 +61,13 @@ const FIXED_SECTIONS = new Set(
 );
 
 const TABS = [
-  { id: 'comensales', label: 'Comensales' },
-  { id: 'week', label: 'Menús diarios' },
-  { id: 'history', label: 'Historial de menús' },
-  { id: 'catalog', label: 'Catálogo de platos' }
+  { id: 'desayuno', label: 'Desayuno' },
+  { id: 'cena', label: 'Cena' },
+  { id: 'week', label: 'Menús diarios' }
 ];
+
+/** Pestañas viejas (links guardados): comensales → cena, historial → menús. */
+const LEGACY_TABS = { comensales: 'cena', history: 'week' };
 
 function weekStartIso(iso) {
   const d = parseISO(iso);
@@ -196,9 +190,148 @@ async function openPdf(menuId, mode) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/** Menú completo (todas las secciones) para las tarjetas de la semana. */
+function MenuCompleto({ menu }) {
+  const sections = buildMenuPreviewSections(menu);
+  if (!sections.length) return <span className={styles.dayMeta}>Sin platos cargados</span>;
+  return (
+    <div className={styles.dayMenu}>
+      {sections.map((section) =>
+        section.titleOnly ? (
+          <p key={section.key} className={styles.dayMenuMesa}>
+            {section.title}
+          </p>
+        ) : (
+          <div key={section.key} className={styles.dayMenuSection}>
+            {section.title ? <span className={styles.dayMenuTitle}>{section.title}</span> : null}
+            <ul className={styles.dayMenuList}>
+              {section.items.map((name, i) => (
+                <li key={`${section.key}-${i}`}>{name}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+/** Descargar / imprimir / editar / reutilizar: mismas acciones en tarjetas e historial. */
+function MenuActions({ menu, onEdit, onReuse, onError }) {
+  const stop = (fn) => (e) => {
+    e.stopPropagation();
+    fn();
+  };
+  const pdf = (mode) =>
+    stop(() => {
+      openPdf(menu.id, mode).catch((err) => onError?.(err.message || 'No se pudo abrir el PDF'));
+    });
+  return (
+    <div className={styles.menuActions}>
+      <button type="button" className={styles.iconBtn} onClick={pdf('download')} title="Descargar" aria-label={`Descargar menú del ${menu.date}`}>
+        <FiDownload aria-hidden="true" />
+      </button>
+      <button type="button" className={styles.iconBtn} onClick={pdf('print')} title="Imprimir" aria-label={`Imprimir menú del ${menu.date}`}>
+        <FiPrinter aria-hidden="true" />
+      </button>
+      <button type="button" className={styles.iconBtn} onClick={stop(onEdit)} title="Editar" aria-label={`Editar menú del ${menu.date}`}>
+        <FiEdit2 aria-hidden="true" />
+      </button>
+      <button type="button" className={styles.iconBtn} onClick={stop(onReuse)} title="Reutilizar" aria-label={`Reutilizar menú del ${menu.date}`}>
+        <FiCopy aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** Copia un menú a otra fecha y abre el editor del nuevo. */
+function ReutilizarMenuModal({ menu, onClose, onDone }) {
+  const today = todayIsoLocal();
+  const [fecha, setFecha] = useState(() =>
+    menu.date === today ? format(addDays(parseISO(today), 1), 'yyyy-MM-dd') : today
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const overlay = useOverlayDismiss(onClose, { enabled: !saving });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await copyDailyMenu(menu.id, fecha);
+      onDone(created);
+    } catch (err) {
+      setError(err.status === 409 ? 'Ya hay un menú cargado ese día.' : err.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={modalStyles.overlay} role="presentation" {...overlay}>
+      <form
+        className={modalStyles.modal}
+        style={{ width: 'min(24rem, 100%)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reutilizar-menu-title"
+        onSubmit={submit}
+      >
+        <div className={modalStyles.modalHeader}>
+          <h2 id="reutilizar-menu-title" className={modalStyles.modalTitle}>
+            Reutilizar menú del {format(parseISO(menu.date), 'd/M')}
+          </h2>
+          <button type="button" className={modalStyles.iconBtn} onClick={onClose} aria-label="Cerrar">
+            <FiX aria-hidden="true" />
+          </button>
+        </div>
+        <div className={modalStyles.modalBody}>
+          <label className={modalStyles.field}>
+            <span className={modalStyles.label}>Para el día</span>
+            <input
+              type="date"
+              className={modalStyles.dateInput}
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              required
+            />
+          </label>
+          {error ? (
+            <p className={modalStyles.error} role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
+        <div className={modalStyles.modalFooter}>
+          <span />
+          <div className={modalStyles.footerActions}>
+            <button type="button" className={modalStyles.btn} onClick={onClose} disabled={saving}>
+              Cancelar
+            </button>
+            <button type="submit" className={modalStyles.btnPrimary} disabled={saving || !fecha}>
+              {saving ? 'Copiando…' : 'Reutilizar'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function Gastronomia() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || (searchParams.get('id') || searchParams.get('date') ? 'week' : 'comensales');
+  if (searchParams.get('tab') === 'catalog') {
+    return <Navigate to="/configuracion?tab=platos" replace />;
+  }
+  return <GastronomiaPage searchParams={searchParams} setSearchParams={setSearchParams} />;
+}
+
+function GastronomiaPage({ searchParams, setSearchParams }) {
+  const rawTab = searchParams.get('tab');
+  const tab =
+    LEGACY_TABS[rawTab] ||
+    (TABS.some((t) => t.id === rawTab) ? rawTab : null) ||
+    (searchParams.get('id') || searchParams.get('date') ? 'week' : 'desayuno');
   const editId = searchParams.get('id');
   const editDate = searchParams.get('date');
 
@@ -209,8 +342,7 @@ export default function Gastronomia() {
   );
   const [historyTo, setHistoryTo] = useState(() => todayIsoLocal());
   const [historyRows, setHistoryRows] = useState([]);
-  const [catalogQ, setCatalogQ] = useState('');
-  const [catalogRows, setCatalogRows] = useState([]);
+  const [reuseMenu, setReuseMenu] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -263,42 +395,13 @@ export default function Gastronomia() {
     }
   }, [historyFrom, historyTo]);
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const rows = await searchDishes(catalogQ, 200);
-      setCatalogRows(rows);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [catalogQ]);
-
-  const catalogByCategory = useMemo(() => {
-    const map = Object.fromEntries(
-      CATALOG_CATEGORIES.map((c) => [c.id, []])
-    );
-    for (const dish of catalogRows) {
-      const cat = dish.category || 'ENTRADA';
-      if (!map[cat]) map[cat] = [];
-      map[cat].push(dish);
-    }
-    return map;
-  }, [catalogRows]);
-
   useEffect(() => {
     if (tab === 'week' && !editId && !editDate) loadWeek();
   }, [tab, editId, editDate, loadWeek]);
 
   useEffect(() => {
-    if (tab === 'history') loadHistory();
-  }, [tab, loadHistory]);
-
-  useEffect(() => {
-    if (tab === 'catalog') loadCatalog();
-  }, [tab, loadCatalog]);
+    if (tab === 'week' && !editId && !editDate) loadHistory();
+  }, [tab, editId, editDate, loadHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -356,6 +459,7 @@ export default function Gastronomia() {
   }, [weekMenus]);
 
   const days = useMemo(() => weekDays(weekFrom), [weekFrom]);
+  const today = todayIsoLocal();
 
   const updateEditor = (patch) => {
     setEditor((prev) => (prev ? { ...prev, ...patch, dirty: true } : prev));
@@ -559,15 +663,6 @@ export default function Gastronomia() {
             <div className={styles.toolbar} style={{ marginTop: 12 }}>
               <button type="button" className={styles.btn} onClick={copyFromPreviousWeek}>
                 Copiar semana anterior
-              </button>
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => {
-                  setTab('history');
-                }}
-              >
-                Elegir del historial…
               </button>
               <button
                 type="button"
@@ -809,277 +904,157 @@ export default function Gastronomia() {
             <button
               type="button"
               className={styles.btn}
-              onClick={() =>
-                setWeekFrom(
-                  format(addDays(parseISO(weekFrom), -7), 'yyyy-MM-dd')
-                )
-              }
+              onClick={() => setWeekFrom(format(addDays(parseISO(weekFrom), -7), 'yyyy-MM-dd'))}
+              aria-label="Semana anterior"
             >
-              <FiChevronLeft /> Semana anterior
+              <FiChevronLeft aria-hidden="true" />
             </button>
             <span className={styles.weekLabel}>
-              Semana del{' '}
-              {format(parseISO(weekFrom), "d MMM yyyy", { locale: es })}
+              Semana del {format(parseISO(weekFrom), 'd MMM yyyy', { locale: es })}
             </span>
             <button
               type="button"
               className={styles.btn}
-              onClick={() =>
-                setWeekFrom(
-                  format(addDays(parseISO(weekFrom), 7), 'yyyy-MM-dd')
-                )
-              }
+              onClick={() => setWeekFrom(format(addDays(parseISO(weekFrom), 7), 'yyyy-MM-dd'))}
+              aria-label="Semana siguiente"
             >
-              Semana siguiente <FiChevronRight />
+              <FiChevronRight aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={() => openEditor({ date: todayIsoLocal() })}
-            >
-              <FiPlus /> Menú de hoy
-            </button>
+            {weekFrom !== weekStartIso(today) ? (
+              <button type="button" className={styles.btn} onClick={() => setWeekFrom(weekStartIso(today))}>
+                Esta semana
+              </button>
+            ) : null}
           </div>
           {error ? <p className={styles.error}>{error}</p> : null}
-          {loading ? <p className={styles.empty}>Cargando…</p> : null}
           <div className={styles.weekGrid} data-testid="gastronomia-week">
             {days.map((day) => {
               const menu = weekByDate.get(day.iso);
+              const isToday = day.iso === today;
+              const open = () => openEditor(menu ? { id: menu.id, date: day.iso } : { date: day.iso });
               return (
-                <button
+                <div
                   key={day.iso}
-                  type="button"
-                  className={`${styles.dayCard} ${
-                    menu ? '' : styles.dayCardEmpty
-                  } ${menu?.status === 'PUBLISHED' ? styles.dayCardPublished : ''}`}
-                  onClick={() =>
-                    openEditor(menu ? { id: menu.id, date: day.iso } : { date: day.iso })
-                  }
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${menu ? 'Menú' : 'Crear menú'} del ${day.label} ${day.dayNum}`}
+                  aria-current={isToday ? 'date' : undefined}
+                  className={[
+                    styles.dayCard,
+                    menu ? '' : styles.dayCardEmpty,
+                    day.iso < today ? styles.dayCardPast : '',
+                    isToday ? styles.dayCardToday : ''
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={open}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      open();
+                    }
+                  }}
                 >
-                  <span className={styles.dayName}>{day.label}</span>
-                  <span className={styles.dayDate}>{day.dayNum}</span>
+                  <div className={styles.dayHead}>
+                    <span className={styles.dayName}>{isToday ? 'Hoy' : day.label}</span>
+                    <span className={styles.dayDate}>{day.dayNum}</span>
+                    {menu ? <StatusBadge status={menu.status} /> : null}
+                  </div>
                   {menu ? (
                     <>
-                      <StatusBadge status={menu.status} />
-                      <span className={styles.dayMeta}>
-                        {menu.kind === 'BUFFET' ? 'Buffet' : 'Convencional'}
-                      </span>
-                      <span className={styles.dayPreview}>{menu.preview || '—'}</span>
+                      <MenuCompleto menu={menu} />
+                      <MenuActions
+                        menu={menu}
+                        onEdit={open}
+                        onReuse={() => setReuseMenu(menu)}
+                        onError={setError}
+                      />
                     </>
                   ) : (
-                    <span className={styles.dayMeta}>Sin menú · crear</span>
+                    <span className={styles.dayEmpty}>
+                      <FiPlus aria-hidden="true" /> Sin menú
+                    </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
-        </div>
-      ) : null}
 
-      {!editor && tab === 'comensales' ? <ComensalesTab /> : null}
-
-      {!editor && tab === 'history' ? (
-        <div className={styles.panel}>
-          <div className={styles.toolbar}>
-            <div className={styles.field}>
-              <label htmlFor="h-from">Desde</label>
-              <input
-                id="h-from"
-                type="date"
-                value={historyFrom}
-                onChange={(e) => setHistoryFrom(e.target.value)}
-              />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="h-to">Hasta</label>
-              <input
-                id="h-to"
-                type="date"
-                value={historyTo}
-                onChange={(e) => setHistoryTo(e.target.value)}
-              />
-            </div>
-            <button type="button" className={styles.btn} onClick={loadHistory}>
-              Filtrar
-            </button>
-          </div>
-          {error ? <p className={styles.error}>{error}</p> : null}
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Preview</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {historyRows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.date}</td>
-                  <td>{row.kind === 'BUFFET' ? 'Buffet' : 'Convencional'}</td>
-                  <td>
-                    <StatusBadge status={row.status} />
-                  </td>
-                  <td>{row.preview || '—'}</td>
-                  <td>
-                    <div className={styles.actions}>
-                      <button
-                        type="button"
-                        className={styles.btn}
-                        onClick={() => openEditor({ id: row.id, date: row.date })}
-                      >
-                        Abrir
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.btn}
-                        onClick={() => {
-                          const target = todayIsoLocal();
-                          copyDailyMenu(row.id, target)
-                            .then((created) => openEditor({ id: created.id, date: created.date }))
-                            .catch((err) => setError(err.message));
-                        }}
-                      >
-                        Reutilizar hoy
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.btn}
-                        onClick={() => openPdf(row.id, 'preview')}
-                      >
-                        PDF
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!historyRows.length && !loading ? (
-            <p className={styles.empty}>Sin menús en el rango.</p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {!editor && tab === 'catalog' ? (
-        <div className={styles.panel}>
-          <div className={styles.toolbar}>
-            <div className={styles.field} style={{ flex: 1 }}>
-              <label htmlFor="c-q">Buscar plato</label>
-              <input
-                id="c-q"
-                value={catalogQ}
-                onChange={(e) => setCatalogQ(e.target.value)}
-                placeholder="Nombre parcial…"
-              />
-            </div>
-            <button type="button" className={styles.btn} onClick={loadCatalog}>
-              Buscar
-            </button>
-          </div>
-          {error ? <p className={styles.error}>{error}</p> : null}
-          {CATALOG_CATEGORIES.map((cat) => {
-            const rows = catalogByCategory[cat.id] || [];
-            return (
-              <div key={cat.id} className={styles.catalogGroup}>
-                <h3 className={styles.sectionTitle}>
-                  {cat.label}
-                  <span className={styles.catalogCount}>{rows.length}</span>
-                </h3>
-                {rows.length ? (
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Nombre</th>
-                        <th>Categoría</th>
-                        <th>Usos</th>
-                        <th>Último uso</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((dish) => (
-                        <tr key={dish.id}>
-                          <td>
-                            <input
-                              defaultValue={dish.name}
-                              aria-label={`Nombre ${dish.name}`}
-                              onBlur={async (e) => {
-                                const next = e.target.value.trim();
-                                if (!next || next === dish.name) return;
-                                try {
-                                  await renameDish(dish.id, { name: next });
-                                  loadCatalog();
-                                } catch (err) {
-                                  setError(err.message);
-                                  e.target.value = dish.name;
-                                }
-                              }}
-                            />
-                          </td>
-                          <td>
-                            <select
-                              className={styles.catalogSelect}
-                              value={dish.category || cat.id}
-                              aria-label={`Categoría ${dish.name}`}
-                              onChange={async (e) => {
-                                const next = e.target.value;
-                                if (next === dish.category) return;
-                                try {
-                                  await renameDish(dish.id, { category: next });
-                                  loadCatalog();
-                                } catch (err) {
-                                  setError(err.message);
-                                  e.target.value = dish.category || cat.id;
-                                }
-                              }}
-                            >
-                              {CATALOG_CATEGORIES.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td>{dish.usageCount}</td>
-                          <td>
-                            {dish.lastUsedAt
-                              ? String(dish.lastUsedAt).slice(0, 10)
-                              : '—'}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.iconBtn}
-                              title="Borrar"
-                              onClick={async () => {
-                                try {
-                                  await deleteDish(dish.id);
-                                  loadCatalog();
-                                } catch (err) {
-                                  setError(err.message);
-                                }
-                              }}
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className={styles.emptyMuted}>Sin platos en esta categoría.</p>
-                )}
+          <section className={styles.historySection} aria-labelledby="historial-menus">
+            <div className={styles.toolbar}>
+              <h3 id="historial-menus" className={styles.historyTitle}>
+                Historial
+              </h3>
+              <div className={styles.field}>
+                <label htmlFor="h-from">Desde</label>
+                <input id="h-from" type="date" value={historyFrom} onChange={(e) => e.target.value && setHistoryFrom(e.target.value)} />
               </div>
-            );
-          })}
-          {!catalogRows.length && !loading ? (
-            <p className={styles.empty}>Sin platos en el catálogo.</p>
-          ) : null}
+              <div className={styles.field}>
+                <label htmlFor="h-to">Hasta</label>
+                <input id="h-to" type="date" value={historyTo} onChange={(e) => e.target.value && setHistoryTo(e.target.value)} />
+              </div>
+            </div>
+            {historyRows.length ? (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Menú</th>
+                    <th aria-label="Acciones" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.linkBtn}
+                          onClick={() => openEditor({ id: row.id, date: row.date })}
+                        >
+                          {format(parseISO(row.date), 'EEE d/M/yyyy', { locale: es })}
+                        </button>
+                      </td>
+                      <td>{row.kind === 'BUFFET' ? 'Buffet' : 'Convencional'}</td>
+                      <td>
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td>{row.preview || '—'}</td>
+                      <td>
+                        <MenuActions
+                          menu={row}
+                          onEdit={() => openEditor({ id: row.id, date: row.date })}
+                          onReuse={() => setReuseMenu(row)}
+                          onError={setError}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : !loading ? (
+              <p className={styles.empty}>Sin menús en el rango.</p>
+            ) : null}
+          </section>
         </div>
+      ) : null}
+
+      {!editor && (tab === 'desayuno' || tab === 'cena') ? (
+        <ComensalesTab key={tab} tipo={tab === 'cena' ? 'CENA' : 'DESAYUNO'} />
+      ) : null}
+
+      {reuseMenu ? (
+        <ReutilizarMenuModal
+          menu={reuseMenu}
+          onClose={() => setReuseMenu(null)}
+          onDone={(created) => {
+            setReuseMenu(null);
+            openEditor({ id: created.id, date: created.date });
+          }}
+        />
       ) : null}
       </div>
     </div>
