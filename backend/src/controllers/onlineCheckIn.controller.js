@@ -101,7 +101,8 @@ function emptyPersonalFields() {
     wantsPromotions: false,
     dietVegetariano: false,
     dietVegano: false,
-    dietCeliaco: false
+    dietCeliaco: false,
+    dietOtra: ''
   };
 }
 
@@ -132,7 +133,8 @@ function snapshotFields(checkIn) {
     wantsPromotions: false,
     dietVegetariano: Boolean(checkIn.dietVegetariano),
     dietVegano: Boolean(checkIn.dietVegano),
-    dietCeliaco: Boolean(checkIn.dietCeliaco)
+    dietCeliaco: Boolean(checkIn.dietCeliaco),
+    dietOtra: checkIn.dietOtra || ''
   };
 }
 
@@ -155,7 +157,8 @@ function clientPrefill(client = {}, reservation = {}, guest = {}) {
     wantsPromotions: Boolean(client.wantsPromotions),
     dietVegetariano: Boolean(guest.dietVegetariano),
     dietVegano: Boolean(guest.dietVegano),
-    dietCeliaco: Boolean(guest.dietCeliaco)
+    dietCeliaco: Boolean(guest.dietCeliaco),
+    dietOtra: guest.dietOtra || ''
   };
 }
 
@@ -380,7 +383,8 @@ async function ensureGuestCheckInRows(reservation, { markSent = false } = {}) {
           address: guest.address || null,
           dietVegetariano: Boolean(guest.dietVegetariano),
           dietVegano: Boolean(guest.dietVegano),
-          dietCeliaco: Boolean(guest.dietCeliaco)
+          dietCeliaco: Boolean(guest.dietCeliaco),
+          dietOtra: guest.dietOtra || null
         }
       });
     } else if (shouldMarkSent && row.status !== 'COMPLETED' && row.status !== 'EXPIRED') {
@@ -984,6 +988,7 @@ async function submitPublicCheckIn(req, res) {
     const dietVegetariano = Boolean(body.dietVegetariano);
     const dietVegano = Boolean(body.dietVegano);
     const dietCeliaco = Boolean(body.dietCeliaco);
+    const dietOtra = normalizeText(body.dietOtra)?.slice(0, 120) || null;
     const markValidated = Boolean(body.validated);
 
     if (!documentNumberNormalized) {
@@ -1030,7 +1035,8 @@ async function submitPublicCheckIn(req, res) {
             clientId,
             dietVegetariano,
             dietVegano,
-            dietCeliaco
+            dietCeliaco,
+            dietOtra
           }
         });
 
@@ -1058,6 +1064,7 @@ async function submitPublicCheckIn(req, res) {
               dietVegetariano,
               dietVegano,
               dietCeliaco,
+              dietOtra,
               needsManualReview: resolution.needsManualReview,
               identityConflictNote: resolution.identityConflictNote
             }

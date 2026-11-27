@@ -26,7 +26,8 @@ export const EMPTY_GUEST_PERSONAL_FIELDS = {
   wantsPromotions: false,
   dietVegetariano: false,
   dietVegano: false,
-  dietCeliaco: false
+  dietCeliaco: false,
+  dietOtra: ''
 };
 
 /**
@@ -273,6 +274,18 @@ export default function GuestPersonalFormFields({
             data-testid="guest-diet-celiaco"
           />
           Celíaco
+        </label>
+        <label className={styles.field}>
+          <span>Otra</span>
+          <input
+            name="dietOtra"
+            value={fields.dietOtra || ''}
+            onChange={handleChange}
+            maxLength={120}
+            placeholder="Por ejemplo: sin sal"
+            disabled={disabled}
+            data-testid="guest-diet-otra"
+          />
         </label>
       </section>
 

@@ -71,7 +71,8 @@ export default function PublicCheckIn() {
             wantsPromotions: Boolean(snap.wantsPromotions),
             dietVegetariano: Boolean(snap.dietVegetariano),
             dietVegano: Boolean(snap.dietVegano),
-            dietCeliaco: Boolean(snap.dietCeliaco)
+            dietCeliaco: Boolean(snap.dietCeliaco),
+            dietOtra: snap.dietOtra || ''
           }
         : { ...EMPTY_GUEST_PERSONAL_FIELDS }
     );

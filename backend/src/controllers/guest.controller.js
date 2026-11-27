@@ -30,7 +30,8 @@ function guestTableFields(body = {}) {
     city: normalizeText(body.city),
     dietVegetariano: Boolean(body.dietVegetariano),
     dietVegano: Boolean(body.dietVegano),
-    dietCeliaco: Boolean(body.dietCeliaco)
+    dietCeliaco: Boolean(body.dietCeliaco),
+    dietOtra: normalizeText(body.dietOtra)?.slice(0, 120) || null
   };
 }
 
@@ -332,6 +333,7 @@ exports.updateGuest = async (req, res) => {
         data.dietVegetariano !== undefined ? data.dietVegetariano : current.dietVegetariano,
       dietVegano: data.dietVegano !== undefined ? data.dietVegano : current.dietVegano,
       dietCeliaco: data.dietCeliaco !== undefined ? data.dietCeliaco : current.dietCeliaco,
+      dietOtra: data.dietOtra !== undefined ? data.dietOtra : current.dietOtra,
       birthDate: data.birthDate,
       country: data.country,
       province: data.province,

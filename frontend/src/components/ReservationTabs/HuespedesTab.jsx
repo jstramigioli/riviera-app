@@ -17,6 +17,7 @@ import {
   formatBirthDateDisplay
 } from '../../constants/clientFormFields';
 import { getAddressFromNotes } from '../../utils/clientAddressNotes';
+import { dietasDe } from '../../utils/dietas';
 import GuestPersonalFormFields, {
   EMPTY_GUEST_PERSONAL_FIELDS
 } from '../GuestPersonalFormFields';
@@ -137,7 +138,8 @@ const HuespedesTab = ({
       wantsPromotions: Boolean(client.wantsPromotions),
       dietVegetariano: Boolean(guest.dietVegetariano),
       dietVegano: Boolean(guest.dietVegano),
-      dietCeliaco: Boolean(guest.dietCeliaco)
+      dietCeliaco: Boolean(guest.dietCeliaco),
+      dietOtra: guest.dietOtra || ''
     };
   };
 
@@ -646,16 +648,9 @@ const HuespedesTab = ({
                     <strong>Tel:</strong> {guest.phone}
                   </div>
                 )}
-                {(guest.dietVegetariano || guest.dietVegano || guest.dietCeliaco) && (
+                {dietasDe(guest).length > 0 && (
                   <div className={styles.guestDetail} data-testid="guest-diet-summary">
-                    <strong>Dieta:</strong>{' '}
-                    {[
-                      guest.dietVegetariano ? 'Vegetariano' : null,
-                      guest.dietVegano ? 'Vegano' : null,
-                      guest.dietCeliaco ? 'Celíaco' : null
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
+                    <strong>Dieta:</strong> {dietasDe(guest).join(' · ')}
                   </div>
                 )}
               </div>
