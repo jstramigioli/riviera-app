@@ -1,0 +1,115 @@
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.filterBtn:hover,
+.filterBtnOpen {
+  background: var(--color-bg-light);
+  color: var(--color-primary-dark);
+  border-color: var(--color-border);
+}
+
+.filterBtnActive {
+  color: var(--color-primary-dark);
+  background: rgba(63, 95, 138, 0.12);
+  border-color: var(--color-primary);
+}
+
+.filterMenu {
+  position: fixed;
+  z-index: 80;
+  min-width: 170px;
+  max-width: 250px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  cursor: default;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font: inherit;
+  font-size: var(--font-size-small);
+  color: var(--color-text-dark);
+  background: var(--color-bg-white);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowLabel {
+  flex: 0 0 2.75rem;
+  font-size: var(--font-size-small);
+  color: var(--color-text-dark);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-medium);
+  color: var(--color-text-main);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.clear {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-small);
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.clear:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}

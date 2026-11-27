@@ -4,13 +4,25 @@ import { format } from 'date-fns';
 import { FiX } from 'react-icons/fi';
 import ConfirmationModal from './ConfirmationModal';
 import ReservationIdChip from './ReservationIdChip';
+import ColumnFilter from './ColumnFilter';
+import { DateRangeFilter, NumberRangeFilter, TextFilter } from './ColumnFilterControls';
+import { inDateRange, inNumberRange, isFilterActive, matchesText } from '../utils/columnFilters';
 import styles from '../styles/QueriesTable.module.css';
+
+function calculateNights(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return 0;
+  const diffTime = Math.abs(new Date(checkOut) - new Date(checkIn));
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
 
 function QueriesTable({ queries, onDeleteQuery }) {
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
   const [modalOpen, setModalOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState(null);
+  const [filters, setFilters] = useState({});
+  const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const hasFilters = Object.values(filters).some(isFilterActive);
   const navigate = useNavigate();
 
   const handleSort = (field) => {
@@ -25,7 +37,20 @@ function QueriesTable({ queries, onDeleteQuery }) {
   const sortedQueries = useMemo(() => {
     if (!queries || queries.length === 0) return [];
 
-    return [...queries].sort((a, b) => {
+    const filtered = queries.filter((q) => {
+      const client = q.mainClient ? `${q.mainClient.firstName} ${q.mainClient.lastName}` : '';
+      return (
+        matchesText(String(q.id), String(filters.id || '').replace(/^#/, '')) &&
+        matchesText(client, filters.client) &&
+        inDateRange(q.checkIn, filters.checkIn) &&
+        inDateRange(q.checkOut, filters.checkOut) &&
+        inNumberRange(calculateNights(q.checkIn, q.checkOut), filters.nights) &&
+        inNumberRange(q.requiredGuests || 1, filters.guests) &&
+        inDateRange(q.updatedAt, filters.updatedAt)
+      );
+    });
+
+    return filtered.sort((a, b) => {
       let aValue, bValue;
 
       switch (sortField) {
@@ -65,15 +90,7 @@ function QueriesTable({ queries, onDeleteQuery }) {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [queries, sortField, sortDirection]);
-
-  const calculateNights = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 0;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const diffTime = Math.abs(end - start);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+  }, [queries, sortField, sortDirection, filters]);
 
   const handleQueryClick = (query) => {
     // Navegar a la página de consulta con los datos precargados
@@ -103,6 +120,32 @@ function QueriesTable({ queries, onDeleteQuery }) {
     setQueryToDelete(null);
   };
 
+  const renderHeader = (field, label, filter) => (
+    <th className={styles.sortableHeader} onClick={() => handleSort(field)}>
+      {label}
+      {sortField === field ? (
+        <span className={styles.sortIndicator}>{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
+      ) : null}
+      <ColumnFilter label={label} active={isFilterActive(filters[filter.key])}>
+        {filter.render(filters[filter.key], setFilter(filter.key), label)}
+      </ColumnFilter>
+    </th>
+  );
+  const text = (key, placeholder) => ({
+    key,
+    render: (value, onChange, label) => (
+      <TextFilter label={label} value={value} onChange={onChange} placeholder={placeholder} />
+    )
+  });
+  const dates = (key) => ({
+    key,
+    render: (value, onChange, label) => <DateRangeFilter label={label} value={value} onChange={onChange} />
+  });
+  const numbers = (key) => ({
+    key,
+    render: (value, onChange, label) => <NumberRangeFilter label={label} value={value} onChange={onChange} />
+  });
+
   if (!queries || queries.length === 0) {
     return (
       <div className={styles.noData}>
@@ -116,48 +159,13 @@ function QueriesTable({ queries, onDeleteQuery }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('id')}
-            >
-              ID
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('client')}
-            >
-              Cliente
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('checkIn')}
-            >
-              Check-in
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('checkOut')}
-            >
-              Check-out
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('nights')}
-            >
-              Noches
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('guests')}
-            >
-              Huéspedes
-            </th>
-            <th 
-              className={styles.sortableHeader}
-              onClick={() => handleSort('updatedAt')}
-            >
-              Última Modificación
-            </th>
+            {renderHeader('id', 'ID', text('id', '# consulta'))}
+            {renderHeader('client', 'Cliente', text('client'))}
+            {renderHeader('checkIn', 'Check-in', dates('checkIn'))}
+            {renderHeader('checkOut', 'Check-out', dates('checkOut'))}
+            {renderHeader('nights', 'Noches', numbers('nights'))}
+            {renderHeader('guests', 'Huéspedes', numbers('guests'))}
+            {renderHeader('updatedAt', 'Última Modificación', dates('updatedAt'))}
             <th className={styles.actionHeader}>
               Acciones
             </th>
@@ -221,6 +229,16 @@ function QueriesTable({ queries, onDeleteQuery }) {
           ))}
         </tbody>
       </table>
+      {sortedQueries.length === 0 ? (
+        <div className={styles.noData}>
+          <p>No hay consultas que coincidan con los filtros.</p>
+        </div>
+      ) : null}
+      {hasFilters ? (
+        <button type="button" className={styles.clearFilters} onClick={() => setFilters({})}>
+          Quitar filtros
+        </button>
+      ) : null}
       
       <ConfirmationModal
         isOpen={modalOpen}

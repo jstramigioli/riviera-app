@@ -357,3 +357,18 @@
     display: none;
   }
 } 
+.clearFilters {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-white);
+  color: var(--color-primary-dark);
+  font: inherit;
+  font-size: var(--font-size-medium);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clearFilters:hover {
+  border-color: var(--color-primary);
+}
