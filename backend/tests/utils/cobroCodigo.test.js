@@ -15,10 +15,23 @@ describe('códigos de cobro', () => {
     expect(parseCobroCodigo('X1')).toBeNull();
   });
 
-  test('allocateNextCobroCodigo toma el máximo + 1', async () => {
-    const db = { cobro: { findFirst: jest.fn().mockResolvedValue({ codigo: 'A999' }) } };
+  test('después de Z999 sigue AA000…ZZ999 (antes se agotaba)', () => {
+    expect(formatCobroCodigo(25999)).toBe('Z999');
+    expect(formatCobroCodigo(26000)).toBe('AA000');
+    expect(formatCobroCodigo(27000)).toBe('AB000');
+    expect(parseCobroCodigo('AB000')).toBe(27000);
+    expect(parseCobroCodigo('ZZ999')).toBe(701999);
+    expect(() => formatCobroCodigo(702000)).toThrow(/agotaron/);
+  });
+
+  test('allocateNextCobroCodigo toma el máximo + 1 (orden por largo, no alfabético)', async () => {
+    const db = { $queryRaw: jest.fn().mockResolvedValue([{ codigo: 'A999' }]) };
     await expect(allocateNextCobroCodigo(db)).resolves.toBe('B000');
-    db.cobro.findFirst.mockResolvedValue(null);
+    db.$queryRaw.mockResolvedValue([{ codigo: 'Z999' }]);
+    await expect(allocateNextCobroCodigo(db)).resolves.toBe('AA000');
+    db.$queryRaw.mockResolvedValue([{ codigo: 'AZ999' }]);
+    await expect(allocateNextCobroCodigo(db)).resolves.toBe('BA000');
+    db.$queryRaw.mockResolvedValue([]);
     await expect(allocateNextCobroCodigo(db)).resolves.toBe('A000');
   });
 
